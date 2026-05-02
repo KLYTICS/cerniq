@@ -1,0 +1,46 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "_comment": "AEGIS Postgres service descriptor. Two paths: (a) Railway's managed Postgres plugin (simplest, single-region), or (b) Neon (recommended — branching, autoscale, point-in-time restore). This file documents the Railway-managed path; for Neon, you only need to wire DATABASE_URL into the API and worker service env vars.",
+  "_planTier": "Railway Postgres Hobby ($5/mo, 1 GB) is fine for pre-launch. Move to Neon Scale ($69/mo) before announcing GA — point-in-time restore is non-negotiable for an audit-log product.",
+  "_region": "us-east — must match API + worker.",
+  "_image": "Railway's managed plugin runs Postgres 16. We pin to PG16 because the Prisma migrations assume features (gen_random_uuid in pgcrypto, GENERATED ALWAYS AS IDENTITY) that are stable on 16; do not downgrade.",
+  "image": "postgres:16-alpine",
+  "deploy": {
+    "_healthcheck": "Postgres self-reports readiness via `pg_isready`. Railway's plugin handles this internally. If you self-host, mount a readiness probe shell script.",
+    "restartPolicyType": "ALWAYS",
+    "numReplicas": 1,
+    "_replicasNote": "Postgres primary is single-replica. Read replicas are tracked in docs/ARCHITECTURE.md § 8 'Open architectural questions' — Phase 3 only."
+  },
+  "regions": ["us-east"],
+  "volumes": [
+    {
+      "name": "aegis-pg-data",
+      "mountPath": "/var/lib/postgresql/data",
+      "_sizeNote": "Start at 10 GB. Audit events accumulate; revisit when used % > 70%."
+    }
+  ],
+  "initialization": {
+    "_runOnce": "Railway runs files in /docker-entrypoint-initdb.d/ exactly once on first boot. Mount infra/postgres/init.sql there. Re-running requires a volume reset.",
+    "scripts": ["infra/postgres/init.sql"]
+  },
+  "tuning": {
+    "_reference": "infra/postgres/postgresql.conf.tuning — apply via Railway's `Postgres Configuration` panel or by mounting a postgresql.conf override.",
+    "_criticalKnobs": [
+      "shared_buffers — 25% of container RAM (Railway exposes the limit as MEMORY_LIMIT_MB).",
+      "max_connections — 100 is fine pre-launch; bump if pgbouncer is NOT in front. With pooler, leave at 100 and let pgbouncer multiplex.",
+      "work_mem — keep modest (4-8 MB); audit-log queries are mostly sequential reads, no hash joins."
+    ]
+  },
+  "envVars": [
+    { "key": "POSTGRES_USER", "value": "aegis", "secret": false, "_note": "Migration owner. Application connects as `aegis_app` (created by init.sql) — separate role for least privilege." },
+    { "key": "POSTGRES_DB", "value": "aegis", "secret": false },
+    { "key": "POSTGRES_PASSWORD", "secret": true, "_provision": "Railway generates this when the plugin is created. Rotate via Railway dashboard; remember to update DATABASE_URL on the API + worker after rotation." },
+    { "key": "PGDATA", "value": "/var/lib/postgresql/data/pgdata", "secret": false },
+    { "key": "POSTGRES_INITDB_ARGS", "value": "--encoding=UTF8 --lc-collate=C --lc-ctype=C", "secret": false, "_note": "C collation is faster and avoids ICU drift across PG versions; we don't need locale-aware sorting on identifiers." }
+  ],
+  "_backups": {
+    "policy": "Railway plugin: snapshots are not automatic. Either (a) configure pg_dump to S3 via a scheduled job, or (b) move to Neon which has continuous backup + PITR. Option (b) strongly recommended before paid GA — losing audit chain history is a compliance event.",
+    "rpoTargetMinutes": 5,
+    "rtoTargetMinutes": 60
+  }
+}

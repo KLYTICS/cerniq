@@ -1,0 +1,41 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "_comment": "AEGIS BATE / webhook worker — separate Railway service from the API. Shares the same Postgres + Redis. No public ingress; do NOT attach a domain.",
+  "_planTier": "Hobby is sufficient until BATE recompute lag (Grafana panel: bate_recompute_lag_seconds) routinely exceeds 60s, then upsize to Pro for committed CPU.",
+  "_region": "us-east — must match the API service so Redis and Postgres traffic stays intra-region.",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "infra/docker/Dockerfile.worker",
+    "_nixpacksAlternative": "If using NIXPACKS instead, set buildCommand to mirror the API service and override startCommand to `node apps/api/dist/workers/main.js`."
+  },
+  "deploy": {
+    "startCommand": "node apps/api/dist/workers/main.js",
+    "_healthcheckNote": "No HTTP healthcheck — this is a queue consumer. Liveness is enforced by Railway's restart policy + BullMQ heartbeat. If we expose a /metrics endpoint later, add `healthcheckPath: /metrics`.",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10,
+    "_restartRationale": "Higher retry count than the API because transient Redis hiccups should not page the operator; the worker can re-enter the queue safely thanks to BullMQ's at-least-once delivery + the audit chain's idempotent append.",
+    "numReplicas": 1,
+    "_scaleNote": "Run a single worker replica until BATE signal volume justifies sharding by queue. When that happens, split into per-queue services (bate-worker, webhook-worker, signal-worker) rather than scaling this one horizontally — BullMQ's `concurrency` already gives intra-process parallelism."
+  },
+  "regions": ["us-east"],
+  "envVars": [
+    { "key": "NODE_ENV", "value": "production", "secret": false },
+    { "key": "AEGIS_ENV", "value": "production", "secret": false },
+    { "key": "LOG_LEVEL", "value": "info", "secret": false },
+    { "key": "WORKER_TYPE", "value": "all", "secret": false, "_note": "Override per replica when sharding queues: bate | webhooks | signals | all." },
+
+    { "key": "DATABASE_URL", "secret": true, "_provision": "Same connection string as the API service — share via Railway's reference variable: ${{ aegis-api.DATABASE_URL }}." },
+    { "key": "DATABASE_DIRECT_URL", "secret": true, "_provision": "Mirror of the API's DATABASE_DIRECT_URL. The worker may run lightweight read queries that are friendlier to a direct connection than to pgbouncer transaction-pool mode." },
+    { "key": "REDIS_URL", "secret": true, "_provision": "Reference: ${{ aegis-api.REDIS_URL }}. Sharing the cache instance is intentional — BullMQ requires it." },
+
+    { "key": "AUDIT_ED25519_PRIVATE_KEY_B64", "secret": true, "_provision": "Same key as the API. The worker writes audit events for asynchronous outcomes (webhook delivery results, BATE score changes); the chain stays unbroken because both services sign with the same key." },
+    { "key": "AUDIT_ED25519_PUBLIC_KEY_B64", "secret": false, "_provision": "Reference from API service." },
+
+    { "key": "ENABLE_BATE", "value": "true", "secret": false },
+    { "key": "ENABLE_WEBHOOKS", "value": "true", "secret": false },
+
+    { "key": "SENTRY_DSN", "secret": true, "_provision": "Use a SEPARATE Sentry project from the API so worker errors don't drown the API issue list." },
+    { "key": "OTEL_EXPORTER_OTLP_ENDPOINT", "secret": false, "_provision": "Same collector endpoint as the API; the collector multiplexes by service.name." },
+    { "key": "OTEL_SERVICE_NAME", "value": "aegis-worker", "secret": false }
+  ]
+}

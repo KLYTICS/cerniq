@@ -1,0 +1,140 @@
+# =============================================================================
+# AEGIS — Postgres production tuning notes
+# =============================================================================
+# This file is NOT a complete postgresql.conf. It is the set of overrides we
+# apply on top of the stock postgres:16-alpine defaults. Apply by either:
+#   (a) Mounting a postgresql.conf that ends with `include = '...'` and
+#       points at this file, or
+#   (b) Pasting these lines into Railway's Postgres Configuration panel.
+#
+# All values are sized for a 1 GB / 1 vCPU container. If you provision a
+# bigger plan, scale `shared_buffers`, `effective_cache_size`, and
+# `maintenance_work_mem` proportionally. The other knobs are workload-
+# shaped, not memory-shaped, and stay put.
+#
+# Numbers without rationale are forbidden — every value below has a
+# documented reason. If you need to change one, replace the rationale too.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Memory
+# -----------------------------------------------------------------------------
+# shared_buffers: 25% of container RAM is the textbook starting point.
+# At 1 GB, that's 256 MB. Going much higher invites OOM under sustained
+# write pressure (the audit chain INSERTs are append-only and steady).
+shared_buffers = 256MB
+
+# effective_cache_size: hint to the planner about how much OS page cache
+# is available. ~75% of container RAM. NOT an allocation — just a planner
+# input. Setting this too low makes the planner over-prefer sequential
+# scans; setting it too high makes it over-prefer index scans on cold
+# data.
+effective_cache_size = 768MB
+
+# work_mem: per-sort / per-hash-join allocation. AEGIS workloads are PK
+# lookups + small range scans (audit events by principal+date). 8 MB is
+# generous for that pattern; bumping higher only helps reporting queries
+# that happen rarely. The risk of high work_mem is multiplication —
+# max_connections * work_mem can blow the container, so we keep it low.
+work_mem = 8MB
+
+# maintenance_work_mem: VACUUM + CREATE INDEX. Bursty, infrequent. 64 MB
+# lets autovacuum keep up with the audit-event table without thrashing.
+maintenance_work_mem = 64MB
+
+# -----------------------------------------------------------------------------
+# Connections
+# -----------------------------------------------------------------------------
+# max_connections: API runs at most 1 replica * Prisma's default pool
+# (10 connections) = 10. Worker adds up to 10. Headroom for psql,
+# Studio, BI tools = 20. Set 100 for slack.
+# IF you front Postgres with pgbouncer (recommended at scale), keep this
+# at 100 — the pooler multiplexes many app connections onto fewer real
+# ones.
+max_connections = 100
+
+# -----------------------------------------------------------------------------
+# Write-ahead log + checkpointing
+# -----------------------------------------------------------------------------
+# wal_level = replica is the minimum that supports physical replication
+# and the ability to take pg_basebackup-style snapshots later. `logical`
+# is required only for logical replication — not enabled v1.
+wal_level = replica
+
+# Checkpoint behavior: spread the checkpoint write over 90% of the
+# interval to avoid latency spikes when a checkpoint happens to align
+# with a verify burst.
+max_wal_size = 2GB
+min_wal_size = 80MB
+checkpoint_timeout = 15min
+checkpoint_completion_target = 0.9
+
+# Synchronous_commit: leave ON. The audit chain integrity guarantees in
+# docs/SECURITY.md § 8 depend on a successful commit meaning "the WAL
+# entry is fsynced". Turning this off (or to remote_apply with a flaky
+# replica) would let the API ack a verify whose audit event is lost on
+# crash — exactly the silent-failure class CLAUDE.md § 4 forbids.
+synchronous_commit = on
+
+# -----------------------------------------------------------------------------
+# Query planner
+# -----------------------------------------------------------------------------
+# random_page_cost = 1.1 reflects SSD-backed storage (Railway, Neon,
+# Upstash). The 4.0 default is for spinning disks. Leaving it at 4
+# silently encourages seq scans on tables that fit in cache.
+random_page_cost = 1.1
+
+# effective_io_concurrency: SSDs can handle parallel reads. 200 is a
+# reasonable upper bound for cloud SSDs.
+effective_io_concurrency = 200
+
+# -----------------------------------------------------------------------------
+# Logging + observability
+# -----------------------------------------------------------------------------
+# Pre-load pg_stat_statements so init.sql's CREATE EXTENSION succeeds
+# without a server restart. Auto_explain is loaded at query time.
+shared_preload_libraries = 'pg_stat_statements,auto_explain'
+
+# auto_explain logs slow query plans. Threshold matches
+# log_min_duration_statement (250ms) so a single line in the log carries
+# both the timing and the plan.
+auto_explain.log_min_duration = 250
+auto_explain.log_analyze = on
+auto_explain.log_buffers = on
+auto_explain.log_timing = off  # `log_timing on` adds significant overhead.
+auto_explain.log_verbose = on
+auto_explain.log_nested_statements = on
+
+# pg_stat_statements knobs. 5000 statements is plenty for AEGIS's modest
+# query surface.
+pg_stat_statements.max = 5000
+pg_stat_statements.track = all
+pg_stat_statements.track_utility = off  # don't track BEGIN/COMMIT/etc.
+
+# -----------------------------------------------------------------------------
+# Autovacuum
+# -----------------------------------------------------------------------------
+# Default autovacuum is fine for current scale. We crank these only if
+# the audit-event table starts showing bloat in pg_stat_user_tables.
+# Documenting the *current* defaults so a future operator can see what
+# changed:
+#   autovacuum_naptime = 1min
+#   autovacuum_vacuum_scale_factor = 0.2
+#   autovacuum_analyze_scale_factor = 0.1
+
+# -----------------------------------------------------------------------------
+# Statement timeouts (defense in depth)
+# -----------------------------------------------------------------------------
+# Database-level statement_timeout is set in init.sql per-database. We do
+# NOT set a server-wide default here — admin sessions and pg_dump need
+# unbounded time.
+
+# -----------------------------------------------------------------------------
+# What we deliberately do NOT touch
+# -----------------------------------------------------------------------------
+# - listen_addresses: Railway plugin manages this.
+# - ssl: Railway plugin terminates TLS at the network layer; in-Postgres
+#   ssl can be turned on but is redundant for the managed plan.
+# - hba.conf: managed by the plugin. If you self-host, restrict the
+#   `aegis_app` role to the API + worker IP ranges.
+# =============================================================================

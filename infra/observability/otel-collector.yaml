@@ -1,0 +1,184 @@
+# =============================================================================
+# AEGIS — OpenTelemetry Collector configuration
+# =============================================================================
+# Pipeline-only config: receivers → processors → exporters. No vendor
+# secrets, no real endpoint URLs. Operator replaces every `# operator:
+# replace` placeholder before applying.
+#
+# Deployment: this collector runs as a sidecar Railway service (or as a
+# managed offering — Honeycomb / Grafana Cloud / Datadog all accept OTLP
+# directly, in which case you can SKIP this collector and point
+# OTEL_EXPORTER_OTLP_ENDPOINT at the vendor's OTLP gateway).
+#
+# Why we run our own collector at all (not just direct-to-vendor):
+#   1. The API + worker emit at p99 verify volume. Buffering + retry at a
+#      collector decouples app latency from observability backend
+#      reliability — an Honeycomb hiccup must not show up as a verify
+#      latency spike.
+#   2. Multiple backends from one app config (Sentry for errors,
+#      Prometheus for metrics, Tempo/Grafana for traces) without each
+#      app process having three SDKs.
+#   3. Sampling decisions live with the operator, not in code.
+# =============================================================================
+
+receivers:
+  # Primary OTLP receiver. Both gRPC (4317) and HTTP (4318) so language
+  # SDKs can pick whichever they prefer.
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+        # max_recv_msg_size: tune up if you start ingesting fat trace
+        # batches; default 4 MiB is fine pre-launch.
+      http:
+        endpoint: 0.0.0.0:4318
+        # CORS only matters if a browser SDK posts directly. AEGIS
+        # dashboard does NOT — it goes through the API, which then
+        # exports to this collector internally.
+
+  # Self-telemetry of the collector itself, scraped by the Prometheus
+  # exporter below (turtles all the way down).
+  prometheus/self:
+    config:
+      scrape_configs:
+        - job_name: 'otel-collector'
+          scrape_interval: 30s
+          static_configs:
+            - targets: ['127.0.0.1:8888']
+
+processors:
+  # batch: amortizes export overhead. 5s timeout caps tail latency on
+  # exports.
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+    send_batch_max_size: 1024
+
+  # memory_limiter: hard cap so a runaway producer can't OOM the
+  # collector. Operator: tune `limit_mib` to ~75% of the container's
+  # memory limit.
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 384
+    spike_limit_mib: 128
+
+  # tail_sampling: keep 100% of slow / error spans, sample the rest.
+  # The verify path generates the bulk of spans; we don't need every one
+  # in the trace store, but we MUST keep the slow ones.
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 50000
+    expected_new_traces_per_sec: 1000
+    policies:
+      - name: errors-keep-all
+        type: status_code
+        status_code: { status_codes: [ERROR] }
+      - name: slow-traces
+        type: latency
+        latency: { threshold_ms: 250 }
+      - name: probabilistic-1pct
+        type: probabilistic
+        probabilistic: { sampling_percentage: 1 }
+
+  # resource: tag every record with deploy metadata so downstream
+  # backends can filter by service / environment.
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: production
+        action: upsert
+      - key: service.namespace
+        value: aegis
+        action: upsert
+
+  # attributes: redact request headers we know carry secrets. The Pino
+  # redaction list in apps/api/src/main.ts handles logs; this covers
+  # span attributes that get to the collector via the auto-instrumentation.
+  attributes:
+    actions:
+      - key: http.request.header.x-aegis-api-key
+        action: delete
+      - key: http.request.header.x-aegis-verify-key
+        action: delete
+      - key: http.request.header.authorization
+        action: delete
+      - key: http.request.header.cookie
+        action: delete
+
+exporters:
+  # logging: stdout. Useful for the first deploy; keep at warn in prod.
+  logging:
+    verbosity: normal
+
+  # Prometheus exporter — scraped by the Prometheus / Grafana stack at
+  # /metrics. Self-contained, no external creds.
+  prometheus:
+    endpoint: 0.0.0.0:9464
+    namespace: aegis
+    send_timestamps: true
+    metric_expiration: 5m
+    enable_open_metrics: true
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  # OTLP exporter to a managed backend (Honeycomb / Grafana Cloud / Tempo).
+  # operator: replace endpoint + headers before applying.
+  otlp/managed:
+    endpoint: "https://otlp.<vendor-host>:4317"  # operator: replace
+    tls:
+      insecure: false
+    headers:
+      # operator: replace with the vendor's bearer token / API key.
+      # In practice you'll inject this via env var:
+      #   authorization: "Bearer ${env:OTEL_BACKEND_TOKEN}"
+      authorization: "Bearer REPLACE_AT_DEPLOY_TIME"
+    sending_queue:
+      enabled: true
+      num_consumers: 4
+      queue_size: 1000
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+
+  # Optional: Sentry-compatible OTLP for error events. Disabled by default
+  # because Sentry has its own SDK in the API; uncomment ONLY if you
+  # consolidate.
+  # otlp/sentry:
+  #   endpoint: "https://o<org>.ingest.sentry.io:443/api/<project>/envelope/"  # operator: replace
+  #   headers:
+  #     x-sentry-auth: "Sentry sentry_key=REPLACE,sentry_version=7"
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  zpages:
+    endpoint: 0.0.0.0:55679
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+service:
+  extensions: [health_check, zpages, pprof]
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      level: detailed
+      address: 0.0.0.0:8888
+
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes, resource, tail_sampling, batch]
+      exporters: [otlp/managed, logging]
+
+    metrics:
+      receivers: [otlp, prometheus/self]
+      processors: [memory_limiter, resource, batch]
+      exporters: [prometheus, otlp/managed]
+
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes, resource, batch]
+      exporters: [otlp/managed, logging]

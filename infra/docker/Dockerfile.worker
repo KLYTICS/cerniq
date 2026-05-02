@@ -1,0 +1,94 @@
+# syntax=docker/dockerfile:1.7
+# ---------------------------------------------------------------------------
+# AEGIS — BATE / webhook worker image
+# ---------------------------------------------------------------------------
+# Same source, same node_modules, same image surface as Dockerfile.api.
+# The only difference is ENTRYPOINT: this container runs the BullMQ worker
+# bootstrapper (`dist/workers/main.js`) instead of the HTTP server.
+#
+# We deliberately reuse the API image's compiled artifacts rather than build
+# a separate worker bundle. Both surfaces depend on the same Prisma client +
+# crypto utilities, and a divergent build invites the kind of "the worker
+# can verify a token the API can't" drift that a security product cannot
+# afford.
+#
+# Operator: when Railway adds a second service for this worker, point it at
+# this Dockerfile and leave WORKER_TYPE unset to launch the default
+# multiplexer; or set WORKER_TYPE=bate / webhooks / signals to run a
+# dedicated lane (matches the queues defined in apps/api/src/modules/bate
+# and apps/api/src/modules/webhooks).
+# ---------------------------------------------------------------------------
+
+ARG NODE_BASE=node:20.18.0-bookworm-slim
+ARG DISTROLESS_BASE=gcr.io/distroless/nodejs20-debian12:nonroot
+
+# ============================================================================
+# Stage 1 — base
+# ============================================================================
+FROM ${NODE_BASE} AS base
+ENV PNPM_HOME=/pnpm \
+    PATH=/pnpm:$PATH \
+    CI=true \
+    HUSKY=0
+RUN corepack enable && corepack prepare pnpm@9.12.3 --activate
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /workspace
+
+# ============================================================================
+# Stage 2 — deps
+# ============================================================================
+FROM base AS deps
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY apps/api/package.json apps/api/
+COPY apps/dashboard/package.json apps/dashboard/
+COPY packages/types/package.json packages/types/
+COPY packages/sdk-ts/package.json packages/sdk-ts/
+COPY packages/tsconfig/package.json packages/tsconfig/
+COPY packages/eslint-config/package.json packages/eslint-config/
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store \
+ && pnpm install --frozen-lockfile
+
+# ============================================================================
+# Stage 3 — build
+# ============================================================================
+FROM deps AS build
+COPY tsconfig.base.json ./
+COPY packages/ packages/
+COPY apps/api/ apps/api/
+RUN pnpm --filter @aegis/api prisma:generate \
+ && pnpm --filter @aegis/api build
+RUN pnpm --filter @aegis/api --prod deploy /deploy/worker \
+ && cp -r apps/api/dist /deploy/worker/dist \
+ && cp -r apps/api/prisma /deploy/worker/prisma
+
+# ============================================================================
+# Stage 4 — runtime
+# ============================================================================
+FROM ${DISTROLESS_BASE} AS runtime
+USER 65532:65532
+WORKDIR /app
+COPY --from=build --chown=65532:65532 /deploy/worker/ /app/
+
+ENV NODE_ENV=production \
+    NODE_OPTIONS="--enable-source-maps" \
+    WORKER_TYPE=all
+
+# No EXPOSE: this is a queue consumer, not an HTTP service. If the worker
+# eventually exposes a metrics endpoint (Prometheus scrape), uncomment:
+#   EXPOSE 9090
+
+# Worker entrypoint — peer Claude is wiring `apps/api/src/workers/main.ts`.
+# Until that lands, the path below MUST exist or the container will crash
+# loop. That is intentional: a missing worker bootstrap is a deploy-blocker,
+# not something to paper over.
+CMD ["dist/workers/main.js"]
+
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
+  CMD ["/nodejs/bin/node", "-e", "process.exit(0)"]
+# A real worker healthcheck (queue-poll latency, last-job timestamp) is
+# tracked in WORK_BOARD.md under the BATE module. The trivial check above
+# only verifies the node runtime is alive — Railway's restart policy plus
+# BullMQ's own heartbeat catches the rest.

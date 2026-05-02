@@ -1,0 +1,57 @@
+# gitleaks config for AEGIS.
+# Built on the default ruleset; only document the *additions* and
+# *exceptions* below so the audit trail is clear.
+
+title = "aegis-gitleaks"
+# inherit defaults
+[extend]
+useDefault = true
+
+# ─────────────────────────────────────────────────────────────
+# Project-specific allow-list — false positives we accept.
+# Each exception MUST cite a reason.
+# ─────────────────────────────────────────────────────────────
+[allowlist]
+description = "Permitted strings"
+paths = [
+    # Spec docs contain example tokens like "stripe_spt_xxx" that aren't real.
+    '''docs/spec/.*''',
+    # OPERATOR_DECISIONS.md and BATE_ALGORITHM.md may contain example weights/IDs.
+    '''OPERATOR_DECISIONS\.md''',
+    '''docs/BATE_ALGORITHM\.md''',
+    # The .env.example file is the documented format; real values are in .env (ignored).
+    '''\.env\.example''',
+    # Example IDs in README + ARCHITECTURE.
+    '''README\.md''',
+    '''docs/ARCHITECTURE\.md''',
+]
+
+regexes = [
+    # Documented placeholder formats — never real keys.
+    '''agt_01[A-Z0-9]{24}''',         # example agentId in docs
+    '''pol_01[A-Z0-9]{24}''',         # example policyId in docs
+    '''stripe_spt_xxx''',             # spec example
+    '''aegis_signed_xxx''',           # spec example
+]
+
+# ─────────────────────────────────────────────────────────────
+# Project-specific rules — extra patterns gitleaks default misses.
+# ─────────────────────────────────────────────────────────────
+
+[[rules]]
+id = "aegis-api-key"
+description = "AEGIS API key — full management"
+regex = '''aegis_(live|test)_[A-Za-z0-9]{32,}'''
+keywords = ["aegis_live_", "aegis_test_"]
+
+[[rules]]
+id = "aegis-verify-key"
+description = "AEGIS verify-only API key"
+regex = '''aegisv_(live|test)_[A-Za-z0-9]{32,}'''
+keywords = ["aegisv_live_", "aegisv_test_"]
+
+[[rules]]
+id = "ed25519-private-seed"
+description = "Possible Ed25519 32-byte seed (base64url, 43 chars) assigned to a *_PRIVATE_KEY_B64 variable"
+regex = '''_PRIVATE_KEY_B64\s*[:=]\s*['"]?[A-Za-z0-9_-]{43}['"]?'''
+keywords = ["_PRIVATE_KEY_B64"]

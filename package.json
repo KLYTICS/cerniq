@@ -1,0 +1,35 @@
+{
+  "name": "aegis",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AEGIS — Agent Gateway & Identity Stack. Neutral cryptographic identity, policy enforcement, behavioral attestation, and audit rails for AI agents.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20.11.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.12.3",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "dev": "pnpm --filter @aegis/api dev",
+    "dev:dashboard": "pnpm --filter @aegis/dashboard dev",
+    "db:up": "docker compose up -d postgres redis",
+    "db:down": "docker compose down",
+    "db:migrate": "pnpm --filter @aegis/api prisma:migrate",
+    "db:generate": "pnpm --filter @aegis/api prisma:generate",
+    "db:reset": "pnpm --filter @aegis/api prisma:reset",
+    "test": "pnpm -r run test",
+    "test:e2e": "pnpm --filter @aegis/api test:e2e",
+    "lint": "pnpm -r run lint",
+    "typecheck": "pnpm -r run typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
+    "clean": "pnpm -r exec rm -rf dist .next .turbo node_modules/.cache"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "eslint": "^9.13.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3"
+  }
+}

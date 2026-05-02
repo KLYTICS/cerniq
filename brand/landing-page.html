@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AEGIS — Attestation for the Agentic Era</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --deep-space:   #0A0E27;
+    --space-mid:    #0D1535;
+    --shield-blue:  #1340C4;
+    --blue-hover:   #1648D8;
+    --circuit-cyan: #00B4FF;
+    --white:        #FFFFFF;
+    --frost:        #F0F4FF;
+    --slate:        #64748B;
+    --mid-slate:    #475569;
+    --dark-slate:   #1E293B;
+    --border:       rgba(255,255,255,0.08);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font);
+    background: var(--deep-space);
+    color: var(--white);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0;
+    z-index: 100;
+    background: rgba(10,14,39,0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+  }
+  .nav-logo-mark {
+    width: 32px; height: 38px;
+    flex-shrink: 0;
+  }
+  .nav-logo-name {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: var(--white);
+  }
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 36px;
+    list-style: none;
+  }
+  .nav-links a {
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.6);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--white); }
+  .nav-cta {
+    background: var(--shield-blue);
+    color: var(--white) !important;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-weight: 600 !important;
+    transition: background 0.2s !important;
+  }
+  .nav-cta:hover { background: var(--blue-hover) !important; }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 120px 40px 80px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 800px 600px at 50% 0%, rgba(19,64,196,0.25) 0%, transparent 70%),
+      radial-gradient(ellipse 400px 400px at 20% 60%, rgba(0,180,255,0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .hero-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 80px 80px;
+    mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black, transparent);
+    pointer-events: none;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(19,64,196,0.2);
+    border: 1px solid rgba(19,64,196,0.5);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: var(--circuit-cyan);
+    text-transform: uppercase;
+    margin-bottom: 28px;
+    position: relative;
+  }
+  .badge-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--circuit-cyan);
+    box-shadow: 0 0 6px var(--circuit-cyan);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .hero h1 {
+    font-size: clamp(42px, 7vw, 80px);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -2.5px;
+    color: var(--white);
+    max-width: 900px;
+    position: relative;
+  }
+  .hero h1 .gradient-word {
+    background: linear-gradient(90deg, var(--shield-blue), var(--circuit-cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-sub {
+    font-size: clamp(16px, 2vw, 20px);
+    color: rgba(255,255,255,0.55);
+    max-width: 640px;
+    margin: 24px auto 0;
+    line-height: 1.65;
+    position: relative;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 14px;
+    margin-top: 44px;
+    flex-wrap: wrap;
+    justify-content: center;
+    position: relative;
+  }
+  .btn-primary {
+    background: var(--shield-blue);
+    color: var(--white);
+    padding: 14px 32px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-primary:hover { background: var(--blue-hover); transform: translateY(-1px); }
+  .btn-secondary {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: var(--white);
+    padding: 14px 32px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.15s;
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.1); transform: translateY(-1px); }
+
+  .hero-trust {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-top: 48px;
+    flex-wrap: wrap;
+    justify-content: center;
+    position: relative;
+  }
+  .trust-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+  }
+  .trust-icon {
+    width: 16px; height: 16px;
+    color: var(--circuit-cyan);
+  }
+
+  /* ── SECTION BASE ── */
+  section {
+    padding: 100px 64px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .section-full {
+    padding: 100px 0;
+    background: var(--space-mid);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .section-full-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 64px;
+  }
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--circuit-cyan);
+    margin-bottom: 16px;
+  }
+  .section-heading {
+    font-size: clamp(28px, 4vw, 42px);
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1.1;
+    color: var(--white);
+    margin-bottom: 20px;
+  }
+  .section-body {
+    font-size: 17px;
+    color: rgba(255,255,255,0.55);
+    max-width: 600px;
+    line-height: 1.7;
+  }
+
+  /* ── PROBLEM ── */
+  .problem-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+  .problem-stat-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .problem-stat {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .problem-stat::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--shield-blue), var(--circuit-cyan));
+  }
+  .problem-stat-number {
+    font-size: 40px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    background: linear-gradient(90deg, var(--white), var(--circuit-cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .problem-stat-label {
+    font-size: 14px;
+    color: rgba(255,255,255,0.55);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  /* ── SOLUTION ── */
+  .solution-pillars {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-top: 60px;
+  }
+  .pillar-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 32px 28px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .pillar-card:hover {
+    border-color: rgba(19,64,196,0.5);
+    background: rgba(19,64,196,0.08);
+  }
+  .pillar-icon {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, rgba(19,64,196,0.4), rgba(0,180,255,0.2));
+    border: 1px solid rgba(0,180,255,0.2);
+  }
+  .pillar-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 10px;
+  }
+  .pillar-desc {
+    font-size: 14px;
+    color: rgba(255,255,255,0.5);
+    line-height: 1.6;
+  }
+
+  /* ── HOW IT WORKS ── */
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    margin-top: 60px;
+    position: relative;
+  }
+  .steps::before {
+    content: '';
+    position: absolute;
+    top: 38px;
+    left: calc(16.67% + 24px);
+    right: calc(16.67% + 24px);
+    height: 1px;
+    background: linear-gradient(90deg, var(--shield-blue), var(--circuit-cyan), var(--shield-blue));
+  }
+  .step {
+    text-align: center;
+    padding: 0 32px;
+  }
+  .step-number {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--shield-blue);
+    color: var(--white);
+    font-size: 20px;
+    font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 24px;
+    border: 3px solid var(--deep-space);
+    box-shadow: 0 0 0 1px var(--shield-blue), 0 0 24px rgba(19,64,196,0.4);
+    position: relative;
+    z-index: 1;
+  }
+  .step-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 12px;
+  }
+  .step-desc {
+    font-size: 14px;
+    color: rgba(255,255,255,0.5);
+    line-height: 1.7;
+  }
+  .step-code {
+    display: inline-block;
+    background: rgba(0,180,255,0.1);
+    border: 1px solid rgba(0,180,255,0.25);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    color: var(--circuit-cyan);
+    margin-top: 12px;
+  }
+
+  /* ── PRINCIPLES ── */
+  .principles-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 60px;
+  }
+  .principle-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 32px 32px;
+    display: flex;
+    gap: 20px;
+  }
+  .principle-number {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--circuit-cyan);
+    font-family: monospace;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+    margin-top: 3px;
+  }
+  .principle-content h3 {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 8px;
+  }
+  .principle-content p {
+    font-size: 14px;
+    color: rgba(255,255,255,0.5);
+    line-height: 1.65;
+  }
+
+  /* ── TRUST SIGNALS ── */
+  .trust-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-top: 60px;
+  }
+  .trust-box {
+    background: rgba(255,255,255,0.03);
+    padding: 32px 28px;
+    text-align: center;
+  }
+  .trust-box-num {
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    background: linear-gradient(90deg, var(--white), var(--circuit-cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .trust-box-label {
+    font-size: 13px;
+    color: rgba(255,255,255,0.45);
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+
+  /* ── ARCHITECTURE ── */
+  .arch-diagram {
+    margin-top: 60px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 48px;
+    font-family: 'Consolas', 'Monaco', monospace;
+  }
+  .arch-layer {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 16px 24px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  .arch-layer.relying { background: rgba(0,180,255,0.08); border: 1px solid rgba(0,180,255,0.2); }
+  .arch-layer.aegis   { background: rgba(19,64,196,0.2); border: 1px solid rgba(19,64,196,0.6); }
+  .arch-layer.agent   { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); }
+  .arch-arrow {
+    text-align: center;
+    color: rgba(255,255,255,0.25);
+    font-size: 18px;
+    margin: -4px 0;
+  }
+  .arch-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    min-width: 160px;
+  }
+  .arch-layer.relying .arch-label { color: var(--circuit-cyan); }
+  .arch-layer.aegis   .arch-label { color: #A5B4FC; }
+  .arch-layer.agent   .arch-label { color: rgba(255,255,255,0.5); }
+  .arch-detail {
+    font-size: 13px;
+    color: rgba(255,255,255,0.45);
+  }
+
+  /* ── CTA ── */
+  .cta-section {
+    text-align: center;
+    padding: 120px 64px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-section .cta-bg {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 60% 60% at 50% 50%, rgba(19,64,196,0.2), transparent 70%);
+    pointer-events: none;
+  }
+  .cta-section h2 {
+    font-size: clamp(32px, 5vw, 52px);
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    max-width: 700px;
+    margin: 0 auto 24px;
+    position: relative;
+  }
+  .cta-section p {
+    font-size: 18px;
+    color: rgba(255,255,255,0.5);
+    max-width: 500px;
+    margin: 0 auto 44px;
+    position: relative;
+  }
+  .cta-section .btn-primary {
+    font-size: 16px;
+    padding: 16px 40px;
+    box-shadow: 0 0 40px rgba(19,64,196,0.5);
+    position: relative;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 48px 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+  .footer-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .footer-logo-name {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: var(--white);
+  }
+  .footer-tagline {
+    font-size: 12px;
+    color: var(--slate);
+    letter-spacing: 1px;
+  }
+  .footer-links {
+    display: flex;
+    gap: 28px;
+    list-style: none;
+    flex-wrap: wrap;
+  }
+  .footer-links a {
+    font-size: 13px;
+    color: var(--slate);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .footer-links a:hover { color: var(--white); }
+  .footer-copy {
+    font-size: 12px;
+    color: rgba(255,255,255,0.2);
+    width: 100%;
+    text-align: center;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    margin-top: 12px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── NAVIGATION ── -->
+<nav>
+  <a href="#" class="nav-logo">
+    <svg class="nav-logo-mark" viewBox="12 6 56 68" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="navShield" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#1340C4"/>
+          <stop offset="100%" style="stop-color:#0A0E27"/>
+        </linearGradient>
+      </defs>
+      <path d="M 40,6 L 68,16 L 68,42 Q 68,62 40,74 Q 12,62 12,42 L 12,16 Z" fill="url(#navShield)"/>
+      <path d="M 40,10 L 64,19 L 64,42 Q 64,59 40,70 Q 16,59 16,42 L 16,19 Z" fill="none" stroke="#00B4FF" stroke-width="0.8" stroke-opacity="0.5"/>
+      <line x1="40" y1="22" x2="28" y2="54" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+      <line x1="40" y1="22" x2="52" y2="54" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+      <line x1="32" y1="43" x2="48" y2="43" stroke="#00B4FF" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>
+    <span class="nav-logo-name">AEGIS</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#how-it-works">How It Works</a></li>
+    <li><a href="#principles">Principles</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#docs">Docs</a></li>
+    <li><a href="#waitlist" class="nav-cta">Get Early Access</a></li>
+  </ul>
+</nav>
+
+<!-- ── HERO ── -->
+<div class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+
+  <div class="hero-badge">
+    <span class="badge-dot"></span>
+    Now in private preview
+  </div>
+
+  <h1>
+    The <span class="gradient-word">Trust Layer</span><br>
+    for AI Agents
+  </h1>
+
+  <p class="hero-sub">
+    AEGIS is the neutral verification, policy enforcement, and behavioral attestation layer between AI agents and the services they act on. Protocol-neutral. Vendor-neutral. Model-neutral.
+  </p>
+
+  <div class="hero-actions">
+    <a href="#docs" class="btn-primary">
+      Read the Spec
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </a>
+    <a href="#waitlist" class="btn-secondary">Get Early Access</a>
+  </div>
+
+  <div class="hero-trust">
+    <div class="trust-item">
+      <svg class="trust-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      Ed25519 signed audit chain
+    </div>
+    <div class="trust-item">
+      <svg class="trust-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      Zero private keys stored
+    </div>
+    <div class="trust-item">
+      <svg class="trust-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      Append-only, tamper-evident
+    </div>
+    <div class="trust-item">
+      <svg class="trust-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      &lt;5ms verify hot path
+    </div>
+  </div>
+</div>
+
+<!-- ── PROBLEM ── -->
+<section>
+  <div class="problem-grid">
+    <div>
+      <div class="eyebrow">The Problem</div>
+      <h2 class="section-heading">AI agents are acting without accountability</h2>
+      <p class="section-body">
+        Autonomous agents are being deployed to call APIs, manage data, and execute decisions on behalf of users — with no standard way to verify who authorized the action, whether the policy permitted it, or whether the audit trail is trustworthy.
+      </p>
+      <p class="section-body" style="margin-top: 16px;">
+        The agentic era needs the same infrastructure the web got in the 1990s: a universal trust anchor that every relying party can verify independently.
+      </p>
+    </div>
+    <div class="problem-stat-stack">
+      <div class="problem-stat">
+        <div class="problem-stat-number">0</div>
+        <div class="problem-stat-label">Vendor-neutral standards for agent identity verification that exist today</div>
+      </div>
+      <div class="problem-stat">
+        <div class="problem-stat-number">∞</div>
+        <div class="problem-stat-label">Proprietary trust mechanisms created by every AI platform — none interoperable</div>
+      </div>
+      <div class="problem-stat">
+        <div class="problem-stat-number">1</div>
+        <div class="problem-stat-label">Layer needed: a neutral attestation layer between agents and the services they act on</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SOLUTION ── -->
+<div class="section-full">
+  <div class="section-full-inner">
+    <div class="eyebrow">The Solution</div>
+    <h2 class="section-heading">We are the Switzerland of agent identity</h2>
+    <p class="section-body">
+      AEGIS holds only public keys. Signs only what it observed. Enforces only the policies you wrote. No vendor lock-in, no model dependency, no protocol constraints.
+    </p>
+    <div class="solution-pillars">
+      <div class="pillar-card">
+        <div class="pillar-icon">🔑</div>
+        <div class="pillar-title">Identity Verification</div>
+        <div class="pillar-desc">Register agent public keys. Verify Ed25519 signatures on every action. No private keys enter AEGIS — ever.</div>
+      </div>
+      <div class="pillar-card">
+        <div class="pillar-icon">📋</div>
+        <div class="pillar-title">Policy Enforcement</div>
+        <div class="pillar-desc">Define scopes, spend limits, TTLs, and IP restrictions. Denial precedence is fixed and published — relying parties know exactly what to expect.</div>
+      </div>
+      <div class="pillar-card">
+        <div class="pillar-icon">📊</div>
+        <div class="pillar-title">Behavioral Attestation</div>
+        <div class="pillar-desc">BATE scores each agent on behavioral consistency, anomaly signals, and velocity. Trust is earned over time, not granted by default.</div>
+      </div>
+      <div class="pillar-card">
+        <div class="pillar-icon">🔗</div>
+        <div class="pillar-title">Append-Only Audit</div>
+        <div class="pillar-desc">Every event is signed over the previous event's signature. The audit chain is tamper-evident and independently verifiable by any party.</div>
+      </div>
+      <div class="pillar-card">
+        <div class="pillar-icon">⚡</div>
+        <div class="pillar-title">Edge-Ready Verify</div>
+        <div class="pillar-desc">The verify hot path is pure functions — no framework dependencies. Portable to Cloudflare Workers for sub-5ms latency at the edge.</div>
+      </div>
+      <div class="pillar-card">
+        <div class="pillar-icon">🌐</div>
+        <div class="pillar-title">Protocol Neutral</div>
+        <div class="pillar-desc">Works with any AI model, any orchestration framework, any hosting environment. AEGIS is infrastructure, not a platform.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── HOW IT WORKS ── -->
+<section id="how-it-works">
+  <div class="eyebrow">How It Works</div>
+  <h2 class="section-heading">Three steps to verified agent trust</h2>
+  <p class="section-body">From key registration to real-time verification, AEGIS sits in the critical path without being in the critical path.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-number">1</div>
+      <div class="step-title">Register</div>
+      <div class="step-desc">The agent generates an Ed25519 keypair client-side. The public key and policy are registered with AEGIS. The private key never leaves the agent.</div>
+      <div class="step-code">POST /v1/agents</div>
+    </div>
+    <div class="step">
+      <div class="step-number">2</div>
+      <div class="step-title">Sign & Act</div>
+      <div class="step-desc">Before each action, the agent signs the request payload with its private key. AEGIS issues a short-lived JWT attesting the agent's identity and policy scope.</div>
+      <div class="step-code">POST /v1/verify</div>
+    </div>
+    <div class="step">
+      <div class="step-number">3</div>
+      <div class="step-title">Attest</div>
+      <div class="step-desc">The relying party verifies the JWT. AEGIS appends a signed audit event to the chain. BATE updates the agent's trust score asynchronously.</div>
+      <div class="step-code">append AuditEvent</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── PRINCIPLES ── -->
+<div class="section-full" id="principles">
+  <div class="section-full-inner">
+    <div class="eyebrow">Architecture Principles</div>
+    <h2 class="section-heading">Non-negotiable invariants</h2>
+    <p class="section-body">These are the architectural guarantees AEGIS makes to every relying party. They are published, versioned, and cannot be changed without a major version bump.</p>
+    <div class="principles-grid">
+      <div class="principle-card">
+        <div class="principle-number">01</div>
+        <div class="principle-content">
+          <h3>Private keys never enter AEGIS</h3>
+          <p>Agent private keys are generated client-side. Our database stores public keys only. The SDK is the only surface that touches a private key, and only locally.</p>
+        </div>
+      </div>
+      <div class="principle-card">
+        <div class="principle-number">02</div>
+        <div class="principle-content">
+          <h3>The verify hot path is portable</h3>
+          <p>All signature, policy, and spend evaluation logic has zero framework imports. This is what lets us migrate /v1/verify to Cloudflare Workers without a rewrite.</p>
+        </div>
+      </div>
+      <div class="principle-card">
+        <div class="principle-number">03</div>
+        <div class="principle-content">
+          <h3>The audit log is append-only and signed</h3>
+          <p>Every write goes through audit.service.append(). No UPDATE or DELETE on AuditEvent ever. Each event signs over the previous event's signature.</p>
+        </div>
+      </div>
+      <div class="principle-card">
+        <div class="principle-number">04</div>
+        <div class="principle-content">
+          <h3>No silent failures, no fabricated data</h3>
+          <p>If a downstream call fails, we surface it. We never return a synthetic trust score, a stub policy, or an empty array that pretends to be "no results."</p>
+        </div>
+      </div>
+      <div class="principle-card">
+        <div class="principle-number">05</div>
+        <div class="principle-content">
+          <h3>Multi-tenant isolation on every query</h3>
+          <p>Every service method takes principalId as its first argument. Cross-principal data leaks are architecturally impossible at the query level.</p>
+        </div>
+      </div>
+      <div class="principle-card">
+        <div class="principle-number">06</div>
+        <div class="principle-content">
+          <h3>Denial precedence is fixed and published</h3>
+          <p>AGENT_NOT_FOUND → REVOKED → INVALID_SIG → POLICY_REVOKED → EXPIRED → SCOPE → SPEND → TRUST_SCORE → ANOMALY. Relying parties code against this order.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── TRUST NUMBERS ── -->
+<section>
+  <div class="trust-strip">
+    <div class="trust-box">
+      <div class="trust-box-num">&lt; 5ms</div>
+      <div class="trust-box-label">Verify hot path latency at edge</div>
+    </div>
+    <div class="trust-box">
+      <div class="trust-box-num">0</div>
+      <div class="trust-box-label">Private keys stored in AEGIS</div>
+    </div>
+    <div class="trust-box">
+      <div class="trust-box-num">Ed25519</div>
+      <div class="trust-box-label">One curve. One audited library. No alternatives.</div>
+    </div>
+    <div class="trust-box">
+      <div class="trust-box-num">9</div>
+      <div class="trust-box-label">Denial precedence levels — fixed, versioned, published</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── ARCHITECTURE ── -->
+<section id="architecture">
+  <div class="eyebrow">Architecture</div>
+  <h2 class="section-heading">How AEGIS fits in your stack</h2>
+  <p class="section-body">AEGIS sits between agents and the services they call. It is the single verification hop that every action passes through.</p>
+
+  <div class="arch-diagram">
+    <div class="arch-layer relying">
+      <div class="arch-label">Relying Party</div>
+      <div class="arch-detail">Your API, tool, or service — verifies the AEGIS JWT before executing the action</div>
+    </div>
+    <div class="arch-arrow">↑ &nbsp;verify JWT &nbsp;|&nbsp; deny / allow ↓</div>
+    <div class="arch-layer aegis">
+      <div class="arch-label" style="color: #A5B4FC;">⬡ &nbsp;AEGIS</div>
+      <div class="arch-detail" style="color: rgba(255,255,255,0.6);">Identity · Policy · BATE scoring · Audit chain · Webhook delivery</div>
+    </div>
+    <div class="arch-arrow">↑ &nbsp;signed request &nbsp;|&nbsp; attested JWT ↓</div>
+    <div class="arch-layer agent">
+      <div class="arch-label">AI Agent</div>
+      <div class="arch-detail">Signs each request with its Ed25519 private key — generated locally, never shared</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<div class="cta-section" id="waitlist">
+  <div class="cta-bg"></div>
+  <h2>Ready to give your agents<br>an identity they can prove?</h2>
+  <p>Join the private preview. Be among the first to deploy AEGIS in production.</p>
+  <a href="mailto:eskiessalfonso@gmail.com?subject=AEGIS Early Access" class="btn-primary" style="font-size:16px; padding: 16px 40px;">
+    Apply for Early Access
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+  </a>
+</div>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="footer-logo">
+    <svg width="24" height="28" viewBox="12 6 56 68" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="footerShield" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#1340C4"/><stop offset="100%" style="stop-color:#0A0E27"/></linearGradient></defs>
+      <path d="M 40,6 L 68,16 L 68,42 Q 68,62 40,74 Q 12,62 12,42 L 12,16 Z" fill="url(#footerShield)"/>
+      <path d="M 40,10 L 64,19 L 64,42 Q 64,59 40,70 Q 16,59 16,42 L 16,19 Z" fill="none" stroke="#00B4FF" stroke-width="0.8" stroke-opacity="0.5"/>
+      <line x1="40" y1="22" x2="28" y2="54" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+      <line x1="40" y1="22" x2="52" y2="54" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+      <line x1="32" y1="43" x2="48" y2="43" stroke="#00B4FF" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <div class="footer-logo-name">AEGIS</div>
+      <div class="footer-tagline">Attestation for the Agentic Era</div>
+    </div>
+  </div>
+  <ul class="footer-links">
+    <li><a href="#">Docs</a></li>
+    <li><a href="#">Security</a></li>
+    <li><a href="#">Architecture</a></li>
+    <li><a href="#">GitHub</a></li>
+    <li><a href="#">Privacy</a></li>
+  </ul>
+  <div class="footer-copy">© 2026 AEGIS · All rights reserved · Protocol-neutral · Vendor-neutral · Model-neutral</div>
+</footer>
+
+</body>
+</html>

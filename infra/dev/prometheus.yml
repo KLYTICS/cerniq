@@ -1,0 +1,41 @@
+# AEGIS — dev Prometheus config.
+#
+# Scrapes the api + worker + Prometheus self. No alertmanager wired in dev
+# (alerts are exported via the rules file but routes go nowhere) — production
+# Alertmanager lives separately and is intentionally out of this stack.
+# Documented in infra/dev/README.md § "What's intentionally missing".
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    env: dev
+
+rule_files:
+  - /etc/prometheus/rules/aegis.rules.yml
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'aegis-api'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['api:4000']
+        labels:
+          service: api
+
+  - job_name: 'aegis-worker'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['worker:4001']
+        labels:
+          service: worker
+
+  - job_name: 'otel-collector'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['otel-collector:8888']
+        labels:
+          service: otel

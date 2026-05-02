@@ -1,0 +1,427 @@
+// AEGIS — Prisma schema v1.0
+// Source: 03_AEGIS_TECHNICAL_SPEC.md §2
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// PRINCIPALS
+// ─────────────────────────────────────────────────────────────
+
+model Principal {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  name              String?
+  planTier          PlanTier @default(FREE)
+  billingCustomerId String?
+
+  emailVerified     Boolean  @default(false)
+  kycVerified       Boolean  @default(false)
+
+  apiKeys  ApiKey[]
+  agents   AgentIdentity[]
+  webhooks WebhookSubscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  keyHash     String    @unique
+  keyPrefix   String
+  label       String?
+  principalId String
+  principal   Principal @relation(fields: [principalId], references: [id], onDelete: Cascade)
+  scope       ApiKeyScope @default(FULL)
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([principalId])
+  @@index([keyHash])
+}
+
+enum PlanTier {
+  FREE
+  DEVELOPER
+  GROWTH
+  ENTERPRISE
+}
+
+enum ApiKeyScope {
+  FULL
+  VERIFY_ONLY
+}
+
+// ─────────────────────────────────────────────────────────────
+// AGENT IDENTITY
+// ─────────────────────────────────────────────────────────────
+
+model AgentIdentity {
+  id          String       @id @default(cuid())
+  publicKey   String
+  principalId String
+  principal   Principal    @relation(fields: [principalId], references: [id], onDelete: Cascade)
+
+  label   String?
+  runtime AgentRuntime
+  model   String?
+
+  status        AgentStatus @default(PENDING_VERIFICATION)
+  revokedAt     DateTime?
+  revokedReason String?
+
+  trustScore   Int       @default(500)
+  trustBand    TrustBand @default(VERIFIED)
+  lastScoredAt DateTime?
+
+  lastSeenAt     DateTime?
+  verifyCount    Int       @default(0)
+  verifyCountDay Int       @default(0)
+
+  policies      AgentPolicy[]
+  auditEvents   AuditEvent[]
+  bateSignals   BateSignal[]
+  delegationsFrom AgentDelegation[] @relation("delegator")
+  delegationsTo   AgentDelegation[] @relation("delegate")
+  scoreHistory  TrustScoreHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([principalId])
+  @@index([status])
+  @@index([trustScore])
+}
+
+enum AgentRuntime {
+  OPENAI
+  ANTHROPIC
+  GOOGLE
+  HUGGINGFACE
+  CUSTOM
+}
+
+enum AgentStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum TrustBand {
+  PLATINUM
+  VERIFIED
+  WATCH
+  FLAGGED
+}
+
+// ─────────────────────────────────────────────────────────────
+// POLICIES
+// ─────────────────────────────────────────────────────────────
+
+model AgentPolicy {
+  id      String        @id @default(cuid())
+  agentId String
+  agent   AgentIdentity @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  label   String?
+
+  signedToken String @db.Text
+  tokenHash   String @unique
+
+  status    PolicyStatus @default(ACTIVE)
+  revokedAt DateTime?
+  expiresAt DateTime
+
+  scopes Json
+
+  verifyCount Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([agentId])
+  @@index([status, expiresAt])
+}
+
+enum PolicyStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+// ─────────────────────────────────────────────────────────────
+// SPEND TRACKING (durable backstop; hot path uses Redis)
+// ─────────────────────────────────────────────────────────────
+
+model SpendRecord {
+  id         String   @id @default(cuid())
+  agentId    String
+  policyId   String
+  amount     Decimal  @db.Decimal(14, 2)
+  currency   String   @default("USD")
+  merchantId String?
+  domain     String?
+  date       DateTime @default(now())
+  dateKey    String
+  monthKey   String
+
+  @@index([agentId, dateKey])
+  @@index([agentId, monthKey])
+}
+
+// ─────────────────────────────────────────────────────────────
+// AUDIT
+// ─────────────────────────────────────────────────────────────
+
+/// Transactional outbox (ADR-0007). Callers write to this table inside the
+/// same Prisma transaction as their primary state change. A separate
+/// worker drains the table and performs the deferred side-effect (BATE
+/// signal ingest, webhook delivery). Replaces fire-and-forget patterns
+/// flagged in docs/reviews/silent-failures.md F-003 / F-006.
+model OutboxEvent {
+  id          String    @id @default(cuid())
+  kind        String
+  payload     Json
+  lockedAt    DateTime?
+  lockedBy    String?
+  attempts    Int       @default(0)
+  lastError   String?
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([processedAt, lockedAt, createdAt])
+  @@index([kind])
+}
+
+model AuditEvent {
+  id          String         @id @default(cuid())
+  // Nullable: a verify call for AGENT_NOT_FOUND has no agent to reference.
+  // Audit row still records (a) the relying party who attempted, (b) the
+  // claimed agentId in `claimedAgentId`, and (c) full denial precedence.
+  // SetNull on agent deletion keeps the chain intact through GDPR Art. 17
+  // erasures (signed payload references the *claim*, not the FK).
+  agentId        String?
+  agent          AgentIdentity? @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  // Agent ID exactly as it appeared in the claimed token; never nulled.
+  // Lets us forensically query "all bad-agent-id verify attempts" even after
+  // the agent was deleted or never existed.
+  claimedAgentId String?
+  principalId    String
+
+  // Raw values — nullable so they can be redacted under GDPR Art. 17
+  // without breaking the chain. See docs/decisions/0006-audit-redactability.md.
+  // The signed payload commits to *Hash columns instead, so erasure leaves
+  // the signature intact.
+  action          String?
+  decision        AuditDecision
+  denialReason    String?
+
+  relyingParty    String?
+  requestedAmount Decimal? @db.Decimal(14, 2)
+  currency        String?
+
+  policyId       String?
+  policySnapshot Json?
+
+  // Hash commitments — never nulled. Verifiers re-hash raw values to check
+  // these; redacted (null raw) rows verify directly against the persisted
+  // hash. base64url(sha256(value)).
+  actionHash          String  @db.Text
+  relyingPartyHash    String? @db.Text
+  requestedAmountHash String? @db.Text
+  policySnapshotHash  String? @db.Text
+
+  // Redaction trail. Set when an Art. 17 redaction has been applied to one
+  // or more raw columns above. The redaction itself is also logged as a
+  // separate `audit.redact` event in the chain.
+  redactedAt      DateTime?
+  redactionReason String?
+
+  trustScoreAtEvent Int
+  trustBandAtEvent  TrustBand
+
+  aegisSignature String @db.Text
+  // Audit-chain payload schema version — verifiers branch on this.
+  payloadVersion Int    @default(2)
+
+  timestamp DateTime @default(now())
+
+  @@index([agentId, timestamp])
+  @@index([principalId, timestamp])
+  @@index([relyingParty, timestamp])
+  @@index([timestamp])
+}
+
+enum AuditDecision {
+  APPROVED
+  DENIED
+  FLAGGED
+}
+
+// ─────────────────────────────────────────────────────────────
+// BATE
+// ─────────────────────────────────────────────────────────────
+
+model BateSignal {
+  id      String        @id @default(cuid())
+  agentId String
+  agent   AgentIdentity @relation(fields: [agentId], references: [id])
+
+  signalType BateSignalType
+  severity   SignalSeverity @default(MEDIUM)
+  source     String
+
+  payload Json
+
+  idempotencyKey String? @unique
+
+  processed   Boolean   @default(false)
+  processedAt DateTime?
+  scoreDelta  Int?
+
+  occurredAt DateTime @default(now())
+
+  @@index([agentId, processed])
+  @@index([signalType, occurredAt])
+}
+
+enum BateSignalType {
+  CLEAN_TRANSACTION
+  PRINCIPAL_KYC_VERIFIED
+  CONSISTENT_GEOGRAPHY
+  NORMAL_VELOCITY
+
+  RELYING_PARTY_FRAUD_REPORT
+  VELOCITY_ANOMALY
+  GEOGRAPHIC_INCONSISTENCY
+  SPEND_PATTERN_DEVIATION
+  POLICY_VIOLATION_ATTEMPT
+  FAILED_VERIFY_SPIKE
+  DELEGATION_CHAIN_ANOMALY
+}
+
+enum SignalSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model TrustScoreHistory {
+  id       String        @id @default(cuid())
+  agentId  String
+  agent    AgentIdentity @relation(fields: [agentId], references: [id])
+  score    Int
+  band     TrustBand
+  reason   String
+  signalId String?
+
+  recordedAt DateTime @default(now())
+
+  @@index([agentId, recordedAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// DELEGATIONS (Phase 3)
+// ─────────────────────────────────────────────────────────────
+
+model AgentDelegation {
+  id          String        @id @default(cuid())
+  delegatorId String
+  delegator   AgentIdentity @relation("delegator", fields: [delegatorId], references: [id])
+  delegateId  String
+  delegate    AgentIdentity @relation("delegate", fields: [delegateId], references: [id])
+
+  scopeSubset Json
+
+  chainDepth Int    @default(1)
+  chainRoot  String
+
+  delegationToken String @db.Text
+
+  status    PolicyStatus @default(ACTIVE)
+  expiresAt DateTime
+  createdAt DateTime     @default(now())
+
+  @@index([delegatorId])
+  @@index([delegateId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// WEBHOOKS
+// ─────────────────────────────────────────────────────────────
+
+model WebhookSubscription {
+  id          String    @id @default(cuid())
+  principalId String
+  principal   Principal @relation(fields: [principalId], references: [id], onDelete: Cascade)
+
+  url    String
+  secret String
+  events String[]
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  deliveries WebhookDelivery[]
+
+  @@index([principalId])
+}
+
+model WebhookDelivery {
+  id             String              @id @default(cuid())
+  subscriptionId String
+  subscription   WebhookSubscription @relation(fields: [subscriptionId], references: [id])
+
+  event   String
+  payload Json
+
+  status        DeliveryStatus @default(PENDING)
+  attempts      Int            @default(0)
+  lastAttemptAt DateTime?
+  nextRetryAt   DateTime?
+  responseCode  Int?
+  responseBody  String?        @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([subscriptionId, status])
+  @@index([nextRetryAt])
+}
+
+enum DeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  ABANDONED
+}
+
+// ─────────────────────────────────────────────────────────────
+// RELYING PARTIES
+// ─────────────────────────────────────────────────────────────
+
+model RelyingParty {
+  id         String  @id @default(cuid())
+  name       String
+  domain     String  @unique
+  apiKeyHash String  @unique
+
+  reportWeight Float @default(1.0)
+
+  verified   Boolean   @default(false)
+  verifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([domain])
+}

@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AEGIS — Brand Style Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --deep-space:   #0A0E27;
+    --shield-blue:  #1340C4;
+    --circuit-cyan: #00B4FF;
+    --white:        #FFFFFF;
+    --frost:        #F0F4FF;
+    --slate:        #64748B;
+    --dark-slate:   #1E293B;
+    --mid-slate:    #334155;
+
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  body {
+    font-family: var(--font);
+    background: #F8FAFC;
+    color: var(--deep-space);
+    line-height: 1.6;
+  }
+
+  /* Layout */
+  .page-header {
+    background: var(--deep-space);
+    padding: 60px 80px 50px;
+    position: relative;
+    overflow: hidden;
+  }
+  .page-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--shield-blue), var(--circuit-cyan), var(--shield-blue));
+  }
+  .page-header .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    color: var(--circuit-cyan);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+  .page-header h1 {
+    font-size: 48px;
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: -1px;
+    line-height: 1.1;
+  }
+  .page-header p {
+    font-size: 16px;
+    color: var(--slate);
+    margin-top: 12px;
+    max-width: 520px;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 48px;
+  }
+
+  section {
+    padding: 64px 0;
+    border-bottom: 1px solid #E2E8F0;
+  }
+  section:last-child { border-bottom: none; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--shield-blue);
+    margin-bottom: 8px;
+  }
+  .section-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--deep-space);
+    margin-bottom: 32px;
+    letter-spacing: -0.5px;
+  }
+
+  /* Colors */
+  .color-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 20px;
+  }
+  .swatch {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  .swatch-color {
+    height: 100px;
+  }
+  .swatch-info {
+    background: white;
+    padding: 14px 16px;
+  }
+  .swatch-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--deep-space);
+  }
+  .swatch-hex {
+    font-size: 12px;
+    color: var(--slate);
+    font-family: 'Consolas', 'Monaco', monospace;
+    margin-top: 3px;
+  }
+  .swatch-usage {
+    font-size: 11px;
+    color: #94A3B8;
+    margin-top: 5px;
+  }
+
+  /* Typography */
+  .type-samples {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+  .type-sample {
+    background: white;
+    border-radius: 12px;
+    padding: 32px 36px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    display: flex;
+    align-items: baseline;
+    gap: 40px;
+  }
+  .type-meta {
+    min-width: 140px;
+    flex-shrink: 0;
+  }
+  .type-meta-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--shield-blue);
+  }
+  .type-meta-spec {
+    font-size: 12px;
+    color: var(--slate);
+    margin-top: 4px;
+    line-height: 1.7;
+  }
+
+  /* Logo section */
+  .logo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .logo-box {
+    border-radius: 12px;
+    padding: 48px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .logo-box.dark  { background: var(--deep-space); }
+  .logo-box.light { background: var(--white); border: 1px solid #E2E8F0; }
+  .logo-box.blue  { background: var(--shield-blue); }
+  .logo-box.frost { background: var(--frost); border: 1px solid #E2E8F0; }
+  .logo-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .dark .logo-label  { color: var(--slate); }
+  .light .logo-label { color: var(--slate); }
+  .blue .logo-label  { color: rgba(255,255,255,0.6); }
+  .frost .logo-label { color: var(--slate); }
+
+  /* Brand voice */
+  .voice-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .voice-card {
+    background: white;
+    border-radius: 12px;
+    padding: 28px 32px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .voice-card h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--deep-space);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+  .tag.do   { background: #DCFCE7; color: #166534; }
+  .tag.dont { background: #FEE2E2; color: #991B1B; }
+  .voice-card ul { list-style: none; padding: 0; }
+  .voice-card li {
+    font-size: 14px;
+    color: var(--mid-slate);
+    padding: 7px 0;
+    border-bottom: 1px solid #F1F5F9;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .voice-card li:last-child { border-bottom: none; }
+  .voice-card li::before {
+    content: '';
+    flex-shrink: 0;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-top: 7px;
+  }
+  .do li::before   { background: #22C55E; }
+  .dont li::before { background: #EF4444; }
+
+  /* Copy examples */
+  .copy-examples {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .copy-example {
+    background: white;
+    border-radius: 10px;
+    padding: 20px 24px;
+    border-left: 4px solid var(--shield-blue);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+  }
+  .copy-example-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--shield-blue);
+    margin-bottom: 6px;
+  }
+  .copy-example p {
+    font-size: 15px;
+    color: var(--deep-space);
+    line-height: 1.5;
+  }
+
+  /* Spacing section */
+  .spacing-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 12px 0;
+    border-bottom: 1px solid #F1F5F9;
+  }
+  .spacing-bar {
+    background: linear-gradient(90deg, var(--shield-blue), var(--circuit-cyan));
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .spacing-label {
+    font-size: 13px;
+    color: var(--mid-slate);
+  }
+  .spacing-value {
+    font-size: 12px;
+    font-family: monospace;
+    color: var(--shield-blue);
+    font-weight: 600;
+  }
+
+  /* Icon section */
+  .icon-principle {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  .icon-card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .icon-card .icon-circle {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--shield-blue), var(--circuit-cyan));
+    margin: 0 auto 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .icon-card h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--deep-space);
+    margin-bottom: 6px;
+  }
+  .icon-card p {
+    font-size: 12px;
+    color: var(--slate);
+    line-height: 1.5;
+  }
+
+  /* Taglines */
+  .tagline-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .tagline-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: white;
+    border-radius: 8px;
+    padding: 14px 20px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+  }
+  .tagline-item.primary { border-left: 4px solid var(--circuit-cyan); }
+  .tagline-item.secondary { border-left: 4px solid #E2E8F0; }
+  .tagline-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--deep-space);
+  }
+  .tagline-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: #DBEAFE;
+    color: var(--shield-blue);
+    white-space: nowrap;
+  }
+
+  footer {
+    background: var(--deep-space);
+    color: var(--slate);
+    text-align: center;
+    padding: 32px;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Page Header -->
+<div class="page-header">
+  <div class="container">
+    <div class="eyebrow">Brand Identity System</div>
+    <h1>AEGIS<br>Style Guide</h1>
+    <p>The visual and verbal standards for AEGIS — the neutral trust layer for AI agents. Version 1.0 · 2026</p>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ── LOGO ─────────────────────────── -->
+  <section>
+    <div class="section-label">01 — Identity</div>
+    <div class="section-title">Logo & Wordmark</div>
+    <div class="logo-grid">
+      <div class="logo-box dark">
+        <img src="aegis-logo.svg" alt="AEGIS logo on dark" style="max-width:280px;">
+        <div class="logo-label">Primary — Dark Background</div>
+      </div>
+      <div class="logo-box light">
+        <img src="aegis-logo.svg" alt="AEGIS logo on light" style="max-width:280px; filter: none;">
+        <div class="logo-label">On White — Full Color</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 28px; background: white; border-radius: 12px; padding: 28px 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+      <div class="section-label" style="margin-bottom: 16px;">Logo Icon — Standalone</div>
+      <div style="display: flex; gap: 32px; align-items: center;">
+        <div style="background: var(--deep-space); border-radius: 12px; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center;">
+          <!-- Shield icon standalone -->
+          <svg width="44" height="52" viewBox="12 6 56 68" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="sg2" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#1340C4"/>
+                <stop offset="100%" style="stop-color:#0A0E27"/>
+              </linearGradient>
+            </defs>
+            <path d="M 40,6 L 68,16 L 68,42 Q 68,62 40,74 Q 12,62 12,42 L 12,16 Z" fill="url(#sg2)"/>
+            <path d="M 40,10 L 64,19 L 64,42 Q 64,59 40,70 Q 16,59 16,42 L 16,19 Z" fill="none" stroke="#00B4FF" stroke-width="0.8" stroke-opacity="0.5"/>
+            <line x1="40" y1="22" x2="28" y2="54" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+            <line x1="40" y1="22" x2="52" y2="54" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+            <line x1="32" y1="43" x2="48" y2="43" stroke="#00B4FF" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div style="background: var(--shield-blue); border-radius: 12px; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center;">
+          <svg width="44" height="52" viewBox="12 6 56 68" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 40,6 L 68,16 L 68,42 Q 68,62 40,74 Q 12,62 12,42 L 12,16 Z" fill="rgba(255,255,255,0.15)"/>
+            <path d="M 40,10 L 64,19 L 64,42 Q 64,59 40,70 Q 16,59 16,42 L 16,19 Z" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/>
+            <line x1="40" y1="22" x2="28" y2="54" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+            <line x1="40" y1="22" x2="52" y2="54" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+            <line x1="32" y1="43" x2="48" y2="43" stroke="#00B4FF" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div style="background: var(--frost); border: 1px solid #E2E8F0; border-radius: 12px; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center;">
+          <svg width="44" height="52" viewBox="12 6 56 68" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="sg3" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#1340C4"/>
+                <stop offset="100%" style="stop-color:#0A0E27"/>
+              </linearGradient>
+            </defs>
+            <path d="M 40,6 L 68,16 L 68,42 Q 68,62 40,74 Q 12,62 12,42 L 12,16 Z" fill="url(#sg3)"/>
+            <path d="M 40,10 L 64,19 L 64,42 Q 64,59 40,70 Q 16,59 16,42 L 16,19 Z" fill="none" stroke="#00B4FF" stroke-width="0.8" stroke-opacity="0.5"/>
+            <line x1="40" y1="22" x2="28" y2="54" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+            <line x1="40" y1="22" x2="52" y2="54" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+            <line x1="32" y1="43" x2="48" y2="43" stroke="#00B4FF" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div style="font-size: 13px; color: var(--slate); line-height: 1.8;">
+          <strong style="color:var(--deep-space);">Use on dark, blue, or frost backgrounds.</strong><br>
+          Minimum size: 32px height.<br>
+          Clear space: ½× icon height on all sides.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── COLORS ─────────────────────────── -->
+  <section>
+    <div class="section-label">02 — Color</div>
+    <div class="section-title">Color Palette</div>
+    <div class="color-grid">
+      <div class="swatch">
+        <div class="swatch-color" style="background:#0A0E27;"></div>
+        <div class="swatch-info">
+          <div class="swatch-name">Deep Space</div>
+          <div class="swatch-hex">#0A0E27</div>
+          <div class="swatch-usage">Primary background, text on light</div>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background:#1340C4;"></div>
+        <div class="swatch-info">
+          <div class="swatch-name">Shield Blue</div>
+          <div class="swatch-hex">#1340C4</div>
+          <div class="swatch-usage">Primary brand, CTAs, links</div>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background:#00B4FF;"></div>
+        <div class="swatch-info">
+          <div class="swatch-name">Circuit Cyan</div>
+          <div class="swatch-hex">#00B4FF</div>
+          <div class="swatch-usage">Accent, highlights, tech details</div>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background:#1E293B;"></div>
+        <div class="swatch-info">
+          <div class="swatch-name">Dark Slate</div>
+          <div class="swatch-hex">#1E293B</div>
+          <div class="swatch-usage">Secondary backgrounds, cards</div>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background:#64748B;"></div>
+        <div class="swatch-info">
+          <div class="swatch-name">Slate</div>
+          <div class="swatch-hex">#64748B</div>
+          <div class="swatch-usage">Body text, captions, muted</div>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background:#F0F4FF; border:1px solid #E2E8F0;"></div>
+        <div class="swatch-info">
+          <div class="swatch-name">Frost</div>
+          <div class="swatch-hex">#F0F4FF</div>
+          <div class="swatch-usage">Light section backgrounds</div>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background:#FFFFFF; border:1px solid #E2E8F0;"></div>
+        <div class="swatch-info">
+          <div class="swatch-name">White</div>
+          <div class="swatch-hex">#FFFFFF</div>
+          <div class="swatch-usage">Cards, content surfaces</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 32px; background: var(--deep-space); border-radius: 12px; padding: 28px 32px;">
+      <div class="section-label" style="margin-bottom: 16px; color: var(--circuit-cyan);">Color Usage Ratio</div>
+      <div style="display: flex; height: 32px; border-radius: 8px; overflow: hidden;">
+        <div style="background:#0A0E27; flex:3; display:flex; align-items:center; justify-content:center; font-size:11px; color:rgba(255,255,255,0.5); letter-spacing:1px;">60%</div>
+        <div style="background:#1340C4; flex:2; display:flex; align-items:center; justify-content:center; font-size:11px; color:rgba(255,255,255,0.7); letter-spacing:1px;">25%</div>
+        <div style="background:#00B4FF; flex:1; display:flex; align-items:center; justify-content:center; font-size:11px; color:rgba(255,255,255,0.9); letter-spacing:1px;">15%</div>
+      </div>
+      <div style="display:flex; gap: 24px; margin-top:14px;">
+        <div style="font-size:12px; color:var(--slate);">● Deep Space — dominant (60%)</div>
+        <div style="font-size:12px; color:var(--slate);">● Shield Blue — supporting (25%)</div>
+        <div style="font-size:12px; color:var(--slate);">● Circuit Cyan — accent (15%)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── TYPOGRAPHY ─────────────────────────── -->
+  <section>
+    <div class="section-label">03 — Typography</div>
+    <div class="section-title">Type System</div>
+
+    <div style="margin-bottom: 20px; background: white; border-radius: 10px; padding: 20px 28px; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+      <div style="font-size: 12px; color:var(--slate); margin-bottom: 8px;">Primary typeface</div>
+      <div style="font-size: 28px; font-weight: 700; letter-spacing: -0.5px; color: var(--deep-space);">Inter</div>
+      <div style="font-size: 13px; color:var(--slate); margin-top: 6px;">Fallback stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif</div>
+    </div>
+
+    <div class="type-samples">
+      <div class="type-sample">
+        <div class="type-meta">
+          <div class="type-meta-label">Display</div>
+          <div class="type-meta-spec">48–64px<br>Weight 800<br>Letter-spacing –1px</div>
+        </div>
+        <div style="font-size:52px; font-weight:800; color:var(--deep-space); letter-spacing:-1.5px; line-height:1.05;">The Trust Layer<br>for AI Agents</div>
+      </div>
+      <div class="type-sample">
+        <div class="type-meta">
+          <div class="type-meta-label">Heading 1</div>
+          <div class="type-meta-spec">36–44px<br>Weight 700<br>Letter-spacing –0.5px</div>
+        </div>
+        <div style="font-size:40px; font-weight:700; color:var(--deep-space); letter-spacing:-0.5px;">Verification at Protocol Level</div>
+      </div>
+      <div class="type-sample">
+        <div class="type-meta">
+          <div class="type-meta-label">Heading 2</div>
+          <div class="type-meta-spec">24–28px<br>Weight 700<br>Normal spacing</div>
+        </div>
+        <div style="font-size:26px; font-weight:700; color:var(--deep-space);">Behavioral Attestation Engine</div>
+      </div>
+      <div class="type-sample">
+        <div class="type-meta">
+          <div class="type-meta-label">Body Large</div>
+          <div class="type-meta-spec">17–18px<br>Weight 400<br>Line-height 1.7</div>
+        </div>
+        <div style="font-size:17px; color:var(--mid-slate); line-height:1.7; max-width:540px;">AEGIS holds only public keys, signs only what it observed, and enforces the policies you wrote. Protocol-neutral. Vendor-neutral. Model-neutral.</div>
+      </div>
+      <div class="type-sample">
+        <div class="type-meta">
+          <div class="type-meta-label">Body</div>
+          <div class="type-meta-spec">14–16px<br>Weight 400<br>Line-height 1.6</div>
+        </div>
+        <div style="font-size:15px; color:var(--slate); line-height:1.6; max-width:540px;">Each event includes the previous event's id plus a signature over the canonical form, creating an append-only, tamper-evident audit chain that relying parties can verify independently.</div>
+      </div>
+      <div class="type-sample">
+        <div class="type-meta">
+          <div class="type-meta-label">Label / Eyebrow</div>
+          <div class="type-meta-spec">10–12px<br>Weight 700<br>Letter-spacing 3px<br>Uppercase</div>
+        </div>
+        <div style="font-size:11px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:var(--shield-blue);">ATTESTATION FOR THE AGENTIC ERA</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── TAGLINES ─────────────────────────── -->
+  <section>
+    <div class="section-label">04 — Messaging</div>
+    <div class="section-title">Taglines & Headlines</div>
+    <div class="tagline-list">
+      <div class="tagline-item primary">
+        <div class="tagline-text">Attestation for the Agentic Era</div>
+        <div class="tagline-badge">Primary Tagline</div>
+      </div>
+      <div class="tagline-item secondary">
+        <div class="tagline-text">The neutral trust layer between AI agents and the services they act on.</div>
+        <div class="tagline-badge">Mission Statement</div>
+      </div>
+      <div class="tagline-item secondary">
+        <div class="tagline-text">We hold only public keys. We sign only what we observed.</div>
+        <div class="tagline-badge">Trust Principle</div>
+      </div>
+      <div class="tagline-item secondary">
+        <div class="tagline-text">Protocol-neutral. Vendor-neutral. Model-neutral.</div>
+        <div class="tagline-badge">Positioning</div>
+      </div>
+      <div class="tagline-item secondary">
+        <div class="tagline-text">Every action, attested. Every policy, enforced. Every agent, accountable.</div>
+        <div class="tagline-badge">Product Promise</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── BRAND VOICE ─────────────────────────── -->
+  <section>
+    <div class="section-label">05 — Voice & Tone</div>
+    <div class="section-title">Brand Voice</div>
+
+    <div class="icon-principle" style="margin-bottom: 32px;">
+      <div class="icon-card">
+        <div class="icon-circle">⚖️</div>
+        <h4>Neutral</h4>
+        <p>No agenda. No favoritism. Switzerland of agent identity.</p>
+      </div>
+      <div class="icon-card">
+        <div class="icon-circle">🔐</div>
+        <h4>Authoritative</h4>
+        <p>We speak precisely about cryptography, policy, and trust.</p>
+      </div>
+      <div class="icon-card">
+        <div class="icon-circle">📐</div>
+        <h4>Precise</h4>
+        <p>We are not vague. Every claim is grounded in what was observed.</p>
+      </div>
+      <div class="icon-card">
+        <div class="icon-circle">🌐</div>
+        <h4>Universal</h4>
+        <p>Built for every model, every vendor, every protocol.</p>
+      </div>
+    </div>
+
+    <div class="voice-grid">
+      <div class="voice-card do">
+        <h3><span class="tag do">Do</span> Use language like…</h3>
+        <ul>
+          <li>Verified, attested, signed, enforced</li>
+          <li>Cryptographic, append-only, deterministic</li>
+          <li>Neutral, portable, protocol-agnostic</li>
+          <li>Trust infrastructure, policy layer</li>
+          <li>Agent identity, behavioral attestation</li>
+          <li>Relying party, principal, scope</li>
+        </ul>
+      </div>
+      <div class="voice-card dont">
+        <h3><span class="tag dont">Don't</span> Avoid language like…</h3>
+        <ul>
+          <li>AI safety (not what we do)</li>
+          <li>Magic, smart, intelligent</li>
+          <li>Synergy, seamless, innovative</li>
+          <li>Best-in-class, cutting-edge (earn it)</li>
+          <li>Trust us (we prove it cryptographically)</li>
+          <li>Vague hedges: "may", "could", "might help"</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="copy-examples" style="margin-top: 24px;">
+      <div class="copy-example">
+        <div class="copy-example-label">Hero Copy</div>
+        <p>AEGIS is the neutral verification, policy enforcement, and behavioral attestation layer between AI agents and the services they act on.</p>
+      </div>
+      <div class="copy-example">
+        <div class="copy-example-label">Feature Description</div>
+        <p>Every agent action produces a signed, append-only audit event. Each event includes the previous event's signature, forming a tamper-evident chain that any relying party can verify independently.</p>
+      </div>
+      <div class="copy-example">
+        <div class="copy-example-label">Value Proposition</div>
+        <p>We hold only public keys. We sign only what we observed. We are the Switzerland of agent identity — protocol-neutral, vendor-neutral, model-neutral.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  AEGIS Brand System · Version 1.0 · 2026 · Confidential
+</footer>
+
+</body>
+</html>

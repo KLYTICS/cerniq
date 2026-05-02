@@ -1,0 +1,82 @@
+// Core MCP server. Constructs an MCP server instance whose tools are
+// the AEGIS API surface. Auth is by AEGIS API key, supplied either via
+// env (`AEGIS_API_KEY`) or via the host's MCP `initialize` metadata.
+
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { Aegis } from '@aegis/sdk';
+import { registerVerifyTool } from './tools/verify.js';
+import { registerAgentsTools } from './tools/agents.js';
+import { registerPoliciesTools } from './tools/policies.js';
+import { registerAuditTool } from './tools/audit.js';
+import { TOOL_NAMES, type ToolDefinition } from './tools/registry.js';
+
+export interface AegisMcpServerOptions {
+  /** AEGIS API key. If omitted, the server reads `AEGIS_API_KEY` from env. */
+  apiKey?: string;
+  /** AEGIS base URL. Defaults to `https://api.aegis.dev`. */
+  baseUrl?: string;
+  /** Override server name in MCP `initialize`. */
+  name?: string;
+  /** Restrict which tools are exposed. Defaults to all tools. */
+  allowedTools?: readonly string[];
+}
+
+/**
+ * Build an MCP server that exposes AEGIS as tools. The caller is
+ * responsible for connecting it to a transport (`StdioServerTransport`
+ * for `npx aegis-mcp`, `SSEServerTransport` for hosted deployments).
+ *
+ * Tool naming follows ADR-0008: `aegis.<resource>.<action>`.
+ */
+export function createAegisMcpServer(opts: AegisMcpServerOptions = {}): Server {
+  const apiKey = opts.apiKey ?? process.env.AEGIS_API_KEY;
+  if (!apiKey) {
+    throw new Error('AEGIS_API_KEY required (pass via opts.apiKey or env)');
+  }
+  const aegis = new Aegis({
+    apiKey,
+    baseUrl: opts.baseUrl ?? process.env.AEGIS_BASE_URL ?? 'https://api.aegis.dev',
+  });
+
+  const server = new Server(
+    { name: opts.name ?? 'aegis-mcp', version: '0.1.0' },
+    { capabilities: { tools: {} } },
+  );
+
+  // Build the tool registry.
+  const tools = new Map<string, ToolDefinition>();
+  registerVerifyTool(aegis, tools);
+  registerAgentsTools(aegis, tools);
+  registerPoliciesTools(aegis, tools);
+  registerAuditTool(aegis, tools);
+
+  const allowedTools = new Set(opts.allowedTools ?? TOOL_NAMES);
+
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: Array.from(tools.values())
+      .filter((t) => allowedTools.has(t.name))
+      .map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema })),
+  }));
+
+  server.setRequestHandler(CallToolRequestSchema, async (req) => {
+    const tool = tools.get(req.params.name);
+    if (!tool || !allowedTools.has(tool.name)) {
+      return {
+        content: [{ type: 'text', text: JSON.stringify({ error: 'tool_not_found', name: req.params.name }) }],
+        isError: true,
+      };
+    }
+    try {
+      const result = await tool.handler(req.params.arguments ?? {});
+      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: JSON.stringify({ error: 'tool_failed', message: (err as Error).message }) }],
+        isError: true,
+      };
+    }
+  });
+
+  return server;
+}

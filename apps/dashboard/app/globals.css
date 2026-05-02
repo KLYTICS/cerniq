@@ -1,0 +1,100 @@
+/* AEGIS dashboard — Bloomberg-density base. Phase 1 is intentionally austere;
+   no card grids, no pastel chrome. Data-first. */
+
+:root {
+  color-scheme: dark;
+  --bg: #07090b;
+  --bg-elev: #0d1014;
+  --border: #1c2128;
+  --text: #e6e6e6;
+  --text-dim: #8b94a3;
+  --accent: #6ee7ff;
+  --warn: #f5b53d;
+  --danger: #ff6b6b;
+  --ok: #4ade80;
+  --mono: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, .mono { font-family: var(--mono); }
+
+.aegis-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elev);
+  position: sticky;
+  top: 0;
+}
+.aegis-logo {
+  font-family: var(--mono);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+}
+.aegis-header nav { display: flex; gap: 18px; }
+.aegis-header nav a { color: var(--text-dim); }
+.aegis-header nav a:hover { color: var(--text); text-decoration: none; }
+
+main { padding: 24px; max-width: 1280px; margin: 0 auto; }
+
+h1 { font-size: 22px; margin: 0 0 4px; font-weight: 600; }
+h2 { font-size: 14px; margin: 24px 0 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+
+.lede { color: var(--text-dim); margin: 0 0 24px; max-width: 640px; }
+.muted { color: var(--text-dim); }
+.center { text-align: center; }
+
+.metric-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+.metric {
+  background: var(--bg-elev);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.metric-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+.metric-value { font-family: var(--mono); font-size: 22px; font-weight: 500; }
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 12px;
+  border: 1px solid var(--border);
+}
+.data-table th, .data-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.data-table th {
+  background: var(--bg-elev);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+}
+.block { margin-top: 24px; }
+ul { padding-left: 18px; }

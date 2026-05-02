@@ -1,0 +1,188 @@
+# AEGIS — One-command dev stack.
+#
+# Complements (does NOT duplicate) the root docker-compose.yml.
+# Root provides: postgres + redis at the canonical ports for app dev.
+# This file STARTS its own postgres + redis on the same default ports so
+# operators only need a single `docker compose -f infra/dev/docker-compose.dev.yml up`
+# (don't run both at once — pick one). It additionally brings up the API,
+# the worker, Prometheus, Grafana, and an OTel collector so the
+# observability surface can be smoke-tested end to end.
+#
+# Versions: pinned per CLAUDE.md "no `latest` tags" quality bar.
+# Verify-as-of: 2026-05-01.
+
+name: aegis-dev
+
+networks:
+  aegis-dev:
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:
+  prometheusdata:
+  grafanadata:
+
+services:
+  postgres:
+    image: postgres:16.4-alpine
+    container_name: aegis-dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aegis
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+      POSTGRES_DB: aegis
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U aegis -d aegis']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [aegis-dev]
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: aegis-dev-redis
+    restart: unless-stopped
+    command:
+      [
+        'redis-server',
+        '--appendonly',
+        'yes',
+        '--maxmemory-policy',
+        'allkeys-lru',
+        '--protected-mode',
+        'yes',
+      ]
+    ports:
+      - '6379:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [aegis-dev]
+
+  api:
+    # Builds the production image so dev catches build issues — same
+    # Dockerfile.api Railway runs in prod.
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+    container_name: aegis-dev-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://aegis:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/aegis
+      REDIS_URL: redis://redis:6379
+      AEGIS_SIGNING_PUBLIC_KEY: ${AEGIS_SIGNING_PUBLIC_KEY:-}
+      AEGIS_SIGNING_KEY_ROTATED_AT: ${AEGIS_SIGNING_KEY_ROTATED_AT:-2026-01-01T00:00:00Z}
+      PORT: '4000'
+    ports:
+      - '4000:4000'
+    healthcheck:
+      test: ['CMD', 'sh', '-c', 'wget -qO- http://localhost:4000/v1/health/live || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    networks: [aegis-dev]
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.worker
+    container_name: aegis-dev-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://aegis:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/aegis
+      REDIS_URL: redis://redis:6379
+      AEGIS_SIGNING_PUBLIC_KEY: ${AEGIS_SIGNING_PUBLIC_KEY:-}
+      WORKER_METRICS_PORT: '4001'
+    ports:
+      - '4001:4001'
+    healthcheck:
+      test: ['CMD', 'sh', '-c', 'wget -qO- http://localhost:4001/metrics || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 30s
+    networks: [aegis-dev]
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: aegis-dev-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../observability/alerts/aegis.rules.yml:/etc/prometheus/rules/aegis.rules.yml:ro
+      - prometheusdata:/prometheus
+    ports:
+      - '9090:9090'
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '-O', '-', 'http://localhost:9090/-/ready']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks: [aegis-dev]
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    container_name: aegis-dev-grafana
+    restart: unless-stopped
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    ports:
+      - '3000:3000'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/health | grep -q ok']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks: [aegis-dev]
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.110.0
+    container_name: aegis-dev-otel
+    restart: unless-stopped
+    command: ['--config=/etc/otelcol/config.yaml']
+    volumes:
+      - ../observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - '4317:4317' # OTLP gRPC
+      - '4318:4318' # OTLP HTTP
+    healthcheck:
+      test: ['CMD', 'sh', '-c', 'nc -z localhost 4317 || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 4
+    networks: [aegis-dev]

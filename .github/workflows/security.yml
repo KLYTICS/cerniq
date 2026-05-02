@@ -1,0 +1,415 @@
+# AEGIS — Security workflow
+#
+# Complements .github/workflows/ci.yml. CI handles lint/typecheck/build/tests;
+# this file handles supply-chain, SAST, secrets, license, SBOM, and workflow-
+# permission posture. Jobs run in parallel where independent and a final
+# `summary` job gates the overall result.
+#
+# Action pinning: every third-party action MUST be pinned to a full commit
+# SHA before merge. The current `@vX.Y.Z` references are placeholders carrying
+# a `# pin: replace with full sha before merge` annotation; the next hardening
+# pass replaces all of them in a single PR. This is the documented exception
+# called out in the security plan — Dependabot will then keep them current.
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Mon 06:00 UTC — weekly re-scan against fresh CVE feeds.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+# Top-level permissions are intentionally minimal. Each job re-declares its
+# own block so a future edit cannot silently widen the token surface.
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: '20.11.0'
+  PNPM_VERSION: '9.12.3'
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────
+  # 1. gitleaks — repo-wide secret scan, SARIF upload to code-scanning.
+  # ─────────────────────────────────────────────────────────────────
+  gitleaks:
+    name: Secrets · gitleaks
+    runs-on: warp-ubuntu-latest-x64-2x
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write # SARIF upload
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # pin: replace with full sha before merge
+        with:
+          fetch-depth: 0 # gitleaks needs full history
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2 # pin: replace with full sha before merge
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'true'
+          GITLEAKS_ENABLE_SUMMARY: 'true'
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3 # pin: replace with full sha before merge
+        with:
+          sarif_file: results.sarif
+          category: gitleaks
+
+  # ─────────────────────────────────────────────────────────────────
+  # 2. osv-scanner — lockfile vuln scan (npm/pnpm). Reusable workflow.
+  # ─────────────────────────────────────────────────────────────────
+  osv-scanner:
+    name: SCA · osv-scanner
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    # pin: replace with full sha before merge
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v1.9.1
+    with:
+      scan-args: |-
+        --recursive
+        --skip-git
+        --lockfile=./pnpm-lock.yaml
+        ./
+      fail-on-vuln: true
+
+  # ─────────────────────────────────────────────────────────────────
+  # 3. npm-audit — pnpm audit at workspace root, fail HIGH+.
+  # ─────────────────────────────────────────────────────────────────
+  npm-audit:
+    name: SCA · pnpm audit
+    runs-on: warp-ubuntu-latest-x64-2x
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # pin: replace with full sha before merge
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4 # pin: replace with full sha before merge
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4 # pin: replace with full sha before merge
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: pnpm audit (HIGH+)
+        run: pnpm audit --audit-level=high
+
+  # ─────────────────────────────────────────────────────────────────
+  # 4. trivy-fs — filesystem scan, SARIF, fail HIGH/CRITICAL.
+  # ─────────────────────────────────────────────────────────────────
+  trivy-fs:
+    name: SCA · trivy filesystem
+    runs-on: warp-ubuntu-latest-x64-2x
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # pin: replace with full sha before merge
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.24.0 # pin: replace with full sha before merge
+        with:
+          scan-type: fs
+          scan-ref: '.'
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: '1'
+          format: sarif
+          output: trivy-fs.sarif
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3 # pin: replace with full sha before merge
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+
+  # ─────────────────────────────────────────────────────────────────
+  # 5. codeql — JS/TS SAST. Build-mode none (pnpm workspace, no compile).
+  # ─────────────────────────────────────────────────────────────────
+  codeql-typescript:
+    name: SAST · CodeQL (JS/TS)
+    runs-on: warp-ubuntu-latest-x64-4x
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # pin: replace with full sha before merge
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3 # pin: replace with full sha before merge
+        with:
+          languages: javascript-typescript
+          build-mode: none
+          queries: +security-and-quality
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3 # pin: replace with full sha before merge
+        with:
+          category: '/language:javascript-typescript'
+
+  # ─────────────────────────────────────────────────────────────────
+  # 6. license-check — fail on non-allowlisted licenses in prod deps.
+  # ─────────────────────────────────────────────────────────────────
+  license-check:
+    name: Compliance · license allowlist
+    runs-on: warp-ubuntu-latest-x64-2x
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # pin: replace with full sha before merge
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4 # pin: replace with full sha before merge
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4 # pin: replace with full sha before merge
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Enforce license allowlist
+        # Allowlist (SPDX): MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC,
+        # 0BSD, Unlicense, CC0-1.0, MPL-2.0. Anything else fails this gate.
+        # `pnpm licenses list --prod --json` emits an object keyed by the
+        # license string with array-of-package values; we walk every key.
+        run: |
+          set -euo pipefail
+          pnpm licenses list --prod --json > licenses.json
+
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import { appendFileSync } from 'node:fs';
+
+          const data = JSON.parse(readFileSync('licenses.json', 'utf8'));
+          const allow = new Set([
+            'MIT', 'Apache-2.0', 'BSD-2-Clause', 'BSD-3-Clause',
+            'ISC', '0BSD', 'Unlicense', 'CC0-1.0', 'MPL-2.0',
+          ]);
+          const bad = [];
+          for (const [license, pkgs] of Object.entries(data)) {
+            if (allow.has(license)) continue;
+            for (const p of pkgs) {
+              const name = p.name ?? p.from ?? '<unknown>';
+              const version = p.version ?? '?';
+              bad.push(`${name}@${version} :: ${license}`);
+            }
+          }
+
+          const summary = process.env.GITHUB_STEP_SUMMARY;
+          if (bad.length > 0) {
+            console.log('::error title=License policy violation::Disallowed licenses detected');
+            for (const line of bad) console.log(line);
+            if (summary) {
+              const md = [
+                '## License policy violation',
+                '',
+                'The following packages have licenses outside the AEGIS allowlist:',
+                '',
+                '```',
+                ...bad,
+                '```',
+                '',
+              ].join('\n');
+              appendFileSync(summary, md);
+            }
+            process.exit(1);
+          }
+          console.log('All production dependencies are within the license allowlist.');
+          NODE
+
+  # ─────────────────────────────────────────────────────────────────
+  # 7. semgrep — SAST rulesets (OWASP Top 10, TS, Node).
+  # ─────────────────────────────────────────────────────────────────
+  semgrep:
+    name: SAST · semgrep
+    runs-on: warp-ubuntu-latest-x64-4x
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      SEMGREP_SEND_METRICS: 'off'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # pin: replace with full sha before merge
+
+      - name: Run semgrep
+        uses: returntocorp/semgrep-action@v1 # pin: replace with full sha before merge
+        with:
+          config: >-
+            p/owasp-top-ten
+            p/typescript
+            p/nodejs
+          generateSarif: '1'
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3 # pin: replace with full sha before merge
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+  # ─────────────────────────────────────────────────────────────────
+  # 8. sbom — SPDX SBOM artifact, retained 90 days.
+  # ─────────────────────────────────────────────────────────────────
+  sbom:
+    name: Supply chain · SBOM (SPDX)
+    runs-on: warp-ubuntu-latest-x64-2x
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # pin: replace with full sha before merge
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0 # pin: replace with full sha before merge
+        with:
+          format: spdx-json
+          artifact-name: aegis-sbom.spdx.json
+          output-file: aegis-sbom.spdx.json
+          upload-artifact: true
+          upload-artifact-retention: 90
+
+  # ─────────────────────────────────────────────────────────────────
+  # 9. workflow-permissions — assert every workflow declares permissions.
+  #     Pure shell, no third-party action — defends the security boundary
+  #     of the workflow set itself.
+  # ─────────────────────────────────────────────────────────────────
+  secrets-scan-actions-permissions:
+    name: Posture · workflow permissions
+    runs-on: warp-ubuntu-latest-x64-2x
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # pin: replace with full sha before merge
+
+      - name: Assert every workflow declares `permissions:`
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          missing=()
+          for f in .github/workflows/*.yml .github/workflows/*.yaml; do
+            # A workflow is compliant if the literal token "permissions:" appears
+            # somewhere in the file (top-level or per-job). If absent, the file
+            # inherits the repository default token, which we forbid.
+            if ! grep -qE '^[[:space:]]*permissions:' "$f"; then
+              missing+=("$f")
+            fi
+          done
+
+          if (( ${#missing[@]} > 0 )); then
+            echo "::error title=Workflow permissions missing::The following workflows have no explicit permissions block:"
+            printf '  - %s\n' "${missing[@]}"
+            {
+              echo '## Workflow permissions missing';
+              echo '';
+              echo 'Every workflow under `.github/workflows/` MUST declare an explicit `permissions:` block (top-level or per-job) so the GITHUB_TOKEN cannot silently inherit write access.';
+              echo '';
+              echo 'Offenders:';
+              for f in "${missing[@]}"; do echo "- \`$f\`"; done;
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          echo "All workflows declare explicit permissions blocks."
+
+  # ─────────────────────────────────────────────────────────────────
+  # Final gate — fails if any prior job failed; emits markdown summary.
+  # ─────────────────────────────────────────────────────────────────
+  summary:
+    name: Security gate · summary
+    runs-on: warp-ubuntu-latest-x64-2x
+    if: always()
+    needs:
+      - gitleaks
+      - osv-scanner
+      - npm-audit
+      - trivy-fs
+      - codeql-typescript
+      - license-check
+      - semgrep
+      - sbom
+      - secrets-scan-actions-permissions
+    permissions:
+      contents: read
+    steps:
+      - name: Render summary
+        env:
+          R_GITLEAKS: ${{ needs.gitleaks.result }}
+          R_OSV: ${{ needs.osv-scanner.result }}
+          R_AUDIT: ${{ needs.npm-audit.result }}
+          R_TRIVY: ${{ needs.trivy-fs.result }}
+          R_CODEQL: ${{ needs.codeql-typescript.result }}
+          R_LICENSE: ${{ needs.license-check.result }}
+          R_SEMGREP: ${{ needs.semgrep.result }}
+          R_SBOM: ${{ needs.sbom.result }}
+          R_PERMS: ${{ needs.secrets-scan-actions-permissions.result }}
+        run: |
+          set -euo pipefail
+          declare -A R=(
+            [gitleaks]="$R_GITLEAKS"
+            [osv-scanner]="$R_OSV"
+            [npm-audit]="$R_AUDIT"
+            [trivy-fs]="$R_TRIVY"
+            [codeql-typescript]="$R_CODEQL"
+            [license-check]="$R_LICENSE"
+            [semgrep]="$R_SEMGREP"
+            [sbom]="$R_SBOM"
+            [workflow-permissions]="$R_PERMS"
+          )
+
+          {
+            echo '# AEGIS Security Gate';
+            echo '';
+            echo '| Job | Result |';
+            echo '| --- | --- |';
+            for k in gitleaks osv-scanner npm-audit trivy-fs codeql-typescript license-check semgrep sbom workflow-permissions; do
+              v="${R[$k]}"
+              echo "| ${k} | ${v} |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Fail the gate if any required job did not succeed. `skipped` is
+          # treated as failure: every job above is required for a green build.
+          fail=0
+          for k in gitleaks osv-scanner npm-audit trivy-fs codeql-typescript license-check semgrep sbom workflow-permissions; do
+            v="${R[$k]}"
+            if [[ "$v" != "success" ]]; then
+              echo "::error title=Security gate::${k} → ${v}"
+              fail=1
+            fi
+          done
+          exit "$fail"

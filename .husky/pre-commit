@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+
+# Husky pre-commit hook.
+#
+# Fast local checks (the slow ones run in CI). If any of these block you
+# unfairly, fix the underlying issue rather than bypassing — `--no-verify`
+# is reserved for true emergencies and pairs with a follow-up commit.
+
+# Format-and-lint only the staged files via lint-staged.
+pnpm lint-staged
+
+# Block accidental commits of `.env`, secrets, raw private keys, or other
+# clearly-not-shippable artifacts. Belt-and-braces alongside the security CI.
+BLOCKED='\.env$|\.env\.[^.]+$|^secrets/|\.pem$|\.key$|aegis_sk_[A-Za-z0-9]+|aegis_vk_[A-Za-z0-9]+|JWT_ED25519_PRIVATE_KEY_B64=|AUDIT_SIGNING_KEY_B64='
+if git diff --cached --name-only -z | xargs -0 -r grep -lE "$BLOCKED" 2>/dev/null | grep -q .; then
+  echo "✖ Refusing to commit a likely secret. Stage what you actually intended."
+  echo "  See .gitignore + docs/SECURITY.md before bypassing this check."
+  exit 1
+fi

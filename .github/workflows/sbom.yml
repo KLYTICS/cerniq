@@ -1,0 +1,125 @@
+# Software Bill of Materials (SBOM) generation.
+# SOC2 Type II asks for a current SBOM. Customers in regulated verticals
+# (cooperativas, fintech, healthcare) ask for the same. This produces an
+# SPDX 2.3 + CycloneDX 1.6 SBOM for every release tag and every push to
+# main, attaches them as build artifacts, and uploads to the GitHub
+# dependency-graph (so Dependabot can correlate vulns).
+
+name: SBOM
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+  schedule:
+    # Weekly Monday 06:30 UTC — independent of dep changes; catches transitive drift.
+    - cron: '30 6 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sbom-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-sbom:
+    runs-on: warp-ubuntu-latest-x64-2x
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.11.0
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate CycloneDX SBOM
+        run: |
+          pnpm dlx @cyclonedx/cyclonedx-npm \
+            --output-format JSON \
+            --output-file aegis.cyclonedx.json \
+            --spec-version 1.6 \
+            --gather-license-texts
+
+      - name: Generate SPDX SBOM via Syft
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: aegis.spdx.json
+          upload-artifact: false
+
+      - name: Generate Syft CycloneDX (for parity check)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: aegis.syft.cyclonedx.json
+          upload-artifact: false
+
+      - name: Upload SBOMs as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegis-sbom-${{ github.sha }}
+          path: |
+            aegis.cyclonedx.json
+            aegis.spdx.json
+            aegis.syft.cyclonedx.json
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Upload SBOM to GitHub dependency graph
+        uses: anchore/sbom-action/publish-sbom@v0
+        with:
+          sbom-artifact-match: 'aegis.spdx.json'
+
+      - name: Attest build provenance for SBOMs
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            aegis.cyclonedx.json
+            aegis.spdx.json
+
+  vulnerability-scan:
+    needs: build-sbom
+    runs-on: warp-ubuntu-latest-x64-2x
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download SBOM artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: aegis-sbom-${{ github.sha }}
+
+      - name: Run Grype against SBOM
+        uses: anchore/scan-action@v5
+        id: grype
+        with:
+          sbom: aegis.spdx.json
+          fail-build: false
+          severity-cutoff: high
+          output-format: sarif
+
+      - name: Upload Grype findings to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && steps.grype.outputs.sarif != ''
+        with:
+          sarif_file: ${{ steps.grype.outputs.sarif }}
+          category: grype-sbom

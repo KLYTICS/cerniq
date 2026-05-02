@@ -1,0 +1,143 @@
+# =============================================================================
+# AEGIS — Cloudflare Workers wrangler template (Phase 3 edge verify)
+# =============================================================================
+# This is a TEMPLATE. The peer Claude session owns workers/cf-verify/src/*.
+# This file is the deployment skeleton — `name`, `compatibility_date`, KV
+# namespace bindings, env vars, routes. NO source code lives here.
+#
+# Usage:
+#   1. Copy to `workers/cf-verify/wrangler.toml` (gitignored — has real ids).
+#   2. Replace every `<set in CI>` placeholder with values produced by:
+#        wrangler kv:namespace create TRUST_SCORE_CACHE
+#        wrangler kv:namespace create POLICY_CACHE
+#      (and the `--preview` variants for local dev).
+#   3. Inject secrets via `wrangler secret put <NAME>` — never commit them.
+#
+# Phase 3 entry criteria (from docs/ARCHITECTURE.md § 2):
+#   - verify hot path is framework-free (verify.algorithm.ts has zero
+#     @nestjs / @prisma / bullmq imports)
+#   - origin verify p99 baseline measured (the Grafana dashboard at
+#     infra/observability/grafana-dashboards/aegis-verify-latency.json
+#     gives us this number)
+#   - operator has approved the Cloudflare Workers Paid plan ($5/mo)
+# =============================================================================
+
+name = "aegis-verify-edge"
+main = "src/index.ts"
+
+# `compatibility_date` controls the Workers runtime semver. Bumping this is a
+# deliberate change — read the changelog at
+# https://developers.cloudflare.com/workers/configuration/compatibility-dates/
+# before adjusting. Stay on a date that has shipped to the stable tier.
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Workers Paid plan is required for KV bindings beyond the free quotas.
+# `account_id` is set via WRANGLER_ACCOUNT_ID env var or `wrangler config`.
+
+# -----------------------------------------------------------------------------
+# Routes
+# -----------------------------------------------------------------------------
+# Production cuts over `/v1/verify` and `/v1/agents/:id/status` first. Other
+# verify-adjacent endpoints stay at the origin until traffic + correctness
+# data justify moving them. The route pattern below is intentionally narrow.
+#
+# Operator: replace `aegis.<domain>` with the production hostname. The
+# zone_name must match a zone you own in this Cloudflare account.
+# -----------------------------------------------------------------------------
+[[routes]]
+pattern = "aegis.<your-domain>/v1/verify"
+zone_name = "<your-domain>"
+
+[[routes]]
+pattern = "aegis.<your-domain>/v1/agents/*/status"
+zone_name = "<your-domain>"
+
+# -----------------------------------------------------------------------------
+# KV namespaces
+# -----------------------------------------------------------------------------
+# Two read-replica caches at the edge. The origin BullMQ worker is
+# responsible for keeping these populated; the worker NEVER writes back to
+# Postgres directly. KV consistency: eventually consistent across regions
+# (~60s globally), which matches the cache TTLs in
+# docs/ARCHITECTURE.md § 4.
+# -----------------------------------------------------------------------------
+[[kv_namespaces]]
+binding = "TRUST_SCORE_CACHE"
+# operator: replace with `wrangler kv:namespace create TRUST_SCORE_CACHE` output.
+id = "<set in CI>"
+preview_id = "<set in CI>"
+
+[[kv_namespaces]]
+binding = "POLICY_CACHE"
+# operator: replace with `wrangler kv:namespace create POLICY_CACHE` output.
+id = "<set in CI>"
+preview_id = "<set in CI>"
+
+# -----------------------------------------------------------------------------
+# Durable Objects (Phase 3.1 — per-key spend counters)
+# -----------------------------------------------------------------------------
+# Commented out until the spend-counter migration lands. When enabled, the
+# DO class lives at workers/cf-verify/src/spend-counter.ts (peer's scope).
+# -----------------------------------------------------------------------------
+# [[durable_objects.bindings]]
+# name  = "SPEND_COUNTER"
+# class_name = "SpendCounter"
+#
+# [[migrations]]
+# tag = "v1"
+# new_classes = ["SpendCounter"]
+
+# -----------------------------------------------------------------------------
+# Public, non-secret env vars
+# -----------------------------------------------------------------------------
+[vars]
+AEGIS_ENV = "production"
+ORIGIN_API_BASE = "https://api.aegis.<your-domain>"
+# How fresh KV entries must be before the worker falls back to the origin.
+# 90s gives the BATE worker a generous window to push updates after a
+# trust-score recompute (see ARCHITECTURE § 4).
+KV_MAX_STALENESS_SECONDS = "90"
+# Denial-precedence order, exposed so the algorithm can assert at boot that
+# the order matches docs/SECURITY.md § 6. If they drift, the worker refuses
+# to start — which is correct behavior for a precedence-sensitive product.
+DENIAL_PRECEDENCE = "AGENT_NOT_FOUND,AGENT_REVOKED,INVALID_SIGNATURE,POLICY_REVOKED,POLICY_EXPIRED,SCOPE_NOT_GRANTED,SPEND_LIMIT_EXCEEDED,TRUST_SCORE_TOO_LOW,ANOMALY_FLAGGED"
+
+# -----------------------------------------------------------------------------
+# Secrets — set via `wrangler secret put`. NEVER commit them to this file.
+# -----------------------------------------------------------------------------
+# wrangler secret put JWT_ED25519_PUBLIC_KEY_B64
+#   - Public key (b64). The worker only verifies, never signs, so the
+#     private key MUST NOT be deployed to the edge.
+# wrangler secret put ORIGIN_FALLBACK_TOKEN
+#   - Bearer token used when the worker proxies to origin on a KV miss
+#     beyond the staleness window. Rotated quarterly.
+# wrangler secret put OTEL_EXPORTER_OTLP_ENDPOINT
+#   - Optional. If set, the worker emits OTLP traces to this collector
+#     (must be HTTPS — Workers cannot reach plain HTTP).
+
+# -----------------------------------------------------------------------------
+# Limits — Workers enforces 30s CPU / 50ms wall by default. Verify is
+# designed to complete in < 10ms at the edge; raising the limit is a code
+# smell.
+# -----------------------------------------------------------------------------
+[limits]
+cpu_ms = 50
+
+# -----------------------------------------------------------------------------
+# Observability — analytics_engine_datasets are free; we use one for
+# denial-reason counters that the Grafana dashboard scrapes via the
+# Cloudflare Analytics API.
+# -----------------------------------------------------------------------------
+[[analytics_engine_datasets]]
+binding = "VERIFY_ANALYTICS"
+dataset = "aegis_verify_events"
+
+# -----------------------------------------------------------------------------
+# Builds — the peer owns the build tooling. Default `wrangler deploy` runs
+# `wrangler types && esbuild` per the workers/cf-verify package.json once
+# that file lands.
+# -----------------------------------------------------------------------------
+[build]
+command = "pnpm --filter @aegis/cf-verify build"
+cwd = "../.."

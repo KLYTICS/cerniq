@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "AEGIS Next.js",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["dom", "dom.iterable", "ES2023"],
+    "allowJs": true,
+    "noEmit": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "isolatedModules": true,
+    "useDefineForClassFields": true,
+    "noUncheckedIndexedAccess": true,
+    "plugins": [{ "name": "next" }]
+  }
+}

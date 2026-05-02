@@ -1,0 +1,83 @@
+# AEGIS — Docker build context filter
+# ---------------------------------------------------------------------------
+# This file is consulted by `docker build` from the repo root. Anything
+# matched here never enters the build context, which keeps:
+#   1. secrets out of layers, even if a misplaced COPY would pick them up,
+#   2. the build context small (faster uploads to remote builders),
+#   3. cache invalidation predictable (editing a README doesn't bust deps).
+# ---------------------------------------------------------------------------
+
+# --- VCS, editor, OS noise ------------------------------------------------
+.git
+.gitignore
+.gitattributes
+.editorconfig
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# --- Secrets (defense in depth — they must not be in the repo anyway) -----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.aws/
+.gcp/
+*.enc
+
+# --- Node / pnpm artifacts ------------------------------------------------
+**/node_modules
+**/.pnpm-store
+**/.pnpm-debug.log
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+
+# --- Build outputs --------------------------------------------------------
+**/dist
+**/build
+**/out
+**/.next
+**/.turbo
+**/.cache
+**/.parcel-cache
+**/coverage
+**/.nyc_output
+
+# --- Test fixtures + reports ----------------------------------------------
+**/__snapshots__
+**/test-results
+**/playwright-report
+**/junit.xml
+
+# --- CI / docs / meta -----------------------------------------------------
+.github
+.changeset
+docs
+*.md
+!apps/api/README.md
+LICENSE
+
+# --- Docker meta (we don't need our own dockerfiles inside the image) ----
+Dockerfile*
+.dockerignore
+docker-compose*.yml
+infra/docker/
+
+# --- Local DB / Redis volumes (in case someone bind-mounts them) ----------
+**/aegis_pg_data
+**/aegis_redis_data
+**/postgres-data
+**/redis-data
+
+# --- Misc -----------------------------------------------------------------
+*.log
+*.tsbuildinfo
+.eslintcache

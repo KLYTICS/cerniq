@@ -1,0 +1,11 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [],
+  "linked": [["@aegis/sdk", "@aegis/types"]],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": ["@aegis/api", "@aegis/dashboard", "@aegis/cf-verify", "@aegis/eslint-config", "@aegis/tsconfig"]
+}

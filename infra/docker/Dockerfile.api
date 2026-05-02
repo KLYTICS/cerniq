@@ -1,0 +1,108 @@
+# syntax=docker/dockerfile:1.7
+# ---------------------------------------------------------------------------
+# AEGIS — API image (Phase 1 Railway target)
+# ---------------------------------------------------------------------------
+# Base choice rationale (recorded here so future you doesn't re-litigate):
+#   builder : node:20.18.0-bookworm-slim   — has corepack, apt, build toolchain
+#                                            for native deps (bcryptjs is JS,
+#                                            but @prisma/client triggers an
+#                                            OpenSSL-aware engine fetch).
+#   runtime : gcr.io/distroless/nodejs20-debian12:nonroot
+#             — no shell, no apt, no package manager. Final image is < 200 MB
+#               and runs as nonroot UID 65532 (the distroless `nonroot` user).
+#
+# We intentionally do NOT use `node:*-alpine` for runtime: musl + Prisma's
+# precompiled engines is a known sharp edge, and distroless gives us a smaller
+# attack surface than alpine.
+#
+# Pin nothing to `latest`. Bumping the digests below is a deliberate change.
+# Operator: refresh digests with `docker pull ... && docker inspect --format='{{.Id}}'`.
+#
+# IMAGE BUDGET: builder ~1.2 GB (discarded), runtime < 250 MB.
+# BUILD TIME (cold): ~90 s on a CI runner with warm pnpm store.
+# ---------------------------------------------------------------------------
+
+ARG NODE_BASE=node:20.18.0-bookworm-slim
+ARG DISTROLESS_BASE=gcr.io/distroless/nodejs20-debian12:nonroot
+
+# ============================================================================
+# Stage 1 — base: corepack + pnpm pinned to root package.json's packageManager
+# ============================================================================
+FROM ${NODE_BASE} AS base
+ENV PNPM_HOME=/pnpm \
+    PATH=/pnpm:$PATH \
+    CI=true \
+    HUSKY=0
+# Pin pnpm to the version declared in root package.json ("pnpm@9.12.3").
+# corepack honours that declaration; we keep an explicit fallback for clarity.
+RUN corepack enable && corepack prepare pnpm@9.12.3 --activate
+# OpenSSL is required by Prisma's engine probe at install time on bookworm-slim.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /workspace
+
+# ============================================================================
+# Stage 2 — deps: install workspace deps with frozen lockfile
+# ============================================================================
+FROM base AS deps
+# Copy the minimum needed to resolve the dependency graph. Adding source code
+# here would bust the layer cache on every code change.
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY apps/api/package.json apps/api/
+COPY apps/dashboard/package.json apps/dashboard/
+COPY packages/types/package.json packages/types/
+COPY packages/sdk-ts/package.json packages/sdk-ts/
+COPY packages/tsconfig/package.json packages/tsconfig/
+COPY packages/eslint-config/package.json packages/eslint-config/
+# `--frozen-lockfile` is non-negotiable: a drift here means a different graph
+# than CI, which is exactly the class of supply-chain bug we want to prevent.
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store \
+ && pnpm install --frozen-lockfile
+
+# ============================================================================
+# Stage 3 — build: compile TS, generate Prisma client, prune to prod
+# ============================================================================
+FROM deps AS build
+COPY tsconfig.base.json ./
+COPY packages/ packages/
+COPY apps/api/ apps/api/
+RUN pnpm --filter @aegis/api prisma:generate \
+ && pnpm --filter @aegis/api build
+# Prune dev dependencies for the runtime stage. We keep the workspace layout
+# so relative `workspace:*` resolution still works from apps/api/node_modules.
+RUN pnpm --filter @aegis/api --prod deploy /deploy/api \
+ && cp -r apps/api/dist /deploy/api/dist \
+ && cp -r apps/api/prisma /deploy/api/prisma
+
+# ============================================================================
+# Stage 4 — runtime: distroless nonroot. No shell, no apt, no package manager.
+# ============================================================================
+FROM ${DISTROLESS_BASE} AS runtime
+# Distroless `nonroot` user is UID 65532 / GID 65532 by convention.
+USER 65532:65532
+WORKDIR /app
+
+# Pull Prisma engine binaries forward; without these the runtime cannot reach
+# the database. They live alongside @prisma/client in node_modules.
+COPY --from=build --chown=65532:65532 /deploy/api/ /app/
+
+# Healthcheck script is plain JS so it can run without a shell.
+COPY --from=build --chown=65532:65532 /workspace/infra/docker/healthcheck.sh /app/healthcheck.sh
+
+ENV NODE_ENV=production \
+    PORT=4000 \
+    NODE_OPTIONS="--enable-source-maps"
+
+EXPOSE 4000
+
+# Distroless image's default ENTRYPOINT is `["/nodejs/bin/node"]`. We pass the
+# compiled entry as CMD so signal handling stays intact (node 20 forwards
+# SIGTERM correctly; no need for tini/dumb-init in this image).
+CMD ["dist/main.js"]
+
+# Container-level healthcheck. Railway uses HTTP `/v1/health/ready` directly,
+# but plain `docker run` users still get a useful default.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD ["/nodejs/bin/node", "/app/healthcheck.sh"]

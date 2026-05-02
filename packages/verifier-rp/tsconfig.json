@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig/library.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": ".",
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
+    "incremental": false
+  },
+  "include": ["src/**/*", "test/**/*"],
+  "exclude": ["dist", "node_modules"]
+}

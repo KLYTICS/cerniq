@@ -1,0 +1,38 @@
+{
+  "name": "@aegis/scripts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AEGIS operator scripts — keygen, dev seed, OpenAPI/Zod/Prisma parity check.",
+  "bin": {
+    "aegis": "./aegis-cli.ts"
+  },
+  "scripts": {
+    "keys": "tsx generate-aegis-keys.ts",
+    "seed": "tsx seed-dev.ts",
+    "verify-spec": "tsx verify-spec.ts",
+    "aegis": "tsx aegis-cli.ts",
+    "backtest-verify": "tsx backtest-verify.ts",
+    "audit-verify-chain": "tsx audit-verify-chain.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aegis/types": "workspace:*",
+    "@noble/ed25519": "^2.1.0",
+    "@noble/hashes": "^1.5.0",
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^2.4.3",
+    "commander": "^12.1.0",
+    "yaml": "^2.6.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@aegis/tsconfig": "workspace:*",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":semanticPrefixFixDepsChoreOthers",
+    ":disablePeerDependencies",
+    "group:monorepos",
+    "schedule:earlyMondays"
+  ],
+  "timezone": "America/Puerto_Rico",
+  "labels": ["dependencies"],
+  "prHourlyLimit": 4,
+  "prConcurrentLimit": 8,
+  "rangeStrategy": "bump",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 4am on monday"],
+    "automerge": true,
+    "automergeType": "branch"
+  },
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"],
+    "schedule": ["at any time"]
+  },
+  "packageRules": [
+    {
+      "description": "Auto-merge patch + minor updates for non-security dev deps after CI passes.",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true,
+      "automergeType": "branch",
+      "platformAutomerge": true
+    },
+    {
+      "description": "Group all NestJS framework deps so they bump in lockstep.",
+      "matchPackagePatterns": ["^@nestjs/"],
+      "groupName": "nestjs",
+      "automerge": false
+    },
+    {
+      "description": "Group Prisma deps together.",
+      "matchPackageNames": ["prisma", "@prisma/client"],
+      "groupName": "prisma",
+      "automerge": false
+    },
+    {
+      "description": "Group cryptography deps — security review required, never auto-merge.",
+      "matchPackagePatterns": ["^@noble/", "^jose$", "^bcryptjs$", "^libsodium"],
+      "groupName": "crypto",
+      "automerge": false,
+      "labels": ["security", "review-required"],
+      "reviewers": ["team:security"]
+    },
+    {
+      "description": "Pin major bumps for Node and pnpm — operator approval required.",
+      "matchPackageNames": ["node", "pnpm"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "addLabels": ["release-coordination"]
+    },
+    {
+      "description": "GitHub Action SHA pins — Renovate will resolve a SHA from the version tag.",
+      "matchManagers": ["github-actions"],
+      "pinDigests": true
+    }
+  ],
+  "postUpdateOptions": ["pnpmDedupe"],
+  "constraints": {
+    "node": ">=22.11.0",
+    "pnpm": ">=9.15.0"
+  },
+  "ignoreDeps": [],
+  "platformCommit": false
+}

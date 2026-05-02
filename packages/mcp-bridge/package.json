@@ -1,0 +1,50 @@
+{
+  "name": "@aegis/mcp-bridge",
+  "version": "0.1.0",
+  "description": "AEGIS verification middleware for any MCP (Model Context Protocol) server. Wraps an MCP transport so every tool call carries a verified AEGIS agent identity.",
+  "license": "MIT",
+  "homepage": "https://aegislabs.io/mcp",
+  "keywords": [
+    "aegis",
+    "mcp",
+    "model-context-protocol",
+    "agent-identity",
+    "agent-verification",
+    "trust-score"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@aegis/sdk": "workspace:*",
+    "@aegis/types": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@aegis/tsconfig": "workspace:*",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
