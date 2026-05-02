@@ -472,6 +472,48 @@ Low 6 · Info 2.
 
 ---
 
+## Closure status — 2026-05-02 (round 6, sid=a9198691)
+
+Findings closed in this pass via ARCHITECTURE.md sections §8-§14
+(deployment / incident / failure modes / capacity / retention /
+dashboard authn / idempotency) and earlier rounds (round 4 closed A-001
+via THREAT_MODEL_v2 reconciliation, ADR-0006 closed A-019).
+
+| ID    | Severity | Status                | Closed by                                                    |
+|-------|----------|-----------------------|--------------------------------------------------------------|
+| A-001 | Critical | **CLOSED** (round 4)  | THREAT_MODEL_v2 §4 + doc reconciliation                      |
+| A-002 | High     | **CLOSED**            | ARCHITECTURE.md §10.1, §10.2, §10.3                          |
+| A-003 | High     | **CLOSED**            | ARCHITECTURE.md §10.4                                        |
+| A-004 | High     | **CLOSED**            | ARCHITECTURE.md §11                                          |
+| A-005 | High     | **CLOSED**            | ARCHITECTURE.md §12.1, §12.2                                 |
+| A-006 | High     | **CLOSED**            | ARCHITECTURE.md §12.3 + ADR-0006 (round 4 redactability)     |
+| A-007 | Medium   | OPEN                  | Pending operator decision OD-006 (rate-limit dimensions)     |
+| A-008 | Medium   | **CLOSED**            | ARCHITECTURE.md §8                                           |
+| A-009 | Medium   | **CLOSED**            | ARCHITECTURE.md §9 + new OPERATOR_DECISIONS OD-007           |
+| A-010 | Medium   | OPEN                  | Pending CF WAF rule-set decision (Phase 3 work)              |
+| A-011 | Low      | OPEN                  | ADR-0001 holds; operator decision pending pre-launch         |
+| A-012 | Medium   | **CLOSED** (contract) | ARCHITECTURE.md §13 — implementation peer-locked             |
+| A-013 | Medium   | **CLOSED** (contract) | ARCHITECTURE.md §13.3                                        |
+| A-014 | Low      | DEFERRED              | M-010 work-in-progress; tracked in WORK_BOARD                |
+| A-015 | Low      | **CLOSED**            | ARCHITECTURE.md §10.1 (negative caching)                     |
+| A-016 | Medium   | OPEN                  | M-005 owner (verify-result cache key includes jti)           |
+| A-017 | Medium   | **CLOSED**            | ARCHITECTURE.md §10.6                                        |
+| A-018 | Low      | DEFERRED              | Editorial consolidation; non-blocking                        |
+| A-019 | High     | **CLOSED** (round 4)  | ADR-0006 + audit-chain.util.ts v2 + 9 tests                  |
+| A-020 | Low      | **CLOSED**            | ARCHITECTURE.md §14                                          |
+| A-021 | Info     | DEFERRED              | Diagram editorial; tied to A-018                             |
+| A-022 | Info     | **CLOSED**            | ARCHITECTURE.md §10.5                                        |
+
+**Tally:** 14 closed (1 critical, 5 high, 4 medium, 2 low, 1 info, 1 contract-only),
+4 deferred (editorial / WIP), 4 open (3 awaiting operator decisions:
+OD-006/A-007, A-010/CF WAF, A-011/cuid; 1 awaiting M-005 owner: A-016).
+
+The **critical and all high-severity findings are closed**. The
+remaining open findings are operator-decision-blocked or low-severity
+editorial.
+
+---
+
 ## Appendix — files reviewed
 
 - `docs/ARCHITECTURE.md` (2026-04-… HEAD, 213 lines)
