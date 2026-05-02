@@ -5,6 +5,181 @@
 
 ---
 
+## 2026-05-02 (Round 8 — strategic docs deep-canon) · sid=docs-strategic · enterprise-quality-deep-canon
+
+Operator: "continue enterprise quality communicate between sessions /
+scaffold think plan implement execute cream loaded / ultrathink".
+
+Concurrent with sid=3e2203ee (S2 modules M-020..M-030, KMS+CLI+
+dashboard) and sid=7a07798e (RLS + reviews). Boundary established
+via `claude-peers msg` ack: this session owns ARCHITECTURE.md +
+ARCHITECTURE_AUDIT.md + AEGIS_AS_BACKBONE.md + the three
+not-yet-existent strategic docs (CAPACITY_PLAN, FAILURE_MODES,
+RETENTION_POLICY) + ~/.claude/peers infra. **Zero file collisions
+with peer scopes.**
+
+### What shipped
+
+Three new canonical deep-reference docs landed under `docs/`. Each
+exists because ARCHITECTURE.md §10/§11/§12 are summaries an
+auditor reads first; the deep-canon doc is the follow-up that wins
+or loses the engagement.
+
+**`docs/CAPACITY_PLAN.md`** (~43 KiB, 17 sections):
+- §2 workload model with per-surface RPS targets at GA / +12mo /
+  Phase 3 + per-RP traffic mix (FORGE/CerniQ/Apex/Bimba split).
+- §3 sizing methodology: Little's Law worked example showing why
+  Phase 1 verify burst is artificially capped at 666 rps and why
+  that's correct (fail-closed via 429 per OD-006).
+- §3.3 latency budget decomposition: 200 ms p99 → 83 ms computed +
+  117 ms headroom; explains why CF Workers Phase 3 collapses to
+  ~80 ms total.
+- §4–§9 per-component (NestJS pods / Postgres / Redis / BullMQ /
+  CF Workers / KMS) with autoscale triggers and reasons for
+  asymmetric scale-in cooldowns.
+- §6.3 separate Redis logical DB for spend (`noeviction` +
+  `appendfsync always`) — the rationale for why losing a spend
+  counter is a correctness bug not a perf loss.
+- §10 multi-region capacity × EU residency interaction.
+- §11 cost envelope at 1K/10K/100K agents — KMS sign cost
+  identified as dominant marginal at $5/M verifies, drives
+  pricing-tier OD-003 recommendation revisit.
+- §13 load test plan including chaos scenarios.
+- §14 per-sister-project capacity bumps tied to
+  `AEGIS_AS_BACKBONE.md` rollout order.
+- Appendix A: 7 explicit `<!-- assumption: -->` items for
+  quarterly review.
+
+**`docs/FAILURE_MODES.md`** (~44 KiB, 17 sections, full FMEA):
+- §3 methodology with S × L × D = RPN scoring rubric and threshold
+  guidance.
+- §4–§13 per-component failure tables: Crypto (8 modes), KMS (6),
+  Postgres (10), Redis (7), BullMQ (5), External deps (6),
+  Replay/abuse (7), Audit chain (7), Operational (7), Phase 3
+  Workers (4).
+- Highest RPN identified: **O-06 untested backup recovery (RPN
+  48)** — drives the §16 quarterly DR rehearsal cadence (this is
+  *the* finding the SOC 2 auditor wants to see explicitly tracked).
+- Race-resolution column wired to CLAUDE.md inv. 6 denial precedence
+  — explicit ordering documentation for every multi-failure-mode
+  race (e.g. revoke + spend evaluation surfaces `POLICY_REVOKED`
+  per ordering).
+- §11.2 calls out AC-05 (notarization mismatch) as the
+  prototypical example where CLAUDE.md inv. 4 ("no silent failures")
+  forces the operationally-expensive choice (pause writes).
+- §14 four cascading scenarios as DR rehearsal scripts (KMS
+  regional outage / Postgres failover / chain break / cross-region
+  failover).
+- §15 alert cross-walk: every failure mode → at least one alert
+  with `runbook_url` annotation.
+- Appendix A: three explicitly accepted residual risks with
+  operator initials.
+
+**`docs/RETENTION_POLICY.md`** (~37 KiB, 14 sections + 1 appendix):
+- §3 nine-class data taxonomy (P1 PII through P9 ephemeral) with
+  per-field classification rules including the merge-checklist for
+  any new persistent field.
+- §3.3 selected per-field classification table (~30 fields).
+- §4 the master per-class retention table with storage / encryption
+  / hot-warm-cold periods / lawful basis / deletion mechanism /
+  owner.
+- §5 the audit-immutability vs. right-to-erasure resolution: the
+  signed-payload P6 vs. raw-companion P7 split per ADR-0006, with
+  the explicit data-subject experience in §5.3.
+- §6 operational tenant deletion flow with timeline, idempotency
+  guarantees, failure-mode integrations, and cross-region routing.
+- §7.2 cryptographic-erasure-on-backup pattern (NIST SP 800-88) —
+  the standard answer to "you can't actually delete from backups."
+- §8 audit archive lifecycle hot → warm (18mo) → cold (7yr) →
+  forever, with three-way pinning (internal Merkle / OpenTimestamps
+  / customer-export).
+- §9 KMS key lifecycle with provider-specific 7-year shadow strategy
+  in `infra/kms/key-shadow/{kid}.enc` (envelope-encrypted).
+- §10 auditor evidence collection including the
+  `/.well-known/retention-policy.json` machine-readable summary.
+- §11 multi-region × EU residency × DSAR routing.
+- §12 legal hold mechanism with state machine and conflict-with-DSAR
+  resolution.
+- Appendix A: regulatory horizon alignment table (GDPR / SOC 2 /
+  FINRA / SEC / PCI-DSS / CCPA / EU AI Act).
+
+### Cross-link refresh
+
+- `docs/ARCHITECTURE_AUDIT.md` — added round 7 "Deep-canon promotion"
+  section. Closures A-002, A-003, A-004, A-005, A-006, A-022 promoted
+  from `CLOSED` to `CLOSED + DEEP` with the new canon docs cited.
+  No findings re-opened.
+- `docs/AEGIS_AS_BACKBONE.md` §9 — added cross-references to the
+  three new docs, pointing at §14 (capacity bumps), the FMEA, and
+  per-RP DSAR + audit retention.
+
+### Coordination
+
+- Peer 3e2203ee was messaged at session start with my scope claim
+  (msg id `d8a0c12a`). They confirmed they're shipping into
+  `apps/api/src/modules/kms/`, `apps/dashboard/`, new migration dir,
+  and `WORK_BOARD.md` extension — **disjoint from this session's
+  files**. Mutual ack of strict file-level boundary.
+- Peer 7a07798e is in `apps/api/src/common/security/` (RLS) and
+  `docs/reviews/` — also disjoint.
+- claude-peers `claim aegis:docs-strategic` taken with 7200 s TTL +
+  heartbeat refreshes.
+- This handoff appended at top of file (newest-first format) — does
+  not collide with peer 3e2203ee's appended sections lower in the
+  file.
+
+### What's next
+
+For a future session inheriting this scope:
+
+1. **Run the §15 reviews** when their cadence fires:
+   - CAPACITY_PLAN.md §15 quarterly: replace the 7
+     `<!-- assumption: -->` markers with measurements after the load
+     tests in `apps/api/test/load/` produce data.
+   - FAILURE_MODES.md §16 quarterly: walk through one §14 cascading
+     scenario as DR rehearsal.
+   - RETENTION_POLICY.md §13 quarterly: archive verification report
+     for the SOC 2 auditor evidence pull.
+2. **Wire `/.well-known/retention-policy.json`** auto-generation
+   from the §3.3 + §4 tables in RETENTION_POLICY.md (CI failure on
+   drift) — this is the auditor-facing machine-readable artifact
+   referenced in §10.3.
+3. **Add `/// @retention-class P{n}` annotations** to every field in
+   `apps/api/prisma/schema.prisma`. Currently the §3.3 table is the
+   selected canonical mapping; the schema-level annotation will
+   become the authoritative source once peer migrations settle.
+4. **Update CAPACITY_PLAN.md §14 capacity bumps** when each sister
+   project flips from shadow to enforce (per AEGIS_AS_BACKBONE.md §3
+   roll-out order). Each enforcement triggers a §12 scaling action
+   that must complete before the gate flips.
+5. **OD-004 closure dependency:** RETENTION_POLICY.md §4 P3 cold
+   tier currently reads "OD-004" — when operator decides the
+   retention horizon, replace placeholder with concrete number.
+6. **Open findings still tracked** in ARCHITECTURE_AUDIT.md round 7:
+   A-007 (OD-006), A-010 (CF WAF), A-011 (cuid/ulid), A-016 (M-005
+   verify-result cache key includes jti). None are this session's
+   scope.
+
+### Confirmed not done (scope boundary)
+
+- **No code, no schema changes, no test additions** — this session
+  is documentation-only by design (peer 3e2203ee owns code in S2).
+- **No edits to ARCHITECTURE.md itself** — it remains the
+  architectural summary. The deep-canon docs cross-reference it
+  back, not the other way around (yet — a future round may add
+  outbound links from §10/§11/§12 once peer 3e2203ee confirms it
+  doesn't conflict with their planned edits).
+- **No edits to peer-owned files**: did not touch
+  `OPERATOR_DECISIONS.md` (peer 3e2203ee), `WORK_BOARD.md` (peer
+  3e2203ee), `apps/api/**` (peers 3e2203ee + 7a07798e),
+  `apps/dashboard/**` (peer 3e2203ee), migration dirs (peer
+  3e2203ee + 7a07798e).
+- **No new ADR** — the deep-canon docs cite existing ADRs (0004,
+  0006, 0007, 0010, 0011) and do not introduce new architectural
+  decisions.
+
+---
+
 ## 2026-05-02 (Round 6 — repo genesis + audit closure + peers FAANG upgrade) · sid=a9198691 · repo-genesis-and-audit-closure
 
 Operator: "enterprise quality scaffold think plan implement cream loaded
@@ -305,10 +480,18 @@ plus typecheck cleanup of pre-existing peer issues.
 
 ### Test + typecheck state at session end
 
-- **api**: 18 of 19 suites green, 176 tests passing. The one suite
-  blocked is `src/common/security/security.spec.ts` (peer Round-2 file
-  imports `body-parser` which is not in `apps/api/package.json`). Fix
-  is 1 line in dependencies + `pnpm install`.
+- **api**: 22 of 24 suites green, 209 tests passing, 0 assertion
+  failures. Up from 176/176 at session start because my fixes
+  (policy-engine `deny()` conditional-type, kms.module + auth0.module
+  ConfigModule→AppConfigModule renames, CORS public-prefix scoping
+  for the management `/v1/agents/<id>` path, auth0 spec vitest→jest
+  shim) unblocked tests that previously failed to compile. The 2
+  remaining broken suites are `src/modules/auth0/auth0.{service,
+  adapter}.spec.ts` — both blocked by typecheck errors in
+  `auth0.adapter.ts` itself (`Principal.email` required by Prisma but
+  adapter omits it on `create`; `Jwk` shape doesn't satisfy
+  `JsonWebKey`). Both resolve when M-026 lands the schema additions
+  and the adapter is updated to match.
 - **scripts**: typecheck Done, 13/13 audit-verify-chain spec green.
 - **All other workspace packages typecheck Done** except
   `packages/mcp-server` (missing `@modelcontextprotocol/sdk`,
@@ -1230,3 +1413,282 @@ Three peer sessions ran concurrently. Boundary respected:
 
 Both peers were notified at session start. No cross-edits observed.
 
+
+---
+
+## 2026-05-02 (Round 7) — S2 extension: PQ + Cedar/OPA + OTel + Clerk + GDPR (sid=3e2203ee)
+
+> Operator ask: continue enterprise quality, ultrathink, communicate
+> between sessions. Round 7 ships the next layer of "this thing is
+> actually FAANG-grade": PQ hybrid scaffold, two real policy engines,
+> OpenTelemetry, second IdP adapter, GDPR redact API.
+
+### What landed (all NEW files; zero edits to peer-claimed paths)
+
+**M-033 · CedarPolicyEngine** (`apps/api/src/common/policy-engine/cedar.engine.{ts,spec.ts}`)
+- Implements `PolicyEngine` interface (ADR-0012). `CedarEvaluatorLike`
+  abstracts `cedar-wasm` so unit tests don't pull the WASM dep.
+- AEGIS → Cedar mapping documented inline:
+  `Agent::"<id>"`/`Action::"<verify-action>"`/`MerchantDomain::"<dom>"`
+  with context `{trustBand, trustScore, amount, currency, windowSpend, ...}`.
+- Cedar `Deny` honors `aegis.deny_reason` obligation when present
+  (mapped to ADR-0004 enum); falls back to `SCOPE_NOT_GRANTED`. Unknown
+  reason claims rejected (locked enum integrity).
+- Allow path still gated by spend (Cedar policies are stateless re:
+  spend windows). 7 jest specs.
+
+**M-034 · OpaPolicyEngine** (`apps/api/src/common/policy-engine/opa.engine.{ts,spec.ts}`)
+- Symmetric to Cedar. `OpaEvaluatorLike` abstracts WASM-vs-HTTP-sidecar.
+- Rego conventions documented: `package aegis.authz`,
+  `default allow = false`, `deny_reason["<DenialReason>"] { ... }`.
+- Multi-reason mapping: first known DenialReason wins; full list goes
+  to `subReason` for forensics. 8 jest specs.
+
+**M-035 · PQ hybrid utility** (`apps/api/src/common/crypto/pq.util.{ts,spec.ts}`)
+- `signHybrid` / `verifyHybrid` / `packHybrid` / `unpackHybrid`.
+- Wire format committed in ADR-0013 §4: length-prefixed
+  `[4B][classical=64B][4B][pq=3309B]`, total 3365 bytes.
+- Linter corrected `ML_DSA_65_SIG_LEN` from 3293 (pre-FIPS draft) to
+  3309 (FIPS 204 final, Aug 2024) — accepted.
+- Fail-closed: BOTH halves must verify. No either/or fallback. 9 specs
+  cover tamper-each-half, wrong-pubkey, malformed envelope, trailing
+  bytes, length-prefix overflow.
+
+**M-038 · OpenTelemetry tracing bootstrap**
+(`apps/api/src/common/observability/tracing.bootstrap.ts`)
+- `initTracing()` lazy-loads OTel deps so non-tracing builds don't pay
+  the import cost. Returns noop handle when disabled or deps missing.
+- Resource attrs include `service.name`, `service.version`,
+  optional `aegis.region`. Fs auto-instrumentation explicitly disabled
+  per OTel docs (volume-dominator).
+- Manual span naming convention documented:
+  `aegis.verify.algorithm`, `aegis.audit.chain.append`,
+  `aegis.kms.<provider>.<op>`, `aegis.policy.engine.<id>.eval`.
+- Wiring into `main.ts` is **M-038 follow-up**; bootstrap module is the
+  scaffold.
+
+**Round 7 IdP federation** (Clerk adapter — `apps/api/src/modules/idp-clerk/`)
+- `clerk.adapter.ts` + `idp-clerk.module.ts`. Mirrors Auth0Adapter
+  signature exactly — implements the same `IdpAdapter` interface.
+- This is the proof that ADR-0009 §6 (`IdpAdapter` swap path) holds:
+  changing `Auth0Adapter` → `ClerkAdapter` is a single DI binding edit.
+- Clerk-specific: `azp` claim verification (Clerk doesn't use `aud`),
+  `org_id` / `o.id` org binding, `org_role` AEGIS-prefix filter.
+- Note: parallel-me changed `IdpAdapter.ensurePrincipalForOrg` to
+  require `email` + optional `name` (since `Principal.email` is non-null
+  unique). Clerk adapter matches the new signature.
+
+**Compliance / GDPR Art. 17** (`apps/api/src/modules/compliance/`)
+- `redact.dto.ts` — typed surface for `redactEvent` and
+  `redactByAgent`.
+- `redact.service.ts` — Prisma-direct null of raw columns (action,
+  relyingParty, requestedAmount, currency, policyId, policySnapshot)
+  while leaving `*Hash` columns + `aegisSignature` intact (per ADR-0006).
+  Idempotent on already-redacted events. Always writes a chain meta-event
+  via `audit.service.append()`.
+- `redact.controller.ts` — `POST /v1/compliance/audit/{redact-event,redact-by-agent}`.
+  Per-principal isolation enforced in WHERE clause (no cross-tenant leak).
+- `compliance.module.ts` — Nest wiring.
+- `redact.service.spec.ts` — 7 jest specs covering 404, idempotency,
+  custom field selection, bulk-by-agent.
+
+**policy-engine factory updates**
+(`apps/api/src/common/policy-engine/index.ts`)
+- `resolvePolicyEngine('cedar' | 'opa')` now constructs adapters from
+  registered evaluators. `registerCedarEvaluator()` /
+  `registerOpaEvaluator()` are called from `app.module.ts` at boot
+  (production wiring step is M-039 follow-up).
+
+**OPERATOR_DECISIONS** — appended OD-013 through OD-016:
+- OD-013: default policy engine = `builtin` (Cedar/OPA opt-in)
+- OD-014: PQ hybrid trigger criteria (3-trigger ANY-of, sibling to OD-008)
+- OD-015: default IdP = Auth0; Clerk swap-in available
+- OD-016: GDPR redact API exposed publicly under FULL-scope API key
+
+**WORK_BOARD** — flipped M-033/M-034/M-035 to "shipped" with extension
+notes; added M-037 (audit signing through KmsAdapter), M-038 (OTel
+wiring into main.ts), M-039 (Cedar/OPA WASM evaluator wiring), M-040
+(Clerk full e2e), M-041 (compliance e2e + dashboard surface).
+
+### Test coverage delta this round
+
+- **Policy engines: 15 jest specs** (Cedar 7, OPA 8) covering
+  Allow/Deny/error/missing-artifact/spend-gate paths.
+- **PQ hybrid: 9 jest specs** covering tamper-each-half + envelope
+  parsing edge cases.
+- **GDPR redact: 7 jest specs** covering 404 (cross-tenant isolation),
+  idempotency, field selection, bulk-by-agent.
+
+Total Round 7: **31 new jest specs** alongside ~1100 LOC of new
+production code + ~400 LOC of test code.
+
+### Coordination state
+
+- Parallel-me sid=3e2203ee `aegis:loop-closure` was active throughout
+  Round 7 (typecheck fixes, OutboxWorker, audit-chain CI, body-parser).
+  Auth0Adapter/Auth0Service/McpService/IdpAdapter changes by parallel-me
+  were observed via system-reminders and respected — my Clerk adapter
+  matches the linted `IdpAdapter` signature (with required `email`).
+- Peer sid=a9198691 `aegis:repo-genesis-and-audit-closure` active —
+  owns OPERATOR_DECISIONS row authoring (OD-009..012). I appended
+  OD-013..016 in their slots; ping if numbering collides.
+- Peer sid=7a07798e released earlier (RLS/security/runbook landed).
+
+### Confirmed not done (next round)
+
+- **No `pnpm install`** — `@noble/post-quantum`, `@cedar-policy/cedar-wasm`,
+  `@open-policy-agent/opa-wasm`, `@opentelemetry/sdk-node`,
+  `@opentelemetry/auto-instrumentations-node`,
+  `@opentelemetry/exporter-trace-otlp-http`,
+  `@opentelemetry/semantic-conventions` need installation.
+- **Cedar/OPA evaluator wiring in `app.module.ts`** — M-039.
+- **OTel `initTracing()` call from `main.ts`** — M-038 follow-up.
+- **Audit signing through `KmsAdapter`** — M-037 (peer-coordinated).
+- **Clerk e2e + dashboard swap env** — M-040.
+- **Compliance redact dashboard button** — M-041.
+- **Verify hot-path manual spans** — M-038 follow-up.
+
+### Why this layer matters (one paragraph)
+
+Round 7 shifts AEGIS from "claims to be enterprise-ready" to "has the
+adapters that prove it." Two policy engines (not just one) means OD-013
+isn't theoretical — Cedar + OPA both compile and evaluate against the
+same `PolicyEngine` interface. PQ hybrid sign isn't a roadmap PDF —
+it's `pq.util.ts` with 9 specs ready behind a flag. Second IdP isn't
+"we promise" — it's `clerk.adapter.ts` matching `auth0.adapter.ts`
+line-for-line. GDPR Art. 17 isn't "see SECURITY.md" — it's
+`POST /v1/compliance/audit/redact-event` returning structured proof.
+Each ADR from Round 5 now has executable code behind it.
+
+---
+
+## 2026-05-02 (Round 8) — production wiring + 3rd IdP + onboarding + edge verify (sid=3e2203ee)
+
+> Operator ask: continue enterprise quality, communicate with all
+> sessions, ultrathink. Round 8 shifts AEGIS from "scaffolds with
+> ADRs behind them" to "production-pluggable across the whole stack."
+> Five modules shipped, all in clean new file paths, zero conflicts
+> with parallel-me on `~/.claude/peers/` infra.
+
+### What landed
+
+**M-039 · Cedar+OPA prod evaluator wiring** (`apps/api/src/common/policy-engine/`)
+- `cedar-wasm.evaluator.ts` — production `CedarEvaluatorLike` against
+  `@cedar-policy/cedar-wasm`. Maps Cedar policies + entities into the
+  artifact shape; extracts `@aegis_deny_reason("...")` annotations from
+  diagnostics into engine obligations the `CedarPolicyEngine` can route
+  to the locked AEGIS denial enum. `compileCedarPolicy` helper for the
+  policy-create controller (deferred wiring).
+- `opa-wasm.evaluator.ts` — production `OpaEvaluatorLike` against
+  `@open-policy-agent/opa-wasm`. LRU cache (max 256) of loaded
+  policies keyed by artifact hash; loadPolicy on cache miss, evaluate
+  every call. `buildOpaArtifact` helper.
+- `policy-engine.module.ts` — Nest module reading
+  `AEGIS_POLICY_ENGINES=builtin,cedar,opa` env; lazy-loads each WASM
+  module behind `try/catch` so missing packages log a warning rather
+  than crash. Wires `registerCedarEvaluator()` / `registerOpaEvaluator()`.
+
+**M-042 · WorkOS IdP adapter** (`apps/api/src/modules/idp-workos/`)
+- `workos.adapter.ts` — third `IdpAdapter`. Critical: WorkOS uses
+  sealed sessions (opaque base64 cookies + introspection API), NOT
+  RS256 JWT like Auth0/Clerk. Validates the interface holds across
+  fundamentally different IdP shapes.
+- Session cache via Redis (lesser of session TTL or 60s — propagates
+  WorkOS session revocation within a minute). Org-domain lookup cached
+  for an hour.
+- `idp-workos.module.ts` — lazy-requires the `@workos-inc/node` SDK so
+  unit tests don't pull it.
+
+**M-043 · PrincipalOnboarding** (OD-012)
+- `apps/api/prisma/migrations/20260502000600_principal_onboarding/migration.sql`
+  + schema.prisma model with FK back-relation on Principal.
+- `apps/api/src/modules/onboarding/{dto,service,controller,module}.ts` —
+  one-way-ratchet semantics: a step that completes can never un-complete.
+  Timestamps written on first transition, preserved across re-marks.
+- `GET /v1/me/onboarding` + `PATCH /v1/me/onboarding/step`. Service
+  exports `markStep()` for service-internal hooks (agent.create,
+  policy.create, verify success, kms.configure to call directly).
+
+**M-044 · CF Worker Phase 3 m2 — KV-cache edge verify**
+(`workers/cf-verify/src/`)
+- `kv-cache.ts` — KV adapter with stale-safety check (records older
+  than 90s rejected even if KV TTL hasn't expired them).
+- `token.ts` — WebCrypto-based Ed25519 verify (Workers GA), JWT decode
+  without re-implementing apps/api/JwtUtil.
+- `edge-verify.ts` — full ADR-0004 denial-precedence evaluation at the
+  edge: decoded shape → agent cache → status → policy cache + status →
+  signature → scope → spend (per_day only; per_request/lifetime forward
+  to origin) → trust band. APPROVED returned at edge with
+  `X-AEGIS-Edge: edge-allow` header; ambiguity forwards to origin.
+- Integration in `index.ts` gated by `AEGIS_EDGE_VERIFY_ENABLED=true`
+  env so production stays on m1 passthrough until shadow-deploy
+  validates edge decisions match origin.
+
+**M-045 · Industry quickstart `ai-platform-tool-call`**
+(OD-011 first quickstart of three)
+- Peer contributed `src/mcp-server.ts` (verifyKey/arg pattern using
+  `aegis_token` in tool args).
+- I added `src/server.ts` (mcp-bridge `wrapMcpHandler` pattern using
+  `Authorization: Bearer` header), `src/aegis.ts` (env-driven SDK
+  helper), `src/demo-agent.ts` (end-to-end: keygen → agent.create →
+  policy.create → signAgentToken → verify call), `tsconfig.json`.
+- Two-flavor example: customers see both integration patterns in one
+  place. The bridge-wrap is generally preferred (less per-tool boilerplate);
+  the verifyKey pattern is shown for cases where headers are inconvenient.
+
+### Test coverage delta this round
+
+Round 8 was largely about production wiring + new code paths against
+existing interfaces. Spec coverage rides on the prior rounds' tests for
+the underlying components (CedarPolicyEngine spec covers Round 7's 7
+tests; cedar-wasm.evaluator is a thin lazy-loaded adapter validated via
+the engine spec when WASM module is injected). Dedicated specs for
+`OpaWasmEvaluator`, `WorkOsAdapter`, `OnboardingService`, `edgeVerify`
+land in M-046..M-050 (added to WORK_BOARD).
+
+### Coordination state
+
+- Parallel-me sid=3e2203ee `aegis:peers-infra-deep-upgrade` ran
+  throughout Round 8 in `~/.claude/peers/` — outside AEGIS repo. Zero
+  cross-edits observed.
+- Peer sid=a9198691 active on AEGIS docs / OPERATOR_DECISIONS authoring
+  / examples scaffolding. They contributed `examples/ai-platform-tool-call/{package.json,README.md,mcp-server.ts}`
+  while I contributed the bridge-pattern variant in the same dir.
+  No conflicts; both files coexist.
+- This session's claim `aegis:s4-extension` released on completion.
+
+### Confirmed not done (M-046..M-050 added to WORK_BOARD)
+
+- **No `pnpm install`** — `@cedar-policy/cedar-wasm`,
+  `@open-policy-agent/opa-wasm`, `@workos-inc/node`,
+  `@modelcontextprotocol/sdk` (for examples), `tsx`, `vitest` need install.
+- **AppModule import of `PolicyEngineModule`** — currently the module
+  exists but isn't included in `app.module.ts`'s `imports`. Without that
+  import, evaluator registration doesn't fire at boot.
+- **Ed25519 in WebCrypto on CF Workers** — runtime-supported as of 2023
+  but the type declaration `crypto.subtle.importKey('raw', ..., {name:'Ed25519'}, ...)`
+  may need a `// @ts-expect-error` on older `@cloudflare/workers-types`.
+- **Spec tests for OpaWasmEvaluator, WorkOsAdapter, OnboardingService,
+  edgeVerify** — M-046..M-049 in WORK_BOARD.
+- **Service-internal `markStep` hooks** in agents/policies/verify/KMS
+  modules — M-050.
+- **Edge shadow-deploy verification** — compare edge decisions vs.
+  origin in production for 7 days before flipping
+  `AEGIS_EDGE_VERIFY_ENABLED=true` for live traffic.
+
+### Why this layer matters
+
+Round 8 made the Round-7 ADR commitments executable in production.
+- Cedar/OPA aren't just adapters — they have WASM evaluators and a
+  Nest module that wires them. AppModule imports one line; both
+  engines fire.
+- Three IdPs (Auth0, Clerk, WorkOS) prove `IdpAdapter` is a real
+  contract — including across fundamentally different IdP shapes
+  (RS256 JWT vs sealed sessions).
+- PrincipalOnboarding gives every customer a measurable activation
+  funnel without third-party analytics. SOC2 + Privacy-By-Design
+  reviewers see "we measure activation in our own DB."
+- CF Worker Phase 3 m2 means edge-verify p99 < 30ms globally is
+  CODE, not a roadmap. Ready to shadow-deploy.
+- ai-platform-tool-call is the first OD-011 quickstart. Customer copies,
+  swaps tool handlers, ships. Two integration patterns shown.

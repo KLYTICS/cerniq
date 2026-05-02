@@ -514,6 +514,64 @@ editorial.
 
 ---
 
+## Deep-canon promotion — 2026-05-02 (round 7, sid=docs-strategic)
+
+Round 6 closed the high-severity findings A-002, A-003, A-004, A-005,
+A-006, A-022 by adding sections §10–§14 to `docs/ARCHITECTURE.md`. An
+external auditor reading those sections has the architectural view but
+not the operational depth needed for SOC 2 Type II evidence
+collection, DR rehearsal scripts, or DPA negotiation.
+
+Round 7 promotes those closures from "summary in ARCHITECTURE.md" to
+**"summary in ARCHITECTURE.md cross-referencing dedicated canon"**:
+
+| ID    | Architectural summary       | Operational canon (NEW)                       |
+|-------|------------------------------|------------------------------------------------|
+| A-002 | ARCHITECTURE.md §10.1, §10.2, §10.3 | `docs/FAILURE_MODES.md` §4 (crypto), §7 (cache) |
+| A-003 | ARCHITECTURE.md §10.4        | `docs/FAILURE_MODES.md` §6 (database)          |
+| A-004 | ARCHITECTURE.md §11          | `docs/CAPACITY_PLAN.md` (full doc)             |
+| A-005 | ARCHITECTURE.md §12.1, §12.2 | `docs/RETENTION_POLICY.md` §8 (archive lifecycle) + `docs/CAPACITY_PLAN.md` §5.4 (partition strategy) |
+| A-006 | ARCHITECTURE.md §12.3 + ADR-0006 | `docs/RETENTION_POLICY.md` §5–§7 (immutability vs. erasure resolution + tenant deletion flow) |
+| A-022 | ARCHITECTURE.md §10.5        | `docs/FAILURE_MODES.md` §13 (Phase 3 Workers) + §14.4 (cross-region cascading scenario) + `docs/CAPACITY_PLAN.md` §10 (multi-region capacity) + `docs/RETENTION_POLICY.md` §11 (multi-region residency) |
+
+The new docs add three operational artifacts the auditor explicitly
+needs but ARCHITECTURE.md cannot reasonably carry:
+
+- **Per-component FMEA with RPN scoring** (`FAILURE_MODES.md` §3
+  + §4–§13). Highest RPN identified: **O-06 (untested backup
+  recovery, RPN 48)** — drives the §15 quarterly DR rehearsal cadence.
+- **Capacity sizing math from first principles** (`CAPACITY_PLAN.md`
+  §3 + §4–§13). Worked Little's Law example shows why Phase 1 burst
+  is artificially capped at 666 rps and how the OD-006 rate-limit
+  preserves correctness over availability under that cap.
+- **Per-data-class retention table with lawful basis**
+  (`RETENTION_POLICY.md` §3–§4 + Appendix A regulatory horizons
+  alignment). Resolves the GDPR Art. 17 vs. CLAUDE.md inv. 3 conflict
+  at the operational-flow level (§5–§7), and documents the
+  cryptographic-erasure-on-backup pattern (§7.2) per NIST SP 800-88.
+
+No findings re-open. Open findings remain: A-007 (OD-006), A-010 (CF
+WAF), A-011 (cuid/ulid), A-016 (M-005 owner) — unchanged.
+
+**Closure status table — round 7 update**
+
+| ID    | Severity | Status                | Closed by                                                    |
+|-------|----------|-----------------------|--------------------------------------------------------------|
+| A-002 | High     | **CLOSED + DEEP**     | ARCHITECTURE.md §10.1–.3 + `docs/FAILURE_MODES.md` §4, §7    |
+| A-003 | High     | **CLOSED + DEEP**     | ARCHITECTURE.md §10.4 + `docs/FAILURE_MODES.md` §6           |
+| A-004 | High     | **CLOSED + DEEP**     | ARCHITECTURE.md §11 + `docs/CAPACITY_PLAN.md`                |
+| A-005 | High     | **CLOSED + DEEP**     | ARCHITECTURE.md §12.1–.2 + `docs/RETENTION_POLICY.md` §8 + `docs/CAPACITY_PLAN.md` §5.4 |
+| A-006 | High     | **CLOSED + DEEP**     | ARCHITECTURE.md §12.3 + ADR-0006 + `docs/RETENTION_POLICY.md` §5–§7 |
+| A-022 | Info     | **CLOSED + DEEP**     | ARCHITECTURE.md §10.5 + `docs/FAILURE_MODES.md` §13, §14.4 + `docs/CAPACITY_PLAN.md` §10 + `docs/RETENTION_POLICY.md` §11 |
+
+The CLOSED + DEEP marker means: an auditor's first question is
+answered by ARCHITECTURE.md; the follow-up question (the one that
+costs the project the engagement if it goes unanswered) is answered
+by the deep-canon doc. Both must remain consistent — see §15 review
+cadence in each canon doc.
+
+---
+
 ## Appendix — files reviewed
 
 - `docs/ARCHITECTURE.md` (2026-04-… HEAD, 213 lines)

@@ -274,6 +274,9 @@ shadow period per project before flipping the gate.
 | Topic                    | Source                                                       |
 |--------------------------|--------------------------------------------------------------|
 | Architecture             | `docs/ARCHITECTURE.md`                                       |
+| Capacity plan (per-RP capacity bumps) | `docs/CAPACITY_PLAN.md` §14                       |
+| Failure modes (per-component FMEA)    | `docs/FAILURE_MODES.md`                            |
+| Retention policy (per-RP DSAR + audit retention) | `docs/RETENTION_POLICY.md`              |
 | Threat model             | `docs/THREAT_MODEL_v2.md`                                    |
 | Identity contract        | `docs/spec/AEGIS_API_SPEC.yaml` § Identity                   |
 | Policy contract          | `docs/spec/AEGIS_API_SPEC.yaml` § Policy                     |
