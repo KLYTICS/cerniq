@@ -4,6 +4,15 @@
   "private": true,
   "description": "AEGIS — Agent Gateway & Identity Stack. Neutral cryptographic identity, policy enforcement, behavioral attestation, and audit rails for AI agents.",
   "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KLYTICS/aegis.git"
+  },
+  "homepage": "https://github.com/KLYTICS/aegis#readme",
+  "bugs": {
+    "url": "https://github.com/KLYTICS/aegis/issues"
+  },
+  "author": "KLYTICS LLC <ops@klytics.io>",
   "engines": {
     "node": ">=20.11.0",
     "pnpm": ">=9.0.0"

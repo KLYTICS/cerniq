@@ -11,9 +11,17 @@ pnpm lint-staged
 
 # Block accidental commits of `.env`, secrets, raw private keys, or other
 # clearly-not-shippable artifacts. Belt-and-braces alongside the security CI.
+#
+# Test files (*.spec.ts, *.test.ts, /tests/, /__tests__/, *.fixture.*) are
+# allowed to contain placeholder keys — they exist to drive coverage of the
+# rejection paths. Real-key shapes outside test files still trip the gate.
 BLOCKED='\.env$|\.env\.[^.]+$|^secrets/|\.pem$|\.key$|aegis_sk_[A-Za-z0-9]+|aegis_vk_[A-Za-z0-9]+|JWT_ED25519_PRIVATE_KEY_B64=|AUDIT_SIGNING_KEY_B64='
-if git diff --cached --name-only -z | xargs -0 -r grep -lE "$BLOCKED" 2>/dev/null | grep -q .; then
-  echo "✖ Refusing to commit a likely secret. Stage what you actually intended."
+TEST_FILE_ALLOWLIST='\.(spec|test|fixture|mock|stub)\.(ts|tsx|js|jsx|mjs|cjs)$|/tests?/|/__tests?__/|/test/|/_stubs/|tools/postman/'
+HITS=$(git diff --cached --name-only -z | xargs -0 -r grep -lE "$BLOCKED" 2>/dev/null \
+       | grep -vE "$TEST_FILE_ALLOWLIST" || true)
+if [ -n "$HITS" ]; then
+  echo "✖ Refusing to commit a likely secret outside of test files:"
+  echo "$HITS" | sed 's/^/    /'
   echo "  See .gitignore + docs/SECURITY.md before bypassing this check."
   exit 1
 fi
