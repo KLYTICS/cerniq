@@ -12,6 +12,9 @@ import type { Response } from 'express';
 import { Public } from '../auth/api-key.guard';
 import { WellknownService } from './wellknown.service';
 import { AuditSigningKeyDto, JwksDto } from './dto/jwks.dto';
+import { AegisConfigurationDto } from './dto/discovery.dto';
+import { RetentionPolicyDto } from './dto/retention-policy.dto';
+import { PricingDto } from './dto/pricing.dto';
 
 /**
  * Cache for one day at the edge, allow stale revalidation for a week.
@@ -73,6 +76,109 @@ export class WellknownController {
     }
     res.setHeader('Content-Type', 'application/jwk-set+json; charset=utf-8');
     return this.wellknown.getJwks();
+  }
+
+  /**
+   * Discovery document — the OIDC-style configuration surface.
+   * Lets a relying party fetch a single URL and auto-configure their
+   * verifier without further documentation. Stable; additive evolution
+   * only (see AegisConfigurationDto).
+   */
+  @Public()
+  @Get('aegis-configuration')
+  @Header('Cache-Control', CACHE_CONTROL)
+  @ApiOperation({
+    summary: 'AEGIS configuration discovery document (JSON).',
+    description:
+      'Single fetch yields every URL, the JWKS, the canonical denial-reason ' +
+      'enum, the trust band ladder, supported runtimes, rate limits, build ' +
+      'identity, and SDK package names. Modeled on /.well-known/openid-configuration.',
+  })
+  configuration(@Res({ passthrough: true }) res: Response): AegisConfigurationDto {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    return this.wellknown.getAegisConfiguration();
+  }
+
+  /**
+   * RFC 9116 security.txt — plain-text responsible-disclosure file.
+   * Mandatory `Expires` is renewed at every deploy (1 year from build).
+   */
+  @Public()
+  @Get('security.txt')
+  @Header('Cache-Control', 'public, max-age=3600')
+  @ApiOperation({
+    summary: 'RFC 9116 security disclosure file (plain text).',
+    description:
+      'Standard contact + policy file for security researchers. Contains an ' +
+      'Expires field renewed at every deploy.',
+  })
+  securityTxt(@Res({ passthrough: true }) res: Response): string {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return this.wellknown.getSecurityTxt();
+  }
+
+  /**
+   * llms.txt — emerging convention (parallel to robots.txt) for
+   * AI-agent-readable site descriptions. Markdown body.
+   */
+  @Public()
+  @Get('llms.txt')
+  @Header('Cache-Control', CACHE_CONTROL)
+  @ApiOperation({
+    summary: 'AI-agent-readable site description (Markdown).',
+    description:
+      'llms.txt — emerging convention. Lists every public surface an AI ' +
+      'agent should hit when it wants to talk to AEGIS.',
+  })
+  llmsTxt(@Res({ passthrough: true }) res: Response): string {
+    res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+    return this.wellknown.getLlmsTxt();
+  }
+
+  /**
+   * `/.well-known/retention-policy.json` — per-tier audit retention
+   * windows, redaction reason format, and operational defaults.
+   *
+   * No auth, no DB hit. Body is computed in-process from
+   * `apps/api/src/modules/billing/plans.ts`. Cache for an hour at the
+   * edge — a tier change requires a deploy anyway.
+   */
+  @Public()
+  @Get('retention-policy.json')
+  @Header('Cache-Control', 'public, max-age=3600')
+  @ApiOperation({
+    summary: 'Per-tier audit retention windows + redaction guarantees (JSON).',
+    description:
+      'No auth. Cacheable. SOC2 auditors and procurement teams fetch this to ' +
+      'verify the retention story without reading source. Auto-derived from ' +
+      'billing/plans.ts; never fabricated.',
+  })
+  retentionPolicy(@Res({ passthrough: true }) res: Response): RetentionPolicyDto {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    return this.wellknown.getRetentionPolicy();
+  }
+
+  /**
+   * `/.well-known/pricing.json` — public ADR-0014 tier table.
+   *
+   * No auth, no DB hit. Body is computed in-process from
+   * `apps/api/src/modules/billing/plans.ts`. Cache for an hour at the
+   * edge — a tier-table change requires a deploy anyway. The dashboard
+   * pricing page (Round 20 Lane C) consumes this so it can stop
+   * hand-mirroring `plans.ts`.
+   */
+  @Public()
+  @Get('pricing.json')
+  @Header('Cache-Control', 'public, max-age=3600')
+  @ApiOperation({
+    summary: 'Per-tier pricing table (JSON, ADR-0014).',
+    description:
+      'No auth. Cacheable. Public-facing pricing surfaces fetch this so the canonical table in ' +
+      'billing/plans.ts is the only source of truth. Auto-derived; never fabricated.',
+  })
+  pricing(@Res({ passthrough: true }) res: Response): PricingDto {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    return this.wellknown.getPricing();
   }
 }
 

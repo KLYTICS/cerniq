@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AEGIS Logo — Direction 1: The Aegis Shield
+  —
+  Hexagonal shield (6 sides = blockchain reference, geometric stability).
+  A single horizontal "audit chain" line bisects the form. The negative
+  space at the top suggests the letter A.
+  Recommended as PRIMARY mark — most distinctive, most ownable.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" fill="none">
+  <defs>
+    <linearGradient id="shield-aurora" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5BE0FF"/>
+      <stop offset="55%" stop-color="#8B6BFF"/>
+      <stop offset="100%" stop-color="#FF5BD0"/>
+    </linearGradient>
+    <linearGradient id="shield-fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#161D33"/>
+      <stop offset="100%" stop-color="#0B1020"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Hexagonal shield body -->
+  <path d="M48 6 L82 24 L82 60 Q82 70 72 76 L48 90 L24 76 Q14 70 14 60 L14 24 Z"
+        fill="url(#shield-fill)"
+        stroke="url(#shield-aurora)"
+        stroke-width="2"
+        stroke-linejoin="round"/>
+
+  <!-- Audit chain bisector -->
+  <line x1="14" y1="48" x2="82" y2="48"
+        stroke="#5BE0FF" stroke-width="1" stroke-opacity="0.5"/>
+
+  <!-- Letter A — negative-space suggestion via two rising diagonals -->
+  <path d="M36 40 L48 22 L60 40"
+        stroke="#F4F6FF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="40.5" y1="33" x2="55.5" y2="33"
+        stroke="#F4F6FF" stroke-width="1.6" stroke-linecap="round"/>
+
+  <!-- Verification anchor dot -->
+  <circle cx="48" cy="66" r="2.5" fill="#5BE0FF"/>
+</svg>

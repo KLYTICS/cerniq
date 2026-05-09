@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AEGIS Wordmark — Stacked / Vertical Lockup
+  —
+  Mark above wordmark with the descriptor below. Use for square
+  social avatars, app icons, vertical sidebars, and stamp moments
+  (about pages, footers, attribution).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 220" width="240" height="220" fill="none">
+  <defs>
+    <linearGradient id="ws-aurora" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5BE0FF"/>
+      <stop offset="55%" stop-color="#8B6BFF"/>
+      <stop offset="100%" stop-color="#FF5BD0"/>
+    </linearGradient>
+    <linearGradient id="ws-shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#161D33"/>
+      <stop offset="100%" stop-color="#0B1020"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(72 20)">
+    <path d="M48 6 L82 24 L82 60 Q82 70 72 76 L48 90 L24 76 Q14 70 14 60 L14 24 Z"
+          fill="url(#ws-shield)"
+          stroke="url(#ws-aurora)"
+          stroke-width="2"
+          stroke-linejoin="round"/>
+    <line x1="14" y1="48" x2="82" y2="48" stroke="#5BE0FF" stroke-width="1" stroke-opacity="0.5"/>
+    <path d="M36 40 L48 22 L60 40" stroke="#F4F6FF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="40.5" y1="33" x2="55.5" y2="33" stroke="#F4F6FF" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="48" cy="66" r="2.5" fill="#5BE0FF"/>
+  </g>
+
+  <text x="120" y="158"
+        text-anchor="middle"
+        font-family="'Inter Tight', 'Inter', system-ui, sans-serif"
+        font-size="32" font-weight="600" letter-spacing="5"
+        fill="#F4F6FF">AEGIS</text>
+
+  <text x="120" y="190"
+        text-anchor="middle"
+        font-family="'Inter', system-ui, sans-serif"
+        font-size="11" font-weight="500" letter-spacing="3"
+        fill="#A8B0CC">VERIFY · ATTEST · TRUST</text>
+</svg>

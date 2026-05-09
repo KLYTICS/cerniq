@@ -49,13 +49,28 @@ export class VerifyRequestDto {
   minTrustScore?: number;
 }
 
+/**
+ * Denial reasons returned by /v1/verify.
+ *
+ * `PLAN_LIMIT_EXCEEDED` is a pre-algorithm billing gate — it fires before the
+ * 10-step denial-precedence chain (AGENT_NOT_FOUND → … → ANOMALY_FLAGGED) and
+ * is therefore NOT part of that chain (see CLAUDE.md § "Denial precedence").
+ * Relying parties should handle it separately: it means the calling principal
+ * has exhausted their plan's monthly verify quota and must upgrade.
+ *
+ * `TRIAL_EXHAUSTED` (added 2026-05-05 per ADR-0014) sits inside the chain
+ * between SCOPE_NOT_GRANTED and SPEND_LIMIT_EXCEEDED. It fires when a
+ * free-trial principal has used their lifetime 10K-verify cap.
+ */
 export type DenialReason =
+  | 'PLAN_LIMIT_EXCEEDED'       // billing gate — fires before algorithm
   | 'AGENT_NOT_FOUND'
   | 'AGENT_REVOKED'
   | 'INVALID_SIGNATURE'
-  | 'POLICY_EXPIRED'
   | 'POLICY_REVOKED'
+  | 'POLICY_EXPIRED'
   | 'SCOPE_NOT_GRANTED'
+  | 'TRIAL_EXHAUSTED'           // ADR-0014: free-trial lifetime cap
   | 'SPEND_LIMIT_EXCEEDED'
   | 'TRUST_SCORE_TOO_LOW'
   | 'ANOMALY_FLAGGED';

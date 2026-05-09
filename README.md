@@ -135,10 +135,53 @@ if (result.valid && result.trustScore >= 500) {
 | Apply migrations | `pnpm db:migrate` |
 | Run API in watch mode | `pnpm dev` |
 | Run dashboard | `pnpm dev:dashboard` |
+| Seed dev fixtures | `pnpm seed:dev` |
 | Unit tests | `pnpm test` |
 | E2E tests | `pnpm test:e2e` |
 | Typecheck everything | `pnpm typecheck` |
 | Lint everything | `pnpm lint` |
+| **Everything green gate** | **`pnpm check`** |
+| Spec parity | `pnpm check:openapi-zod && pnpm check:openapi-prisma` |
+| Migration immutability | `pnpm check:migrations` |
+
+`pnpm check` runs typecheck, lint, unit tests, spec-sync, and migration
+immutability in one shot — the same gate CI enforces. Run it before every
+push and your PR will land on the first try.
+
+### Operator runbooks
+
+- [`docs/OPERATOR_RUNBOOK.md`](docs/OPERATOR_RUNBOOK.md) — `git clone` to first paying customer.
+- [`docs/PARALLEL_SESSIONS.md`](docs/PARALLEL_SESSIONS.md) — protocol for concurrent Claude / contractor sessions.
+- [`docs/IMMUTABILITY.md`](docs/IMMUTABILITY.md) — invariants the system holds and how each is enforced.
+
+---
+
+## Public discovery surface
+
+Every AEGIS deployment publishes a stable, unauthenticated discovery surface.
+Relying parties auto-configure from a single fetch; security researchers,
+auditors, and AI agents read the rest:
+
+| URL | Purpose | Cache |
+| --- | --- | --- |
+| `/.well-known/aegis-configuration` | OIDC-style discovery JSON: every endpoint, JWKS, denial-reason enum, trust band ladder, supported runtimes, build identity | 1 day |
+| `/.well-known/jwks.json` | RFC 8037 JWKS — Ed25519 key for verifying audit-chain signatures | 1 day, ETag |
+| `/.well-known/audit-signing-key` | Plain-JSON helper view of the active audit signing key | 1 day, ETag |
+| `/.well-known/security.txt` | RFC 9116 responsible-disclosure file (Contact + Expires + Policy) | 1 hour |
+| `/.well-known/llms.txt` | AI-agent-readable site description (Markdown) — emerging convention | 1 day |
+| `/docs` | Swagger UI for the OpenAPI spec | — |
+| `/docs-json` | Raw OpenAPI 3 JSON | — |
+
+A relying party integrating AEGIS only needs **one URL** to bootstrap:
+
+```ts
+const config = await fetch('https://api.aegislabs.io/.well-known/aegis-configuration').then(r => r.json());
+const verifier = new AegisVerifier({ jwksUri: config.jwks_uri });
+```
+
+The discovery doc's shape is locked by `apps/api/src/modules/wellknown/dto/discovery.dto.ts`
+(`spec_version`); evolution is additive. The denial-reason enum order is
+locked by ADR-0004 and CI-enforced.
 
 ---
 
@@ -162,9 +205,11 @@ if (result.valid && result.trustScore >= 500) {
   claims are advisory and re-validated on every verify call.
 - **L3 — BATE**: Reports from relying parties are weighted by their verified
   status; unverified-source signals cap their score impact.
-- **L4 — Audit**: Each `AuditEvent` is signed with an AEGIS-held RSA-4096 key.
-  Public key published at `/.well-known/audit-signing-key` for third-party
-  verification without AEGIS involvement.
+- **L4 — Audit**: Each `AuditEvent` is signed with an AEGIS-held Ed25519 key
+  via the configured KMS adapter (AWS, GCP, Vault, or in-memory for dev).
+  Public key published at `/.well-known/audit-signing-key` (and JWKS at
+  `/.well-known/jwks.json`) for third-party verification without AEGIS
+  involvement. One curve, one library — see CLAUDE.md invariant #2.
 
 Full threat model: [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md).
 

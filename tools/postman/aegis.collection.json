@@ -1,0 +1,1145 @@
+{
+  "info": {
+    "_postman_id": "aegis-public-api-2026-05",
+    "name": "AEGIS Public API",
+    "description": "Postman v2.1 collection for the AEGIS Agent Identity & Verification API.\n\nSet up the `AEGIS Local` environment (or your own) with `base_url`, `api_key`, `verify_key`, and the entity ids you want to exercise. Every authenticated request reads its credential from a Postman variable — no key material is ever literal in this file.\n\nSee `tools/postman/README.md` for the partner walk-through, and the `Denial Precedence Walk-through` folder for a reproducible tour through every `denialReason` AEGIS can emit.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      { "key": "key", "value": "X-AEGIS-API-Key", "type": "string" },
+      { "key": "value", "value": "{{api_key}}", "type": "string" },
+      { "key": "in", "value": "header", "type": "string" }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Collection-wide pre-request hook.",
+          "// 1. Generate a fresh idempotency key for every POST/PUT/PATCH so retries are safe.",
+          "// 2. Generate an X-Request-Id for traceability — the API echoes it in the audit log.",
+          "const method = (pm.request.method || '').toUpperCase();",
+          "const guid = pm.variables.replaceIn('{{$guid}}');",
+          "if (method === 'POST' || method === 'PUT' || method === 'PATCH') {",
+          "  pm.request.headers.upsert({ key: 'X-Idempotency-Key', value: guid });",
+          "}",
+          "pm.request.headers.upsert({ key: 'X-Request-Id', value: pm.variables.replaceIn('{{$guid}}') });"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Collection-wide assertions.",
+          "// - 2xx JSON responses must declare application/json.",
+          "// - 4xx responses must carry a Round-15 `code` field for SDK switch-tables.",
+          "// - Verify denials (200 with valid:false) must surface `denialReason` from the canonical enum.",
+          "const status = pm.response.code;",
+          "const ctype = pm.response.headers.get('Content-Type') || '';",
+          "if (status >= 200 && status < 300 && ctype && ctype.indexOf('application/json') !== -1) {",
+          "  pm.test('2xx JSON has parseable body', function () {",
+          "    pm.response.json();",
+          "  });",
+          "}",
+          "if (status >= 400 && status < 500 && ctype.indexOf('application/json') !== -1) {",
+          "  pm.test('4xx body carries a `code` field', function () {",
+          "    const body = pm.response.json();",
+          "    pm.expect(body).to.have.property('code');",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "{{base_url}}", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health & Discovery",
+      "description": "Public, unauthenticated surface. No API key required. Use these for liveness probes, version pinning, JWKS retrieval, and offline relying-party configuration.",
+      "item": [
+        {
+          "name": "Liveness probe",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health/live",
+              "host": ["{{base_url}}"],
+              "path": ["health", "live"]
+            },
+            "description": "Process liveness. Always 200 when the API process is up. No dependencies checked. Used by Railway / k8s for restart decisions."
+          },
+          "response": []
+        },
+        {
+          "name": "Readiness (dependencies)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health/ready",
+              "host": ["{{base_url}}"],
+              "path": ["health", "ready"]
+            },
+            "description": "Structured readiness. Returns 200 when DB+KMS are reachable (KMS is core because every audit row is signed). 503 when a core dep is down."
+          },
+          "response": []
+        },
+        {
+          "name": "Build version",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health/version",
+              "host": ["{{base_url}}"],
+              "path": ["health", "version"]
+            },
+            "description": "Returns `{ version, gitSha, builtAt }` for blue-green confirmation."
+          },
+          "response": []
+        },
+        {
+          "name": "AEGIS configuration discovery",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/.well-known/aegis-configuration",
+              "host": ["{{base_url}}"],
+              "path": [".well-known", "aegis-configuration"]
+            },
+            "description": "OIDC-style single-fetch discovery document. Every URL, the JWKS, the canonical denial-reason enum, the trust band ladder, supported runtimes, rate limits, and SDK package names."
+          },
+          "response": []
+        },
+        {
+          "name": "JWKS (audit signing key)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/.well-known/jwks.json",
+              "host": ["{{base_url}}"],
+              "path": [".well-known", "jwks.json"]
+            },
+            "description": "JWKS view (RFC 8037) of the AEGIS audit-event signing key. Cacheable for one day. Lets a third party verify the chain offline."
+          },
+          "response": []
+        },
+        {
+          "name": "Audit signing key (plain JSON)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/.well-known/audit-signing-key",
+              "host": ["{{base_url}}"],
+              "path": [".well-known", "audit-signing-key"]
+            },
+            "description": "Plain JSON helper — same key material as JWKS, easier to consume from non-JWK tooling."
+          },
+          "response": []
+        },
+        {
+          "name": "Retention policy",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/.well-known/retention-policy.json",
+              "host": ["{{base_url}}"],
+              "path": [".well-known", "retention-policy.json"]
+            },
+            "description": "Per-tier audit-event retention windows + redaction guarantees. Auto-derived from `apps/api/src/modules/billing/plans.ts` — never fabricated."
+          },
+          "response": []
+        },
+        {
+          "name": "Pricing table (ADR-0014)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/.well-known/pricing.json",
+              "host": ["{{base_url}}"],
+              "path": [".well-known", "pricing.json"]
+            },
+            "description": "Per-tier pricing table (ADR-0014). Auto-derived from `apps/api/src/modules/billing/plans.ts`. JSON-shape note: `monthly_verify_quota: null` encodes the unbounded sentinel (FREE uses a lifetime cap; ENTERPRISE is uncapped). `monthly_price_cents: null` for ENTERPRISE (custom). `overage_per_call_e4` is in USD × 10⁻⁴."
+          },
+          "response": []
+        },
+        {
+          "name": "security.txt (RFC 9116)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/.well-known/security.txt",
+              "host": ["{{base_url}}"],
+              "path": [".well-known", "security.txt"]
+            },
+            "description": "Plain-text responsible-disclosure file. `Expires` field renewed at every deploy."
+          },
+          "response": []
+        },
+        {
+          "name": "llms.txt",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/.well-known/llms.txt",
+              "host": ["{{base_url}}"],
+              "path": [".well-known", "llms.txt"]
+            },
+            "description": "AI-agent-readable site description (Markdown). Lists every public surface an AI agent should hit."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "description": "Self-service API-key rotation with a 24h overlap window.",
+      "item": [
+        {
+          "name": "Rotate the calling API key",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-API-Key", "value": "{{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": {
+              "raw": "{{base_url}}/v1/principals/me/api-keys/rotate",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "principals", "me", "api-keys", "rotate"]
+            },
+            "description": "Rotate the calling API key. New plaintext returned EXACTLY ONCE — store it, then update `{{api_key}}`. The calling key remains valid for 24h, then is rejected with `expired_api_key`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Billing",
+      "description": "Stripe-backed commerce loop (M-011): checkout sessions, customer portal, plan summary. Webhook intake is signed by Stripe and excluded from this collection.",
+      "item": [
+        {
+          "name": "Create checkout session",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-API-Key", "value": "{{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planTier\": \"DEVELOPER\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/billing/checkout",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "billing", "checkout"]
+            },
+            "description": "Create a Stripe Checkout session for a paid plan tier (DEVELOPER or GROWTH). Redirects via the returned `url` to Stripe-hosted Checkout. ENTERPRISE is sales-led; FREE has no purchase flow."
+          },
+          "response": []
+        },
+        {
+          "name": "Create customer portal session",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-API-Key", "value": "{{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"returnUrl\": \"{{stripe_portal_return_url}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/billing/portal",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "billing", "portal"]
+            },
+            "description": "Returns a one-time Stripe Customer Portal URL where the customer can update card, cancel subscription, or download invoices. Requires a prior successful checkout (the principal must have a `stripeCustomerId`)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get plan + usage",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-AEGIS-API-Key", "value": "{{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/billing/plan",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "billing", "plan"]
+            },
+            "description": "Plan tier + monthly usage snapshot for the calling principal. Reads Postgres + the Redis-backed verify counter — no Stripe round-trip."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Identity",
+      "description": "Agent registration, lookup, listing, and revocation. All scoped to the calling principal (CLAUDE.md invariant 5).",
+      "item": [
+        {
+          "name": "Register agent",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.agentId) pm.collectionVariables.set('agent_id', body.agentId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-API-Key", "value": "{{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"publicKey\": \"MCowBQYDK2VwAyEA_REPLACE_WITH_BASE64URL_ED25519_PUB_\",\n  \"runtime\": \"openai\",\n  \"model\": \"gpt-4o\",\n  \"label\": \"Postman demo agent\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/agents/register",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "agents", "register"]
+            },
+            "description": "Register a new agent identity. Provide your Ed25519 public key (base64url). AEGIS never holds your private key. The test script auto-stashes the returned `agentId` into `{{agent_id}}` for downstream requests."
+          },
+          "response": []
+        },
+        {
+          "name": "List agents",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-AEGIS-API-Key", "value": "{{api_key}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/agents?limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "agents"],
+              "query": [{ "key": "limit", "value": "50" }]
+            },
+            "description": "Cursor-paginated list of agents owned by the calling principal, newest-first."
+          },
+          "response": []
+        },
+        {
+          "name": "Get agent",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-AEGIS-API-Key", "value": "{{api_key}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/agents/{{agent_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "agents", "{{agent_id}}"]
+            },
+            "description": "Get details for one agent owned by the calling principal."
+          },
+          "response": []
+        },
+        {
+          "name": "Revoke agent",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "X-AEGIS-API-Key", "value": "{{api_key}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/agents/{{agent_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "agents", "{{agent_id}}"]
+            },
+            "description": "Permanently revoke the agent. 204 on success. Cannot be undone."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Policy",
+      "description": "Scoped permission policies. Every create returns an AEGIS-signed token the agent attaches to outbound requests.",
+      "item": [
+        {
+          "name": "Create policy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.policyId) pm.collectionVariables.set('policy_id', body.policyId);",
+                  "  if (body && body.signedToken) pm.collectionVariables.set('policy_token', body.signedToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-API-Key", "value": "{{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scopes\": [\n    {\n      \"category\": \"commerce\",\n      \"spendLimit\": { \"currency\": \"USD\", \"maxPerTransaction\": 500, \"maxPerDay\": 1000, \"maxPerMonth\": 5000 },\n      \"merchantCategories\": [\"3000-3299\"],\n      \"allowedDomains\": [\"delta.com\"]\n    }\n  ],\n  \"expiresAt\": \"2030-01-01T00:00:00Z\",\n  \"label\": \"Book flights under $500\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/agents/{{agent_id}}/policies",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "agents", "{{agent_id}}", "policies"]
+            },
+            "description": "Create a scoped permission policy. Stashes returned `policyId` and `signedToken` into `{{policy_id}}` / `{{policy_token}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "List policies",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-AEGIS-API-Key", "value": "{{api_key}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/agents/{{agent_id}}/policies",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "agents", "{{agent_id}}", "policies"]
+            },
+            "description": "List active policies for the agent."
+          },
+          "response": []
+        },
+        {
+          "name": "Inspect policy (via list)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-AEGIS-API-Key", "value": "{{api_key}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/agents/{{agent_id}}/policies",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "agents", "{{agent_id}}", "policies"]
+            },
+            "description": "AEGIS does not currently expose a single-policy GET. Use the list endpoint and filter on `{{policy_id}}` client-side. Tracked as OpenAPI drift in tools/postman/README.md."
+          },
+          "response": []
+        },
+        {
+          "name": "Revoke policy",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "X-AEGIS-API-Key", "value": "{{api_key}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/agents/{{agent_id}}/policies/{{policy_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "agents", "{{agent_id}}", "policies", "{{policy_id}}"]
+            },
+            "description": "Instantly revoke a policy. Subsequent /verify calls referencing this policy return `valid:false` with `denialReason: POLICY_REVOKED`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Verify",
+      "description": "The relying-party hot path. Authenticated with the verify-only key (X-AEGIS-Verify-Key) — never the management key.",
+      "item": [
+        {
+          "name": "Verify (happy path)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 with valid:true', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.valid).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-Verify-Key", "value": "{{verify_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{policy_token}}\",\n  \"action\": \"commerce.purchase\",\n  \"amount\": 450.00,\n  \"currency\": \"USD\",\n  \"merchantId\": \"delta-airlines\",\n  \"merchantDomain\": \"delta.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/verify",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "verify"]
+            },
+            "description": "End-to-end verification: signature, policy scope, spend limit, BATE trust score. Target SLA <80ms p99. Note: 200 even when invalid — always inspect `valid` and `denialReason`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Audit",
+      "description": "Immutable, signed, append-only audit log (CLAUDE.md invariant 3). Per-agent paginated list and tenant-wide NDJSON stream for SOC2/FINRA evidence.",
+      "item": [
+        {
+          "name": "List audit events (per agent)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-AEGIS-API-Key", "value": "{{api_key}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/agents/{{agent_id}}/audit?limit=100",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "agents", "{{agent_id}}", "audit"],
+              "query": [
+                { "key": "limit", "value": "100" },
+                { "key": "cursor", "value": "", "disabled": true },
+                { "key": "from", "value": "", "disabled": true },
+                { "key": "to", "value": "", "disabled": true }
+              ]
+            },
+            "description": "Paginated audit log for one agent. Use the returned `nextCursor` to walk forward."
+          },
+          "response": []
+        },
+        {
+          "name": "Export audit events as NDJSON (per agent)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-AEGIS-API-Key", "value": "{{api_key}}" },
+              { "key": "Accept", "value": "application/x-ndjson" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/agents/{{agent_id}}/audit/export.ndjson",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "agents", "{{agent_id}}", "audit", "export.ndjson"]
+            },
+            "description": "Stream the agent's audit log as newline-delimited JSON. Pipe through `jq` for ad-hoc analysis."
+          },
+          "response": []
+        },
+        {
+          "name": "Export tenant-wide NDJSON",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-AEGIS-API-Key", "value": "{{api_key}}" },
+              { "key": "Accept", "value": "application/x-ndjson" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/audit-events/export",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "audit-events", "export"]
+            },
+            "description": "Tenant-wide NDJSON export. Memory-bounded via internal cursor pagination. The signature on each row + `/.well-known/audit-signing-key` lets a third party verify offline."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "description": "Subscribe an HTTPS callback URL to AEGIS events. The signing secret is shown once on creation — record it, then HMAC-SHA256 verify every inbound `X-Aegis-Signature` header.",
+      "item": [
+        {
+          "name": "Subscribe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.id) pm.collectionVariables.set('webhook_id', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-API-Key", "value": "{{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://api.example.com/webhooks/aegis\",\n  \"events\": [\"aegis.agent.trust_score_changed\", \"aegis.agent.revoked\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/webhooks",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "webhooks"]
+            },
+            "description": "Subscribe a callback URL. Returned `secret` (`whsec_…`) is shown ONCE — store it, then verify every delivery's `X-Aegis-Signature: t=<ts>,v1=<hmac>` header with HMAC-SHA256."
+          },
+          "response": []
+        },
+        {
+          "name": "List subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-AEGIS-API-Key", "value": "{{api_key}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/webhooks",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "webhooks"]
+            },
+            "description": "List webhook subscriptions for the calling principal."
+          },
+          "response": []
+        },
+        {
+          "name": "Unsubscribe",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "X-AEGIS-API-Key", "value": "{{api_key}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/webhooks/{{webhook_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "webhooks", "{{webhook_id}}"]
+            },
+            "description": "Permanently delete the subscription. Idempotent — 204 even if it never existed."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "BATE",
+      "description": "Behavioral signal reporting (relying party → BATE) and trust-score retrieval (public).",
+      "item": [
+        {
+          "name": "Submit behavioral signal",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-API-Key", "value": "{{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"anomaly\",\n  \"severity\": \"medium\",\n  \"description\": \"Velocity spike: 12 transactions in 60s\",\n  \"transactionId\": \"txn_postman_demo_1\",\n  \"evidence\": { \"window_seconds\": 60, \"count\": 12 }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/agents/{{agent_id}}/report",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "agents", "{{agent_id}}", "report"]
+            },
+            "description": "Report a behavioral signal — feeds BATE. 202 (async) on accept. Phase-1 authorization: only the principal owning the agent may file reports against it."
+          },
+          "response": []
+        },
+        {
+          "name": "Get agent trust score (public)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/agents/{{agent_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "agents", "{{agent_id}}", "status"]
+            },
+            "description": "Public endpoint — no API key required. Returns current `status`, `trustScore`, and `trustBand` for the agent. Used by relying parties for quick pre-checks before /verify."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Compliance",
+      "description": "GDPR Art. 17 surface. Hash-committing redaction keeps the audit chain tamper-evident even after deletion (ADR-0006).",
+      "item": [
+        {
+          "name": "Redact one audit event",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-API-Key", "value": "{{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"evt_REPLACE_ME\",\n  \"reason\": \"gdpr_art_17_request\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/compliance/audit/redact-event",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "compliance", "audit", "redact-event"]
+            },
+            "description": "Redact one audit event by id. Per-principal isolation enforced inside the service. The chain still verifies because the signature commits to hashes, not raw values."
+          },
+          "response": []
+        },
+        {
+          "name": "Redact every event for an agent",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-API-Key", "value": "{{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": \"{{agent_id}}\",\n  \"reason\": \"gdpr_art_17_request\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/compliance/audit/redact-by-agent",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "compliance", "audit", "redact-by-agent"]
+            },
+            "description": "Bulk redact every audit event the calling principal owns for the named agent."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Onboarding",
+      "description": "Activation-checklist surface. Drives the dashboard wizard and `aegis doctor` CLI.",
+      "item": [
+        {
+          "name": "Get onboarding state",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-AEGIS-API-Key", "value": "{{api_key}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/me/onboarding",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "me", "onboarding"]
+            },
+            "description": "Fetch the onboarding checklist for the caller's principal."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark onboarding step",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "X-AEGIS-API-Key", "value": "{{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"step\": \"agent.create\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/me/onboarding/step",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "me", "onboarding", "step"]
+            },
+            "description": "Mark one onboarding step complete. Idempotent — 204 on success."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Denial Precedence Walk-through",
+      "description": "Reproducible tour through every `denialReason` AEGIS can emit, in canonical precedence order (CLAUDE.md invariant 6 / ADR-0004 + ADR-0014).\n\nEach request hits POST /v1/verify with a payload contrived to trigger exactly that denial reason. Every test asserts both `valid:false` and `denialReason` matches the expected string.\n\nPrecedence (top wins):\n  AGENT_NOT_FOUND → AGENT_REVOKED → INVALID_SIGNATURE → POLICY_REVOKED → POLICY_EXPIRED → SCOPE_NOT_GRANTED → TRIAL_EXHAUSTED → SPEND_LIMIT_EXCEEDED → TRUST_SCORE_TOO_LOW → ANOMALY_FLAGGED",
+      "item": [
+        {
+          "name": "1. AGENT_NOT_FOUND",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('denialReason = AGENT_NOT_FOUND', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.valid).to.eql(false);",
+                  "  pm.expect(body.denialReason).to.eql('AGENT_NOT_FOUND');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-Verify-Key", "value": "{{verify_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"eyJhbGciOiJFZERTQSJ9.eyJzdWIiOiJhZ3RfMDAwMDAwMDAwMDAwMDAwMDAwMDBfTk9UX0ZPVU5EIn0.SIG\",\n  \"action\": \"commerce.purchase\",\n  \"amount\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/verify",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "verify"]
+            },
+            "description": "Precondition: craft a token with a `sub` claim that matches no row in `AgentIdentity`. Easiest: take a working token and rewrite the agentId to a random ULID. Expect `denialReason: AGENT_NOT_FOUND` (precedence position 1)."
+          },
+          "response": []
+        },
+        {
+          "name": "2. AGENT_REVOKED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('denialReason = AGENT_REVOKED', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.valid).to.eql(false);",
+                  "  pm.expect(body.denialReason).to.eql('AGENT_REVOKED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-Verify-Key", "value": "{{verify_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{policy_token}}\",\n  \"action\": \"commerce.purchase\",\n  \"amount\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/verify",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "verify"]
+            },
+            "description": "Precondition: DELETE the agent (Identity → Revoke agent), then replay the previously-valid token within seconds. Expect `denialReason: AGENT_REVOKED` (position 2)."
+          },
+          "response": []
+        },
+        {
+          "name": "3. INVALID_SIGNATURE",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('denialReason = INVALID_SIGNATURE', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.valid).to.eql(false);",
+                  "  pm.expect(body.denialReason).to.eql('INVALID_SIGNATURE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-Verify-Key", "value": "{{verify_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"eyJhbGciOiJFZERTQSJ9.eyJzdWIiOiJhZ2VudF9pZCJ9.AAAA_INVALID_SIGNATURE_AAAA\",\n  \"action\": \"commerce.purchase\",\n  \"amount\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/verify",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "verify"]
+            },
+            "description": "Precondition: take a working JWT and tamper with the signature segment (last `.`-separated chunk). Expect `denialReason: INVALID_SIGNATURE` (position 3)."
+          },
+          "response": []
+        },
+        {
+          "name": "4. POLICY_REVOKED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('denialReason = POLICY_REVOKED', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.valid).to.eql(false);",
+                  "  pm.expect(body.denialReason).to.eql('POLICY_REVOKED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-Verify-Key", "value": "{{verify_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{policy_token}}\",\n  \"action\": \"commerce.purchase\",\n  \"amount\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/verify",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "verify"]
+            },
+            "description": "Precondition: call DELETE /v1/agents/{agentId}/policies/{policyId} on the policy that minted `{{policy_token}}`, then replay the token. Expect `denialReason: POLICY_REVOKED` (position 4)."
+          },
+          "response": []
+        },
+        {
+          "name": "5. POLICY_EXPIRED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('denialReason = POLICY_EXPIRED', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.valid).to.eql(false);",
+                  "  pm.expect(body.denialReason).to.eql('POLICY_EXPIRED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-Verify-Key", "value": "{{verify_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{policy_token}}\",\n  \"action\": \"commerce.purchase\",\n  \"amount\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/verify",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "verify"]
+            },
+            "description": "Precondition: create a policy with `expiresAt` 60s in the future, capture its `signedToken`, wait 60s, then verify. Expect `denialReason: POLICY_EXPIRED` (position 5)."
+          },
+          "response": []
+        },
+        {
+          "name": "6. SCOPE_NOT_GRANTED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('denialReason = SCOPE_NOT_GRANTED', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.valid).to.eql(false);",
+                  "  pm.expect(body.denialReason).to.eql('SCOPE_NOT_GRANTED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-Verify-Key", "value": "{{verify_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{policy_token}}\",\n  \"action\": \"data-write.delete_account\",\n  \"amount\": 0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/verify",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "verify"]
+            },
+            "description": "Precondition: hold a policy that only grants `commerce` scope, then verify with `action: data-write.delete_account`. Expect `denialReason: SCOPE_NOT_GRANTED` (position 6)."
+          },
+          "response": []
+        },
+        {
+          "name": "7. TRIAL_EXHAUSTED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('denialReason = TRIAL_EXHAUSTED', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.valid).to.eql(false);",
+                  "  pm.expect(body.denialReason).to.eql('TRIAL_EXHAUSTED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-Verify-Key", "value": "{{verify_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{policy_token}}\",\n  \"action\": \"commerce.purchase\",\n  \"amount\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/verify",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "verify"]
+            },
+            "description": "Precondition: principal is on the FREE_TRIAL plan and has consumed >= `trialVerifiesCap` (default 10,000 per ADR-0014). Any subsequent verify denies with `denialReason: TRIAL_EXHAUSTED` (position 7) — distinct from `PLAN_LIMIT_EXCEEDED` (paid-tier monthly cap) and `SPEND_LIMIT_EXCEEDED` (per-policy spend cap). Maps to HTTP 200 verify response with `valid:false`. The pre-algorithm billing path may also surface this as HTTP 402 outside the verify envelope."
+          },
+          "response": []
+        },
+        {
+          "name": "8. SPEND_LIMIT_EXCEEDED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('denialReason = SPEND_LIMIT_EXCEEDED', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.valid).to.eql(false);",
+                  "  pm.expect(body.denialReason).to.eql('SPEND_LIMIT_EXCEEDED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-Verify-Key", "value": "{{verify_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{policy_token}}\",\n  \"action\": \"commerce.purchase\",\n  \"amount\": 999999.00,\n  \"currency\": \"USD\",\n  \"merchantDomain\": \"delta.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/verify",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "verify"]
+            },
+            "description": "Precondition: create a policy with `maxPerTransaction: 500`, then verify with `amount: 999999`. Expect `denialReason: SPEND_LIMIT_EXCEEDED` (position 8)."
+          },
+          "response": []
+        },
+        {
+          "name": "9. TRUST_SCORE_TOO_LOW",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('denialReason = TRUST_SCORE_TOO_LOW', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.valid).to.eql(false);",
+                  "  pm.expect(body.denialReason).to.eql('TRUST_SCORE_TOO_LOW');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-Verify-Key", "value": "{{verify_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{policy_token}}\",\n  \"action\": \"commerce.purchase\",\n  \"amount\": 1.00\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/verify",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "verify"]
+            },
+            "description": "Precondition: hammer the agent with `eventType: fraud_confirmed, severity: critical` reports until BATE pushes its trust score below the relying party's minimum band (FLAGGED). Expect `denialReason: TRUST_SCORE_TOO_LOW` (position 9)."
+          },
+          "response": []
+        },
+        {
+          "name": "10. ANOMALY_FLAGGED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('denialReason = ANOMALY_FLAGGED', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.valid).to.eql(false);",
+                  "  pm.expect(body.denialReason).to.eql('ANOMALY_FLAGGED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-Verify-Key", "value": "{{verify_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{policy_token}}\",\n  \"action\": \"commerce.purchase\",\n  \"amount\": 100,\n  \"context\": {\n    \"velocity_60s\": 50,\n    \"geo_jump_km\": 9000\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/verify",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "verify"]
+            },
+            "description": "Precondition: send a context block with strong anomaly signals (high velocity, impossible geo jump, brand-new merchant for a long-running agent). The BATE realtime layer flags it. Expect `denialReason: ANOMALY_FLAGGED` (position 10)."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

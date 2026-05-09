@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+
+# Husky pre-push hook.
+#
+# Runs `pnpm doctor:full` — the swarm immune system added in Round 18
+# Wave I. Catches drift at push time instead of round-N+1's manual
+# catch-up tax. ~30s wall (6 gates: tsc × 3, audit:errors,
+# cross-package parity, postman validator).
+#
+# Why pre-push and not pre-commit:
+#   - Pre-commit runs on every save-batch; 30s would be intolerable.
+#   - Pre-push runs once per `git push`, when the cost of bouncing back
+#     a broken push is much higher than the gate latency.
+#
+# To bypass in a true emergency: `git push --no-verify`. Pair with a
+# follow-up commit that fixes the actual issue. Do NOT make this a
+# habit — every bypass is a chance for the swarm to silently drift.
+
+echo "→ pnpm doctor:full (drift gate, ~30s)"
+if ! pnpm doctor:full; then
+  echo ""
+  echo "✖ pnpm doctor:full found drift. Push blocked."
+  echo "  Run \`pnpm doctor\` (fast) to see what flagged."
+  echo "  Bypass (true emergency only): git push --no-verify"
+  exit 1
+fi

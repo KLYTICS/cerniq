@@ -423,3 +423,170 @@ groups:
             single best leading indicator of latency SLO breach: sync CPU work
             (crypto, JSON parsing on giant payloads, GC pauses) is starving the
             loop. The verify-latency runbook has the heap + flame graph steps.
+
+  # ---------------------------------------------------------------------------
+  # aegis.auth.rotation — round-15 API key rotation surface (api-key.service.ts).
+  # Both alerts pinned to `vector(0) > 1` until their backing metrics emit
+  # (round-15 backlog: aegis_api_key_rotation_total{result}, aegis_api_key_auth_total{result}).
+  # Runbook content is correct as written; flip exprs when metrics land.
+  # ---------------------------------------------------------------------------
+  - name: aegis.auth.rotation
+    interval: 60s
+    rules:
+      - alert: ApiKeyRotationFailureRate
+        # MISSING: aegis_api_key_rotation_total{result} — tracked: round-15 follow-up.
+        # When emitted, swap to:
+        #   sum(rate(aegis_api_key_rotation_total{result="error"}[5m])) > 0.1
+        expr: vector(0) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: aegis-oncall
+          surface: auth
+        annotations:
+          summary: "API key rotation 5xx > 0.1/s — rotation endpoint failing"
+          runbook: infra/observability/runbooks/key-rotation-failure.md
+          runbook_url: https://docs.aegislabs.io/runbooks/key-rotation-failure
+          description: |
+            POST /v1/principals/me/api-keys/rotate is failing. Customer integrations
+            cannot rotate; long-lived keys accumulate. Alert disabled until backing
+            metric lands — runbook still applies for manual investigation.
+
+      - alert: ApiKeyExpiredAuthSpike
+        # MISSING: aegis_api_key_auth_total{result="expired"} — tracked: round-15 follow-up.
+        # When emitted, swap to:
+        #   sum(rate(aegis_api_key_auth_total{result="expired"}[5m])) /
+        #   clamp_min(sum(rate(aegis_api_key_auth_total[5m])), 0.001) > 0.01
+        expr: vector(0) > 1
+        for: 10m
+        labels:
+          severity: warning
+          team: aegis-oncall
+          surface: auth
+        annotations:
+          summary: "EXPIRED_API_KEY rate > 1% — customers using rotated-out keys"
+          runbook: infra/observability/runbooks/key-rotation-failure.md
+          runbook_url: https://docs.aegislabs.io/runbooks/key-rotation-failure
+          description: |
+            Customer-visible signal: someone is using a key past its 24h overlap
+            window. Usually the customer's automation didn't pick up the new key.
+            Reach out via support before they file a ticket.
+
+  # ---------------------------------------------------------------------------
+  # aegis.compliance.retention — round-15 audit retention service.
+  # AuditRetentionEventsRedactedTotal counter exists per round 15 handoff;
+  # the "tick missed" alert can use it. RedactStalled needs an additional
+  # metric still pending.
+  # ---------------------------------------------------------------------------
+  - name: aegis.compliance.retention
+    interval: 5m
+    rules:
+      - alert: AuditRetentionTickMissed
+        # Counter is per round 15 (audit-retention.service.ts). A flat counter
+        # for > 25h with traffic flowing means the cron skipped (default 24h).
+        expr: |
+          (time() - (max(aegis_audit_retention_events_redacted_total) by (instance)
+                     unless aegis_audit_retention_events_redacted_total
+                       offset 25h != aegis_audit_retention_events_redacted_total))
+          > 25 * 3600
+        for: 1h
+        labels:
+          severity: warning
+          team: aegis-oncall
+          surface: compliance
+        annotations:
+          summary: "Audit retention tick missed > 25h — SOC2 + GDPR exposure"
+          runbook: infra/observability/runbooks/audit-retention-failure.md
+          runbook_url: https://docs.aegislabs.io/runbooks/audit-retention-failure
+          description: |
+            The retention cron hasn't run in > 25h. Round-15 default interval is
+            24h. Each day past the policy without redaction is a control failure
+            (SOC2 CC7.2 / GDPR Art. 17). Manual run:
+            `pnpm --filter @aegis/scripts run audit-retention -- --dry-run`.
+
+      - alert: AuditRetentionRedactStalled
+        # MISSING: aegis_audit_retention_run_duration_seconds_bucket — tracked: round-15 follow-up.
+        # Pinned until metric lands. When ready:
+        #   histogram_quantile(0.99, sum by (le)
+        #     (rate(aegis_audit_retention_run_duration_seconds_bucket[1h]))) > 600
+        expr: vector(0) > 1
+        for: 30m
+        labels:
+          severity: critical
+          team: aegis-oncall
+          surface: compliance
+        annotations:
+          summary: "Audit retention p99 run > 10 min — mid-batch crash or DB lock"
+          runbook: infra/observability/runbooks/audit-retention-failure.md
+          runbook_url: https://docs.aegislabs.io/runbooks/audit-retention-failure
+          description: |
+            A retention pass that takes > 10 minutes typically means a Postgres
+            lock contention or a crash mid-batch. Re-runs are idempotent (already
+            redacted skip), but compliance windows narrow with each delay.
+
+  # ---------------------------------------------------------------------------
+  # aegis.throttle.plan_aware — round-15 plan-aware throttler.
+  # All three pinned to `vector(0) > 1` until throttle metrics land
+  # (round-15 backlog: aegis_throttle_429_total, aegis_throttle_principal_missing_total).
+  # ---------------------------------------------------------------------------
+  - name: aegis.throttle.plan_aware
+    interval: 60s
+    rules:
+      - alert: PlanAwareThrottle429SpikeFree
+        # MISSING: aegis_throttle_429_total{plan_tier} — tracked: round-15 follow-up.
+        # When emitted, swap to:
+        #   sum(rate(aegis_throttle_429_total{plan_tier="FREE"}[5m])) > 5
+        expr: vector(0) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: aegis-oncall
+          surface: throttle
+        annotations:
+          summary: "FREE-tier 429 storm > 5/s — abuse pattern or limit miscalibration"
+          runbook: infra/observability/runbooks/plan-aware-throttle-storm.md
+          runbook_url: https://docs.aegislabs.io/runbooks/plan-aware-throttle-storm
+          description: |
+            Sustained FREE-tier 429s. Usually abuse — confirm via topk principalId
+            and reach out to the source. If a paid-tier customer appears, that's
+            plan-cache drift — invalidate the cache key (see runbook).
+
+      - alert: PlanAwareThrottlePrincipalIdMissing
+        # MISSING: aegis_throttle_principal_missing_total — tracked: round-15 follow-up.
+        # When emitted, ANY non-zero rate fires — we should NEVER fall back to
+        # IP-tracking for an authenticated request. Each occurrence = security
+        # bug (cross-tenant throttling via NAT shared IP).
+        expr: vector(0) > 1
+        for: 1m
+        labels:
+          severity: critical
+          team: aegis-oncall
+          surface: throttle
+        annotations:
+          summary: "Throttle tracker fell back to IP — auth ordering broken"
+          runbook: infra/observability/runbooks/plan-aware-throttle-storm.md
+          runbook_url: https://docs.aegislabs.io/runbooks/plan-aware-throttle-storm
+          description: |
+            An authenticated request reached PlanAwareThrottlerGuard without a
+            populated req.principal. NAT-shared customers get throttled together
+            (security regression). Verify guard ordering in auth.module.ts.
+
+      - alert: PlanAwareThrottleEnterpriseLeak
+        # MISSING: aegis_throttle_429_total{plan_tier="ENTERPRISE"} — tracked: round-15 follow-up.
+        # When emitted, ANY occurrence fires. ENTERPRISE short-circuits the
+        # bucket; a 429 here means the short-circuit failed. Contractual SLA
+        # breach — refund event.
+        expr: vector(0) > 1
+        for: 0s
+        labels:
+          severity: warning
+          team: aegis-oncall
+          surface: throttle
+        annotations:
+          summary: "ENTERPRISE 429 — SLA breach, refund event"
+          runbook: infra/observability/runbooks/plan-aware-throttle-storm.md
+          runbook_url: https://docs.aegislabs.io/runbooks/plan-aware-throttle-storm
+          description: |
+            ENTERPRISE tier hit a 429. The guard's short-circuit failed or the
+            principal's planTier was downgraded in DB. Investigate immediately;
+            issue credit per SLA.

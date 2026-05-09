@@ -5,7 +5,13 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime
 from types import TracebackType
-from typing import Any, Self
+import sys
+from typing import Any
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 import httpx
 

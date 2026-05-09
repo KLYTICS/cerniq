@@ -4,6 +4,25 @@
   "description": "AEGIS exposed as an MCP server. Lets Claude Desktop / Cursor / any MCP host call AEGIS verify, agents, policies, and audit tools natively.",
   "type": "module",
   "license": "MIT",
+  "author": "AEGIS Labs <hello@aegislabs.io>",
+  "homepage": "https://aegislabs.io/mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klytics/aegis.git",
+    "directory": "packages/mcp-server"
+  },
+  "bugs": {
+    "url": "https://github.com/klytics/aegis/issues"
+  },
+  "keywords": [
+    "aegis",
+    "mcp",
+    "model-context-protocol",
+    "claude-desktop",
+    "cursor",
+    "agent-identity",
+    "verification"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,6 +42,7 @@
   ],
   "scripts": {
     "build": "tsup",
+    "prepublishOnly": "pnpm build",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -42,7 +62,7 @@
     "vitest": "^2.1.5"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.11.0"
   },
   "publishConfig": {
     "access": "public"

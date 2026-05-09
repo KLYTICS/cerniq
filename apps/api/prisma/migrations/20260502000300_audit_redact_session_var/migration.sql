@@ -108,6 +108,6 @@ $$ LANGUAGE plpgsql;
 -- function body was redefined. CREATE OR REPLACE on the function is
 -- transactional + idempotent.
 
-COMMENT ON FUNCTION audit_event_block_mutation() IS
-  'Append-only enforcement with column-whitelist bypass for compliance redactions. ' ||
-  'See migrations/20260502000300_audit_redact_session_var/migration.sql.';
+-- COMMENT ON ... IS requires a single string literal in Postgres DDL.
+-- Multi-line `||` concatenation parses in expression contexts only.
+COMMENT ON FUNCTION audit_event_block_mutation() IS 'Append-only enforcement with column-whitelist bypass for compliance redactions. See migrations/20260502000300_audit_redact_session_var/migration.sql.';

@@ -1,0 +1,11 @@
+{
+  "version": "v1.0.0",
+  "established_at": "2026-05-05T17:00:00Z",
+  "verify_slo": {
+    "FREE":       { "p50_ms": 100, "p95_ms": 200, "p99_ms": 250 },
+    "DEVELOPER":  { "p50_ms":  80, "p95_ms": 150, "p99_ms": 200 },
+    "GROWTH":     { "p50_ms":  50, "p95_ms": 100, "p99_ms": 120 },
+    "ENTERPRISE": { "p50_ms":  30, "p95_ms":  60, "p99_ms":  80 }
+  },
+  "notes": "Initial baseline derived from plans.ts verifyP99TargetMs. Real measurements needed via scripts/benchmark-verify.ts after seed:demo + dev stack up. Update via `pnpm bench:verify --output apps/api/perf-baseline.json`."
+}

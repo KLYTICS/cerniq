@@ -9,6 +9,7 @@
 // M-019 will swap in.
 
 import type {
+  DenialReason,
   PolicyEngine,
   PolicyEvaluationInput,
   PolicyEvaluationResult,
@@ -50,9 +51,13 @@ export class BuiltinPolicyEngine implements PolicyEngine {
 
     // Step 4 — Spend limit. Only checked when both amount AND a scope-level
     // spendLimit are present. The verify path supplies the running total in
-    // `input.spend`.
+    // `input.spend`. Currency mismatch is checked across all three sources
+    // (request, spend window, scope limit) — any inequality is a hard deny.
     if (amount && matched.spendLimit && spend) {
-      if (spend.currency !== matched.spendLimit.currency) {
+      if (
+        spend.currency !== matched.spendLimit.currency ||
+        (currency && currency !== matched.spendLimit.currency)
+      ) {
         return deny('SCOPE_NOT_GRANTED', 'currency_mismatch');
       }
       const requested = parseDecimal(amount);
@@ -104,9 +109,6 @@ function parseDecimal(s: string): number {
   return n;
 }
 
-function deny(
-  denialReason: PolicyEvaluationResult extends { denialReason: infer R } ? R : never,
-  subReason?: string,
-): PolicyEvaluationResult {
+function deny(denialReason: DenialReason, subReason?: string): PolicyEvaluationResult {
   return { decision: 'DENY', denialReason, subReason, obligations: [] };
 }

@@ -5,23 +5,34 @@
  * Creates (or no-ops on) the minimum row set a developer needs to hit the
  * API end-to-end:
  *
- *   1. Principal             — email "dev@aegis.local"
+ *   1. Principal             — email "dev@aegis.local", planTier=DEVELOPER
  *   2. ApiKey                — full-scope key prefixed "aegis_sk_"  (per ref impl)
  *   3. AgentIdentity         — with a freshly generated Ed25519 keypair;
  *                              public key persisted; private key written
- *                              0600 to ./.local/keys/dev-agent.private
- *   4. AgentPolicy ACTIVE    — commerce scope, $100 / txn USD, 30 day expiry
+ *                              0600 to BOTH:
+ *                                ./.local/keys/dev-agent.private  (durable)
+ *                                ./.aegis-dev-key.txt             (operator-facing)
+ *   4. AgentPolicy ACTIVE    — commerce scope, $500 / txn (50 000 cents) USD,
+ *                              30 day expiry
+ *   5. RelyingParty          — domain "localhost:4000", kind GENERIC
  *
  * Idempotency key:
- *   - Principal:     unique (email)
- *   - AgentIdentity: (principalId, label="dev-agent")
- *   - AgentPolicy:   ACTIVE policy on that agent with label="dev-policy"
- *   - ApiKey:        (principalId, label="dev-key")  — only minted once.
+ *   - Principal:      unique (email)
+ *   - AgentIdentity:  (principalId, label="dev-agent")
+ *   - AgentPolicy:    ACTIVE policy on that agent with label="dev-policy"
+ *   - ApiKey:         (principalId, label="dev-key")  — only minted once.
  *     Re-runs cannot recover the plaintext key (it's bcrypt-hashed at rest);
  *     use --reset to rotate.
+ *   - RelyingParty:   unique (domain="localhost:4000")
  *
  * Re-running prints "already seeded" and emits the same JSON shape minus
  * apiKey. Use --reset (forbidden in prod) to wipe and recreate.
+ *
+ * Safety rails (CLAUDE.md invariant 4 — no fabricated data, no silent
+ * production writes):
+ *   - Refuses to run with a loud error when NODE_ENV=production.
+ *   - Refuses to run when DATABASE_URL points at a hosted provider
+ *     (heuristic match on hostname: railway, neon, supabase, aws, gcp).
  *
  * Bcrypt cost: 12 always (key issuance is rare in this script). --fast drops
  * to 4 for test environments where we hash a key on every run.
@@ -51,6 +62,20 @@ const AGENT_LABEL = 'dev-agent';
 const POLICY_LABEL = 'dev-policy';
 const API_KEY_PREFIX = 'aegis_sk_';
 const AGENT_PRIVATE_KEY_PATH = resolve('./.local/keys/dev-agent.private');
+// Operator-facing copy of the agent private key. Easier to find than the
+// nested ./.local/keys/ path. Same 0600 mode + .gitignore expectation.
+const AGENT_PRIVATE_KEY_OP_PATH = resolve('./.aegis-dev-key.txt');
+// $500 maxPerTransaction. The user-facing seed contract (50_000 cents)
+// kept in cents form here for clarity; we surface USD on the wire.
+const POLICY_SPEND_MAX_PER_TX_CENTS = 50_000;
+const POLICY_SPEND_MAX_PER_TX_USD = POLICY_SPEND_MAX_PER_TX_CENTS / 100;
+// Local relying-party endpoint that the dashboard's first-run flow calls.
+const RELYING_PARTY_DOMAIN = 'localhost:4000';
+const RELYING_PARTY_NAME = 'Local Dev RP';
+// Hosted-DB heuristic — refuse to seed against any of these. Substring
+// match on `URL.hostname`; explicit and short on purpose. Add new
+// providers here when they become reachable from local dev.
+const HOSTED_DB_HOSTS = ['railway', 'neon', 'supabase', 'amazonaws', 'aws', 'gcp', 'rds'] as const;
 
 // ── Pure helpers ──────────────────────────────────────────────────
 
@@ -62,8 +87,10 @@ function toB64Url(bytes: Uint8Array | Buffer): string {
 export function mintApiKey(): { plaintext: string; prefix: string } {
   const raw = toB64Url(randomBytes(16));
   const plaintext = `${API_KEY_PREFIX}${raw}`;
-  // First 16 chars used as a non-secret discriminator for fast lookups.
-  const prefix = plaintext.slice(0, 16);
+  // First 12 chars — matches `api-key.service.ts` which narrows the candidate
+  // set on `keyPrefix = plaintext.slice(0, 12)` during auth. Storing 16 chars
+  // would put zero candidates in the lookup and silently fail every login.
+  const prefix = plaintext.slice(0, 12);
   return { plaintext, prefix };
 }
 
@@ -89,6 +116,50 @@ function sha256Hex(s: string): string {
   return createHash('sha256').update(s).digest('hex');
 }
 
+/**
+ * Returns the hostname of `DATABASE_URL` lowercased, or `null` if the URL
+ * is unparseable / absent. Errors surface up; we never silently accept
+ * a blank.
+ */
+function databaseHost(): string | null {
+  const raw = env.DATABASE_URL;
+  if (!raw) return null;
+  try {
+    return new URL(raw).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Hard refusal gate. Runs before any Prisma connection so we never even
+ * pretend to attempt a write against a hosted DB or a production NODE_ENV.
+ * Throws — caller surfaces the message to stderr and exits 1.
+ */
+function assertSafeSeedEnvironment(): void {
+  if (env.NODE_ENV === 'production') {
+    throw new Error(
+      'REFUSING TO SEED: NODE_ENV=production. The seed script is dev-only — ' +
+        'it issues a known plaintext API key and writes the agent private key ' +
+        'to disk. If you genuinely need fixtures in a hosted environment, ' +
+        'mint them via the API and store the secrets in your secret manager.',
+    );
+  }
+  const host = databaseHost();
+  if (host) {
+    const hit = HOSTED_DB_HOSTS.find((needle) => host.includes(needle));
+    if (hit) {
+      throw new Error(
+        `REFUSING TO SEED: DATABASE_URL hostname "${host}" matches hosted-DB ` +
+          `heuristic "${hit}". The seed script writes a known-plaintext API ` +
+          `key and a long-lived agent private key — never run it against a ` +
+          `shared/hosted database. Point DATABASE_URL at a local Postgres ` +
+          `(docker-compose up postgres) and retry.`,
+      );
+    }
+  }
+}
+
 // ── Prisma structural shape (see lazy-import note in main()) ─────
 
 interface PrincipalRow {
@@ -104,6 +175,10 @@ interface PolicyRow {
 }
 interface ApiKeyRow {
   id: string;
+}
+interface RelyingPartyRow {
+  id: string;
+  domain: string;
 }
 
 interface PrismaShape {
@@ -139,6 +214,13 @@ interface PrismaShape {
     }) => Promise<PolicyRow | null>;
     create: (args: { data: Record<string, unknown> }) => Promise<PolicyRow>;
   };
+  relyingParty: {
+    upsert: (args: {
+      where: { domain: string };
+      update: Record<string, unknown>;
+      create: Record<string, unknown>;
+    }) => Promise<RelyingPartyRow>;
+  };
   $disconnect: () => Promise<void>;
 }
 
@@ -168,20 +250,34 @@ interface SeedResult {
   principalId: string;
   agentId: string;
   policyId: string;
+  relyingPartyId: string;
   apiKey?: string; // only on first run
   publicKeyB64Url: string;
-  privateKeyPath: string;
+  privateKeyPath: string; // durable path under .local/keys
+  privateKeyOpPath: string; // operator-facing copy at repo root
 }
 
 async function writeAgentPrivateKey(privateKeyB64Url: string): Promise<void> {
+  // Durable nested path — kept stable across rounds for tooling that
+  // already references it (e.g. integration test fixtures).
   await mkdir(dirname(AGENT_PRIVATE_KEY_PATH), { recursive: true });
   await writeFile(AGENT_PRIVATE_KEY_PATH, `${privateKeyB64Url}\n`, { mode: 0o600 });
+  // Operator-facing copy at repo root. Required by Phase-1 launch swarm
+  // contract — easier to discover than the .local/keys/ nested path.
+  // NOTE: .gitignore must exclude .aegis-dev-key.txt (verify post-seed).
+  await writeFile(AGENT_PRIVATE_KEY_OP_PATH, `${privateKeyB64Url}\n`, { mode: 0o600 });
 }
 
 async function main(): Promise<void> {
   const opts = parseCli(argv.slice(2));
 
+  // Hard refuse before touching Prisma. Covers --reset AND read-only
+  // re-seed paths (we still write a key file + may issue an API key).
+  assertSafeSeedEnvironment();
+
   if (opts.reset && env.NODE_ENV === 'production') {
+    // Belt-and-braces: assertSafeSeedEnvironment() already covers this,
+    // but the explicit message is part of the seed contract.
     throw new Error('--reset is forbidden when NODE_ENV=production');
   }
 
@@ -205,11 +301,17 @@ async function main(): Promise<void> {
       }
     }
 
-    // 1. Principal — upsert by email.
+    // 1. Principal — upsert by email. planTier=DEVELOPER so policy/agent
+    // limits exercised during local dev mirror what a paid customer hits.
     const principal = await prisma.principal.upsert({
       where: { email: PRINCIPAL_EMAIL },
-      update: {},
-      create: { email: PRINCIPAL_EMAIL, name: PRINCIPAL_NAME, emailVerified: true },
+      update: { planTier: 'DEVELOPER' },
+      create: {
+        email: PRINCIPAL_EMAIL,
+        name: PRINCIPAL_NAME,
+        emailVerified: true,
+        planTier: 'DEVELOPER',
+      },
     });
 
     // 2. ApiKey — only if absent. We can't rebuild the plaintext from a hash.
@@ -300,12 +402,39 @@ async function main(): Promise<void> {
           scopes: [
             {
               category: 'commerce',
-              spendLimit: { currency: 'USD', maxPerTransaction: 100 },
+              // 50 000 cents = $500 maxPerTransaction. Phase-1 launch seed
+              // contract — high enough for non-trivial dashboard demos,
+              // low enough that an accidental real charge stings.
+              spendLimit: {
+                currency: 'USD',
+                maxPerTransaction: POLICY_SPEND_MAX_PER_TX_USD,
+              },
             },
           ],
         },
       });
     }
+
+    // 5. RelyingParty — upsert by domain. The `apiKeyHash` column has a
+    // UNIQUE constraint, so we mint a stable-but-non-secret hash from
+    // the domain itself so re-runs don't collide. This RP is for local
+    // dashboard testing only — the dashboard's first-run flow assumes
+    // a relying-party row exists for `localhost:4000`.
+    const rpApiKeyHash = sha256Hex(`seed-rp:${RELYING_PARTY_DOMAIN}`);
+    const relyingParty = await prisma.relyingParty.upsert({
+      where: { domain: RELYING_PARTY_DOMAIN },
+      update: { name: RELYING_PARTY_NAME, principalId: principal.id },
+      create: {
+        domain: RELYING_PARTY_DOMAIN,
+        name: RELYING_PARTY_NAME,
+        apiKeyHash: rpApiKeyHash,
+        principalId: principal.id,
+        kind: 'GENERIC',
+        status: 'ACTIVE',
+        verified: true,
+        verifiedAt: now,
+      },
+    });
 
     const result: SeedResult = {
       ok: true,
@@ -313,14 +442,27 @@ async function main(): Promise<void> {
       principalId: principal.id,
       agentId: agent.id,
       policyId: policy.id,
+      relyingPartyId: relyingParty.id,
       publicKeyB64Url,
       privateKeyPath: AGENT_PRIVATE_KEY_PATH,
+      privateKeyOpPath: AGENT_PRIVATE_KEY_OP_PATH,
       ...(issuedApiKey ? { apiKey: issuedApiKey } : {}),
     };
     stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     if (result.alreadySeeded) {
       stdout.write('already seeded\n');
     }
+    // Operator-facing summary (matches Phase-1 launch swarm contract).
+    stdout.write(
+      `\n[seed-dev] summary
+  Principal ID:     ${principal.id}
+  Agent ID:         ${agent.id}
+  Policy ID:        ${policy.id}
+  Relying Party ID: ${relyingParty.id}  (${RELYING_PARTY_DOMAIN})
+  Public key:       ${publicKeyB64Url}
+  Private key file: ${AGENT_PRIVATE_KEY_OP_PATH}
+${issuedApiKey ? `  API key (use as x-aegis-api-key): ${issuedApiKey}\n` : '  API key: already issued (use --reset to rotate)\n'}`,
+    );
   } finally {
     await prisma.$disconnect();
   }
@@ -344,4 +486,4 @@ if (invokedDirectly) {
   });
 }
 
-export { mintSeedPolicyToken, sha256Hex };
+export { mintSeedPolicyToken, sha256Hex, assertSafeSeedEnvironment, databaseHost };

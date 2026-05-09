@@ -21,6 +21,12 @@ export const ERROR_CODE = {
   INTERNAL: 'INTERNAL',
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
   IDEMPOTENCY_CONFLICT: 'IDEMPOTENCY_CONFLICT',
+  // BILLING covers HTTP 402 responses — trial exhaustion, plan-cap hard
+  // stop, payment-method-required. Added 2026-05-05 per ADR-0014. The
+  // wire-level discriminator for the verify path is `denialReason`
+  // (`TRIAL_EXHAUSTED` vs `PLAN_LIMIT_EXCEEDED` etc.); BILLING is the
+  // umbrella ErrorCode for the envelope.
+  BILLING: 'BILLING',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODE)[keyof typeof ERROR_CODE];

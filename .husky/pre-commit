@@ -17,3 +17,42 @@ if git diff --cached --name-only -z | xargs -0 -r grep -lE "$BLOCKED" 2>/dev/nul
   echo "  See .gitignore + docs/SECURITY.md before bypassing this check."
   exit 1
 fi
+
+# Migration immutability — once a `migration.sql` lands in git, its bytes
+# are frozen. Corrections go in NEW migrations, not edits to old ones.
+# Cheap to run: only fires when a staged change touches the migrations dir.
+if git diff --cached --name-only | grep -qE '^apps/api/prisma/migrations/'; then
+  if ! pnpm -s check:migrations; then
+    echo
+    echo "✖ Migration immutability violation. See docs/IMMUTABILITY.md § 'Migrations'."
+    exit 1
+  fi
+fi
+
+# Preflight — surgical gate that fires ONLY when a staged change touches a
+# high-blast-radius public surface (the verify hot path, the wire schema, the
+# error catalog, the denial-precedence canon, alert rules, or invariants).
+# Most commits skip this entirely; the ones that need it get caught locally
+# instead of in CI 5 minutes later.
+#
+# Gates on `make preflight-fast` exit 2 (gating fail) — exit 1 (warnings)
+# is allowed through, since warnings are tracked separately.
+#
+# Escape hatch: SKIP_PREFLIGHT=1 git commit ... (use sparingly; pair with a
+# follow-up fix commit). Hard `--no-verify` still works for true emergencies.
+HBR_PATTERN='^apps/api/src/modules/verify/algorithm/|^apps/api/prisma/schema\.prisma$|^packages/types/src/(constants|index)\.ts$|^apps/api/src/common/errors/error-catalog\.ts$|^CLAUDE\.md$|^infra/observability/alerts/'
+if [ "${SKIP_PREFLIGHT:-0}" != "1" ] && \
+   git diff --cached --name-only | grep -qE "$HBR_PATTERN"; then
+  echo "preflight: high-blast-radius change staged — running fast gate..."
+  if ! make -s preflight-fast; then
+    code=$?
+    if [ "$code" -ge 2 ]; then
+      echo
+      echo "✖ Preflight gating failure. See infra/observability/runbooks/preflight-failure.md."
+      echo "  Override (sparingly): SKIP_PREFLIGHT=1 git commit ..."
+      exit 1
+    fi
+    # exit 1 = warnings only — allow through with a visible reminder.
+    echo "⚠ Preflight reports warnings (exit $code). Commit allowed; address before push."
+  fi
+fi

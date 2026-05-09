@@ -72,16 +72,13 @@ export interface SignContext {
   ttlSeconds?: number;
 }
 
-export type DenialReason =
-  | 'AGENT_NOT_FOUND'
-  | 'AGENT_REVOKED'
-  | 'INVALID_SIGNATURE'
-  | 'POLICY_EXPIRED'
-  | 'POLICY_REVOKED'
-  | 'SCOPE_NOT_GRANTED'
-  | 'SPEND_LIMIT_EXCEEDED'
-  | 'TRUST_SCORE_TOO_LOW'
-  | 'ANOMALY_FLAGGED';
+// DenialReason union is generated from the canonical
+// `DENIAL_REASON_PRECEDENCE` tuple in `packages/types/src/constants.ts`.
+// Re-run `pnpm gen:denial-reason` after editing the precedence to keep
+// this in lockstep. The cross-package parity test in
+// `tests/cross-package/denial-reason-parity.spec.ts` is the gate.
+export { DENIAL_REASONS, type DenialReason } from './denial-reason.generated.js';
+import type { DenialReason } from './denial-reason.generated.js';
 
 export interface VerifyResult {
   valid: boolean;

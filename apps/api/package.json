@@ -20,7 +20,10 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:reset": "prisma migrate reset --force",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "spec-sync": "tsx scripts/check-openapi-prisma-parity.ts",
+    "audit-retention": "tsx scripts/run-audit-retention.ts",
+    "seed": "tsx ../../scripts/seed-dev.ts"
   },
   "dependencies": {
     "@aegis/sdk": "workspace:*",
@@ -29,12 +32,22 @@
     "@nestjs/config": "^3.3.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/schedule": "^6.1.3",
     "@nestjs/swagger": "^8.0.7",
     "@nestjs/throttler": "^6.2.1",
     "@noble/ed25519": "^2.1.0",
     "@noble/hashes": "^1.5.0",
+    "@noble/post-quantum": "^0.4.0",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.51.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.55.0",
+    "@opentelemetry/resources": "^1.28.0",
+    "@opentelemetry/sdk-node": "^0.55.0",
+    "@opentelemetry/sdk-trace-base": "^1.28.0",
+    "@opentelemetry/semantic-conventions": "^1.28.0",
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
+    "body-parser": "^1.20.3",
     "bullmq": "^5.21.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
@@ -48,14 +61,23 @@
     "prom-client": "^15.1.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "stripe": "^17.7.0",
     "ulid": "^2.3.0",
     "zod": "^3.23.8"
+  },
+  "optionalDependencies": {
+    "@aws-sdk/client-kms": "^3.700.0",
+    "@cedar-policy/cedar-wasm": "^3.4.0",
+    "@google-cloud/kms": "^4.6.0",
+    "@open-policy-agent/opa-wasm": "^1.10.0",
+    "@workos-inc/node": "^7.45.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.0",
     "@types/bcryptjs": "^2.4.6",
+    "@types/body-parser": "^1.19.5",
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.13",
     "@types/node": "^20.14.0",
@@ -68,7 +90,9 @@
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.6.3"
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "yaml": "^2.6.1"
   },
   "prisma": {
     "schema": "prisma/schema.prisma"

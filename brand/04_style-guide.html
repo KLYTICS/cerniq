@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AEGIS — Design System v1.0</title>
+<link rel="stylesheet" href="03_design-tokens.css">
+<style>
+/* ============================================================================
+   AEGIS Style Guide — itself a piece of brand design.
+   ============================================================================ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--aegis-obsidian);
+  background-image: var(--aegis-gradient-void);
+  color: var(--aegis-halo);
+  font-family: var(--aegis-font-body);
+  font-size: var(--aegis-fs-body);
+  line-height: var(--aegis-lh-relaxed);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Atmospheric mesh — fixed behind everything */
+.atmosphere {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 20%, rgba(91,224,255,0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 85% 30%, rgba(139,107,255,0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 30% at 50% 100%, rgba(255,91,208,0.05) 0%, transparent 70%);
+}
+
+main { position: relative; z-index: 1; }
+
+.container {
+  max-width: var(--aegis-container-wide);
+  margin: 0 auto;
+  padding: 0 var(--aegis-space-8);
+}
+
+.eyebrow {
+  font-size: var(--aegis-fs-eyebrow);
+  font-weight: 600;
+  letter-spacing: var(--aegis-tracking-wide);
+  text-transform: uppercase;
+  color: var(--aegis-cyan);
+}
+
+/* ----------------------------------------------------------------------------
+   NAV
+---------------------------------------------------------------------------- */
+nav {
+  position: sticky; top: 0; z-index: var(--aegis-z-header);
+  backdrop-filter: blur(16px);
+  background: rgba(5,7,20,0.6);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+nav .container {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-top: var(--aegis-space-4); padding-bottom: var(--aegis-space-4);
+}
+nav .brand { display: flex; align-items: center; gap: var(--aegis-space-3); }
+nav .brand .word {
+  font-family: var(--aegis-font-display);
+  font-weight: 600; font-size: 18px; letter-spacing: 0.18em;
+}
+nav ul { display: flex; gap: var(--aegis-space-6); list-style: none; }
+nav a {
+  color: var(--aegis-fog); text-decoration: none;
+  font-size: var(--aegis-fs-body-sm); font-weight: 500;
+  transition: color var(--aegis-dur-fast) var(--aegis-ease);
+}
+nav a:hover { color: var(--aegis-halo); }
+
+/* ----------------------------------------------------------------------------
+   HERO
+---------------------------------------------------------------------------- */
+.hero {
+  padding: var(--aegis-space-32) 0 var(--aegis-space-24);
+  text-align: center;
+  position: relative;
+}
+.hero::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 50% 40% at 50% 30%, rgba(139,107,255,0.18) 0%, transparent 60%);
+  filter: blur(32px);
+}
+.hero-mark { margin: 0 auto var(--aegis-space-10); }
+.hero-mark svg {
+  width: 160px; height: 160px;
+  filter: drop-shadow(0 0 40px rgba(139,107,255,0.4)) drop-shadow(0 0 80px rgba(91,224,255,0.18));
+  animation: float 6s ease-in-out infinite;
+}
+@keyframes float {
+  0%,100% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(-8px) rotate(0.5deg); }
+}
+.hero h1 {
+  font-family: var(--aegis-font-display);
+  font-size: clamp(56px, 9vw, var(--aegis-fs-display-xl));
+  font-weight: 600;
+  line-height: var(--aegis-lh-tight);
+  letter-spacing: var(--aegis-tracking-tight);
+  margin: var(--aegis-space-6) 0;
+}
+.hero h1 .aurora {
+  background: var(--aegis-gradient-aurora);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.hero h1 .serif {
+  font-family: var(--aegis-font-serif);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+.hero p {
+  font-size: var(--aegis-fs-body-lg);
+  color: var(--aegis-fog);
+  max-width: 640px;
+  margin: 0 auto var(--aegis-space-10);
+}
+.hero-meta {
+  display: inline-flex; gap: var(--aegis-space-8);
+  padding: var(--aegis-space-3) var(--aegis-space-6);
+  border-radius: var(--aegis-radius-pill);
+  background: rgba(11,16,32,0.6);
+  border: 1px solid rgba(255,255,255,0.06);
+  font-family: var(--aegis-font-mono);
+  font-size: var(--aegis-fs-mono-sm);
+  color: var(--aegis-fog);
+}
+.hero-meta span { display: flex; align-items: center; gap: var(--aegis-space-2); }
+.hero-meta .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--aegis-cyan); box-shadow: 0 0 8px var(--aegis-cyan); }
+.hero-meta .dot.violet { background: var(--aegis-violet); box-shadow: 0 0 8px var(--aegis-violet); }
+.hero-meta .dot.verified { background: var(--aegis-verified); box-shadow: 0 0 8px var(--aegis-verified); }
+
+/* ----------------------------------------------------------------------------
+   SECTIONS
+---------------------------------------------------------------------------- */
+section {
+  padding: var(--aegis-space-24) 0;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+.section-head { margin-bottom: var(--aegis-space-12); max-width: 720px; }
+.section-head h2 {
+  font-family: var(--aegis-font-display);
+  font-size: var(--aegis-fs-h2);
+  font-weight: 600;
+  letter-spacing: var(--aegis-tracking-snug);
+  line-height: var(--aegis-lh-snug);
+  margin: var(--aegis-space-3) 0 var(--aegis-space-4);
+}
+.section-head p {
+  font-size: var(--aegis-fs-body-lg);
+  color: var(--aegis-fog);
+  max-width: 640px;
+}
+
+/* ----------------------------------------------------------------------------
+   LOGO GRID
+---------------------------------------------------------------------------- */
+.logo-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+  gap: var(--aegis-space-4);
+}
+.logo-card {
+  background: var(--aegis-ink);
+  border-radius: var(--aegis-radius-lg);
+  padding: var(--aegis-space-8) var(--aegis-space-6);
+  text-align: center;
+  box-shadow: var(--aegis-elev-1);
+  transition: all var(--aegis-dur-base) var(--aegis-ease);
+  position: relative;
+}
+.logo-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--aegis-elev-3);
+}
+.logo-card.recommended {
+  box-shadow: var(--aegis-glow-aurora);
+}
+.logo-card svg {
+  width: 88px; height: 88px;
+  margin-bottom: var(--aegis-space-4);
+}
+.logo-card .name {
+  font-family: var(--aegis-font-display);
+  font-size: var(--aegis-fs-body);
+  font-weight: 600;
+  margin-bottom: var(--aegis-space-1);
+}
+.logo-card .desc {
+  font-size: var(--aegis-fs-body-sm);
+  color: var(--aegis-fog);
+}
+.logo-card .badge {
+  position: absolute; top: var(--aegis-space-3); right: var(--aegis-space-3);
+  font-family: var(--aegis-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 2px 8px; border-radius: var(--aegis-radius-pill);
+  background: var(--aegis-cyan-soft);
+  color: var(--aegis-cyan);
+  text-transform: uppercase;
+}
+
+/* ----------------------------------------------------------------------------
+   COLOR
+---------------------------------------------------------------------------- */
+.color-row { margin-bottom: var(--aegis-space-10); }
+.color-row h3 {
+  font-family: var(--aegis-font-display);
+  font-size: var(--aegis-fs-h4);
+  font-weight: 600;
+  margin-bottom: var(--aegis-space-4);
+}
+.color-row .row-desc { color: var(--aegis-fog); font-size: var(--aegis-fs-body-sm); margin-bottom: var(--aegis-space-5); max-width: 600px; }
+.swatches {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
+  gap: var(--aegis-space-3);
+}
+.swatch {
+  border-radius: var(--aegis-radius-md);
+  overflow: hidden;
+  box-shadow: var(--aegis-inset-stroke);
+}
+.swatch .chip {
+  height: 110px; display: flex; align-items: flex-end;
+  padding: var(--aegis-space-3);
+  font-family: var(--aegis-font-mono);
+  font-size: var(--aegis-fs-mono-sm);
+}
+.swatch .meta {
+  background: var(--aegis-ink);
+  padding: var(--aegis-space-3);
+}
+.swatch .meta .name { font-weight: 600; font-size: var(--aegis-fs-body-sm); }
+.swatch .meta .hex { color: var(--aegis-fog); font-family: var(--aegis-font-mono); font-size: var(--aegis-fs-mono-sm); margin-top: 2px; }
+
+/* ----------------------------------------------------------------------------
+   TYPE
+---------------------------------------------------------------------------- */
+.type-row {
+  display: grid; grid-template-columns: 200px 1fr; gap: var(--aegis-space-8);
+  padding: var(--aegis-space-5) 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  align-items: baseline;
+}
+.type-row .label {
+  font-family: var(--aegis-font-mono);
+  font-size: var(--aegis-fs-mono-sm);
+  color: var(--aegis-shadow);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.type-row .label .meta { color: var(--aegis-fog); font-size: 10px; display: block; margin-top: 4px; text-transform: none; letter-spacing: 0; }
+
+.type-display-xl { font-family: var(--aegis-font-display); font-size: var(--aegis-fs-display-xl); font-weight: 600; line-height: 1.02; letter-spacing: -0.045em; }
+.type-display    { font-family: var(--aegis-font-display); font-size: var(--aegis-fs-display);    font-weight: 600; line-height: 1.04; letter-spacing: -0.04em; }
+.type-h1         { font-family: var(--aegis-font-display); font-size: var(--aegis-fs-h1);         font-weight: 600; line-height: 1.08; letter-spacing: -0.03em; }
+.type-h2         { font-family: var(--aegis-font-display); font-size: var(--aegis-fs-h2);         font-weight: 600; line-height: 1.15; letter-spacing: -0.025em; }
+.type-h3         { font-family: var(--aegis-font-display); font-size: var(--aegis-fs-h3);         font-weight: 600; line-height: 1.25; letter-spacing: -0.02em; }
+.type-h4         { font-family: var(--aegis-font-display); font-size: var(--aegis-fs-h4);         font-weight: 600; line-height: 1.3;  letter-spacing: -0.015em; }
+.type-serif      { font-family: var(--aegis-font-serif); font-size: var(--aegis-fs-h1); font-style: italic; line-height: 1.1; letter-spacing: -0.02em; color: var(--aegis-halo); }
+.type-body-lg    { font-size: var(--aegis-fs-body-lg); line-height: 1.6; }
+.type-body       { font-size: var(--aegis-fs-body); line-height: 1.6; }
+.type-mono       { font-family: var(--aegis-font-mono); font-size: var(--aegis-fs-mono); color: var(--aegis-cyan); }
+
+/* ----------------------------------------------------------------------------
+   COMPONENTS — Buttons
+---------------------------------------------------------------------------- */
+.btn {
+  display: inline-flex; align-items: center; gap: var(--aegis-space-2);
+  font-family: var(--aegis-font-body);
+  font-size: var(--aegis-fs-body-sm);
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: var(--aegis-radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--aegis-dur-fast) var(--aegis-ease);
+  letter-spacing: -0.005em;
+}
+.btn-primary {
+  background: var(--aegis-halo); color: var(--aegis-obsidian);
+}
+.btn-primary:hover {
+  background: var(--aegis-cyan);
+  box-shadow: var(--aegis-glow-cyan);
+}
+.btn-secondary {
+  background: var(--aegis-steel); color: var(--aegis-halo);
+  border-color: rgba(255,255,255,0.08);
+}
+.btn-secondary:hover {
+  background: var(--aegis-graphite);
+  border-color: rgba(255,255,255,0.15);
+}
+.btn-ghost {
+  background: transparent; color: var(--aegis-halo);
+}
+.btn-ghost:hover {
+  background: rgba(255,255,255,0.04);
+}
+.btn-aurora {
+  background: var(--aegis-gradient-aurora);
+  color: var(--aegis-obsidian);
+}
+.btn-aurora:hover {
+  box-shadow: var(--aegis-glow-aurora);
+  transform: translateY(-1px);
+}
+.btn-row { display: flex; gap: var(--aegis-space-3); flex-wrap: wrap; align-items: center; margin-bottom: var(--aegis-space-6); }
+.btn-row + h4 { margin-top: var(--aegis-space-8); }
+
+h4.comp-label {
+  font-family: var(--aegis-font-mono);
+  font-size: var(--aegis-fs-mono-sm);
+  color: var(--aegis-shadow);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: var(--aegis-space-3);
+}
+
+/* Status badges */
+.badge-row { display: flex; gap: var(--aegis-space-3); flex-wrap: wrap; }
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--aegis-radius-pill);
+  font-family: var(--aegis-font-mono);
+  font-size: var(--aegis-fs-mono-sm);
+  font-weight: 500;
+}
+.badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+.badge.verified { background: var(--aegis-verified-soft); color: var(--aegis-verified); }
+.badge.verified .dot { background: var(--aegis-verified); box-shadow: 0 0 8px var(--aegis-verified); }
+.badge.denied { background: var(--aegis-denied-soft); color: var(--aegis-denied); }
+.badge.denied .dot { background: var(--aegis-denied); box-shadow: 0 0 8px var(--aegis-denied); }
+.badge.pending { background: var(--aegis-pending-soft); color: var(--aegis-pending); }
+.badge.pending .dot { background: var(--aegis-pending); box-shadow: 0 0 8px var(--aegis-pending); animation: pulse 1.6s var(--aegis-ease) infinite; }
+.badge.signal { background: var(--aegis-cyan-soft); color: var(--aegis-cyan); }
+.badge.signal .dot { background: var(--aegis-cyan); box-shadow: 0 0 8px var(--aegis-cyan); }
+
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Cards */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: var(--aegis-space-4); }
+.card {
+  background: var(--aegis-ink);
+  border-radius: var(--aegis-radius-lg);
+  padding: var(--aegis-space-6);
+  box-shadow: var(--aegis-elev-1);
+  transition: all var(--aegis-dur-base) var(--aegis-ease);
+}
+.card:hover { transform: translateY(-2px); box-shadow: var(--aegis-elev-2); }
+.card.signature {
+  background: linear-gradient(135deg, rgba(91,224,255,0.08), rgba(139,107,255,0.06));
+  border: 1px solid rgba(139,107,255,0.18);
+}
+.card .card-eyebrow {
+  font-family: var(--aegis-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--aegis-cyan);
+  margin-bottom: var(--aegis-space-3);
+}
+.card h3 {
+  font-family: var(--aegis-font-display);
+  font-size: var(--aegis-fs-h4);
+  margin-bottom: var(--aegis-space-2);
+  font-weight: 600;
+}
+.card p { color: var(--aegis-fog); font-size: var(--aegis-fs-body-sm); }
+
+/* Code block */
+.code {
+  background: var(--aegis-graphite);
+  padding: var(--aegis-space-5);
+  border-radius: var(--aegis-radius-md);
+  font-family: var(--aegis-font-mono);
+  font-size: var(--aegis-fs-mono);
+  color: var(--aegis-halo);
+  overflow-x: auto;
+  border: 1px solid rgba(255,255,255,0.04);
+  line-height: 1.6;
+}
+.code .comment { color: var(--aegis-shadow); }
+.code .keyword { color: var(--aegis-violet); }
+.code .string { color: var(--aegis-verified); }
+.code .num { color: var(--aegis-pending); }
+.code .signal { color: var(--aegis-cyan); }
+
+/* Spacing scale viz */
+.space-row { display: flex; align-items: center; gap: var(--aegis-space-4); padding: var(--aegis-space-2) 0; }
+.space-row .label { width: 80px; font-family: var(--aegis-font-mono); font-size: var(--aegis-fs-mono-sm); color: var(--aegis-shadow); }
+.space-row .bar { background: var(--aegis-cyan); height: 8px; border-radius: 2px; }
+.space-row .px { font-family: var(--aegis-font-mono); font-size: var(--aegis-fs-mono-sm); color: var(--aegis-fog); margin-left: var(--aegis-space-3); }
+
+/* Shadow showcase */
+.shadow-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: var(--aegis-space-5); }
+.shadow-card {
+  background: var(--aegis-ink);
+  height: 140px;
+  border-radius: var(--aegis-radius-md);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--aegis-font-mono);
+  font-size: var(--aegis-fs-mono-sm);
+  color: var(--aegis-fog);
+  text-align: center;
+  padding: var(--aegis-space-3);
+}
+.shadow-card.elev-1 { box-shadow: var(--aegis-elev-1); }
+.shadow-card.elev-2 { box-shadow: var(--aegis-elev-2); }
+.shadow-card.elev-3 { box-shadow: var(--aegis-elev-3); }
+.shadow-card.elev-4 { box-shadow: var(--aegis-elev-4); }
+.shadow-card.glow-cyan { box-shadow: var(--aegis-glow-cyan); }
+.shadow-card.glow-violet { box-shadow: var(--aegis-glow-violet); }
+.shadow-card.glow-aurora { box-shadow: var(--aegis-glow-aurora); }
+
+/* Footer */
+footer {
+  padding: var(--aegis-space-24) 0 var(--aegis-space-16);
+  border-top: 1px solid rgba(255,255,255,0.04);
+  color: var(--aegis-fog);
+}
+footer .file-list {
+  font-family: var(--aegis-font-mono);
+  font-size: var(--aegis-fs-mono-sm);
+  list-style: none;
+  display: grid; gap: var(--aegis-space-2);
+  margin-top: var(--aegis-space-6);
+}
+footer .file-list li { display: flex; gap: var(--aegis-space-3); }
+footer .file-list .icon { color: var(--aegis-cyan); }
+footer .file-list .name { color: var(--aegis-halo); }
+footer .file-list .desc { color: var(--aegis-fog); }
+footer .meta-row {
+  display: flex; gap: var(--aegis-space-8); flex-wrap: wrap;
+  font-family: var(--aegis-font-mono);
+  font-size: var(--aegis-fs-mono-sm);
+  color: var(--aegis-shadow);
+  margin-top: var(--aegis-space-12);
+  padding-top: var(--aegis-space-8);
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+/* Scroll-revealed sections */
+.reveal {
+  opacity: 0; transform: translateY(24px);
+  transition: opacity var(--aegis-dur-cinema) var(--aegis-ease),
+              transform var(--aegis-dur-cinema) var(--aegis-ease);
+}
+.reveal.in-view { opacity: 1; transform: translateY(0); }
+
+/* Verification beam (hero accessory) */
+.beam {
+  position: absolute;
+  left: 50%;
+  top: 0; bottom: -40px;
+  width: 1px;
+  background: var(--aegis-gradient-beam);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .type-row { grid-template-columns: 1fr; gap: var(--aegis-space-2); }
+  .type-row .label { font-size: 10px; }
+  nav ul { display: none; }
+  .hero { padding: var(--aegis-space-16) 0; }
+  .hero-mark svg { width: 120px; height: 120px; }
+}
+</style>
+</head>
+<body>
+<div class="atmosphere"></div>
+
+<nav>
+  <div class="container">
+    <div class="brand">
+      <svg viewBox="0 0 96 96" width="32" height="32" fill="none">
+        <defs>
+          <linearGradient id="nav-aurora" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#5BE0FF"/><stop offset="100%" stop-color="#8B6BFF"/>
+          </linearGradient>
+        </defs>
+        <path d="M48 6 L82 24 L82 60 Q82 70 72 76 L48 90 L24 76 Q14 70 14 60 L14 24 Z"
+              fill="#0B1020" stroke="url(#nav-aurora)" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M36 40 L48 22 L60 40" stroke="#F4F6FF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <line x1="40.5" y1="33" x2="55.5" y2="33" stroke="#F4F6FF" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span class="word">AEGIS</span>
+    </div>
+    <ul>
+      <li><a href="#logos">Logos</a></li>
+      <li><a href="#color">Color</a></li>
+      <li><a href="#type">Type</a></li>
+      <li><a href="#components">Components</a></li>
+      <li><a href="#motion">Motion</a></li>
+      <li><a href="#files">Files</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+  <section class="hero">
+    <div class="container">
+      <div class="hero-mark">
+        <svg viewBox="0 0 96 96" fill="none">
+          <defs>
+            <linearGradient id="hero-aurora" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#5BE0FF"/>
+              <stop offset="55%" stop-color="#8B6BFF"/>
+              <stop offset="100%" stop-color="#FF5BD0"/>
+            </linearGradient>
+            <linearGradient id="hero-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#161D33"/>
+              <stop offset="100%" stop-color="#0B1020"/>
+            </linearGradient>
+          </defs>
+          <path d="M48 6 L82 24 L82 60 Q82 70 72 76 L48 90 L24 76 Q14 70 14 60 L14 24 Z"
+                fill="url(#hero-fill)" stroke="url(#hero-aurora)" stroke-width="2" stroke-linejoin="round"/>
+          <line x1="14" y1="48" x2="82" y2="48" stroke="#5BE0FF" stroke-width="1" stroke-opacity="0.5"/>
+          <path d="M36 40 L48 22 L60 40" stroke="#F4F6FF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="40.5" y1="33" x2="55.5" y2="33" stroke="#F4F6FF" stroke-width="1.6" stroke-linecap="round"/>
+          <circle cx="48" cy="66" r="2.5" fill="#5BE0FF"/>
+        </svg>
+      </div>
+      <p class="eyebrow">Design system · v1.0 · Cinematic immersive</p>
+      <h1>
+        <span class="aurora">Verified light</span><br>
+        <span class="serif">for autonomous agents.</span>
+      </h1>
+      <p>The visual language for AEGIS — the neutral verification, policy enforcement, and behavioral attestation layer between AI agents and the services they act on.</p>
+      <div class="hero-meta">
+        <span><span class="dot"></span>5BE0FF · cyan</span>
+        <span><span class="dot violet"></span>8B6BFF · violet</span>
+        <span><span class="dot verified"></span>4CFFA8 · verified</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="logos">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">01 — Identity</p>
+        <h2>Five marks. One recommended.</h2>
+        <p>The Aegis Shield is the recommended primary — most distinctive, geometrically ownable, scales from favicon to billboard. The other four are kept on file as alternates for sub-brand surfaces, sticker packs, and motion treatments.</p>
+      </div>
+      <div class="logo-grid">
+        <div class="logo-card recommended">
+          <span class="badge">Primary</span>
+          <svg viewBox="0 0 96 96" fill="none">
+            <defs>
+              <linearGradient id="lg1-a" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5BE0FF"/><stop offset="55%" stop-color="#8B6BFF"/><stop offset="100%" stop-color="#FF5BD0"/></linearGradient>
+              <linearGradient id="lg1-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#161D33"/><stop offset="100%" stop-color="#0B1020"/></linearGradient>
+            </defs>
+            <path d="M48 6 L82 24 L82 60 Q82 70 72 76 L48 90 L24 76 Q14 70 14 60 L14 24 Z" fill="url(#lg1-f)" stroke="url(#lg1-a)" stroke-width="2"/>
+            <line x1="14" y1="48" x2="82" y2="48" stroke="#5BE0FF" stroke-width="1" stroke-opacity="0.5"/>
+            <path d="M36 40 L48 22 L60 40" stroke="#F4F6FF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="40.5" y1="33" x2="55.5" y2="33" stroke="#F4F6FF" stroke-width="1.6" stroke-linecap="round"/>
+            <circle cx="48" cy="66" r="2.5" fill="#5BE0FF"/>
+          </svg>
+          <div class="name">The Aegis Shield</div>
+          <div class="desc">Hexagonal stability. A in negative space. Audit-chain bisector. The one to ship.</div>
+        </div>
+        <div class="logo-card">
+          <svg viewBox="0 0 96 96" fill="none">
+            <defs><linearGradient id="lg2-a" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5BE0FF"/><stop offset="100%" stop-color="#8B6BFF"/></linearGradient></defs>
+            <path d="M 52 12.4 A 36 36 0 1 1 44 12.4" stroke="url(#lg2-a)" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+            <path d="M 44 12.4 L 44 18 M 52 12.4 L 52 18" stroke="#5BE0FF" stroke-width="2.2" stroke-linecap="round"/>
+            <circle cx="48" cy="48" r="6" fill="url(#lg2-a)"/>
+            <circle cx="48" cy="48" r="22" stroke="#5BE0FF" stroke-width="1" stroke-opacity="0.3" fill="none"/>
+          </svg>
+          <div class="name">The Halo</div>
+          <div class="desc">Most abstract — feels like infrastructure. Strong alternate for SDK and dev surfaces.</div>
+        </div>
+        <div class="logo-card">
+          <svg viewBox="0 0 96 96" fill="none">
+            <defs><linearGradient id="lg3-a" x1="0.5" y1="0" x2="0.5" y2="1"><stop offset="0%" stop-color="#5BE0FF"/><stop offset="100%" stop-color="#8B6BFF"/></linearGradient></defs>
+            <circle cx="48" cy="48" r="38" stroke="#2B3554" stroke-width="1.5" fill="none"/>
+            <path d="M 48 14 L 53 48 L 48 82 L 43 48 Z" fill="url(#lg3-a)"/>
+            <path d="M 18 48 L 48 52 L 78 48 L 48 44 Z" fill="#F4F6FF" fill-opacity="0.9"/>
+            <circle cx="48" cy="48" r="3" fill="#0B1020" stroke="#5BE0FF" stroke-width="1.5"/>
+            <line x1="48" y1="6" x2="48" y2="10" stroke="#5BE0FF" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <div class="name">The North Star</div>
+          <div class="desc">Most editorial. "Switzerland of identity" made literal. Use on About / mission surfaces.</div>
+        </div>
+        <div class="logo-card">
+          <svg viewBox="0 0 96 96" fill="none">
+            <defs><linearGradient id="lg4-a" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5BE0FF"/><stop offset="100%" stop-color="#8B6BFF"/></linearGradient></defs>
+            <line x1="24" y1="68" x2="48" y2="22" stroke="url(#lg4-a)" stroke-width="2"/>
+            <line x1="48" y1="22" x2="72" y2="68" stroke="url(#lg4-a)" stroke-width="2"/>
+            <line x1="24" y1="68" x2="72" y2="68" stroke="url(#lg4-a)" stroke-width="2"/>
+            <line x1="72" y1="68" x2="86" y2="78" stroke="#5BE0FF" stroke-width="2" stroke-opacity="0.45" stroke-dasharray="3 3"/>
+            <circle cx="48" cy="22" r="6" fill="#0B1020" stroke="#5BE0FF" stroke-width="2"/>
+            <circle cx="24" cy="68" r="6" fill="#0B1020" stroke="#5BE0FF" stroke-width="2"/>
+            <circle cx="72" cy="68" r="6" fill="#0B1020" stroke="#8B6BFF" stroke-width="2"/>
+            <circle cx="48" cy="22" r="2" fill="#5BE0FF"/>
+            <circle cx="86" cy="78" r="3" fill="#5BE0FF" fill-opacity="0.35"/>
+          </svg>
+          <div class="name">The Lattice</div>
+          <div class="desc">Hash chain made visual. Best for technical / SDK / docs surfaces. Sticker pack candidate.</div>
+        </div>
+        <div class="logo-card">
+          <svg viewBox="0 0 96 96" fill="none">
+            <defs><linearGradient id="lg5-a" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5BE0FF"/><stop offset="100%" stop-color="#8B6BFF"/></linearGradient></defs>
+            <rect x="4" y="4" width="88" height="88" rx="20" fill="#0B1020" stroke="#2B3554" stroke-width="1"/>
+            <path d="M 22 50 L 38 66 L 62 30 L 70 30 L 70 38 L 76 38" stroke="url(#lg5-a)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <circle cx="80" cy="38" r="3" stroke="#5BE0FF" stroke-width="2.4" fill="none"/>
+            <circle cx="38" cy="66" r="1.8" fill="#5BE0FF"/>
+          </svg>
+          <div class="name">The Verified Mark</div>
+          <div class="desc">Most direct semantically. Riskier (checkmarks crowded). Reserved as a verification badge motif.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="color">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">02 — Color</p>
+        <h2>Verified Light.</h2>
+        <p>Near-black canvas. A single beam of cyan-violet light becomes the emotional center of every screen. Every color earns its place; nothing is decorative. The aurora gradient is reserved like a key light — used once per page, never as a fill.</p>
+      </div>
+
+      <div class="color-row">
+        <h3>Canvas — the void</h3>
+        <p class="row-desc">Five greys from absolute void to the threshold of light. Use Obsidian for full pages, Ink for default cards, Steel for elevated surfaces.</p>
+        <div class="swatches">
+          <div class="swatch"><div class="chip" style="background:#050714;color:#F4F6FF">Obsidian</div><div class="meta"><div class="name">Obsidian</div><div class="hex">#050714</div></div></div>
+          <div class="swatch"><div class="chip" style="background:#0B1020;color:#F4F6FF">Ink</div><div class="meta"><div class="name">Ink</div><div class="hex">#0B1020</div></div></div>
+          <div class="swatch"><div class="chip" style="background:#161D33;color:#F4F6FF">Steel</div><div class="meta"><div class="name">Steel</div><div class="hex">#161D33</div></div></div>
+          <div class="swatch"><div class="chip" style="background:#1F2740;color:#F4F6FF">Graphite</div><div class="meta"><div class="name">Graphite</div><div class="hex">#1F2740</div></div></div>
+          <div class="swatch"><div class="chip" style="background:#2B3554;color:#F4F6FF">Mist</div><div class="meta"><div class="name">Mist</div><div class="hex">#2B3554</div></div></div>
+        </div>
+      </div>
+
+      <div class="color-row">
+        <h3>Signal — the brand</h3>
+        <p class="row-desc">Cyan is the trust beacon (verified state). Violet is the cryptographic accent (proof, identity). Magenta only appears inside the aurora gradient.</p>
+        <div class="swatches">
+          <div class="swatch"><div class="chip" style="background:#5BE0FF;color:#050714">Aegis Cyan</div><div class="meta"><div class="name">Aegis Cyan</div><div class="hex">#5BE0FF</div></div></div>
+          <div class="swatch"><div class="chip" style="background:#8B6BFF;color:#F4F6FF">Aegis Violet</div><div class="meta"><div class="name">Aegis Violet</div><div class="hex">#8B6BFF</div></div></div>
+          <div class="swatch"><div class="chip" style="background:#FF5BD0;color:#F4F6FF">Magenta</div><div class="meta"><div class="name">Magenta</div><div class="hex">#FF5BD0</div></div></div>
+          <div class="swatch"><div class="chip" style="background:linear-gradient(135deg,#5BE0FF 0%,#8B6BFF 50%,#FF5BD0 100%);color:#050714">Aurora</div><div class="meta"><div class="name">Aurora gradient</div><div class="hex">cyan → violet → magenta</div></div></div>
+        </div>
+      </div>
+
+      <div class="color-row">
+        <h3>Status — the verdicts</h3>
+        <p class="row-desc">The denial precedence in <code style="font-family:var(--aegis-font-mono);color:var(--aegis-cyan)">docs/SECURITY.md</code> renders as these three colors. Verified, denied, pending — never invent a fourth.</p>
+        <div class="swatches">
+          <div class="swatch"><div class="chip" style="background:#4CFFA8;color:#050714">Verified</div><div class="meta"><div class="name">Verified</div><div class="hex">#4CFFA8</div></div></div>
+          <div class="swatch"><div class="chip" style="background:#FF5470;color:#F4F6FF">Denied</div><div class="meta"><div class="name">Denied</div><div class="hex">#FF5470</div></div></div>
+          <div class="swatch"><div class="chip" style="background:#FFB86B;color:#050714">Pending</div><div class="meta"><div class="name">Pending</div><div class="hex">#FFB86B</div></div></div>
+        </div>
+      </div>
+
+      <div class="color-row">
+        <h3>Text — the voice</h3>
+        <p class="row-desc">Four levels of speaking volume. Halo for primary reading. Echo only for watermark-tier de-emphasis.</p>
+        <div class="swatches">
+          <div class="swatch"><div class="chip" style="background:#0B1020;color:#F4F6FF">Halo · primary</div><div class="meta"><div class="name">Halo</div><div class="hex">#F4F6FF</div></div></div>
+          <div class="swatch"><div class="chip" style="background:#0B1020;color:#A8B0CC">Fog · secondary</div><div class="meta"><div class="name">Fog</div><div class="hex">#A8B0CC</div></div></div>
+          <div class="swatch"><div class="chip" style="background:#0B1020;color:#6B7494">Shadow · tertiary</div><div class="meta"><div class="name">Shadow</div><div class="hex">#6B7494</div></div></div>
+          <div class="swatch"><div class="chip" style="background:#0B1020;color:#3F4869">Echo · watermark</div><div class="meta"><div class="name">Echo</div><div class="hex">#3F4869</div></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="type">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">03 — Typography</p>
+        <h2>Three voices.</h2>
+        <p>A tight technical sans for UI. A humane sans for body. An <span class="serif" style="font-family:var(--aegis-font-serif);font-style:italic">editorial serif</span> for the moments AEGIS has to feel human. The serif is the secret weapon — used once per page, always intentional.</p>
+      </div>
+
+      <div class="type-row">
+        <div class="label">Display XL<span class="meta">112 / 1.02 / -0.045em</span></div>
+        <div class="type-display-xl">Verify everything.</div>
+      </div>
+      <div class="type-row">
+        <div class="label">Display<span class="meta">80 / 1.04 / -0.04em</span></div>
+        <div class="type-display">Sign once. Verify everywhere.</div>
+      </div>
+      <div class="type-row">
+        <div class="label">Editorial Serif<span class="meta">Instrument Serif Italic</span></div>
+        <div class="type-serif">A neutral verification layer for autonomous agents.</div>
+      </div>
+      <div class="type-row">
+        <div class="label">H1<span class="meta">56 / 1.08 / -0.03em</span></div>
+        <div class="type-h1">Cryptographic ground truth.</div>
+      </div>
+      <div class="type-row">
+        <div class="label">H2<span class="meta">40 / 1.15 / -0.025em</span></div>
+        <div class="type-h2">The Switzerland of agent identity.</div>
+      </div>
+      <div class="type-row">
+        <div class="label">H3<span class="meta">28 / 1.25 / -0.02em</span></div>
+        <div class="type-h3">Holds only public keys. Signs only what it observed.</div>
+      </div>
+      <div class="type-row">
+        <div class="label">H4<span class="meta">22 / 1.3 / -0.015em</span></div>
+        <div class="type-h4">A signed audit trail for every decision an agent makes.</div>
+      </div>
+      <div class="type-row">
+        <div class="label">Body Large<span class="meta">18 / 1.6</span></div>
+        <div class="type-body-lg">The verify hot path is portable. Logic that touches signatures, policies, or spend evaluation calls into packages with zero framework imports — so the path migrates to the edge without a rewrite.</div>
+      </div>
+      <div class="type-row">
+        <div class="label">Body<span class="meta">16 / 1.6</span></div>
+        <div class="type-body">Private keys never enter AEGIS. Agent private keys are generated client-side. Our database stores public keys only. The SDK is the only surface that touches a private key, and only locally.</div>
+      </div>
+      <div class="type-row">
+        <div class="label">Mono<span class="meta">JetBrains Mono · 14</span></div>
+        <div class="type-mono">aegis_pubk:ed25519:9f3a&hellip;c8d2 — verified at 2026-05-05T08:14:22Z</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="components">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">04 — Components</p>
+        <h2>Patterns the system actually ships.</h2>
+        <p>Every surface in AEGIS is composed from this short list. If a new screen needs a new component, the system is wrong, not the screen.</p>
+      </div>
+
+      <h4 class="comp-label">Buttons</h4>
+      <div class="btn-row">
+        <button class="btn btn-aurora">Verify identity →</button>
+        <button class="btn btn-primary">Get started</button>
+        <button class="btn btn-secondary">View docs</button>
+        <button class="btn btn-ghost">Skip</button>
+      </div>
+
+      <h4 class="comp-label">Status badges</h4>
+      <div class="badge-row" style="margin-bottom: var(--aegis-space-12);">
+        <span class="badge verified"><span class="dot"></span>Verified</span>
+        <span class="badge denied"><span class="dot"></span>Denied · Policy expired</span>
+        <span class="badge pending"><span class="dot"></span>Pending verification</span>
+        <span class="badge signal"><span class="dot"></span>Signed by ed25519:9f3a&hellip;</span>
+      </div>
+
+      <h4 class="comp-label">Cards</h4>
+      <div class="card-grid" style="margin-bottom: var(--aegis-space-12);">
+        <div class="card">
+          <div class="card-eyebrow">Module</div>
+          <h3>Identity</h3>
+          <p>Agent registration, public-key rotation, principal-scoped key management. The SDK is the only thing that ever sees a private key.</p>
+        </div>
+        <div class="card signature">
+          <div class="card-eyebrow">Hot path</div>
+          <h3>Verify</h3>
+          <p>The one endpoint relying parties code against. Edge-portable. Zero framework imports. Sub-50ms p99 budget.</p>
+        </div>
+        <div class="card">
+          <div class="card-eyebrow">Module</div>
+          <h3>Audit</h3>
+          <p>Append-only log. Every event signed and chained to the previous. <code style="font-family:var(--aegis-font-mono);color:var(--aegis-cyan);font-size:13px">UPDATE</code> and <code style="font-family:var(--aegis-font-mono);color:var(--aegis-cyan);font-size:13px">DELETE</code> never run.</p>
+        </div>
+      </div>
+
+      <h4 class="comp-label">Code</h4>
+      <pre class="code"><span class="comment">// Verify an agent's signed action — the AEGIS hot path</span>
+<span class="keyword">import</span> { aegis } <span class="keyword">from</span> <span class="string">"@aegis/sdk"</span>;
+
+<span class="keyword">const</span> verdict = <span class="keyword">await</span> aegis.verify({
+  agent: <span class="string">"agt_9f3a&hellip;c8d2"</span>,
+  action: <span class="string">"transfer.execute"</span>,
+  signature: req.headers[<span class="string">"x-aegis-sig"</span>],
+  spend:  { amount: <span class="num">240</span>, currency: <span class="string">"USD"</span> }
+});
+
+<span class="keyword">if</span> (verdict.status === <span class="signal">"VERIFIED"</span>) <span class="keyword">return</span> proceed();
+<span class="keyword">if</span> (verdict.status === <span class="signal">"SPEND_LIMIT_EXCEEDED"</span>) <span class="keyword">return</span> deny(verdict);</pre>
+    </div>
+  </section>
+
+  <section>
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">05 — Spatial system</p>
+        <h2>8pt grid. No exceptions.</h2>
+        <p>Every dimension is a multiple of 4 (preferring multiples of 8). Off-grid spacing is a tell that the system was bypassed.</p>
+      </div>
+      <div>
+        <div class="space-row"><span class="label">space-1</span><div class="bar" style="width:4px"></div><span class="px">4px</span></div>
+        <div class="space-row"><span class="label">space-2</span><div class="bar" style="width:8px"></div><span class="px">8px</span></div>
+        <div class="space-row"><span class="label">space-3</span><div class="bar" style="width:12px"></div><span class="px">12px</span></div>
+        <div class="space-row"><span class="label">space-4</span><div class="bar" style="width:16px"></div><span class="px">16px</span></div>
+        <div class="space-row"><span class="label">space-6</span><div class="bar" style="width:24px"></div><span class="px">24px</span></div>
+        <div class="space-row"><span class="label">space-8</span><div class="bar" style="width:32px"></div><span class="px">32px</span></div>
+        <div class="space-row"><span class="label">space-12</span><div class="bar" style="width:48px"></div><span class="px">48px</span></div>
+        <div class="space-row"><span class="label">space-16</span><div class="bar" style="width:64px"></div><span class="px">64px</span></div>
+        <div class="space-row"><span class="label">space-24</span><div class="bar" style="width:96px"></div><span class="px">96px</span></div>
+        <div class="space-row"><span class="label">space-32</span><div class="bar" style="width:128px"></div><span class="px">128px</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">06 — Elevation</p>
+        <h2>Shadows that separate. Glows that brand.</h2>
+        <p>Elevation tokens for surface stacking. Glow tokens for the brand's signature lighting. Never both at once on the same element.</p>
+      </div>
+      <div class="shadow-grid">
+        <div class="shadow-card elev-1">elev-1</div>
+        <div class="shadow-card elev-2">elev-2</div>
+        <div class="shadow-card elev-3">elev-3</div>
+        <div class="shadow-card elev-4">elev-4</div>
+        <div class="shadow-card glow-cyan" style="color:var(--aegis-cyan)">glow-cyan</div>
+        <div class="shadow-card glow-violet" style="color:var(--aegis-violet)">glow-violet</div>
+        <div class="shadow-card glow-aurora">glow-aurora</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="motion">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">07 — Motion</p>
+        <h2>One curve. Five durations.</h2>
+        <p>The signature ease is <code style="font-family:var(--aegis-font-mono);color:var(--aegis-cyan)">cubic-bezier(0.16, 1, 0.3, 1)</code> — Apple/Linear-grade ease-out-expo. Movement should feel inevitable, not animated.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--aegis-space-4)">
+        <div class="card" style="cursor:pointer" onclick="this.classList.toggle('demo-active')">
+          <div class="card-eyebrow">Hover me</div>
+          <h3 style="font-size:18px;margin-bottom:8px">Instant</h3>
+          <p>80ms — feels free. Hovers, toggles.</p>
+        </div>
+        <div class="card" style="cursor:pointer" onclick="this.classList.toggle('demo-active')">
+          <div class="card-eyebrow">Hover me</div>
+          <h3 style="font-size:18px;margin-bottom:8px">Fast</h3>
+          <p>160ms — microinteractions.</p>
+        </div>
+        <div class="card" style="cursor:pointer" onclick="this.classList.toggle('demo-active')">
+          <div class="card-eyebrow">Hover me</div>
+          <h3 style="font-size:18px;margin-bottom:8px">Base</h3>
+          <p>240ms — most state changes.</p>
+        </div>
+        <div class="card" style="cursor:pointer" onclick="this.classList.toggle('demo-active')">
+          <div class="card-eyebrow">Hover me</div>
+          <h3 style="font-size:18px;margin-bottom:8px">Slow</h3>
+          <p>480ms — page transitions.</p>
+        </div>
+        <div class="card" style="cursor:pointer" onclick="this.classList.toggle('demo-active')">
+          <div class="card-eyebrow">Hover me</div>
+          <h3 style="font-size:18px;margin-bottom:8px">Cinema</h3>
+          <p>800ms — hero reveals.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer id="files">
+    <div class="container">
+      <p class="eyebrow">08 — Handoff</p>
+      <h2 class="type-h2" style="margin-top: var(--aegis-space-3); margin-bottom: var(--aegis-space-3)">The files in <span class="serif" style="font-family:var(--aegis-font-serif);font-style:italic;color:var(--aegis-cyan)">/brand</span></h2>
+      <p style="color:var(--aegis-fog);max-width:640px">Drop these into Claude or hand to a designer. The brand brief is the long-form thinking. The tokens are the law. The HTML you're reading is the proof.</p>
+
+      <ul class="file-list">
+        <li><span class="icon">▸</span><span class="name">01_BRAND_BRIEF.docx</span><span class="desc">— ~25-page master strategy: positioning, 12 benchmark studies, voice, page-by-page UX, ecosystem strategy</span></li>
+        <li><span class="icon">▸</span><span class="name">02_design-tokens.json</span><span class="desc">— machine-readable design tokens (W3C draft format)</span></li>
+        <li><span class="icon">▸</span><span class="name">03_design-tokens.css</span><span class="desc">— same tokens as CSS custom properties; drop straight into any project</span></li>
+        <li><span class="icon">▸</span><span class="name">04_style-guide.html</span><span class="desc">— this file; living visual system</span></li>
+        <li><span class="icon">▸</span><span class="name">logos/01-shield.svg</span><span class="desc">— recommended primary mark</span></li>
+        <li><span class="icon">▸</span><span class="name">logos/02-halo.svg</span><span class="desc">— alternate, infrastructure-feeling</span></li>
+        <li><span class="icon">▸</span><span class="name">logos/03-northstar.svg</span><span class="desc">— editorial alternate, mission surfaces</span></li>
+        <li><span class="icon">▸</span><span class="name">logos/04-lattice.svg</span><span class="desc">— SDK / docs surface alternate</span></li>
+        <li><span class="icon">▸</span><span class="name">logos/05-verified-mark.svg</span><span class="desc">— badge motif</span></li>
+        <li><span class="icon">▸</span><span class="name">logos/wordmark-primary.svg</span><span class="desc">— horizontal lockup with shield</span></li>
+        <li><span class="icon">▸</span><span class="name">logos/wordmark-stacked.svg</span><span class="desc">— vertical lockup, social avatars</span></li>
+      </ul>
+
+      <div class="meta-row">
+        <span>AEGIS · Brand v1.0</span>
+        <span>Updated 2026-05-05</span>
+        <span>Direction · Cinematic immersive</span>
+        <span>Ecosystem · Standalone-but-compatible</span>
+      </div>
+    </div>
+  </footer>
+</main>
+
+<script>
+// Reveal-on-scroll
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in-view'); });
+}, { threshold: 0.1, rootMargin: '0px 0px -10% 0px' });
+document.querySelectorAll('.reveal, .section-head, .card, .swatch, .logo-card').forEach(el => {
+  el.classList.add('reveal');
+  io.observe(el);
+});
+</script>
+</body>
+</html>

@@ -137,6 +137,46 @@ export const AgentStatusResponseSchema = z.object({
   lastSeenAt: IsoDateTimeSchema.nullable().optional(),
 });
 
+export const AgentListQuerySchema = z.object({
+  limit: z.number().int().min(1).max(100).optional(),
+  cursor: AgentIdSchema.optional(),
+  status: AgentStatusSchema.optional(),
+  runtime: AgentRuntimeSchema.optional(),
+  search: z.string().min(1).max(120).optional(),
+});
+
+export const AgentListResponseSchema = z.object({
+  agents: z.array(AgentIdentitySchema),
+  nextCursor: AgentIdSchema.nullable(),
+  total: z.number().int().min(0),
+});
+
+// Handshake — proof-of-possession of the registered Ed25519 public key.
+export const HandshakeChallengeResponseSchema = z.object({
+  agentId: AgentIdSchema,
+  /** base64url-encoded 256-bit nonce. Single-use, 5 min TTL. */
+  challenge: z.string().min(40).max(64),
+  expiresIn: z.number().int().positive(),
+  protocolVersion: z.literal('aegis-handshake-v1'),
+  /** UTF-8 string the SDK signs verbatim. */
+  message: z.string(),
+});
+
+export const HandshakeVerifiedResponseSchema = z.object({
+  agentId: AgentIdSchema,
+  verifiedAt: IsoDateTimeSchema,
+  protocolVersion: z.literal('aegis-handshake-v1'),
+  trustScore: z.number().int().min(0).max(1000),
+  recordTtlSeconds: z.number().int().positive(),
+});
+
+export const HandshakeStatusResponseSchema = z.object({
+  agentId: AgentIdSchema,
+  verified: z.boolean(),
+  verifiedAt: IsoDateTimeSchema.optional(),
+  protocolVersion: z.literal('aegis-handshake-v1').optional(),
+});
+
 // ── Policy ───────────────────────────────────────────────────────
 
 export const PolicyCreateRequestSchema = z.object({
@@ -257,6 +297,11 @@ export type AgentRegistrationRequest = z.infer<typeof AgentRegistrationRequestSc
 export type AgentRegistrationResponse = z.infer<typeof AgentRegistrationResponseSchema>;
 export type AgentIdentity = z.infer<typeof AgentIdentitySchema>;
 export type AgentStatusResponse = z.infer<typeof AgentStatusResponseSchema>;
+export type AgentListQuery = z.infer<typeof AgentListQuerySchema>;
+export type AgentListResponse = z.infer<typeof AgentListResponseSchema>;
+export type HandshakeChallengeResponse = z.infer<typeof HandshakeChallengeResponseSchema>;
+export type HandshakeVerifiedResponse = z.infer<typeof HandshakeVerifiedResponseSchema>;
+export type HandshakeStatusResponse = z.infer<typeof HandshakeStatusResponseSchema>;
 export type PolicyCreateRequest = z.infer<typeof PolicyCreateRequestSchema>;
 export type PolicyCreateResponse = z.infer<typeof PolicyCreateResponseSchema>;
 export type AgentPolicy = z.infer<typeof AgentPolicySchema>;

@@ -122,7 +122,12 @@ describe('verifyDpopProof', () => {
     const k = await makeKey();
     const proof = await signProof({ priv: k.priv, jwk: k.jwk, htm: 'POST', htu: URL, iat: Math.floor(Date.now() / 1000), accessToken: TOKEN });
     const [h, p, s] = proof.split('.');
-    const tampered = `${h}.${p}.${s.slice(0, -2)}AA`;
+    // Deterministic mutation: XOR the first byte of the 64-byte signature.
+    // `s.slice(0, -2) + 'AA'` is flaky — if the last byte is already 0, the
+    // base64url encoding ends in 'AA' and the "tampering" is a no-op (P≈1/256).
+    const sigBytes = Buffer.from(s!, 'base64url');
+    sigBytes[0] ^= 0xff; // always produces a different byte, never a no-op
+    const tampered = `${h}.${p}.${Buffer.from(sigBytes).toString('base64url')}`;
     const r = await verifyDpopProof(tampered, { method: 'POST', url: URL, accessToken: TOKEN, replayCache: new StubReplayCache() });
     expect(r.valid).toBe(false);
     if (!r.valid) expect(r.reason).toBe('DPoP_SIGNATURE');

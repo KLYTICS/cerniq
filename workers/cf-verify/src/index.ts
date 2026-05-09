@@ -17,13 +17,22 @@
 // fallback when KV is stale and the agent is revoked.
 
 import type { VerifyRequest, VerifyResponse } from '@aegis/types';
+import { makeKvCache } from './kv-cache';
+import { edgeVerify } from './edge-verify';
+import { shadowMode, compareVerifyResponses, divergenceHeader, recordDivergence, type AnalyticsEngineLike } from './shadow';
 
 interface Env {
   TRUST_KV: KVNamespace;
   AEGIS_ORIGIN_URL: string;
   AEGIS_VERIFY_TIMEOUT_MS: string;
   AEGIS_FALLBACK_API_KEY: string;
+  /** Set "true" to enable the KV-cache edge verify (Phase 3 m2). Defaults off. */
+  AEGIS_EDGE_VERIFY_ENABLED?: string;
+  /** Set "true" to enable shadow comparison without serving edge results. */
+  AEGIS_EDGE_VERIFY_SHADOW_MODE?: string;
   RATE_LIMITER: DurableObjectNamespace;
+  /** Optional Workers Analytics Engine binding for divergence telemetry. */
+  CF_VERIFY_DIVERGENCE?: AnalyticsEngineLike;
 }
 
 const NOT_IMPLEMENTED: VerifyResponse = {
@@ -57,9 +66,62 @@ export default {
       return Response.json({ error: 'INVALID_REQUEST', message: 'Body must be JSON.' }, { status: 400 });
     }
 
-    // Phase 3 milestone 1 — pure passthrough to origin while we build out
-    // the edge cache. This keeps observability simple as we test edge
-    // routing in production.
+    // Phase 3 milestone 2 — three-mode rollout: off / shadow / live.
+    const mode = shadowMode(env);
+
+    if (mode === 'live') {
+      const cache = makeKvCache(env.TRUST_KV);
+      const result = await edgeVerify(body, cache);
+      if (result.outcome === 'decided' && result.response) {
+        return new Response(JSON.stringify(result.response), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-AEGIS-Edge': result.response.valid ? 'edge-allow' : 'edge-deny',
+          },
+        });
+      }
+      // outcome === 'forward' — fall through to origin
+      return forwardToOrigin(env, body, ctx);
+    }
+
+    if (mode === 'shadow') {
+      // Run edge AND origin in parallel; serve origin; record divergence.
+      const cache = makeKvCache(env.TRUST_KV);
+      const [edgeResult, originResp] = await Promise.all([
+        edgeVerify(body, cache).catch(() => ({ outcome: 'forward' as const })),
+        forwardToOrigin(env, body, ctx),
+      ]);
+      // Don't try to read origin body twice — clone for parsing, return original.
+      let originParsed: VerifyResponse | null = null;
+      try {
+        originParsed = (await originResp.clone().json()) as VerifyResponse;
+      } catch {
+        originParsed = null;
+      }
+      let header = 'agree';
+      if (edgeResult.outcome === 'forward' || !edgeResult.response) {
+        header = divergenceHeader({ edgeForwarded: true });
+        recordDivergence(env.CF_VERIFY_DIVERGENCE, { edgeForwarded: true }, {
+          agentId: originParsed?.agentId ?? null,
+          denialReason: originParsed?.denialReason ?? null,
+        });
+      } else if (originParsed) {
+        const report = compareVerifyResponses(edgeResult.response, originParsed);
+        header = divergenceHeader(report);
+        recordDivergence(env.CF_VERIFY_DIVERGENCE, report, {
+          agentId: originParsed.agentId,
+          denialReason: originParsed.denialReason,
+        });
+      }
+      // Reconstruct response so we can append headers cleanly.
+      const headers = new Headers(originResp.headers);
+      headers.set('X-AEGIS-Edge-Divergence', header);
+      headers.set('X-AEGIS-Edge', 'shadow');
+      return new Response(originResp.body, { status: originResp.status, headers });
+    }
+
+    // mode === 'off'
     return forwardToOrigin(env, body, ctx);
   },
 };

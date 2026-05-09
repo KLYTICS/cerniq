@@ -8,9 +8,17 @@ and ``.model_dump()`` defaults to camelCase for the wire.
 
 from __future__ import annotations
 
+import sys
 from datetime import datetime
-from enum import StrEnum
 from typing import Any
+
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:
+    from enum import Enum
+
+    class StrEnum(str, Enum):  # type: ignore[no-redef]
+        """Backport of StrEnum for Python <3.11."""
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
@@ -61,6 +69,10 @@ class Currency(StrEnum):
 
 
 class DenialReason(StrEnum):
+    # Billing pre-gate — fires BEFORE the 9-step algorithm chain.
+    # Relying parties receiving this should direct users to upgrade their plan.
+    PLAN_LIMIT_EXCEEDED = "PLAN_LIMIT_EXCEEDED"
+    # 9-step algorithm chain (in precedence order):
     AGENT_NOT_FOUND = "AGENT_NOT_FOUND"
     AGENT_REVOKED = "AGENT_REVOKED"
     INVALID_SIGNATURE = "INVALID_SIGNATURE"

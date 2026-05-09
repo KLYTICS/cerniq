@@ -61,6 +61,51 @@ export const configSchema = z.object({
   SENTRY_DSN: z.string().optional(),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  // Stripe price ids per plan tier (env-driven so they vary per env).
+  // Suffix matches `PlanDefinition.stripeEnvSuffix` from billing/plans.ts.
+  STRIPE_PRICE_DEVELOPER: z.string().optional(),
+  STRIPE_PRICE_GROWTH: z.string().optional(),
+  STRIPE_PRICE_ENTERPRISE: z.string().optional(),
+  // Metered price for paid-tier overage verifies (ADR-0014, $0.0008/verify
+  // uniform). Stripe rolls these `usage_records.create` calls up at
+  // billing-period close. When unset, paid principals exceeding their
+  // monthly cap are silently NOT metered — recordOverage logs a warn.
+  STRIPE_PRICE_OVERAGE_VERIFY: z.string().optional(),
+  // Where Stripe-hosted Checkout / Customer Portal redirect after the
+  // user finishes (or cancels) the flow. Required when STRIPE_SECRET_KEY
+  // is set; refused at boot if Stripe is enabled without them.
+  STRIPE_PORTAL_RETURN_URL: z.string().url().optional(),
+  STRIPE_CHECKOUT_SUCCESS_URL: z.string().url().optional(),
+  STRIPE_CHECKOUT_CANCEL_URL: z.string().url().optional(),
+
+  // ----- Webhook secret envelope encryption (DEK) -----
+  // Per-deployment 32-byte AES-256-GCM data encryption key, base64-encoded.
+  // Wraps `WebhookSubscription.secret` at rest so a DB-only compromise
+  // cannot forge HMAC signatures on outgoing webhook payloads.
+  // Production: REQUIRED — `WebhookSecretCipher` fails-loud at boot.
+  // Dev/test: OPTIONAL — cipher generates an ephemeral DEK and logs a WARN
+  // with the b64 so the developer can pin it across restarts.
+  AEGIS_WEBHOOK_SECRET_DEK_B64: z
+    .string()
+    .optional()
+    .refine(
+      (v) => {
+        if (v === undefined) return true;
+        try {
+          return Buffer.from(v, 'base64').length === 32;
+        } catch {
+          return false;
+        }
+      },
+      { message: 'AEGIS_WEBHOOK_SECRET_DEK_B64 must decode to 32 bytes (AES-256 key).' },
+    ),
+
+  // ----- WorkOS adapter (idp-workos.module) -----
+  // Module is registered unconditionally in app.module.ts; the provider
+  // factory throws if WORKOS_API_KEY is missing. Optional in schema so
+  // dev/test can stub with any value.
+  WORKOS_API_KEY: z.string().optional(),
+  WORKOS_COOKIE_PASSWORD: z.string().optional(),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

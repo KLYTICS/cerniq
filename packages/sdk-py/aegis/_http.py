@@ -27,6 +27,7 @@ from ._constants import (
     RETRY_BACKOFF_MS,
 )
 from ._version import __version__
+from .error_catalog import GENERATED_ERROR_CATALOG
 from .errors import AegisError, NetworkError, from_status
 
 HttpMethod = Literal["GET", "POST", "PUT", "PATCH", "DELETE"]
@@ -136,10 +137,17 @@ class HttpClient:
                 attempt += 1
                 continue
 
-            if response.status_code >= 500 and attempt < self._max_retries:
-                await self._sleep_backoff(attempt)
-                attempt += 1
-                continue
+            # Catalog-driven retry decision. We peek at the response body
+            # (cheap — content is already in memory) so we can honor the
+            # server's `retryable` declaration even on 4xx (e.g. 429).
+            if attempt < self._max_retries:
+                catalog_code = self._extract_catalog_code(response)
+                if self._catalog_says_retry(catalog_code, response.status_code):
+                    delay_ms = self._delay_for(catalog_code, response, attempt)
+                    if delay_ms is not None:
+                        await asyncio.sleep(delay_ms / 1000.0)
+                        attempt += 1
+                        continue
 
             if response.status_code == 204 or not response.content:
                 if not response.is_success:
@@ -240,3 +248,101 @@ class HttpClient:
     async def _sleep_backoff(attempt: int) -> None:
         idx = min(attempt, len(RETRY_BACKOFF_MS) - 1)
         await asyncio.sleep(RETRY_BACKOFF_MS[idx] / 1000.0)
+
+    # ── catalog-driven retry helpers ───────────────────────
+
+    @staticmethod
+    def _extract_catalog_code(response: httpx.Response) -> str | None:
+        """Pull the stable lower-snake-case `code` from the response body.
+
+        Tries top-level ``code`` first, then ``details.code``. Falls back
+        to ``error`` when it happens to match a catalog code directly.
+        """
+        try:
+            body = response.json()
+        except (ValueError, _json.JSONDecodeError):
+            return None
+        if not isinstance(body, dict):
+            return None
+        code = body.get("code")
+        if isinstance(code, str) and code in GENERATED_ERROR_CATALOG:
+            return code
+        details = body.get("details")
+        if isinstance(details, dict):
+            inner = details.get("code")
+            if isinstance(inner, str) and inner in GENERATED_ERROR_CATALOG:
+                return inner
+        err = body.get("error")
+        if isinstance(err, str) and err in GENERATED_ERROR_CATALOG:
+            return err
+        return None
+
+    @staticmethod
+    def _catalog_says_retry(catalog_code: str | None, status_code: int) -> bool:
+        """Decide whether to retry based on the catalog. Falls back to 5xx-is-retryable."""
+        if catalog_code is not None:
+            entry = GENERATED_ERROR_CATALOG.get(catalog_code)
+            if entry is not None:
+                return bool(entry.get("retryable", False))
+        # No catalog code present (older server, non-AEGIS error). Preserve
+        # the previous "retry on 5xx" behavior so we don't regress.
+        return status_code >= 500
+
+    @staticmethod
+    def _delay_for(catalog_code: str | None, response: httpx.Response, attempt: int) -> int | None:
+        """Compute a delay in ms per the catalog-declared backoff strategy.
+
+        Returns ``None`` to signal "do not retry".
+        """
+        backoff: str | None = None
+        if catalog_code is not None:
+            entry = GENERATED_ERROR_CATALOG.get(catalog_code)
+            if entry is not None:
+                # entry.get returns Optional[str] for the optional 'backoff' field.
+                backoff = entry.get("backoff")
+        if backoff is None:
+            # Legacy path — preserve the old fixed schedule.
+            idx = min(attempt, len(RETRY_BACKOFF_MS) - 1)
+            return RETRY_BACKOFF_MS[idx]
+        if backoff == "none":
+            return None
+        if backoff == "linear":
+            schedule = (100, 200, 400)
+            return schedule[min(attempt, len(schedule) - 1)]
+        if backoff == "exponential":
+            schedule = (100, 400, 1_600)
+            return schedule[min(attempt, len(schedule) - 1)]
+        if backoff == "on_retry_after_header":
+            header = response.headers.get("retry-after")
+            seconds = _parse_retry_after(header)
+            if seconds is None:
+                # Server said "honor it" but didn't provide one — be polite.
+                return 100
+            return min(int(seconds * 1000), 60_000)
+        # Unknown strategy — refuse to retry rather than guessing.
+        return None
+
+
+def _parse_retry_after(value: str | None) -> float | None:
+    """Parse a Retry-After header into seconds (int or HTTP date)."""
+    if not value:
+        return None
+    value = value.strip()
+    if not value:
+        return None
+    if value.isdigit():
+        return float(value)
+    # HTTP date.
+    from email.utils import parsedate_to_datetime
+    from datetime import datetime, timezone
+
+    try:
+        dt = parsedate_to_datetime(value)
+    except (TypeError, ValueError):
+        return None
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    delta = (dt - datetime.now(timezone.utc)).total_seconds()
+    return max(0.0, delta)

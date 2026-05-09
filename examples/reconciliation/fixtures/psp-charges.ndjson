@@ -1,0 +1,6 @@
+{"endToEndId":"e2e_001","systemId":"ch_001","status":"settled","amount":4900,"currency":"USD","timestamp":"2026-05-05T10:00:01.000Z"}
+{"endToEndId":"e2e_002","systemId":"ch_002","status":"settled","amount":12500,"currency":"USD","timestamp":"2026-05-05T10:00:06.000Z"}
+{"endToEndId":"e2e_003","systemId":"ch_003","status":"settled","amount":4900,"currency":"USD","timestamp":"2026-05-05T10:00:11.000Z"}
+{"endToEndId":"e2e_005","systemId":"ch_005","status":"reversed","amount":29900,"currency":"USD","reversalCause":"chargeback","timestamp":"2026-05-05T10:00:16.000Z"}
+{"endToEndId":"e2e_006","systemId":"ch_006","status":"reversed","amount":4900,"currency":"USD","reversalCause":"refund","timestamp":"2026-05-05T10:00:21.000Z"}
+{"endToEndId":"e2e_999","systemId":"ch_999","status":"settled","amount":99900,"currency":"USD","timestamp":"2026-05-05T10:00:30.000Z"}

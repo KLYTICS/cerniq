@@ -9,6 +9,8 @@ import type { AuditService } from '../audit/audit.service';
 import type { BateService } from '../bate/bate.service';
 import type { AppConfigService } from '../../config/config.service';
 import type { MetricsService } from '../../common/observability/metrics.service';
+import type { UsageGuardService } from '../billing/usage-guard.service';
+import type { TrialService } from '../billing/trial.service';
 
 const RP_PRINCIPAL = 'rp_test_principal';
 
@@ -83,6 +85,29 @@ function buildHarness() {
     }),
   } as unknown as ReplayCacheService;
 
+  // UsageGuardService — billing gate, defaults to allow-all so the verify
+  // tests don't need to know about plan tiers. Specs that exercise the
+  // PLAN_LIMIT_EXCEEDED path can override `checkQuota` per-test.
+  const usageGuard = {
+    checkQuota: jest.fn(async () => ({
+      allowed: true,
+      remaining: 999_999,
+      planTier: 'DEVELOPER',
+      monthlyQuota: 1_000_000,
+    })),
+    incrementUsage: jest.fn(),
+    invalidatePlanCache: jest.fn(async () => undefined),
+  } as unknown as UsageGuardService;
+
+  // TrialService — defaults to allow-all (non-FREE tier) so existing
+  // verify tests don't need to know about ADR-0014. Specs that exercise
+  // the TRIAL_EXHAUSTED path override `checkAndIncrement` per-test.
+  const trial = {
+    checkAndIncrement: jest.fn(async () => ({ exhausted: false, remaining: -1 })),
+    getStatus: jest.fn(),
+    reset: jest.fn(async () => undefined),
+  } as unknown as TrialService;
+
   const svc = new VerifyService(
     prisma,
     redis,
@@ -90,6 +115,8 @@ function buildHarness() {
     bate,
     spendGuard,
     replayCache,
+    usageGuard,
+    trial,
     audit,
     config,
     metrics,

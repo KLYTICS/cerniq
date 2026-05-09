@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { WebhookSecretCipher } from '../../common/crypto/webhook-secret-cipher';
 import { WebhookDeliveryWorker } from './webhook.delivery';
 
 export interface WebhookEvent {
@@ -23,12 +24,17 @@ export class WebhooksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly delivery: WebhookDeliveryWorker,
+    private readonly cipher: WebhookSecretCipher,
   ) {}
 
   async subscribe(principalId: string, url: string, events: string[]): Promise<{ id: string; secret: string }> {
+    // The plaintext is returned to the caller exactly once — they store it,
+    // we only retain its AES-256-GCM ciphertext. `WebhookDeliveryWorker.process`
+    // decrypts just-in-time before HMAC-signing each outgoing payload.
     const secret = `whsec_${randomBytes(24).toString('base64url')}`;
+    const ciphertext = this.cipher.encrypt(secret);
     const sub = await this.prisma.webhookSubscription.create({
-      data: { principalId, url, secret, events },
+      data: { principalId, url, secret: ciphertext, events },
     });
     return { id: sub.id, secret };
   }

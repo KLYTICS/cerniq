@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
 import { WellknownService, computeKid } from './wellknown.service';
 import { encodeBase64Url, decodeBase64Url } from '../../common/crypto/ed25519.util';
+import { PLANS, TRIAL_LIFETIME_CAP } from '../billing/plans';
 import type { AppConfigService } from '../../config/config.service';
+import type { PlanTier } from '@prisma/client';
 
 // 32-byte canonical "all-zeros" Ed25519 public key — fine for the hash test
 // (we're testing the kid derivation, not the curve point validity).
@@ -124,6 +126,132 @@ describe('WellknownService', () => {
       const padSvc = new WellknownService(buildConfig({ pub: padded, rotatedAt: FIXED_ROTATED_AT }));
       padSvc.onModuleInit();
       expect(padSvc.getAuditSigningKey().publicKey).toBe(ZERO_KEY_B64);
+    });
+  });
+
+  describe('getRetentionPolicy', () => {
+    let svc: WellknownService;
+    beforeEach(() => {
+      svc = new WellknownService(buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }));
+      svc.onModuleInit();
+    });
+
+    it('emits a tier entry for every PlanTier (parity with PLANS)', () => {
+      const out = svc.getRetentionPolicy();
+      const planTiersInSource = Object.keys(PLANS) as PlanTier[];
+      const tiersInResponse = Object.keys(out.tiers).sort();
+
+      expect(tiersInResponse).toEqual(planTiersInSource.sort());
+      // Every tier must produce a positive integer retention window.
+      for (const tier of planTiersInSource) {
+        expect(out.tiers[tier]!.audit_retention_days).toBe(PLANS[tier].auditRetentionDays);
+      }
+    });
+
+    it('uses the injected clock for generated_at (deterministic)', () => {
+      const fixed = new Date('2026-05-05T12:34:56.789Z');
+      const out = svc.getRetentionPolicy(fixed);
+      expect(out.generated_at).toBe('2026-05-05T12:34:56.789Z');
+    });
+
+    it('emits operational defaults that mirror DEFAULT_RETENTION_RUN_INTERVAL_MS', () => {
+      const out = svc.getRetentionPolicy();
+      // 24h in seconds — must mirror DEFAULT_RETENTION_RUN_INTERVAL_MS in
+      // compliance/audit-retention.service.ts. Drift fails this spec.
+      expect(out.operational.retention_run_interval_seconds).toBe(86_400);
+      expect(out.operational.configurable_via_env).toBe('AEGIS_AUDIT_RETENTION_INTERVAL_MS');
+    });
+
+    it('includes the three contracted guarantees verbatim', () => {
+      const out = svc.getRetentionPolicy();
+      expect(out.guarantees).toEqual([
+        'Redactions preserve audit chain hashes — chain remains verifiable post-redaction.',
+        'Each redaction emits a meta-event in the chain (audit-of-audit).',
+        'Public keys (.well-known/audit-signing-key) are never redacted.',
+      ]);
+    });
+
+    it('emits no DB calls — pure derivation from in-process PLANS', () => {
+      // The service constructor took zero data-access deps. Re-asserting
+      // structurally: the service has no `prisma` or `redis` field.
+      const fields = Object.keys(svc as unknown as Record<string, unknown>);
+      expect(fields).not.toContain('prisma');
+      expect(fields).not.toContain('redis');
+    });
+  });
+
+  describe('getPricing', () => {
+    let svc: WellknownService;
+    beforeEach(() => {
+      svc = new WellknownService(buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }));
+      svc.onModuleInit();
+    });
+
+    it('emits a tier entry for every PlanTier (parity with PLANS)', () => {
+      const out = svc.getPricing();
+      const planTiersInSource = Object.keys(PLANS) as PlanTier[];
+      const tiersInResponse = Object.keys(out.tiers).sort();
+      expect(tiersInResponse).toEqual(planTiersInSource.sort());
+    });
+
+    it('hardcodes USD and ADR-0014 (operator may localize in a future spec_version)', () => {
+      const out = svc.getPricing();
+      expect(out.currency).toBe('USD');
+      expect(out.adr).toBe('ADR-0014');
+      expect(out.spec_version).toBe('1.0.0');
+    });
+
+    it('uses the injected clock for generated_at (deterministic)', () => {
+      const fixed = new Date('2026-05-06T01:02:03.456Z');
+      const out = svc.getPricing(fixed);
+      expect(out.generated_at).toBe('2026-05-06T01:02:03.456Z');
+    });
+
+    it('mirrors plans.ts exactly for every paid-tier numeric field', () => {
+      const out = svc.getPricing();
+      for (const tier of Object.keys(PLANS) as PlanTier[]) {
+        const plan = PLANS[tier];
+        const dto = out.tiers[tier]!;
+        expect(dto.tier).toBe(tier);
+        expect(dto.display_name).toBe(plan.displayName);
+        expect(dto.monthly_price_cents).toBe(plan.monthlyPriceCents);
+        expect(dto.overage_per_call_e4).toBe(plan.overagePerCallE4);
+        expect(dto.audit_retention_days).toBe(plan.auditRetentionDays);
+        expect(dto.bate_access).toBe(plan.bateAccess);
+        expect(dto.webhooks).toBe(plan.webhooks);
+        expect(dto.verify_p99_target_ms).toBe(plan.verifyP99TargetMs);
+        // Quota: Infinity → null, finite → mirrored.
+        if (Number.isFinite(plan.monthlyVerifyQuota)) {
+          expect(dto.monthly_verify_quota).toBe(plan.monthlyVerifyQuota);
+        } else {
+          expect(dto.monthly_verify_quota).toBeNull();
+        }
+        // Agent cap: Infinity → null, finite → mirrored.
+        if (Number.isFinite(plan.agentCap)) {
+          expect(dto.agent_cap).toBe(plan.agentCap);
+        } else {
+          expect(dto.agent_cap).toBeNull();
+        }
+      }
+    });
+
+    it('exposes TRIAL_LIFETIME_CAP only on FREE', () => {
+      const out = svc.getPricing();
+      expect(out.tiers.FREE!.lifetime_verify_quota).toBe(TRIAL_LIFETIME_CAP);
+      expect(out.tiers.DEVELOPER!.lifetime_verify_quota).toBeNull();
+      expect(out.tiers.GROWTH!.lifetime_verify_quota).toBeNull();
+      expect(out.tiers.ENTERPRISE!.lifetime_verify_quota).toBeNull();
+    });
+
+    it('round-trips cleanly through JSON.stringify (no Infinity leaks)', () => {
+      const out = svc.getPricing();
+      const json = JSON.stringify(out);
+      // JSON has no native Infinity — JSON.stringify(Infinity) === "null",
+      // but we want our DTO to declare null intentionally rather than rely
+      // on stringify behavior. Asserting the parsed shape proves it.
+      const parsed = JSON.parse(json) as { tiers: Record<string, { monthly_verify_quota: number | null }> };
+      expect(parsed.tiers.FREE!.monthly_verify_quota).toBeNull();
+      expect(parsed.tiers.ENTERPRISE!.monthly_verify_quota).toBeNull();
     });
   });
 });

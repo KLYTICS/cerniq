@@ -1,0 +1,39 @@
+# Auth0 Actions for AEGIS
+
+Two Actions ship here. Both run in the Auth0 Actions sandbox and have
+their own secrets, completely separate from AEGIS's API keys.
+
+## `aegis-audit-login.js`
+
+**Trigger**: `post-login`.
+
+Posts the login event to AEGIS at
+`POST /v1/idp/auth0/action` so AEGIS audits every human login as a
+hash-chain event (ADR-0009 §4).
+
+**Required secrets**:
+- `AEGIS_API_BASE` — e.g. `https://api.aegis.dev`
+- `AEGIS_ACTION_SECRET` — shared HMAC secret with the AEGIS API
+  (`AUTH0_ACTION_SECRET` env on the API side)
+
+**Failure semantics**: action errors do NOT block login. The dashboard's
+token-exchange call (also audited) catches dropped events on next login.
+
+## `aegis-block-non-admin-mfa-skip.js`
+
+**Trigger**: `post-login`.
+
+Denies logins where a user with the `aegis:admin` role hasn't satisfied
+MFA. Belt-and-suspenders to Auth0's tenant-level MFA settings.
+
+## Deployment
+
+Auth0 Actions can be deployed via Terraform (`auth0_action` resource) or
+through the dashboard. We recommend Terraform — see
+`infra/auth0/terraform/main.tf` (deferred to M-020-tf).
+
+## Reference
+
+- ADR-0009: `docs/decisions/0009-auth0-bridge.md`
+- Auth0 Actions docs: https://auth0.com/docs/customize/actions
+- WORK_BOARD: M-020

@@ -6,8 +6,11 @@ import { AuditService } from '../audit/audit.service';
 import { BateService } from '../bate/bate.service';
 import { SpendGuardService } from './spend-guard.service';
 import { ReplayCacheService } from './replay-cache.service';
+import { UsageGuardService } from '../billing/usage-guard.service';
+import { TrialService } from '../billing/trial.service';
 import { AppConfigService } from '../../config/config.service';
 import { MetricsService } from '../../common/observability/metrics.service';
+import { withSpan } from '../../common/observability/spans';
 import { type VerifyRequestDto, type VerifyResponseDto } from './verify.dto';
 import { verifyAlgorithm } from './algorithm/verify.algorithm';
 import type {
@@ -47,6 +50,10 @@ interface CachedPolicy {
  * unchanged. This class implements the `VerifyPorts` contract using
  * Prisma + Redis + the AEGIS audit/BATE/spend services.
  *
+ * Gate order (outer to inner):
+ *   G-2: UsageGuardService — plan-tier monthly quota (billing gate, fails-open)
+ *   Algorithm: verifyAlgorithm — 9-step denial precedence (security gate, fails-closed)
+ *
  * Failure modes:
  *   - Cache miss → single Postgres query (≈ 1–10 ms RTT).
  *   - Redis outage → spend port THROWS `ServiceUnavailableError`; replay
@@ -65,6 +72,8 @@ export class VerifyService {
     private readonly bate: BateService,
     private readonly spendGuard: SpendGuardService,
     private readonly replayCache: ReplayCacheService,
+    private readonly usageGuard: UsageGuardService,
+    private readonly trial: TrialService,
     private readonly audit: AuditService,
     private readonly config: AppConfigService,
     private readonly metrics: MetricsService,
@@ -75,8 +84,70 @@ export class VerifyService {
    * scope so denial-audit rows can be attributed correctly (no `'unknown'`
    * fabrication). Caller (controller) extracts `principalId` from the
    * verify-only API key auth context and passes it here.
+   *
+   * G-2: Monthly plan quota is checked BEFORE the algorithm. A
+   * `PLAN_LIMIT_EXCEEDED` denial short-circuits without touching the algorithm
+   * or the audit chain — it is a billing gate, not a security gate.
    */
   async verify(dto: VerifyRequestDto, relyingPartyPrincipalId: string): Promise<VerifyResponseDto> {
+    // ── G-2: Plan-tier quota gate ────────────────────────────────────────────
+    // UsageGuardService fails-open on Redis/DB errors (billing gate, not
+    // security). If quota is exhausted on a paid hard-stop plan, return
+    // PLAN_LIMIT_EXCEEDED immediately — no algorithm, no audit event.
+    // Round-20 cleanup: FREE tier no longer triggers this gate; FREE is
+    // delegated to TrialService per Round-19 F-08 (FREE.monthlyVerifyQuota
+    // is Number.POSITIVE_INFINITY so checkQuota always returns allowed=true
+    // for FREE). The gate remains load-bearing for DEVELOPER/GROWTH/ENTERPRISE
+    // overage and hard-stop semantics.
+    const quota = await this.usageGuard.checkQuota(relyingPartyPrincipalId);
+    if (!quota.allowed) {
+      this.logger.warn(
+        `verify DENIED=PLAN_LIMIT_EXCEEDED principal=${relyingPartyPrincipalId} ` +
+        `plan=${quota.planTier} quota=${quota.monthlyQuota}`,
+      );
+      this.metrics.verifyTotal.inc({ decision: 'DENIED', denial_reason: 'PLAN_LIMIT_EXCEEDED' });
+      return {
+        valid: false,
+        agentId: null,
+        principalId: relyingPartyPrincipalId,
+        trustScore: 0,
+        trustBand: null,
+        scopesGranted: [],
+        denialReason: 'PLAN_LIMIT_EXCEEDED',
+        verifiedAt: new Date().toISOString(),
+        ttl: 0,
+        auditEventId: null,
+      };
+    }
+    // ── End G-2 quota gate ────────────────────────────────────────────────────
+
+    // ── G-2b: Free-trial lifetime cap (ADR-0014) ─────────────────────────────
+    // Fires AFTER the monthly PLAN_LIMIT_EXCEEDED check (so a paid principal
+    // who downgraded still hits PLAN_LIMIT_EXCEEDED first if applicable) and
+    // BEFORE the algorithm. TrialService fails-CLOSED — see service comment.
+    // The verify endpoint always returns 200 with `valid:false` + denialReason,
+    // so we shape the response inline rather than throwing TrialExhaustedError.
+    const trial = await this.trial.checkAndIncrement(relyingPartyPrincipalId);
+    if (trial.exhausted) {
+      this.logger.warn(
+        `verify DENIED=TRIAL_EXHAUSTED principal=${relyingPartyPrincipalId} reason=${trial.reason}`,
+      );
+      this.metrics.verifyTotal.inc({ decision: 'DENIED', denial_reason: 'TRIAL_EXHAUSTED' });
+      return {
+        valid: false,
+        agentId: null,
+        principalId: relyingPartyPrincipalId,
+        trustScore: 0,
+        trustBand: null,
+        scopesGranted: [],
+        denialReason: 'TRIAL_EXHAUSTED',
+        verifiedAt: new Date().toISOString(),
+        ttl: 0,
+        auditEventId: null,
+      };
+    }
+    // ── End G-2b trial gate ──────────────────────────────────────────────────
+
     const ports: VerifyPorts = {
       now: () => new Date(),
       getAgent: (agentId) => this.loadAgent(agentId),
@@ -120,10 +191,32 @@ export class VerifyService {
       featureFlags: { bateEnabled: this.config.enableBate },
     };
 
-    const result = await verifyAlgorithm(
-      { ...dto, relyingPartyPrincipalId },
-      ports,
+    // Manual span — auto-instrumentation already covers the HTTP and DB
+    // layer; this span isolates the pure algorithm so latency can be
+    // attributed independently of port I/O. The algorithm itself remains
+    // framework-free (CLAUDE.md invariant #2): the span lives in the
+    // SERVICE adapter, not in the algorithm import path.
+    //
+    // Span attrs are filled from the algorithm result via setActiveSpanAttributes
+    // below — DTO doesn't carry agent.id/policy.id (they're inside the token).
+    const result = await withSpan(
+      'aegis.verify.algorithm',
+      () => verifyAlgorithm({ ...dto, relyingPartyPrincipalId }, ports),
+      {
+        'principal.id': relyingPartyPrincipalId,
+        'aegis.feature.bate': this.config.enableBate,
+        'aegis.verify.action': dto.action,
+      },
     );
+
+    // G-2: Increment the monthly counter after an approved result only.
+    // Fire-and-forget — a missed increment means a slight under-count which
+    // self-corrects on the next Redis miss via the AuditEvent DB backfill.
+    // Denied calls do NOT consume quota (relying parties get a free retry
+    // after fixing signature / policy issues).
+    if (result.valid) {
+      this.usageGuard.incrementUsage(relyingPartyPrincipalId);
+    }
 
     this.logger.debug(
       `verify ${result.valid ? 'approved' : 'denied=' + result.denialReason} agent=${result.agentId ?? 'n/a'} latency=${result.latencyMs}ms`,

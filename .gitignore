@@ -42,3 +42,13 @@ apps/api/prisma/migrations/dev.db*
 .cache/
 tmp/
 *.local
+
+# Dev seed artifacts (scripts/seed-dev.ts) — both copies of the agent
+# private key. NEVER commit; rotate via `pnpm seed:dev -- --reset`.
+.aegis-dev-key.txt
+.local/keys/
+
+# Local test result artifacts — bring-up captures, k6 output, e2e traces.
+# Often contain rotating API keys / token material; never commit.
+tests/results/
+**/perf-baseline.json.local

@@ -13,7 +13,7 @@
 
 import type { BateSignalType, SignalSeverity, TrustBand } from '@prisma/client';
 
-export const WEIGHTS_VERSION = 'v1.0.0-default-2026-05-01';
+export const WEIGHTS_VERSION = 'v1.1.0-dpop-2026-05-02';
 
 /**
  * Per-signal-occurrence delta. Applied for every occurrence of the signal
@@ -34,6 +34,15 @@ export const SIGNAL_DELTA: Readonly<Record<BateSignalType, number>> = Object.fre
   POLICY_VIOLATION_ATTEMPT: -75,
   FAILED_VERIFY_SPIKE: -40,
   DELEGATION_CHAIN_ANOMALY: -60,
+
+  // ── DPoP — RFC 9449 / ADR-0010 (M-024) ────────────────────────────
+  // AGENT_NO_DPOP: low-grade nudge while DPoP is optional (v1.0); when
+  //   v1.1 makes DPoP mandatory, the absence becomes INVALID_SIGNATURE
+  //   at verify time and this signal stops firing.
+  // AGENT_DPOP_REPLAY_ATTEMPT: same DPoP `jti` seen twice within the 90s
+  //   window. Strong indicator of credential exfiltration.
+  AGENT_NO_DPOP: -15,
+  AGENT_DPOP_REPLAY_ATTEMPT: -200,
 });
 
 /**
@@ -64,6 +73,13 @@ export const PER_TYPE_CAP_PER_WINDOW: Readonly<Record<BateSignalType, number>> =
   POLICY_VIOLATION_ATTEMPT: 300,
   FAILED_VERIFY_SPIKE: 200,
   DELEGATION_CHAIN_ANOMALY: 240,
+
+  // DPoP per-window caps. NO_DPOP can fire often during the v1.0→v1.1
+  // transition; cap it tight so it doesn't dominate. REPLAY_ATTEMPT is
+  // catastrophic; cap permits a single occurrence to drive an agent below
+  // WATCH band on its own.
+  AGENT_NO_DPOP: 60,
+  AGENT_DPOP_REPLAY_ATTEMPT: 600,
 });
 
 /** Bonus when an agent has run on at least N distinct days without anomalies. */

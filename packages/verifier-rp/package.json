@@ -3,6 +3,16 @@
   "version": "0.1.0",
   "description": "AEGIS — relying-party offline verifier. Drop-in middleware for Express, Fastify, Hono, and edge runtimes.",
   "license": "MIT",
+  "author": "AEGIS Labs <hello@aegislabs.io>",
+  "homepage": "https://aegislabs.io/verifier-rp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klytics/aegis.git",
+    "directory": "packages/verifier-rp"
+  },
+  "bugs": {
+    "url": "https://github.com/klytics/aegis/issues"
+  },
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",

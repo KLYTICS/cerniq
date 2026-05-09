@@ -8,12 +8,15 @@
   "scripts": {
     "test": "vitest run --root .",
     "test:watch": "vitest --root .",
+    "test:parity": "vitest run --root . --config vitest.parity.config.ts",
     "typecheck": "tsc --noEmit",
     "load": "k6 run load/verify.js"
   },
   "dependencies": {
     "@aegis/sdk": "link:../packages/sdk-ts",
-    "@aegis/types": "link:../packages/types"
+    "@aegis/types": "link:../packages/types",
+    "@noble/ed25519": "^2.1.0",
+    "@noble/hashes": "^1.5.0"
   },
   "devDependencies": {
     "@aegis/tsconfig": "link:../packages/tsconfig",

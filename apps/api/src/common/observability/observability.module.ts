@@ -1,11 +1,21 @@
 import { Global, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { MetricsService } from './metrics.service';
+import { DEFAULT_GRACEFUL_SHUTDOWN_MS, ShutdownService } from './shutdown.service';
 import { HttpMetricsMiddleware } from './http-metrics.middleware';
 
+// ShutdownService takes `number` in its constructor with a TS default; Nest
+// DI can't read TS defaults at runtime so it tries to resolve `Number` as a
+// provider and fails. Wire it explicitly via useFactory.
 @Global()
 @Module({
-  providers: [MetricsService],
-  exports: [MetricsService],
+  providers: [
+    MetricsService,
+    {
+      provide: ShutdownService,
+      useFactory: () => new ShutdownService(DEFAULT_GRACEFUL_SHUTDOWN_MS),
+    },
+  ],
+  exports: [MetricsService, ShutdownService],
 })
 export class ObservabilityModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

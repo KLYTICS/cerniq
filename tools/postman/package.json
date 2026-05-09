@@ -1,0 +1,26 @@
+{
+  "name": "@aegis/postman",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AEGIS Postman v2.1 collection + validator. Drop-in for Postman, Insomnia, or any v2.1-compatible client.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "validate": "tsx scripts/validate.ts",
+    "lint": "tsx scripts/validate.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aegis/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

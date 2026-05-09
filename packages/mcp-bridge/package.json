@@ -3,7 +3,19 @@
   "version": "0.1.0",
   "description": "AEGIS verification middleware for any MCP (Model Context Protocol) server. Wraps an MCP transport so every tool call carries a verified AEGIS agent identity.",
   "license": "MIT",
+  "author": "AEGIS Labs <hello@aegislabs.io>",
   "homepage": "https://aegislabs.io/mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klytics/aegis.git",
+    "directory": "packages/mcp-bridge"
+  },
+  "bugs": {
+    "url": "https://github.com/klytics/aegis/issues"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  },
   "keywords": [
     "aegis",
     "mcp",
@@ -13,7 +25,7 @@
     "trust-score"
   ],
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -27,6 +39,7 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
+    "prepublishOnly": "pnpm build",
     "dev": "tsup --watch",
     "lint": "eslint src --max-warnings=0",
     "typecheck": "tsc --noEmit",

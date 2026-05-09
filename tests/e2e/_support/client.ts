@@ -49,7 +49,15 @@ export function readConfig(): E2EConfig {
 }
 
 export function makeSdk(cfg: E2EConfig): Aegis {
-  return new Aegis({ apiKey: cfg.apiKey, baseUrl: cfg.baseUrl });
+  // Verify-only key falls back to the management key when not separately
+  // provided — FULL-scope keys are accepted on the verify endpoint per
+  // api-key.guard. Lets the harness exercise verify() without minting two
+  // keys in the seed.
+  return new Aegis({
+    apiKey: cfg.apiKey,
+    verifyKey: cfg.verifyKey ?? cfg.apiKey,
+    baseUrl: cfg.baseUrl,
+  });
 }
 
 /**

@@ -4,7 +4,7 @@ const config: Config = {
   rootDir: '.',
   testRegex: '.*\\.spec\\.ts$',
   transform: {
-    '^.+\\.[tj]s$': ['ts-jest', { tsconfig: 'tsconfig.json', useESM: false }],
+    '^.+\\.[tj]s$': ['ts-jest', { tsconfig: 'tsconfig.json', useESM: false, diagnostics: { ignoreCodes: [151002] } }],
   },
   // pnpm hoists @noble under .pnpm/<scope>+<pkg>@<ver>/. The @noble packages
   // are ESM-only so they must pass through ts-jest at test time.

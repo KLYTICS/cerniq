@@ -1,20 +1,26 @@
-import { Body, Controller, Post } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { VerifyKeyOnly } from '../auth/api-key.guard';
 import { Auth } from '../../common/decorators/auth.decorator';
 import type { AuthenticatedKey } from '../auth/api-key.service';
+import { PlanAwareThrottlerGuard } from '../../common/throttle/plan-aware-throttler.guard';
 import { VerifyService } from './verify.service';
 import { VerifyRequestDto, VerifyResponseDto } from './verify.dto';
 
+// OD-006: replaced flat `@Throttle({ verify: { limit: 1000, ttl: 60_000 } })`
+// with PlanAwareThrottlerGuard. The guard reads each principal's tier from
+// UsageGuardService and applies the tier-specific limit defined in
+// `modules/billing/plans.ts.verifyRateLimit`. ENTERPRISE bypasses the
+// throttler entirely (no Redis hit). Anonymous traffic falls back to the
+// FREE limit on per-IP buckets so unauthenticated abuse is still capped.
 @ApiTags('Verification')
 @Controller('verify')
+@UseGuards(PlanAwareThrottlerGuard)
 export class VerifyController {
   constructor(private readonly verify: VerifyService) {}
 
   @Post()
   @VerifyKeyOnly()
-  @Throttle({ verify: { limit: 1000, ttl: 60_000 } })
   @ApiSecurity('PublicVerifyKey')
   @ApiOperation({
     summary: 'Primary relying-party endpoint. Verifies an agent token end-to-end.',

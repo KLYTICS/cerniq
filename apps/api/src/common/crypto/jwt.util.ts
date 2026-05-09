@@ -1,9 +1,7 @@
+import './crypto.bootstrap.js';
 import { Injectable, Logger } from '@nestjs/common';
 import * as ed from '@noble/ed25519';
-import { sha512 } from '@noble/hashes/sha512';
 import { decodeBase64Url, encodeBase64Url } from './ed25519.util';
-
-ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();

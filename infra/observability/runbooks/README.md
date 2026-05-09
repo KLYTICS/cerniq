@@ -86,6 +86,20 @@ Every runbook must:
 A runbook that says "investigate the issue" without a concrete next
 step blocks the PR.
 
+## Build-time / process runbooks (no Prometheus alert)
+
+These runbooks back failures from CI gates and process surfaces (the round-15+ quality bar). They don't fire as Prometheus alerts; they fire when `make preflight` or a per-PR gate returns non-zero. First-touch is the engineer who broke the gate, not on-call.
+
+| Trigger | Runbook | Owner |
+|---|---|---|
+| `make preflight` exit 1 or 2 | [preflight-failure.md](./preflight-failure.md) | engineer who hit the gate |
+| API key rotation 5xx / orphan two-active state | [key-rotation-failure.md](./key-rotation-failure.md) | on-call (security-adjacent) |
+| Audit retention tick missed > 25h / mid-batch crash | [audit-retention-failure.md](./audit-retention-failure.md) | on-call (compliance-adjacent) |
+| Plan-aware throttle 429 storm / tier mis-classification | [plan-aware-throttle-storm.md](./plan-aware-throttle-storm.md) | on-call |
+| Error catalog uncataloged / parity drift / customer-message leak | [error-catalog-drift.md](./error-catalog-drift.md) | engineer who hit the gate (security-adjacent if leak) |
+
+These five reach Prometheus-alert parity once their underlying metrics emit (round 15 backlog). The runbook content is correct as written — only the alert linkage moves.
+
 ## Where things live
 
 - Alert rules: `infra/observability/alerts/aegis.rules.yml`

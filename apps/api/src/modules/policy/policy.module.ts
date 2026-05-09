@@ -4,15 +4,19 @@ import { sha512 } from '@noble/hashes/sha512';
 
 import { decodeBase64Url, Ed25519Util, encodeBase64Url } from '../../common/crypto/ed25519.util';
 import { AppConfigService } from '../../config/config.service';
+import { ObservabilityModule } from '../../common/observability/observability.module';
+import { WebhooksModule } from '../webhooks/webhooks.module';
 import { PolicyController } from './policy.controller';
+import { PolicyExpiryWorker } from './policy.expiry.worker';
 import { PolicyService } from './policy.service';
 
 // Wire sha512 for noble v2 sync API in case it's reached during boot derivation.
 ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
 
 @Module({
+  imports: [ObservabilityModule, WebhooksModule],
   controllers: [PolicyController],
-  providers: [PolicyService],
+  providers: [PolicyService, PolicyExpiryWorker],
   exports: [PolicyService],
 })
 export class PolicyModule implements OnModuleInit {

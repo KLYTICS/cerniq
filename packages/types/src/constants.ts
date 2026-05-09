@@ -53,13 +53,27 @@ export type WebhookEvent = (typeof WEBHOOK_EVENT)[keyof typeof WEBHOOK_EVENT];
 // + ADR-0004. The order is part of the wire-level contract: relying parties
 // build retry / escalation logic on it. Adding new reasons is non-breaking
 // only when they go at the END of this list.
+//
+// PLAN_LIMIT_EXCEEDED is listed first because it fires as a billing pre-gate
+// BEFORE the security algorithm chain — it never competes with the 10-step
+// algorithm reasons. Relying parties receiving this code should direct the
+// user to upgrade their AEGIS plan, not retry the request.
+//
+// TRIAL_EXHAUSTED was added 2026-05-05 per ADR-0014 (free-trial design).
+// It sits between SCOPE_NOT_GRANTED and SPEND_LIMIT_EXCEEDED because trial
+// exhaustion is a billing-tier gate that fires after the agent + policy
+// have been validated but before any spend accounting — a trial principal
+// has no "spend limit" in the policy sense; their cap is the lifetime
+// verify counter. HTTP 402 (Payment Required).
 export const DENIAL_REASON_PRECEDENCE = [
+  'PLAN_LIMIT_EXCEEDED', // billing gate — pre-algorithm; not part of the 10-step chain
   'AGENT_NOT_FOUND',
   'AGENT_REVOKED',
   'INVALID_SIGNATURE',
   'POLICY_REVOKED',
   'POLICY_EXPIRED',
   'SCOPE_NOT_GRANTED',
+  'TRIAL_EXHAUSTED',
   'SPEND_LIMIT_EXCEEDED',
   'TRUST_SCORE_TOO_LOW',
   'ANOMALY_FLAGGED',

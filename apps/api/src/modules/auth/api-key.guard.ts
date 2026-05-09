@@ -42,6 +42,15 @@ export class ApiKeyGuard implements CanActivate {
 
     const auth = await this.apiKeys.resolve(plaintext);
     if (!auth) {
+      // Distinguish "expired (rotation overlap elapsed)" from "never existed"
+      // so customers debugging post-rotation pain see a clear signal.
+      const expired = await this.apiKeys.isExpired(plaintext);
+      if (expired) {
+        throw new UnauthorizedException({
+          error: 'EXPIRED_API_KEY',
+          message: 'API key has expired. Use the rotated replacement key.',
+        });
+      }
       throw new UnauthorizedException({ error: 'INVALID_API_KEY', message: 'API key not recognised.' });
     }
 

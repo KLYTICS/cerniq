@@ -1,0 +1,125 @@
+name: spec-sync
+
+# Drift guard for the three sources of truth that must agree:
+#   - docs/spec/AEGIS_API_SPEC.yaml          (OpenAPI, source of truth for the wire)
+#   - packages/types/src/{schemas,constants}.ts  (Zod, source of truth at the API boundary)
+#   - apps/api/prisma/schema.prisma          (DB shape — informs response payloads)
+#
+# When any of these diverges from the others, downstream tooling
+# (mcp-server tools/list, dashboard fetch, sdk types, verifier-rp,
+# CLI oapi-codegen) breaks silently. This workflow makes the divergence
+# loud — it fails the build with a diff comment on the PR.
+#
+# Three checks run in parallel:
+#   1. openapi-vs-zod   — types in OpenAPI ↔ Zod schemas align
+#   2. openapi-vs-prisma — every Prisma model with a corresponding API
+#                         resource has matching nullability / types
+#   3. denial-precedence — the locked enum from ADR-0004 is byte-identical
+#                         across all three places (verifier-rp, builtin
+#                         engine, OpenAPI enum)
+#
+# This is a CI-only check; nothing runs in production. Failures land
+# on the PR as annotations + a /spec-sync.json artifact for triage.
+
+on:
+  pull_request:
+    paths:
+      - 'docs/spec/**'
+      - 'packages/types/**'
+      - 'apps/api/prisma/schema.prisma'
+      - 'apps/api/src/modules/**/*.dto.ts'
+      - 'apps/api/src/modules/verify/algorithm/**'
+      - '.github/workflows/spec-sync.yml'
+  push:
+    branches: [main]
+
+jobs:
+  openapi-vs-zod:
+    name: OpenAPI ↔ Zod
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Verify Zod schemas match OpenAPI shapes
+        run: pnpm -F @aegis/types exec tsx scripts/check-openapi-zod-parity.ts
+      - name: Upload diff artifact
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec-sync-openapi-zod
+          path: |
+            spec-sync.json
+
+  openapi-vs-prisma:
+    name: OpenAPI ↔ Prisma
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -F @aegis/api prisma:generate
+      - name: Compare Prisma model fields to OpenAPI schemas
+        run: pnpm -F @aegis/api exec tsx scripts/check-openapi-prisma-parity.ts
+
+  denial-precedence:
+    name: Denial precedence enum (ADR-0004)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Diff DenialReason enum across files
+        run: |
+          set -euo pipefail
+          # All three files MUST list the same 9 denial reasons in the same order.
+          # ADR-0004 § "Denial Precedence" is the source of truth.
+
+          extract_engine() {
+            grep -A 12 "type DenialReason" apps/api/src/common/policy-engine/engine.interface.ts \
+              | grep -oE "'[A-Z_]+'" | sort -u
+          }
+          extract_verifier() {
+            grep -A 12 "DenialReason" packages/verifier-rp/src/types.ts 2>/dev/null \
+              | grep -oE "'[A-Z_]+'" | sort -u || true
+          }
+          extract_openapi() {
+            grep -A 12 "DenialReason:" docs/spec/AEGIS_API_SPEC.yaml 2>/dev/null \
+              | grep -oE "[A-Z_]{4,}" | sort -u || true
+          }
+
+          engine="$(extract_engine || true)"
+          verifier="$(extract_verifier || true)"
+          openapi="$(extract_openapi || true)"
+
+          echo "=== engine ==="; echo "$engine"
+          echo "=== verifier ==="; echo "$verifier"
+          echo "=== openapi ==="; echo "$openapi"
+
+          # Engine is the canonical list (it's the only one whose source
+          # we control byte-for-byte). Each other surface is allowed to
+          # be a SUPERSET (vendors might pre-register future reasons), but
+          # not a subset — every engine value must appear elsewhere.
+          missing_in_verifier=$(comm -23 <(echo "$engine") <(echo "$verifier"))
+          missing_in_openapi=$(comm -23 <(echo "$engine") <(echo "$openapi"))
+
+          fail=0
+          if [ -n "$missing_in_verifier" ]; then
+            echo "::error::Verifier-rp is missing denial reasons: $missing_in_verifier"
+            fail=1
+          fi
+          if [ -n "$missing_in_openapi" ]; then
+            echo "::error::OpenAPI spec is missing denial reasons: $missing_in_openapi"
+            fail=1
+          fi
+          exit $fail

@@ -3,6 +3,30 @@
   "version": "0.1.0",
   "description": "Shared API contract types and Zod schemas for AEGIS — single source of truth across API, SDK, and dashboard.",
   "license": "MIT",
+  "author": "AEGIS Labs <hello@aegislabs.io>",
+  "homepage": "https://aegislabs.io",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klytics/aegis.git",
+    "directory": "packages/types"
+  },
+  "bugs": {
+    "url": "https://github.com/klytics/aegis/issues"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "keywords": [
+    "aegis",
+    "agent-identity",
+    "zod",
+    "schemas",
+    "types",
+    "api-contract"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -22,11 +46,13 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
+    "prepublishOnly": "pnpm build",
     "dev": "tsup --watch",
     "lint": "eslint src --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
+    "spec-sync": "tsx scripts/check-openapi-zod-parity.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -35,7 +61,9 @@
   "devDependencies": {
     "@aegis/tsconfig": "workspace:*",
     "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
     "typescript": "^5.6.3",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "yaml": "^2.6.1"
   }
 }

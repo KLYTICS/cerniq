@@ -1,9 +1,9 @@
+// Side-effect import: bootstraps `ed.etc.sha512Sync` exactly once across
+// the API process. See `crypto.bootstrap.ts` for details — this replaces
+// the inline `ed.etc.sha512Sync = ...` that used to live in three places.
+import './crypto.bootstrap.js';
 import { Injectable } from '@nestjs/common';
 import * as ed from '@noble/ed25519';
-import { sha512 } from '@noble/hashes/sha512';
-
-// noble/ed25519 v2 requires async-friendly hash configuration.
-ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
 
 const enc = new TextEncoder();
 

@@ -14,9 +14,10 @@ export type DenialReason =
   | 'AGENT_NOT_FOUND'
   | 'AGENT_REVOKED'
   | 'INVALID_SIGNATURE'
-  | 'POLICY_EXPIRED'
   | 'POLICY_REVOKED'
+  | 'POLICY_EXPIRED'
   | 'SCOPE_NOT_GRANTED'
+  | 'TRIAL_EXHAUSTED'           // ADR-0014: free-trial lifetime cap (HTTP 402)
   | 'SPEND_LIMIT_EXCEEDED'
   | 'TRUST_SCORE_TOO_LOW'
   | 'ANOMALY_FLAGGED';

@@ -21,13 +21,31 @@
 import http from 'k6/http';
 import { check } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
+import { SharedArray } from 'k6/data';
 
 const BASE = (__ENV.AEGIS_E2E_URL || 'http://localhost:3000').replace(/\/+$/, '');
 const KEY = __ENV.AEGIS_E2E_API_KEY;
 const REQUEST_TOKEN = __ENV.AEGIS_E2E_REQUEST_TOKEN;
+const TOKEN_POOL_FILE = __ENV.AEGIS_E2E_TOKEN_POOL;
 
 if (!KEY) throw new Error('AEGIS_E2E_API_KEY is required');
-if (!REQUEST_TOKEN) throw new Error('AEGIS_E2E_REQUEST_TOKEN is required (a pre-signed agent JWT)');
+if (!REQUEST_TOKEN && !TOKEN_POOL_FILE) {
+  throw new Error('Either AEGIS_E2E_REQUEST_TOKEN or AEGIS_E2E_TOKEN_POOL is required');
+}
+
+// Round-24 token pool — replay protection rejects same-jti reuse, so a
+// single static token caps measurable throughput at "1 approved + N
+// replay-denied per 60s." Pre-mint a pool via `tests/load/mint-token-pool.mjs`
+// and feed via `AEGIS_E2E_TOKEN_POOL=/tmp/aegis-token-pool.txt`. Each VU
+// iteration round-robins through the pool so distinct jtis exercise
+// approve-throughput. SharedArray loads once into init memory; copies are
+// COW-shared across VUs by the goja runtime.
+const tokenPool = new SharedArray('aegis-token-pool', function () {
+  if (!TOKEN_POOL_FILE) return REQUEST_TOKEN ? [REQUEST_TOKEN] : [];
+  // k6's setup-time `open()` is a built-in global (no import).
+  const text = open(TOKEN_POOL_FILE);
+  return text.split('\n').filter((l) => l.length > 0);
+});
 
 const denialCounter = new Counter('aegis_verify_denials');
 const approvedCounter = new Counter('aegis_verify_approved');
@@ -55,23 +73,35 @@ export const options = {
 };
 
 export default function () {
+  // Round-robin through the pool. `__ITER` is the per-VU iteration counter
+  // exposed by k6; combined with `__VU` it produces a unique stride that
+  // doesn't collide across VUs. When the pool is smaller than total
+  // iterations, wrap is acceptable: replay-protection will start denying
+  // wrapped tokens, which IS a real-world signal.
+  // eslint-disable-next-line no-undef
+  const idx = (__VU * 1_000_003 + __ITER) % tokenPool.length;
+  const token = tokenPool[idx];
   const body = JSON.stringify({
-    token: REQUEST_TOKEN,
+    token,
     action: 'commerce.purchase',
-    amount: 5,
+    amount: 199,
     currency: 'USD',
     merchantDomain: 'delta.com',
   });
   const res = http.post(`${BASE}/v1/verify`, body, {
     headers: {
       'content-type': 'application/json',
-      'X-AEGIS-API-Key': KEY,
+      // verify path expects the verify-only key header per OpenAPI security
+      // definition `PublicVerifyKey`. FULL-scope keys are accepted there too.
+      'X-AEGIS-Verify-Key': KEY,
     },
     tags: { name: 'verify' },
   });
   verifyLatency.add(res.timings.duration);
   const ok = check(res, {
-    'status is 200': (r) => r.status === 200,
+    // Verify writes a new audit row → server returns 201 Created. Accept
+    // 200 OR 201; everything else (4xx auth, 5xx) remains a real failure.
+    'status is 200 or 201': (r) => r.status === 200 || r.status === 201,
     'body has valid field': (r) => {
       try {
         const j = r.json();

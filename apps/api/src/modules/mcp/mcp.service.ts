@@ -10,7 +10,7 @@
 // on the registry. It does NOT touch the verify algorithm. The wiring
 // from `relyingPartyId → audit.relyingPartyId` is delivered by M-022.
 
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { ulid } from 'ulid';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -24,8 +24,6 @@ const DEFAULT_MIN_TRUST_BAND: McpServerDto['minTrustBand'] = 'VERIFIED';
 
 @Injectable()
 export class McpService {
-  private readonly logger = new Logger(McpService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
@@ -33,15 +31,18 @@ export class McpService {
 
   async register(principalId: string, dto: RegisterMcpServerDto): Promise<McpServerDto> {
     const id = `mcp_${ulid()}`;
-    // The schema column for MCP-server-as-RP is added in M-026 (schema
-    // migration owned by peer). Until then we store as a generic
-    // RelyingParty row with `kind: 'MCP_SERVER'` (NEW enum value, M-026).
+    // RelyingPartyKind.MCP_SERVER landed in the schema (peer 7a07798e's
+    // 20260502000400_idp_federation_and_rp_ownership migration). The
+    // earlier `as never` cast is no longer needed — Prisma types are real.
     const created = await this.prisma.relyingParty.create({
       data: {
         id,
         principalId,
         name: dto.name,
-        kind: 'MCP_SERVER' as never, // Cast: enum value lands in M-026.
+        domain: dto.endpoint, // RelyingParty.domain is unique; reuse endpoint as the canonical identifier.
+        apiKeyHash: `mcp:${id}`, // Placeholder — MCP servers don't need API keys (they call AEGIS via the user's principal).
+        kind: 'MCP_SERVER',
+        status: 'ACTIVE',
         metadata: {
           endpoint: dto.endpoint,
           transport: dto.transport,
@@ -65,7 +66,10 @@ export class McpService {
 
     return this.toDto({
       id: created.id,
-      principalId: created.principalId,
+      // RelyingParty.principalId is nullable (FK SetNull on principal-delete),
+      // but the row we just minted is owned by `principalId` (the function
+      // arg), so we can return it without a null-check.
+      principalId,
       name: dto.name,
       endpoint: dto.endpoint,
       transport: dto.transport,
@@ -81,10 +85,12 @@ export class McpService {
 
   async list(principalId: string): Promise<ListMcpServersDto> {
     const rows = await this.prisma.relyingParty.findMany({
-      where: { principalId, kind: 'MCP_SERVER' as never },
+      where: { principalId, kind: 'MCP_SERVER' },
       orderBy: { createdAt: 'desc' },
     });
-    const servers = rows.map((r) => {
+    const servers = rows
+      .filter((r): r is typeof r & { principalId: string } => r.principalId !== null)
+      .map((r) => {
       const m = (r.metadata as Record<string, unknown>) ?? {};
       return this.toDto({
         id: r.id,
@@ -108,7 +114,7 @@ export class McpService {
 
   async revoke(principalId: string, mcpServerId: string): Promise<void> {
     const existing = await this.prisma.relyingParty.findFirst({
-      where: { id: mcpServerId, principalId, kind: 'MCP_SERVER' as never },
+      where: { id: mcpServerId, principalId, kind: 'MCP_SERVER' },
     });
     if (!existing) throw new NotFoundException('mcp_server_not_found');
     await this.prisma.relyingParty.update({

@@ -60,7 +60,11 @@ export class Auth0Adapter implements IdpAdapter {
     const jwk = await this.getJwk(header.kid);
     if (!jwk) return null;
 
-    const pubKey = createPublicKey({ key: jwk, format: 'jwk' });
+    // type-rationale: our `Jwk` interface is RSA-shaped and matches `JsonWebKey`
+    // structurally, but lacks the `[index: string]: unknown` signature node:crypto
+    // requires. The cast is safe — `createPublicKey` reads `kty/n/e` and ignores
+    // the rest, and we've already validated `kty: 'RSA'` upstream.
+    const pubKey = createPublicKey({ key: jwk as unknown as import('node:crypto').JsonWebKey, format: 'jwk' });
     const data = Buffer.from(`${headerB64}.${payloadB64}`, 'utf8');
     const sig = Buffer.from(sigB64, 'base64url');
     const algoOid = header.alg === 'RS512' ? 'RSA-SHA512' : header.alg === 'RS384' ? 'RSA-SHA384' : 'RSA-SHA256';
@@ -79,7 +83,12 @@ export class Auth0Adapter implements IdpAdapter {
     };
   }
 
-  async ensurePrincipalForOrg(args: { idpOrganizationId: string; idpDomain: string }): Promise<{ principalId: string; created: boolean }> {
+  async ensurePrincipalForOrg(args: {
+    idpOrganizationId: string;
+    idpDomain: string;
+    email: string;
+    name?: string | null;
+  }): Promise<{ principalId: string; created: boolean }> {
     // Lookup by IdP fields. If absent, create a principal whose id is
     // derived from a stable hash of the IdP org id (so a re-create is
     // idempotent and discoverable from operational logs).
@@ -93,7 +102,8 @@ export class Auth0Adapter implements IdpAdapter {
     const principal = await this.prisma.principal.create({
       data: {
         id: `p_a0_${fingerprint}`,
-        name: args.idpDomain,
+        email: args.email,
+        name: args.name ?? args.idpDomain,
         idpProvider: 'auth0',
         idpOrganizationId: args.idpOrganizationId,
         idpDomain: args.idpDomain,

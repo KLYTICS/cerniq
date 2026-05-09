@@ -1,9 +1,8 @@
 // Auth0Service — orchestrates the Action callback (login event) and the
 // dashboard token-exchange flow. Defers all IdP-specifics to Auth0Adapter.
 
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ulid } from 'ulid';
-import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { Auth0Adapter } from './auth0.adapter';
 import type {
@@ -15,10 +14,7 @@ import type {
 
 @Injectable()
 export class Auth0Service {
-  private readonly logger = new Logger(Auth0Service.name);
-
   constructor(
-    private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly idp: Auth0Adapter,
   ) {}
@@ -31,6 +27,10 @@ export class Auth0Service {
     const principal = await this.idp.ensurePrincipalForOrg({
       idpOrganizationId: dto.organization_id,
       idpDomain: '', // Action carries org_id; domain populated on next regular login.
+      email: dto.email,
+      // Action DTO doesn't carry display name today; falls back to idpDomain
+      // inside the adapter when null.
+      name: null,
     });
 
     const auditEventId = `audit_${ulid()}`;
@@ -68,6 +68,8 @@ export class Auth0Service {
     const principal = await this.idp.ensurePrincipalForOrg({
       idpOrganizationId: user.idpOrganizationId,
       idpDomain: user.idpDomain,
+      email: user.email,
+      name: user.name,
     });
 
     // Mint an AEGIS API key for the next 8 hours. Stored in ApiKey table

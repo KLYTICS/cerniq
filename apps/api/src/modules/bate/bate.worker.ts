@@ -10,6 +10,10 @@
 //   - The worker reads the agent + recent signals, computes the score,
 //     persists `TrustScoreHistory`, invalidates Redis, and (if the band
 //     changed) emits an `aegis.agent.trust_score_changed` webhook.
+//   - G-3: After scoring, BateAnomalyDetector runs over the same window.
+//     Any emitted anomaly signals are persisted directly (bypasses BateService
+//     to avoid circular DI) and a follow-up recompute is enqueued so the
+//     new signals factor into the score on the next pass.
 
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Queue, Worker } from 'bullmq';
@@ -20,6 +24,7 @@ import { AppConfigService } from '../../config/config.service';
 import { MetricsService } from '../../common/observability/metrics.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
 import { BateScorer } from './bate.scorer';
+import { BateAnomalyDetector, type DetectorWindow } from './bate.anomaly';
 
 export const BATE_QUEUE = 'aegis.bate';
 
@@ -42,6 +47,7 @@ export class BateRecomputeWorker implements OnModuleInit, OnModuleDestroy {
     private readonly metrics: MetricsService,
     private readonly scorer: BateScorer,
     private readonly webhooks: WebhooksService,
+    private readonly anomalyDetector: BateAnomalyDetector,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -114,6 +120,94 @@ export class BateRecomputeWorker implements OnModuleInit, OnModuleDestroy {
         relyingPartyWeights[`relying_party:${rp.domain}`] = rp.reportWeight;
       }
     }
+
+    // ── G-3: Run anomaly detector over the same window ──────────────────────
+    // Pure function — no side effects. Emitted signals are persisted below
+    // directly via Prisma (bypasses BateService to avoid circular DI).
+    // We fetch the supplementary data the detector needs in parallel with
+    // the RP-weight lookup above, so the critical path stays fast.
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 3_600_000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 86_400_000);
+
+    const [recentDenialsRaw, recentSpendsRaw, delegationDepthRaw] = await Promise.all([
+      // AuditEvent uses `decision` (AuditDecision enum) and `timestamp` — not `outcome`/`createdAt`.
+      this.prisma.auditEvent.findMany({
+        where: { agentId: data.agentId, decision: 'DENIED', timestamp: { gte: oneHourAgo } },
+        select: { denialReason: true, timestamp: true },
+        take: 500,
+      }),
+      this.prisma.spendRecord.findMany({
+        where: { agentId: data.agentId, date: { gte: thirtyDaysAgo } },
+        select: { amount: true, currency: true, date: true },
+        take: 1_000,
+      }),
+      this.prisma.agentDelegation.count({
+        where: { delegatorId: data.agentId, status: 'ACTIVE', expiresAt: { gt: now } },
+      }),
+    ]);
+
+    // Derive geographic signals from BateSignal payloads where countryCode is present.
+    // BateSignal uses `occurredAt` — not `createdAt`.
+    const recentLocations = recentSignals
+      .filter((s) => {
+        const p = s.payload as Record<string, unknown> | null;
+        return typeof p?.countryCode === 'string';
+      })
+      .map((s) => ({
+        countryCode: (s.payload as Record<string, string>).countryCode,
+        timestamp: s.occurredAt,
+      }));
+
+    const detectorWindow: DetectorWindow = {
+      now,
+      signals: recentSignals,
+      recentDenials: recentDenialsRaw.map((d) => ({
+        denialReason: d.denialReason ?? 'UNKNOWN',
+        timestamp: d.timestamp,
+      })),
+      recentSpends: recentSpendsRaw.map((s) => ({
+        amount: Number(s.amount),
+        currency: s.currency,
+        timestamp: s.date,
+      })),
+      recentLocations,
+      delegationChainDepth: delegationDepthRaw,
+    };
+
+    const emittedSignals = this.anomalyDetector.detect(detectorWindow);
+
+    if (emittedSignals.length > 0) {
+      // Persist anomaly signals directly (avoids BateService circular dep).
+      // Use createMany with skipDuplicates so a repeated anomaly in the same
+      // recompute window doesn't double-count (idempotency key = type+agentId+minute).
+      const minute = Math.floor(now.getTime() / 60_000);
+      await this.prisma.bateSignal.createMany({
+        data: emittedSignals.map((s) => ({
+          agentId: data.agentId,
+          signalType: s.signalType,
+          severity: s.severity,
+          source: s.source,
+          payload: { reason: s.reason } as object,
+          idempotencyKey: `anomaly:${s.signalType}:${data.agentId}:${minute}`,
+        })),
+        skipDuplicates: true,
+      });
+
+      // Re-enqueue a follow-up recompute so the new signals feed the score.
+      // The 5 s delay lets this job finish first; BullMQ jobId deduplication
+      // prevents stacking if another signal arrives in the same window.
+      await this.enqueue(data.agentId);
+
+      this.logger.warn(
+        `BATE anomaly: agent=${data.agentId} rules=[${emittedSignals.map((s) => s.source).join(',')}]`,
+      );
+      // Increment per-rule counter — low-cardinality label (rule name), not agent_id.
+      for (const s of emittedSignals) {
+        this.metrics.bateAnomalyTriggerTotal.inc({ rule: s.source });
+      }
+    }
+    // ── End G-3 ─────────────────────────────────────────────────────────────
 
     const explanation = this.scorer.explain({
       currentScore: agent.trustScore,

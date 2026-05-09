@@ -6,6 +6,9 @@ export default defineConfig({
     browser: 'src/browser.ts',
   },
   format: ['esm', 'cjs'],
+  outExtension({ format }) {
+    return { js: format === 'cjs' ? '.cjs' : '.mjs' };
+  },
   dts: true,
   splitting: false,
   sourcemap: true,

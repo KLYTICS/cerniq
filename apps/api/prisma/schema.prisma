@@ -21,33 +21,129 @@ model Principal {
   planTier          PlanTier @default(FREE)
   billingCustomerId String?
 
-  emailVerified     Boolean  @default(false)
-  kycVerified       Boolean  @default(false)
+  // ── Stripe billing (G-3, OD-003) ───────────────────────────────
+  // Stripe is OPTIONAL: when keys are absent, plan tier can still be
+  // managed manually via admin tooling. `stripeCustomerId` is the
+  // Stripe `cus_*` id; populated on first checkout. `stripeSubscriptionId`
+  // is the active `sub_*` id; nullable for FREE / unsubscribed principals.
+  // Marked @unique so the webhook handler can reverse-lookup a
+  // principal by subscription id without a tenant scan.
+  stripeCustomerId     String?
+  stripeSubscriptionId String? @unique
+  // ── Stripe metered overage line (Round 21 Lane B) ───────────────
+  // The Stripe `si_*` subscription-item id of the metered price line
+  // (`STRIPE_PRICE_OVERAGE_VERIFY`) on the active subscription. Populated
+  // by `StripeService.onCheckoutCompleted` / `onSubscriptionUpdated` when a
+  // matching metered line is found on `subscription.items`. NULL for FREE,
+  // ENTERPRISE (custom-invoiced), and any subscription whose price set does
+  // not include the verify-overage line. `StripeService.recordOverage`
+  // emits one `usage_records.create` per over-quota verify against this id.
+  // Fail-OPEN: a NULL value on a paid tier means we under-bill, never block.
+  stripeOverageItemId  String?
+  // Mirrors Stripe Subscription.status (active, past_due, canceled, etc.).
+  // Uppercase enum-like string so the webhook handler can store the raw
+  // Stripe value without a database migration whenever Stripe adds a new
+  // state. Read-only from the application's perspective: only the webhook
+  // handler writes to this column.
+  subscriptionStatus   String?
 
-  apiKeys  ApiKey[]
-  agents   AgentIdentity[]
-  webhooks WebhookSubscription[]
+  emailVerified Boolean @default(false)
+  kycVerified   Boolean @default(false)
+
+  // ── Identity-provider federation (ADR-0009 Auth0 bridge) ───────
+  // Composite of (idpProvider, idpUserId) is the foreign identity
+  // anchor: e.g. ("https://klytics.eu.auth0.com/", "auth0|abc123").
+  // Both nullable so a Principal can be created via local sign-up
+  // OR via federated login. `idpDomain` carries the customer-facing
+  // tenant (e.g. "acme.com") for routing/branding — INFORMATIONAL only,
+  // must not be used for authorization.
+  idpProvider       String?
+  idpUserId         String?
+  idpDomain         String?
+  // Auth0 organization id — used by tenants that segment users into orgs.
+  // Nullable; absent for non-Auth0 IdPs and personal Auth0 accounts.
+  idpOrganizationId String?
+
+  // ── Pluggable policy engine (ADR-0012) ─────────────────────────
+  // 'builtin' | 'cedar' | 'opa'. Default is the Phase-0 hand-coded
+  // port behind the PolicyEngine interface.
+  policyEngine String @default("builtin")
+
+  // ── Free-trial lifetime counter (ADR-0014, Round 17) ────────────
+  // `trialUsedCount` tracks total verifies consumed by a FREE-tier
+  // principal across their lifetime. Source of truth at runtime is
+  // Redis (`trial:used:<principalId>`) — this column is the durable
+  // mirror, flushed every Nth increment by `TrialService` plus an
+  // immediate write when the cap fires. Non-FREE principals carry
+  // these fields too so re-downgrade or admin overrides keep the
+  // history intact (no data loss on plan churn).
+  trialUsedCount   Int       @default(0)
+  trialExhaustedAt DateTime?
+
+  apiKeys        ApiKey[]
+  agents         AgentIdentity[]
+  webhooks       WebhookSubscription[]
+  relyingParties RelyingParty[]
+  onboarding     PrincipalOnboarding?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([email])
+  @@index([idpProvider, idpUserId])
+  // Partial-style index for the dashboard "trials about to expire" view.
+  // Postgres ignores NULL values in btree indexes by default; the WHERE
+  // predicate is enforced via raw SQL in the migration for clarity.
+  @@index([trialExhaustedAt])
+}
+
+/// PrincipalOnboarding — one-row-per-principal activation tracker
+/// (OD-012, M-039 follow-up). Drives dashboard wizard + `aegis doctor`.
+/// Booleans are one-way (never flipped back to false on revoke); the
+/// timestamps are populated on the same write that toggles each boolean.
+model PrincipalOnboarding {
+  principalId            String    @id
+  principal              Principal @relation(fields: [principalId], references: [id], onDelete: Cascade)
+  hasFirstAgent          Boolean   @default(false)
+  hasFirstPolicy         Boolean   @default(false)
+  hasFirstVerify         Boolean   @default(false)
+  hasKmsConfigured       Boolean   @default(false)
+  hasMcpServerRegistered Boolean   @default(false)
+  hasWebhookSubscribed   Boolean   @default(false)
+  hasPaymentMethodAdded  Boolean   @default(false)
+  firstAgentAt           DateTime?
+  firstPolicyAt          DateTime?
+  firstVerifyAt          DateTime?
+  kmsConfiguredAt        DateTime?
+  firstMcpServerAt       DateTime?
+  firstWebhookAt         DateTime?
+  paymentMethodAt        DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@index([firstVerifyAt])
 }
 
 model ApiKey {
-  id          String    @id @default(cuid())
-  keyHash     String    @unique
+  id          String      @id @default(cuid())
+  keyHash     String      @unique
   keyPrefix   String
   label       String?
   principalId String
-  principal   Principal @relation(fields: [principalId], references: [id], onDelete: Cascade)
+  principal   Principal   @relation(fields: [principalId], references: [id], onDelete: Cascade)
   scope       ApiKeyScope @default(FULL)
   lastUsedAt  DateTime?
   revokedAt   DateTime?
-  createdAt   DateTime  @default(now())
+  // Rotation overlap window (M-API-KEY-ROT). When a principal rotates a key,
+  // we stamp the OLD key's `expiresAt = now + overlapHours` so deployed
+  // integrations have time to swap. ApiKeyGuard rejects keys where
+  // `expiresAt IS NOT NULL AND expiresAt <= now()`. Null = no expiry.
+  expiresAt   DateTime?
+  createdAt   DateTime    @default(now())
 
   @@index([principalId])
   @@index([keyHash])
+  @@index([expiresAt])
 }
 
 enum PlanTier {
@@ -67,10 +163,10 @@ enum ApiKeyScope {
 // ─────────────────────────────────────────────────────────────
 
 model AgentIdentity {
-  id          String       @id @default(cuid())
+  id          String    @id @default(cuid())
   publicKey   String
   principalId String
-  principal   Principal    @relation(fields: [principalId], references: [id], onDelete: Cascade)
+  principal   Principal @relation(fields: [principalId], references: [id], onDelete: Cascade)
 
   label   String?
   runtime AgentRuntime
@@ -88,12 +184,12 @@ model AgentIdentity {
   verifyCount    Int       @default(0)
   verifyCountDay Int       @default(0)
 
-  policies      AgentPolicy[]
-  auditEvents   AuditEvent[]
-  bateSignals   BateSignal[]
-  delegationsFrom AgentDelegation[] @relation("delegator")
-  delegationsTo   AgentDelegation[] @relation("delegate")
-  scoreHistory  TrustScoreHistory[]
+  policies        AgentPolicy[]
+  auditEvents     AuditEvent[]
+  bateSignals     BateSignal[]
+  delegationsFrom AgentDelegation[]   @relation("delegator")
+  delegationsTo   AgentDelegation[]   @relation("delegate")
+  scoreHistory    TrustScoreHistory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -146,10 +242,17 @@ model AgentPolicy {
 
   verifyCount Int @default(0)
 
+  // ── Key rotation (ADR-0011) ────────────────────────────────────────
+  // Records which AEGIS JWT signing key signed this policy's token at
+  // create-time. Verifiers use this to look up the pubkey at JWKS even
+  // after rotation — old policies remain verifiable until natural expiry.
+  signedTokenKeyId String?
+
   createdAt DateTime @default(now())
 
   @@index([agentId])
   @@index([status, expiresAt])
+  @@index([signedTokenKeyId])
 }
 
 enum PolicyStatus {
@@ -203,7 +306,7 @@ model OutboxEvent {
 }
 
 model AuditEvent {
-  id          String         @id @default(cuid())
+  id             String         @id @default(cuid())
   // Nullable: a verify call for AGENT_NOT_FOUND has no agent to reference.
   // Audit row still records (a) the relying party who attempted, (b) the
   // claimed agentId in `claimedAgentId`, and (c) full denial precedence.
@@ -221,9 +324,9 @@ model AuditEvent {
   // without breaking the chain. See docs/decisions/0006-audit-redactability.md.
   // The signed payload commits to *Hash columns instead, so erasure leaves
   // the signature intact.
-  action          String?
-  decision        AuditDecision
-  denialReason    String?
+  action       String?
+  decision     AuditDecision
+  denialReason String?
 
   relyingParty    String?
   requestedAmount Decimal? @db.Decimal(14, 2)
@@ -253,12 +356,27 @@ model AuditEvent {
   // Audit-chain payload schema version — verifiers branch on this.
   payloadVersion Int    @default(2)
 
+  // ── Enterprise backbone fields (ADR-0011, ADR-0012, ADR-0008) ─────
+  // signingKeyId stamps which AEGIS audit-signing key signed this row;
+  // verifiers fetch the matching pubkey from /.well-known/audit-signing-key.
+  // policyEngineId + engineMetadata record which PolicyEngine produced
+  // the decision (`builtin`/`cedar`/`opa`) and any engine-specific data.
+  // relyingPartyId FKs to the MCP server / commerce endpoint that
+  // initiated the verify, lets dashboards slice events per-RP.
+  signingKeyId    String        @default("kid-genesis-v1")
+  policyEngineId  String?
+  engineMetadata  Json?
+  relyingPartyId  String?
+  relyingPartyRel RelyingParty? @relation(fields: [relyingPartyId], references: [id], onDelete: SetNull)
+
   timestamp DateTime @default(now())
 
   @@index([agentId, timestamp])
   @@index([principalId, timestamp])
   @@index([relyingParty, timestamp])
   @@index([timestamp])
+  @@index([signingKeyId])
+  @@index([relyingPartyId])
 }
 
 enum AuditDecision {
@@ -307,6 +425,10 @@ enum BateSignalType {
   POLICY_VIOLATION_ATTEMPT
   FAILED_VERIFY_SPIKE
   DELEGATION_CHAIN_ANOMALY
+
+  // ── DPoP — RFC 9449 (ADR-0010, M-024) ─────────────────────────────
+  AGENT_NO_DPOP
+  AGENT_DPOP_REPLAY_ATTEMPT
 }
 
 enum SignalSeverity {
@@ -410,18 +532,55 @@ enum DeliveryStatus {
 // ─────────────────────────────────────────────────────────────
 
 model RelyingParty {
-  id         String  @id @default(cuid())
+  id         String @id @default(cuid())
   name       String
-  domain     String  @unique
-  apiKeyHash String  @unique
+  domain     String @unique
+  apiKeyHash String @unique
 
-  reportWeight Float @default(1.0)
+  // Reverse relation for AuditEvent.relyingPartyRel (ADR-0008 §4).
+  auditEvents AuditEvent[]
 
-  verified   Boolean   @default(false)
-  verifiedAt DateTime?
+  // ── Ownership ─────────────────────────────────────────────────
+  // RelyingParties are tenant-owned (a principal registers an MCP
+  // server / commerce endpoint as a relying party). Required so RLS
+  // policies on RelyingParty enforce per-principal scope.
+  principalId String?
+  principal   Principal? @relation(fields: [principalId], references: [id], onDelete: SetNull)
+
+  // ── Lifecycle ─────────────────────────────────────────────────
+  status RelyingPartyStatus @default(PENDING)
+  kind   RelyingPartyKind   @default(GENERIC)
+
+  // ── Trust + reporting ─────────────────────────────────────────
+  reportWeight Float     @default(1.0)
+  verified     Boolean   @default(false)
+  verifiedAt   DateTime?
+
+  // ── Custom integration metadata (per-RP config blob) ──────────
+  // E.g. MCP server's tool catalog hash, Auth0 application client_id,
+  // OIDC discovery URL. Schema is per-kind and validated at the app
+  // layer; kept as Json so we don't need a migration per integration.
+  metadata Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([domain])
+  @@index([principalId])
+  @@index([kind, status])
+}
+
+enum RelyingPartyStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum RelyingPartyKind {
+  GENERIC
+  MCP_SERVER
+  COMMERCE
+  AUTH0_APP
+  OIDC_CLIENT
 }

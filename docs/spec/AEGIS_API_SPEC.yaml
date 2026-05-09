@@ -568,14 +568,23 @@ components:
         denialReason:
           type: string
           nullable: true
-          description: Only present when valid=false
+          description: |
+            Only present when valid=false. The enum order below is the
+            CANONICAL DENIAL PRECEDENCE (top wins) — see CLAUDE.md
+            invariant 6 / ADR-0004 / packages/types DENIAL_REASON_PRECEDENCE.
+            Relying-party SDKs depend on this order; do not reorder
+            without a major API version bump.
+            PLAN_LIMIT_EXCEEDED is a billing pre-gate that fires before the
+            9-step algorithm chain — it is always position 0 in this enum.
           enum:
+            - PLAN_LIMIT_EXCEEDED
             - AGENT_NOT_FOUND
             - AGENT_REVOKED
             - INVALID_SIGNATURE
-            - POLICY_EXPIRED
             - POLICY_REVOKED
+            - POLICY_EXPIRED
             - SCOPE_NOT_GRANTED
+            - TRIAL_EXHAUSTED
             - SPEND_LIMIT_EXCEEDED
             - TRUST_SCORE_TOO_LOW
             - ANOMALY_FLAGGED

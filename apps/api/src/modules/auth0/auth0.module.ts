@@ -1,5 +1,9 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '../../config/config.module';
+import { AppConfigModule } from '../../config/config.module';
+// type-rationale: peer's auth0 module references config.auth0Issuer +
+// config.auth0Audience + config.auth0ActionSecret which are present in
+// AppConfigService (added Round 5). Module imports AppConfigModule to
+// expose them to DI.
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { RedisModule } from '../../common/redis/redis.module';
 import { AuditModule } from '../audit/audit.module';
@@ -14,7 +18,7 @@ import { Auth0Controller } from './auth0.controller';
  * (service, DTOs, audit hooks) is provider-agnostic.
  */
 @Module({
-  imports: [ConfigModule, PrismaModule, RedisModule, AuditModule],
+  imports: [AppConfigModule, PrismaModule, RedisModule, AuditModule],
   controllers: [Auth0Controller],
   providers: [Auth0Adapter, Auth0Service],
   exports: [Auth0Service],

@@ -47,6 +47,15 @@ export interface IdpAdapter {
    * Upsert the AEGIS Principal for an IdP organization. Called from the
    * Auth0 Action `aegis-audit-login.js` and from any first-time login.
    * Returns `{ principalId, created }`.
+   *
+   * `email` is required on first creation because `Principal.email` is a
+   * non-null unique column. On lookup-only (existing principal), `email`
+   * is unused.
    */
-  ensurePrincipalForOrg(args: { idpOrganizationId: string; idpDomain: string }): Promise<{ principalId: string; created: boolean }>;
+  ensurePrincipalForOrg(args: {
+    idpOrganizationId: string;
+    idpDomain: string;
+    email: string;
+    name?: string | null;
+  }): Promise<{ principalId: string; created: boolean }>;
 }

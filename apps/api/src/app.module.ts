@@ -1,5 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 
@@ -21,6 +22,19 @@ import { BateModule } from './modules/bate/bate.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { HealthModule } from './modules/health/health.module';
 import { WellknownModule } from './modules/wellknown/wellknown.module';
+
+// Round 5–8 modules (enterprise backbone — wired here so AppModule
+// instantiates them at boot. Each module is imported individually so
+// operators can selectively disable via a fork without surgery.)
+import { KmsModule } from './modules/kms/kms.module';
+import { Auth0Module } from './modules/auth0/auth0.module';
+import { IdpClerkModule } from './modules/idp-clerk/idp-clerk.module';
+import { IdpWorkOsModule } from './modules/idp-workos/idp-workos.module';
+import { McpModule } from './modules/mcp/mcp.module';
+import { ComplianceModule } from './modules/compliance/compliance.module';
+import { OnboardingModule } from './modules/onboarding/onboarding.module';
+import { PolicyEngineModule } from './common/policy-engine/policy-engine.module';
+import { BillingModule } from './modules/billing/billing.module';
 
 @Module({
   imports: [
@@ -60,6 +74,7 @@ import { WellknownModule } from './modules/wellknown/wellknown.module';
         { name: 'verify', ttl: 60_000, limit: config.throttleVerifyPerMin },
       ],
     }),
+    ScheduleModule.forRoot(),
     CorrelationModule,
     PrismaModule,
     RedisModule,
@@ -75,6 +90,16 @@ import { WellknownModule } from './modules/wellknown/wellknown.module';
     AuditModule,
     BateModule,
     WebhooksModule,
+    // Round 5–8 enterprise backbone:
+    KmsModule,
+    PolicyEngineModule, // registers Cedar+OPA WASM evaluators per AEGIS_POLICY_ENGINES env
+    Auth0Module,
+    IdpClerkModule,
+    IdpWorkOsModule,
+    McpModule,
+    ComplianceModule,
+    OnboardingModule,
+    BillingModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

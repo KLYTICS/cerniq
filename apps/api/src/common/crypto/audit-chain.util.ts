@@ -192,6 +192,22 @@ export class AuditChainUtil {
   }
 
   /**
+   * KMS-friendly variant (M-037). Composes the same `prev_hash || canonical(payload)`
+   * message but delegates the actual signing to a callback. Lets KMS-backed
+   * signers participate without exposing a private key bundle to AEGIS code.
+   */
+  async signWithSigner(
+    input: AuditChainInput,
+    signRaw: (message: Uint8Array) => Promise<Uint8Array>,
+  ): Promise<string> {
+    const prev = this.prevHash(input.prevEventId, input.prevSignatureB64Url);
+    const canonical = enc.encode(this.canonicalize(input.payload));
+    const message = Buffer.concat([prev, canonical]);
+    const sig = await signRaw(message);
+    return encodeBase64Url(sig);
+  }
+
+  /**
    * Verify a single event's signature. Returns true iff the chain link is
    * intact for this event given the prior event's id+signature.
    */

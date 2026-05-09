@@ -1,7 +1,7 @@
 import { HttpClient } from './http.js';
-import { AgentClient } from './agent.js';
+import { AgentClient, type HandshakeVerified } from './agent.js';
 import { PolicyClient } from './policy.js';
-import { signAgentToken } from './crypto.js';
+import { signAgentToken, signHandshake } from './crypto.js';
 import type { AegisConfig, SignContext, VerifyResult } from './types.js';
 
 const DEFAULT_BASE_URL = 'https://api.aegislabs.io';
@@ -34,6 +34,23 @@ export class Aegis {
   }
 
   /**
+   * One-call handshake. Issues a challenge, signs the returned message with
+   * the supplied Ed25519 private key, posts the signature to verify-handshake,
+   * and returns the verified record. Idempotent — safe to call repeatedly;
+   * each call mints a fresh nonce.
+   *
+   * Use this when you have direct access to the agent's private key (CLI
+   * one-liner, server-to-server). For browser flows where the key is in a
+   * vault or KMS, call `agents.challenge()` and `agents.verifyHandshake()`
+   * separately and route the signing through your KMS.
+   */
+  async handshake(agentId: string, privateKeyB64u: string): Promise<HandshakeVerified> {
+    const challenge = await this.agents.challenge(agentId);
+    const signature = await signHandshake(privateKeyB64u, challenge.message);
+    return this.agents.verifyHandshake(agentId, signature);
+  }
+
+  /**
    * Verify an inbound agent token. Relying-party endpoint — uses the
    * verify-only key automatically.
    */
@@ -55,7 +72,7 @@ export class Aegis {
   }
 }
 
-export { generateKeypair, signAgentToken, decodeUnsafe } from './crypto.js';
+export { generateKeypair, signAgentToken, signHandshake, decodeUnsafe } from './crypto.js';
 export {
   AegisError,
   AegisAuthenticationError,
@@ -65,7 +82,22 @@ export {
   AegisConflictError,
   AegisRateLimitedError,
   AegisInternalError,
+  AegisServiceUnavailableError,
   AegisNetworkError,
   fromEnvelope,
+  isAegisErrorRetryable,
+  catalogEntryFor,
 } from './errors.js';
+export { withRetry, parseRetryAfter } from './http.js';
+export type { RetryOptions } from './http.js';
+export { MemoryVerifyCache, buildCacheKey, clampTtlMs } from './cache.js';
+export type { VerifyCache, CachedVerify, VerifyCacheContext } from './cache.js';
+export { VerifyGateway } from './verify-gateway.js';
+export type {
+  VerifyGatewayOptions,
+  VerifyGatewayHooks,
+  VerifyGatewayMetrics,
+  BreakerState,
+  FallbackMode,
+} from './verify-gateway.js';
 export type * from './types.js';

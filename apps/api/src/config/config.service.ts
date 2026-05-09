@@ -104,6 +104,68 @@ export class AppConfigService {
   get auth0ActionSecret(): string | undefined {
     return this.config.AUTH0_ACTION_SECRET;
   }
+  /**
+   * Webhook secret envelope DEK (base64). Optional in dev/test —
+   * `WebhookSecretCipher` generates an ephemeral one with a WARN log when
+   * absent. In production, the cipher must fail-loud if this is missing.
+   */
+  get webhookSecretDekB64(): string | undefined {
+    return this.config.AEGIS_WEBHOOK_SECRET_DEK_B64;
+  }
+  // ── WorkOS adapter (idp-workos.module reads via property cast) ────────
+  get workosApiKey(): string | undefined {
+    return this.config.WORKOS_API_KEY;
+  }
+  get workosCookiePassword(): string | undefined {
+    return this.config.WORKOS_COOKIE_PASSWORD;
+  }
+  // ── Stripe billing (G-3) ────────────────────────────────────────
+  // All optional — when STRIPE_SECRET_KEY is absent, StripeService NO-OPs
+  // (manual planTier still works). Price ids vary per env (test vs live).
+  get stripeSecretKey(): string | undefined {
+    return this.config.STRIPE_SECRET_KEY;
+  }
+  get stripeWebhookSecret(): string | undefined {
+    return this.config.STRIPE_WEBHOOK_SECRET;
+  }
+  get stripePriceDeveloper(): string | undefined {
+    return this.config.STRIPE_PRICE_DEVELOPER;
+  }
+  get stripePriceGrowth(): string | undefined {
+    return this.config.STRIPE_PRICE_GROWTH;
+  }
+  get stripePriceEnterprise(): string | undefined {
+    return this.config.STRIPE_PRICE_ENTERPRISE;
+  }
+  /**
+   * Metered Stripe price id for paid-tier verify overage (ADR-0014).
+   * Used by `StripeService.onSubscriptionUpdated` to identify the
+   * subscription-item line that `recordOverage` increments against.
+   */
+  get stripePriceOverageVerify(): string | undefined {
+    return this.config.STRIPE_PRICE_OVERAGE_VERIFY;
+  }
+  get stripePortalReturnUrl(): string | undefined {
+    return this.config.STRIPE_PORTAL_RETURN_URL;
+  }
+  get stripeCheckoutSuccessUrl(): string | undefined {
+    return this.config.STRIPE_CHECKOUT_SUCCESS_URL;
+  }
+  get stripeCheckoutCancelUrl(): string | undefined {
+    return this.config.STRIPE_CHECKOUT_CANCEL_URL;
+  }
+  /** Lookup a Stripe price id by AEGIS plan tier. Returns undefined for FREE. */
+  stripePriceId(tier: 'DEVELOPER' | 'GROWTH' | 'ENTERPRISE'): string | undefined {
+    switch (tier) {
+      case 'DEVELOPER':
+        return this.stripePriceDeveloper;
+      case 'GROWTH':
+        return this.stripePriceGrowth;
+      case 'ENTERPRISE':
+        return this.stripePriceEnterprise;
+    }
+  }
+
   get corsOrigins(): string | string[] {
     const raw = this.config.CORS_ORIGINS;
     if (raw === '*') return '*';

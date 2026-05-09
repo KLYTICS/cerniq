@@ -18,7 +18,7 @@
  */
 
 const DEFAULT_URL = 'http://localhost:3000';
-const HEALTH_PATH = '/health/live';
+const HEALTH_PATH = '/v1/health/live';
 const PROBE_TIMEOUT_MS = 2_000;
 
 function banner(lines: string[]): void {

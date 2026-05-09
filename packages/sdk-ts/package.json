@@ -1,8 +1,18 @@
 {
   "name": "@aegis/sdk",
   "version": "0.1.0",
-  "description": "AEGIS — Agent Gateway & Identity Stack — TypeScript SDK.",
+  "description": "AEGIS — Agent Gateway & Identity Stack — TypeScript SDK. Cryptographic identity, scoped policies, and verification for AI agents.",
   "license": "MIT",
+  "author": "AEGIS Labs <hello@aegislabs.io>",
+  "homepage": "https://aegislabs.io",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klytics/aegis.git",
+    "directory": "packages/sdk-ts"
+  },
+  "bugs": {
+    "url": "https://github.com/klytics/aegis/issues"
+  },
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -13,11 +23,12 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": ["dist", "README.md", "LICENSE"],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "build": "tsup",
+    "prepublishOnly": "pnpm build",
+    "dev": "tsup --watch",
     "test": "jest",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "typecheck": "tsc --noEmit"

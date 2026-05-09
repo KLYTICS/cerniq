@@ -112,20 +112,40 @@ When `/v1/verify` rejects a request, the response carries **exactly one**
 reason wins. **This order is part of the public API**; relying parties
 build retry/escalation logic on it. Changing it is a breaking change.
 
+`PLAN_LIMIT_EXCEEDED` is a **billing pre-gate** that fires BEFORE the
+algorithm chain — it is not part of the 10-step chain but is included
+in the `denialReason` enum so relying parties can match it cleanly.
+
+0. `PLAN_LIMIT_EXCEEDED` — billing pre-gate; principal exhausted the
+   monthly verify quota for their paid plan. Direct user to upgrade.
+   *(Position 0 — fires before the algorithm runs.)*
+
+The 10-step algorithm chain (top wins, fires only if PLAN_LIMIT_EXCEEDED
+is not triggered):
+
 1. `AGENT_NOT_FOUND` — token's `sub` claim doesn't resolve.
 2. `AGENT_REVOKED` — agent record exists but `status = REVOKED`.
 3. `INVALID_SIGNATURE` — token signature fails verification.
 4. `POLICY_REVOKED` — policy referenced by token has been revoked.
 5. `POLICY_EXPIRED` — policy `expiresAt < now()`.
 6. `SCOPE_NOT_GRANTED` — requested action/category not in policy scopes.
-7. `SPEND_LIMIT_EXCEEDED` — request amount + period total > limit.
-8. `TRUST_SCORE_TOO_LOW` — agent score below relying-party threshold (if
+7. `TRIAL_EXHAUSTED` — free-trial principal has consumed the lifetime
+   10K-verify cap (ADR-0014). Direct user to a paid plan.
+   *(Added 2026-05-05 between SCOPE_NOT_GRANTED and SPEND_LIMIT_EXCEEDED.)*
+8. `SPEND_LIMIT_EXCEEDED` — request amount + period total > policy limit.
+9. `TRUST_SCORE_TOO_LOW` — agent score below relying-party threshold (if
    relying party supplied a `minTrustScore` in the request).
-9. `ANOMALY_FLAGGED` — BATE has set a flag forcing rejection.
+10. `ANOMALY_FLAGGED` — BATE has set a flag forcing rejection.
 
 Why this order: identity issues before policy issues before behavioral
 issues. A revoked agent should never see a "scope" denial — that would
 leak that the scope evaluation logic ran on revoked agents.
+
+`TRIAL_EXHAUSTED` sits after `SCOPE_NOT_GRANTED` because trial
+exhaustion is a billing-tier gate that should fire only when the
+agent's identity, policy, and scope have already validated cleanly —
+otherwise we'd leak "this trial is exhausted" to a caller whose token
+was never going to be accepted anyway.
 
 ---
 

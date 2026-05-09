@@ -1,156 +1,242 @@
-# AEGIS — Operating directive for Claude sessions
+# AEGIS - Claude operating contract
 
-> **Read this first.** This document is the contract every Claude session in
-> this repo agrees to. It exists so parallel terminals can ship in concert
-> instead of stepping on each other.
+Last audited: 2026-05-08
 
----
+Read this before changing anything. This repository is a security, identity,
+policy, billing, audit, SDK, dashboard, and edge platform. Treat it like
+public-company infrastructure: every change needs a clear owner, a small blast
+radius, typed contracts, auditable behavior, and verification evidence.
 
-## What AEGIS is (one paragraph)
+## What AEGIS is
 
 AEGIS is the neutral verification, policy enforcement, and behavioral
-attestation layer between AI agents and the services they act on. We hold
-**only public keys**, we sign **only what we observed**, and we are the
-**Switzerland** of agent identity — protocol-, vendor-, and model-neutral.
-Full thesis: `docs/spec/01_MASTER.md`.
+attestation layer between AI agents and the services they act on. AEGIS holds
+only public keys, signs only what it observed, and remains protocol-, vendor-,
+and model-neutral. The canonical product and architecture references are:
 
----
+- `docs/spec/01_MASTER.md`
+- `docs/spec/03_TECHNICAL_SPEC.md`
+- `docs/ARCHITECTURE.md`
+- `docs/SECURITY.md`
+- `docs/SERVICE_MAP.md`
 
-## Architecture invariants (non-negotiable)
+## Repository map
 
-These are inviolable. If you think you need to break one, stop and write a
-proposal in `docs/decisions/`, then ping the operator.
+| Path              | Owns                                                                          | Local guidance             |
+| ----------------- | ----------------------------------------------------------------------------- | -------------------------- |
+| `apps/api/`       | NestJS control plane, verify origin, Prisma, billing, audit, policy, identity | `apps/api/CLAUDE.md`       |
+| `apps/dashboard/` | Next.js operator and developer dashboard                                      | `apps/dashboard/CLAUDE.md` |
+| `packages/`       | Public SDKs, types, CLI, MCP packages, relying-party verifier                 | `packages/CLAUDE.md`       |
+| `workers/`        | Cloudflare verify-edge surface                                                | `workers/CLAUDE.md`        |
+| `tests/`          | Black-box, parity, cross-package, load, and chaos tests                       | `tests/CLAUDE.md`          |
+| `infra/`          | Deployment, networking, Auth0, observability, backup, KMS docs/config         | `infra/CLAUDE.md`          |
+| `docs/`           | Specs, runbooks, threat models, release and compliance material               | `docs/CLAUDE.md`           |
 
-1. **Private keys never enter AEGIS.** Agent private keys are generated
-   client-side. Our database stores public keys only. The SDK is the only
-   surface that touches a private key, and only locally.
-2. **The verify hot path is portable.** All logic in `apps/api/src/modules/verify`
-   that touches signatures, policies, or spend evaluation must call into
-   packages that have **zero NestJS / DI / framework imports** (currently
-   `packages/types` and `apps/api/src/common/crypto/*` pure utilities). This
-   is what lets us migrate `/v1/verify` to Cloudflare Workers in Phase 3
-   without a rewrite.
-3. **The audit log is append-only and signed.** Every write goes through
-   `audit.service.append()`. No `UPDATE` or `DELETE` on `AuditEvent` ever.
-   Each event includes the previous event's id + a signature over `{prev_sig
-   || canonical(event)}` to form a hash chain.
-4. **No silent failures, no fabricated data.** If a downstream call fails,
-   surface it in the response and the audit log. Never return a synthetic
-   trust score, a stub policy, or an empty array that pretends to be a
-   "no results" answer when it's actually an error. (See operator's prior
-   FAANG bar in feedback memory: `feedback_apex_quality_bar`,
-   `feedback_cerniq_customer_journey`.)
-5. **Multi-tenant isolation by `principalId` on every query.** No cross-
-   principal data leaks. The `ApiKey` guard sets `req.principal` and every
-   service method takes `principalId` as the first arg.
-6. **Denial precedence is fixed.** Order, top wins:
-   `AGENT_NOT_FOUND` → `AGENT_REVOKED` → `INVALID_SIGNATURE` →
-   `POLICY_REVOKED` → `POLICY_EXPIRED` → `SCOPE_NOT_GRANTED` →
-   `SPEND_LIMIT_EXCEEDED` → `TRUST_SCORE_TOO_LOW` → `ANOMALY_FLAGGED`.
-   This is what relying parties code against. **Do not change without
-   updating `docs/SECURITY.md` § Denial Precedence and bumping API version.**
-
----
-
-## How parallel sessions claim work
-
-1. Open `WORK_BOARD.md` at repo root.
-2. Pick a module marked `STATUS: open`.
-3. Run `~/.claude/peers/bin/claude-peers claim aegis <module-id> --note "<what you'll do>" --ttl 7200`.
-4. Edit `WORK_BOARD.md` — flip STATUS to `claimed by <session-id>` and date it.
-5. Stay inside the file paths listed for that module. If you need to touch
-   files outside, message the holder of the conflicting claim:
-   `claude-peers msg <session-id> "need to touch X for Y reason"`.
-6. When done, append a short entry to `docs/SESSION_HANDOFF.md` and release:
-   `claude-peers release aegis:<module-id>`.
-
----
+Before editing a scoped path, read its local `CLAUDE.md` after this file.
 
 ## Stack reality
 
-- **Monorepo**: pnpm workspaces, no Turborepo (deliberate — pnpm `-r` is
-  enough at this scale).
-- **API**: NestJS 11, Fastify-eligible but on Express for `rawBody` ease,
-  Pino logging, Helmet, Zod-validated config, `@nestjs/throttler`.
-- **DB**: Prisma 5, PostgreSQL 16. Schema at `apps/api/prisma/schema.prisma`.
-- **Cache / queues**: Redis 7 + BullMQ 5.
-- **Crypto**: `@noble/ed25519` for Ed25519, `jose` for EdDSA JWTs. **Do not
-  introduce alternatives.** One curve, one library, audited.
-- **Tests**: Jest (Nest convention) inside `apps/api`. Standalone packages
-  may use Vitest.
-- **Lint/format**: ESLint + Prettier. Configured at root and per-app.
-- **SDK**: `packages/sdk-ts` (TypeScript, public, MIT — eventual);
-  `packages/sdk-py` (Python, future).
-- **Hosting**: Railway (origin) + Cloudflare Workers (Phase 3 edge).
-
----
+- Monorepo: pnpm workspaces. Root scripts are the primary orchestration surface.
+- API: NestJS 11, Prisma 5, PostgreSQL 16, Redis 7, BullMQ, Pino, Helmet, Zod
+  config, Prometheus metrics, OpenTelemetry hooks, Stripe billing, optional KMS
+  adapters.
+- Dashboard: Next.js 16 and React 19. Server components by default.
+- Public packages: TypeScript SDK, Python SDK, shared types, CLI, MCP server,
+  MCP bridge, and relying-party verifier.
+- Edge: Cloudflare Worker verify surface remains phase-gated and must preserve
+  origin semantics.
+- Crypto: Ed25519 is the primary curve. Use existing audited utilities and do
+  not introduce alternate crypto libraries casually.
 
 ## File layout cheatsheet
 
-```
+```text
 aegis/
-├── apps/
-│   ├── api/                       NestJS — identity, policy, verify, audit, BATE, webhooks
-│   │   ├── prisma/schema.prisma   Source of truth for the data model
-│   │   └── src/
-│   │       ├── main.ts            Bootstrap (Helmet, CORS, Swagger, validation pipe)
-│   │       ├── app.module.ts      Module wiring
-│   │       ├── common/            Cross-cutting: prisma, redis, crypto, filters
-│   │       ├── config/            Zod-validated env config
-│   │       └── modules/           Feature modules
-│   └── dashboard/                 Next.js 16 dev portal (Phase 1 minimal)
-├── packages/
-│   ├── types/                     Zod schemas — the API contract
-│   ├── sdk-ts/                    @aegis/sdk — public TypeScript SDK
-│   ├── sdk-py/                    aegis — Python SDK (scaffold)
-│   ├── tsconfig/                  Shared TS configs
-│   └── eslint-config/             Shared lint config (scaffold)
-├── workers/
-│   └── cf-verify/                 Cloudflare Worker — Phase 3 edge verify
-├── docs/
-│   ├── ARCHITECTURE.md            How the pieces fit together
-│   ├── SECURITY.md                Threat model, key handling, denial precedence
-│   ├── BATE_ALGORITHM.md          Trust score formula and signal weights
-│   ├── SESSION_HANDOFF.md         Living log of session deliveries
-│   └── spec/                      Original master, technical, GTM, API spec
-├── CLAUDE.md                      ← you are here
-├── WORK_BOARD.md                  Claimable modules
-├── README.md                      Public-facing quickstart
-└── docker-compose.yml             Local Postgres + Redis
+|-- apps/
+|   |-- api/                    NestJS control plane and origin verify path
+|   `-- dashboard/              Next.js operator/developer dashboard
+|-- packages/
+|   |-- types/                  shared Zod schemas and constants
+|   |-- sdk-ts/                 public TypeScript SDK
+|   |-- sdk-py/                 public Python SDK
+|   |-- cli/                    operator CLI
+|   |-- verifier-rp/            relying-party offline verifier
+|   |-- mcp-server/             AEGIS MCP server
+|   `-- mcp-bridge/             MCP verification middleware
+|-- workers/cf-verify/          Cloudflare verify edge
+|-- tests/                      e2e, parity, load, and chaos coverage
+|-- infra/                      deployment and operational config/docs
+|-- docs/                       specs, runbooks, decisions, handoffs
+|-- CLAUDE.md                   root Claude contract
+|-- AGENTS.md                   Codex/OMX operating contract
+|-- WORK_BOARD.md               claimable work modules
+`-- OPERATOR_DECISIONS.md       unresolved operator choices
 ```
 
----
+## Architecture invariants (non-negotiable)
 
-## Quality bar (mirroring operator's other projects)
+1. Private keys never enter AEGIS. Client SDKs may generate and hold private
+   keys locally; the API and database store public keys only.
+2. The `/v1/verify` hot path must remain portable. Decision logic that touches
+   signatures, policies, spend, trust scores, or denial precedence belongs in
+   pure utilities or portable package code, not NestJS-only wrappers.
+3. Audit events are append-only and signed. No production path may update or
+   delete `AuditEvent` records. Every append must preserve hash-chain
+   verifiability and third-party auditability.
+4. No silent failures and no fabricated data. Downstream failure must be visible
+   in the response, logs, metrics, or audit trail as appropriate. Never hide an
+   error behind an empty list, fake score, stub policy, or synthetic success.
+5. Multi-tenant isolation is by `principalId` on every query and mutation. The
+   API key guard establishes the principal; services carry that boundary all the
+   way to Prisma calls, cache keys, queues, and webhooks.
+6. Denial precedence is stable API behavior. Current order:
+   `AGENT_NOT_FOUND`, `AGENT_REVOKED`, `INVALID_SIGNATURE`,
+   `POLICY_REVOKED`, `POLICY_EXPIRED`, `SCOPE_NOT_GRANTED`,
+   `TRIAL_EXHAUSTED`, `SPEND_LIMIT_EXCEEDED`, `TRUST_SCORE_TOO_LOW`,
+   `ANOMALY_FLAGGED`. `PLAN_LIMIT_EXCEEDED` is the pre-algorithm billing gate.
+   Any change requires a spec/docs update, parity tests, and API version review.
+7. Contracts are generated or centrally owned. Wire schemas and constants belong
+   in `packages/types` unless a local package owns a narrower public contract.
+8. Public SDKs and verifier packages must stay runtime-portable. Do not add
+   Node-only APIs to browser, edge, or relying-party surfaces.
 
-- **No `any`** unless you justify it in a comment with a `// type-rationale:` prefix.
-- **`noUncheckedIndexedAccess`** is on at the base; the API softens it.
-  Don't soften it elsewhere.
-- **Every public service method has a unit test** (or an explicit
-  `// untestable: <reason>` comment).
-- **Errors are typed**, not strings. Use `AegisError` subclasses from
-  `apps/api/src/common/errors`.
-- **Constants live in `packages/types`**, not duplicated across services.
-- **No fabricated data**, no `Math.random` in production code paths
-  (allowed only in tests and seed scripts), no fallback values for
-  observability metrics.
-- **Crypto code requires a paired `.spec.ts`**. No exceptions.
+## Latest session state
 
----
+Use `docs/SESSION_HANDOFF.md` as the freshest work log when it conflicts with
+older summary docs. As of the newest reviewed sessions:
+
+- The conversion loop is live: pricing CTA to login return preservation to
+  billing auto-checkout to Stripe upgrade to continued verify.
+- `/.well-known/pricing.json` is the canonical public pricing mirror; dashboard
+  pricing SSR-fetches it through `AEGIS_API_BASE_URL` with an explicit build-time
+  fallback and parity coverage.
+- Safe redirect helpers protect `/login` return paths and checkout intent. Do
+  not bypass them with ad hoc URL handling.
+- Free trial exhaustion is a lifetime product gate represented by
+  `TRIAL_EXHAUSTED`; paid overage metering is wired through Stripe usage records
+  and must never block the verify hot path.
+- Cross-package parity is a first-class gate. Use it whenever dashboard, API,
+  generated enums, SDKs, OpenAPI, or public docs share a contract.
+
+## Quality bar
+
+- Prefer deletion, reuse, and boundary repair over new layers.
+- No new dependency unless the task explicitly requires it and the benefit is
+  worth the supply-chain and maintenance cost.
+- No `any` unless it has a nearby `// type-rationale:` comment.
+- No `Math.random` in production security, identity, billing, policy, or audit
+  paths. Use cryptographic randomness where randomness is required.
+- Errors are typed and cataloged. Do not throw raw strings.
+- Crypto, auth, billing, policy, audit, and tenant-boundary changes require
+  paired tests in the same change.
+- Migrations are append-only after merge. Never edit a previously applied
+  migration unless the operator explicitly asks for a local repair before it has
+  been deployed.
+- Public docs, OpenAPI, Zod schemas, generated enums, SDK types, and dashboard
+  assumptions must move together.
+- Keep changes small enough for a reviewer to understand the risk.
+
+## Work protocol
+
+1. Check `git status --short --branch` first. This repo often has many active
+   edits. Do not revert or overwrite work you did not make.
+2. Read `WORK_BOARD.md` and `docs/SESSION_HANDOFF.md` before broad changes.
+   If a Claude peer claim is required, use the existing `claude-peers` protocol.
+3. Identify the owning surface and read the local `CLAUDE.md`.
+4. Make the smallest coherent change. Keep unrelated cleanup out of feature,
+   security, or hot-path work.
+5. Update tests, generated files, docs, and runbooks in the same change when a
+   public contract or operator behavior changes.
+6. Run the narrowest meaningful verification first, then broader gates when the
+   blast radius justifies them.
+7. Leave a handoff entry in `docs/SESSION_HANDOFF.md` for meaningful platform
+   work, especially when the next session must know a decision or gap.
+
+## How parallel sessions claim work
+
+1. Open `WORK_BOARD.md`.
+2. Pick a module marked `STATUS: open` or coordinate with the current holder.
+3. Run
+   `~/.claude/peers/bin/claude-peers claim aegis <module-id> --note "<what you will do>" --ttl 7200`.
+4. Update `WORK_BOARD.md` with the claim, session id, and date.
+5. Stay inside the claimed path set. If you must cross scopes, message the
+   holder before editing.
+6. When meaningful work lands, append a concise newest-first entry to
+   `docs/SESSION_HANDOFF.md`.
+7. Release with `~/.claude/peers/bin/claude-peers release aegis:<module-id>`.
 
 ## Operator decisions still pending
 
-These are flagged in `WORK_BOARD.md` under `BLOCKED ON OPERATOR`. Do not
-guess — leave a `// OPERATOR-INPUT-NEEDED:` comment and proceed with the
-documented placeholder behavior.
+Do not guess on these. Use `OPERATOR-INPUT-NEEDED` in code/docs and proceed
+only with the documented placeholder behavior.
 
-1. **BATE scoring weights** — file: `docs/BATE_ALGORITHM.md` § "Weights".
-2. **Cold-start trust accelerator policy** — file: same doc § "Cold start".
-3. **Pricing tier hard gates** — file: `docs/spec/04_COMMERCIAL_STRATEGY.md`.
+1. BATE scoring weights - see `docs/BATE_ALGORITHM.md`.
+2. Cold-start trust accelerator policy - see `docs/BATE_ALGORITHM.md`.
+3. Pricing tier hard gates and Stripe price population - see
+   `docs/spec/04_COMMERCIAL_STRATEGY.md`,
+   `docs/decisions/0014-pricing-and-free-trial.md`, and
+   `OPERATOR_DECISIONS.md`.
+4. Dashboard production and preview environments need `AEGIS_API_BASE_URL` so
+   pricing renders from the live discovery endpoint instead of fallback.
+5. Auth0 v4 SDK install and real provider configuration are required before the
+   dashboard login receiver is live.
+6. Provider-backed KMS, Stripe price IDs, Stripe metered-price configuration,
+   `sales@aegislabs.io`, and deploy actions that require real credentials or
+   console changes remain operator-owned.
 
----
+## Verification commands
+
+Use the narrowest command that proves the change, then expand as needed.
+
+| Purpose                   | Command                                              |
+| ------------------------- | ---------------------------------------------------- |
+| Full local gate           | `pnpm check`                                         |
+| Typecheck all workspaces  | `pnpm typecheck`                                     |
+| Lint all workspaces       | `pnpm lint`                                          |
+| Unit tests all workspaces | `pnpm test`                                          |
+| API typecheck             | `pnpm --filter @aegis/api typecheck`                 |
+| API unit tests            | `pnpm --filter @aegis/api test -- --passWithNoTests` |
+| Dashboard typecheck       | `pnpm --filter @aegis/dashboard typecheck`           |
+| Cross-package parity      | `pnpm test:parity`                                   |
+| OpenAPI/Zod parity        | `pnpm check:openapi-zod`                             |
+| OpenAPI/Prisma parity     | `pnpm check:openapi-prisma`                          |
+| Migration immutability    | `pnpm check:migrations`                              |
+| Doctor                    | `pnpm doctor`                                        |
+| Full doctor               | `pnpm doctor:full`                                   |
+
+If a command cannot run because required services or secrets are missing, state
+that clearly and run the closest offline check.
+
+## Enterprise readiness checklist
+
+Before calling a change done, ask:
+
+- Does it preserve private-key, tenant, denial-precedence, audit-chain, and
+  verify-portability invariants?
+- Does every new behavior have an observable success and failure mode?
+- Are customer-visible contracts reflected in `packages/types`, OpenAPI, SDKs,
+  docs, and dashboard code where relevant?
+- Are security, billing, policy, and audit changes covered by regression tests?
+- Are logs and metrics useful without leaking secrets or tenant data?
+- Can an operator debug or roll back this from the runbooks?
+- Are known gaps captured as `OPERATOR-INPUT-NEEDED`, `Not-tested`, or a handoff
+  note rather than buried in prose?
+
+## Commit standard
+
+Commit messages follow the Lore protocol in `AGENTS.md`: intent line first,
+then narrative context, then useful git trailers such as `Constraint:`,
+`Rejected:`, `Confidence:`, `Scope-risk:`, `Directive:`, `Tested:`, and
+`Not-tested:`.
 
 ## When in doubt
 
-Read in this order: this file → `docs/ARCHITECTURE.md` → `docs/SECURITY.md`
-→ `docs/spec/03_TECHNICAL_SPEC.md` → the Prisma schema.
+Read in this order:
+
+1. This file
+2. The scoped `CLAUDE.md`
+3. `docs/SERVICE_MAP.md`
+4. `docs/ARCHITECTURE.md`
+5. `docs/SECURITY.md`
+6. `docs/spec/03_TECHNICAL_SPEC.md`
+7. `apps/api/prisma/schema.prisma`

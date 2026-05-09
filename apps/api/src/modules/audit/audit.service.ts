@@ -1,9 +1,10 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma, type AuditDecision, type TrustBand } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AppConfigService } from '../../config/config.service';
 import { AuditChainUtil } from '../../common/crypto/audit-chain.util';
 import { Ed25519Util, decodeBase64Url, encodeBase64Url } from '../../common/crypto/ed25519.util';
+import { withSpan } from '../../common/observability/spans';
 import { AuditQueryDto, AuditLogResponseDto } from './audit.dto';
 
 export interface AppendAuditInput {
@@ -26,6 +27,15 @@ export interface AppendAuditInput {
   policySnapshot?: unknown;
   trustScoreAtEvent: number;
   trustBandAtEvent: TrustBand;
+  // ── Enterprise backbone (ADR-0008, ADR-0011, ADR-0012) ──────────────
+  /** FK to RelyingParty when this event came through an MCP bridge / API client. */
+  relyingPartyId?: string | null;
+  /** Which AEGIS audit-signing kid signed this row. Defaults to 'kid-genesis-v1'. */
+  signingKeyId?: string | null;
+  /** PolicyEngine that produced the decision: 'builtin' | 'cedar' | 'opa'. */
+  policyEngineId?: string | null;
+  /** Free-form engine metadata audited as `engineMetadata`. NEVER user-facing. */
+  engineMetadata?: Record<string, unknown> | null;
 }
 
 /**
@@ -48,6 +58,12 @@ export class AuditService {
     private readonly config: AppConfigService,
     private readonly chain: AuditChainUtil,
     private readonly ed25519: Ed25519Util,
+    // M-037: Optional KMS-backed signer. When wired (production), the
+    // chain signs through the registered KmsAdapter; the env-derived
+    // path below stays as the dev-only fallback. The signer also
+    // reports the active `kid` for stamping on each row.
+    @Optional()
+    private readonly auditSigner?: import('../../common/crypto/audit-signer.service').AuditSignerService,
   ) {}
 
   async initSigningKey(): Promise<void> {
@@ -91,6 +107,20 @@ export class AuditService {
    * + DLQ for the SOC2 invariant; this method is the durable boundary).
    */
   async append(input: AppendAuditInput): Promise<string> {
+    return withSpan(
+      'aegis.audit.chain.append',
+      () => this.appendInternal(input),
+      {
+        'principal.id': input.principalId,
+        'agent.id': input.agentId ?? input.claimedAgentId ?? undefined,
+        'policy.id': input.policyId ?? undefined,
+        'decision': input.decision,
+        'denial.reason': input.denialReason ?? undefined,
+      },
+    );
+  }
+
+  private async appendInternal(input: AppendAuditInput): Promise<string> {
     if (!this.auditPrivateKey) await this.initSigningKey();
 
     const eventId = `evt_${cryptoRandomId()}`;
@@ -143,15 +173,33 @@ export class AuditService {
             policySnapshot: input.policySnapshot ?? null,
           });
 
-          const signature = await this.chain.sign(
-            {
-              eventId,
-              prevEventId: prev?.id ?? null,
-              prevSignatureB64Url: prev?.aegisSignature ?? null,
-              payload: built.signed,
-            },
-            this.auditPrivateKey!,
-          );
+          // M-037: prefer KMS-backed signer when available; stamp signingKeyId
+          // from the active KMS key. Fall back to env-derived auditPrivateKey
+          // for dev. Both paths produce a base64url Ed25519 signature.
+          let signature: string;
+          let signingKid: string | undefined;
+          if (this.auditSigner) {
+            signature = await this.chain.signWithSigner(
+              {
+                eventId,
+                prevEventId: prev?.id ?? null,
+                prevSignatureB64Url: prev?.aegisSignature ?? null,
+                payload: built.signed,
+              },
+              (msg) => this.auditSigner!.signRaw(msg),
+            );
+            signingKid = await this.auditSigner.getActiveKid();
+          } else {
+            signature = await this.chain.sign(
+              {
+                eventId,
+                prevEventId: prev?.id ?? null,
+                prevSignatureB64Url: prev?.aegisSignature ?? null,
+                payload: built.signed,
+              },
+              this.auditPrivateKey!,
+            );
+          }
 
           // ADR-0006: actionHash is non-nullable in the schema, so an
           // 'audit.redact' meta-event (with action explicitly null) would
@@ -184,6 +232,13 @@ export class AuditService {
               trustBandAtEvent: input.trustBandAtEvent,
               aegisSignature: signature,
               payloadVersion: 2,
+              // ADR-0008/0011/0012 — enterprise backbone columns. M-037:
+              // signingKeyId resolution order: caller-supplied → KMS active
+              // kid → schema default ('kid-genesis-v1').
+              signingKeyId: input.signingKeyId ?? signingKid ?? undefined,
+              relyingPartyId: input.relyingPartyId ?? undefined,
+              policyEngineId: input.policyEngineId ?? undefined,
+              engineMetadata: (input.engineMetadata ?? Prisma.JsonNull) as Prisma.InputJsonValue,
               timestamp,
             },
           });
@@ -292,6 +347,97 @@ export class AuditService {
     if (!agent) throw new NotFoundException({ error: 'AGENT_NOT_FOUND', message: 'Agent not found.' });
 
     const where: Prisma.AuditEventWhereInput = { agentId };
+    if (query.from || query.to) {
+      where.timestamp = {};
+      if (query.from) where.timestamp.gte = new Date(query.from);
+      if (query.to) where.timestamp.lte = new Date(query.to);
+    }
+
+    const PAGE = 1_000;
+    let cursor: string | undefined;
+    let yielded = 0;
+    const max = query.limit ?? Number.POSITIVE_INFINITY;
+
+    while (yielded < max) {
+      const batch: Awaited<ReturnType<typeof this.prisma.auditEvent.findMany>> =
+        await this.prisma.auditEvent.findMany({
+          where,
+          orderBy: { timestamp: 'asc' },
+          take: PAGE,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+        });
+      if (batch.length === 0) break;
+
+      for (const e of batch) {
+        if (yielded >= max) break;
+        yielded += 1;
+        yield {
+          eventId: e.id,
+          agentId: e.agentId,
+          claimedAgentId: e.claimedAgentId,
+          principalId: e.principalId,
+          timestamp: e.timestamp.toISOString(),
+          action: e.action,
+          actionHash: e.actionHash,
+          decision: e.decision,
+          denialReason: e.denialReason,
+          relyingParty: e.relyingParty,
+          relyingPartyHash: e.relyingPartyHash,
+          trustScoreAtEvent: e.trustScoreAtEvent,
+          trustBandAtEvent: e.trustBandAtEvent,
+          policyId: e.policyId,
+          policySnapshot: e.policySnapshot,
+          policySnapshotHash: e.policySnapshotHash,
+          requestedAmount: e.requestedAmount?.toString() ?? null,
+          requestedAmountHash: e.requestedAmountHash,
+          currency: e.currency,
+          aegisSignature: e.aegisSignature,
+          payloadVersion: e.payloadVersion,
+          redactedAt: e.redactedAt?.toISOString() ?? null,
+        };
+      }
+      const last = batch[batch.length - 1];
+      cursor = last?.id;
+      if (batch.length < PAGE) break;
+    }
+  }
+
+  /**
+   * Tenant-wide NDJSON export (M-006 finalisation).
+   *
+   * Same chunked iteration as `exportStream` but scoped by `principalId`
+   * only — used for "give me everything in my tenant" SOC2 evidence
+   * pulls. Yields rows in chronological order so external chain verifiers
+   * can walk forward without re-sorting.
+   */
+  async *exportTenantStream(
+    principalId: string,
+    query: AuditQueryDto,
+  ): AsyncGenerator<{
+    eventId: string;
+    agentId: string | null;
+    claimedAgentId: string | null;
+    principalId: string;
+    timestamp: string;
+    action: string | null;
+    actionHash: string;
+    decision: string;
+    denialReason: string | null;
+    relyingParty: string | null;
+    relyingPartyHash: string | null;
+    trustScoreAtEvent: number;
+    trustBandAtEvent: string;
+    policyId: string | null;
+    policySnapshot: unknown;
+    policySnapshotHash: string | null;
+    requestedAmount: string | null;
+    requestedAmountHash: string | null;
+    currency: string | null;
+    aegisSignature: string;
+    payloadVersion: number;
+    redactedAt: string | null;
+  }> {
+    const where: Prisma.AuditEventWhereInput = { principalId };
     if (query.from || query.to) {
       where.timestamp = {};
       if (query.from) where.timestamp.gte = new Date(query.from);

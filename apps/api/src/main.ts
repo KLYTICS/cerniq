@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { RequestMethod, ValidationPipe, VersioningType } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
@@ -7,8 +7,28 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { AppConfigService } from './config/config.service';
+import { initTracing, type TracingHandle } from './common/observability/tracing.bootstrap';
 
 async function bootstrap(): Promise<void> {
+  // OTel must initialize BEFORE NestFactory so auto-instrumentation can
+  // wrap http / pg / ioredis at import time. See ADR-0011 §6.
+  const tracing: TracingHandle = await initTracing({
+    enabled: process.env.AEGIS_OTEL_ENABLED === 'true',
+    serviceName: process.env.AEGIS_OTEL_SERVICE_NAME ?? 'aegis-api',
+    exporter: (process.env.AEGIS_OTEL_EXPORTER as 'otlp-http' | 'console' | 'noop' | undefined) ?? 'otlp-http',
+    resourceAttributes: {
+      'deployment.environment': process.env.NODE_ENV ?? 'development',
+      ...(process.env.AEGIS_REGION ? { 'aegis.region': process.env.AEGIS_REGION } : {}),
+    },
+  });
+
+  // Flush + shutdown OTel cleanly on SIGTERM (Railway / k8s graceful drain).
+  for (const sig of ['SIGTERM', 'SIGINT'] as const) {
+    process.on(sig, () => {
+      void tracing.shutdown();
+    });
+  }
+
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
     rawBody: true,
@@ -24,12 +44,10 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
-  app.setGlobalPrefix('v1', {
-    exclude: [
-      { path: '/', method: RequestMethod.ALL },
-      { path: '.well-known/(.*)', method: RequestMethod.ALL },
-    ],
-  });
+  // URI versioning is the single source of `/v1/` — `setGlobalPrefix('v1')`
+  // is removed because it stacked with versioning to produce `/v1/v1/...`.
+  // `.well-known/*` controllers are marked `VERSION_NEUTRAL` so they remain
+  // at `/.well-known/*` without a v1 prefix.
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 
   app.useGlobalPipes(

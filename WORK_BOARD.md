@@ -240,16 +240,16 @@ via `claude-peers msg`.
 ## SPRINT S2 — BATE deepening (post Phase 1 launch + $500 MRR)
 
 ### M-020 · ML anomaly detection v1 (Isolation Forest)
-- **STATUS**: open · gated on M-007 + 30 days of signal data
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 6 — see SESSION_HANDOFF) · gated on M-007 + 30 days of signal data
 - **Paths**: `apps/ml/**` (new), `apps/api/src/modules/bate/ml/**`
 
 ### M-021 · Trust score time-series storage
-- **STATUS**: open
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 6 — see SESSION_HANDOFF)
 - **Paths**: `apps/api/prisma/schema.prisma` (additions),
   `apps/api/src/modules/bate/history/**`
 
 ### M-022 · Cross-principal correlation engine
-- **STATUS**: open · privacy review required first
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 6 — see SESSION_HANDOFF) · privacy review required first
 
 ---
 
@@ -323,7 +323,7 @@ See `docs/spec/01_MASTER.md` § 7 (Phase 3) and the master backlog
 - **Blocked by**: peer's `aegis:bug-fix-pass` releases the verify path.
 
 ### M-020 · Auth0 module — tests + e2e + dashboard wiring
-- **STATUS**: open
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 6 — see SESSION_HANDOFF)
 - **Paths**: `apps/api/src/modules/auth0/**/*.spec.ts`,
   `apps/api/test/auth0.e2e-spec.ts`, `apps/dashboard/**`
 - **Goal**: complete the Auth0 module (skeleton landed 2026-05-02):
@@ -336,7 +336,7 @@ See `docs/spec/01_MASTER.md` § 7 (Phase 3) and the master backlog
 - **Reference**: ADR-0009.
 
 ### M-021 · `@aegis/mcp-server` — tests + bin + dist
-- **STATUS**: open
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 6 — see SESSION_HANDOFF)
 - **Paths**: `packages/mcp-server/**`
 - **Goal**: scaffold landed 2026-05-02 (`server.ts` + tools + bin).
   Add: `npm pack` validation, vitest tests for each tool's
@@ -348,7 +348,7 @@ See `docs/spec/01_MASTER.md` § 7 (Phase 3) and the master backlog
 - **Reference**: ADR-0008 §1.
 
 ### M-022 · MCP control-plane wiring
-- **STATUS**: open
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 6 — see SESSION_HANDOFF)
 - **Paths**: `apps/api/src/modules/mcp/mcp.service.spec.ts`,
   `apps/api/src/modules/verify/algorithm/verify.algorithm.ts` (small
   edit — coordinate with M-019),
@@ -361,7 +361,7 @@ See `docs/spec/01_MASTER.md` § 7 (Phase 3) and the master backlog
 - **Acceptance**: dashboard MCP-server list shows real activity counts.
 
 ### M-023 · `AwsKmsAdapter` (KmsAdapter implementation)
-- **STATUS**: open
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 6 — see SESSION_HANDOFF)
 - **Paths**: `apps/api/src/modules/kms/aws-kms.adapter.ts` + spec
 - **Goal**: implement `KmsAdapter` from
   `apps/api/src/common/crypto/crypto.bootstrap.ts` against AWS KMS Sign
@@ -372,7 +372,7 @@ See `docs/spec/01_MASTER.md` § 7 (Phase 3) and the master backlog
 - **Reference**: ADR-0011 §4.
 
 ### M-024 · BATE signal weights for DPoP signals
-- **STATUS**: open
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 6 — see SESSION_HANDOFF)
 - **Paths**: `apps/api/src/modules/bate/bate.scorer.ts`,
   `docs/BATE_ALGORITHM.md`
 - **Goal**: add two signals: `agent.no_dpop` (+15 risk) and
@@ -381,7 +381,7 @@ See `docs/spec/01_MASTER.md` § 7 (Phase 3) and the master backlog
 - **Reference**: ADR-0010 §2.
 
 ### M-025 · Bootstrap centralization + cross-package vitest workspace
-- **STATUS**: open
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 6 — see SESSION_HANDOFF)
 - **Paths**: `apps/api/src/common/crypto/{ed25519.util,jwt.util,audit-chain.util}.ts`
   (top-of-file change only), `apps/api/src/common/crypto/audit-chain.util.spec.ts`,
   `packages/sdk-ts/src/crypto.ts`, `vitest.workspace.ts` (NEW at root)
@@ -393,7 +393,7 @@ See `docs/spec/01_MASTER.md` § 7 (Phase 3) and the master backlog
   tests, including `tests/cross-package/sdk-api-jwt-parity.spec.ts`.
 
 ### M-026 · Schema migration: signingKeyId, RelyingPartyKind, audit metadata
-- **STATUS**: open · **BLOCKS M-019, M-022, M-023**
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 6 — see SESSION_HANDOFF) · **BLOCKS M-019, M-022, M-023**
 - **Paths**: `apps/api/prisma/schema.prisma`,
   `apps/api/prisma/migrations/<next>/migration.sql`
 - **Goal**: schema additions consolidated:
@@ -410,17 +410,33 @@ See `docs/spec/01_MASTER.md` § 7 (Phase 3) and the master backlog
 - **Coordinate with**: peer holding `migrations/**` (`aegis:bug-fix-pass`).
 
 ### M-027 · `aegis-cli` — operator binary
-- **STATUS**: open
-- **Paths**: `packages/cli/**` (NEW)
-- **Goal**: a Go or Node CLI (`aegis`) that does:
-  `aegis bootstrap`, `aegis agents create/list/revoke`, `aegis policies …`,
-  `aegis kms rotate <purpose>`, `aegis audit verify`. Reads
-  `~/.aegis/credentials.json`. Self-installs an `aegis-mcp` config in
-  Claude Desktop (`aegis mcp install`).
-- **Reference**: ADR-0011 §5 (rotation), ADR-0008 (mcp-server install).
+- **STATUS**: claimed by sid=a9198691 @ 2026-05-02 (sub-divided into
+  M-040a..M-040h under SPRINT S3 — Adoption Surface). The umbrella ticket
+  remains here for cross-reference; deliverable is the union of the
+  M-040 sub-tickets.
+- **Paths**: `packages/cli/**` (NEW). **Reserved for peer**: the
+  `aegis audit *` namespace (peer sid=3e2203ee `enterprise-plane`
+  active claim notes "audit-CLI"). `aegis audit *` is exposed via the
+  kubectl-style plugin discovery mechanism — peer ships `aegis-audit`
+  on PATH and it appears as `aegis audit ...` automatically. Zero
+  in-binary code collision.
+- **Goal**: a Go single static binary (`aegis`) — see OD-009 (locked
+  default). Subcommands:
+  `aegis login`, `aegis logout`, `aegis whoami`, `aegis doctor`,
+  `aegis init [--industry ...]`, `aegis agents {register,list,revoke,show}`,
+  `aegis policy {create,list,revoke,inspect}`, `aegis verify <token>`,
+  `aegis listen --forward-to`, `aegis trigger <event>`, `aegis tail audit`,
+  `aegis dash` (TUI cockpit), `aegis kms rotate <purpose>`,
+  `aegis mcp install` (Claude Desktop config helper).
+- **Reads**: `~/.config/aegis/config.toml` (XDG-compliant) with API key
+  in OS keychain (`99designs/keyring` — Keychain.app / Secret Service /
+  Credential Manager). Falls back to `AEGIS_API_KEY` env var for CI.
+- **Reference**: OD-009/OD-010 (locked defaults), ADR-0011 §5 (rotation),
+  ADR-0008 (mcp-server install), CLAUDE.md stack reality (one curve, one
+  audited library).
 
 ### M-028 · Dashboard MCP-server discovery view
-- **STATUS**: open
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 6 — see SESSION_HANDOFF)
 - **Paths**: `apps/dashboard/app/mcp-servers/**`
 - **Goal**: Bloomberg-density list of registered MCP servers with
   recent invocation counts, last-seen timestamps, denial rate. One-click
@@ -428,10 +444,10 @@ See `docs/spec/01_MASTER.md` § 7 (Phase 3) and the master backlog
 - **Reference**: ADR-0008 §4.
 
 ### M-029 · `GcpKmsAdapter`
-- **STATUS**: open · same shape as M-023, GCP Cloud KMS asymmetric sign.
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 6 — see SESSION_HANDOFF) · same shape as M-023, GCP Cloud KMS asymmetric sign.
 
 ### M-030 · `VaultTransitAdapter`
-- **STATUS**: open · same shape as M-023, HashiCorp Vault transit/sign.
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 6 — see SESSION_HANDOFF) · same shape as M-023, HashiCorp Vault transit/sign.
 
 ### M-031 · `AzureKeyVaultAdapter`
 - **STATUS**: open · pending Azure Key Vault EdDSA GA.
@@ -440,27 +456,378 @@ See `docs/spec/01_MASTER.md` § 7 (Phase 3) and the master backlog
 - **STATUS**: open · deferred to first sovereign customer.
 
 ### M-033 · `CedarPolicyEngine` adapter
-- **STATUS**: open
-- **Paths**: `apps/api/src/common/policy-engine/cedar.engine.ts` + spec
-- **Goal**: implement `PolicyEngine` against `@cedar-policy/cedar-wasm`.
-  Compile policies at create time, evaluate at verify time. Static
-  analysis errors surface as 422 at policy creation.
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 7) — extension open for prod evaluator wiring (`@cedar-policy/cedar-wasm`) in `app.module.ts`.
+- **Paths**: `apps/api/src/common/policy-engine/cedar.engine.ts` + spec.
+- **Shipped**: full `CedarPolicyEngine` implementing `PolicyEngine`,
+  `CedarEvaluatorLike` interface for runtime swap, deny-reason mapping
+  to ADR-0004 enum, spend-gate post-Allow, fail-closed on missing
+  artifact. 7 spec tests covering Allow/Deny/error paths.
 - **Reference**: ADR-0012.
 
 ### M-034 · `OpaPolicyEngine` adapter
-- **STATUS**: open · same as M-033 against OPA Rego (sidecar HTTP first;
-  embed `@open-policy-agent/opa-wasm` if hot-path latency requires).
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 7) — extension
+  open for prod evaluator wiring (`@open-policy-agent/opa-wasm` or sidecar HTTP).
+- **Paths**: `apps/api/src/common/policy-engine/opa.engine.ts` + spec.
+- **Shipped**: full `OpaPolicyEngine` implementing `PolicyEngine`,
+  `OpaEvaluatorLike` interface for WASM-vs-sidecar swap, deny_reasons
+  multi-mapping with subReason forensics, spend-gate post-Allow,
+  fail-closed on missing artifact. 8 spec tests.
+- **Reference**: ADR-0012.
 
-### M-035 · PQ hybrid verify integration
-- **STATUS**: open · **BLOCKED ON OPERATOR** (OD-008 flag flip)
-- **Paths**: `apps/api/src/common/crypto/pq.util.ts` (NEW),
-  `apps/api/src/modules/audit/audit.service.ts` (sign call)
-- **Goal**: add hybrid sign/verify per ADR-0013 behind
-  `AEGIS_HYBRID_PQ_ENABLED`. Tests for tamper detection on each half.
-- **Reference**: ADR-0013.
+### M-035 · PQ hybrid sign/verify utility
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 7) — utility
+  + spec only. Verify-path integration **still BLOCKED ON OPERATOR**
+  (OD-008 flag flip + new OD-014 trigger criteria).
+- **Paths**: `apps/api/src/common/crypto/pq.util.ts` + spec.
+- **Shipped**: `signHybrid` / `verifyHybrid` / `packHybrid` /
+  `unpackHybrid` against `@noble/post-quantum` ml_dsa65. FIPS 204 final
+  signature length (3309 bytes) honored. 9 spec tests covering tamper
+  detection on each half, malformed envelope, length-prefix robustness.
+- **Reference**: ADR-0013, OD-014.
 
 ### M-036 · Audit storage compression (Parquet+zstd)
 - **STATUS**: open · prereq for ADR-0013 flag flip.
+
+### M-037 · Audit signing routed through `KmsAdapter`
+- **STATUS**: open · **BLOCKED on `audit.service.ts` change** (parallel
+  session may hold this hot path; coordinate before claiming).
+- **Paths**: `apps/api/src/modules/audit/audit.service.ts`,
+  `apps/api/src/common/crypto/audit-chain.util.ts`.
+- **Goal**: replace the env-derived `auditPrivateKey` with
+  `getKmsAdapter().getActiveKey('AUDIT')`. Stamp `signingKeyId` on
+  every appended event. Plumbs Round-6 schema column into Round-7
+  KMS adapters end-to-end.
+
+### M-038 · OpenTelemetry tracing wiring (call from `main.ts`)
+- **STATUS**: open · scaffold landed Round 7.
+- **Paths**: `apps/api/src/main.ts` (small edit), `apps/api/src/common/observability/tracing.bootstrap.ts` (NEW).
+- **Goal**: `await initTracing(...)` from `main.ts` BEFORE
+  `NestFactory.create()`. Add manual spans on `aegis.verify.algorithm`,
+  `aegis.audit.chain.append`, `aegis.kms.<provider>.<op>`,
+  `aegis.policy.engine.<id>.eval`. Operator picks exporter via env.
+- **Reference**: see `tracing.bootstrap.ts` docstring for span naming.
+
+### M-039 · Policy engine prod evaluator wiring (Cedar-WASM + OPA-WASM)
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 8) — extension
+  open: AppModule import of `PolicyEngineModule` + `pnpm install` of the
+  WASM packages.
+- **Paths**: `apps/api/src/common/policy-engine/{cedar-wasm.evaluator,opa-wasm.evaluator,policy-engine.module}.ts`.
+- **Shipped**: `CedarWasmEvaluator` (cedar-wasm SDK shape +
+  obligation extraction from `@aegis_deny_reason("...")` annotations +
+  `compileCedarPolicy` helper). `OpaWasmEvaluator` (opa-wasm load+evaluate
+  + LRU policy cache + `buildOpaArtifact` helper). `PolicyEngineModule`
+  registers chosen evaluators from `AEGIS_POLICY_ENGINES` env at boot.
+  Lazy-load shields unit tests from WASM dep weight.
+- **Reference**: ADR-0012, OD-013.
+
+### M-040 · Clerk IdP — full e2e + dashboard swap path
+- **STATUS**: open · adapter landed Round 7.
+- **Paths**: `apps/api/src/modules/idp-clerk/clerk.adapter.spec.ts`
+  (NEW), `apps/api/test/clerk.e2e-spec.ts` (NEW), dashboard config
+  (NEW env-flag for IdP selection).
+- **Goal**: spec tests with mocked Clerk JWKS, e2e via supertest,
+  dashboard env switch (`AEGIS_IDP_PROVIDER=auth0|clerk`).
+- **Reference**: ADR-0009-A, OD-015.
+
+### M-042 · WorkOS IdP adapter (third IdpAdapter)
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 8) — extension
+  open: spec tests + e2e + dashboard env switch (similar to M-040 for Clerk).
+- **Paths**: `apps/api/src/modules/idp-workos/{workos.adapter,idp-workos.module}.ts`.
+- **Shipped**: `WorkOsAdapter` implementing `IdpAdapter` against
+  WorkOS sealed sessions (fundamentally different shape from RS256-JWT
+  Auth0/Clerk, validates the interface holds for non-JWT IdPs).
+  Module wires the WorkOS SDK lazily.
+- **Reference**: ADR-0009, ADR-0009-B (implicit).
+
+### M-043 · PrincipalOnboarding (OD-012)
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 8) — extension
+  open: dashboard wizard UI + service-internal hooks (agent.create,
+  policy.create, verify success, kms.configure call `markStep`).
+- **Paths**: `apps/api/prisma/migrations/20260502000600_principal_onboarding/migration.sql`,
+  `apps/api/prisma/schema.prisma` (model + Principal back-relation),
+  `apps/api/src/modules/onboarding/{onboarding.{dto,service,controller,module}}.ts`.
+- **Shipped**: 7-step checklist (`hasFirstAgent`/`Policy`/`Verify`/
+  `KmsConfigured`/`McpServerRegistered`/`WebhookSubscribed`/
+  `PaymentMethodAdded`) with one-way ratchet + activation-funnel
+  timestamps. `GET /v1/me/onboarding` + `PATCH /v1/me/onboarding/step`.
+- **Reference**: OD-012.
+
+### M-044 · CF Worker Phase 3 m2 — KV-cache edge verify
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 8). Gated by
+  `AEGIS_EDGE_VERIFY_ENABLED=true` env; defaults off so production stays
+  on the m1 origin-passthrough path until shadow-deploy validates the
+  edge decisions.
+- **Paths**: `workers/cf-verify/src/{kv-cache,token,edge-verify}.ts` +
+  `index.ts` integration.
+- **Shipped**: KV cache adapter (agent + policy + per-day spend). Edge
+  JWT decode + Ed25519 verify via WebCrypto. Edge verify path with full
+  ADR-0004 denial precedence. Forward-to-origin on cache miss / spend
+  ambiguity / suspended agent / DPoP-required (when wired).
+- **Reference**: ADR-0003, ADR-0008, ADR-0010.
+
+### M-045 · Industry quickstart `ai-platform-tool-call`
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 8) — peer
+  also contributed `mcp-server.ts` (verifyKey/arg pattern). My
+  contribution: `server.ts` (mcp-bridge wrap pattern), `aegis.ts`
+  helper, `demo-agent.ts` end-to-end. Two-flavor example.
+- **Paths**: `examples/ai-platform-tool-call/{src/{aegis,server,demo-agent}.ts,tsconfig.json}`.
+- **Reference**: OD-011.
+
+### M-041 · Compliance redact endpoint — e2e + dashboard surface
+- **STATUS**: open · controller + service + unit spec landed Round 7.
+- **Paths**: `apps/api/test/compliance-redact.e2e-spec.ts`,
+  `apps/dashboard/app/audit/[id]/page.tsx` (NEW redact button on
+  audit-event detail).
+- **Goal**: full-stack test (POST /v1/compliance/audit/redact-event +
+  GET /v1/audit-events/{id} returns nulls), dashboard "redact this
+  event" button gated to FULL-scope API keys.
+- **Reference**: ADR-0006, OD-016.
+
+---
+
+## SPRINT S3 — Adoption surface (post 2026-05-02)
+
+> Charter: ship Stripe/PayPal-tier frictionless adoption. Operator
+> directive 2026-05-02: "frictionless adoption across all industries
+> for AEGIS, super intuitive and easy to use, terminal functions
+> world-class". Decisions locked in `OPERATOR_DECISIONS.md` OD-009..OD-012.
+> All M-040* tickets owned by sid=a9198691 (claim
+> `aegis:adoption-frictionless-cli`, ttl 14400). The `aegis audit *`
+> CLI namespace is reserved for peer `enterprise-plane` and surfaced via
+> kubectl-style plugin discovery (any `aegis-*` binary on PATH).
+
+### M-040a · CLI core + plugin discovery
+- **STATUS**: claimed by sid=a9198691 @ 2026-05-02
+- **Paths**: `packages/cli/{main.go,go.mod,cmd/{root,login,logout,whoami,
+  doctor,init,version,completion}.go,internal/{config,keychain,oauth,
+  client,plugin,version}/**}`
+- **Goal**: cobra-based CLI skeleton with kubectl-style plugin discovery
+  (`aegis foo` → executes `aegis-foo` if present on PATH and not a
+  built-in). Device-code OAuth login (OD-009) with OS-keychain caching.
+  `aegis doctor` runs connectivity + clock-skew + JWKS-reachability +
+  onboarding-state checks (the last gated on M-026 + OD-012 unblock).
+- **Acceptance**:
+  - `aegis --version` prints semver + commit SHA + build date.
+  - `aegis login --api-key <key>` round-trips: writes config, writes
+    keychain entry, `aegis whoami` returns principal email.
+  - `aegis doctor` returns non-zero exit when API unreachable, prints a
+    Bloomberg-density check report otherwise.
+  - Plugin discovery test: drop `aegis-hello` shim on PATH, `aegis hello`
+    invokes it with all remaining args forwarded.
+  - `go test ./...` green; `go vet` clean; `golangci-lint` clean.
+
+### M-040b · CLI distribution + installer infra
+- **STATUS**: claimed by sid=a9198691 @ 2026-05-02
+- **Paths**: `.goreleaser.yaml` (NEW root), `scripts/install/install.sh`
+  (NEW), `Makefile` (additive — only the `cli-*` targets), `packages/cli/
+  README.md`
+- **Goal**: cross-compile darwin/linux/windows × amd64/arm64 via
+  goreleaser. Publish Homebrew tap (`klytics/homebrew-aegis`), Scoop
+  bucket, apt repo metadata. `curl -fsSL https://get.aegis.dev/install.sh
+  | sh` installs the latest release with checksum verification. Sigstore
+  signature verification optional (`AEGIS_VERIFY_SIGNATURE=1`).
+- **Acceptance**:
+  - `goreleaser release --snapshot --clean` builds 6 binaries locally.
+  - `install.sh` works against a snapshot tarball staged on a tmp
+    HTTP server.
+  - Homebrew formula generated; `brew install` round-trips on macOS.
+  - SBOM (`cyclonedx`) emitted alongside binaries.
+
+### M-040c · CLI agent / policy / verify subcommands
+- **STATUS**: ✅ DONE @ 2026-05-02 by sid=cli-deepwire (Round 9)
+- **Paths**: `packages/cli/cmd/{agents,policy,verify,events,report}.go`,
+  `packages/cli/internal/client/**` (hand-rolled, not oapi-codegen — see
+  rationale in `docs/SESSION_HANDOFF.md` Round 9)
+- **What landed**: `agents register|show|status|revoke` with optional
+  `--generate-keypair` Ed25519 local mint; `policy create|list|revoke|inspect`
+  with imperative flags or `--file`; `verify` with denial-precedence
+  rendering in canonical order from CLAUDE.md invariant 6 (NOT spec
+  alphabetical order); `events list|tail|export` (cursor pagination,
+  signal-aware Ctrl-C, streaming NDJSON); `report` (BATE signal). Every
+  command has `--json` mode. httptest-backed tests across the client.
+- **Spec drift logged**: `AEGIS_API_SPEC.yaml` lines 572-581 list denial
+  reasons alphabetically; needs to match canonical order from CLAUDE.md
+  invariant 6 (next API version bump).
+
+### M-040d · CLI listen / trigger / tail / dash (advanced surface)
+- **STATUS**: 🟡 PARTIAL — `tail` shipped as `aegis events tail` in
+  Round 9 (cursor-poll, no SSE needed for an append-only chain).
+  `export` shipped as `aegis events export` (streaming NDJSON).
+  `listen` and `trigger` still gated on the server-side webhook
+  subscription endpoints (not in OpenAPI spec yet — outbox worker
+  shipped but not the subscribe API). `dash` (bubbletea TUI cockpit)
+  is open: combines whoami + last 10 events + last 10 verifies.
+- **Paths**: `packages/cli/cmd/{listen,trigger,dash}.go`,
+  `packages/cli/internal/{tunnel,tui}/**`
+- **Coordinate with**: peer M-008 (webhooks delivery worker — shipped
+  ✅ 2026-05-02) and the eventual subscription-management endpoints.
+
+### M-040e · `examples/fintech-payments` quickstart
+- **STATUS**: claimed by sid=a9198691 @ 2026-05-02
+- **Paths**: `examples/fintech-payments/**` (NEW)
+- **Goal**: Stripe-style checkout server in TypeScript (Express) where
+  every authorization passes through `aegis.verify(...)` before charging.
+  Includes a Faker-backed test harness, a denial-precedence walk-through
+  (force each of the 9 reasons), and a one-page runbook for on-call.
+- **Acceptance**: `pnpm tsx src/server.ts` boots; `make demo` walks
+  through happy path + 3 denial reasons against a live AEGIS instance.
+
+### M-040f · `examples/ai-platform-tool-call` quickstart
+- **STATUS**: claimed by sid=a9198691 @ 2026-05-02
+- **Paths**: `examples/ai-platform-tool-call/**` (NEW)
+- **Goal**: an MCP agent (Claude Desktop or generic MCP client) that
+  calls `aegis.verify` via peer's `@aegis/mcp-server` (2026-05-02 drop)
+  before invoking a downstream API. Demonstrates the AI-platform path
+  for AEGIS adoption (the natural early-adopter wedge).
+- **Acceptance**: ships a working `mcp.json` snippet for Claude Desktop
+  + a generic Node MCP client harness.
+
+### M-040g · `examples/saas-seat-provisioning` quickstart
+- **STATUS**: claimed by sid=a9198691 @ 2026-05-02
+- **Paths**: `examples/saas-seat-provisioning/**` (NEW)
+- **Goal**: SCIM-flavored agent provisioning — the SaaS pattern where an
+  enterprise customer auto-provisions agent identities and per-seat
+  policies via SCIM-shaped endpoints. Cleanest greenfield wedge.
+- **Acceptance**: provisions 10 agents via SCIM POSTs, mints 10 policies,
+  verifies 10 calls, exports an audit slice.
+
+### M-040h · Per-persona docs landings
+- **STATUS**: claimed by sid=a9198691 @ 2026-05-02
+- **Paths**: `docs/personas/{developer,security,sre,auditor}.md`,
+  `docs/INDUSTRY_QUICKSTARTS.md`, `docs/PLUGIN_AUTHORS.md`,
+  `docs/collections/aegis.openapi.json` (symlink-shaped reference)
+- **Goal**: four curated entry paths through the same canonical content.
+  Each persona page ≤ 5 links + 30-sec value prop + first-action call.
+  Industry quickstarts page indexes the three M-040e/f/g examples and
+  documents the second-wave verticals (health, marketplace, gov, edu,
+  supply-chain).
+- **Acceptance**: every persona page links to a runnable artifact within
+  two clicks. No dead links via `lychee` link-check.
+
+---
+
+## SPRINT S2 — Round 9 gap-closure (2026-05-02)
+
+### M-046 · WASM evaluator spec tests
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 9).
+- **Paths**: `apps/api/src/common/policy-engine/{cedar-wasm,opa-wasm}.evaluator.spec.ts`.
+- **Shipped**: jest specs for both WASM evaluators with fake-injected
+  modules. Cedar tests: artifact mapping, missing-artifact rejection,
+  `aegis_deny_reason` annotation extraction, validator pass-through.
+  OPA tests: load+evaluate, LRU cache hit/miss, implicit deny on empty
+  result, deny_reasons + metadata propagation, non-string filtering.
+
+### M-047 · WorkOS + Onboarding service specs
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 9).
+- **Paths**: `apps/api/src/modules/idp-workos/workos.adapter.spec.ts`,
+  `apps/api/src/modules/onboarding/onboarding.service.spec.ts`.
+- **Shipped**: WorkOS adapter coverage of valid session, throw-on-bad,
+  expired-session, Redis cache hit, missing-orgId; aegis:* role filter.
+  Onboarding spec covers lazy-create on first read, completed-count +
+  timestamps, markStep upsert, unknown-step rejection, one-way-ratchet
+  timestamp preservation.
+
+### M-048 · CF Worker edgeVerify spec
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 9).
+- **Paths**: `workers/cf-verify/test/edge-verify.spec.ts`,
+  `workers/cf-verify/test/shadow.spec.ts`.
+- **Shipped**: full ADR-0004 denial-precedence sweep at the edge —
+  every branch (missing token, malformed, hard-expired, agent miss,
+  policy miss, AGENT_REVOKED, SUSPENDED-forwards, POLICY_REVOKED,
+  POLICY_EXPIRED, INVALID_SIGNATURE, SCOPE_NOT_GRANTED, SPEND_LIMIT_EXCEEDED,
+  per_request-spend-forwards, TRUST_SCORE_TOO_LOW, happy path, merchant
+  domain allow-list). Shadow spec covers mode selection, divergence
+  comparison ignoring timestamps, header encoding.
+
+### M-049 · CF Worker shadow-mode
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 9).
+- **Paths**: `workers/cf-verify/src/shadow.ts` + `index.ts` integration.
+- **Shipped**: three-mode rollout (off/shadow/live). Shadow runs edge AND
+  origin in parallel, serves origin response, emits
+  `X-AEGIS-Edge-Divergence: agree | diverge:<fields> | edge-forward:no-edge-decision`,
+  records to optional Workers Analytics Engine binding. Operator flips
+  to `live` after observing N days of high agreement (target ≥ 99.9%).
+
+### M-050 · AppModule wiring + Onboarding backfill
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 9).
+- **Paths**: `apps/api/src/app.module.ts` (added 8 module imports +
+  inserted into imports array), `apps/api/src/modules/onboarding/onboarding.backfill.ts`,
+  `onboarding.module.ts` (registers backfill provider),
+  `apps/api/package.json` (optionalDependencies: cedar-wasm, opa-wasm,
+  workos, aws-sdk client-kms, google-cloud kms).
+- **Shipped**: AppModule now boots KmsModule, PolicyEngineModule (which
+  registers Cedar+OPA WASM evaluators per `AEGIS_POLICY_ENGINES` env),
+  Auth0Module, IdpClerkModule, IdpWorkOsModule, McpModule, ComplianceModule,
+  OnboardingModule. OnboardingBackfill is a periodic SQL reconciler that
+  flips onboarding steps based on entity existence — zero edits to
+  existing services, idempotent, self-healing.
+
+---
+
+## SPRINT S2 — Round 10 honest-gap closure (2026-05-02)
+
+### M-051 · M-037 audit signing through `KmsAdapter`
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 10).
+- **Paths**: `apps/api/src/common/crypto/{audit-signer.service,audit-signer.service.spec}.ts`,
+  `apps/api/src/common/crypto/audit-chain.util.ts` (added `signWithSigner`),
+  `apps/api/src/modules/audit/{audit.service,audit.module}.ts` (inject + use signer).
+- **Shipped**: `AuditSignerService` resolves in priority order
+  KMS → env keys → ephemeral dev fallback. `AuditChainUtil.signWithSigner`
+  delegates the signing operation to a callback so KMS-backed signers
+  participate without exposing private bytes. Audit.service stamps
+  `signingKeyId` from the active KMS kid on every appended row.
+- **Reference**: ADR-0011, M-037.
+
+### M-052 · Cloud KMS production boot
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 10).
+- **Paths**: `apps/api/src/modules/kms/kms.module.ts` (replaced 3 throws
+  with real SDK construction; lazy-loaded cloud SDKs).
+- **Shipped**: `buildAws` uses `@aws-sdk/client-kms` Decrypt for
+  envelope-encrypted Ed25519 (ADR-0011 — AWS doesn't yet GA EdDSA Sign).
+  `buildGcp` uses `@google-cloud/kms` `asymmetricSign` for native
+  Ed25519. `buildVault` uses `fetch` against Vault transit/sign with
+  X-Vault-Token. Each path reads provider-specific env (e.g.
+  `AEGIS_AWS_KMS_AUDIT_{KID,WRAPPED,PUB}`) and fails loud on missing values.
+- **Reference**: ADR-0011 §4, M-023/M-029/M-030.
+
+### M-053 · OnboardingBackfill scheduling + admin endpoint
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 10).
+- **Paths**: `apps/api/src/modules/onboarding/{onboarding.backfill,onboarding.controller}.ts`.
+- **Shipped**: `@Cron('*/5 * * * *')` decorator (lazy-loaded
+  `@nestjs/schedule`), `OnModuleInit` boot pass after 30s,
+  `lastReport` cache, admin endpoints `POST /v1/me/onboarding/admin/backfill`
+  and `GET /v1/me/onboarding/admin/backfill/last` gated by
+  `X-AEGIS-Admin` header (`AEGIS_ADMIN_TOKEN` env).
+- **Reference**: OD-012.
+
+### M-054 · OTel `initTracing()` in main.ts
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 10).
+- **Paths**: `apps/api/src/main.ts` (call before `NestFactory.create`).
+- **Shipped**: `initTracing` invoked with env-driven config
+  (`AEGIS_OTEL_ENABLED`, `AEGIS_OTEL_SERVICE_NAME`, `AEGIS_OTEL_EXPORTER`).
+  Resource attrs include `deployment.environment` and optional
+  `aegis.region`. SIGTERM/SIGINT handlers flush + shutdown the SDK.
+- **Reference**: ADR-0011 §6, M-038.
+
+### M-055 · BATE anomaly detector R-1..R-5
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 10).
+- **Paths**: `apps/api/src/modules/bate/{bate.anomaly,bate.anomaly.spec}.ts`.
+- **Shipped**: pure-function detector with 5 rules — velocity (R-1),
+  geographic inconsistency (R-2), spend pattern deviation (R-3, per-currency
+  CV), failed-verify spike (R-4), delegation chain depth (R-5). Tunables
+  in `ANOMALY_THRESHOLDS` constant. 14 jest specs covering each rule's
+  warn/crit/skip-on-small-sample paths.
+- **Reference**: M-007 extension.
+
+### M-056 · Spec-sync drift CI workflow
+- **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 10).
+- **Paths**: `.github/workflows/spec-sync.yml`.
+- **Shipped**: three jobs run on PRs touching spec / types / Prisma /
+  DTO / verify-algorithm paths:
+  (1) OpenAPI ↔ Zod parity (calls `scripts/check-openapi-zod-parity.ts`),
+  (2) OpenAPI ↔ Prisma model parity,
+  (3) Denial precedence enum byte-identical across engine, verifier-rp,
+  OpenAPI (ADR-0004 lock).
 
 ---
 

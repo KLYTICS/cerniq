@@ -1,0 +1,140 @@
+# goreleaser config for the AEGIS CLI.
+# https://goreleaser.com/customization/
+#
+# Cross-compiles to darwin/linux/windows × amd64/arm64. Publishes:
+#   - GitHub release with archives + checksums.txt + checksums.txt.sig
+#     (cosign keyless via GitHub OIDC)
+#   - Homebrew tap at klytics/homebrew-aegis
+#   - Scoop bucket at klytics/scoop-aegis
+#   - SBOM (cyclonedx) per archive
+#
+# Local snapshot build (no publish):
+#   goreleaser release --snapshot --clean
+#
+# Real release (requires GITHUB_TOKEN + cosign OIDC):
+#   git tag v0.1.0 && git push origin v0.1.0
+#   goreleaser release --clean
+
+version: 2
+
+project_name: aegis
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: aegis
+    main: ./packages/cli
+    binary: aegis
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+      - -X github.com/klytics/aegis/packages/cli/internal/version.Version={{.Version}}
+      - -X github.com/klytics/aegis/packages/cli/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/klytics/aegis/packages/cli/internal/version.BuildDate={{.Date}}
+
+archives:
+  - id: aegis
+    name_template: "aegis_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+# Cosign keyless signing of the checksums file. Allows install.sh to
+# verify the release with --verify-signature when the operator wants
+# a stronger guarantee than checksum alone.
+signs:
+  - cmd: cosign
+    env:
+      - COSIGN_EXPERIMENTAL=1
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+      - --yes
+    artifacts: checksum
+    output: true
+
+sboms:
+  - artifacts: archive
+    documents:
+      - "${artifact}.cyclonedx.sbom.json"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snap"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "merge conflict"
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: "Bug fixes"
+      regexp: '^.*?(fix|refactor)(\(.+\))??!?:.+$'
+      order: 1
+    - title: Others
+      order: 999
+
+brews:
+  - repository:
+      owner: klytics
+      name: homebrew-aegis
+    name: aegis
+    homepage: "https://aegislabs.io"
+    description: "Operator CLI for the AEGIS agent gateway"
+    license: "Proprietary"
+    install: |
+      bin.install "aegis"
+      generate_completions_from_executable(bin/"aegis", "completion")
+    test: |
+      system "#{bin}/aegis", "--version"
+
+scoops:
+  - repository:
+      owner: klytics
+      name: scoop-aegis
+    name: aegis
+    homepage: "https://aegislabs.io"
+    description: "Operator CLI for the AEGIS agent gateway"
+    license: Proprietary
+
+release:
+  draft: false
+  prerelease: auto
+  name_template: "v{{.Version}}"
+  header: |
+    ## AEGIS CLI {{ .Tag }}
+
+    Install: `curl -fsSL https://get.aegis.dev/install.sh | sh`
+  footer: |
+    **Verifying the release**
+
+    ```
+    cosign verify-blob \
+      --certificate checksums.txt.pem \
+      --signature checksums.txt.sig \
+      --certificate-identity-regexp 'https://github.com/klytics/aegis/.+' \
+      --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+      checksums.txt
+    ```

@@ -1,0 +1,26 @@
+{
+  "name": "@aegis-examples/ai-platform-tool-call",
+  "private": true,
+  "version": "0.1.0",
+  "description": "MCP agent → AEGIS verify → downstream API",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/mcp-server.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aegis/sdk": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@aegis/tsconfig": "workspace:*",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

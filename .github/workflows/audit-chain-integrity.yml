@@ -1,0 +1,116 @@
+name: Audit-chain integrity
+
+# Continuously verifies that the audit chain in the connected database
+# (staging by default; pass `environment: production` to target prod)
+# verifies cleanly against the published JWKS.
+#
+# Triggers:
+#   - daily cron (06:00 UTC) — drift detection
+#   - manual workflow_dispatch with optional environment override
+#   - on-deploy via repository_dispatch event "deployed-staging"
+#
+# Exit semantics: pnpm --filter @aegis/scripts audit-verify-chain returns
+#   0  chain intact
+#   1  chain break detected
+#   2  usage error
+#   3  JWKS fetch error
+# Anything other than 0 fails the workflow.
+#
+# Forensic value: the same script that an SOC2 auditor would run is the
+# one we run on a daily cron. If it ever fails, we have a precise event
+# id at which the chain broke — actionable RCA from minute 1.
+
+on:
+  schedule:
+    # 06:00 UTC daily — late evening US/Pacific, before the EMEA workday.
+    # If the chain broke overnight we surface it before staging traffic
+    # ramps for the day.
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Which environment DB + JWKS to verify'
+        required: true
+        default: 'staging'
+        type: choice
+        options: ['staging', 'production']
+  repository_dispatch:
+    types: [deployed-staging, deployed-production]
+
+concurrency:
+  # One verifier at a time per environment. A long-running verification
+  # would otherwise pile up under heavy cron+deploy interleavings.
+  group: audit-chain-${{ github.event.inputs.environment || 'staging' }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Pick the environment from input → repository_dispatch → default staging.
+    environment: ${{ github.event.inputs.environment || (github.event.action == 'deployed-production' && 'production') || 'staging' }}
+
+    env:
+      # These come from the GitHub Environment secrets — staging and
+      # production each have their own. The DATABASE_URL must point to a
+      # READ-ONLY replica role; the script does not write but defense in
+      # depth means we connect with no write grant.
+      DATABASE_URL: ${{ secrets.AUDIT_DB_READONLY_URL }}
+      AEGIS_API_BASE: ${{ secrets.AEGIS_API_BASE }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.11.0
+          cache: 'pnpm'
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        # The script imports @prisma/client; we need the generated artifact
+        # but NOT a live DB schema (the verifier reads the schema from the
+        # remote staging/prod DB at run time).
+        working-directory: apps/api
+        run: pnpm prisma generate
+
+      - name: Verify audit chain (JSON output to artifact)
+        id: verify
+        working-directory: scripts
+        run: |
+          set -o pipefail
+          mkdir -p /tmp/audit-verify
+          # `--limit` keeps cron runs bounded. Manual production runs can
+          # remove it via re-running with `workflow_dispatch`.
+          pnpm tsx audit-verify-chain.ts \
+            --api-base "$AEGIS_API_BASE" \
+            --json \
+            --limit 100000 \
+            | tee /tmp/audit-verify/result.json
+
+      - name: Upload result artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-verify-${{ github.run_id }}-${{ github.event.inputs.environment || 'staging' }}
+          path: /tmp/audit-verify/result.json
+          retention-days: 90
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "text": ":rotating_light: AEGIS audit chain integrity check FAILED for *${{ github.event.inputs.environment || 'staging' }}* — see workflow run ${{ github.run_id }}. Open the `result.json` artifact for the first-break index + reason."
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_INCIDENT_WEBHOOK }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

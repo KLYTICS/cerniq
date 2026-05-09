@@ -1,0 +1,33 @@
+# CLI build targets — appended to the root Makefile via `include Makefile.cli`
+# once the operator approves merging into the main Makefile.
+#
+# Standalone for now to avoid stomping on parallel sessions touching
+# the root Makefile under different claims.
+
+.PHONY: cli-build cli-test cli-lint cli-snapshot cli-install cli-clean
+
+CLI_DIR := packages/cli
+
+cli-build:  ## build the aegis CLI for the host platform
+	cd $(CLI_DIR) && go build -o aegis -ldflags "-s -w \
+		-X github.com/klytics/aegis/packages/cli/internal/version.Version=dev \
+		-X github.com/klytics/aegis/packages/cli/internal/version.Commit=$$(git rev-parse --short HEAD 2>/dev/null || echo none) \
+		-X github.com/klytics/aegis/packages/cli/internal/version.BuildDate=$$(date -u +%Y-%m-%dT%H:%M:%SZ)" .
+	@echo "→ $(CLI_DIR)/aegis"
+
+cli-test:  ## run go test ./... on the CLI module
+	cd $(CLI_DIR) && go test ./...
+
+cli-lint:  ## run go vet + golangci-lint on the CLI module
+	cd $(CLI_DIR) && go vet ./...
+	cd $(CLI_DIR) && golangci-lint run --config .golangci.yml
+
+cli-snapshot:  ## cross-compile a snapshot release without publishing
+	goreleaser release --snapshot --clean
+
+cli-install: cli-build  ## install the CLI to /usr/local/bin (requires sudo on POSIX)
+	install -m 0755 $(CLI_DIR)/aegis /usr/local/bin/aegis
+
+cli-clean:  ## remove built artifacts
+	cd $(CLI_DIR) && rm -f aegis
+	rm -rf dist

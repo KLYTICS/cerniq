@@ -1,5 +1,5 @@
+import './crypto.bootstrap';
 import * as ed from '@noble/ed25519';
-import { sha512 } from '@noble/hashes/sha512';
 import { createHash } from 'node:crypto';
 
 import { encodeBase64Url } from './ed25519.util';
@@ -8,8 +8,6 @@ import {
   type AuditChainPayload,
   type AuditChainPayloadInput,
 } from './audit-chain.util';
-
-ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
 
 describe('AuditChainUtil', () => {
   const util = new AuditChainUtil();

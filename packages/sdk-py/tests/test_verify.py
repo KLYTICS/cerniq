@@ -48,6 +48,7 @@ async def test_verify_happy_path(
 @pytest.mark.parametrize(
     "denial_reason",
     [
+        DenialReason.PLAN_LIMIT_EXCEEDED,
         DenialReason.AGENT_NOT_FOUND,
         DenialReason.AGENT_REVOKED,
         DenialReason.INVALID_SIGNATURE,

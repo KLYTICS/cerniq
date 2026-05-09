@@ -1,5 +1,10 @@
 # AEGIS — Operations Runbook
 
+> **On-call?** This document covers local development and routine
+> operations. For SEV-1/SEV-2 incidents (chain integrity break, KMS
+> rotation, mass agent revocation, JWKS outage, p99 SLA breach, GDPR
+> redaction, region rollout), see [`INCIDENT_RUNBOOK.md`](./INCIDENT_RUNBOOK.md).
+
 ## Local development
 
 ```bash

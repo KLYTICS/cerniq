@@ -1,0 +1,19 @@
+{
+  "name": "@aegis/preflight",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AEGIS ship-readiness orchestrator — single go/no-go gate before deploy",
+  "type": "module",
+  "bin": {
+    "preflight": "./preflight.ts"
+  },
+  "scripts": {
+    "preflight": "tsx preflight.ts",
+    "preflight:fast": "tsx preflight.ts --fast",
+    "preflight:json": "tsx preflight.ts --json",
+    "preflight:prod": "tsx preflight.ts --prod"
+  },
+  "dependencies": {
+    "tsx": "^4.19.2"
+  }
+}

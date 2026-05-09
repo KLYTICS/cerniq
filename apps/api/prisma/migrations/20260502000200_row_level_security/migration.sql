@@ -320,10 +320,8 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION aegis_current_principal() IS
-  'Returns the current session''s principal id from "aegis.principal_id" GUC. ' ||
-  'Set by the application via SET LOCAL after ApiKeyGuard resolves the caller.';
-COMMENT ON FUNCTION aegis_rls_bypass_active() IS
-  'Returns true iff the current session has set "aegis.bypass_rls" = ''on''. ' ||
-  'Use ONLY for verify-only-key paths and worker drains where principal scope ' ||
-  'legitimately spans tenants. Audited via pgaudit + the SECURITY_RUNBOOK.';
+-- COMMENT ON ... IS requires a single string literal (Postgres DDL grammar).
+-- The previous multi-line ' || ' concatenation is invalid in this context;
+-- collapsed to single literals.
+COMMENT ON FUNCTION aegis_current_principal() IS 'Returns the current session''s principal id from "aegis.principal_id" GUC. Set by the application via SET LOCAL after ApiKeyGuard resolves the caller.';
+COMMENT ON FUNCTION aegis_rls_bypass_active() IS 'Returns true iff the current session has set "aegis.bypass_rls" = ''on''. Use ONLY for verify-only-key paths and worker drains where principal scope legitimately spans tenants. Audited via pgaudit + the SECURITY_RUNBOOK.';

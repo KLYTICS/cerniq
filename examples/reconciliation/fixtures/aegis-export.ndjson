@@ -1,0 +1,7 @@
+{"endToEndId":"e2e_001","eventId":"evt_001","decision":"APPROVED","denialReason":null,"agentId":"ag_alpha","principalId":"pri_acme","timestamp":"2026-05-05T10:00:00.000Z"}
+{"endToEndId":"e2e_002","eventId":"evt_002","decision":"APPROVED","denialReason":null,"agentId":"ag_alpha","principalId":"pri_acme","timestamp":"2026-05-05T10:00:05.000Z"}
+{"endToEndId":"e2e_003","eventId":"evt_003","decision":"DENIED","denialReason":"SPEND_LIMIT_EXCEEDED","agentId":"ag_beta","principalId":"pri_acme","timestamp":"2026-05-05T10:00:10.000Z"}
+{"endToEndId":"e2e_004","eventId":"evt_004","decision":"APPROVED","denialReason":null,"agentId":"ag_alpha","principalId":"pri_acme","timestamp":"2026-05-05T10:00:12.000Z"}
+{"endToEndId":"e2e_005","eventId":"evt_005","decision":"APPROVED","denialReason":null,"agentId":"ag_gamma","principalId":"pri_acme","timestamp":"2026-05-05T10:00:15.000Z"}
+{"endToEndId":"e2e_006","eventId":"evt_006","decision":"APPROVED","denialReason":null,"agentId":"ag_alpha","principalId":"pri_acme","timestamp":"2026-05-05T10:00:20.000Z"}
+{"endToEndId":"e2e_007","eventId":"evt_007","decision":"APPROVED","denialReason":null,"agentId":"ag_alpha","principalId":"pri_acme","timestamp":"2026-05-05T10:00:25.000Z"}

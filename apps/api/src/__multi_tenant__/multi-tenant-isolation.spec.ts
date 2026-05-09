@@ -10,6 +10,7 @@ import type { AppConfigService } from '../config/config.service';
 import type { AuditChainUtil } from '../common/crypto/audit-chain.util';
 import type { Ed25519Util } from '../common/crypto/ed25519.util';
 import type { WebhookDeliveryWorker } from '../modules/webhooks/webhook.delivery';
+import type { WebhookSecretCipher } from '../common/crypto/webhook-secret-cipher';
 
 /**
  * CLAUDE.md invariant #5 — multi-tenant isolation by `principalId` on every
@@ -240,7 +241,14 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
   describe('WebhooksService', () => {
     function makeWebhooksSvc(prisma: PrismaService) {
       const delivery = { enqueue: jest.fn().mockResolvedValue(undefined) } as unknown as WebhookDeliveryWorker;
-      return new WebhooksService(prisma, delivery);
+      // Identity-encrypt cipher: tenant isolation tests don't care about
+      // ciphertext shape, only that the principalId scoping is honored.
+      const cipher = {
+        encrypt: (s: string) => s,
+        decrypt: (s: string) => s,
+        isEncrypted: () => false,
+      } as unknown as WebhookSecretCipher;
+      return new WebhooksService(prisma, delivery, cipher);
     }
 
     it('subscribe persists with caller principalId', async () => {
@@ -289,6 +297,219 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       // And the row still exists.
       expect(harness.subs.get(bSub.id)).toBeDefined();
       expect(harness.subs.get(bSub.id)!.principalId).toBe(PRINCIPAL_B);
+    });
+  });
+
+  describe('Webhook subscriptions — cross-tenant isolation', () => {
+    interface DeliveryRow {
+      id: string;
+      subscriptionId: string;
+      event: string;
+      payload: Record<string, unknown>;
+    }
+
+    interface WebhooksHarness {
+      prisma: PrismaService;
+      subs: Map<string, SubRow>;
+      deliveries: DeliveryRow[];
+      deliveryCreate: jest.Mock;
+      subFindMany: jest.Mock;
+      subDeleteMany: jest.Mock;
+    }
+
+    function buildWebhooksHarness(): WebhooksHarness {
+      const subs = new Map<string, SubRow>();
+      const deliveries: DeliveryRow[] = [];
+
+      const subCreate = jest.fn(async ({ data }: { data: Omit<SubRow, 'id' | 'active'> }) => {
+        const id = `sub_${subs.size + 1}`;
+        const row: SubRow = { id, active: true, ...data };
+        subs.set(id, row);
+        return row;
+      });
+
+      // Handles both list's simple `{ principalId }` and enqueue's
+      // `{ principalId, active, events: { has: X } }` shape.
+      const subFindMany = jest.fn(
+        async ({ where }: { where: Record<string, unknown> }) => {
+          return Array.from(subs.values()).filter((s) => {
+            for (const [k, v] of Object.entries(where)) {
+              if (k === 'events') {
+                const filter = v as { has?: string };
+                if (filter.has !== undefined && !s.events.includes(filter.has)) return false;
+                continue;
+              }
+              if ((s as unknown as Record<string, unknown>)[k] !== v) return false;
+            }
+            return true;
+          });
+        },
+      );
+
+      const subDeleteMany = jest.fn(
+        async ({ where }: { where: { id: string; principalId: string } }) => {
+          let count = 0;
+          for (const [k, v] of subs) {
+            if (v.id === where.id && v.principalId === where.principalId) {
+              subs.delete(k);
+              count += 1;
+            }
+          }
+          return { count };
+        },
+      );
+
+      const deliveryCreate = jest.fn(
+        async ({ data }: { data: Omit<DeliveryRow, 'id'> }) => {
+          const row: DeliveryRow = { id: `del_${deliveries.length + 1}`, ...data };
+          deliveries.push(row);
+          return row;
+        },
+      );
+
+      // type-rationale: $transaction here just sequentially awaits the
+      // promise array the service passes in; matches Prisma's array-form
+      // contract well enough for these isolation assertions.
+      const $transaction = jest.fn(async (ops: Array<Promise<unknown>>) => {
+        return Promise.all(ops);
+      });
+
+      const prisma = {
+        webhookSubscription: {
+          create: subCreate,
+          findMany: subFindMany,
+          deleteMany: subDeleteMany,
+        },
+        webhookDelivery: { create: deliveryCreate },
+        $transaction,
+      } as unknown as PrismaService;
+
+      return { prisma, subs, deliveries, deliveryCreate, subFindMany, subDeleteMany };
+    }
+
+    function makeWebhooksSvc(prisma: PrismaService): WebhooksService {
+      const delivery = {
+        enqueue: jest.fn().mockResolvedValue(undefined),
+      } as unknown as WebhookDeliveryWorker;
+      const cipher = {
+        encrypt: (s: string) => s,
+        decrypt: (s: string) => s,
+        isEncrypted: () => false,
+      } as unknown as WebhookSecretCipher;
+      return new WebhooksService(prisma, delivery, cipher);
+    }
+
+    it('subscribe is principal-scoped — list returns only the caller\'s subscription', async () => {
+      const harness = buildWebhooksHarness();
+      const svc = makeWebhooksSvc(harness.prisma);
+
+      await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', ['verify.completed']);
+      await svc.subscribe(PRINCIPAL_B, 'https://hookB.example.com', ['verify.completed']);
+
+      const aList = await svc.list(PRINCIPAL_A);
+      const bList = await svc.list(PRINCIPAL_B);
+
+      expect(aList).toHaveLength(1);
+      expect(aList[0]!.url).toBe('https://hookA.example.com');
+      expect(bList).toHaveLength(1);
+      expect(bList[0]!.url).toBe('https://hookB.example.com');
+
+      // Cross-pollution check.
+      expect(aList.some((s) => s.url === 'https://hookB.example.com')).toBe(false);
+      expect(bList.some((s) => s.url === 'https://hookA.example.com')).toBe(false);
+    });
+
+    it('unsubscribe respects principal scope — B cannot delete A\'s subscription', async () => {
+      const harness = buildWebhooksHarness();
+      const svc = makeWebhooksSvc(harness.prisma);
+
+      const subA = await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', ['verify.completed']);
+
+      // B attacks A's id — must be a no-op deleteMany.
+      await svc.unsubscribe(PRINCIPAL_B, subA.id);
+      expect(harness.subs.get(subA.id)).toBeDefined();
+      expect(harness.subs.get(subA.id)!.principalId).toBe(PRINCIPAL_A);
+
+      const aListAfterAttack = await svc.list(PRINCIPAL_A);
+      expect(aListAfterAttack).toHaveLength(1);
+      expect(aListAfterAttack[0]!.id).toBe(subA.id);
+
+      // A cleans up their own — succeeds.
+      await svc.unsubscribe(PRINCIPAL_A, subA.id);
+      expect(harness.subs.get(subA.id)).toBeUndefined();
+      expect(await svc.list(PRINCIPAL_A)).toHaveLength(0);
+    });
+
+    it('list is principal-scoped under bulk data — A=3, B=5, no leakage', async () => {
+      const harness = buildWebhooksHarness();
+      const svc = makeWebhooksSvc(harness.prisma);
+
+      for (let i = 0; i < 3; i += 1) {
+        await svc.subscribe(PRINCIPAL_A, `https://a-${i}.example.com`, ['verify.completed']);
+      }
+      for (let i = 0; i < 5; i += 1) {
+        await svc.subscribe(PRINCIPAL_B, `https://b-${i}.example.com`, ['verify.completed']);
+      }
+
+      const aList = await svc.list(PRINCIPAL_A);
+      const bList = await svc.list(PRINCIPAL_B);
+
+      expect(aList).toHaveLength(3);
+      expect(bList).toHaveLength(5);
+      expect(aList.every((s) => s.url.startsWith('https://a-'))).toBe(true);
+      expect(bList.every((s) => s.url.startsWith('https://b-'))).toBe(true);
+      expect(aList.some((s) => s.url.startsWith('https://b-'))).toBe(false);
+      expect(bList.some((s) => s.url.startsWith('https://a-'))).toBe(false);
+    });
+
+    it('enqueue routes only to the subscribing principal — B\'s sub is never enqueued for A\'s event', async () => {
+      const harness = buildWebhooksHarness();
+      const svc = makeWebhooksSvc(harness.prisma);
+
+      const subA = await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', ['verify.completed']);
+      const subB = await svc.subscribe(PRINCIPAL_B, 'https://hookB.example.com', ['verify.completed']);
+
+      await svc.enqueue({ type: 'verify.completed', data: { agentId: 'agt_a' } }, PRINCIPAL_A);
+
+      // Exactly one delivery row, scoped to A's subscription.
+      expect(harness.deliveryCreate).toHaveBeenCalledTimes(1);
+      expect(harness.deliveryCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ subscriptionId: subA.id, event: 'verify.completed' }),
+        }),
+      );
+      expect(harness.deliveries).toHaveLength(1);
+      expect(harness.deliveries[0]!.subscriptionId).toBe(subA.id);
+      expect(harness.deliveries[0]!.subscriptionId).not.toBe(subB.id);
+
+      // And the lookup itself was scoped — this is the upstream guard.
+      expect(harness.subFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ principalId: PRINCIPAL_A, active: true }),
+        }),
+      );
+    });
+
+    it('cross-principal delete leakage check — deleteMany where-clause carries id AND principalId', async () => {
+      const harness = buildWebhooksHarness();
+      const svc = makeWebhooksSvc(harness.prisma);
+
+      const subA = await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', ['verify.completed']);
+
+      await svc.unsubscribe(PRINCIPAL_B, subA.id);
+
+      // The captured where MUST include BOTH `id` and `principalId: B`.
+      // An id-only delete here would silently drop A's row — the bug we're
+      // guarding against.
+      expect(harness.subDeleteMany).toHaveBeenCalledTimes(1);
+      const callArg = harness.subDeleteMany.mock.calls[0]![0] as { where: Record<string, unknown> };
+      expect(callArg.where).toEqual({ id: subA.id, principalId: PRINCIPAL_B });
+      expect(callArg.where.principalId).toBe(PRINCIPAL_B);
+      expect(callArg.where.id).toBe(subA.id);
+
+      // And the row still lives under A.
+      expect(harness.subs.get(subA.id)).toBeDefined();
+      expect(harness.subs.get(subA.id)!.principalId).toBe(PRINCIPAL_A);
     });
   });
 });

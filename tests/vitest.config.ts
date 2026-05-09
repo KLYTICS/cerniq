@@ -11,7 +11,12 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     globals: true,
-    include: ['e2e/**/*.test.ts', 'e2e/property/**/*.spec.ts'],
+    include: [
+      'e2e/**/*.test.ts',
+      'e2e/property/**/*.spec.ts',
+      // Helper unit tests (e.g. `_support/stripe.spec.ts`) — pure, no API.
+      'e2e/_support/**/*.spec.ts',
+    ],
     globalSetup: ['e2e/setup.ts'],
     testTimeout: 30_000,
     hookTimeout: 30_000,

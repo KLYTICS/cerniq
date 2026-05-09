@@ -785,6 +785,37 @@ export class VerifyService {
 }
 ```
 
+#### 3.1.1 Denial Reasons
+
+The `DenialReason` union (see `apps/api/src/modules/verify/verify.dto.ts`) is split
+into two tiers. Tier 0 is a **pre-algorithm gate** that runs before the cryptographic
+denial precedence chain even begins. Tier 1 is the fixed 9-step precedence chain
+documented in `CLAUDE.md` § Architecture invariants and `docs/SECURITY.md` §
+Denial Precedence — it is what relying parties code against.
+
+**Tier 0 — Pre-algorithm gate (billing / commercial):**
+
+| Reason | When it fires | Source of truth |
+|--------|---------------|-----------------|
+| `PLAN_LIMIT_EXCEEDED` | Principal has exceeded their plan-tier monthly verify quota. Returned with HTTP 200 (not 429) because it's a contractual quota, not a transient throttle. Body includes `remaining: 0`, `monthlyQuota: <N>`, `planTier: <tier>`. Fires **before** any signature, policy, or trust evaluation — the 9-step chain below is not consulted. | `apps/api/src/modules/billing/usage-guard.service.ts`, `apps/api/src/modules/verify/verify.service.ts` |
+
+**Tier 1 — Denial precedence chain (top wins, order is fixed):**
+
+1. `AGENT_NOT_FOUND`
+2. `AGENT_REVOKED`
+3. `INVALID_SIGNATURE`
+4. `POLICY_REVOKED`
+5. `POLICY_EXPIRED`
+6. `SCOPE_NOT_GRANTED`
+7. `SPEND_LIMIT_EXCEEDED`
+8. `TRUST_SCORE_TOO_LOW`
+9. `ANOMALY_FLAGGED`
+
+`PLAN_LIMIT_EXCEEDED` does **not** interleave with this chain. It is checked
+first; if it fires, the verify service returns immediately and none of the
+cryptographic / authz steps run. This keeps the precedence chain a property
+of the verification algorithm itself, untouched by commercial concerns.
+
 ### 3.2 BATE Scoring Engine
 
 ```typescript

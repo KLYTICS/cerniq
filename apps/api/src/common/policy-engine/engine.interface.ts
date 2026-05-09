@@ -9,7 +9,7 @@ import type { TrustBand } from '@prisma/client';
 
 export type PolicyEngineId = 'builtin' | 'cedar' | 'opa';
 
-/** Locked denial reasons per ADR-0004. Engines MAY NOT invent new ones. */
+/** Locked denial reasons per ADR-0004 (extended ADR-0014 for TRIAL_EXHAUSTED). Engines MAY NOT invent new ones. */
 export type DenialReason =
   | 'AGENT_NOT_FOUND'
   | 'AGENT_REVOKED'
@@ -17,6 +17,7 @@ export type DenialReason =
   | 'POLICY_REVOKED'
   | 'POLICY_EXPIRED'
   | 'SCOPE_NOT_GRANTED'
+  | 'TRIAL_EXHAUSTED'
   | 'SPEND_LIMIT_EXCEEDED'
   | 'TRUST_SCORE_TOO_LOW'
   | 'ANOMALY_FLAGGED';
