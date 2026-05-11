@@ -18,7 +18,9 @@
  */
 
 const DEFAULT_URL = 'http://localhost:3000';
-const HEALTH_PATH = '/v1/health/live';
+// Health is mounted at VERSION_NEUTRAL so load balancers, k8s probes, and
+// this setup gate hit a stable path regardless of API version.
+const HEALTH_PATH = '/health/live';
 const PROBE_TIMEOUT_MS = 2_000;
 
 function banner(lines: string[]): void {

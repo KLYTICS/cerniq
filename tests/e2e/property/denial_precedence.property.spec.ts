@@ -3,7 +3,14 @@ import fc from 'fast-check';
 import type { Aegis, DenialReason } from '@aegis/sdk';
 import { DENIAL_REASON_PRECEDENCE } from '@aegis/types';
 import { makeSdk, readConfig } from '../_support/client';
-import { SCOPES, createAgent, createPolicy, futureIso, signTokenFor, tamperToken } from '../_support/fixtures';
+import {
+  SCOPES,
+  createAgent,
+  createPolicy,
+  futureIso,
+  signTokenFor,
+  tamperToken,
+} from '../_support/fixtures';
 
 /**
  * Property: when multiple denial conditions hold simultaneously, the API
@@ -56,13 +63,20 @@ describe('property · denial precedence', () => {
   });
 
   it('precedence array is fixed and well-known (regression guard)', () => {
+    // Two recent additions (ADR-0014):
+    //   - PLAN_LIMIT_EXCEEDED is the pre-algorithm billing gate (paid tiers
+    //     over quota; metered customers never see it).
+    //   - TRIAL_EXHAUSTED sits between SCOPE_NOT_GRANTED and SPEND_LIMIT_EXCEEDED;
+    //     fires when a FREE-tier principal exhausts the lifetime verify cap.
     expect([...DENIAL_REASON_PRECEDENCE]).toEqual([
+      'PLAN_LIMIT_EXCEEDED',
       'AGENT_NOT_FOUND',
       'AGENT_REVOKED',
       'INVALID_SIGNATURE',
       'POLICY_REVOKED',
       'POLICY_EXPIRED',
       'SCOPE_NOT_GRANTED',
+      'TRIAL_EXHAUSTED',
       'SPEND_LIMIT_EXCEEDED',
       'TRUST_SCORE_TOO_LOW',
       'ANOMALY_FLAGGED',
@@ -89,7 +103,11 @@ describe('property · denial precedence', () => {
           };
           // At least two must hold to make the test meaningful.
           const setBits =
-            +c.agentRevoked + +c.invalidSignature + +c.policyRevoked + +c.scopeMismatch + +c.spendOver;
+            +c.agentRevoked +
+            +c.invalidSignature +
+            +c.policyRevoked +
+            +c.scopeMismatch +
+            +c.spendOver;
           if (setBits < 2) return;
 
           const agent = await createAgent(sdk);
@@ -101,7 +119,11 @@ describe('property · denial precedence', () => {
             [
               c.scopeMismatch
                 ? SCOPES.dataRead(['read:calendar']) // a token claiming commerce will mismatch
-                : SCOPES.commerce({ maxPerTransaction: 50, maxPerDay: 100, allowedDomains: ['delta.com'] }),
+                : SCOPES.commerce({
+                    maxPerTransaction: 50,
+                    maxPerDay: 100,
+                    allowedDomains: ['delta.com'],
+                  }),
             ],
             { expiresAt: futureIso(60 * 60) },
           );
