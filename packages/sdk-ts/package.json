@@ -21,6 +21,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
+    },
+    "./adapters/redis": {
+      "types": "./dist/adapters/redis.d.ts",
+      "import": "./dist/adapters/redis.mjs",
+      "require": "./dist/adapters/redis.cjs"
     }
   },
   "files": ["dist", "README.md", "LICENSE"],
