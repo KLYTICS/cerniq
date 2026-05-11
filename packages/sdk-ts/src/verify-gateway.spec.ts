@@ -288,6 +288,65 @@ describe('VerifyGateway: metrics snapshot', () => {
   });
 });
 
+describe('VerifyGateway: reviewer-driven regressions', () => {
+  it('R-005: failures during open phase do not accumulate consecutiveFailures', async () => {
+    let now = 0;
+    let mode: 'fail' | 'ok' = 'fail';
+    const fake = makeFake(async () => {
+      if (mode === 'fail') throw new AegisInternalError('boom', 500, undefined);
+      return makeResult();
+    });
+    const gw = new VerifyGateway(fake as unknown as Aegis, {
+      breakerThreshold: 2,
+      breakerCooldownMs: 1_000,
+      now: () => now,
+    });
+    await expect(gw.verify('a')).rejects.toBeInstanceOf(AegisInternalError);
+    await expect(gw.verify('b')).rejects.toBeInstanceOf(AegisInternalError);
+    expect(gw.state).toBe('open');
+    const lockedAt = gw.metrics().consecutiveFailures;
+    for (let i = 0; i < 10; i += 1) {
+      await expect(gw.verify('x' + i)).rejects.toBeInstanceOf(AegisServiceUnavailableError);
+    }
+    expect(gw.metrics().consecutiveFailures).toBe(lockedAt);
+  });
+
+  it('R-006: cache.set failure does not lose a successful verify', async () => {
+    const fake = makeFake(async () => makeResult());
+    const brokenCache = {
+      get: () => undefined,
+      peek: () => undefined,
+      set: () => {
+        throw new Error('redis down');
+      },
+      delete: () => undefined,
+      size: () => 0,
+    };
+    const gw = new VerifyGateway(fake as unknown as Aegis, { cache: brokenCache });
+    const res = await gw.verify('tok');
+    expect(res.valid).toBe(true);
+  });
+
+  it('R-006: cache.peek/get failure falls through to upstream', async () => {
+    const fake = makeFake(async () => makeResult());
+    const brokenCache = {
+      get: () => {
+        throw new Error('redis down');
+      },
+      peek: () => {
+        throw new Error('redis down');
+      },
+      set: () => undefined,
+      delete: () => undefined,
+      size: () => 0,
+    };
+    const gw = new VerifyGateway(fake as unknown as Aegis, { cache: brokenCache });
+    const res = await gw.verify('tok');
+    expect(res.valid).toBe(true);
+    expect(fake.verify).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('VerifyGateway: invalidation', () => {
   it('drops a cached entry on invalidate()', async () => {
     const fake = makeFake(async () => makeResult({ ttl: 30 }));
