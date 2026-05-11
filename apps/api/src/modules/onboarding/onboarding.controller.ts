@@ -1,4 +1,13 @@
-import { Body, Controller, ForbiddenException, Get, HttpCode, Patch, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  HttpCode,
+  Patch,
+  Post,
+  Req,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { OnboardingService } from './onboarding.service';
 import { OnboardingBackfill, type BackfillReport } from './onboarding.backfill';
@@ -17,7 +26,7 @@ import type { MarkOnboardingStepDto, OnboardingStatusDto } from './onboarding.dt
  * don't go through HTTP. The HTTP surface exists for the dashboard
  * wizard and the `aegis doctor` CLI.
  */
-@Controller('v1/me/onboarding')
+@Controller('me/onboarding')
 export class OnboardingController {
   constructor(
     private readonly onboarding: OnboardingService,
