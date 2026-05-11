@@ -119,7 +119,9 @@ jobs:
 
       - name: Upload Grype findings to code scanning
         uses: github/codeql-action/upload-sarif@v3
-        if: always() && steps.grype.outputs.sarif != ''
+        # Requires GHAS Code Scanning; skip on private repos without it.
+        # Grype already fails the job above on HIGH/CRITICAL via fail-build.
+        if: ${{ always() && steps.grype.outputs.sarif != '' && !github.event.repository.private }}
         with:
           sarif_file: ${{ steps.grype.outputs.sarif }}
           category: grype-sbom
