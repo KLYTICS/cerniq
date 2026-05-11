@@ -18,6 +18,23 @@ from __future__ import annotations
 
 from ._version import __version__
 from .client import Aegis, AsyncAegis
+from .verify_cache import (
+    CachedVerify,
+    MemoryVerifyCache,
+    VerifyCache,
+    VerifyCacheContext,
+    build_cache_key,
+    clamp_ttl_ms,
+)
+from .verify_gateway import (
+    AsyncVerifyGateway,
+    BreakerState,
+    FallbackMode,
+    VerifyGateway,
+    VerifyGatewayHooks,
+    VerifyGatewayMetrics,
+    VerifyGatewayOptions,
+)
 from .crypto import (
     Keypair,
     SignContext,
@@ -70,6 +87,19 @@ from .models import (
 __all__ = [
     "Aegis",
     "AegisError",
+    "AsyncVerifyGateway",
+    "BreakerState",
+    "CachedVerify",
+    "FallbackMode",
+    "MemoryVerifyCache",
+    "VerifyCache",
+    "VerifyCacheContext",
+    "VerifyGateway",
+    "VerifyGatewayHooks",
+    "VerifyGatewayMetrics",
+    "VerifyGatewayOptions",
+    "build_cache_key",
+    "clamp_ttl_ms",
     "AgentPolicy",
     "AgentRecord",
     "AgentRegistrationRequest",
