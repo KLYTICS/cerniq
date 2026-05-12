@@ -268,8 +268,13 @@ async def test_half_open_serializes_to_one_probe() -> None:
         await asyncio.sleep(0)
     assert gw.state == "half-open"
     # Concurrent callers during the probe must fast-fail, not slam upstream.
-    with pytest.raises(ServerError):
+    # The error message must reflect the *half-open contended* state, not
+    # the misleading "breaker is open" — operators paging on this need
+    # accurate state attribution.
+    with pytest.raises(ServerError) as exc_c:
         await gw.verify("c")
+    assert "half-open" in str(exc_c.value)
+    assert "probe is already in flight" in str(exc_c.value)
     with pytest.raises(ServerError):
         await gw.verify("d")
     assert probe_count[0] == 2  # 1st failed pre-trip, 2nd is the probe.

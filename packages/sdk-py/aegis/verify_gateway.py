@@ -183,10 +183,11 @@ class AsyncVerifyGateway:
         # 2. Breaker check before any network attempt.
         self._maybe_transition_breaker()
         if self._breaker == "open":
-            return await self._handle_breaker_open(key, cached)
-        # Half-open: serialize to a single probe.
+            return await self._handle_breaker_open(key, cached, state="open")
+        # Half-open: serialize to a single probe. Secondary callers fall
+        # through the same fallback path but get a state-accurate message.
         if self._breaker == "half-open" and self._half_open_probe_in_flight:
-            return await self._handle_breaker_open(key, cached)
+            return await self._handle_breaker_open(key, cached, state="half-open")
         i_am_probing = False
         if self._breaker == "half-open":
             self._half_open_probe_in_flight = True
@@ -348,17 +349,25 @@ class AsyncVerifyGateway:
         self._safe_hook("on_breaker_state_change", previous, to)
 
     async def _handle_breaker_open(
-        self, key: str, cached: CachedVerify | None
+        self,
+        key: str,
+        cached: CachedVerify | None,
+        *,
+        state: BreakerState = "open",
     ) -> VerifyResult:
         if self._fallback_mode == "serve-stale" and cached is not None:
             self._stale_served += 1
             self._safe_hook("on_stale", key, cached.result)
             return cached.result
-        raise ServerError(
-            "AEGIS verify gateway breaker is open — upstream is failing.",
-            status_code=503,
-            request_id=None,
-        )
+        if state == "half-open":
+            message = (
+                "AEGIS verify gateway breaker is half-open — a probe is "
+                "already in flight; secondary callers are short-circuited "
+                "until the probe resolves."
+            )
+        else:
+            message = "AEGIS verify gateway breaker is open — upstream is failing."
+        raise ServerError(message, status_code=503, request_id=None)
 
     def _random_jitter_factor(self) -> float:
         # secrets.randbits is the Python equivalent of Web Crypto
