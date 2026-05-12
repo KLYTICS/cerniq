@@ -11,7 +11,9 @@ const ZERO_KEY = new Uint8Array(32);
 const ZERO_KEY_B64 = encodeBase64Url(ZERO_KEY);
 const FIXED_ROTATED_AT = '2026-01-01T00:00:00.000Z';
 
-function buildConfig(overrides: Partial<{ pub: string; rotatedAt: string }> = {}): AppConfigService {
+function buildConfig(
+  overrides: Partial<{ pub: string; rotatedAt: string }> = {},
+): AppConfigService {
   return {
     aegisSigningPublicKey: overrides.pub,
     aegisSigningKeyRotatedAt: overrides.rotatedAt,
@@ -46,7 +48,9 @@ describe('WellknownService', () => {
     });
 
     it('uses configured rotatedAt verbatim when present', () => {
-      const svc = new WellknownService(buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }));
+      const svc = new WellknownService(
+        buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }),
+      );
       svc.onModuleInit();
       expect(svc.isRotatedAtDegraded()).toBe(false);
       expect(svc.getAuditSigningKey().rotatedAt).toBe(FIXED_ROTATED_AT);
@@ -55,15 +59,21 @@ describe('WellknownService', () => {
 
   describe('kid derivation', () => {
     it('is deterministic — sha256(rawPublicKey) base64url, first 16 chars', () => {
-      const expectedFull = encodeBase64Url(new Uint8Array(createHash('sha256').update(ZERO_KEY).digest()));
+      const expectedFull = encodeBase64Url(
+        new Uint8Array(createHash('sha256').update(ZERO_KEY).digest()),
+      );
       const expected = expectedFull.slice(0, 16);
       expect(computeKid(ZERO_KEY)).toBe(expected);
       expect(computeKid(ZERO_KEY)).toHaveLength(16);
     });
 
     it('derives the same kid across two service instances for the same key', () => {
-      const a = new WellknownService(buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }));
-      const b = new WellknownService(buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }));
+      const a = new WellknownService(
+        buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }),
+      );
+      const b = new WellknownService(
+        buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }),
+      );
       a.onModuleInit();
       b.onModuleInit();
       expect(a.getKid()).toBe(b.getKid());
@@ -72,7 +82,9 @@ describe('WellknownService', () => {
     it('produces different kids for different keys', () => {
       const otherKey = new Uint8Array(32);
       otherKey[0] = 1;
-      const a = new WellknownService(buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }));
+      const a = new WellknownService(
+        buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }),
+      );
       const b = new WellknownService(
         buildConfig({ pub: encodeBase64Url(otherKey), rotatedAt: FIXED_ROTATED_AT }),
       );
@@ -89,13 +101,27 @@ describe('WellknownService', () => {
       svc.onModuleInit();
     });
 
-    it('audit-signing-key has the contracted shape', () => {
+    it('audit-signing-key has the contracted shape (verbose + RFC 8037)', () => {
+      // Shape is intentionally a SUPERSET of plain JWKS:
+      //   - `algorithm` / `curve` / `publicKey` are verbose aliases —
+      //     the documented SOC2 auditor-facing names.
+      //   - `kty` / `crv` / `alg` / `use` / `x` are the canonical RFC 8037
+      //     JWK fields — let JOSE consumers parse this endpoint directly
+      //     without falling back to /.well-known/jwks.json.
+      // Both name-sets carry the same key material. Removing either side
+      // is a breaking change; adding new fields is fine (additive evolution
+      // per packages/CLAUDE.md "Public discovery responses are additive.").
       const out = svc.getAuditSigningKey();
       expect(out).toEqual({
         kid: svc.getKid(),
         publicKey: ZERO_KEY_B64,
         algorithm: 'EdDSA',
         curve: 'Ed25519',
+        kty: 'OKP',
+        crv: 'Ed25519',
+        alg: 'EdDSA',
+        use: 'sig',
+        x: ZERO_KEY_B64,
         issuer: 'https://aegislabs.io',
         rotatedAt: FIXED_ROTATED_AT,
         purpose: 'audit-event-signing',
@@ -123,7 +149,9 @@ describe('WellknownService', () => {
       // Add stray padding to the input — output should still match the
       // canonical (unpadded) form.
       const padded = `${ZERO_KEY_B64}=`;
-      const padSvc = new WellknownService(buildConfig({ pub: padded, rotatedAt: FIXED_ROTATED_AT }));
+      const padSvc = new WellknownService(
+        buildConfig({ pub: padded, rotatedAt: FIXED_ROTATED_AT }),
+      );
       padSvc.onModuleInit();
       expect(padSvc.getAuditSigningKey().publicKey).toBe(ZERO_KEY_B64);
     });
@@ -249,7 +277,9 @@ describe('WellknownService', () => {
       // JSON has no native Infinity — JSON.stringify(Infinity) === "null",
       // but we want our DTO to declare null intentionally rather than rely
       // on stringify behavior. Asserting the parsed shape proves it.
-      const parsed = JSON.parse(json) as { tiers: Record<string, { monthly_verify_quota: number | null }> };
+      const parsed = JSON.parse(json) as {
+        tiers: Record<string, { monthly_verify_quota: number | null }>;
+      };
       expect(parsed.tiers.FREE!.monthly_verify_quota).toBeNull();
       expect(parsed.tiers.ENTERPRISE!.monthly_verify_quota).toBeNull();
     });

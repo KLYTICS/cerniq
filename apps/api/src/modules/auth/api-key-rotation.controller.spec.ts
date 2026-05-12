@@ -1,7 +1,11 @@
 import type { Request } from 'express';
 import { ApiKeyRotationController } from './api-key-rotation.controller';
 import { ApiKeyService } from './api-key.service';
-import { AlreadyRotatedError, AuthenticationError, AuthorizationError } from '../../common/errors/aegis-error';
+import {
+  AlreadyRotatedError,
+  AuthenticationError,
+  AuthorizationError,
+} from '../../common/errors/aegis-error';
 import type { AuthenticatedKey, RotateResult } from './api-key.service';
 
 /**
@@ -22,19 +26,40 @@ function buildAuth(overrides: Partial<AuthenticatedKey> = {}): AuthenticatedKey 
 }
 
 function buildReq(auth: AuthenticatedKey | undefined): Request {
-  return { auth } as unknown as Request;
+  // The controller reads `req.headers['x-aegis-api-key']` after a successful
+  // rotate to drop the OLD plaintext from the auth cache (Round-24 wire-up
+  // — see controller comment "Round-24 cache wire-up"). Headers MUST be
+  // present on the mock or any test that exercises the happy path NPEs.
+  // We give a sentinel plaintext that's pattern-valid but never matches a
+  // real bcrypt-hashed key, so the cache invalidation call is a no-op.
+  return {
+    auth,
+    headers: { 'x-aegis-api-key': 'aegis_sk_TEST_FIXTURE_xxxxxxx' },
+  } as unknown as Request;
 }
 
 interface RotateMock {
   rotate: jest.Mock<Promise<RotateResult>, [string, string, number]>;
+  // Round-24: controller calls invalidateCache(oldPlaintext) after a
+  // successful rotate so the auth cache cannot serve the just-rotated
+  // key past its 24h overlap window. Mock no-ops because we're testing
+  // the controller's contract, not the cache layer.
+  invalidateCache?: jest.Mock<Promise<void>, [string]>;
 }
 
-function buildSvc(impl: (callingId: string, principalId: string, hours: number) => Promise<RotateResult> | RotateResult): {
+function buildSvc(
+  impl: (
+    callingId: string,
+    principalId: string,
+    hours: number,
+  ) => Promise<RotateResult> | RotateResult,
+): {
   controller: ApiKeyRotationController;
   svc: RotateMock;
 } {
   const svc: RotateMock = {
     rotate: jest.fn(async (callingId, principalId, hours) => impl(callingId, principalId, hours)),
+    invalidateCache: jest.fn(async (_plaintext: string) => undefined),
   };
   const controller = new ApiKeyRotationController(svc as unknown as ApiKeyService);
   return { controller, svc };
@@ -83,7 +108,9 @@ describe('ApiKeyRotationController.rotate (guard contract)', () => {
       throw new Error('should not be called');
     });
 
-    await expect(controller.rotate(buildReq(undefined))).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(controller.rotate(buildReq(undefined))).rejects.toBeInstanceOf(
+      AuthenticationError,
+    );
   });
 
   it('throws AuthorizationError if auth has no apiKeyId', async () => {
@@ -113,7 +140,9 @@ describe('ApiKeyRotationController.rotate (error propagation)', () => {
       throw new AuthorizationError('API key does not belong to the calling principal.');
     });
 
-    await expect(controller.rotate(buildReq(buildAuth()))).rejects.toBeInstanceOf(AuthorizationError);
+    await expect(controller.rotate(buildReq(buildAuth()))).rejects.toBeInstanceOf(
+      AuthorizationError,
+    );
   });
 
   it('cross-principal: principal A cannot rotate principal B s key — service rejects', async () => {

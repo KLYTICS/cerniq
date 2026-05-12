@@ -22,6 +22,7 @@ import {
   type KeyMetadata,
 } from '../../common/crypto/crypto.bootstrap';
 import * as ed from '@noble/ed25519';
+import { computeKid } from '../wellknown/wellknown.service';
 import { AwsKmsAdapter, type KmsClientLike } from './aws-kms.adapter';
 import { GcpKmsAdapter, type GcpKmsClientLike } from './gcp-kms.adapter';
 import { VaultTransitAdapter, type VaultClientLike } from './vault-transit.adapter';
@@ -42,18 +43,13 @@ import {
 function metricsSink(metrics: MetricsService | null): BreakerMetricsSink | undefined {
   if (!metrics) return undefined;
   return {
-    setState: (name, numeric) =>
-      metrics.circuitBreakerStateGauge.set({ breaker: name }, numeric),
-    recordTrip: (name) =>
-      metrics.circuitBreakerTripsTotal.inc({ breaker: name }),
+    setState: (name, numeric) => metrics.circuitBreakerStateGauge.set({ breaker: name }, numeric),
+    recordTrip: (name) => metrics.circuitBreakerTripsTotal.inc({ breaker: name }),
   };
 }
 
 /** Build a configured breaker with optional metric wiring under a stable name. */
-function makeBreaker<T>(
-  name: string,
-  sink: BreakerMetricsSink | undefined,
-): CircuitBreaker<T> {
+function makeBreaker<T>(name: string, sink: BreakerMetricsSink | undefined): CircuitBreaker<T> {
   return new CircuitBreaker<T>({
     name,
     failureThreshold: 5,
@@ -124,12 +120,13 @@ async function buildAws(
   metrics: MetricsService | null,
 ): Promise<KmsAdapter> {
   // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
-  const { KMSClient, DecryptCommand } = require('@aws-sdk/client-kms') as typeof import('@aws-sdk/client-kms');
+  const { KMSClient, DecryptCommand } =
+    require('@aws-sdk/client-kms') as typeof import('@aws-sdk/client-kms');
   const region = (config as unknown as { awsRegion?: string }).awsRegion;
   if (!region) throw new Error('AWS_REGION required for AEGIS_KMS_PROVIDER=aws');
   const client = new KMSClient({ region });
 
-  const cfg = (config as unknown as Record<string, string | undefined>);
+  const cfg = config as unknown as Record<string, string | undefined>;
   const auditKid = cfg.aegisAwsKmsAuditKid;
   const auditWrapped = cfg.aegisAwsKmsAuditWrapped;
   const auditPub = cfg.aegisAwsKmsAuditPub;
@@ -184,12 +181,15 @@ async function buildGcp(
   // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
   const { KeyManagementServiceClient } = require('@google-cloud/kms') as {
     KeyManagementServiceClient: new () => {
-      asymmetricSign(req: { name: string; data: Uint8Array }): Promise<[{ signature?: Uint8Array | string | null }]>;
+      asymmetricSign(req: {
+        name: string;
+        data: Uint8Array;
+      }): Promise<[{ signature?: Uint8Array | string | null }]>;
     };
   };
   const client = new KeyManagementServiceClient();
 
-  const cfg = (config as unknown as Record<string, string | undefined>);
+  const cfg = config as unknown as Record<string, string | undefined>;
   const auditKid = cfg.aegisGcpKmsAuditKid;
   const auditResource = cfg.aegisGcpKmsAuditResource;
   const auditPub = cfg.aegisGcpKmsAuditPub;
@@ -197,10 +197,7 @@ async function buildGcp(
     throw new Error('GcpKmsAdapter: AEGIS_GCP_KMS_AUDIT_{KID,RESOURCE,PUB} all required');
   }
 
-  const signBreaker = makeBreaker<{ signature: Uint8Array }>(
-    'kms.gcp.sign',
-    metricsSink(metrics),
-  );
+  const signBreaker = makeBreaker<{ signature: Uint8Array }>('kms.gcp.sign', metricsSink(metrics));
   const adapter = new GcpKmsAdapter(
     {
       keys: {
@@ -232,7 +229,7 @@ async function buildVault(
   config: AppConfigService,
   metrics: MetricsService | null,
 ): Promise<KmsAdapter> {
-  const cfg = (config as unknown as Record<string, string | undefined>);
+  const cfg = config as unknown as Record<string, string | undefined>;
   const addr = cfg.aegisVaultAddr;
   const token = cfg.aegisVaultToken;
   const auditKid = cfg.aegisVaultAuditKid;
@@ -240,7 +237,9 @@ async function buildVault(
   const auditVersionStr = cfg.aegisVaultAuditVersion;
   const auditPub = cfg.aegisVaultAuditPub;
   if (!addr || !token || !auditKid || !transitName || !auditVersionStr || !auditPub) {
-    throw new Error('VaultTransitAdapter: AEGIS_VAULT_{ADDR,TOKEN,AUDIT_KID,AUDIT_TRANSIT_NAME,AUDIT_VERSION,AUDIT_PUB} all required');
+    throw new Error(
+      'VaultTransitAdapter: AEGIS_VAULT_{ADDR,TOKEN,AUDIT_KID,AUDIT_TRANSIT_NAME,AUDIT_VERSION,AUDIT_PUB} all required',
+    );
   }
   const auditVersion = Number.parseInt(auditVersionStr, 10);
 
@@ -308,13 +307,21 @@ async function buildInMemory(config: AppConfigService): Promise<InMemoryKmsAdapt
   const adapter = new InMemoryKmsAdapter();
 
   // Audit signing key — read from env if present, else generate ephemeral.
-  const auditPriv = (config as unknown as { auditEd25519PrivateB64?: string }).auditEd25519PrivateB64;
+  const auditPriv = (config as unknown as { auditEd25519PrivateB64?: string })
+    .auditEd25519PrivateB64;
   const auditPub = (config as unknown as { auditEd25519PublicB64?: string }).auditEd25519PublicB64;
   const isProd = (config as unknown as { nodeEnv?: string }).nodeEnv === 'production';
 
   if (auditPriv && auditPub) {
+    // Kid is the canonical sha256 fingerprint of the public key bytes —
+    // computed via the same `computeKid()` that `WellknownService` uses
+    // when publishing `/.well-known/jwks.json`. Both sides MUST agree so
+    // offline verifiers can pick the right JWKS key from the per-event
+    // `signingKeyId`. The hardcoded `'kid-genesis-v1'` placeholder used
+    // to silently break that mapping (every signed row pointed at a kid
+    // JWKS never published).
     adapter.registerKey({
-      kid: 'kid-genesis-v1',
+      kid: computeKid(decodeB64u(auditPub)),
       purpose: 'AUDIT',
       privateKey: decodeB64u(auditPriv),
       publicKey: auditPub,
@@ -328,7 +335,11 @@ async function buildInMemory(config: AppConfigService): Promise<InMemoryKmsAdapt
     const priv = ed.utils.randomPrivateKey();
     const pub = await ed.getPublicKeyAsync(priv);
     adapter.registerKey({
-      kid: 'kid-dev-audit',
+      // Same fingerprint contract for the ephemeral dev fallback — even
+      // though the keypair is regenerated each restart, the kid is still
+      // derived from `pub` so JWKS and the row stamp stay in sync within
+      // a single process lifetime.
+      kid: computeKid(pub),
       purpose: 'AUDIT',
       privateKey: priv,
       publicKey: bufferToB64u(pub),

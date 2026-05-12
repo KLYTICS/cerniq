@@ -47,7 +47,13 @@ export class AuditController {
   ): Promise<void> {
     res.setHeader('Content-Type', 'application/x-ndjson');
     res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('X-AEGIS-Export-Format', 'ndjson-v1');
+    // ndjson-v2 — canonical shape consumable by @aegis/audit-verifier without
+    // remapping. v1 (legacy flat shape with `aegisSignature` at top level
+    // and payload fields un-nested) was un-verifiable in practice because
+    // the runtime kid was never stamped at append time, so JWKS lookups
+    // always failed. No customer code could have been depending on v1
+    // working with the public verifier.
+    res.setHeader('X-AEGIS-Export-Format', 'ndjson-v2');
 
     for await (const row of this.audit.exportStream(auth.principalId, agentId, query)) {
       // Backpressure-aware write — wait for drain if the socket buffer fills.
