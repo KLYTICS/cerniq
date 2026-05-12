@@ -22,7 +22,7 @@ import type {
  * live behind their own URL prefix. They are NEVER reached on the
  * Cloudflare Worker (Phase 3) — Auth0 traffic stays at the Railway origin.
  */
-@Controller('v1/idp/auth0')
+@Controller('idp/auth0')
 export class Auth0Controller {
   constructor(
     private readonly auth0: Auth0Service,

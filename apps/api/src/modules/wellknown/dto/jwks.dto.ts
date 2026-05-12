@@ -36,14 +36,35 @@ export class AuditSigningKeyDto {
   @ApiProperty({ description: 'Stable key id — sha256(rawPublicKey) base64url, first 16 chars.' })
   kid!: string;
 
-  @ApiProperty({ description: 'base64url-encoded raw 32-byte Ed25519 public key.' })
+  @ApiProperty({
+    description: 'base64url-encoded raw 32-byte Ed25519 public key (verbose alias of `x`).',
+  })
   publicKey!: string;
 
-  @ApiProperty({ enum: ['EdDSA'], example: 'EdDSA' })
+  @ApiProperty({ enum: ['EdDSA'], example: 'EdDSA', description: 'Verbose alias of `alg`.' })
   algorithm!: 'EdDSA';
 
-  @ApiProperty({ enum: ['Ed25519'], example: 'Ed25519' })
+  @ApiProperty({ enum: ['Ed25519'], example: 'Ed25519', description: 'Verbose alias of `crv`.' })
   curve!: 'Ed25519';
+
+  // ── RFC 8037 JWK fields (additive — lets JOSE consumers parse this
+  // single-key response without falling back to /.well-known/jwks.json).
+  @ApiProperty({ enum: ['OKP'], example: 'OKP', description: 'RFC 8037 key type.' })
+  kty!: 'OKP';
+
+  @ApiProperty({ enum: ['Ed25519'], example: 'Ed25519', description: 'RFC 8037 curve.' })
+  crv!: 'Ed25519';
+
+  @ApiProperty({ enum: ['EdDSA'], example: 'EdDSA', description: 'RFC 8037 algorithm.' })
+  alg!: 'EdDSA';
+
+  @ApiProperty({ enum: ['sig'], example: 'sig', description: 'RFC 8037 intended use.' })
+  use!: 'sig';
+
+  @ApiProperty({
+    description: 'RFC 8037 raw public key — base64url-encoded 32 bytes. Identical to `publicKey`.',
+  })
+  x!: string;
 
   @ApiProperty({ example: 'https://aegislabs.io' })
   issuer!: string;

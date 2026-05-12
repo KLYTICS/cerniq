@@ -6,6 +6,7 @@ import { AuditChainUtil } from '../../common/crypto/audit-chain.util';
 import { Ed25519Util, decodeBase64Url, encodeBase64Url } from '../../common/crypto/ed25519.util';
 import { withSpan } from '../../common/observability/spans';
 import { AuditQueryDto, AuditLogResponseDto } from './audit.dto';
+import { computeKid } from '../wellknown/wellknown.service';
 
 export interface AppendAuditInput {
   /**
@@ -52,6 +53,16 @@ export class AuditService {
   private readonly logger = new Logger(AuditService.name);
   private auditPrivateKey?: Uint8Array;
   private auditPublicKeyB64?: string;
+  /**
+   * Kid (first 16 chars of `sha256(rawPublicKey)` base64url) for the
+   * env-derived signing key. Computed once at init so every dev-path
+   * `append()` stamps the correct kid on the row — matching what JWKS
+   * publishes and what offline verifiers will look up.
+   *
+   * Production (KMS-backed) path reads the kid via `auditSigner.getActiveKid()`
+   * instead — this field stays undefined there.
+   */
+  private envDerivedKid?: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -73,14 +84,21 @@ export class AuditService {
     if (priv && pub) {
       this.auditPrivateKey = decodeBase64Url(priv);
       this.auditPublicKeyB64 = pub;
+      // Stamp the active kid on every row so /.well-known/jwks.json clients
+      // can pick the right verifying key. Matches what `WellknownService`
+      // publishes (same `computeKid()` over the same raw public key bytes).
+      this.envDerivedKid = computeKid(decodeBase64Url(pub));
       return;
     }
     if (this.config.nodeEnv === 'production') {
-      throw new Error('AEGIS_SIGNING_PRIVATE_KEY and AEGIS_SIGNING_PUBLIC_KEY must be set in production.');
+      throw new Error(
+        'AEGIS_SIGNING_PRIVATE_KEY and AEGIS_SIGNING_PUBLIC_KEY must be set in production.',
+      );
     }
     const kp = await this.ed25519.generateKeypair();
     this.auditPrivateKey = kp.privateKey;
     this.auditPublicKeyB64 = encodeBase64Url(kp.publicKey);
+    this.envDerivedKid = computeKid(kp.publicKey);
     this.logger.warn('Using ephemeral Ed25519 audit-signing key. DO NOT USE IN PRODUCTION.');
   }
 
@@ -107,17 +125,13 @@ export class AuditService {
    * + DLQ for the SOC2 invariant; this method is the durable boundary).
    */
   async append(input: AppendAuditInput): Promise<string> {
-    return withSpan(
-      'aegis.audit.chain.append',
-      () => this.appendInternal(input),
-      {
-        'principal.id': input.principalId,
-        'agent.id': input.agentId ?? input.claimedAgentId ?? undefined,
-        'policy.id': input.policyId ?? undefined,
-        'decision': input.decision,
-        'denial.reason': input.denialReason ?? undefined,
-      },
-    );
+    return withSpan('aegis.audit.chain.append', () => this.appendInternal(input), {
+      'principal.id': input.principalId,
+      'agent.id': input.agentId ?? input.claimedAgentId ?? undefined,
+      'policy.id': input.policyId ?? undefined,
+      decision: input.decision,
+      'denial.reason': input.denialReason ?? undefined,
+    });
   }
 
   private async appendInternal(input: AppendAuditInput): Promise<string> {
@@ -169,7 +183,8 @@ export class AuditService {
             timestamp: timestamp.toISOString(),
             action: input.action,
             relyingParty: input.relyingParty ?? null,
-            requestedAmount: input.requestedAmount != null ? input.requestedAmount.toFixed(2) : null,
+            requestedAmount:
+              input.requestedAmount != null ? input.requestedAmount.toFixed(2) : null,
             policySnapshot: input.policySnapshot ?? null,
           });
 
@@ -199,6 +214,11 @@ export class AuditService {
               },
               this.auditPrivateKey!,
             );
+            // Dev path: stamp the env-derived kid so the row points at the
+            // public key that's actually in JWKS. Without this, rows fall
+            // through to the schema default `'kid-genesis-v1'` and offline
+            // verifiers can't pick a key from JWKS to verify them.
+            signingKid = this.envDerivedKid;
           }
 
           // ADR-0006: actionHash is non-nullable in the schema, so an
@@ -207,8 +227,7 @@ export class AuditService {
           // — distinguishable from a genuine hash by length (0 bytes →
           // sha256 of empty = 47DEQpj8...) — actually sha256 of empty
           // string is well-known. Verifier handles it.
-          const actionHashForRow =
-            built.rawHashes.actionHash ?? this.chain.hashLeaf('')!;
+          const actionHashForRow = built.rawHashes.actionHash ?? this.chain.hashLeaf('')!;
 
           await tx.auditEvent.create({
             data: {
@@ -258,12 +277,17 @@ export class AuditService {
     return eventId;
   }
 
-  async list(principalId: string, agentId: string, query: AuditQueryDto): Promise<AuditLogResponseDto> {
+  async list(
+    principalId: string,
+    agentId: string,
+    query: AuditQueryDto,
+  ): Promise<AuditLogResponseDto> {
     const agent = await this.prisma.agentIdentity.findFirst({
       where: { id: agentId, principalId },
       select: { id: true },
     });
-    if (!agent) throw new NotFoundException({ error: 'AGENT_NOT_FOUND', message: 'Agent not found.' });
+    if (!agent)
+      throw new NotFoundException({ error: 'AGENT_NOT_FOUND', message: 'Agent not found.' });
 
     const limit = query.limit ?? 100;
     const where: Prisma.AuditEventWhereInput = { agentId };
@@ -312,39 +336,71 @@ export class AuditService {
    * Yields rows in chronological order so external chain verifiers can
    * walk forward without re-sorting.
    */
+  /**
+   * Stream the audit log as one canonical row per yield.
+   *
+   * Shape matches `@aegis/audit-verifier`'s `AuditEventRow` so an offline
+   * relying party can pipe the NDJSON straight into `verifyChain()` with
+   * no remapping:
+   *
+   *   {
+   *     eventId, prevEventId, prevSignature,  // chain link
+   *     signingKeyId, signature,              // pick + verify
+   *     payload: AuditChainPayload,           // the bytes that got signed
+   *   }
+   *
+   * The legacy flat shape (with `aegisSignature` at top level and payload
+   * fields un-nested) was un-verifiable in practice — the `kid` was never
+   * stamped at append time so JWKS lookups always failed. We don't preserve
+   * it; X-AEGIS-Export-Format goes from `ndjson-v1` to `ndjson-v2`.
+   *
+   * `prevEventId` / `prevSignature` are reconstructed by walking rows in
+   * timestamp order — that's exactly how the signer computed `prev_hash`
+   * at write time, so a verifier replaying the same walk reconstructs the
+   * same signed bytes.
+   *
+   * `redactedAt` and `redactionReason` are emitted at top level (siblings
+   * of `payload`) because they're operational metadata, not part of the
+   * signed-bytes envelope.
+   */
   async *exportStream(
     principalId: string,
     agentId: string,
     query: AuditQueryDto,
   ): AsyncGenerator<{
     eventId: string;
-    agentId: string | null;
-    claimedAgentId: string | null;
-    principalId: string;
-    timestamp: string;
-    action: string | null;
-    actionHash: string;
-    decision: string;
-    denialReason: string | null;
-    relyingParty: string | null;
-    relyingPartyHash: string | null;
-    trustScoreAtEvent: number;
-    trustBandAtEvent: string;
-    policyId: string | null;
-    policySnapshot: unknown;
-    policySnapshotHash: string | null;
-    requestedAmount: string | null;
-    requestedAmountHash: string | null;
-    currency: string | null;
-    aegisSignature: string;
-    payloadVersion: number;
+    prevEventId: string | null;
+    prevSignature: string | null;
+    signingKeyId: string;
+    signature: string;
+    payload: {
+      agentId: string;
+      claimedAgentId: string | null;
+      principalId: string;
+      decision: string;
+      denialReason: string | null;
+      policyId: string | null;
+      trustScoreAtEvent: number;
+      trustBandAtEvent: string;
+      currency: string | null;
+      timestamp: string;
+      actionHash: string | null;
+      relyingPartyHash: string | null;
+      requestedAmountHash: string | null;
+      policySnapshotHash: string | null;
+      v: 2;
+    };
+    // Operational sidecar — not part of the signed payload.
     redactedAt: string | null;
+    redactionReason: string | null;
+    payloadVersion: number;
   }> {
     const agent = await this.prisma.agentIdentity.findFirst({
       where: { id: agentId, principalId },
       select: { id: true },
     });
-    if (!agent) throw new NotFoundException({ error: 'AGENT_NOT_FOUND', message: 'Agent not found.' });
+    if (!agent)
+      throw new NotFoundException({ error: 'AGENT_NOT_FOUND', message: 'Agent not found.' });
 
     const where: Prisma.AuditEventWhereInput = { agentId };
     if (query.from || query.to) {
@@ -357,6 +413,12 @@ export class AuditService {
     let cursor: string | undefined;
     let yielded = 0;
     const max = query.limit ?? Number.POSITIVE_INFINITY;
+    // Track the predecessor across the timestamp-asc walk so each yielded
+    // row carries its prevEventId + prevSignature. The verifier uses these
+    // to reconstruct `prev_hash = sha256(prevSignature || prevEventId)` —
+    // the exact bytes the signer prepended at write time.
+    let prevEventId: string | null = null;
+    let prevSignature: string | null = null;
 
     while (yielded < max) {
       const batch: Awaited<ReturnType<typeof this.prisma.auditEvent.findMany>> =
@@ -373,28 +435,43 @@ export class AuditService {
         yielded += 1;
         yield {
           eventId: e.id,
-          agentId: e.agentId,
-          claimedAgentId: e.claimedAgentId,
-          principalId: e.principalId,
-          timestamp: e.timestamp.toISOString(),
-          action: e.action,
-          actionHash: e.actionHash,
-          decision: e.decision,
-          denialReason: e.denialReason,
-          relyingParty: e.relyingParty,
-          relyingPartyHash: e.relyingPartyHash,
-          trustScoreAtEvent: e.trustScoreAtEvent,
-          trustBandAtEvent: e.trustBandAtEvent,
-          policyId: e.policyId,
-          policySnapshot: e.policySnapshot,
-          policySnapshotHash: e.policySnapshotHash,
-          requestedAmount: e.requestedAmount?.toString() ?? null,
-          requestedAmountHash: e.requestedAmountHash,
-          currency: e.currency,
-          aegisSignature: e.aegisSignature,
-          payloadVersion: e.payloadVersion,
+          prevEventId,
+          prevSignature,
+          // Stamped at append time. Tests may see the legacy default
+          // `'kid-genesis-v1'` on rows written before this commit; new
+          // rows carry the runtime kid that matches JWKS.
+          signingKeyId: e.signingKeyId,
+          signature: e.aegisSignature,
+          // Mirrors `AuditChainPayload` in audit-chain.util.ts exactly.
+          // These are the bytes that get canonicalized and signed — fields
+          // here MUST match the signer's `built.signed` shape character
+          // for character or downstream verification fails.
+          payload: {
+            agentId: e.agentId ?? e.claimedAgentId ?? '__no_agent__',
+            claimedAgentId: e.claimedAgentId,
+            principalId: e.principalId,
+            decision: e.decision,
+            denialReason: e.denialReason,
+            policyId: e.policyId,
+            trustScoreAtEvent: e.trustScoreAtEvent,
+            trustBandAtEvent: e.trustBandAtEvent,
+            currency: e.currency,
+            timestamp: e.timestamp.toISOString(),
+            actionHash: e.actionHash,
+            relyingPartyHash: e.relyingPartyHash,
+            requestedAmountHash: e.requestedAmountHash,
+            policySnapshotHash: e.policySnapshotHash,
+            v: 2 as const,
+          },
           redactedAt: e.redactedAt?.toISOString() ?? null,
+          redactionReason: e.redactionReason,
+          payloadVersion: e.payloadVersion,
         };
+        // Advance the predecessor cursor — the NEXT row's prev_hash will
+        // be computed against THIS row's id+signature, which is exactly
+        // what the signer did at append time.
+        prevEventId = e.id;
+        prevSignature = e.aegisSignature;
       }
       const last = batch[batch.length - 1];
       cursor = last?.id;
@@ -515,7 +592,10 @@ export class AuditService {
       select: { id: true, agentId: true, claimedAgentId: true, redactedAt: true },
     });
     if (!row) {
-      throw new NotFoundException({ error: 'AUDIT_EVENT_NOT_FOUND', message: 'Audit event not found.' });
+      throw new NotFoundException({
+        error: 'AUDIT_EVENT_NOT_FOUND',
+        message: 'Audit event not found.',
+      });
     }
 
     const update: Prisma.AuditEventUpdateInput = {
@@ -567,5 +647,8 @@ function cryptoRandomId(): string {
   // 26-char base62-ish identifier. Sufficient entropy; we're not minting
   // these per-microsecond.
   const { randomBytes } = require('node:crypto') as typeof import('node:crypto');
-  return randomBytes(20).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 26);
+  return randomBytes(20)
+    .toString('base64url')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .slice(0, 26);
 }

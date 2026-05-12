@@ -5,6 +5,7 @@ import { relativeTime, shortId, statusTone, trustBandTone } from '../../../lib/f
 import type { AgentRow } from '../../../lib/api-client';
 import { Copyable } from '../../../components/CopyButton';
 import { StatusDot } from '../../../components/StatusDot';
+import { AgentIdLink } from './AgentIdLink';
 import { RevokeAgentButton } from './RevokeAgentButton';
 
 interface Props {
@@ -52,13 +53,7 @@ aegis agents register --runtime anthropic --label "shopper-bot"`}</pre>
             <tr key={a.agentId}>
               <td className="mono">
                 <Copyable value={a.agentId} label="agent id">
-                  <a
-                    href={`/agents/${encodeURIComponent(a.agentId)}`}
-                    title={a.agentId}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {shortId(a.agentId, 8, 4)}
-                  </a>
+                  <AgentIdLink agentId={a.agentId}>{shortId(a.agentId, 8, 4)}</AgentIdLink>
                 </Copyable>
               </td>
               <td className="dim">{a.label ?? '–'}</td>
@@ -69,7 +64,9 @@ aegis agents register --runtime anthropic --label "shopper-bot"`}</pre>
                   status={a.status}
                   pulse={a.status === 'ACTIVE' && isLive(a)}
                   label={
-                    <span className={`badge badge-${statusTone(a.status)}`}>{a.status.toLowerCase()}</span>
+                    <span className={`badge badge-${statusTone(a.status)}`}>
+                      {a.status.toLowerCase()}
+                    </span>
                   }
                 />
               </td>

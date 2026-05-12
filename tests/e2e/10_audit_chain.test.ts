@@ -47,8 +47,16 @@ describe('10 · audit chain', () => {
     const policy = await createPolicy(sdk, agent.agentId, [SCOPES.commerce()]);
 
     // Generate three verifies (mix of approved + denied).
-    const t1 = await signTokenFor(agent, policy.policyId, { action: 'commerce.purchase', amount: 5, currency: 'USD' });
-    const t2 = await signTokenFor(agent, policy.policyId, { action: 'commerce.purchase', amount: 5, currency: 'USD' });
+    const t1 = await signTokenFor(agent, policy.policyId, {
+      action: 'commerce.purchase',
+      amount: 5,
+      currency: 'USD',
+    });
+    const t2 = await signTokenFor(agent, policy.policyId, {
+      action: 'commerce.purchase',
+      amount: 5,
+      currency: 'USD',
+    });
     const t3 = await signTokenFor(agent, policy.policyId, { action: 'data-read' }); // wrong category → denied
     await sdk.verify(t1, { action: 'commerce.purchase', amount: 5, currency: 'USD' });
     await sdk.verify(t2, { action: 'commerce.purchase', amount: 5, currency: 'USD' });
@@ -66,13 +74,17 @@ describe('10 · audit chain', () => {
     expect(log.events.length).toBeGreaterThanOrEqual(3);
     for (const ev of log.events) {
       expect(ev.eventId).toMatch(/^evt_/);
-      expect(['approved', 'denied', 'flagged']).toContain(ev.decision);
+      // Decision is the Prisma DecisionEnum value — UPPERCASE
+      // (APPROVED / DENIED / FLAGGED). The audit log surface MUST not
+      // case-fold because relying parties pattern-match against the
+      // canonical Prisma enum.
+      expect(['APPROVED', 'DENIED', 'FLAGGED']).toContain(ev.decision);
       expect(typeof ev.signature).toBe('string');
       expect(ev.signature.length).toBeGreaterThan(20);
     }
 
     // At least one event with a denial reason (we forced one).
-    expect(log.events.some((e) => e.decision === 'denied' && e.decisionReason)).toBe(true);
+    expect(log.events.some((e) => e.decision === 'DENIED' && e.decisionReason)).toBe(true);
   });
 
   it('audit chain validation endpoint, if present, returns ok over a known-good range', async () => {
@@ -81,7 +93,11 @@ describe('10 · audit chain', () => {
     const agent = await createAgent(sdk);
     cleanup.push(agent.agentId);
     const policy = await createPolicy(sdk, agent.agentId, [SCOPES.commerce()]);
-    const tok = await signTokenFor(agent, policy.policyId, { action: 'commerce.purchase', amount: 1, currency: 'USD' });
+    const tok = await signTokenFor(agent, policy.policyId, {
+      action: 'commerce.purchase',
+      amount: 1,
+      currency: 'USD',
+    });
     await sdk.verify(tok, { action: 'commerce.purchase', amount: 1, currency: 'USD' });
 
     const r = await raw.get<{ valid: boolean }>(`/v1/agents/${agent.agentId}/audit/verify`);

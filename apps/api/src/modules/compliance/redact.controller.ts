@@ -19,7 +19,7 @@ import type {
  * redacted row still verifies because the signature commits to hashes,
  * not raw values (ADR-0006).
  */
-@Controller('v1/compliance/audit')
+@Controller('compliance/audit')
 export class RedactController {
   constructor(private readonly redact: RedactService) {}
 

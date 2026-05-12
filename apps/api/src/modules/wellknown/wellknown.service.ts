@@ -6,10 +6,7 @@ import { decodeBase64Url, encodeBase64Url } from '../../common/crypto/ed25519.ut
 import { PLANS, TRIAL_LIFETIME_CAP, getPlan } from '../billing/plans';
 import type { AuditSigningKeyDto, JwkEd25519Dto, JwksDto } from './dto/jwks.dto';
 import type { AegisConfigurationDto } from './dto/discovery.dto';
-import type {
-  RetentionPolicyDto,
-  RetentionPolicyTierDto,
-} from './dto/retention-policy.dto';
+import type { RetentionPolicyDto, RetentionPolicyTierDto } from './dto/retention-policy.dto';
 import type { PricingDto, PricingTierDto } from './dto/pricing.dto';
 
 // type-rationale: package.json is a static JSON resource and tsconfig has
@@ -162,6 +159,14 @@ export class WellknownService implements OnModuleInit {
       publicKey: this.publicKeyB64Url,
       algorithm: 'EdDSA',
       curve: 'Ed25519',
+      // RFC 8037 JWK fields — additive, identical key material as the
+      // verbose aliases above. Lets JOSE consumers parse this single-key
+      // payload directly without falling back to /.well-known/jwks.json.
+      kty: 'OKP',
+      crv: 'Ed25519',
+      alg: 'EdDSA',
+      use: 'sig',
+      x: this.publicKeyB64Url,
       issuer: ISSUER,
       rotatedAt: this.rotatedAt,
       purpose: 'audit-event-signing',
@@ -271,8 +276,8 @@ export class WellknownService implements OnModuleInit {
     const wk = (path: string): string => `${base}/.well-known/${path}`;
 
     const pkg =
-      (pkgJson as { default?: { version?: string }; version?: string })
-        .default ?? (pkgJson as { version?: string });
+      (pkgJson as { default?: { version?: string }; version?: string }).default ??
+      (pkgJson as { version?: string });
 
     return {
       issuer: base,
@@ -314,14 +319,7 @@ export class WellknownService implements OnModuleInit {
         verify_per_min: 1000,
         default_per_min: 120,
       },
-      supported_runtimes: [
-        'nodejs',
-        'cloudflare-workers',
-        'vercel-edge',
-        'deno',
-        'bun',
-        'browser',
-      ],
+      supported_runtimes: ['nodejs', 'cloudflare-workers', 'vercel-edge', 'deno', 'bun', 'browser'],
       sdks: {
         typescript: '@aegis/sdk',
         python: 'aegis',

@@ -13,7 +13,7 @@ import type { ListMcpServersDto, McpServerDto, RegisterMcpServerDto } from './mc
  * Authentication: ApiKeyGuard sets `req.principalId`. (Guard wiring is
  * done in app.module.ts; this controller relies on it being present.)
  */
-@Controller('v1/mcp-servers')
+@Controller('mcp-servers')
 export class McpController {
   constructor(private readonly mcp: McpService) {}
 

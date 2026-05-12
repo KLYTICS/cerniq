@@ -45,6 +45,13 @@ interface AuditEventRow {
   trustScoreAtEvent: number;
   trustBandAtEvent: string;
   aegisSignature: string;
+  /**
+   * NOT NULL on the live AuditEvent table with default `'kid-genesis-v1'`.
+   * Optional in the test fixture so inline row literals don't all need it;
+   * `makeEventRow()` supplies the default. The export serializer maps
+   * this column to `signingKeyId` in the verifier-compatible NDJSON.
+   */
+  signingKeyId?: string;
   payloadVersion: number;
   redactedAt: Date | null;
   redactionReason: string | null;
@@ -98,7 +105,9 @@ function makeEd25519(): jest.Mocked<Ed25519Util> {
   } as unknown as jest.Mocked<Ed25519Util>;
 }
 
-function makeConfig(): jest.Mocked<Pick<AppConfigService, 'auditEd25519PrivateB64' | 'auditEd25519PublicB64' | 'nodeEnv'>> {
+function makeConfig(): jest.Mocked<
+  Pick<AppConfigService, 'auditEd25519PrivateB64' | 'auditEd25519PublicB64' | 'nodeEnv'>
+> {
   // No env keys → will use ephemeral key (fine for tests; not production)
   return {
     auditEd25519PrivateB64: undefined as unknown as string,
@@ -112,20 +121,32 @@ function makeConfig(): jest.Mocked<Pick<AppConfigService, 'auditEd25519PrivateB6
  * The `$transaction` mock calls the callback with a tx stub whose
  * `auditEvent.create` pushes into the same array as the outer queries.
  */
-function makePrisma(initialEvents: AuditEventRow[] = [], agents: Array<{ id: string; principalId: string }> = []) {
+function makePrisma(
+  initialEvents: AuditEventRow[] = [],
+  agents: Array<{ id: string; principalId: string }> = [],
+) {
   const events: AuditEventRow[] = [...initialEvents];
 
   // The tx stub used inside $transaction callbacks
   const txStub = {
     $executeRaw: jest.fn().mockResolvedValue(undefined),
     auditEvent: {
-      findFirst: jest.fn(async ({ where }: { where: { agentId?: string | null; principalId?: string } & Record<string, unknown> }) => {
-        return events.find((e) => {
-          if (where.agentId !== undefined && e.agentId !== where.agentId) return false;
-          if (where.principalId !== undefined && e.principalId !== where.principalId) return false;
-          return true;
-        }) ?? null;
-      }),
+      findFirst: jest.fn(
+        async ({
+          where,
+        }: {
+          where: { agentId?: string | null; principalId?: string } & Record<string, unknown>;
+        }) => {
+          return (
+            events.find((e) => {
+              if (where.agentId !== undefined && e.agentId !== where.agentId) return false;
+              if (where.principalId !== undefined && e.principalId !== where.principalId)
+                return false;
+              return true;
+            }) ?? null
+          );
+        },
+      ),
       create: jest.fn(async ({ data }: { data: Partial<AuditEventRow> & { id: string } }) => {
         const row: AuditEventRow = {
           id: data.id,
@@ -167,52 +188,74 @@ function makePrisma(initialEvents: AuditEventRow[] = [], agents: Array<{ id: str
     }),
     agentIdentity: {
       findFirst: jest.fn(async ({ where }: { where: { id?: string; principalId?: string } }) => {
-        return agents.find(
-          (a) =>
-            (!where.id || a.id === where.id) &&
-            (!where.principalId || a.principalId === where.principalId),
-        ) ?? null;
+        return (
+          agents.find(
+            (a) =>
+              (!where.id || a.id === where.id) &&
+              (!where.principalId || a.principalId === where.principalId),
+          ) ?? null
+        );
       }),
     },
     auditEvent: {
-      findFirst: jest.fn(async ({ where }: { where: { id?: string; principalId?: string } & Record<string, unknown> }) => {
-        return events.find((e) => {
-          if (where.id !== undefined && e.id !== where.id) return false;
-          if (where.principalId !== undefined && e.principalId !== where.principalId) return false;
-          return true;
-        }) ?? null;
-      }),
-      findMany: jest.fn(async ({ where, take, orderBy, cursor, skip }: {
-        where?: Partial<AuditEventRow> & Record<string, unknown>;
-        take?: number;
-        orderBy?: unknown;
-        cursor?: { id: string };
-        skip?: number;
-      }) => {
-        let filtered = events.filter((e) => {
-          if (where?.agentId !== undefined && e.agentId !== where.agentId) return false;
-          if (where?.principalId !== undefined && e.principalId !== where.principalId) return false;
-          return true;
-        });
-        // Stable order: by timestamp asc or desc
-        if (orderBy && (orderBy as Record<string, string>).timestamp === 'asc') {
-          filtered = [...filtered].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-        } else {
-          filtered = [...filtered].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-        }
-        // Cursor pagination
-        if (cursor) {
-          const idx = filtered.findIndex((e) => e.id === cursor.id);
-          if (idx !== -1) filtered = filtered.slice(idx + (skip ?? 1));
-        }
-        if (take !== undefined) filtered = filtered.slice(0, take);
-        return filtered;
-      }),
-      update: jest.fn(async ({ where, data }: { where: { id: string }; data: Partial<AuditEventRow> }) => {
-        const row = events.find((e) => e.id === where.id);
-        if (row) Object.assign(row, data);
-        return row;
-      }),
+      findFirst: jest.fn(
+        async ({
+          where,
+        }: {
+          where: { id?: string; principalId?: string } & Record<string, unknown>;
+        }) => {
+          return (
+            events.find((e) => {
+              if (where.id !== undefined && e.id !== where.id) return false;
+              if (where.principalId !== undefined && e.principalId !== where.principalId)
+                return false;
+              return true;
+            }) ?? null
+          );
+        },
+      ),
+      findMany: jest.fn(
+        async ({
+          where,
+          take,
+          orderBy,
+          cursor,
+          skip,
+        }: {
+          where?: Partial<AuditEventRow> & Record<string, unknown>;
+          take?: number;
+          orderBy?: unknown;
+          cursor?: { id: string };
+          skip?: number;
+        }) => {
+          let filtered = events.filter((e) => {
+            if (where?.agentId !== undefined && e.agentId !== where.agentId) return false;
+            if (where?.principalId !== undefined && e.principalId !== where.principalId)
+              return false;
+            return true;
+          });
+          // Stable order: by timestamp asc or desc
+          if (orderBy && (orderBy as Record<string, string>).timestamp === 'asc') {
+            filtered = [...filtered].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+          } else {
+            filtered = [...filtered].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+          }
+          // Cursor pagination
+          if (cursor) {
+            const idx = filtered.findIndex((e) => e.id === cursor.id);
+            if (idx !== -1) filtered = filtered.slice(idx + (skip ?? 1));
+          }
+          if (take !== undefined) filtered = filtered.slice(0, take);
+          return filtered;
+        },
+      ),
+      update: jest.fn(
+        async ({ where, data }: { where: { id: string }; data: Partial<AuditEventRow> }) => {
+          const row = events.find((e) => e.id === where.id);
+          if (row) Object.assign(row, data);
+          return row;
+        },
+      ),
     },
   };
 
@@ -221,10 +264,12 @@ function makePrisma(initialEvents: AuditEventRow[] = [], agents: Array<{ id: str
 
 // ── Service factory ───────────────────────────────────────────────────────────
 
-function makeService(opts: {
-  initialEvents?: AuditEventRow[];
-  agents?: Array<{ id: string; principalId: string }>;
-} = {}) {
+function makeService(
+  opts: {
+    initialEvents?: AuditEventRow[];
+    agents?: Array<{ id: string; principalId: string }>;
+  } = {},
+) {
   const { prisma, events, txStub } = makePrisma(opts.initialEvents ?? [], opts.agents ?? []);
   const config = makeConfig();
   const chain = makeChain();
@@ -275,7 +320,9 @@ describe('AuditService', () => {
       const { svc, txStub } = makeService();
       await svc.append(BASE_APPEND);
       expect(txStub.auditEvent.create).toHaveBeenCalledTimes(1);
-      const callArg = (txStub.auditEvent.create as jest.Mock).mock.calls[0][0] as { data: AuditEventRow };
+      const callArg = (txStub.auditEvent.create as jest.Mock).mock.calls[0][0] as {
+        data: AuditEventRow;
+      };
       expect(callArg.data.id).toMatch(/^evt_/);
       expect(callArg.data.principalId).toBe('prn_A');
       expect(callArg.data.agentId).toBe('agt_1');
@@ -517,14 +564,20 @@ describe('AuditService', () => {
       expect(yielded).toEqual(['evt_a', 'evt_b']); // chronological asc
     });
 
-    it('yields each event with the aegisSignature field', async () => {
+    // The exported field is named `signature` (not `aegisSignature`) so the
+    // wire shape matches `@aegis/audit-verifier`'s `AuditEventRow.signature`
+    // — letting external auditors pipe the NDJSON straight into the offline
+    // verifier without a remapping step. Internally the Prisma column is
+    // still `aegisSignature`; the rename happens at the serializer boundary.
+    it('yields each event with the signature field (verifier-compatible shape)', async () => {
       const events = [{ ...makeEventRow('evt_x', 'agt_1', 'prn_A', new Date()) }];
       const { svc } = makeService({ agents: [AGENT], initialEvents: events });
-      const items: Array<{ aegisSignature: string; eventId: string }> = [];
+      const items: Array<{ signature: string; eventId: string; signingKeyId: string }> = [];
       for await (const row of svc.exportStream('prn_A', 'agt_1', {})) {
-        items.push(row as { aegisSignature: string; eventId: string });
+        items.push(row);
       }
-      expect(items[0]!.aegisSignature).toBeDefined();
+      expect(items[0]!.signature).toBeDefined();
+      expect(items[0]!.signingKeyId).toBeDefined();
     });
   });
 
@@ -575,12 +628,16 @@ describe('AuditService', () => {
       const events = [makeEventRow('evt_x', 'agt_1', 'prn_B', new Date())];
       const { svc } = makeService({ agents: [AGENT], initialEvents: events });
       // prn_A tries to redact prn_B's event
-      await expect(svc.redact('evt_x', 'prn_A', ['action'], 'gdpr')).rejects.toThrow(NotFoundException);
+      await expect(svc.redact('evt_x', 'prn_A', ['action'], 'gdpr')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('throws NotFoundException when eventId does not exist', async () => {
       const { svc } = makeService({ agents: [AGENT] });
-      await expect(svc.redact('evt_nonexistent', 'prn_A', ['action'], 'gdpr')).rejects.toThrow(NotFoundException);
+      await expect(svc.redact('evt_nonexistent', 'prn_A', ['action'], 'gdpr')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('throws when no redactable fields are supplied', async () => {
@@ -606,7 +663,9 @@ describe('AuditService', () => {
       const events = [makeEventRow('evt_z2', 'agt_1', 'prn_A', new Date())];
       const { svc, prisma } = makeService({ agents: [AGENT], initialEvents: events });
       await svc.redact('evt_z2', 'prn_A', ['action'], 'gdpr-erasure');
-      const updateCall = (prisma.auditEvent.update as jest.Mock).mock.calls[0][0] as { data: AuditEventRow };
+      const updateCall = (prisma.auditEvent.update as jest.Mock).mock.calls[0][0] as {
+        data: AuditEventRow;
+      };
       expect(updateCall.data.redactedAt).toBeInstanceOf(Date);
     });
 
@@ -668,6 +727,12 @@ function makeEventRow(
     trustScoreAtEvent: 650,
     trustBandAtEvent: 'VERIFIED',
     aegisSignature: `sig_${id}`,
+    // signingKeyId is a NOT NULL column with a Postgres-side default of
+    // 'kid-genesis-v1'. The mock has to include it explicitly because
+    // the Prisma client materialises the column on findMany results and
+    // the export serializer reads from it. Tests targetting kid-rotation
+    // scenarios can override via `overrides`.
+    signingKeyId: 'kid-genesis-v1',
     payloadVersion: 2,
     redactedAt: null,
     redactionReason: null,

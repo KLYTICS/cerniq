@@ -16,11 +16,17 @@ describe('01 · health & infrastructure', () => {
   });
 
   it('GET /health/ready returns 200 with db + redis checks', async () => {
-    const r = await raw.get<{ status: string; checks: Record<string, boolean> }>('/health/ready', { auth: 'none' });
+    // ComponentStatus shape: { ok: boolean, latencyMs?: number, error?, note? }.
+    // Per CLAUDE.md "checks must be honest" — the richer shape exposes
+    // per-component latency so an operator can spot a slow dependency.
+    const r = await raw.get<{
+      status: string;
+      checks: Record<string, { ok: boolean; latencyMs?: number; error?: string; note?: string }>;
+    }>('/health/ready', { auth: 'none' });
     expect([200, 503]).toContain(r.status);
     expect(r.body.checks).toBeDefined();
-    expect(typeof r.body.checks.database).toBe('boolean');
-    expect(typeof r.body.checks.redis).toBe('boolean');
+    expect(typeof r.body.checks.database?.ok).toBe('boolean');
+    expect(typeof r.body.checks.redis?.ok).toBe('boolean');
   });
 
   it('GET /metrics — Prometheus exposition (if M-010 has shipped)', async () => {

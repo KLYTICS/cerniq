@@ -31,7 +31,7 @@ interface RotateResponse {
  * but NEVER the plaintext.
  */
 @ApiTags('auth')
-@Controller('v1/principals/me/api-keys')
+@Controller('principals/me/api-keys')
 @UseGuards(ApiKeyGuard)
 export class ApiKeyRotationController {
   // 24h is the operator default; future work could expose this as a
@@ -50,7 +50,10 @@ export class ApiKeyRotationController {
   })
   @ApiResponse({ status: 200, description: 'New plaintext key returned exactly once.' })
   @ApiResponse({ status: 401, description: 'Missing or invalid API key.' })
-  @ApiResponse({ status: 409, description: 'Calling key is already inside its rotation overlap window.' })
+  @ApiResponse({
+    status: 409,
+    description: 'Calling key is already inside its rotation overlap window.',
+  })
   async rotate(@Req() req: Request): Promise<RotateResponse> {
     const auth = req.auth;
     if (!auth) {
