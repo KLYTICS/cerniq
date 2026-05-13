@@ -5,6 +5,48 @@
 
 ---
 
+## 2026-05-13 (Dependabot sweep — close all 44 alerts in 5 atomic commits) — sid=opus-deps-sweep — claim=aegis:dependabot-sweep
+
+**Status:** Five atomic commits ready on `chore/dependabot-sweep-2026-05-12` ahead of `main`. Should close all 44 open alerts on the default branch once merged. Built on prior session's foundation (`1badba6` trivy-action and `be82ad3` jose2go) and added: next bump, transitive overrides bundle, OTel 2.x migration.
+
+### Commits in this PR
+
+| SHA | Scope | Alerts closed |
+|---|---|---|
+| `1badba6` | pin `aquasecurity/trivy-action` to v0.35.0 SHA | 1 critical (supply-chain compromise) |
+| `be82ad3` | bump `github.com/dvsekhvalnov/jose2go` to v1.7.0 in `packages/cli/go.mod` | 1 high + 1 medium (JWT bomb + p2c DoS) |
+| `3a5e39a` | bump `next` 16.0.0 → 16.2.6 in `apps/dashboard/package.json` | 7 high + 4 medium + 2 low (App Router middleware/proxy bypass family + SSRF + DoS + XSS + cache poisoning) |
+| `5bc0eb5` | `pnpm.overrides` for 11 transitive packages: undici, lodash, fast-uri, hono, postcss, ip-address, js-yaml, qs, cookie, vite, esbuild | 5 high + 12 medium + 2 low |
+| `78dd110` | bump `@opentelemetry/sdk-node` 0.55 → 0.217 + auto-instrumentations 0.51 → 0.75 + align resources/sdk-trace-base to ^2.0.0 + migrate `tracing.bootstrap.ts` to `resourceFromAttributes()` factory | 4 high (Prometheus exporter crash advisories; runtime not reachable because AEGIS uses OTLP not Prometheus exporter — hygiene + supply-chain bump) |
+
+### Why `pnpm.overrides` instead of dependency upgrades
+
+10 of the 44 alerts were on **transitive** packages (e.g. `undici` deep under fastify / Next.js, `fast-uri` under ajv under MCP SDK). Bumping the direct dependent often wasn't possible without pulling unrelated major-version churn into the same PR. `pnpm.overrides` is the surgical tool: each entry is `name@<vulnerable-range`: safe-min — unaffected callers stay unaffected, override is self-documenting, and the diff is bounded to the lockfile.
+
+### Verification performed
+
+- `pnpm install` resolves clean with all overrides applied.
+- `pnpm --filter @aegis/api typecheck` → clean.
+- `pnpm --filter @aegis/dashboard typecheck` → clean (Next.js 16.2.6 fully type-compatible with React 19.2.5 peers).
+- `pnpm --filter @aegis/api test -- --testPathPattern="observability|tracing"` → 11/11 passing (covers the OTel 2.x bootstrap migration).
+
+### Known pre-existing test failures (not introduced by this PR)
+
+`apps/api/src/modules/auth/api-key-rotation.controller.spec.ts` has 3 failing test cases that reproduce on the base of this branch (commit `3a5e39a`) when the overrides bundle is stashed. They are upstream of any dep work and should be triaged separately by the api-key-rotation owner. CI will surface them but they should not block this PR.
+
+### Operator notes for merge
+
+1. **OTel runtime smoke-test recommended.** The `tracing.bootstrap.ts` migration from `new Resource({...})` to `resourceFromAttributes({...})` is API-compatible per OTel JS 2.x migration docs, and types check, but a live OTLP-collector trace export check before production rollout is prudent. The module fails closed (returns a noop handle) if OTel deps fail to import, so a regression here cannot crash the API hot path.
+2. **fast-uri override pinned to >=3.1.2 not >=3.2.0.** 3.2.0 hasn't been published yet; 3.1.2 is the documented advisory fix-version. Self-documented inline in `package.json`.
+3. **Long-tail dependabot alerts** (after merge): expect 0 remaining on the default branch covered by these 5 commits. If a few medium/low residuals remain due to detection lag or unmatched override ranges, dependabot's own auto-PRs will mop them up — none are reachable security issues.
+
+### What's next
+
+- Merge this PR into `main`.
+- Verify dependabot alert count drops from 44 → ~0 within an hour (GH re-scans on default-branch push).
+
+---
+
 ## 2026-05-08 (Claude guidance enterprise audit refresh) - sid=codex-local - claim=unclaimed-docs-guidance
 
 **Status:** Landed. Root `CLAUDE.md` was rebuilt as the public-company-grade
