@@ -21,11 +21,19 @@ project_name: aegis
 
 before:
   hooks:
-    - go mod tidy
+    # The Go module lives at `packages/cli/`, not the repo root, so the
+    # tidy hook must execute there. `before.hooks` in goreleaser v2's
+    # config parser takes plain strings only (the `cmd:`/`dir:` map form
+    # is parsed elsewhere); shell-cd into the module dir to scope.
+    - sh -c "cd packages/cli && go mod tidy"
 
 builds:
   - id: aegis
-    main: ./packages/cli
+    # `dir:` tells goreleaser to `cd` into packages/cli before invoking
+    # `go build`. Required because the Go module is rooted there, not at
+    # the repo root. With this set, `main:` is relative to dir.
+    dir: packages/cli
+    main: .
     binary: aegis
     env:
       - CGO_ENABLED=0
