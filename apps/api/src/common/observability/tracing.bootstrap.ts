@@ -85,14 +85,17 @@ export async function initTracing(opts: TracingBootstrapOptions = {}): Promise<T
   // pay the import cost. The deps are optional in `package.json` and the
   // module fails closed (returns a noop handle) if any are missing.
   let NodeSDK: typeof NodeSDKType;
-  let Resource: typeof import('@opentelemetry/resources').Resource;
+  // OTel JS 2.x removed the `Resource` class in favor of the
+  // `resourceFromAttributes()` factory. The factory returns an instance
+  // satisfying the v2 `Resource` interface (including `getRawAttributes`).
+  let resourceFromAttributes: typeof import('@opentelemetry/resources').resourceFromAttributes;
   let getNodeAutoInstrumentations: typeof import('@opentelemetry/auto-instrumentations-node').getNodeAutoInstrumentations;
   let OTLPTraceExporter: typeof import('@opentelemetry/exporter-trace-otlp-http').OTLPTraceExporter;
   let ConsoleSpanExporter: typeof import('@opentelemetry/sdk-trace-base').ConsoleSpanExporter;
   let SemanticResourceAttributes: Record<string, string>;
   try {
     ({ NodeSDK } = await import('@opentelemetry/sdk-node'));
-    ({ Resource } = await import('@opentelemetry/resources'));
+    ({ resourceFromAttributes } = await import('@opentelemetry/resources'));
     ({ getNodeAutoInstrumentations } = await import('@opentelemetry/auto-instrumentations-node'));
     ({ OTLPTraceExporter } = await import('@opentelemetry/exporter-trace-otlp-http'));
     ({ ConsoleSpanExporter } = await import('@opentelemetry/sdk-trace-base'));
@@ -113,7 +116,7 @@ export async function initTracing(opts: TracingBootstrapOptions = {}): Promise<T
         : new OTLPTraceExporter();
 
   sdk = new NodeSDK({
-    resource: new Resource({
+    resource: resourceFromAttributes({
       [SemanticResourceAttributes.SERVICE_NAME]: opts.serviceName ?? 'aegis-api',
       [SemanticResourceAttributes.SERVICE_VERSION]: process.env.AEGIS_VERSION ?? '0.0.0',
       ...opts.resourceAttributes,
