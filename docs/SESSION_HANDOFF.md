@@ -5,6 +5,111 @@
 
 ---
 
+## 2026-05-12 (M-038 — SOC2 third-party audit-chain repair) - sid=claude-nifty-bhabha-64878d - claim=audit-chain
+
+**Status:** Landed. The documented external-auditor flow
+(`packages/audit-verifier` → NDJSON export from `/v1/agents/:id/audit/export.ndjson`)
+now works end-to-end on freshly-written rows. Three sequential bugs fixed:
+
+1. **kid stamp** — `AuditSignerService.FALLBACK_KID = 'kid-genesis-v1'` was a
+   hardcoded placeholder for the env-fallback path, so every signed row got a
+   kid that did NOT match any JWK in `/.well-known/jwks.json`. Now derived via
+   `computeKid(rawPublicKey)` — same formula `WellknownService` uses for the
+   JWKS entry. Ditto the ephemeral path (`'kid-dev-ephemeral'` → derived).
+   `AuditService.appendInternal()` no longer falls through to the schema
+   default (`'kid-genesis-v1'`); the env-fallback code path now derives its
+   own kid in `initSigningKey()` and refuses to write a row if no kid resolves
+   (CLAUDE.md invariant #4 — no fabricated data).
+2. **chain-link columns** — added `prevEventId` + `prevSignature` to
+   `AuditEvent` (migration `20260512000000_audit_chain_link_columns`). Both
+   nullable: pre-M-038 rows stay un-chained (genesis-like), and the off-the-
+   shelf verifier accepts `(null, null)` as the genesis case. New rows persist
+   what the signer already used in `prev_hash` — the persistence is just
+   materializing what the signature already commits to.
+3. **NDJSON export shape** — `exportStream`/`exportTenantStream` now emit a
+   strict superset of `@aegis/audit-verifier`'s `AuditEventRow`: nested
+   `payload: AuditChainPayload`, plus `prevEventId`/`prevSignature`/
+   `signingKeyId`/`signature` siblings. All legacy flat fields preserved for
+   backward compat (additive change per CLAUDE.md). Format header bumped
+   `ndjson-v1` → `ndjson-v2`.
+
+### What shipped
+
+- `apps/api/src/common/crypto/audit-signer.service.ts` — kid derivation in
+  env-fallback + ephemeral paths.
+- `apps/api/src/modules/audit/audit.service.ts` — explicit `signingKid`
+  resolution (no placeholder fallthrough), `prevEventId`/`prevSignature`
+  persistence, refactored export streams via shared `toExportRow` helper,
+  exported `rebuildSignedPayload`/`toExportRow` for parity testing.
+- `apps/api/src/modules/audit/audit.controller.ts` +
+  `audit-events.controller.ts` — bumped export-format header.
+- `apps/api/prisma/schema.prisma` + new migration
+  `20260512000000_audit_chain_link_columns/migration.sql` — added two
+  nullable text columns + `prevEventId` index. Migration documents the
+  legacy-row policy in detail for SOC2 audit trail.
+- `apps/api/src/common/crypto/audit-signer.service.spec.ts` — assertions
+  updated to verify the kid agrees with `computeKid(rawPublicKey)` instead of
+  pinning the broken hardcoded values (the old assertions were encoding the
+  bug).
+- `apps/api/src/modules/audit/audit.service.spec.ts` — Prisma mock now
+  recognises the array `orderBy` form (id tie-break for chain order).
+- `tests/cross-package/audit-export-verifier-parity.spec.ts` (new) — sister
+  spec to `audit-chain-parity.spec.ts`. Round-trips an in-memory chain
+  through the actual `toExportRow` mapper and asserts
+  `verifyChain(...).valid === true`. Also locks the AGENT_NOT_FOUND
+  `claimedAgentId` fallback and the legacy-kid-not-in-JWKS detection.
+- `scripts/walk-audit-chain.mjs` (new) — auditor's reproduction script.
+  Fetches a live NDJSON export + JWKS, runs `@aegis/audit-verifier`, and
+  reports `kidInJwks/sigValid/linkValid` counts matching the M-038 brief.
+
+### Verification
+
+- `pnpm --filter @aegis/api typecheck` → clean.
+- `pnpm --filter @aegis/api test -- --testPathPattern='wellknown|audit|crypto'`
+  → 13 suites / 177 tests pass.
+- `pnpm --filter @aegis/e2e run test:parity` → 10 suites / 80 tests pass
+  (including the new audit-export-verifier parity).
+- `pnpm --filter @aegis/audit-verifier typecheck && test` → clean / 19 tests
+  pass.
+- `pnpm exec tsx scripts/check-migration-immutability.ts` → 11 prior
+  migrations immutable; new `20260512000000_audit_chain_link_columns`
+  appended (only).
+
+### Known carry-forward gaps
+
+- **Existing 600 rows still have `signingKeyId='kid-genesis-v1'`** — they're
+  immutable per invariant #3, so we can't backfill the correct kid. Two
+  operator decisions are needed before the historical chain verifies via the
+  off-the-shelf verifier:
+  - Should JWKS publish a second JWK aliased to `kid-genesis-v1` (same `x` /
+    public key bytes) so legacy rows resolve to the published key?
+  - OR should retention age them out and accept that the pre-M-038 window is
+    "individually-signed only, not chain-walkable"?
+  Surface this as `OPERATOR-INPUT-NEEDED` in the audit-signing-key DTO when
+  the discovery doc grows a `legacy_kids` field.
+- **`actionHash` schema asymmetry (latent, not currently triggerable)** —
+  `AuditEvent.actionHash` is non-null in the schema, but
+  `AuditChainUtil.buildPayload` emits `actionHash: null` when input.action
+  is null. The audit service substitutes `hashLeaf('')` at write time. The
+  signed payload had `null`, the DB column has `hashLeaf('')`, and
+  `rebuildSignedPayload` reads the column → mismatch on null-action rows.
+  Production `AppendAuditInput.action` is required `string`, so the path
+  isn't reachable today. If the type ever loosens to nullable, the column
+  must become nullable too (migration), OR `rebuildSignedPayload` must learn
+  to recover the original null via a redaction-aware heuristic.
+
+### What's next
+
+- Operator: decide the JWKS-legacy-alias question and surface it on the
+  discovery doc.
+- Verifier discovery: extend `AegisConfigurationDto` with `chain_started_at`
+  per kid so external auditors know the M-038 cut-over boundary.
+- Optional: dashboard surface to download an export + run the verifier in
+  the browser (the `@aegis/audit-verifier` package is already
+  edge/browser-safe).
+
+---
+
 ## 2026-05-08 (Claude guidance enterprise audit refresh) - sid=codex-local - claim=unclaimed-docs-guidance
 
 **Status:** Landed. Root `CLAUDE.md` was rebuilt as the public-company-grade

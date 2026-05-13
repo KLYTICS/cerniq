@@ -356,9 +356,25 @@ model AuditEvent {
   // Audit-chain payload schema version — verifiers branch on this.
   payloadVersion Int    @default(2)
 
+  // ── Chain-link materialization (M-038) ────────────────────────────
+  // The signer already commits to (prevEventId, prevSignature) via
+  // `prev_hash || canonical(payload)`. Persisting them as columns lets
+  // the NDJSON export emit them directly — and lets external verifiers
+  // (e.g. @aegis/audit-verifier) check `row.prevEventId ===
+  // expectedPredecessor.id` without inferring chain order from
+  // timestamps. Null marks genesis (first event per chain) AND any
+  // pre-M-038 row written before this column existed.
+  prevEventId   String? @db.Text
+  prevSignature String? @db.Text
+
   // ── Enterprise backbone fields (ADR-0011, ADR-0012, ADR-0008) ─────
   // signingKeyId stamps which AEGIS audit-signing key signed this row;
   // verifiers fetch the matching pubkey from /.well-known/audit-signing-key.
+  // The `@default("kid-genesis-v1")` is a historical backstop only:
+  // pre-M-038 rows have it baked in already, and removing the default
+  // would break the immutability of those migrations. Post-M-038, the
+  // audit service ALWAYS computes and stamps `computeKid(rawPublicKey)`
+  // explicitly — the default is never reached at write time.
   // policyEngineId + engineMetadata record which PolicyEngine produced
   // the decision (`builtin`/`cedar`/`opa`) and any engine-specific data.
   // relyingPartyId FKs to the MCP server / commerce endpoint that
@@ -377,6 +393,9 @@ model AuditEvent {
   @@index([timestamp])
   @@index([signingKeyId])
   @@index([relyingPartyId])
+  // Forward-walk: given an event, look up the row that pointed at it.
+  // Used by chain integrity audits (find duplicates / forks).
+  @@index([prevEventId])
 }
 
 enum AuditDecision {

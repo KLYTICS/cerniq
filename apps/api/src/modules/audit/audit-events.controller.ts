@@ -51,7 +51,10 @@ export class AuditEventsController {
     const today = new Date().toISOString().slice(0, 10);
     res.setHeader('Content-Type', 'application/x-ndjson');
     res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('X-AEGIS-Export-Format', 'ndjson-v1');
+    // ndjson-v2 = strict superset of v1: legacy flat fields preserved,
+    // new `payload`/`prevEventId`/`prevSignature`/`signingKeyId`/`signature`
+    // siblings added for `@aegis/audit-verifier` compatibility (M-038).
+    res.setHeader('X-AEGIS-Export-Format', 'ndjson-v2');
     res.setHeader(
       'Content-Disposition',
       `attachment; filename="aegis-audit-${auth.principalId}-${today}.ndjson"`,

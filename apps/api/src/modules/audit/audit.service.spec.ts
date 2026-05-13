@@ -194,9 +194,26 @@ function makePrisma(initialEvents: AuditEventRow[] = [], agents: Array<{ id: str
           if (where?.principalId !== undefined && e.principalId !== where.principalId) return false;
           return true;
         });
-        // Stable order: by timestamp asc or desc
-        if (orderBy && (orderBy as Record<string, string>).timestamp === 'asc') {
-          filtered = [...filtered].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+        // Stable order: by timestamp asc or desc. Recognises both the
+        // legacy object form `{timestamp: 'asc'}` and the array form
+        // `[{timestamp: 'asc'}, {id: 'asc'}]` introduced in M-038 for
+        // the export streams (id tie-break ensures a deterministic
+        // chain order under same-millisecond timestamps).
+        const orderArr = Array.isArray(orderBy)
+          ? (orderBy as Array<Record<string, string>>)
+          : orderBy
+            ? [orderBy as Record<string, string>]
+            : [];
+        const tsClause = orderArr.find((c) => 'timestamp' in c);
+        const idClause = orderArr.find((c) => 'id' in c);
+        if (tsClause?.timestamp === 'asc') {
+          filtered = [...filtered].sort((a, b) => {
+            const tsCmp = a.timestamp.getTime() - b.timestamp.getTime();
+            if (tsCmp !== 0) return tsCmp;
+            if (idClause?.id === 'asc') return a.id.localeCompare(b.id);
+            if (idClause?.id === 'desc') return b.id.localeCompare(a.id);
+            return 0;
+          });
         } else {
           filtered = [...filtered].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
         }

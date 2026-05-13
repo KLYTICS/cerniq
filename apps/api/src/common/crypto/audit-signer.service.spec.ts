@@ -1,8 +1,9 @@
 import './crypto.bootstrap';
 import * as ed from '@noble/ed25519';
 import { AuditSignerService } from './audit-signer.service';
-import { Ed25519Util, encodeBase64Url } from './ed25519.util';
+import { Ed25519Util, encodeBase64Url, decodeBase64Url } from './ed25519.util';
 import { __resetKmsForTests, InMemoryKmsAdapter, setKmsAdapter } from './crypto.bootstrap';
+import { computeKid } from '../../modules/wellknown/wellknown.service';
 
 function buildConfig(overrides: Partial<{ priv: string; pub: string; isProd: boolean }> = {}) {
   return {
@@ -44,13 +45,17 @@ describe('AuditSignerService', () => {
   it('falls back to env keys when no KMS adapter is registered', async () => {
     const priv = ed.utils.randomPrivateKey();
     const pub = await ed.getPublicKeyAsync(priv);
+    const pubB64 = encodeBase64Url(pub);
     const svc = new AuditSignerService(
-      buildConfig({ priv: encodeBase64Url(priv), pub: encodeBase64Url(pub) }) as never,
+      buildConfig({ priv: encodeBase64Url(priv), pub: pubB64 }) as never,
       new Ed25519Util(),
     );
     await svc.init();
     const { kid } = await svc.signChainMessage(new TextEncoder().encode('m'));
-    expect(kid).toBe('kid-genesis-v1');
+    // M-038: kid must equal `computeKid(rawPublicKey)` so /.well-known/jwks.json
+    // and AuditEvent.signingKeyId resolve to the SAME entry. Hardcoding
+    // 'kid-genesis-v1' here was the very bug that broke SOC2 verification.
+    expect(kid).toBe(computeKid(decodeBase64Url(pubB64)));
     expect((await svc.getPublishedKey()).source).toBe('env');
   });
 
@@ -63,8 +68,11 @@ describe('AuditSignerService', () => {
     const svc = new AuditSignerService(buildConfig({ isProd: false }) as never, new Ed25519Util());
     await svc.init();
     const { kid } = await svc.signChainMessage(new TextEncoder().encode('m'));
-    expect(kid).toBe('kid-dev-ephemeral');
-    expect((await svc.getPublishedKey()).source).toBe('ephemeral');
+    const published = await svc.getPublishedKey();
+    // M-038: ephemeral path also derives kid from the (just-generated)
+    // public key — same formula as env-fallback and KMS-active paths.
+    expect(kid).toBe(computeKid(decodeBase64Url(published.key)));
+    expect(published.source).toBe('ephemeral');
   });
 
   it('init() is idempotent', async () => {
