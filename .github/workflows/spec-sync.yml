@@ -85,8 +85,13 @@ jobs:
           # ADR-0004 § "Denial Precedence" is the source of truth.
 
           extract_engine() {
+            # Strip the surrounding single quotes so the values compare
+            # byte-equal to the OpenAPI list (which has no quotes).
+            # Without this, every engine reason is reported as "missing
+            # in openapi" — a longstanding script bug masked by the
+            # check having no DenialReason in OpenAPI at all.
             grep -A 12 "type DenialReason" apps/api/src/common/policy-engine/engine.interface.ts \
-              | grep -oE "'[A-Z_]+'" | sort -u
+              | grep -oE "'[A-Z_]+'" | tr -d "'" | sort -u
           }
           extract_verifier() {
             grep -A 12 "DenialReason" packages/verifier-rp/src/types.ts 2>/dev/null \
