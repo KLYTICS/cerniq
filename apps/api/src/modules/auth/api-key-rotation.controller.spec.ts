@@ -22,7 +22,12 @@ function buildAuth(overrides: Partial<AuthenticatedKey> = {}): AuthenticatedKey 
 }
 
 function buildReq(auth: AuthenticatedKey | undefined): Request {
-  return { auth } as unknown as Request;
+  // `headers` is required because the controller reads
+  // `req.headers['x-aegis-api-key']` to invalidate the caller's auth-cache
+  // entry on rotation. Express guarantees `req.headers` at runtime; the
+  // mock must mirror that contract or the controller throws TypeError
+  // before reaching the service.
+  return { auth, headers: {} } as unknown as Request;
 }
 
 interface RotateMock {
