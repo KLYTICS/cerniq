@@ -94,8 +94,11 @@ jobs:
               | grep -oE "'[A-Z_]+'" | tr -d "'" | sort -u
           }
           extract_verifier() {
+            # Strip quotes — same normalisation as extract_engine so the
+            # downstream `comm` sees identical-shape inputs across all
+            # three sources (engine / verifier / openapi).
             grep -A 12 "DenialReason" packages/verifier-rp/src/types.ts 2>/dev/null \
-              | grep -oE "'[A-Z_]+'" | sort -u || true
+              | grep -oE "'[A-Z_]+'" | tr -d "'" | sort -u || true
           }
           extract_openapi() {
             grep -A 12 "DenialReason:" docs/spec/AEGIS_API_SPEC.yaml 2>/dev/null \
