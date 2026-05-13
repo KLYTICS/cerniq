@@ -54,7 +54,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		for _, name := range templates.List() {
 			ui.Row(out, name, templates.Describe(name))
 		}
-		fmt.Fprintln(out)
+		_, _ = fmt.Fprintln(out)
 		return errors.New("--industry is required (see list above)")
 	}
 

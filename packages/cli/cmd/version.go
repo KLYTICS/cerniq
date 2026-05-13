@@ -25,7 +25,7 @@ var versionCmd = &cobra.Command{
 				"userAgent": version.UserAgent(),
 			})
 		}
-		fmt.Fprintln(cmd.OutOrStdout(), version.String())
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), version.String())
 		return nil
 	},
 }

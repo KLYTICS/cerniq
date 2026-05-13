@@ -183,7 +183,7 @@ func runEventsExport(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("open --out: %w", err)
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		w = f
 	}
 	// Long-running stream — give it 10 minutes; large tenants have multi-GB exports.
@@ -218,6 +218,6 @@ func renderEventRow(w io.Writer, e client.AuditEvent) {
 	if e.RelyingParty != "" {
 		line += "  rp=" + e.RelyingParty
 	}
-	fmt.Fprintln(w, line)
+	_, _ = fmt.Fprintln(w, line)
 }
 

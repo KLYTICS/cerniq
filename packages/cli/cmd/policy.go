@@ -156,7 +156,7 @@ func runPolicyCreate(cmd *cobra.Command, _ []string) error {
 	ui.Row(w, "policy id", resp.PolicyID)
 	ui.Row(w, "expires at", resp.ExpiresAt.Format(time.RFC3339))
 	ui.Heading(w, "signed token (attach as Authorization: Bearer)")
-	fmt.Fprintln(w, resp.SignedToken)
+	_, _ = fmt.Fprintln(w, resp.SignedToken)
 	ui.Warn(w, "the token is shown once; copy it now — AEGIS does not retain plaintext copies.")
 	return nil
 }

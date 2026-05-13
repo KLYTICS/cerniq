@@ -62,7 +62,7 @@ configured or when the credential is rejected.`,
 		ui.Row(out, "email", me.Email)
 		ui.Row(out, "tier", me.Tier)
 		ui.Row(out, "base url", cfg.ResolveBaseURL(flagBaseURL))
-		fmt.Fprintln(out)
+		_, _ = fmt.Fprintln(out)
 		return nil
 	},
 }
