@@ -3,13 +3,15 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"time"
+
+	"github.com/spf13/cobra"
 
 	"github.com/klytics/aegis/packages/cli/internal/client"
 	"github.com/klytics/aegis/packages/cli/internal/cliutil"
 	"github.com/klytics/aegis/packages/cli/internal/ui"
-	"github.com/spf13/cobra"
 )
 
 func init() {
@@ -198,9 +200,7 @@ func runEventsExport(cmd *cobra.Command, args []string) error {
 
 // renderEventRow writes one Bloomberg-density row per audit event.
 // Format: <ts> <decision> <action> agent=<id> trust=<n> [reason=<r>]
-func renderEventRow(w interface {
-	Write([]byte) (int, error)
-}, e client.AuditEvent) {
+func renderEventRow(w io.Writer, e client.AuditEvent) {
 	decGlyph := "·"
 	switch e.Decision {
 	case "approved":

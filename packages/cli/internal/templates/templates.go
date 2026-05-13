@@ -28,9 +28,9 @@ var trees embed.FS
 // descriptions maps template name → one-line description shown in the
 // menu. Keep entries one short sentence each — the menu is dense.
 var descriptions = map[string]string{
-	"fintech-payments":        "Stripe-style checkout server with AEGIS verify gate before authorization",
-	"ai-platform-tool-call":   "MCP agent → AEGIS verify → downstream API (pairs with @aegis/mcp-server)",
-	"saas-seat-provisioning":  "SCIM-flavored agent provisioning + per-seat policies + audit slice export",
+	"fintech-payments":       "Stripe-style checkout server with AEGIS verify gate before authorization",
+	"ai-platform-tool-call":  "MCP agent → AEGIS verify → downstream API (pairs with @aegis/mcp-server)",
+	"saas-seat-provisioning": "SCIM-flavored agent provisioning + per-seat policies + audit slice export",
 }
 
 // List returns the available template names in stable order.

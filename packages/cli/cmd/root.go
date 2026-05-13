@@ -18,9 +18,10 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/klytics/aegis/packages/cli/internal/plugin"
 	"github.com/klytics/aegis/packages/cli/internal/version"
-	"github.com/spf13/cobra"
 )
 
 // rootCmd is the top-level cobra command tree.
