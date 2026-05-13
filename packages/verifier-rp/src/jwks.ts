@@ -79,7 +79,7 @@ export class JwksClient {
   }
 
   private async refreshOnce(): Promise<void> {
-    if (this.inFlight) return this.inFlight;
+    if (this.inFlight) { await this.inFlight; return; }
     this.inFlight = (async () => {
       try {
         const url = this.buildUrl();
@@ -100,7 +100,7 @@ export class JwksClient {
         this.inFlight = null;
       }
     })();
-    return this.inFlight;
+    await this.inFlight;
   }
 
   private buildUrl(): string {

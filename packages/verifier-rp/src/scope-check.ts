@@ -2,8 +2,8 @@
 // relying-party-supplied request context, return either `null` (passes) or a
 // denial reason.
 
-import type { DenialReason, VerifyContext } from './types.js';
 import type { NormalizedPolicyClaims } from './policy-claims.js';
+import type { DenialReason, VerifyContext } from './types.js';
 
 export interface ScopeCheckResult {
   reason: DenialReason;
@@ -50,7 +50,7 @@ export function checkScopeAndSpend(
   // Domain allowlist — if the token carries `ad`, the requested merchant
   // domain (if any) must be in the list.
   if (ctx.merchantDomain && claims.allowedDomains.length > 0) {
-    const ok = claims.allowedDomains.some((d) => domainMatches(d, ctx.merchantDomain as string));
+    const ok = claims.allowedDomains.some((d) => domainMatches(d, ctx.merchantDomain!));
     if (!ok) {
       return {
         reason: 'SCOPE_NOT_GRANTED',

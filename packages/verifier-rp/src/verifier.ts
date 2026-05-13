@@ -15,14 +15,15 @@
 // (config mistakes, JWKS endpoint unreachable, etc.), in which case the
 // thrown value is a {@link VerifyError} subclass.
 
+import { now, nowSeconds } from './_internal/time.js';
 import { ConfigError, VerifyError } from './errors.js';
 import { JwksClient } from './jwks.js';
-import type { JwksKey } from './types.js';
 import { parseCompactJws, verifyEdDSA, type ParsedJws } from './jwt.js';
 import { normalizeClaims, remainingTtlSeconds } from './policy-claims.js';
 import { MemoryReplayCache } from './replay-cache.js';
 import { RevocationCache } from './revocation-cache.js';
 import { checkScopeAndSpend } from './scope-check.js';
+import type { JwksKey } from './types.js';
 import type {
   AegisVerifierConfig,
   AgentStatusSnapshot,
@@ -34,7 +35,6 @@ import type {
   VerifyOutcomeFailure,
   VerifyOutcomeSuccess,
 } from './types.js';
-import { now, nowSeconds } from './_internal/time.js';
 
 const DEFAULT_BASE_URL = 'https://api.aegislabs.io/v1';
 const DEFAULT_JWKS_TTL = 3600;

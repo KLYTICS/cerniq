@@ -14,8 +14,8 @@
 
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 
-import type { AegisVerifier } from '../verifier.js';
 import type { VerifyContext, VerifyOptions, VerifyOutcomeSuccess } from '../types.js';
+import type { AegisVerifier } from '../verifier.js';
 
 const DEFAULT_HEADER = 'x-aegis-token';
 

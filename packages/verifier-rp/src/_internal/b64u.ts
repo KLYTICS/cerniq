@@ -9,7 +9,7 @@ export function b64uEncode(bytes: Uint8Array): string {
   // Manual base64url for environments without Buffer (browsers, edge runtimes).
   let bin = '';
   for (let i = 0; i < bytes.length; i++) {
-    bin += String.fromCharCode(bytes[i] as number);
+    bin += String.fromCharCode(bytes[i]!);
   }
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
