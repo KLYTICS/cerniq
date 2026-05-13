@@ -156,7 +156,7 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "code": "scope_not_granted",
         "httpStatus": 403,
         "retryable": False,
-        "customerMessage": "Action not in agent’s allowed scopes.",
+        "customerMessage": "Action not in agent's allowed scopes.",
         "category": "policy",
     },
     "service_unavailable": {
@@ -199,5 +199,13 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "The request payload failed validation.",
         "category": "validation",
+    },
+    "webhook_payload_drift": {
+        "className": "WebhookPayloadValidationError",
+        "code": "webhook_payload_drift",
+        "httpStatus": 500,
+        "retryable": False,
+        "customerMessage": "Internal webhook contract violation.",
+        "category": "internal",
     },
 }

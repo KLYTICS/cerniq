@@ -143,6 +143,23 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     category: 'transient',
   },
 
+  // WebhookPayloadValidationError lives in @aegis/types and is thrown by
+  // `validateWebhookPayload()` + `WebhookDeliveryWorker.assertEnvelopeIntegrity()`
+  // when a producer or DB row violates the per-event schema. It is NEVER
+  // returned over HTTP — webhook delivery is asynchronous, and the error is
+  // caught internally by `WebhooksService.enqueue` (drops + metric) or
+  // `WebhookDeliveryWorker.processInner` (ABANDONS + metric). The 500
+  // catalog entry exists so the audit script accepts the class and the
+  // global exception filter has a defined fallback if this ever escapes
+  // synchronously (which would itself be a bug).
+  WebhookPayloadValidationError: {
+    code: 'webhook_payload_drift',
+    httpStatus: 500,
+    retryable: false,
+    customerMessage: 'Internal webhook contract violation.',
+    category: 'internal',
+  },
+
   // --- denial-precedence semantic codes (reserved for verify hot path) ---
   // These are not standalone Error classes today — the verify endpoint
   // returns 200 with a denial body — but cataloging them here keeps the

@@ -15,6 +15,7 @@
 import { WebhooksService } from './webhooks.service';
 import { WebhookDeliveryWorker } from './webhook.delivery';
 import type { PrismaService } from '../../common/prisma/prisma.service';
+import type { MetricsService } from '../../common/observability/metrics.service';
 import type { WebhookSecretCipher } from '../../common/crypto/webhook-secret-cipher';
 
 // ── Prisma stub ───────────────────────────────────────────────────────────────
@@ -91,16 +92,28 @@ function makeDelivery(): jest.Mocked<WebhookDeliveryWorker> {
   } as unknown as jest.Mocked<WebhookDeliveryWorker>;
 }
 
+function makeMetrics(): jest.Mocked<MetricsService> {
+  // Mirror the prom-client `Counter` shape that WebhooksService touches.
+  // Keeping this scoped to the specific counter under test avoids dragging
+  // in the full Prometheus registry just for a unit suite.
+  const driftCounter = { inc: jest.fn() };
+  return {
+    webhookPayloadDriftTotal: driftCounter,
+  } as unknown as jest.Mocked<MetricsService>;
+}
+
 function makeService() {
   const { prisma, subs, deliveries } = makePrisma();
   const cipher = makeCipher();
   const delivery = makeDelivery();
+  const metrics = makeMetrics();
   const svc = new WebhooksService(
     prisma as unknown as PrismaService,
     delivery,
     cipher,
+    metrics,
   );
-  return { svc, prisma, subs, deliveries, cipher, delivery };
+  return { svc, prisma, subs, deliveries, cipher, delivery, metrics };
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -191,26 +204,51 @@ describe('WebhooksService', () => {
   });
 
   describe('enqueue()', () => {
+    // Canonical valid payloads for the two events with live producers.
+    // Anyone changing these must also update the schema in
+    // packages/types/src/webhooks.ts (the parity test enforces it).
+    const TRUST_SCORE_EVENT = {
+      type: 'aegis.agent.trust_score_changed',
+      data: {
+        agentId: 'agt_1',
+        score: 720,
+        previousScore: 480,
+        band: 'VERIFIED' as const,
+        previousBand: 'WATCH' as const,
+        weightsVersion: 'v1',
+        contributors: [{ kind: 'recompute', delta: 240, reason: 'positive_signal' }],
+      },
+    };
+    const POLICY_EXPIRED_EVENT = {
+      type: 'aegis.policy.expired',
+      data: {
+        policyId: 'pol_1',
+        agentId: 'agt_1',
+        expiredAt: '2026-05-01T00:00:00.000Z',
+        sweptAt: '2026-05-01T00:05:00.000Z',
+      },
+    };
+
     it('creates a WebhookDelivery row for each matching active subscription', async () => {
       const { svc, subs, deliveries, prisma } = makeService();
       // Manually insert active subs with matching event
-      subs.push({ id: 'sub_1', principalId: 'prn_A', url: 'https://a.com/wh', events: ['aegis.agent.revoked'], active: true, secret: 'x' });
+      subs.push({ id: 'sub_1', principalId: 'prn_A', url: 'https://a.com/wh', events: ['aegis.agent.trust_score_changed'], active: true, secret: 'x' });
       (prisma.webhookSubscription.findMany as jest.Mock).mockResolvedValueOnce([subs[0]]);
-      (prisma.webhookDelivery.create as jest.Mock).mockResolvedValueOnce({ id: 'del_1', subscriptionId: 'sub_1', event: 'aegis.agent.revoked', payload: {} });
+      (prisma.webhookDelivery.create as jest.Mock).mockResolvedValueOnce({ id: 'del_1', subscriptionId: 'sub_1', event: TRUST_SCORE_EVENT.type, payload: TRUST_SCORE_EVENT.data });
 
-      await svc.enqueue({ type: 'aegis.agent.revoked', data: { agentId: 'agt_1' } }, 'prn_A');
+      await svc.enqueue(TRUST_SCORE_EVENT, 'prn_A');
 
       expect(deliveries.length + (prisma.webhookDelivery.create as jest.Mock).mock.calls.length).toBeGreaterThan(0);
     });
 
     it('calls delivery.enqueue for each persisted delivery row', async () => {
       const { svc, subs, delivery, prisma } = makeService();
-      subs.push({ id: 'sub_1', principalId: 'prn_A', url: 'https://a.com/wh', events: ['evt'], active: true, secret: 'x' });
+      subs.push({ id: 'sub_1', principalId: 'prn_A', url: 'https://a.com/wh', events: [POLICY_EXPIRED_EVENT.type], active: true, secret: 'x' });
       (prisma.webhookSubscription.findMany as jest.Mock).mockResolvedValueOnce([subs[0]]);
-      (prisma.webhookDelivery.create as jest.Mock).mockResolvedValueOnce({ id: 'del_99', subscriptionId: 'sub_1', event: 'evt', payload: {} });
+      (prisma.webhookDelivery.create as jest.Mock).mockResolvedValueOnce({ id: 'del_99', subscriptionId: 'sub_1', event: POLICY_EXPIRED_EVENT.type, payload: POLICY_EXPIRED_EVENT.data });
       (prisma.$transaction as jest.Mock).mockResolvedValueOnce([{ id: 'del_99' }]);
 
-      await svc.enqueue({ type: 'evt', data: {} }, 'prn_A');
+      await svc.enqueue(POLICY_EXPIRED_EVENT, 'prn_A');
 
       expect(delivery.enqueue).toHaveBeenCalledWith('del_99');
     });
@@ -218,14 +256,116 @@ describe('WebhooksService', () => {
     it('does nothing when no active subscription matches the event', async () => {
       const { svc, prisma, delivery } = makeService();
       (prisma.webhookSubscription.findMany as jest.Mock).mockResolvedValueOnce([]);
-      await svc.enqueue({ type: 'aegis.agent.revoked', data: {} }, 'prn_A');
+      await svc.enqueue(TRUST_SCORE_EVENT, 'prn_A');
       expect(delivery.enqueue).not.toHaveBeenCalled();
     });
 
     it('swallows errors — never throws on delivery failure', async () => {
       const { svc, prisma } = makeService();
       (prisma.webhookSubscription.findMany as jest.Mock).mockRejectedValueOnce(new Error('DB down'));
-      await expect(svc.enqueue({ type: 'evt', data: {} }, 'prn_A')).resolves.toBeUndefined();
+      await expect(svc.enqueue(TRUST_SCORE_EVENT, 'prn_A')).resolves.toBeUndefined();
+    });
+
+    it('skips delivery and increments drift metric with reason=shape_mismatch (missing field)', async () => {
+      // Belt-and-suspenders runtime guard: if the producer somehow ships a
+      // body that doesn't match the schema (despite CI parity catching it),
+      // we prefer "send nothing" over "send wrong shape". No throw — caller
+      // hot path keeps moving. The metric increment is what ops alerts on.
+      const { svc, prisma, delivery, metrics } = makeService();
+      await expect(
+        svc.enqueue(
+          { type: 'aegis.agent.trust_score_changed', data: { agentId: 'agt_1' } },
+          'prn_A',
+        ),
+      ).resolves.toBeUndefined();
+      expect(prisma.webhookSubscription.findMany).not.toHaveBeenCalled();
+      expect(delivery.enqueue).not.toHaveBeenCalled();
+      expect(metrics.webhookPayloadDriftTotal.inc).toHaveBeenCalledWith({
+        event: 'aegis.agent.trust_score_changed',
+        reason: 'shape_mismatch',
+      });
+    });
+
+    it('skips delivery and increments drift metric with reason=shape_mismatch (extra field — strict mode)', async () => {
+      // The schemas are .strict(), so unknown fields are a contract break.
+      // Load-bearing: without strict mode, an attacker-controlled extra
+      // field could ride the wire silently — the service signs event.data,
+      // not the parsed-stripped result.
+      const { svc, prisma, delivery, metrics } = makeService();
+      await expect(
+        svc.enqueue(
+          {
+            type: 'aegis.policy.expired',
+            data: {
+              policyId: 'pol_1',
+              agentId: 'agt_1',
+              expiredAt: '2026-05-01T00:00:00.000Z',
+              sweptAt: '2026-05-01T00:05:00.000Z',
+              attacker_controlled: 'value',
+            },
+          },
+          'prn_A',
+        ),
+      ).resolves.toBeUndefined();
+      expect(prisma.webhookSubscription.findMany).not.toHaveBeenCalled();
+      expect(delivery.enqueue).not.toHaveBeenCalled();
+      expect(metrics.webhookPayloadDriftTotal.inc).toHaveBeenCalledWith({
+        event: 'aegis.policy.expired',
+        reason: 'shape_mismatch',
+      });
+    });
+
+    it('skips delivery and increments drift metric with reason=reserved for unproduced events', async () => {
+      // AGENT_REVOKED / ANOMALY_DETECTED / FLAGGED_BY_RELYING_PARTY are
+      // declared in WEBHOOK_EVENT but have no producer yet. Emitting one
+      // without first defining its schema must not silently succeed — and
+      // the metric tags it `reason=reserved` so ops can tell this apart
+      // from a real shape-mismatch incident.
+      const { svc, prisma, delivery, metrics } = makeService();
+      await expect(
+        svc.enqueue(
+          { type: 'aegis.agent.revoked', data: { agentId: 'agt_1' } },
+          'prn_A',
+        ),
+      ).resolves.toBeUndefined();
+      expect(prisma.webhookSubscription.findMany).not.toHaveBeenCalled();
+      expect(delivery.enqueue).not.toHaveBeenCalled();
+      expect(metrics.webhookPayloadDriftTotal.inc).toHaveBeenCalledWith({
+        event: 'aegis.agent.revoked',
+        reason: 'reserved',
+      });
+    });
+
+    it('skips delivery and increments drift metric with reason=unknown_event for undeclared types', async () => {
+      // A producer that emits an event type not declared in WEBHOOK_EVENT
+      // is a typo / dev mistake. Distinguished from `reserved` so ops route
+      // it to the producer owner, not the schema owner.
+      const { svc, prisma, delivery, metrics } = makeService();
+      await expect(
+        svc.enqueue(
+          { type: 'not.a.real.event', data: {} },
+          'prn_A',
+        ),
+      ).resolves.toBeUndefined();
+      expect(prisma.webhookSubscription.findMany).not.toHaveBeenCalled();
+      expect(delivery.enqueue).not.toHaveBeenCalled();
+      expect(metrics.webhookPayloadDriftTotal.inc).toHaveBeenCalledWith({
+        event: 'not.a.real.event',
+        reason: 'unknown_event',
+      });
+    });
+
+    it('does not increment drift metric on valid payloads', async () => {
+      // Negative-control: an accepted payload should NEVER bump the drift
+      // counter. Without this, a producer accidentally importing prom-client
+      // and calling .inc() in a passing test would silently inflate the
+      // metric in prod.
+      const { svc, subs, prisma, metrics } = makeService();
+      subs.push({ id: 'sub_1', principalId: 'prn_A', url: 'https://a.com/wh', events: [TRUST_SCORE_EVENT.type], active: true, secret: 'x' });
+      (prisma.webhookSubscription.findMany as jest.Mock).mockResolvedValueOnce([subs[0]]);
+      (prisma.webhookDelivery.create as jest.Mock).mockResolvedValueOnce({ id: 'del_ok', subscriptionId: 'sub_1', event: TRUST_SCORE_EVENT.type, payload: TRUST_SCORE_EVENT.data });
+      await svc.enqueue(TRUST_SCORE_EVENT, 'prn_A');
+      expect(metrics.webhookPayloadDriftTotal.inc).not.toHaveBeenCalled();
     });
   });
 });

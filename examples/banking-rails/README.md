@@ -124,7 +124,7 @@ the field that makes reconciliation possible (`endToEndId` end-to-end).
 - [ ] Replace `submitToBank()` with the real bank adapter call. The
       `BankSubmitVerdict` shape is stable across Modern Treasury,
       Increase, and direct adapters.
-- [ ] Subscribe to `aegis.agent.revoked` and `aegis.agent.policy_expired`
+- [ ] Subscribe to `aegis.agent.revoked` and `aegis.policy.expired`
       so a compromised treasury agent stops moving money the moment
       it's revoked.
 - [ ] Run a per-rail latency budget alarm. If `aegis.verify` p99 ever

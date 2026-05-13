@@ -104,14 +104,95 @@ regardless of policy lifetime — it's the replay defence.
 You should subscribe to AT LEAST these:
 
 - `aegis.agent.revoked` — drop the agent's session within seconds.
-- `aegis.agent.policy_expired` — refresh the policy on cue.
-- `aegis.agent.anomaly_detected` — log + page if your action class
+- `aegis.policy.expired` — refresh the policy on cue.
+- `aegis.anomaly.detected` — log + page if your action class
   is high-stakes.
 
 Subscribe via `POST /v1/webhooks` (see
 [`apps/api/src/modules/webhooks/webhooks.controller.ts`](../apps/api/src/modules/webhooks/webhooks.controller.ts)).
 The signing secret is shown once. Store it securely; verify HMAC on
 every inbound delivery (Stripe-style: `X-AEGIS-Signature: t=…,v1=…`).
+
+#### Subscriber-side verification (Node)
+
+```ts
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
+const TOLERANCE_SECONDS = 300; // 5 min — AEGIS does NOT enforce server-side
+const SECRET = process.env.AEGIS_WEBHOOK_SECRET!; // returned once at subscribe
+
+// Read the RAW request body. Do not parse-and-re-stringify; even one byte
+// of whitespace drift breaks HMAC equality. Frameworks: express → use
+// `express.raw({type: 'application/json'})`; Fastify → `rawBody: true`.
+export function verifyAegisWebhook(rawBody: Buffer, signatureHeader: string): boolean {
+  const parts = Object.fromEntries(
+    signatureHeader.split(',').map((p) => p.split('=', 2) as [string, string]),
+  );
+  const ts = Number(parts.t);
+  const sig = parts.v1;
+  if (!Number.isFinite(ts) || !sig) return false;
+
+  // Replay defense — caller's responsibility.
+  if (Math.abs(Date.now() / 1000 - ts) > TOLERANCE_SECONDS) return false;
+
+  const expected = createHmac('sha256', SECRET)
+    .update(`${ts}.${rawBody.toString('utf8')}`)
+    .digest('hex');
+
+  // Constant-time compare to defeat timing oracles.
+  const a = Buffer.from(expected, 'hex');
+  const b = Buffer.from(sig, 'hex');
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+```
+
+#### Subscriber-side verification (Python)
+
+```python
+import hashlib
+import hmac
+import os
+import time
+
+TOLERANCE_SECONDS = 300  # 5 min — AEGIS does NOT enforce server-side
+SECRET = os.environ["AEGIS_WEBHOOK_SECRET"].encode("utf-8")
+
+
+def verify_aegis_webhook(raw_body: bytes, signature_header: str) -> bool:
+    """
+    Verify an inbound AEGIS webhook delivery.
+
+    `raw_body` MUST be the exact bytes received in the HTTP request —
+    Flask: `request.get_data(as_text=False)`,
+    FastAPI: `await request.body()`,
+    Django: `request.body`.
+    Do NOT pass `request.json()` and re-serialize; even one byte of
+    whitespace drift breaks HMAC equality.
+    """
+    parts = dict(p.split("=", 1) for p in signature_header.split(","))
+    try:
+        ts = int(parts["t"])
+    except (KeyError, ValueError):
+        return False
+    sig = parts.get("v1", "")
+    if not sig:
+        return False
+
+    # Replay defense — caller's responsibility (AEGIS does not enforce).
+    if abs(time.time() - ts) > TOLERANCE_SECONDS:
+        return False
+
+    signed_input = f"{ts}.".encode("utf-8") + raw_body
+    expected = hmac.new(SECRET, signed_input, hashlib.sha256).hexdigest()
+    # Constant-time compare to defeat timing oracles.
+    return hmac.compare_digest(expected, sig)
+```
+
+After verification succeeds, parse JSON and route on the `event` field.
+The payload shapes for each event are locked in
+[`packages/types/src/webhooks.ts`](../packages/types/src/webhooks.ts);
+the cross-package parity spec enforces that producer code can never drift
+from those schemas silently.
 
 ---
 

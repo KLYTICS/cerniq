@@ -11,6 +11,7 @@ import type { AuditChainUtil } from '../common/crypto/audit-chain.util';
 import type { Ed25519Util } from '../common/crypto/ed25519.util';
 import type { WebhookDeliveryWorker } from '../modules/webhooks/webhook.delivery';
 import type { WebhookSecretCipher } from '../common/crypto/webhook-secret-cipher';
+import type { MetricsService } from '../common/observability/metrics.service';
 
 /**
  * CLAUDE.md invariant #5 — multi-tenant isolation by `principalId` on every
@@ -248,7 +249,12 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
         decrypt: (s: string) => s,
         isEncrypted: () => false,
       } as unknown as WebhookSecretCipher;
-      return new WebhooksService(prisma, delivery, cipher);
+      // No-op metrics: tenant isolation suite asserts on routing + scope, not
+      // drift counters. WebhooksService only touches `webhookPayloadDriftTotal`.
+      const metrics = {
+        webhookPayloadDriftTotal: { inc: jest.fn() },
+      } as unknown as MetricsService;
+      return new WebhooksService(prisma, delivery, cipher, metrics);
     }
 
     it('subscribe persists with caller principalId', async () => {
@@ -396,7 +402,10 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
         decrypt: (s: string) => s,
         isEncrypted: () => false,
       } as unknown as WebhookSecretCipher;
-      return new WebhooksService(prisma, delivery, cipher);
+      const metrics = {
+        webhookPayloadDriftTotal: { inc: jest.fn() },
+      } as unknown as MetricsService;
+      return new WebhooksService(prisma, delivery, cipher, metrics);
     }
 
     it('subscribe is principal-scoped — list returns only the caller\'s subscription', async () => {
@@ -466,16 +475,31 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       const harness = buildWebhooksHarness();
       const svc = makeWebhooksSvc(harness.prisma);
 
-      const subA = await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', ['verify.completed']);
-      const subB = await svc.subscribe(PRINCIPAL_B, 'https://hookB.example.com', ['verify.completed']);
+      // Use a real event type with a valid payload so the schema validator
+      // (added 2026-05-12) lets the call through to the routing path we
+      // actually want to test here.
+      const EVENT = 'aegis.policy.expired';
+      const subA = await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', [EVENT]);
+      const subB = await svc.subscribe(PRINCIPAL_B, 'https://hookB.example.com', [EVENT]);
 
-      await svc.enqueue({ type: 'verify.completed', data: { agentId: 'agt_a' } }, PRINCIPAL_A);
+      await svc.enqueue(
+        {
+          type: EVENT,
+          data: {
+            policyId: 'pol_a',
+            agentId: 'agt_a',
+            expiredAt: '2026-05-01T00:00:00.000Z',
+            sweptAt: '2026-05-01T00:05:00.000Z',
+          },
+        },
+        PRINCIPAL_A,
+      );
 
       // Exactly one delivery row, scoped to A's subscription.
       expect(harness.deliveryCreate).toHaveBeenCalledTimes(1);
       expect(harness.deliveryCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ subscriptionId: subA.id, event: 'verify.completed' }),
+          data: expect.objectContaining({ subscriptionId: subA.id, event: EVENT }),
         }),
       );
       expect(harness.deliveries).toHaveLength(1);

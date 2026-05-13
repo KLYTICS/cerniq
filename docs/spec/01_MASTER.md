@@ -259,9 +259,10 @@ GET /v1/agents/:agentId/audit
 
 ```
 aegis.agent.trust_score_changed
-aegis.agent.anomaly_detected
-aegis.agent.policy_expired
+aegis.anomaly.detected
+aegis.policy.expired
 aegis.agent.flagged_by_relying_party
+aegis.agent.revoked
 ```
 
 ### 3.3 SDK Design

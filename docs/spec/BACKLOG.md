@@ -76,7 +76,7 @@
 
 - [P2] Webhook subscription model (Prisma) — BE | 3h | Prisma
 - [P2] POST endpoint for managing subscriptions — BE | 3h | Model
-- [P2] BullMQ worker: deliver aegis.agent.policy_expired events — BE | 4h | BullMQ, Webhooks
+- [P2] BullMQ worker: deliver aegis.policy.expired events — BE | 4h | BullMQ, Webhooks
 - [P3] Retry logic with exponential backoff — BE | 3h | Worker
 
 ### Epic 7: Developer Dashboard (minimal React)
@@ -125,7 +125,7 @@
 ### Epic 11: Developer Signals
 
 - [P1] Webhook: aegis.agent.trust_score_changed — BE | 3h | Webhooks, BATE
-- [P1] Webhook: aegis.agent.anomaly_detected — BE | 3h | Webhooks, BATE
+- [P1] Webhook: aegis.anomaly.detected — BE | 3h | Webhooks, BATE
 - [P2] Trust score dashboard widget (FE) — FE | 6h | BATE API
 - [P2] Anomaly alert view (FE) — FE | 4h | BATE API
 

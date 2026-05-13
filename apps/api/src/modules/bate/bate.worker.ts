@@ -18,15 +18,49 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
+import {
+  WEBHOOK_EVENT,
+  type TrustBand,
+  type WebhookTrustScoreChangedPayload,
+} from '@aegis/types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { AppConfigService } from '../../config/config.service';
 import { MetricsService } from '../../common/observability/metrics.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
 import { BateScorer } from './bate.scorer';
+import type { ScoringExplanation } from './bate.scorer';
 import { BateAnomalyDetector, type DetectorWindow } from './bate.anomaly';
 
 export const BATE_QUEUE = 'aegis.bate';
+
+/**
+ * Pure payload builder for the `aegis.agent.trust_score_changed` webhook.
+ *
+ * Exported so the cross-package parity test (`tests/cross-package/
+ * webhook-payload-parity.spec.ts`) can anchor against the exact code path
+ * that ships on the wire — not a synthetic fixture. Any field rename or
+ * addition here must move together with the schema in
+ * `packages/types/src/webhooks.ts`; the parity test enforces it.
+ */
+export function buildTrustScoreChangedPayload(input: {
+  agentId: string;
+  score: number;
+  previousScore: number;
+  band: TrustBand;
+  previousBand: TrustBand;
+  explanation: Pick<ScoringExplanation, 'weightsVersion' | 'contributors'>;
+}): WebhookTrustScoreChangedPayload {
+  return {
+    agentId: input.agentId,
+    score: input.score,
+    previousScore: input.previousScore,
+    band: input.band,
+    previousBand: input.previousBand,
+    weightsVersion: input.explanation.weightsVersion,
+    contributors: input.explanation.contributors,
+  };
+}
 
 interface RecomputeJobData {
   agentId: string;
@@ -244,16 +278,15 @@ export class BateRecomputeWorker implements OnModuleInit, OnModuleDestroy {
     if (newBand !== oldBand) {
       await this.webhooks.enqueue(
         {
-          type: 'aegis.agent.trust_score_changed',
-          data: {
+          type: WEBHOOK_EVENT.AGENT_TRUST_SCORE_CHANGED,
+          data: buildTrustScoreChangedPayload({
             agentId: data.agentId,
             score: newScore,
             previousScore: oldScore,
             band: newBand,
             previousBand: oldBand,
-            weightsVersion: explanation.weightsVersion,
-            contributors: explanation.contributors,
-          },
+            explanation,
+          }),
         },
         agent.principalId,
       );

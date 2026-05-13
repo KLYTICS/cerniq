@@ -163,7 +163,7 @@ export const GENERATED_ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>
     code: "scope_not_granted",
     httpStatus: 403,
     retryable: false,
-    customerMessage: "Action not in agent’s allowed scopes.",
+    customerMessage: "Action not in agent's allowed scopes.",
     category: "policy",
   }),
   ["service_unavailable"]: Object.freeze({
@@ -205,5 +205,13 @@ export const GENERATED_ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>
     retryable: false,
     customerMessage: "The request payload failed validation.",
     category: "validation",
+  }),
+  ["webhook_payload_drift"]: Object.freeze({
+    className: "WebhookPayloadValidationError",
+    code: "webhook_payload_drift",
+    httpStatus: 500,
+    retryable: false,
+    customerMessage: "Internal webhook contract violation.",
+    category: "internal",
   }),
 });

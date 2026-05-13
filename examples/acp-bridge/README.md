@@ -132,7 +132,7 @@ mismatch teaches the trust score what good behavior looks like.
 - [ ] Wire `chargeCard` to `stripe.charges.create()` (or
       `paymentIntents.create`) with the AEGIS jti as
       `idempotency-key`.
-- [ ] Subscribe to `aegis.agent.revoked` and `aegis.agent.policy_expired`
+- [ ] Subscribe to `aegis.agent.revoked` and `aegis.policy.expired`
       webhooks so the merchant stops accepting an agent within seconds
       of revocation, not at SPT TTL expiry.
 - [ ] Cross-link audit trails: every successful charge stores AEGIS

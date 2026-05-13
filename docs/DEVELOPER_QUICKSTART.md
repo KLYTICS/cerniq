@@ -443,7 +443,7 @@ await aegis.webhooks.create({
   events: [
     'aegis.agent.revoked',           // Immediate revocation — stop accepting tokens
     'aegis.agent.trust_score_changed', // Score band changes — adjust limits
-    'aegis.agent.anomaly_detected',   // Flag for human review
+    'aegis.anomaly.detected',         // Flag for human review
     'aegis.policy.expired',           // Renew policy before next action
   ],
 });
