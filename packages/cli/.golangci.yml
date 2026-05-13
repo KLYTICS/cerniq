@@ -22,6 +22,19 @@ linters:
 linters-settings:
   goimports:
     local-prefixes: github.com/klytics/aegis
+  errcheck:
+    # Exclude well-known safe patterns. Errors from these are not actionable
+    # in a CLI tool: a closed pipe means the operator killed the tail, and
+    # `defer resp.Body.Close()` after the body was fully consumed carries no
+    # recovery information. The bodyclose linter (still enabled above) keeps
+    # the more important invariant — that every response body IS closed.
+    # Scattered `_, _ = ` prefixes are noise that rot the moment someone
+    # forgets one; this declarative exclusion enforces the policy uniformly.
+    exclude-functions:
+      - fmt.Fprintf
+      - fmt.Fprintln
+      - (*net/http.Response).Body.Close
+      - (io.Closer).Close
 issues:
   exclude-use-default: false
   max-same-issues: 0
