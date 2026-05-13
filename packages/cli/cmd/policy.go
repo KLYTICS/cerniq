@@ -9,10 +9,11 @@ import (
 
 	jose "github.com/go-jose/go-jose/v4"
 	"github.com/go-jose/go-jose/v4/jwt"
+	"github.com/spf13/cobra"
+
 	"github.com/klytics/aegis/packages/cli/internal/client"
 	"github.com/klytics/aegis/packages/cli/internal/cliutil"
 	"github.com/klytics/aegis/packages/cli/internal/ui"
-	"github.com/spf13/cobra"
 )
 
 func init() {

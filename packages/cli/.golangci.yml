@@ -35,6 +35,7 @@ linters-settings:
       - fmt.Fprintln
       - (*net/http.Response).Body.Close
       - (io.Closer).Close
+      - (*os.File).Close
 issues:
   exclude-use-default: false
   max-same-issues: 0

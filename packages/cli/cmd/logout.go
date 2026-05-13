@@ -1,9 +1,10 @@
 package cmd
 
 import (
+	"github.com/spf13/cobra"
+
 	"github.com/klytics/aegis/packages/cli/internal/keychain"
 	"github.com/klytics/aegis/packages/cli/internal/ui"
-	"github.com/spf13/cobra"
 )
 
 func init() {
