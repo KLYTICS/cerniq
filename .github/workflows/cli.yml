@@ -48,16 +48,20 @@ jobs:
         with:
           go-version: '1.22'
           cache-dependency-path: packages/cli/go.sum
-      # Explicit module download so golangci-lint's typecheck phase can
-      # resolve transitive imports (e.g. `github.com/pelletier/go-toml/v2`).
-      # Without this, lint occasionally fails with `undefined: <pkg>` when
-      # the action's internal cache misses a module the linter needs.
-      - name: go mod download
+      # Build + module download so golangci-lint's typecheck linter has a
+      # warm cache. v1.59's bundled go/types had a known issue resolving
+      # certain transitive Go modules under Go 1.22 — `go build ./...`
+      # forces the same resolution path the linter then re-uses.
+      - name: prime go module cache
         working-directory: packages/cli
-        run: go mod download
+        run: |
+          go mod download
+          go build ./...
       - uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.59
+          # v1.60.3 fixes the typecheck-undefined-import flake hit on v1.59.1
+          # with Go 1.22.x + recent toolchain-pinned modules.
+          version: v1.60.3
           working-directory: packages/cli
           args: --config=.golangci.yml --timeout=5m
 
