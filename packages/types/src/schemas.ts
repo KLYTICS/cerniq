@@ -127,6 +127,13 @@ export const AgentIdentitySchema = z.object({
   trustBand: TrustBandSchema,
   registeredAt: IsoDateTimeSchema,
   lastSeenAt: IsoDateTimeSchema.nullable().optional(),
+  // Operational lifecycle + counters mirrored from Prisma so the spec
+  // contract stays in sync (OpenAPI ↔ Zod ↔ Prisma parity).
+  revokedAt: IsoDateTimeSchema.nullable().optional(),
+  revokedReason: z.string().nullable().optional(),
+  verifyCount: z.number().int().min(0).optional(),
+  verifyCountDay: z.number().int().min(0).optional(),
+  bateSignals: z.array(z.unknown()).optional(),
 });
 
 export const AgentStatusResponseSchema = z.object({
@@ -199,6 +206,12 @@ export const AgentPolicySchema = z.object({
   createdAt: IsoDateTimeSchema,
   expiresAt: IsoDateTimeSchema,
   label: z.string().nullable().optional(),
+  // Mirrored from Prisma so the public contract is complete. The raw
+  // token is returned only at issuance; tokenHash is the persisted
+  // form (matches `AgentPolicy.tokenHash` in schema.prisma).
+  tokenHash: z.string().optional(),
+  revokedAt: IsoDateTimeSchema.nullable().optional(),
+  verifyCount: z.number().int().min(0).optional(),
 });
 
 // ── Verify ───────────────────────────────────────────────────────
@@ -255,15 +268,37 @@ export const AuditDecisionSchema = z.enum(['approved', 'denied', 'flagged']);
 
 export const AuditEventSchema = z.object({
   eventId: z.string(),
-  agentId: AgentIdSchema,
+  agentId: AgentIdSchema.nullable(),
+  // ADR-0009 / forensic: the requested agentId is preserved separately so an
+  // AGENT_NOT_FOUND row still records what the caller claimed.
+  claimedAgentId: AgentIdSchema.nullable(),
   principalId: PrincipalIdSchema,
   timestamp: IsoDateTimeSchema,
-  action: z.string(),
-  relyingParty: z.string().nullable().optional(),
+  // Redactable raw value (ADR-0006). `actionHash` is the immutable commitment.
+  action: z.string().nullable(),
+  actionHash: z.string(),
+  relyingParty: z.string().nullable(),
+  relyingPartyHash: z.string().nullable(),
   decision: AuditDecisionSchema,
+  // `decisionReason` is the legacy alias for `denialReason`. Both are emitted
+  // so older SDKs that read `decisionReason` keep working. New code reads
+  // `denialReason`.
   decisionReason: z.string().nullable().optional(),
+  denialReason: DenialReasonSchema.nullable(),
+  requestedAmount: z.string().nullable(),
+  requestedAmountHash: z.string().nullable(),
+  currency: z.string().nullable(),
+  policyId: z.string().nullable(),
+  policySnapshot: z.unknown().nullable(),
+  policySnapshotHash: z.string().nullable(),
+  redactionReason: z.string().nullable(),
   trustScoreAtEvent: z.number().int().min(0).max(1000),
+  trustBandAtEvent: TrustBandSchema,
   signature: z.string(),
+  // Chain-link materialisation (M-038). Both null on the genesis row per
+  // chain AND on any row written before this migration.
+  prevEventId: z.string().nullable(),
+  prevSignature: z.string().nullable(),
 });
 
 export const AuditLogResponseSchema = z.object({
