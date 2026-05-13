@@ -220,4 +220,3 @@ func renderEventRow(w io.Writer, e client.AuditEvent) {
 	}
 	_, _ = fmt.Fprintln(w, line)
 }
-

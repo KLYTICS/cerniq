@@ -8,9 +8,9 @@
 // targets care about.
 //
 // Adding a new template:
-//   1. Drop the tree under packages/cli/internal/templates/<name>/.
-//   2. Append the name + one-line description to descriptions below.
-//   3. The go:embed directive picks it up automatically.
+//  1. Drop the tree under packages/cli/internal/templates/<name>/.
+//  2. Append the name + one-line description to descriptions below.
+//  3. The go:embed directive picks it up automatically.
 //
 // The description list is the single source of truth surfaced by
 // `aegis init` with no --industry flag.
