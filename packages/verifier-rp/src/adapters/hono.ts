@@ -17,6 +17,7 @@ export interface HonoGuardOptions {
 }
 
 export function aegisHonoMiddleware(options: HonoGuardOptions): MiddlewareHandler {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!options?.verifier) {
     throw new TypeError('aegisHonoMiddleware: options.verifier is required');
   }

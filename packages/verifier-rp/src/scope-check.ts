@@ -50,7 +50,8 @@ export function checkScopeAndSpend(
   // Domain allowlist — if the token carries `ad`, the requested merchant
   // domain (if any) must be in the list.
   if (ctx.merchantDomain && claims.allowedDomains.length > 0) {
-    const ok = claims.allowedDomains.some((d) => domainMatches(d, ctx.merchantDomain!));
+    const merchantDomain = ctx.merchantDomain;
+    const ok = claims.allowedDomains.some((d) => domainMatches(d, merchantDomain));
     if (!ok) {
       return {
         reason: 'SCOPE_NOT_GRANTED',
@@ -67,7 +68,7 @@ export function checkScopeAndSpend(
     if (ctx.amount > claims.amount) {
       return {
         reason: 'SPEND_LIMIT_EXCEEDED',
-        detail: `request amount ${ctx.amount} exceeds token amount ${claims.amount}`,
+        detail: `request amount ${String(ctx.amount)} exceeds token amount ${String(claims.amount)}`,
       };
     }
   }

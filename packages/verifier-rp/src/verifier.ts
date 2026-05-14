@@ -55,6 +55,8 @@ export class AegisVerifier {
   private readonly revocationCache: RevocationCache;
 
   constructor(config: AegisVerifierConfig) {
+    // Defensive against JS callers passing undefined despite the type.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (typeof config !== 'object' || config === null) {
       throw new ConfigError('AegisVerifier: config object is required');
     }
@@ -141,7 +143,9 @@ export class AegisVerifier {
       return this.fail('INVALID_SIGNATURE', 'malformed token');
     }
 
-    // 2. alg gate.
+    // 2. alg gate. Defensive — `parseCompactJws` already constrains the
+    // header but a hostile token might land here via a future code path.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (parsed.header.alg !== 'EdDSA') {
       return this.fail('INVALID_SIGNATURE', `unsupported alg: ${String(parsed.header.alg)}`);
     }
@@ -151,18 +155,18 @@ export class AegisVerifier {
     // 3. Time bounds.
     const nowS = nowSeconds();
     if (claims.exp <= nowS - skew) {
-      return this.failWithClaims('POLICY_EXPIRED', `exp=${claims.exp} now=${nowS}`, parsed);
+      return this.failWithClaims('POLICY_EXPIRED', `exp=${String(claims.exp)} now=${String(nowS)}`, parsed);
     }
     if (claims.iat > nowS + skew) {
       return this.failWithClaims(
         'INVALID_SIGNATURE',
-        `iat in the future: iat=${claims.iat} now=${nowS}`,
+        `iat in the future: iat=${String(claims.iat)} now=${String(nowS)}`,
         parsed,
       );
     }
 
     // 4. Resolve the verification key.
-    let publicKey: Uint8Array | null = null;
+    let publicKey: Uint8Array | null;
     try {
       if (parsed.header.kid) {
         publicKey = await this.jwksClient.getKey(parsed.header.kid);
@@ -237,7 +241,7 @@ export class AegisVerifier {
     ) {
       return this.failWithClaims(
         'TRUST_SCORE_TOO_LOW',
-        `trustScore=${snapshot.trustScore} < required=${context.minTrustScore}`,
+        `trustScore=${String(snapshot.trustScore)} < required=${String(context.minTrustScore)}`,
         parsed,
       );
     }

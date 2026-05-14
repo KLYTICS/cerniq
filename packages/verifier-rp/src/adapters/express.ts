@@ -30,15 +30,23 @@ export interface ExpressGuardOptions {
 }
 
 export function aegisGuard(options: ExpressGuardOptions): RequestHandler {
+  // Defensive runtime checks — types claim these are required but the
+  // function is a public API so JS callers can still pass undefined.
+  /* eslint-disable @typescript-eslint/no-unnecessary-condition */
   if (!options || typeof options !== 'object') {
     throw new TypeError('aegisGuard: options object is required');
   }
   if (!options.verifier) {
     throw new TypeError('aegisGuard: options.verifier is required');
   }
+  /* eslint-enable @typescript-eslint/no-unnecessary-condition */
   const headerName = (options.headerName ?? DEFAULT_HEADER).toLowerCase();
   const attachTo = options.attachTo ?? 'aegis';
 
+  // Express's RequestHandler signature is void-returning; an async
+  // function technically returns Promise<void>. Express invokes it
+  // correctly either way; the lint rule is overly strict here.
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const headerVal = req.headers[headerName];
     const token = Array.isArray(headerVal) ? headerVal[0] : headerVal;
