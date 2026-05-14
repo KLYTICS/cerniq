@@ -514,6 +514,7 @@ export class WebhookDeliveryWorker
       throw new WebhookPayloadValidationError(
         'envelope body bytes do not match canonical {id,event,data,ts} serialization',
         event,
+        'shape_mismatch',
       );
     }
     // 3. Inner payload matches the per-event schema (catches reserved

@@ -334,24 +334,43 @@ describe('on-wire envelope and HMAC signature', () => {
 // ── Producer-side guards ─────────────────────────────────────────────────
 
 describe('validateWebhookPayload guard behavior', () => {
-  it('throws WebhookPayloadValidationError on unknown event type', () => {
-    expect(() => validateWebhookPayload('not.a.real.event', {})).toThrow(
-      WebhookPayloadValidationError,
+  // Helper: catch the thrown error so we can inspect `.kind`. expect.toThrow()
+  // only checks instance type; we want byte-level discriminant coverage so the
+  // metric label classification stays accurate.
+  function catchValidationError(fn: () => unknown): WebhookPayloadValidationError {
+    try {
+      fn();
+      throw new Error('expected validateWebhookPayload to throw, did not');
+    } catch (err) {
+      if (err instanceof WebhookPayloadValidationError) return err;
+      throw err;
+    }
+  }
+
+  it('throws with kind=unknown_event for undeclared event types', () => {
+    const err = catchValidationError(() =>
+      validateWebhookPayload('not.a.real.event', {}),
     );
+    expect(err.kind).toBe('unknown_event');
+    expect(err.eventType).toBe('not.a.real.event');
   });
 
-  it('throws WebhookPayloadValidationError on reserved event type', () => {
-    expect(() =>
+  it('throws with kind=reserved for declared-but-unproduced events', () => {
+    const err = catchValidationError(() =>
       validateWebhookPayload(WEBHOOK_EVENT.AGENT_REVOKED, { agentId: 'agt_1' }),
-    ).toThrow(WebhookPayloadValidationError);
+    );
+    expect(err.kind).toBe('reserved');
+    expect(err.eventType).toBe(WEBHOOK_EVENT.AGENT_REVOKED);
   });
 
-  it('throws WebhookPayloadValidationError on shape mismatch', () => {
-    expect(() =>
+  it('throws with kind=shape_mismatch when the payload fails schema validation', () => {
+    const err = catchValidationError(() =>
       validateWebhookPayload(WEBHOOK_EVENT.AGENT_TRUST_SCORE_CHANGED, {
         agentId: 'agt_1',
         // missing every other required field
       }),
-    ).toThrow(WebhookPayloadValidationError);
+    );
+    expect(err.kind).toBe('shape_mismatch');
+    expect(err.eventType).toBe(WEBHOOK_EVENT.AGENT_TRUST_SCORE_CHANGED);
   });
 });

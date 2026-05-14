@@ -166,14 +166,32 @@ export const WEBHOOK_PAYLOAD_RESERVED: ReadonlySet<string> = new Set([
 
 // ── Validator + error type ──────────────────────────────────────────
 
+/**
+ * Discriminant for the kind of drift `WebhookPayloadValidationError`
+ * represents. Mirrors the `reason` label on the
+ * `aegis_webhook_payload_drift_total` metric — keeping it on the error
+ * means callers don't need to re-classify by re-querying the schema map.
+ */
+export type WebhookPayloadValidationKind =
+  | 'unknown_event'
+  | 'reserved'
+  | 'shape_mismatch';
+
 export class WebhookPayloadValidationError extends Error {
   public readonly eventType: string;
+  public readonly kind: WebhookPayloadValidationKind;
   public readonly zodError?: unknown;
 
-  constructor(message: string, eventType: string, zodError?: unknown) {
+  constructor(
+    message: string,
+    eventType: string,
+    kind: WebhookPayloadValidationKind,
+    zodError?: unknown,
+  ) {
     super(message);
     this.name = 'WebhookPayloadValidationError';
     this.eventType = eventType;
+    this.kind = kind;
     this.zodError = zodError;
   }
 }
@@ -198,6 +216,7 @@ export function validateWebhookPayload(type: string, data: unknown): unknown {
         `Add a payload schema to packages/types/src/webhooks.ts and move ` +
         `the event out of WEBHOOK_PAYLOAD_RESERVED before emitting.`,
       type,
+      'reserved',
     );
   }
   const schema = (WEBHOOK_PAYLOAD_SCHEMA as Record<string, z.ZodTypeAny>)[type];
@@ -205,6 +224,7 @@ export function validateWebhookPayload(type: string, data: unknown): unknown {
     throw new WebhookPayloadValidationError(
       `unknown webhook event '${type}' — not declared in WEBHOOK_EVENT.`,
       type,
+      'unknown_event',
     );
   }
   const result = schema.safeParse(data);
@@ -212,6 +232,7 @@ export function validateWebhookPayload(type: string, data: unknown): unknown {
     throw new WebhookPayloadValidationError(
       `webhook payload for '${type}' failed schema validation: ${result.error.message}`,
       type,
+      'shape_mismatch',
       result.error,
     );
   }

@@ -4,8 +4,6 @@ import type { Prisma } from '@prisma/client';
 import {
   validateWebhookPayload,
   WebhookPayloadValidationError,
-  WEBHOOK_PAYLOAD_RESERVED,
-  WEBHOOK_PAYLOAD_SCHEMA,
 } from '@aegis/types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { MetricsService } from '../../common/observability/metrics.service';
@@ -15,21 +13,6 @@ import { WebhookDeliveryWorker } from './webhook.delivery';
 export interface WebhookEvent {
   type: string;
   data: Record<string, unknown>;
-}
-
-/**
- * Classifies a `WebhookPayloadValidationError` into one of the bounded
- * `reason` labels for `aegis_webhook_payload_drift_total`. Kept as a pure
- * helper so the test suite can pin the classification without spinning up
- * the service. Labels are part of the metric's public contract — extending
- * them requires updating ops dashboards and alerts.
- */
-function classifyDriftReason(
-  type: string,
-): 'unknown_event' | 'reserved' | 'shape_mismatch' {
-  if (WEBHOOK_PAYLOAD_RESERVED.has(type)) return 'reserved';
-  if (!(type in WEBHOOK_PAYLOAD_SCHEMA)) return 'unknown_event';
-  return 'shape_mismatch';
 }
 
 /**
@@ -95,13 +78,15 @@ export class WebhooksService {
       validateWebhookPayload(event.type, event.data);
     } catch (err) {
       if (err instanceof WebhookPayloadValidationError) {
-        const reason = classifyDriftReason(event.type);
+        // `err.kind` is the single source of truth for drift classification;
+        // see `WebhookPayloadValidationKind` in @aegis/types. Mirrored on
+        // the `reason` label of `aegis_webhook_payload_drift_total`.
         this.metrics.webhookPayloadDriftTotal.inc({
           event: event.type,
-          reason,
+          reason: err.kind,
         });
         this.logger.error(
-          `webhook.enqueue payload drift event=${event.type} reason=${reason}: ${err.message}`,
+          `webhook.enqueue payload drift event=${event.type} reason=${err.kind}: ${err.message}`,
         );
         return;
       }
