@@ -173,7 +173,113 @@ See `docs/ARCHITECTURE.md` § "The audit chain". Threat model:
 
 ---
 
-## 9. Threat scenarios (abridged)
+## 9. Webhook integrity (signed delivery + locked payload shapes)
+
+Webhook deliveries are HMAC-signed and ship a Zod-locked JSON body. The
+on-wire envelope is:
+
+```text
+POST <subscriber-url>
+Content-Type: application/json
+X-AEGIS-Signature: t=<unix-ts>,v1=<hex-hmac-sha256>
+X-AEGIS-Event:     <event-type>            // e.g. aegis.agent.trust_score_changed
+X-AEGIS-Delivery-Id: <delivery-uuid>
+
+{
+  "id":    "<delivery-uuid>",   // matches X-AEGIS-Delivery-Id
+  "event": "<event-type>",      // matches X-AEGIS-Event
+  "data":  { ... },             // event-type-specific shape; see below
+  "ts":    <unix-ts>            // matches the `t=` field in the signature header
+}
+```
+
+**Subscriber-side verification — verify against the raw HTTP body bytes,
+never a re-serialization.** Stripe-style:
+
+1. Read the literal request body as bytes (or a UTF-8 string) — exactly as
+   delivered. Do not parse-and-re-stringify it; do not pretty-print it; do
+   not let your framework strip whitespace. Even a single byte of drift
+   breaks HMAC equality.
+2. Parse `X-AEGIS-Signature: t=<ts>,v1=<hex>` and reject the request if
+   `|now - ts| > 300` seconds (replay defense — AEGIS does NOT enforce this
+   server-side, the signature proves authenticity, not freshness).
+3. Compute `expected = hex(HMAC_SHA256(secret, ts + "." + rawBody))` and
+   compare to `v1` using a constant-time comparison (`crypto.timingSafeEqual`
+   in Node, `hmac.compare_digest` in Python). Reject on mismatch.
+4. Only after the signature checks out, parse the body as JSON and route on
+   the `event` field.
+
+The canonical envelope key order is `id, event, data, ts` — locked by
+`WebhookDeliveryWorker.buildEnvelope()`
+([webhook.delivery.ts](../apps/api/src/modules/webhooks/webhook.delivery.ts))
+and asserted byte-equivalent by
+[tests/cross-package/webhook-payload-parity.spec.ts](../tests/cross-package/webhook-payload-parity.spec.ts).
+Subscribers that follow the "raw body bytes" rule above are insensitive to
+key order; the canonical order matters for downstream tooling (CLI dumps,
+regulator exports, schema diffing).
+
+### 9.1 Event types and payload schemas
+
+`data` shapes are the single source of truth in
+[`packages/types/src/webhooks.ts`](../packages/types/src/webhooks.ts). The
+producer types its return value from the schema, the API validates at emit
+time, and a cross-package parity spec
+([`tests/cross-package/webhook-payload-parity.spec.ts`](../tests/cross-package/webhook-payload-parity.spec.ts))
+asserts the round-trip in CI.
+
+| Event type                          | `data` shape (Zod schema)                    | Producer                                          |
+|-------------------------------------|----------------------------------------------|---------------------------------------------------|
+| `aegis.agent.trust_score_changed`   | `WebhookTrustScoreChangedPayloadSchema`      | `BateRecomputeWorker` (band transitions only)     |
+| `aegis.policy.expired`              | `WebhookPolicyExpiredPayloadSchema`          | `PolicyExpiryWorker` sweep                        |
+| `aegis.agent.revoked`               | RESERVED — no schema, no producer yet        | (planned; subscribers cannot rely on shape)       |
+| `aegis.anomaly.detected`            | RESERVED — no schema, no producer yet        | (planned)                                         |
+| `aegis.agent.flagged_by_relying_party` | RESERVED — no schema, no producer yet     | (planned)                                         |
+
+Adding a producer for a RESERVED event MUST move the entry from
+`WEBHOOK_PAYLOAD_RESERVED` to `WEBHOOK_PAYLOAD_SCHEMA` in the same change.
+Emitting a reserved event throws `WebhookPayloadValidationError` and the
+service drops the delivery — fail-loud at the schema boundary.
+
+### 9.2 Production observability
+
+Contract violations caught at runtime emit the labeled counter
+`aegis_webhook_payload_drift_total{event, reason}`. `reason` partitions the
+failure mode so alerts can route correctly:
+
+| `reason` value      | Where caught                                  | Severity |
+|---------------------|-----------------------------------------------|----------|
+| `shape_mismatch`    | `WebhooksService.enqueue` (Zod parse fails)   | P1       |
+| `envelope_corrupt`  | `WebhookDeliveryWorker.assertEnvelopeIntegrity` (DB-level corruption between enqueue and delivery) | P1       |
+| `reserved`          | `WebhooksService.enqueue` (event has no schema yet) | P2/P3    |
+| `unknown_event`     | `WebhooksService.enqueue` (event not in `WEBHOOK_EVENT`) | P3       |
+
+Drift in production should be zero — the cross-package parity spec is the
+CI gate that prevents it. A non-zero rate means either a producer was
+shipped that bypassed CI, the DB was edited manually, or a schema
+tightening out-lasted a queued delivery row. None of these auto-recover;
+each warrants a human looking at the offending row before re-enabling
+delivery for the affected subscription.
+
+### 9.3 Secrets and SSRF
+
+- Per-subscription HMAC secret is returned to the operator exactly once at
+  subscribe time; we persist only the AES-256-GCM ciphertext
+  (`WebhookSecretCipher`). Decryption failures during delivery hard-ABANDON
+  the row rather than risking a forged signature header.
+- All outbound delivery requests pass `checkSsrf()` — private, loopback, and
+  link-local addresses are blocked even when the customer registers a URL
+  pointing at them. SSRF rejection is permanent (no retry).
+- Pre-2026-05-12 drift: `WEBHOOK_EVENT.AGENT_POLICY_EXPIRED` was declared as
+  `aegis.agent.policy_expired` but the producer always shipped
+  `aegis.policy.expired`. Subscribers wiring up via the constant got
+  never-firing subscriptions. Resolved by renaming the constant to
+  `WEBHOOK_EVENT.POLICY_EXPIRED` with value `aegis.policy.expired` (matching
+  producer and dashboard), and adding the parity spec above so the same
+  class of drift cannot recur silently.
+
+---
+
+## 10. Threat scenarios (abridged)
 
 ### T-1: Stolen developer API key
 Attacker registers agents under victim's principal, runs up bills.
@@ -208,7 +314,7 @@ party can detect a gap if missing.
 
 ---
 
-## 10. What we deliberately *do not* protect against
+## 11. What we deliberately *do not* protect against
 
 - **Compromised customer infrastructure**: if the developer's environment
   is owned, their keys are owned. We provide audit trails to detect, not

@@ -5,6 +5,152 @@
 
 ---
 
+## 2026-05-13 (Webhook payload schema parity + drift sweep + observability) — sid=bold-diffie-e96713 — claim=ad-hoc-webhooks-payload
+
+**Status:** Landed. Webhook bodies now have strict-mode Zod schemas,
+producer-side typed builders, a byte-stable on-wire envelope helper,
+emit-time AND delivery-time validation (two trust boundaries), a labeled
+production metric (`aegis_webhook_payload_drift_total{event,reason}`) for
+ops alerts, subscriber-side verification snippets in both Node and Python,
+a public-API anchor in the parity spec, and a load-bearing cross-package
+parity suite that asserts byte-equivalence with production code. Same
+drift-class guard as the audit-chain export parity that preceded it.
+
+### What shipped
+
+- `packages/types/src/webhooks.ts` (new): `WebhookEnvelopeSchema` (strict),
+  `WebhookTrustScoreChangedPayloadSchema` (strict),
+  `WebhookPolicyExpiredPayloadSchema` (strict), `WEBHOOK_PAYLOAD_SCHEMA`
+  registry, `WEBHOOK_PAYLOAD_RESERVED` set, `validateWebhookPayload()`
+  helper, and `WebhookPayloadValidationError` class. Strict mode is
+  load-bearing: the service signs `event.data` (not the parsed result),
+  so default `strip` would have let extra fields ride the wire silently.
+- **Drift fix #1:** `WEBHOOK_EVENT.AGENT_POLICY_EXPIRED` (value
+  `aegis.agent.policy_expired`) → `WEBHOOK_EVENT.POLICY_EXPIRED` (value
+  `aegis.policy.expired`) to match the producer in
+  `policy.expiry.worker.ts:143` and the dashboard `SubscribeForm`. Subscribers
+  wiring up via the old constant got never-firing subscriptions.
+- **Drift fix #2:** `WEBHOOK_EVENT.AGENT_ANOMALY_DETECTED` (value
+  `aegis.agent.anomaly_detected`) → `WEBHOOK_EVENT.ANOMALY_DETECTED` (value
+  `aegis.anomaly.detected`) to match the dashboard `SubscribeForm`, the
+  dashboard webhooks page copy, and the controller swagger. Same silent-
+  subscription bug class as #1; resolved proactively before a producer
+  for this event lands.
+- `apps/api/src/modules/webhooks/webhooks.service.ts`: `enqueue()` calls
+  `validateWebhookPayload` before persistence and now increments
+  `aegis_webhook_payload_drift_total{event, reason}` on every rejection.
+  `reason` is one of `unknown_event | reserved | shape_mismatch`,
+  classified by a pure helper that the test suite pins. Drift logs an
+  ERROR and drops the delivery (preserves "never blocks hot path"
+  invariant); the parity spec is the CI gate that prevents drift from
+  shipping at all.
+- `apps/api/src/common/observability/metrics.service.ts`: registered new
+  counter `aegis_webhook_payload_drift_total{event, reason}`. Reasons
+  include `envelope_corrupt` for the delivery-time defense-in-depth
+  branch. Alert design documented in the metric's docstring (P1 for
+  `shape_mismatch` / `envelope_corrupt`, P2/P3 for `reserved` /
+  `unknown_event`).
+- `apps/api/src/modules/webhooks/webhook.delivery.ts`: new static
+  `WebhookDeliveryWorker.assertEnvelopeIntegrity(id, event, data, ts,
+  body)` runs the same Zod checks at delivery time as a second trust
+  boundary against DB-level corruption (manual UPDATE on
+  `WebhookDelivery.payload`, stale rows that survive a schema tightening,
+  JSONB corruption). Failures are a hard ABANDON with
+  `reason=envelope_corrupt` — no retry, no signature ever produced.
+  Includes a body-bytes self-check that fires if the body string drifts
+  from the canonical `buildEnvelope()` output.
+- `apps/api/src/modules/webhooks/webhook.delivery.ts`: extracted a static
+  `WebhookDeliveryWorker.buildEnvelope(id, event, data, ts)` helper that
+  IS the on-wire body. The parity spec calls it directly and asserts
+  byte-equality against an expected literal — locking the canonical
+  `{id, event, data, ts}` key order at the byte level.
+- `apps/api/src/modules/bate/bate.worker.ts` and
+  `apps/api/src/modules/policy/policy.expiry.worker.ts`: exported pure
+  payload builders (`buildTrustScoreChangedPayload`,
+  `buildPolicyExpiredPayload`) typed by `z.infer<typeof Schema>`. Any drift
+  is a TS compile error first; schema-parse failure second; byte mismatch
+  in the parity test third.
+- `tests/cross-package/webhook-payload-parity.spec.ts` (new, 20 cases):
+  public-API barrel surface (catches broken `index.ts` re-exports),
+  catalog ↔ schema-registry alignment, producer ↔ schema round-trip,
+  byte-stable `buildEnvelope()` output, strict-mode extra-field rejection,
+  HMAC determinism, validator guard behavior. Verified to fail loudly when
+  a field is dropped, added without schema update, or reordered.
+- `docs/SECURITY.md` §9 (new): "Webhook integrity" section with the wire
+  envelope, schema table, secrets/SSRF rules, RESERVED-event policy, and
+  a corrected subscriber-side HMAC verification procedure (verify against
+  RAW body bytes, never re-serialized — same rule Stripe documents).
+- `docs/PARTNER_ONBOARDING.md`: added copy-pasteable Node AND Python
+  verification snippets — both use constant-time comparison
+  (`crypto.timingSafeEqual` / `hmac.compare_digest`) and a 5-min replay
+  tolerance — so partners on either runtime get the same hardened
+  reference implementation.
+- `docs/spec/01_MASTER.md`, `docs/spec/BACKLOG.md`, `docs/DEVELOPER_QUICKSTART.md`,
+  `examples/acp-bridge/README.md`, `examples/banking-rails/README.md`:
+  updated stale event-name references to the canonical wire values.
+- Updated existing tests: `webhooks.service.spec.ts` (20 cases — real
+  event types + payloads, per-reason metric increment assertions, a
+  negative control on valid payloads), `webhook.delivery.spec.ts` (9
+  cases — added `buildEnvelope` byte-order + `assertEnvelopeIntegrity`
+  drift-class coverage), `multi-tenant-isolation.spec.ts` (real
+  `aegis.policy.expired` payload + MetricsService DI),
+  `webhooks.controller.spec.ts` (canonical anomaly event name).
+
+### Verification
+
+- `pnpm test:parity` — **96/96 green** across 10 specs (was 91 before; the
+  webhook spec grew from 15 to 20 cases with strict-mode, byte-order, and
+  public-API surface coverage).
+- `pnpm --filter @aegis/types typecheck` and `test` — green.
+- `pnpm --filter @aegis/api typecheck` — green.
+- `pnpm --filter @aegis/api test` — 820/823 green; the 3 remaining
+  failures are pre-existing on `main` in `api-key-rotation.controller.spec.ts`
+  (test-environment `req.headers` issue, unrelated; verified by stashing
+  this work and re-running on bare main).
+- `pnpm --filter @aegis/dashboard typecheck` — green.
+- `pnpm check:migrations` — 11 immutable migrations, green.
+- Verified the parity spec fails the way it should: simulated a `sweptAt`
+  field drop in `buildPolicyExpiredPayload` (with an `as` cast to bypass
+  TS), reran the suite, and saw three distinct failures point at the
+  exact missing-field path. Reverted.
+
+### Known pre-existing gaps (NOT this session)
+
+- `pnpm check:openapi-zod` and `pnpm check:openapi-prisma` both emit
+  `spec-sync: drift detected` and exit non-zero on a clean `main` checkout.
+  These guard schema ↔ OpenAPI YAML ↔ Prisma drift; the spec YAML has
+  fallen behind the source-of-truth Zod schemas + Prisma model. Not
+  introduced by this work (verified via stash). Worth a follow-up PR that
+  regenerates the OpenAPI spec from Zod and tightens the parity checks so
+  CI catches it.
+- `pnpm --filter @aegis/types lint` fails because `eslint-plugin-security`
+  isn't installed at the repo root — environment issue on `main`, not a
+  code issue.
+- `apps/api/src/modules/auth/api-key-rotation.controller.spec.ts` has 3
+  pre-existing failures: `req.headers` is `undefined` in the test setup.
+
+### Next
+
+- Wire producers for the three remaining RESERVED events (`aegis.agent.revoked`,
+  `aegis.anomaly.detected`, `aegis.agent.flagged_by_relying_party`). Each
+  producer PR must define a payload schema and move the event out of
+  `WEBHOOK_PAYLOAD_RESERVED` in the same change. Three CI gates will block
+  a PR that ships a producer without a schema: (1) the parity spec rejects
+  reserved-without-schema; (2) the service-side validator drops the
+  delivery and increments `webhookPayloadDriftTotal{reason="reserved"}`;
+  (3) `WebhookDeliveryWorker.assertEnvelopeIntegrity` ABANDONS the row at
+  delivery time if it somehow gets persisted.
+- Add the webhook event schemas to the OpenAPI YAML so non-SDK customers
+  can codegen typed clients. Today `WEBHOOK_PAYLOAD_SCHEMA` is Zod-only;
+  the YAML side is a parallel writeup. The existing
+  `pnpm check:openapi-zod` parity check already flags drift on main —
+  these schemas should land together with the broader OpenAPI catch-up.
+- Operationalize `aegis_webhook_payload_drift_total`: add a Grafana panel
+  + alert rules per the docstring's P1/P2/P3 design. The metric is now
+  available; the dashboard wiring is an ops task.
+
+---
+
 ## 2026-05-08 (Claude guidance enterprise audit refresh) - sid=codex-local - claim=unclaimed-docs-guidance
 
 **Status:** Landed. Root `CLAUDE.md` was rebuilt as the public-company-grade

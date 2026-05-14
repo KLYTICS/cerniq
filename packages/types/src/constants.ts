@@ -39,10 +39,27 @@ export const REDIS_KEY = {
 } as const;
 
 // Webhook event names — clients subscribe to these strings.
+//
+// The string value IS the wire format: changing one is a public-API break.
+// Per-event payload shapes are governed by `WEBHOOK_PAYLOAD_SCHEMA` in
+// `./webhooks.ts`; the cross-package parity spec asserts every emitted
+// event has a payload schema and that emitter code matches it.
+//
+// `POLICY_EXPIRED` previously had the value `aegis.agent.policy_expired`
+// (and the key `AGENT_POLICY_EXPIRED`), but the emitter in
+// `policy.expiry.worker.ts` and the dashboard SubscribeForm both ship
+// `aegis.policy.expired`. That mismatch was a silent-failure-class bug:
+// subscribers wiring up via the constant got never-firing subscriptions.
+// Fixed 2026-05-12 alongside the payload-schema parity sweep.
 export const WEBHOOK_EVENT = {
   AGENT_TRUST_SCORE_CHANGED: 'aegis.agent.trust_score_changed',
-  AGENT_ANOMALY_DETECTED: 'aegis.agent.anomaly_detected',
-  AGENT_POLICY_EXPIRED: 'aegis.agent.policy_expired',
+  // `ANOMALY_DETECTED` previously had the key `AGENT_ANOMALY_DETECTED` and
+  // the value `aegis.agent.anomaly_detected`. The dashboard SubscribeForm,
+  // the webhooks page copy, and the OpenAPI controller swagger all already
+  // shipped `aegis.anomaly.detected`. The constant was the outlier — fixed
+  // 2026-05-13 alongside the policy.expired drift fix.
+  ANOMALY_DETECTED: 'aegis.anomaly.detected',
+  POLICY_EXPIRED: 'aegis.policy.expired',
   AGENT_FLAGGED_BY_RELYING_PARTY: 'aegis.agent.flagged_by_relying_party',
   AGENT_REVOKED: 'aegis.agent.revoked',
 } as const;

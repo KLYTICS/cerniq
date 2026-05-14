@@ -21,6 +21,11 @@ import {
 import { Queue, QueueEvents, Worker, type Job, type JobsOptions } from 'bullmq';
 import IORedis from 'ioredis';
 import { createHmac } from 'node:crypto';
+import {
+  validateWebhookPayload,
+  WebhookEnvelopeSchema,
+  WebhookPayloadValidationError,
+} from '@aegis/types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AppConfigService } from '../../config/config.service';
 import { MetricsService } from '../../common/observability/metrics.service';
@@ -310,7 +315,40 @@ export class WebhookDeliveryWorker
     }
 
     const ts = Math.floor(Date.now() / 1000);
-    const body = JSON.stringify({ id: delivery.id, event: delivery.event, data: delivery.payload, ts });
+    const body = WebhookDeliveryWorker.buildEnvelope(
+      delivery.id,
+      delivery.event,
+      delivery.payload,
+      ts,
+    );
+
+    // Defense-in-depth: re-validate the envelope + payload immediately before
+    // signing. `WebhooksService.enqueue` already validated at persistence
+    // time, but the DB is a different trust boundary. See the docstring on
+    // `assertEnvelopeIntegrity` — any failure is a hard ABANDON with no
+    // retry, because signing a corrupt payload would leak that corruption
+    // to subscribers under a valid AEGIS signature (worse than no delivery).
+    try {
+      WebhookDeliveryWorker.assertEnvelopeIntegrity(
+        delivery.id,
+        delivery.event,
+        delivery.payload,
+        ts,
+        body,
+      );
+    } catch (err) {
+      const detail = (err as Error).message;
+      this.metrics.webhookPayloadDriftTotal.inc({
+        event: delivery.event,
+        reason: 'envelope_corrupt',
+      });
+      this.logger.error(
+        `webhook delivery envelope-corrupt delivery=${delivery.id} event=${delivery.event}: ${detail}`,
+      );
+      await this.markAbandoned(delivery.id, `envelope_corrupt: ${detail.slice(0, 200)}`);
+      this.metrics.webhookDeliveryTotal.inc({ status: 'ABANDONED', event: delivery.event });
+      return { outcome: 'abandoned', eventLabel };
+    }
 
     // Decrypt the per-subscription HMAC secret just-in-time. Subscriptions
     // created before envelope encryption rolled out still hold a plaintext
@@ -426,10 +464,70 @@ export class WebhookDeliveryWorker
   }
 
   /**
+   * Build the on-wire envelope body, byte-stable across emissions.
+   *
+   * The key order is `id, event, data, ts` and MUST stay that way: the
+   * subscriber-side HMAC verification recommended in `docs/SECURITY.md`
+   * is "verify the raw body bytes you received" (Stripe-style), but
+   * downstream tooling that re-parses-and-re-stringifies still benefits
+   * from a documented canonical order.
+   *
+   * Exported as a static method so the cross-package parity spec can
+   * assert byte-equality without instantiating the BullMQ-driven worker
+   * (see `tests/cross-package/webhook-payload-parity.spec.ts`).
+   */
+  static buildEnvelope(id: string, event: string, data: unknown, ts: number): string {
+    // The literal property order in this object IS the contract; V8 / any
+    // ES2015-compliant engine preserves insertion order for string keys.
+    // Do not switch to a Map or a key-sorting JSON serializer here.
+    return JSON.stringify({ id, event, data, ts });
+  }
+
+  /**
+   * Defense-in-depth integrity check for an in-flight delivery. Called
+   * inside `processInner` immediately before signing — the DB is a
+   * different trust boundary from the in-memory producer call that ran
+   * `WebhooksService.enqueue`, and a corrupt row (manual UPDATE, schema
+   * tightening that out-lasted the queued row, JSONB corruption) must
+   * never be signed.
+   *
+   * Throws `WebhookPayloadValidationError` on any drift. Caller is
+   * responsible for translating that into ABANDONED status + metric
+   * increment.
+   *
+   * Static + side-effect-free so the unit spec can exercise every drift
+   * branch without spinning up Prisma/BullMQ.
+   */
+  static assertEnvelopeIntegrity(
+    id: string,
+    event: string,
+    data: unknown,
+    ts: number,
+    body: string,
+  ): void {
+    // 1. Envelope shape: top-level fields and strict-mode extras.
+    WebhookEnvelopeSchema.parse({ id, event, data, ts });
+    // 2. The body must be canonical-stringify of the envelope. A mismatch
+    //    here means buildEnvelope() drifted or the body was constructed
+    //    elsewhere — either is a wire-format break.
+    if (body !== WebhookDeliveryWorker.buildEnvelope(id, event, data, ts)) {
+      throw new WebhookPayloadValidationError(
+        'envelope body bytes do not match canonical {id,event,data,ts} serialization',
+        event,
+        'shape_mismatch',
+      );
+    }
+    // 3. Inner payload matches the per-event schema (catches reserved
+    //    events, unknown events, shape drift, strict-mode extras).
+    validateWebhookPayload(event, data);
+  }
+
+  /**
    * Stable signature header value. Stripe-style:
    *   t=<unix-timestamp>,v1=<hmac-sha256-hex(`${ts}.${body}`)>
    *
-   * Subscribers verify by re-computing on their side; tolerance window
+   * Subscribers verify by HMACing the raw HTTP body bytes they received,
+   * not a reconstructed JSON serialization. Tolerance window
    * recommended at ≤ 5 min to defeat replay.
    */
   static sign(secret: string, ts: number, body: string): string {

@@ -150,7 +150,7 @@ describe('WebhooksController', () => {
       });
       await controller.subscribe(authB as never, {
         url: 'https://b.example.com/wh',
-        events: ['aegis.agent.anomaly_detected'],
+        events: ['aegis.anomaly.detected'],
       });
 
       const aList = await controller.list(authA as never);

@@ -1,7 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
+import {
+  validateWebhookPayload,
+  WebhookPayloadValidationError,
+} from '@aegis/types';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { MetricsService } from '../../common/observability/metrics.service';
 import { WebhookSecretCipher } from '../../common/crypto/webhook-secret-cipher';
 import { WebhookDeliveryWorker } from './webhook.delivery';
 
@@ -25,6 +30,7 @@ export class WebhooksService {
     private readonly prisma: PrismaService,
     private readonly delivery: WebhookDeliveryWorker,
     private readonly cipher: WebhookSecretCipher,
+    private readonly metrics: MetricsService,
   ) {}
 
   async subscribe(principalId: string, url: string, events: string[]): Promise<{ id: string; secret: string }> {
@@ -57,6 +63,36 @@ export class WebhooksService {
    * the caller's hot path (verify, BATE recompute, etc.).
    */
   async enqueue(event: WebhookEvent, principalId: string): Promise<void> {
+    // Belt-and-suspenders: assert the payload matches the per-event schema
+    // before persistence. The cross-package parity test
+    // (tests/cross-package/webhook-payload-parity.spec.ts) is the CI gate
+    // that catches drift before it ships; this runtime check is a safety
+    // net that prefers "send nothing" over "send wrong shape" if drift
+    // somehow makes it past CI.
+    //
+    // We do NOT throw — the existing invariant is that enqueue never blocks
+    // the caller's hot path. Drift surfaces as an ERROR log + early return
+    // (no delivery row, no queue entry); the parity test remains the
+    // load-bearing guard.
+    try {
+      validateWebhookPayload(event.type, event.data);
+    } catch (err) {
+      if (err instanceof WebhookPayloadValidationError) {
+        // `err.kind` is the single source of truth for drift classification;
+        // see `WebhookPayloadValidationKind` in @aegis/types. Mirrored on
+        // the `reason` label of `aegis_webhook_payload_drift_total`.
+        this.metrics.webhookPayloadDriftTotal.inc({
+          event: event.type,
+          reason: err.kind,
+        });
+        this.logger.error(
+          `webhook.enqueue payload drift event=${event.type} reason=${err.kind}: ${err.message}`,
+        );
+        return;
+      }
+      throw err;
+    }
+
     try {
       const subs = await this.prisma.webhookSubscription.findMany({
         where: { principalId, active: true, events: { has: event.type } },

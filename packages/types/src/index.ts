@@ -9,3 +9,4 @@ export * from './schemas.js';
 export * from './constants.js';
 export * from './errors.js';
 export * from './error-catalog.js';
+export * from './webhooks.js';

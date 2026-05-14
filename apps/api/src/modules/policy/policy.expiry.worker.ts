@@ -24,6 +24,10 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { Queue, Worker, type Job } from 'bullmq';
 import IORedis from 'ioredis';
 import type { AgentPolicy } from '@prisma/client';
+import {
+  WEBHOOK_EVENT,
+  type WebhookPolicyExpiredPayload,
+} from '@aegis/types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AppConfigService } from '../../config/config.service';
 import { MetricsService } from '../../common/observability/metrics.service';
@@ -32,6 +36,29 @@ import { WebhooksService } from '../webhooks/webhooks.service';
 export const POLICY_EXPIRY_QUEUE = 'aegis.policy.expiry';
 export const POLICY_EXPIRY_REPEAT_KEY = 'policy:expiry:tick';
 export const POLICY_EXPIRY_INTERVAL_MS = 5 * 60_000; // 5 min — see ADR-0007 §"Cadence"
+
+/**
+ * Pure payload builder for the `aegis.policy.expired` webhook.
+ *
+ * Exported so the cross-package parity test
+ * (`tests/cross-package/webhook-payload-parity.spec.ts`) can anchor against
+ * the exact code path that ships on the wire. Adding or renaming a field
+ * here must move with the schema in `packages/types/src/webhooks.ts`; the
+ * parity test enforces it.
+ */
+export function buildPolicyExpiredPayload(input: {
+  policyId: string;
+  agentId: string;
+  expiredAt: Date;
+  sweptAt: Date;
+}): WebhookPolicyExpiredPayload {
+  return {
+    policyId: input.policyId,
+    agentId: input.agentId,
+    expiredAt: input.expiredAt.toISOString(),
+    sweptAt: input.sweptAt.toISOString(),
+  };
+}
 
 interface ExpirySweepResult {
   swept: number;
@@ -140,13 +167,13 @@ export class PolicyExpiryWorker implements OnModuleInit, OnModuleDestroy {
       try {
         await this.webhooks.enqueue(
           {
-            type: 'aegis.policy.expired',
-            data: {
+            type: WEBHOOK_EVENT.POLICY_EXPIRED,
+            data: buildPolicyExpiredPayload({
               policyId: row.id,
               agentId: row.agentId,
-              expiredAt: row.expiresAt.toISOString(),
-              sweptAt: now.toISOString(),
-            },
+              expiredAt: row.expiresAt,
+              sweptAt: now,
+            }),
           },
           row.principalId,
         );

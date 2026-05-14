@@ -221,6 +221,41 @@ export class MetricsService implements OnModuleInit {
     help: 'Number of TRIAL_EXHAUSTED denials emitted (cap reached or fail-closed).',
   });
 
+  /**
+   * Webhook payload contract violations caught at emit time
+   * (`WebhooksService.enqueue`) or at delivery time (`WebhookDeliveryWorker`).
+   * Every increment means a webhook either was never sent (drift dropped at
+   * enqueue) or was ABANDONED before signing (drift discovered at delivery).
+   *
+   * Labels:
+   *   - `event`: the wire event-type string (e.g. `aegis.policy.expired`).
+   *     For `reason="unknown_event"` this is the bogus string the producer
+   *     tried to emit.
+   *   - `reason`: one of
+   *       `unknown_event`    — event type not declared in `WEBHOOK_EVENT`
+   *       `reserved`         — event declared but no schema yet (producer
+   *                            shipped before defining contract)
+   *       `shape_mismatch`   — payload failed strict Zod validation
+   *       `envelope_corrupt` — delivery-time defense-in-depth caught a row
+   *                            that no longer satisfies the schema (DB edit,
+   *                            stale row after schema tightening)
+   *
+   * Alert design:
+   *   - `shape_mismatch` > 0 → P1 (contract regression; subscribers diverging)
+   *   - `envelope_corrupt` > 0 → P1 (DB integrity question; investigate row)
+   *   - `reserved` > 0 → P2/P3 (producer rolled out without schema; likely
+   *      a missed CI gate — check if parity test was bypassed)
+   *   - `unknown_event` > 0 → P3 (typo/dev mistake; route to producer owner)
+   *
+   * Low cardinality: `event` is bounded by `WEBHOOK_EVENT` size (~5) plus a
+   * handful of unknown-event misfires before deploy catches them.
+   */
+  readonly webhookPayloadDriftTotal = new Counter({
+    name: 'aegis_webhook_payload_drift_total',
+    help: 'Webhook payloads rejected by the schema validator (drift caught before/at delivery).',
+    labelNames: ['event', 'reason'] as const,
+  });
+
   onModuleInit(): void {
     // Default Node + process metrics — heap, event loop lag, GC, etc.
     collectDefaultMetrics({ register: this.registry, prefix: 'aegis_' });
@@ -244,6 +279,7 @@ export class MetricsService implements OnModuleInit {
     this.registry.registerMetric(this.bullmqJobsTotal);
     this.registry.registerMetric(this.trialUsageIncrementedTotal);
     this.registry.registerMetric(this.trialExhaustedTotal);
+    this.registry.registerMetric(this.webhookPayloadDriftTotal);
   }
 
   /**
