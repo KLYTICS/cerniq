@@ -3,8 +3,8 @@
 
 import type { Context, MiddlewareHandler } from 'hono';
 
-import type { AegisVerifier } from '../verifier.js';
 import type { VerifyContext, VerifyOptions } from '../types.js';
+import type { AegisVerifier } from '../verifier.js';
 
 const DEFAULT_HEADER = 'X-AEGIS-Token';
 
@@ -17,6 +17,7 @@ export interface HonoGuardOptions {
 }
 
 export function aegisHonoMiddleware(options: HonoGuardOptions): MiddlewareHandler {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!options?.verifier) {
     throw new TypeError('aegisHonoMiddleware: options.verifier is required');
   }

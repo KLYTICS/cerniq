@@ -201,6 +201,20 @@ function findZodSchema(componentName: string): ZodTypeAny | null {
     `${componentName}ResponseSchema`,
     `${componentName}RecordSchema`,
   ];
+  // First pass: prefer a candidate that is (or wraps) a ZodObject —
+  // OpenAPI components are objects, so when there's a name collision
+  // with a same-named enum schema (e.g. `AgentStatus` is both an enum
+  // value and a `/status` response object in this repo), the object
+  // is the right target. Otherwise the script reports the object
+  // component as "MISSING" because the enum has no `properties`.
+  for (const candidate of candidates) {
+    const exported = (TypesIndex as Record<string, unknown>)[candidate];
+    if (exported && typeof exported === 'object' && '_def' in (exported as object)) {
+      if (zodObjectKeys(exported as ZodTypeAny) !== null) return exported as ZodTypeAny;
+    }
+  }
+  // Second pass: accept any Zod schema (enum, primitive, …) for
+  // backward compat with non-object components.
   for (const candidate of candidates) {
     const exported = (TypesIndex as Record<string, unknown>)[candidate];
     if (exported && typeof exported === 'object' && '_def' in (exported as object)) {

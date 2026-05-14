@@ -47,9 +47,17 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:openapi-zod && pnpm check:openapi-prisma && pnpm check:migrations"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.0.1",
+    "@commitlint/config-conventional": "^21.0.1",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^20.14.0",
     "eslint": "^9.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-security": "^4.0.0",
+    "eslint-plugin-unicorn": "^64.0.0",
     "prettier": "^3.3.3",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.59.3"
   }
 }

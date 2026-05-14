@@ -47,7 +47,10 @@ export class AuditController {
   ): Promise<void> {
     res.setHeader('Content-Type', 'application/x-ndjson');
     res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('X-AEGIS-Export-Format', 'ndjson-v1');
+    // ndjson-v2 = strict superset of v1: legacy flat fields preserved,
+    // new `payload`/`prevEventId`/`prevSignature`/`signingKeyId`/`signature`
+    // siblings added for `@aegis/audit-verifier` compatibility (M-038).
+    res.setHeader('X-AEGIS-Export-Format', 'ndjson-v2');
 
     for await (const row of this.audit.exportStream(auth.principalId, agentId, query)) {
       // Backpressure-aware write — wait for drain if the socket buffer fills.

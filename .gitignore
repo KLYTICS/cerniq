@@ -52,3 +52,4 @@ tmp/
 # Often contain rotating API keys / token material; never commit.
 tests/results/
 **/perf-baseline.json.local
+spec-sync.json

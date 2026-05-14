@@ -57,14 +57,15 @@ async function main(): Promise<void> {
     .action(policiesCreate);
   policies
     .command('list')
-    .option('-a, --agent-id <id>', 'filter by agent')
-    .option('-s, --status <status>', 'ACTIVE | REVOKED | EXPIRED')
+    .requiredOption('-a, --agent-id <id>', 'agent id (SDK list() is per-agent)')
+    .option('-s, --status <status>', '[deprecated] status filter — no longer supported by the SDK; ignored')
     .option('--json')
     .action(policiesList);
   policies
     .command('revoke')
-    .argument('<id>')
-    .option('--reason <r>')
+    .argument('<policyId>')
+    .requiredOption('-a, --agent-id <id>', 'agent id that owns this policy')
+    .option('--reason <r>', '[deprecated] revocation reason — no longer supported by the SDK; ignored')
     .action(policiesRevoke);
 
   const audit = program.command('audit').description('Audit log');

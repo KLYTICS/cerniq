@@ -39,9 +39,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # pnpm version is read from `packageManager` in package.json
+      # (pnpm@9.12.3). Specifying `version:` here too makes
+      # pnpm/action-setup@v4 error with ERR_PNPM_BAD_PM_VERSION.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -62,9 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
+      - uses: pnpm/action-setup@v4 # version from package.json packageManager
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -86,12 +85,20 @@ jobs:
           # ADR-0004 § "Denial Precedence" is the source of truth.
 
           extract_engine() {
+            # Strip the surrounding single quotes so the values compare
+            # byte-equal to the OpenAPI list (which has no quotes).
+            # Without this, every engine reason is reported as "missing
+            # in openapi" — a longstanding script bug masked by the
+            # check having no DenialReason in OpenAPI at all.
             grep -A 12 "type DenialReason" apps/api/src/common/policy-engine/engine.interface.ts \
-              | grep -oE "'[A-Z_]+'" | sort -u
+              | grep -oE "'[A-Z_]+'" | tr -d "'" | sort -u
           }
           extract_verifier() {
+            # Strip quotes — same normalisation as extract_engine so the
+            # downstream `comm` sees identical-shape inputs across all
+            # three sources (engine / verifier / openapi).
             grep -A 12 "DenialReason" packages/verifier-rp/src/types.ts 2>/dev/null \
-              | grep -oE "'[A-Z_]+'" | sort -u || true
+              | grep -oE "'[A-Z_]+'" | tr -d "'" | sort -u || true
           }
           extract_openapi() {
             grep -A 12 "DenialReason:" docs/spec/AEGIS_API_SPEC.yaml 2>/dev/null \

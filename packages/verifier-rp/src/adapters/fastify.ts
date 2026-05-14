@@ -14,8 +14,8 @@
 
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 
-import type { AegisVerifier } from '../verifier.js';
 import type { VerifyContext, VerifyOptions, VerifyOutcomeSuccess } from '../types.js';
+import type { AegisVerifier } from '../verifier.js';
 
 const DEFAULT_HEADER = 'x-aegis-token';
 
@@ -25,7 +25,7 @@ export interface FastifyGuardOptions {
   attachTo?: string;
   requiredScope?: string;
   contextFrom?: (req: FastifyRequest) => VerifyContext;
-  onDenied?: (reply: FastifyReply, reason: string, detail?: string) => Promise<unknown> | unknown;
+  onDenied?: (reply: FastifyReply, reason: string, detail?: string) => Promise<unknown>;
 }
 
 function buildHandler(opts: FastifyGuardOptions) {
@@ -60,6 +60,8 @@ function buildHandler(opts: FastifyGuardOptions) {
  * route registered on `fastify`.
  */
 export function attachAegisGuard(fastify: FastifyInstance, opts: FastifyGuardOptions): void {
+  // Defensive against JS callers — types claim `opts.verifier` is required.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!opts?.verifier) {
     throw new TypeError('attachAegisGuard: options.verifier is required');
   }
@@ -71,15 +73,19 @@ export function attachAegisGuard(fastify: FastifyInstance, opts: FastifyGuardOpt
  * means the hook only applies inside the plugin's scope unless you wrap it
  * with `fastify-plugin`. For most users `attachAegisGuard` is simpler.
  */
+// FastifyPluginAsync's contract is `async`, even when there's no await.
+/* eslint-disable @typescript-eslint/require-await */
 export const aegisFastifyPlugin: FastifyPluginAsync<FastifyGuardOptions> = async (
   fastify: FastifyInstance,
   opts: FastifyGuardOptions,
 ) => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!opts?.verifier) {
     throw new TypeError('aegisFastifyPlugin: options.verifier is required');
   }
   fastify.addHook('preHandler', buildHandler(opts));
 };
+/* eslint-enable @typescript-eslint/require-await */
 
 async function sendDenied(
   reply: FastifyReply,

@@ -10,19 +10,35 @@ export function registerAgentsTools(aegis: Aegis, registry: Map<string, ToolDefi
     inputSchema: {
       type: 'object',
       properties: {
-        name: { type: 'string', description: 'Human-readable agent name.' },
+        name: { type: 'string', description: 'Human-readable agent name (becomes `label`).' },
         public_key: { type: 'string', description: 'base64url-encoded Ed25519 public key (32 bytes).' },
-        metadata: { type: 'object', description: 'Free-form metadata. Cannot contain secrets.' },
+        runtime: {
+          type: 'string',
+          enum: ['OPENAI', 'ANTHROPIC', 'GOOGLE', 'HUGGINGFACE', 'CUSTOM'],
+          description: 'Agent runtime tag. Defaults to OPENAI.',
+        },
+        model: { type: 'string', description: 'Optional model identifier (e.g. "gpt-4o").' },
       },
       required: ['name', 'public_key'],
       additionalProperties: false,
     },
-    handler: async (args) =>
-      await aegis.agents.create({
-        name: String(args.name),
+    // SDK uses `register()` (not `create()`) and the wire field is
+    // `label`, not `name`. Runtime defaults to OPENAI to match the
+    // most common quickstart path.
+    handler: async (args) => {
+      const runtime = (typeof args.runtime === 'string' ? args.runtime : 'OPENAI') as
+        | 'OPENAI'
+        | 'ANTHROPIC'
+        | 'GOOGLE'
+        | 'HUGGINGFACE'
+        | 'CUSTOM';
+      return aegis.agents.register({
         publicKey: String(args.public_key),
-        metadata: (args.metadata as Record<string, unknown>) ?? undefined,
-      }),
+        runtime,
+        label: String(args.name),
+        model: typeof args.model === 'string' ? args.model : undefined,
+      });
+    },
   });
 
   registry.set('aegis.agents.get', {
@@ -39,7 +55,9 @@ export function registerAgentsTools(aegis: Aegis, registry: Map<string, ToolDefi
 
   registry.set('aegis.agents.list', {
     name: 'aegis.agents.list',
-    description: 'List agents in the caller\'s principal. Paginated.',
+    description:
+      'List agents in the caller\'s principal. NOTE: pending SDK support — returns a clear error until ' +
+      '`AgentClient.list()` wraps the existing `GET /v1/agents` endpoint.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -48,11 +66,13 @@ export function registerAgentsTools(aegis: Aegis, registry: Map<string, ToolDefi
       },
       additionalProperties: false,
     },
-    handler: async (args) =>
-      await aegis.agents.list({
-        limit: typeof args.limit === 'number' ? args.limit : undefined,
-        cursor: typeof args.cursor === 'string' ? args.cursor : undefined,
-      }),
+    handler: async (args) => {
+      void args;
+      throw new Error(
+        'aegis.agents.list is not yet supported by @aegis/sdk. The control-plane endpoint ' +
+          '(GET /v1/agents) exists; the SDK wrapper is pending.',
+      );
+    },
   });
 
   registry.set('aegis.agents.revoke', {
@@ -64,14 +84,14 @@ export function registerAgentsTools(aegis: Aegis, registry: Map<string, ToolDefi
       type: 'object',
       properties: {
         agent_id: { type: 'string' },
-        reason: { type: 'string', description: 'Free-form reason; appears in audit log.' },
+        reason: { type: 'string', description: 'Accepted but ignored — SDK revoke() takes only the agentId.' },
       },
       required: ['agent_id'],
       additionalProperties: false,
     },
-    handler: async (args) =>
-      await aegis.agents.revoke(String(args.agent_id), {
-        reason: typeof args.reason === 'string' ? args.reason : undefined,
-      }),
+    // SDK signature: `revoke(agentId)`. The `reason` field is preserved
+    // in the input schema for back-compat with existing MCP clients
+    // but dropped at the SDK boundary.
+    handler: async (args) => aegis.agents.revoke(String(args.agent_id)),
   });
 }

@@ -1,7 +1,7 @@
 import * as ed from '@noble/ed25519';
 import { sha512 } from '@noble/hashes/sha512';
 import { client } from '../client.js';
-import { emitJson, emitTable, ok, info } from '../output.js';
+import { emitJson, ok, info } from '../output.js';
 
 ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
 
@@ -14,8 +14,21 @@ export async function agentsCreate(opts: { name: string; runtime?: string; print
   const priv = ed.utils.randomPrivateKey();
   const pub = await ed.getPublicKeyAsync(priv);
   const aegis = await client();
-  const agent = await aegis.agents.create({ name: opts.name, publicKey: b64u(pub) });
-  ok(`agent created: ${(agent as { id: string }).id}`);
+  // SDK uses `register()` (not `create()`) and the wire field is
+  // `label`, not `name`. Runtime defaults to OPENAI to match the
+  // most common quickstart path; advanced callers can pass --runtime.
+  const runtime = (opts.runtime?.toUpperCase() ?? 'OPENAI') as
+    | 'OPENAI'
+    | 'ANTHROPIC'
+    | 'GOOGLE'
+    | 'HUGGINGFACE'
+    | 'CUSTOM';
+  const agent = await aegis.agents.register({
+    publicKey: b64u(pub),
+    runtime,
+    label: opts.name,
+  });
+  ok(`agent created: ${agent.agentId}`);
   emitJson(agent);
   if (opts.printPrivateKey) {
     info('PRIVATE KEY (store securely — AEGIS never sees this):');
@@ -26,13 +39,15 @@ export async function agentsCreate(opts: { name: string; runtime?: string; print
 }
 
 export async function agentsList(opts: { limit?: number; cursor?: string; json?: boolean }): Promise<void> {
-  const aegis = await client();
-  const result = (await aegis.agents.list({ limit: opts.limit, cursor: opts.cursor })) as { agents: Array<{ id: string; name: string; status: string; trustScore: number; trustBand: string }> };
-  if (opts.json) {
-    emitJson(result);
-    return;
-  }
-  emitTable(result.agents.map((a) => ({ id: a.id, name: a.name, status: a.status, score: a.trustScore, band: a.trustBand })));
+  // The control-plane API does expose `GET /v1/agents` (paginated), but
+  // the SDK's `AgentClient` does not yet wrap it. Until the SDK adds
+  // `list()`, the CLI prints a clear hint instead of pretending to
+  // support the operation. Tracked for the next SDK release.
+  void opts; // signature preserved for bin.ts wiring
+  process.stderr.write(
+    'agents list is not yet supported by @aegis/sdk; use the dashboard or `aegis agents get <id>`.\n',
+  );
+  process.exitCode = 2;
 }
 
 export async function agentsGet(id: string, opts: { json?: boolean }): Promise<void> {
@@ -44,6 +59,11 @@ export async function agentsGet(id: string, opts: { json?: boolean }): Promise<v
 
 export async function agentsRevoke(id: string, opts: { reason?: string }): Promise<void> {
   const aegis = await client();
-  await aegis.agents.revoke(id, { reason: opts.reason });
+  if (opts.reason) {
+    process.stderr.write(
+      'warning: --reason is no longer supported by the SDK revoke endpoint; ignoring.\n',
+    );
+  }
+  await aegis.agents.revoke(id);
   ok(`agent revoked: ${id}`);
 }

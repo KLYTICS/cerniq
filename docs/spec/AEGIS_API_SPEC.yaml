@@ -385,7 +385,7 @@ components:
           type: string
         status:
           type: string
-          enum: [active, suspended, revoked]
+          enum: [pending_verification, active, suspended, revoked]
         trustScore:
           type: integer
           minimum: 0
@@ -399,6 +399,25 @@ components:
         lastSeenAt:
           type: string
           format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        revokedReason:
+          type: string
+          nullable: true
+        verifyCount:
+          type: integer
+          description: Lifetime verify counter (used by FREE plan's lifetime cap).
+        verifyCountDay:
+          type: integer
+          description: Daily verify counter (resets at UTC midnight).
+        bateSignals:
+          type: array
+          description: BATE signals observed for this agent. Read-only.
+          items:
+            type: object
+            additionalProperties: true
 
     AgentStatus:
       type: object
@@ -407,7 +426,10 @@ components:
           type: string
         status:
           type: string
-          enum: [active, suspended, revoked]
+          # Must match Prisma's `AgentStatus` enum exactly. `pending_verification`
+          # is the post-registration / pre-handshake state for newly-minted
+          # agents (added 2026-02 alongside ADR-0009 federation).
+          enum: [pending_verification, active, suspended, revoked]
         trustScore:
           type: integer
         trustBand:
@@ -416,6 +438,21 @@ components:
         lastSeenAt:
           type: string
           format: date-time
+
+    DenialReason:
+      # CI guard (spec-sync.yml § denial-precedence) reads the first ~12
+      # lines after this anchor — keep the enum members in this block
+      # (no description ahead of them) or the check will report
+      # ANOMALY_FLAGGED missing in OpenAPI even though it's listed below.
+      type: string
+      enum: [PLAN_LIMIT_EXCEEDED, AGENT_NOT_FOUND, AGENT_REVOKED, INVALID_SIGNATURE, POLICY_REVOKED, POLICY_EXPIRED, SCOPE_NOT_GRANTED, TRIAL_EXHAUSTED, SPEND_LIMIT_EXCEEDED, TRUST_SCORE_TOO_LOW, ANOMALY_FLAGGED]
+      description: |
+        Locked denial-reason enum per ADR-0004 (extended ADR-0014 for
+        TRIAL_EXHAUSTED). Order is precedence: leftmost reason wins when
+        multiple gates fail on the same request. AEGIS engines MAY NOT
+        invent new reasons; relying parties code against this list.
+        `PLAN_LIMIT_EXCEEDED` is the billing pre-gate (HTTP 402) that
+        fires before the 10-step decision chain.
 
     PolicyCreateRequest:
       type: object
@@ -458,12 +495,26 @@ components:
         status:
           type: string
           enum: [active, expired, revoked]
+        label:
+          type: string
+          nullable: true
+          description: Operator-supplied label for dashboard listing.
+        tokenHash:
+          type: string
+          description: SHA-256 of the issued policy token; the raw token is returned only at issuance.
         createdAt:
           type: string
           format: date-time
         expiresAt:
           type: string
           format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        verifyCount:
+          type: integer
+          description: Lifetime verify counter scoped to this policy.
 
     PolicyScope:
       type: object
@@ -598,11 +649,25 @@ components:
 
     AuditEvent:
       type: object
+      description: |
+        One row of the AEGIS audit chain. The signed payload commits to
+        every `*Hash` field plus the chain link (prev_event_id +
+        prev_signature). Raw value fields (`action`, `relyingParty`,
+        `requestedAmount`, `policySnapshot`) are nullable to support
+        GDPR Art. 17 redaction per ADR-0006 — redacting a raw value
+        nulls the column but preserves the hash and signature, so the
+        chain still verifies.
       properties:
         eventId:
           type: string
         agentId:
           type: string
+          nullable: true
+          description: Real Agent FK. Null for AGENT_NOT_FOUND audit rows.
+        claimedAgentId:
+          type: string
+          nullable: true
+          description: Agent ID as it appeared in the request; never nulled (forensic trail).
         principalId:
           type: string
         timestamp:
@@ -610,19 +675,79 @@ components:
           format: date-time
         action:
           type: string
+          nullable: true
+          description: Redactable raw value; null after GDPR Art. 17 redaction OR when never set.
+        actionHash:
+          type: string
+          description: base64url(sha256(action)) commitment; preserved across redaction.
         relyingParty:
           type: string
+          nullable: true
+        relyingPartyHash:
+          type: string
+          nullable: true
         decision:
           type: string
-          enum: [approved, denied, flagged]
+          enum: [APPROVED, DENIED, FLAGGED]
         decisionReason:
           type: string
           nullable: true
+          deprecated: true
+          description: Legacy alias for `denialReason`. Use `denialReason` going forward.
+        denialReason:
+          type: string
+          nullable: true
+          description: One of the `DenialReason` precedence values from ADR-0004; null on APPROVED.
+        requestedAmount:
+          type: string
+          nullable: true
+          description: Decimal-as-string with 2dp (matches the canonicalisation used in the signed payload).
+        requestedAmountHash:
+          type: string
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+        policyId:
+          type: string
+          nullable: true
+        policySnapshot:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: Policy decision context captured at write time. Redactable.
+        policySnapshotHash:
+          type: string
+          nullable: true
+        redactionReason:
+          type: string
+          nullable: true
+          description: Why a redaction was performed (free-form). Set alongside `redactedAt`.
         trustScoreAtEvent:
           type: integer
+        trustBandAtEvent:
+          type: string
+          enum: [PLATINUM, VERIFIED, WATCH, FLAGGED]
         signature:
           type: string
-          description: AEGIS signature over this event (immutability proof)
+          description: |
+            AEGIS Ed25519 signature over `prev_hash || canonical(payload)`,
+            base64url-encoded. The single immutability proof for this row.
+        prevEventId:
+          type: string
+          nullable: true
+          description: |
+            Predecessor event ID for the chain link. Null on the first
+            event per chain (genesis row) and on any row written before
+            M-038. The signer's `prev_hash = sha256(prev_signature ||
+            prev_event_id)` already commits to this value via the
+            signed payload; the column materialises it so external
+            verifiers (@aegis/audit-verifier) can check chain order
+            without re-inferring from timestamps.
+        prevSignature:
+          type: string
+          nullable: true
+          description: Predecessor event signature for the chain link; nullability mirrors `prevEventId`.
 
     AuditLogResponse:
       type: object

@@ -46,9 +46,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # pnpm version is sourced from `packageManager` in package.json.
+      # Specifying `version:` here too errors with ERR_PNPM_BAD_PM_VERSION
+      # in pnpm/action-setup@v4.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9.12.3
 
       - uses: actions/setup-node@v4
         with:
@@ -62,6 +63,16 @@ jobs:
 
       - name: Apply Prisma migrations
         run: pnpm --filter @aegis/api prisma:deploy
+
+      # Build the workspace packages whose `package.json` exports point
+      # at `dist/` (e.g. @aegis/sdk, @aegis/types). Downstream consumers
+      # like tools/quickstart and tests/ resolve them via npm's module
+      # resolution, which requires the dist artifacts to exist before
+      # `tsc --noEmit` runs. Filtered to the publish-shape packages so
+      # we don't pay full-workspace build time twice (the `Build` step
+      # at the end re-runs across everything).
+      - name: Pre-build publish-shape packages
+        run: pnpm --filter @aegis/types --filter @aegis/sdk --filter @aegis/audit-verifier build
 
       - name: Lint
         run: pnpm lint

@@ -2,9 +2,9 @@
 // fetches `/v1/agents/:id/status` and caches the snapshot. Webhook receivers
 // can invalidate immediately via {@link RevocationCache.invalidate}.
 
+import { now } from './_internal/time.js';
 import { RevocationFetchError } from './errors.js';
 import type { AgentStatusSnapshot, AgentStatusValue, Logger, TrustBand } from './types.js';
-import { now } from './_internal/time.js';
 
 export interface RevocationCacheOptions {
   baseUrl: string;
@@ -53,7 +53,7 @@ export class RevocationCache {
       return entry.snapshot;
     }
     const inFlight = this.inFlight.get(agentId);
-    if (inFlight) return inFlight;
+    if (inFlight) return await inFlight;
 
     const promise = this.fetchStatus(agentId)
       .then((snapshot) => {
@@ -67,7 +67,7 @@ export class RevocationCache {
         this.inFlight.delete(agentId);
       });
     this.inFlight.set(agentId, promise);
-    return promise;
+    return await promise;
   }
 
   /** Drop the cached entry — call from a webhook handler. */
@@ -104,7 +104,7 @@ export class RevocationCache {
       };
     }
     if (!res.ok) {
-      throw new RevocationFetchError(`status fetch HTTP ${res.status} for ${agentId}`);
+      throw new RevocationFetchError(`status fetch HTTP ${String(res.status)} for ${agentId}`);
     }
     const json: unknown = await res.json();
     if (!isAgentStatusSnapshot(json, agentId)) {

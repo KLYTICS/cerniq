@@ -6,8 +6,11 @@
 //      in-memory wired by `kms.module.ts`), use it. Stamp `signingKeyId`
 //      from the active KMS key's metadata.kid.
 //   2. Else (local dev with no `setKmsAdapter()` call): fall back to
-//      env-derived Ed25519 key. Use the deterministic kid `kid-genesis-v1`
-//      so backfilled rows verify against a single published pubkey.
+//      env-derived Ed25519 key. The kid is `computeKid(rawPublicKey)`
+//      — byte-identical to what WellknownService publishes in JWKS —
+//      so every AuditEvent row's `signingKeyId` matches a key in JWKS
+//      and third-party verifiers (@aegis/audit-verifier) can resolve
+//      the correct public key.
 //
 // Why a separate service rather than inlining in audit.service.ts:
 //   - Audit.service is shared across multiple session edits. Smaller
@@ -37,8 +40,7 @@ import {
 } from './ed25519.util';
 import { getKmsAdapter, type ActiveSigner } from './crypto.bootstrap';
 import { AppConfigService } from '../../config/config.service';
-
-const FALLBACK_KID = 'kid-genesis-v1';
+import { computeKid } from '../../modules/wellknown/wellknown.service';
 
 interface ResolvedSigner {
   kid: string;
@@ -90,15 +92,17 @@ export class AuditSignerService implements OnModuleDestroy {
     const isProd = (this.config as unknown as { nodeEnv?: string }).nodeEnv === 'production';
 
     if (priv && pub) {
+      const pubBytes = decodeBase64Url(pub);
+      const kid = computeKid(pubBytes);
       this.envPrivateKey = decodeBase64Url(priv);
       this.resolved = {
-        kid: FALLBACK_KID,
+        kid,
         publicKey: pub,
         signRaw: (msg) => ed.signAsync(msg, this.envPrivateKey!),
         source: 'env',
       };
       this.logger.warn(
-        `AuditSignerService: env-fallback (kid=${FALLBACK_KID}). For production, register a KmsAdapter via kms.module.ts.`,
+        `AuditSignerService: env-fallback (kid=${kid}). For production, register a KmsAdapter via kms.module.ts.`,
       );
       return;
     }
@@ -112,9 +116,10 @@ export class AuditSignerService implements OnModuleDestroy {
     }
     const kp = await this.ed25519.generateKeypair();
     this.envPrivateKey = kp.privateKey;
+    const pubB64 = encodeBase64Url(kp.publicKey);
     this.resolved = {
-      kid: 'kid-dev-ephemeral',
-      publicKey: encodeBase64Url(kp.publicKey),
+      kid: computeKid(kp.publicKey),
+      publicKey: pubB64,
       signRaw: (msg) => ed.signAsync(msg, this.envPrivateKey!),
       source: 'ephemeral',
     };
