@@ -112,16 +112,22 @@ describe('buildCli — command surface', () => {
 
 describe('DENIAL_DESCRIPTIONS', () => {
   it('covers every denial reason from CLAUDE.md precedence', () => {
+    // Mirrors DENIAL_REASON_PRECEDENCE (packages/types/src/constants.ts) —
+    // PLAN_LIMIT_EXCEEDED is the billing pre-gate, TRIAL_EXHAUSTED was added
+    // 2026-05-05 (ADR-0014), INTENT_MISMATCH was added 2026-05-15 (ADR-0016).
     const required = [
+      'PLAN_LIMIT_EXCEEDED',
       'AGENT_NOT_FOUND',
       'AGENT_REVOKED',
       'INVALID_SIGNATURE',
       'POLICY_REVOKED',
       'POLICY_EXPIRED',
       'SCOPE_NOT_GRANTED',
+      'TRIAL_EXHAUSTED',
       'SPEND_LIMIT_EXCEEDED',
       'TRUST_SCORE_TOO_LOW',
       'ANOMALY_FLAGGED',
+      'INTENT_MISMATCH',
     ];
     for (const reason of required) {
       expect(DENIAL_DESCRIPTIONS[reason]).toBeDefined();
