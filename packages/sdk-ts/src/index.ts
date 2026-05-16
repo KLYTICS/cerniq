@@ -1,5 +1,6 @@
 import { HttpClient } from './http.js';
 import { AgentClient, type HandshakeVerified } from './agent.js';
+import { IntentClient } from './intent.js';
 import { PolicyClient } from './policy.js';
 import { signAgentToken, signHandshake } from './crypto.js';
 import type { AegisConfig, SignContext, VerifyResult } from './types.js';
@@ -10,6 +11,8 @@ const DEFAULT_TIMEOUT_MS = 5_000;
 export class Aegis {
   readonly agents: AgentClient;
   readonly policies: PolicyClient;
+  /** Intent Manifest client (ADR-0017). See `IntentClient`. */
+  readonly intent: IntentClient;
   private readonly http: HttpClient;
 
   constructor(config: AegisConfig = {}) {
@@ -23,6 +26,7 @@ export class Aegis {
     });
     this.agents = new AgentClient(this.http);
     this.policies = new PolicyClient(this.http);
+    this.intent = new IntentClient(this.http);
   }
 
   /**
@@ -92,6 +96,14 @@ export { withRetry, parseRetryAfter } from './http.js';
 export type { RetryOptions } from './http.js';
 export { MemoryVerifyCache, buildCacheKey, clampTtlMs } from './cache.js';
 export type { VerifyCache, CachedVerify, VerifyCacheContext } from './cache.js';
+export { IntentClient } from './intent.js';
+export type {
+  GetIntentResponse,
+  IssueIntentRequest,
+  IssueIntentResponse,
+  ReconcileIntentRequest,
+  ReconcileIntentResponse,
+} from './intent.js';
 export { VerifyGateway } from './verify-gateway.js';
 export type {
   VerifyGatewayOptions,

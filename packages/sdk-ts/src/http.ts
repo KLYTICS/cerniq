@@ -33,6 +33,16 @@ export interface RequestOptions {
    * relying parties should never see it.
    */
   verifyOnly?: boolean;
+  /**
+   * Caller-supplied additional headers, MERGED onto the default
+   * Content-Type + auth + SDK-version header set. Use for endpoints
+   * that require additional contract headers (e.g. Idempotency-Key
+   * on POST /v1/intent/{id}/actuals per ADR-0017).
+   *
+   * Cannot override Content-Type, X-AEGIS-API-Key, X-AEGIS-Verify-Key,
+   * or X-AEGIS-Sdk — those are reserved for the HttpClient.
+   */
+  headers?: Record<string, string>;
 }
 
 /** Knobs for the catalog-driven retry wrapper. */
@@ -90,6 +100,21 @@ export class HttpClient {
       'X-AEGIS-Sdk': '@aegis/sdk@0.1.0',
     };
     if (this.userAgent) headers['User-Agent'] = this.userAgent;
+    // Caller-supplied headers merge LAST but cannot override reserved
+    // auth/content headers (those are HttpClient contract; override
+    // would let callers leak verify-key material on management calls).
+    if (opts.headers) {
+      const RESERVED = new Set([
+        'content-type',
+        'x-aegis-api-key',
+        'x-aegis-verify-key',
+        'x-aegis-sdk',
+      ]);
+      for (const [k, v] of Object.entries(opts.headers)) {
+        if (RESERVED.has(k.toLowerCase())) continue;
+        headers[k] = v;
+      }
+    }
 
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), this.timeoutMs);
