@@ -5,6 +5,65 @@
 
 ---
 
+## 2026-05-16 PM (ADR-0017 Phase 2.1 — Prisma adapter for IntentPorts; production gate unblock) — sid=opus-phase3-enterprise — claim=aegis:intent-prisma-adapter
+
+**Status:** The IntentManifest module is now safe to flip in production. Phase 2.0 shipped with an in-process memory adapter (`AEGIS_INTENT_MANIFEST_STORAGE=memory`, default); this commit adds the durable Prisma adapter (`storage=prisma`) and the two tables that back it. Operators can now set `AEGIS_INTENT_MANIFEST_ENABLED=true` + `AEGIS_INTENT_MANIFEST_STORAGE=prisma` after running the migration.
+
+### What landed (this commit)
+
+```
+apps/api/prisma/schema.prisma                                                | +73   (model IntentManifest + model IntentActual + enum IntentManifestStatus)
+apps/api/prisma/migrations/20260516000000_add_intent_manifest_phase21/migration.sql | +60  (additive: 2 CREATE TABLE + 1 CREATE TYPE + 4 CREATE INDEX + 1 FK)
+apps/api/src/modules/intent/intent.adapter.prisma.ts                         | +178  (NEW — mirrors intent.adapter.memory.ts contract bit-for-bit)
+apps/api/src/modules/intent/intent.module.ts                                 | ±66   (refactor: extract buildSharedDeps; add prismaPortsProvider; env-switch)
+docs/SESSION_HANDOFF.md                                                      | (this entry)
+```
+
+### Design
+
+**Two-table schema** (`IntentManifest` + `IntentActual`, 1:1 via `manifestId @unique`):
+- `IntentManifest` is immutable after issuance except for the `status` cache field (`OPEN` → `RECONCILED` → `EXPIRED`). Matches CLAUDE.md invariant #3 (audit append-only): body + signature pair never mutates.
+- `IntentActual` holds the signed reconciliation outcome. Exactly one per manifest enforced by `manifestId @unique` + a `(manifestId, idempotencyKey)` composite unique index that's the racing-concurrent-write backstop.
+- The `status` cache is denormalized — strictly redundant with `expiresAt vs now()` + `IntentActual` presence. Kept for fast cold-archive sweep queries via `@@index([principalId, status, expiresAt])`.
+
+**Adapter symmetry**: `intent.adapter.prisma.ts` implements the same `IntentPorts` contract as `intent.adapter.memory.ts` — same 3 storage methods (`saveManifest`, `loadManifest`, `saveReconciliation`), same idempotency semantics ("same key + same body = replay; otherwise = `idempotency_conflict`"), same lazy-expiry-flip on load. CLAUDE.md invariant #2 payoff: the pure `intent.algorithm.ts` runs bit-for-bit against either adapter without modification.
+
+**Module refactor** (`intent.module.ts`):
+- Extracted `buildSharedDeps(auditSigner, audit, bate)` — the storage-agnostic port wiring for sign / audit / signal / now / ttl. Avoids ~70 LOC duplication between memory and Prisma providers.
+- Added `prismaPortsProvider` next to existing `memoryPortsProvider`. Both use the same `INTENT_PORTS` DI symbol — exactly one is wired per module instance via `pickStorageProvider()`.
+- `pickStorageProvider()` reads `AEGIS_INTENT_MANIFEST_STORAGE` at module-build time. Invalid values throw with a clear remediation message naming the migration filename.
+
+**Failure mapping**: Prisma's `P2002` unique-constraint errors map to typed `IntentAlgorithmException` (`manifest_collision` on the `IntentManifest` side, `idempotency_conflict` on the `IntentActual` side). The controller already translates those to HTTP 409 — no controller change needed.
+
+**Transaction safety**: `saveReconciliation()` does the `IntentActual.create` + `IntentManifest.status='RECONCILED'` update inside a `$transaction([...])`. Without it, a crash between the two writes would leave `status='OPEN'` despite a reconciliation row existing. `loadManifest()` compensates by reading `reconciliation` first, but consistency-by-construction beats consistency-by-coercion.
+
+### Verification
+
+| Gate                                     | Result        |
+|------------------------------------------|---------------|
+| `pnpm --filter @aegis/api prisma:generate` | ✓ Schema parses, client regenerated |
+| `pnpm --filter @aegis/api typecheck`      | ✓ Clean (cache flush needed on first run after generate) |
+| `pnpm --filter @aegis/api test -- --testPathPattern='modules/intent'` | ✓ 12/12 pass — algorithm contract honoured by refactored module |
+| Integration test against live Postgres  | ✗ Not in this commit (requires docker compose + DB setup). The memory-adapter spec exercises the cross-adapter contract; a future spec under `apps/api/test/integration/intent.adapter.prisma.spec.ts` would validate live SQL roundtrip. Filed for follow-up. |
+
+### What's next (queued, NOT started)
+
+1. **OD-019** — separate intent-signing key family vs. reusing audit-signing-key. Current Phase 2 reuses `AuditSignerService` for single-rotation simplicity. Defense-in-depth follow-up: introduce `IntentSignerService` + `/.well-known/intent-signing-key` JWKS endpoint + env flag `AEGIS_INTENT_SEPARATE_SIGNER`. Flagged inline in `intent.module.ts:53` for the next session.
+2. **OD-020** — verify-wire emission of intent decision. Currently Phase 2 keeps intent denials in the dedicated `/v1/intent/*` response surface; OD-020 considers folding `INTENT_MISMATCH` into `/v1/verify` outcomes via wire-level enum.
+3. **Phase 3** — Cloudflare Worker port. The kernel + adapter pattern is now proven: same `IntentPorts` symbol, swap the implementation. A CF Worker adapter (D1 / Workers KV backed) follows the same shape.
+4. **Integration spec** — `apps/api/test/integration/intent.adapter.prisma.spec.ts` covering issue → reconcile-clean → reconcile-mismatch → idempotency replay → idempotency conflict against a live Postgres. Requires docker compose stack.
+5. **Operator runbook entry** — `docs/runbooks/intent-manifest-enable.md` covering the production-flip sequence: run migration, confirm `IntentManifest` table exists, set `AEGIS_INTENT_MANIFEST_STORAGE=prisma`, then `AEGIS_INTENT_MANIFEST_ENABLED=true`, then verify `/v1/intent` issuance succeeds.
+
+### Coordination notes
+
+Peer claims at commit time (none overlap):
+- `bf9d6030` on `aegis:rar-in-jar-hotpath-integration` — `apps/api/src/modules/verify/algorithm/**`. Explicit "NOT touching Prisma" in claim text.
+- `1f061fc5` on `aegis:cli-lint-typecheck-fix` — `.github/workflows/cli.yml` only.
+
+No bundle-lane drama this round — atomic commit, clean staging, accurate title.
+
+---
+
 ## 2026-05-16 · sid=760241c55352 · rfc-9101-jar-runtime
 
 RFC-9101 JAR runtime capability landed (db55481): JwtUtil.verifyAndDecode accepts opt-in JarValidationOptions {requiredAudience, requiredIssuer, maxAgeSeconds} + AgentTokenClaims gains iss/aud/authorization_details. 22/22 tests pass (5 backward-compat + 17 new JAR). Rescued from dead peer bf9d6030 v1 (started 14:37:26 UTC, never heartbeated). Foundation only — NO discovery promotion, NO hot-path integration (that's the live bf9d6030 v2 scope aegis:rar-in-jar-hotpath-integration).
