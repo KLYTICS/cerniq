@@ -271,14 +271,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4 # pin: replace with full sha before merge
 
+      # Direct semgrep CLI invocation. The returntocorp/semgrep-action and
+      # semgrep/semgrep-action repos are both deprecated/archived (last push
+      # 2024-01 and 2024-04 respectively); upstream redirects users to the
+      # semgrep CLI directly. Pinning the CLI version explicitly so unattended
+      # bumps don't silently change scan behavior.
+      - name: Install semgrep
+        shell: bash
+        run: python -m pip install --upgrade --no-cache-dir "semgrep==1.93.0"
+
       - name: Run semgrep
-        uses: returntocorp/semgrep-action@v1 # pin: replace with full sha before merge
-        with:
-          config: >-
-            p/owasp-top-ten
-            p/typescript
-            p/nodejs
-          generateSarif: '1'
+        shell: bash
+        run: |
+          semgrep scan \
+            --config=p/owasp-top-ten \
+            --config=p/typescript \
+            --config=p/nodejs \
+            --sarif --output=semgrep.sarif \
+            --error \
+            .
 
       - name: Upload SARIF
         if: always()
