@@ -127,7 +127,15 @@ export function buildCacheKey(token: string, ctx: VerifyCacheContext = {}): stri
     ctx.merchantDomain ?? '',
   ];
   // Use NUL separator — illegal in HTTP header values, agent IDs, and
-  // every context field above per the API schema.
+  // every context field above per the API schema. Defensive: a malformed
+  // token (e.g. smuggled through a proxy) containing NUL must not silently
+  // collide across contexts in a shared backend (Redis/CF KV). Reject at
+  // the boundary instead.
+  for (const p of parts) {
+    if (p.indexOf('\x00') !== -1) {
+      throw new Error('cache-key field contains NUL byte');
+    }
+  }
   const canonical = parts.join('\x00');
   const digest = sha256(new TextEncoder().encode(canonical));
   return bytesToHex(digest);
