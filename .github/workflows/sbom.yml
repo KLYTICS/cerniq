@@ -54,7 +54,7 @@ jobs:
             --gather-license-texts
 
       - name: Generate SPDX SBOM via Syft
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0 (2026-03-19)
         with:
           path: .
           format: spdx-json
@@ -62,7 +62,7 @@ jobs:
           upload-artifact: false
 
       - name: Generate Syft CycloneDX (for parity check)
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0 (2026-03-19)
         with:
           path: .
           format: cyclonedx-json
@@ -70,7 +70,7 @@ jobs:
           upload-artifact: false
 
       - name: Upload SBOMs as artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 (2025-03-19)
         with:
           name: aegis-sbom-${{ github.sha }}
           path: |
@@ -81,13 +81,13 @@ jobs:
           if-no-files-found: error
 
       - name: Upload SBOM to GitHub dependency graph
-        uses: anchore/sbom-action/publish-sbom@v0
+        uses: anchore/sbom-action/publish-sbom@e22c389904149dbc22b58101806040fa8d37a610 # v0 (2026-03-19)
         with:
           sbom-artifact-match: 'aegis.spdx.json'
 
       - name: Attest build provenance for SBOMs
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2 (2025-06-11)
         with:
           subject-path: |
             aegis.cyclonedx.json
@@ -104,12 +104,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download SBOM artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4 (2025-04-24)
         with:
           name: aegis-sbom-${{ github.sha }}
 
       - name: Run Grype against SBOM
-        uses: anchore/scan-action@v5
+        uses: anchore/scan-action@869c549e657a088dc0441b08ce4fc0ecdac2bb65 # v5 (2024-11-21)
         id: grype
         with:
           sbom: aegis.spdx.json
@@ -118,7 +118,7 @@ jobs:
           output-format: sarif
 
       - name: Upload Grype findings to code scanning
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3 (2026-05-15)
         if: always() && steps.grype.outputs.sarif != ''
         with:
           sarif_file: ${{ steps.grype.outputs.sarif }}
