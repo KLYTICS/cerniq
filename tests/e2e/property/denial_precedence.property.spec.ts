@@ -56,16 +56,31 @@ describe('property · denial precedence', () => {
   });
 
   it('precedence array is fixed and well-known (regression guard)', () => {
+    // Snapshot mirrors DENIAL_REASON_PRECEDENCE in packages/types/src/constants.ts.
+    // History of bumps:
+    //   - PLAN_LIMIT_EXCEEDED — billing pre-gate, always-present.
+    //   - 2026-05-05 (ADR-0014): TRIAL_EXHAUSTED inserted between
+    //     SCOPE_NOT_GRANTED and SPEND_LIMIT_EXCEEDED.
+    //   - 2026-05-15 (ADR-0016): INTENT_MISMATCH appended after
+    //     ANOMALY_FLAGGED (forward-compatible, no API minor bump).
+    // Semantic redundancy with tests/cross-package/denial-precedence-enum.spec.ts
+    // is acknowledged: that spec runs in unit cadence; this one runs only when
+    // the e2e SDK config is present. Both should track canonical. A future
+    // cleanup may relocate this regression guard out of e2e/ to drop the
+    // redundancy.
     expect([...DENIAL_REASON_PRECEDENCE]).toEqual([
+      'PLAN_LIMIT_EXCEEDED',
       'AGENT_NOT_FOUND',
       'AGENT_REVOKED',
       'INVALID_SIGNATURE',
       'POLICY_REVOKED',
       'POLICY_EXPIRED',
       'SCOPE_NOT_GRANTED',
+      'TRIAL_EXHAUSTED',
       'SPEND_LIMIT_EXCEEDED',
       'TRUST_SCORE_TOO_LOW',
       'ANOMALY_FLAGGED',
+      'INTENT_MISMATCH',
     ]);
   });
 
