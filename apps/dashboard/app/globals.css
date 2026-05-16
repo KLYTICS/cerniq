@@ -3,15 +3,47 @@
 
 :root {
   color-scheme: dark;
-  --bg: #07090b;
-  --bg-elev: #0d1014;
-  --border: #1c2128;
-  --text: #e6e6e6;
-  --text-dim: #8b94a3;
-  --accent: #6ee7ff;
-  --warn: #f5b53d;
-  --danger: #ff6b6b;
-  --ok: #4ade80;
+
+  /* Surface ramp — three elevation tiers, slate-cool undertone (per Brand Foundation §4.1).
+     Reads black to the eye but never #000; depth comes from layering, not darkness. */
+  --bg:          #020617; /* slate-950 — page surface */
+  --bg-elev:     #0B1120; /* +1 elevation — header, panels, table headers, badges */
+  --bg-elev-2:   #111A2E; /* +2 elevation — modals, command palette, popovers */
+
+  /* Borders — slate ramp, indigo-compatible at every step. */
+  --border:        #1E293B; /* slate-800 — resting */
+  --border-strong: #334155; /* slate-700 — focused, active row, hovered cluster */
+
+  /* Text hierarchy — slate-50 reads white without clinical glare. */
+  --text:      #F8FAFC; /* slate-50  — primary */
+  --text-dim:  #94A3B8; /* slate-400 — secondary, eyebrow labels */
+  --text-mute: #64748B; /* slate-500 — tertiary, metadata, placeholder */
+
+  /* Accent ladder — indigo brand spine (Brand Foundation §4.2 aegis-* ramp).
+     Four steps so highlights have variation without saturated purple. */
+  --accent:        #A5B4FC; /* aegis-300 — DEFAULT highlight on dark surface, AA on --bg */
+  --accent-strong: #818CF8; /* indigo-400 — active state, key data callouts, wordmark */
+  --accent-vivid:  #C4B5FD; /* violet-300 — hero pulses, audit-event ingress, sparingly */
+  --accent-deep:   #3730A3; /* aegis-500 — primary CTA fill, brand authority */
+
+  /* Accent washes — color-mix-driven so all tints track the accent token.
+     If the accent is ever rebranded, every hover/selection/focus follows. */
+  --accent-wash:    color-mix(in srgb, var(--accent) 8%,  transparent);
+  --accent-wash-md: color-mix(in srgb, var(--accent) 14%, transparent);
+  --accent-wash-lg: color-mix(in srgb, var(--accent) 22%, transparent);
+  --accent-ring:    color-mix(in srgb, var(--accent) 35%, transparent);
+
+  /* Semantic — Brand Foundation §4.3 reserved real estate; never overridden by accent shifts. */
+  --warn:   #F59E0B; /* amber-500 */
+  --danger: #F43F5E; /* rose-500  */
+  --ok:     #10B981; /* emerald-500 */
+
+  /* Elevation shadows — neutral with a faint indigo undertone for warmth on dark.
+     Brand Foundation §6.4: in dark mode, depth comes from border, shadow is whisper. */
+  --shadow-sm: 0 1px 2px rgba(2, 6, 23, 0.45);
+  --shadow-md: 0 6px 18px rgba(2, 6, 23, 0.55), 0 1px 0 color-mix(in srgb, var(--accent) 6%, transparent) inset;
+  --shadow-lg: 0 18px 48px rgba(2, 6, 23, 0.65), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent);
+
   --mono: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
 }
 
@@ -44,7 +76,8 @@ code, .mono { font-family: var(--mono); }
   font-family: var(--mono);
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: var(--accent);
+  color: var(--accent-strong);
+  text-shadow: 0 0 24px color-mix(in srgb, var(--accent-vivid) 25%, transparent);
 }
 .aegis-header nav { display: flex; gap: 18px; }
 .aegis-header nav a { color: var(--text-dim); }
@@ -66,6 +99,9 @@ h2 { font-size: 14px; margin: 24px 0 8px; color: var(--text-dim); text-transform
   background: var(--border);
   border: 1px solid var(--border);
   margin-bottom: 24px;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 .metric {
   background: var(--bg-elev);
@@ -75,7 +111,7 @@ h2 { font-size: 14px; margin: 24px 0 8px; color: var(--text-dim); text-transform
   gap: 4px;
 }
 .metric-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
-.metric-value { font-family: var(--mono); font-size: 22px; font-weight: 500; }
+.metric-value { font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--text); letter-spacing: -0.01em; }
 
 .data-table {
   width: 100%;
@@ -115,11 +151,12 @@ ul { padding-left: 18px; }
 .data-table .dim { color: var(--text-dim); }
 .data-table .crit { color: #e15555; font-weight: 600; }
 
-.badge { font-size: 10px; padding: 2px 6px; border-radius: 2px; text-transform: uppercase; letter-spacing: 0.05em; font-family: var(--mono); }
-.badge-ok    { background: #1f3a22; color: #7fcc83; }
-.badge-warn  { background: #3a2f1c; color: #e0b341; }
-.badge-crit  { background: #3a1c1c; color: #e15555; }
-.badge-muted { background: var(--bg-elev); color: var(--text-dim); }
+.badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.05em; font-family: var(--mono); border: 1px solid transparent; }
+.badge-ok    { background: color-mix(in srgb, var(--ok) 14%,     transparent); color: #6EE7B7; border-color: color-mix(in srgb, var(--ok) 28%,     transparent); }
+.badge-warn  { background: color-mix(in srgb, var(--warn) 14%,   transparent); color: #FCD34D; border-color: color-mix(in srgb, var(--warn) 28%,   transparent); }
+.badge-crit  { background: color-mix(in srgb, var(--danger) 14%, transparent); color: #FDA4AF; border-color: color-mix(in srgb, var(--danger) 28%, transparent); }
+.badge-muted { background: var(--bg-elev); color: var(--text-dim); border-color: var(--border); }
+.badge-info  { background: var(--accent-wash-md); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
 
 .data-empty { padding: 32px; text-align: center; border: 1px dashed var(--border); }
 .data-empty .hint { display: inline-block; text-align: left; padding: 12px 16px; background: var(--bg-elev); margin-top: 12px; }
@@ -139,9 +176,20 @@ ul { padding-left: 18px; }
   color: var(--accent);
   cursor: pointer;
   text-decoration: none;
-  border-radius: 2px;
+  border-radius: 3px;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
 }
-.aegis-button:hover { background: rgba(110, 231, 255, 0.08); text-decoration: none; }
+.aegis-button-primary {
+  background: linear-gradient(180deg, var(--accent-strong), var(--accent-deep));
+  border-color: var(--accent-strong);
+  color: #FFFFFF;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--accent-vivid) 35%, transparent) inset, var(--shadow-sm);
+}
+.aegis-button-primary:hover {
+  background: linear-gradient(180deg, var(--accent-vivid), var(--accent-strong));
+  box-shadow: 0 0 0 4px var(--accent-ring), var(--shadow-sm);
+}
+.aegis-button:hover { background: var(--accent-wash); text-decoration: none; border-color: var(--accent-strong); }
 .aegis-button:disabled { opacity: 0.5; cursor: not-allowed; }
 .aegis-button-ghost {
   border-color: var(--border);
@@ -155,6 +203,8 @@ ul { padding-left: 18px; }
   padding: 16px 20px;
   margin: 16px 0 24px;
   max-width: 640px;
+  border-radius: 4px;
+  box-shadow: var(--shadow-sm), inset 0 1px 0 color-mix(in srgb, var(--accent) 4%, transparent);
 }
 .aegis-panel-title { font-size: 14px; margin: 0 0 4px; font-weight: 600; color: var(--text); text-transform: none; letter-spacing: 0; }
 .aegis-panel .field { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
@@ -170,7 +220,11 @@ ul { padding-left: 18px; }
   border-radius: 2px;
 }
 .aegis-panel .field input:focus,
-.aegis-panel .field select:focus { outline: 1px solid var(--accent); outline-offset: 0; }
+.aegis-panel .field select:focus {
+  outline: none;
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
 .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
 .form-error { color: var(--danger); font-size: 12px; margin-top: 12px; }
 .form-warning { color: var(--warn); font-size: 12px; margin: 8px 0; }
@@ -256,20 +310,20 @@ ul { padding-left: 18px; }
    :focus-visible is the modern primitive; click events stay clean. */
 :focus { outline: none; }
 :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-  border-radius: 2px;
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+  border-radius: 3px;
 }
 .aegis-button:focus-visible,
 .aegis-button-ghost:focus-visible,
 .mini-btn:focus-visible,
 .kbd-trigger:focus-visible {
-  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent-strong), 0 0 16px var(--accent-ring);
   outline: none;
 }
 
 /* Selection — readable on dark background. */
-::selection { background: rgba(110, 231, 255, 0.28); color: var(--text); }
+::selection { background: var(--accent-wash-lg); color: var(--text); }
 
 /* Custom scrollbar — thin, non-intrusive, on-hover only. */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -288,8 +342,10 @@ body {
 /* ── Header — responsive collapse + Cmd-K trigger ──────────────────── */
 .aegis-header {
   z-index: 40;
-  backdrop-filter: blur(8px);
-  background: color-mix(in srgb, var(--bg-elev) 85%, transparent);
+  backdrop-filter: blur(10px) saturate(140%);
+  background: color-mix(in srgb, var(--bg-elev) 78%, transparent);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--accent) 6%, transparent);
 }
 .aegis-header-spacer { flex: 1; }
 .aegis-header nav a {
@@ -298,13 +354,17 @@ body {
   position: relative;
   transition: color 0.12s ease, background 0.12s ease;
 }
-.aegis-header nav a[data-active='true'] { color: var(--text); }
+.aegis-header nav a[data-active='true'] {
+  color: var(--text);
+  background: var(--accent-wash);
+}
 .aegis-header nav a[data-active='true']::after {
   content: '';
   position: absolute;
   inset: auto 8px -13px 8px;
   height: 2px;
-  background: var(--accent);
+  background: linear-gradient(90deg, var(--accent-strong), var(--accent-vivid));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-vivid) 50%, transparent);
 }
 
 /* ── Tables — sticky header, row hover, copyable cells ─────────────── */
@@ -318,14 +378,16 @@ body {
   transition: background 0.08s ease;
 }
 .data-table tbody tr:hover {
-  background: rgba(110, 231, 255, 0.04);
+  background: var(--accent-wash);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 .data-table tbody tr:hover .row-action-cluster .mini-btn {
   border-color: var(--text-dim);
   color: var(--text);
 }
 .data-table tbody tr:focus-within {
-  background: rgba(110, 231, 255, 0.06);
+  background: var(--accent-wash-md);
+  box-shadow: inset 2px 0 0 var(--accent-strong);
 }
 
 /* ── Status dots — small color pip, paired with badge text ──────────── */
@@ -361,7 +423,7 @@ body {
   margin: -1px -4px;
   transition: background 0.1s ease;
 }
-.copyable:hover { background: rgba(110, 231, 255, 0.06); }
+.copyable:hover { background: var(--accent-wash); }
 .copyable[data-copied='true'] { background: rgba(74, 222, 128, 0.14); }
 .copyable .copy-icon {
   opacity: 0;
@@ -379,13 +441,14 @@ body {
   padding: 1px 6px;
   font-family: var(--mono);
   font-size: 10.5px;
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
   border-bottom-width: 2px;
   border-radius: 3px;
   color: var(--text-dim);
   line-height: 1.2;
   vertical-align: 1px;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--accent) 5%, transparent);
 }
 .kbd-trigger {
   display: inline-flex;
@@ -418,10 +481,10 @@ body {
 }
 .cmdk-shell {
   width: min(640px, calc(100vw - 32px));
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(110, 231, 255, 0.08);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   animation: aegis-pop 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -459,23 +522,27 @@ body {
 }
 .cmdk-item:hover,
 .cmdk-item[data-active='true'] {
-  background: rgba(110, 231, 255, 0.08);
+  background: var(--accent-wash-md);
   color: var(--text);
+}
+.cmdk-item[data-active='true'] {
+  box-shadow: inset 2px 0 0 var(--accent-strong);
 }
 .cmdk-item[data-active='true']::before {
   content: '›';
-  color: var(--accent);
+  color: var(--accent-vivid);
   margin-left: -10px;
   margin-right: 4px;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent-vivid) 50%, transparent);
 }
 .cmdk-item .cmdk-hint {
   margin-left: auto;
   font-size: 10px;
-  color: var(--text-dim);
+  color: var(--text-mute);
 }
 .cmdk-item mark {
   background: transparent;
-  color: var(--accent);
+  color: var(--accent-vivid);
   font-weight: 600;
 }
 .cmdk-empty { padding: 24px 16px; text-align: center; color: var(--text-dim); font-size: 12px; }
@@ -719,7 +786,7 @@ body {
   justify-content: center;
   border: 1px solid var(--accent);
   border-radius: 50%;
-  background: rgba(110, 231, 255, 0.06);
+  background: var(--accent-wash);
 }
 .quickstart-step h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
 .quickstart-step p  { margin: 0 0 8px; color: var(--text-dim); font-size: 12px; }
