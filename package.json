@@ -44,7 +44,8 @@
     "check:openapi-zod": "pnpm -F @aegis/types exec tsx scripts/check-openapi-zod-parity.ts",
     "check:openapi-prisma": "pnpm -F @aegis/api exec tsx scripts/check-openapi-prisma-parity.ts",
     "check:migrations": "pnpm -F @aegis/scripts exec tsx check-migration-immutability.ts",
-    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:openapi-zod && pnpm check:openapi-prisma && pnpm check:migrations"
+    "check:denial-reason-gen": "pnpm gen:denial-reason && git diff --exit-code -- packages/sdk-ts/src/denial-reason.generated.ts packages/sdk-py/aegis/_denial_reason_generated.py",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:openapi-zod && pnpm check:openapi-prisma && pnpm check:migrations && pnpm check:denial-reason-gen"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.0.1",
