@@ -82,7 +82,7 @@ export default function PrivacyPage() {
           AEGIS is designed to minimize personal data collection. Specifically we collect:
         </p>
         <ul style={{ marginTop: 10 }}>
-          <li><strong>Account data.</strong> Email, name, organization, role. Source: Stripe Checkout + dashboard signup.</li>
+          <li><strong>Account data.</strong> Email, name, organization, role. Source: identity provider (Auth0, Clerk, or WorkOS) at signup. Stripe (post-checkout) populates billing fields only.</li>
           <li><strong>Authentication data.</strong> API keys (hashed at rest with bcrypt cost-12). Auth0 / Clerk session tokens for dashboard login. Public keys for agents (Ed25519). <strong>We never collect or store private keys.</strong></li>
           <li><strong>Verify request metadata.</strong> Agent ID, action string, timestamp, IP address (truncated to /24 for IPv4, /48 for IPv6), trust band returned. This is the audit chain — hash-linked, Ed25519-signed, append-only.</li>
           <li><strong>Behavioral attestation signals.</strong> Aggregated, anonymized signals across a tenant&rsquo;s agent population (BATE — Behavioral Attestation Engine). No raw request bodies are retained.</li>

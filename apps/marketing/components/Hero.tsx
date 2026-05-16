@@ -6,7 +6,7 @@ import { LiveCounter } from './LiveCounter';
 import { VerifyBurst } from './VerifyBurst';
 
 interface HeroProps {
-  /** Primary CTA href — usually a Stripe Payment Link or signup route. */
+  /** Primary CTA href — until Phase 0 closes this is a `mailto:` (see docs/LAUNCH_RUNBOOK.md § Phase 0); post-v1.1 this becomes a Flow-B checkout-session URL. */
   primaryHref: string;
   /** Secondary CTA href — usually #quickstart or /docs. */
   secondaryHref: string;

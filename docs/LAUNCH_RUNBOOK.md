@@ -41,7 +41,7 @@ The five gates between code-complete and first-dollar:
 
 This runbook originally assumed **Flow A**: stranger clicks a Stripe Payment Link, the webhook handler provisions an account and an API key, and the API key arrives by email. A 2026-05-16 read of `apps/api/src/modules/billing/` and `apps/dashboard/app/` shows Flow A is **not wired**. The actually-wired path is **Flow B**: authenticated principal initiates `createCheckoutSession` from inside the dashboard (`apps/api/src/modules/billing/billing.controller.ts:222-225`), and `onCheckoutCompleted` updates the plan tier on the *existing* principal record.
 
-Four gaps must close before either Flow A or Flow B is a stranger-shaped journey. Until then, **sales-driven onboarding via mailto is the only honest path** — and the marketing CTAs have been downgraded accordingly (`apps/marketing/app/page.tsx`, 2026-05-16). The operator MUST NOT create live-mode Stripe Payment Links.
+**Five gaps** must close before any customer can be onboarded. **Gap 4 (Auth0 v4) and Gap 5 (no admin principal-creation path) are load-bearing — until they close, there is no wired way to convert a prospect into a principal record.** Until then, the marketing CTAs route to mailto (`apps/marketing/app/page.tsx`, 2026-05-16) and the operator MUST NOT create live-mode Stripe Payment Links.
 
 ### Gap 1 — Bare Payment Links lack authenticated principal
 
@@ -64,13 +64,27 @@ A 2026-05-16 grep across `apps/api/src/` for `resend|sendgrid|nodemailer|mailgun
 
 Operator decision #5 in root `CLAUDE.md`: "Auth0 v4 SDK install and real provider configuration are required before the dashboard login receiver is live." Additionally, `apps/dashboard/app/` has no `signup/` directory and no `welcome/` directory. Either Auth0 hosted signup is delegated (then Auth0 v4 must be wired) or a signup route is built (then it must hand off to Flow B's authenticated checkout). The runbook's original "redirect to `https://app.${OP_DOMAIN}/welcome?session_id=...`" target does not exist.
 
+### Gap 5 — No admin path to create a principal in production (added round 2, 2026-05-16)
+
+This gap was missed in the round-1 correction (`fcbfb4d`) — a Rule-10 violation against the very lesson the correction recorded. A deeper 2026-05-16 grep proves:
+
+- **No `POST /v1/principals` creation endpoint.** `v1/principals/*` exists only as `v1/principals/me/api-keys` (`apps/api/src/modules/auth/api-key-rotation.controller.ts:34`), and that route is for an **already-authenticated principal** to rotate their own keys — not for an admin to create new principals.
+- **No `AEGIS_ADMIN_TOKEN` config.** Zero matches across `apps/api/src/config/`.
+- **No `AdminGuard` or admin auth middleware.** Zero matches in `apps/api/src/`.
+- **No `seed:admin` script.** `apps/api/package.json` has only `seed: tsx ../../scripts/seed-dev.ts`, and `scripts/seed-dev.ts` is explicitly **forbidden in prod** (header comment line 29).
+- **Only wired production principal-creation paths** are the IDP adapter webhooks: `apps/api/src/modules/idp-clerk/clerk.adapter.ts`, `idp-workos/workos.adapter.ts`, `auth0/auth0.adapter.ts` — each calls `prisma.principal.create` when their IDP fires a `user.created` event. The Auth0 path is the most production-ready of the three, but it depends on Gap 4 (Auth0 v4 SDK install + provider configuration).
+
+**Implication.** Even the sales-driven mailto path from round 1's Day 4 is fiction without Gap 5 closing. There is no way for the operator to convert "prospect emailed sales@" into "principal record + API key" without one of: (a) Auth0 v4 wired (Gap 4 close + Auth0 hosted signup invite the prospect through), (b) an admin CLI/script built on top of `prisma.principal.create` + the existing key-issuance utilities (would need to also build the AdminGuard + AEGIS_ADMIN_TOKEN), or (c) direct psql to the Railway prod DB (brittle, not auditable, off-spec).
+
+**Path of least resistance:** close Gap 4 first. Auth0 v4 install + their hosted invite flow (Auth0 dashboard → "Invite user by email") solves cold-start onboarding for v1 — the operator emails the prospect an Auth0 invite link, the prospect creates an Auth0 user, the existing webhook adapter creates the principal, and an existing admin (or the prospect themselves via the api-key-rotation surface) issues the first API key. Gap 5 closes as a side effect of Gap 4 closing.
+
 ### What this means for the Day-by-Day plan
 
 - **Day 1** — unchanged. Distribution surface (marketing + dashboard on Vercel) ships as written.
 - **Day 2** — **partially deferred**. Stripe live mode prices + env vars on Railway still ship. **Do NOT create Payment Links.** § 2.2 and § 2.4 below are flagged accordingly.
 - **Day 3** — unchanged. Railway deploy still ships; the billing webhook handles plan updates for any Flow B customer who reaches it.
-- **Day 4** — **replaced**. End-to-end test runs against the sales-driven path: operator provisions an admin key out-of-band, prospect uses it against the live API, paying customer is invoiced manually via Stripe until Phase 0 closes.
-- **Day 5** — unchanged.
+- **Day 4** — **blocked until Gaps 4 + 5 close (Auth0 v4 wire-up)**. Round-1 prescribed an admin-API path that does not exist. Round-2 Day 4 is contingent on Auth0 v4 install (operator decision #5) — that single operator step unblocks the wired Auth0 invite → adapter creates principal → dashboard issues API key flow.
+- **Day 5** — unchanged in principle, but the first customers come from your network via Auth0 invites you send personally, not from cold marketing-site traffic. v1 marketing CTAs are mailto-only; treat the site as a teaser + technical credibility surface, not a self-serve funnel.
 
 ---
 
@@ -284,37 +298,29 @@ Copy the resulting API key → `vercel env add AEGIS_DASHBOARD_API_KEY` for the 
 
 ---
 
-## Day 4 — End-to-end smoke test (target: 2 hours, sales-driven path)
+## Day 4 — End-to-end smoke test (target: 2 hours, Auth0-invite path)
 
-Phase 0 makes the stranger-shaped flow unshipable for v1. Run the **sales-driven** smoke test instead. This is what the marketing CTAs (now mailto-only) actually deliver.
+**Pre-condition: Gap 4 + Gap 5 must close before Day 4 is runnable.** The shortest path to closing both is Auth0 v4 install + provider config (operator decision #5). Without it, there is **no wired way** to convert a prospect email into an AEGIS principal record. Round 1 of this runbook prescribed `POST /v1/principals` + `AEGIS_ADMIN_TOKEN` — neither exists in code; that step is removed in round 2. See Phase 0 Gap 5 above.
+
+Once Auth0 v4 is wired:
 
 1. Open an incognito window, no cookies.
 2. Navigate to `https://${OP_DOMAIN}`. Confirm landing renders. Click "Get your AEGIS key" / "Start Developer" / any paid-plan CTA.
 3. Confirm the browser opens a `mailto:sales@aegislabs.io` (or your operator-set `NEXT_PUBLIC_SALES_EMAIL`) compose window with the plan name pre-filled in the subject. **No Stripe redirect should occur.** If you see a Stripe URL, something has regressed — `apps/marketing/app/page.tsx`'s `planMailto` was bypassed.
-4. From a separate window, log into the Railway-deployed API as the admin (see Day 3 § 3.6). Provision a prospect account:
-
-```sh
-# From a local terminal with admin API key
-curl -X POST https://api.${OP_DOMAIN}/v1/principals \
-  -H "Authorization: Bearer ${AEGIS_ADMIN_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{ "email": "prospect@example.com", "planTier": "DEVELOPER" }'
-# expect: 201 with { principalId, apiKey } — copy the apiKey, it is shown ONCE
-```
-
-5. Send the apiKey to the prospect over your sales channel (out-of-band — phone, signed PDF, encrypted vault link). **Never copy-paste keys into chat / email**; treat them like Ed25519 prod secrets.
-6. Manually invoice via Stripe: Stripe dashboard → Customers → New customer → invoice for $49 (Developer) or $299 (Team) referencing the price IDs from Day 2 § 2.1. Mark the invoice as `Auto-charge if a payment method is on file` so the prospect's stored card auto-charges on subsequent months. Once the invoice paid event fires, the Day 3 webhook handler's `customer.subscription.updated` path will sync the plan tier on the principal.
+4. From your Auth0 tenant dashboard (`manage.auth0.com` → your tenant → Users → Create user) issue an invite to the prospect's email. Auth0 sends a hosted-flow signup link; the prospect completes signup; Auth0 fires `user.created` to the AEGIS API webhook (`apps/api/src/modules/auth0/auth0.adapter.ts`); the adapter calls `prisma.principal.create` and the principal record exists.
+5. The prospect logs into `https://app.${OP_DOMAIN}/login` (Auth0 hosted login redirect), lands in the authenticated dashboard. From the dashboard, they request their first API key — surface lives at `v1/principals/me/api-keys` (`apps/api/src/modules/auth/api-key-rotation.controller.ts:34`). The plaintext key is shown once on the page; user copies it.
+6. To upgrade the prospect from free-tier (10K verifies) to paid: prospect clicks the in-dashboard "Upgrade" CTA (Flow B — `apps/api/src/modules/billing/billing.controller.ts:222-225`'s `createCheckoutSession`), completes Stripe checkout, and the webhook updates their `planTier`.
 7. Prospect uses the API key in a quickstart locally:
 
 ```sh
-export AEGIS_KEY="<the-apikey-you-sent>"
+export AEGIS_KEY="<the-apikey-from-step-5>"
 pnpm --filter @aegis/sdk exec node ./examples/verify.js
 # expect: { valid: true, trustScore: 500, ... }
 ```
 
-If step 4 fails, the admin-API path is the bug. If step 7 fails, the verify path is the bug. Both are recoverable without losing the prospect — the API key was sent by you, not by an automated webhook, so you can re-issue.
+If step 4 fails, Auth0 provider config is the bug. If step 5 fails, the api-key-rotation surface or its dashboard caller is the bug. If step 6 fails, the Stripe price IDs from Day 2 § 2.1 are the bug. If step 7 fails, the verify path is the bug. Bisect from the top — each step has a single owner.
 
-> **Reminder:** the long-term goal is to compress steps 4-6 into a self-serve flow (Phase 0 close). v1 launch ships with the manual path; v1.1 ships Phase 0. Do not gate v1 on automation.
+> **Pre-Auth0 alternative (NOT recommended for v1):** an operator with Railway shell access can run `psql ${DATABASE_URL}` and `INSERT INTO "Principal" (...)`, then run a custom Node script that calls `prisma.apiKey.create` with a BCrypt-hashed key. This is brittle (no audit trail, no idempotency, no email send), unsupported, and creates principal records that bypass every IDP-driven invariant. Do not do this for paying customers; use Auth0.
 
 ### Known follow-ups (already accepted)
 
@@ -348,7 +354,7 @@ You can stop the launch sprint when **all five** of the following are true:
 | 1 | `https://${OP_DOMAIN}` returns 200 with the landing page | `curl -I https://${OP_DOMAIN}` |
 | 2 | `https://app.${OP_DOMAIN}/login` returns the dashboard login | Visit in incognito (note: serves an empty state until Auth0 v4 is wired per OD #5) |
 | 3 | `https://api.${OP_DOMAIN}/v1/health/ready` returns 200 | `curl https://api.${OP_DOMAIN}/v1/health/ready` |
-| 4 | Sales-driven path E2E: marketing CTA → mailto opens → admin provisions principal + API key → manual Stripe invoice → prospect runs `POST /v1/verify` successfully | Day 4 smoke test (revised 2026-05-16) |
+| 4 | Auth0-invite path E2E: marketing CTA → mailto opens → operator sends Auth0 invite → prospect signs up → adapter webhook creates principal → prospect issues API key from dashboard → `POST /v1/verify` succeeds | Day 4 smoke test (revised round 2, 2026-05-16). Blocked on Auth0 v4 (operator decision #5). |
 | 5 | At least one paying customer (you count if no one external signs up in week 1) | Stripe dashboard → live mode → recent payments |
 
 **Post-v1 acceptance (Phase 0 close, v1.1):** add a row 4b — "Authenticated dashboard signup → in-dashboard checkout → automated API key issuance → email delivery". Gate v1.1 on Phase 0 Gaps 1-4 closing, not v1.

@@ -354,10 +354,10 @@ export default function Landing() {
           <div className="cta-band">
             <div>
               <h2>The agent economy needs an identity layer. It is here.</h2>
-              <p>Get your AEGIS key in 60 seconds. First 10,000 verifies on us. No card required to start.</p>
+              <p>Reach our team to provision an account. First 10,000 verifies on us. No card required to start. Self-serve checkout ships with v1.1.</p>
             </div>
             <div className="cta-band-actions">
-              <a href={LINKS.developer} className="btn btn-primary">Get your AEGIS key →</a>
+              <a href={LINKS.developer} className="btn btn-primary">Talk to the team →</a>
               <a href={`${DASHBOARD_URL}/login`} className="btn btn-ghost">Log in</a>
             </div>
           </div>

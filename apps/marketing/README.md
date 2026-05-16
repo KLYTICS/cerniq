@@ -19,29 +19,22 @@ Port 3001 is intentional so you can run the dashboard (port 3000) and marketing 
 
 ## Deploying
 
-See [`docs/LAUNCH_RUNBOOK.md`](../../docs/LAUNCH_RUNBOOK.md) for the operator-side launch sequence.
+See [`docs/LAUNCH_RUNBOOK.md`](../../docs/LAUNCH_RUNBOOK.md) for the operator-side launch sequence — including Phase 0 (the five gaps blocking self-serve onboarding).
 
 Short version:
 
 1. `vercel link` (separate Vercel project from the dashboard)
-2. Set the four `NEXT_PUBLIC_STRIPE_LINK_*` env vars to the live-mode Stripe Payment Link URLs
+2. Set `NEXT_PUBLIC_SALES_EMAIL` (paid-plan CTAs all route here as mailto) and `NEXT_PUBLIC_DASHBOARD_URL`
 3. `vercel --prod`
 4. Point the apex domain at Vercel via DNS
 
-## Stripe Payment Links
+## Paid-plan CTAs — mailto until Phase 0 closes
 
-The pricing CTAs link to Stripe Payment Links — operator-created URLs that take the customer through Stripe's hosted checkout and fire a webhook back to the AEGIS API on success. No backend integration required for v1; Stripe handles the entire checkout.
+The pricing CTAs (and the hero "Get your AEGIS key" button) all open a `mailto:${NEXT_PUBLIC_SALES_EMAIL}` compose window with the plan name pre-filled in the subject. `apps/marketing/app/page.tsx`'s `planMailto` is the single source of truth.
 
-The four links to create in Stripe's live dashboard:
+This is **not a degradation fallback** — it is the intended v1 behavior. The previous design (Stripe Payment Links → webhook provisions account + API key) was unwired at four points in `apps/api/src/modules/billing/` plus the absent Auth0 v4 wire-up. See [`docs/LAUNCH_RUNBOOK.md`](../../docs/LAUNCH_RUNBOOK.md) § Phase 0 for the five gaps and the v1.1 plan that closes them.
 
-| Plan | Env var | Stripe price |
-|---|---|---|
-| Developer | `NEXT_PUBLIC_STRIPE_LINK_DEVELOPER` | `$49/mo, 50K verifies` |
-| Team | `NEXT_PUBLIC_STRIPE_LINK_TEAM` | `$299/mo, 500K verifies` |
-| Scale | `NEXT_PUBLIC_STRIPE_LINK_SCALE` | `$1,499/mo, 5M verifies` |
-| Enterprise | `NEXT_PUBLIC_STRIPE_LINK_ENTERPRISE` | `mailto:sales@<domain>` (or HubSpot form URL) |
-
-If env vars are unset, the buttons fall back to a `mailto:` for manual provisioning — site never breaks, just degrades.
+**Do NOT** set `NEXT_PUBLIC_STRIPE_LINK_*` env vars — they are no longer read by the page; setting them has no effect. **Do NOT** create live-mode Stripe Payment Links in the Stripe dashboard until Phase 0 Gaps 1-3 close (`stripe.service.ts:553-559` will throw on every webhook call until then).
 
 ## Pricing source-of-truth
 
@@ -49,6 +42,6 @@ V1 ships with pricing **hardcoded in `app/page.tsx`** to match `docs/decisions/0
 
 ## What this site does NOT do
 
-- Authentication — that lives in `@aegis/dashboard` at `app.aegis.dev`
+- Authentication — that lives in `@aegis/dashboard` at `app.aegis.dev` (gated on Auth0 v4 install, operator decision #5)
 - API calls — no `@aegis/sdk` dependency, no fetches to AEGIS API
-- User accounts — Stripe checkout creates the account via webhook to the API; this site only routes the user there
+- User accounts — the wired path is IDP-driven: Auth0 (or Clerk / WorkOS) sends a `user.created` webhook to the AEGIS API; the matching adapter (`apps/api/src/modules/{auth0,idp-clerk,idp-workos}/*.adapter.ts`) calls `prisma.principal.create`. This site only opens a mailto for the operator to issue an Auth0 invite manually until v1.1's self-serve flow lands.
