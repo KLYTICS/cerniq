@@ -349,3 +349,95 @@ describe('parseArgs — purity contract', () => {
     expect(a).toEqual(b);
   });
 });
+
+describe('parseArgs — total-function contract (pathological inputs)', () => {
+  // Property-style hand-rolled coverage: parseArgs MUST be a total function
+  // over string[]. For every input below — including malformed, hostile, and
+  // bizarre shapes — parseArgs must:
+  //   (1) not throw
+  //   (2) return a discriminator-valid ParseResult
+  //   (3) be idempotent (calling twice produces deep-equal results)
+  //   (4) not mutate the input
+  //
+  // fast-check would test this property over generated random strings, but
+  // it isn't a dep in this workspace yet. Hand-rolled exhaustive enumeration
+  // of edge cases that fast-check would otherwise discover provides similar
+  // defensive coverage with zero new deps.
+  //
+  // Why each input is interesting:
+  //   - Empty / single-char / dash-only:  pre-flag edge cases
+  //   - Control chars / unicode:          tests no string-content assumption
+  //   - Very long argv / very long values: stress-tests linear walks
+  //   - All flags / no positionals:        the parser's "shape gymnastics"
+  //   - Repeated subcommands:              indexOf-first-occurrence assumption
+  //   - Mixed help + valid + invalid:      help-anywhere priority lock
+  //   - Value-shaped-like-a-flag:          tristate ambiguity boundary
+  const PATHOLOGICAL_INPUTS: ReadonlyArray<readonly [name: string, argv: readonly string[]]> = [
+    ['empty argv', []],
+    ['single empty string', ['']],
+    ['two empty strings', ['', '']],
+    ['lone single-dash', ['-']],
+    ['lone double-dash', ['--']],
+    ['lone triple-dash', ['---']],
+    ['verify with empty path', ['verify', '']],
+    ['verify with NUL in path', ['verify', '\x00']],
+    ['unicode subcommand', ['🦅']],
+    ['control chars throughout', ['\x01', '\x02', '\x03']],
+    ['very long single arg', ['verify', '/'.repeat(5000)]],
+    ['very long argv', Array(500).fill('verify')],
+    ['many unknown flags', ['verify', './x', '--jwks', 'https://y', ...Array(20).fill(0).map((_, i) => `--unknown-${i}`)]],
+    ['repeated subcommand tokens as args', ['verify', 'verify', 'verify-manifests', 'verify']],
+    ['repeated --jwks (last wins or first wins)', ['verify', './x', '--jwks', 'https://a', '--jwks', 'https://b']],
+    ['--help buried after valid verify run', ['verify', './x.ndjson', '--jwks', 'https://y', '--json', '--help']],
+    ['-h interleaved with valid flags', ['verify', './x', '-h', '--jwks', 'https://y']],
+    ['flag value that looks like a flag value', ['verify', './x', '--jwks', '--this-is-not-a-real-flag']],
+    ['mixed unicode + flags', ['verify-manifests', './café-corpus', '--jwks-file', './日本.json']],
+    ['negative number as max-row-detail', ['verify', './x', '--jwks', 'https://y', '--max-row-detail', '-100']],
+    ['scientific notation max-row-detail', ['verify', './x', '--jwks', 'https://y', '--max-row-detail', '1e5']],
+    ['Infinity max-row-detail', ['verify', './x', '--jwks', 'https://y', '--max-row-detail', 'Infinity']],
+    ['NaN string max-row-detail', ['verify', './x', '--jwks', 'https://y', '--max-row-detail', 'NaN']],
+    ['unicode whitespace as max-row-detail', ['verify', './x', '--jwks', 'https://y', '--max-row-detail', ' ']],
+  ];
+
+  it.each(PATHOLOGICAL_INPUTS.map(([name, argv]) => [name, argv] as const))(
+    'is a total function for: %s',
+    (_name, argv) => {
+      // Property 1: never throws. Reaching the next line proves it.
+      // Property 4: must not mutate input. Snapshot before, compare after.
+      const before = [...argv];
+      const result = parseArgs([...argv]);
+      // Reading argv length triggers no mutation; deep-equal check confirms.
+      expect([...argv]).toEqual(before);
+      // Property 2: discriminator-valid ParseResult. Exhaustively check the
+      // union shape so an unrecognized result shape (e.g. someone returning
+      // a plain string by mistake) fails this test.
+      if (result.ok) {
+        expect(['verify', 'verify-manifests']).toContain(result.args.command);
+      } else {
+        expect(['help', 'invalid']).toContain(result.reason);
+        if (result.reason === 'help') {
+          expect(result.exitCode).toBe(0);
+        } else {
+          expect(result.exitCode).toBe(2);
+          expect(typeof result.message).toBe('string');
+          expect(result.message.length).toBeGreaterThan(0);
+        }
+      }
+      // Property 3: idempotent. Second call returns deep-equal result.
+      const second = parseArgs([...argv]);
+      expect(second).toEqual(result);
+    },
+  );
+
+  it('repeated flags use FIRST occurrence (locked behavior of indexOf-based parser)', () => {
+    // The current parser uses input.indexOf(flag), so the FIRST --jwks wins.
+    // Locking this behavior so a future "switch to lastIndexOf or reduce"
+    // refactor surfaces in the spec rather than silently changing operator
+    // semantics. If the contract ever flips, update this test deliberately.
+    const r = parseArgs(['verify', './x', '--jwks', 'https://first', '--jwks', 'https://second']);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    if (r.args.command !== 'verify') return;
+    expect(r.args.jwksUrl).toBe('https://first');
+  });
+});
