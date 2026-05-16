@@ -486,7 +486,33 @@ See `docs/spec/01_MASTER.md` § 7 (Phase 3) and the master backlog
 - **Reference**: ADR-0013, OD-014.
 
 ### M-036 · Audit storage compression (Parquet+zstd)
-- **STATUS**: open · prereq for ADR-0013 flag flip.
+- **STATUS**: **Phase 0a (apps/api kernel) + 0b (audit-verifier portable port)
+  + 0c (CLI corpus walker) LANDED** @ 2026-05-11 (ADR-0015). Phase 0a =
+  dep-free, schema-free, framework-free manifest kernel in
+  `apps/api/src/modules/audit/compression/`. Phase 0b = portable port into
+  `@aegis/audit-verifier` (zero new deps, edge-runtime safe, public stable API)
+  with 21 cross-package parity tests. Phase 0c = `aegis-audit-verify
+  verify-manifests <dir>` subcommand + pure `verifyManifestCorpus()` API for
+  programmatic offline corpus verification (per-slice walk, signing-keys
+  aggregation, typed failure reasons).
+  **Combined coverage: 41 jest (apps/api) + 33 vitest (audit-verifier) + 21
+  cross-package parity = 95 tests guarding manifest integrity + corpus
+  workflow end-to-end.**
+  **Phases 1-3 BLOCKED ON OPERATOR — see OD-017** (Parquet/zstd deps,
+  S3-vs-R2-vs-GCS, `AuditEvent.seq` migration, retention sweeper boundary,
+  manifest publication policy, PQ hybrid manifest signing).
+- **Paths**: `apps/api/src/modules/audit/compression/**`,
+  `packages/audit-verifier/src/manifest.{ts,spec.ts}`,
+  `packages/audit-verifier/src/manifest-corpus.{ts,spec.ts}`,
+  `packages/audit-verifier/src/cli.ts` (additive subcommand),
+  `packages/audit-verifier/src/index.ts` (additive exports),
+  `tests/cross-package/audit-manifest-parity.spec.ts`,
+  `docs/decisions/0015-audit-storage-compression.md`,
+  (Phase 1+) `scripts/audit-{compress,restore}.ts`,
+  (Phase 2+) `apps/api/prisma/schema.prisma` (additive: `AuditEvent.seq`,
+  `AuditCompressionManifest`, `AuditCompressionCheckpoint`).
+- **Prereq for**: ADR-0013 flag flip (PQ-hybrid signed audit row size doubles
+  without warm-tier compression).
 
 ### M-037 · Audit signing routed through `KmsAdapter`
 - **STATUS**: open · **BLOCKED on `audit.service.ts` change** (parallel
