@@ -85,7 +85,20 @@ HBR_PATTERN='^apps/api/src/modules/verify/algorithm/|^apps/api/prisma/schema\.pr
 if [ "${SKIP_PREFLIGHT:-0}" != "1" ] && \
    git diff --cached --name-only | grep -qE "$HBR_PATTERN"; then
   echo "preflight: high-blast-radius change staged — running fast gate..."
-  if ! make -s preflight-fast; then
+  # NOTE: capture preflight's exit code via the `else` branch of a
+  # positive `if`. The previous form `if ! make ...; then code=$?` was
+  # buggy: in POSIX shells, $? inside the `then` branch of `if !` is
+  # the negated condition's value (always 0 or 1), NOT the inner
+  # command's actual exit code. That collapsed every preflight failure
+  # — including the gating exit 2 — into the warning path, so the
+  # `code -ge 2` check never fired and gating failures silently
+  # leaked past the hook. Empirical test (bash):
+  #   fake() { return $1; }
+  #   if ! fake 2; then code=$?; echo "$code"; fi   → prints 0 (BUG)
+  #   if fake 2; then :; else code=$?; echo "$code"; fi → prints 2 (OK)
+  if make -s preflight-fast; then
+    : # preflight clean — nothing to do
+  else
     code=$?
     if [ "$code" -ge 2 ]; then
       echo
