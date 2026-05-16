@@ -48,6 +48,25 @@ The agent caller passes its AEGIS token via either:
 1. `X-AEGIS-Token` header (preferred for HTTP / SSE / WebSocket transports)
 2. `_aegis_token` field in JSON-RPC params (fallback for stdio transport)
 
+The bridge scopes every targeted MCP method to the specific tool /
+resource / prompt being invoked:
+
+| MCP method            | Verified action                                  |
+| --------------------- | ------------------------------------------------ |
+| `tools/call`          | `${prefix}<toolName>`                            |
+| `resources/read`      | `${prefix}resources/read.<uri>`                  |
+| `resources/subscribe` | `${prefix}resources/subscribe.<uri>`             |
+| `resources/unsubscribe`| `${prefix}resources/unsubscribe.<uri>`          |
+| `prompts/get`         | `${prefix}prompts/get.<name>`                    |
+| `tools/list` / `resources/list` / `prompts/list` | `${prefix}<method>` |
+
+`tools/call` uses a flat target namespace because tool names are
+unique per server (MCP spec §3.2). The other methods carry the method
+in the action so resource URIs cannot collide with tool names. AEGIS
+policies can therefore allow `mcp.fs.read_file` without allowing the
+whole `tools/call` method, and allow `resources/read.config://app/x`
+without allowing every resource on the server.
+
 ## Status
 
 **0.x — preview.** The MCP SDK 1.0 transport API is still firming up; we
@@ -62,6 +81,8 @@ the transport-specific glue may evolve.
 - The bridge **never caches** verification results. Each tool call
   re-verifies — at AEGIS-edge p99 of <80ms (Phase 3) this is acceptable
   even for chatty tools.
+- The bridge strips `_aegis_token` and `_aegis_headers` before invoking
+  downstream handlers, so auth material stays at the bridge boundary.
 
 ## See also
 

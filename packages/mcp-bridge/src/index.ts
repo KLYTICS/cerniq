@@ -35,9 +35,10 @@ export interface BridgeConfig {
    */
   minTrustBand?: 'PLATINUM' | 'VERIFIED' | 'WATCH' | 'FLAGGED';
   /**
-   * Action prefix for the MCP server, e.g. `'mcp.fs.'`. Will be
-   * concatenated with the MCP method name to form the AEGIS `action`
-   * claim — e.g. `mcp.fs.read_file`. Used for scope matching.
+   * Action prefix for the MCP server, e.g. `'mcp.fs.'`. For `tools/call`,
+   * the prefix is concatenated with the MCP tool name to form the AEGIS
+   * `action` claim — e.g. `mcp.fs.read_file`. Other MCP methods fall back
+   * to the method name, such as `mcp.fs.resources/read`.
    */
   actionPrefix: string;
   /**
@@ -54,7 +55,16 @@ export interface BridgeContext {
   target: string;
   /** Arguments the LLM is calling with. */
   args: unknown;
-  /** Request headers extracted from the transport. */
+  /**
+   * Request headers extracted from the transport.
+   *
+   * **Contract**: keys are guaranteed lowercased. Look up headers as
+   * `ctx.headers['x-aegis-token']`, not `ctx.headers['X-AEGIS-Token']`.
+   * HTTP header names are case-insensitive (RFC 9110 §5.1) and MCP
+   * transports vary (stdio, SSE, WebSocket) in the case they deliver;
+   * normalizing to lowercase here means consumers don't have to repeat
+   * the dance. Non-string header values are dropped on the way in.
+   */
   headers: Record<string, string>;
 }
 
@@ -102,14 +112,20 @@ export function wrapMcpHandler<TReq extends McpRequest, TRes>(
 ): (req: TReq) => Promise<TRes> {
   const minBand = config.minTrustBand ?? 'VERIFIED';
   return async (req: TReq) => {
-    const ctx: BridgeContext = {
+    const rawCtx: BridgeContext = {
       method: req.method,
       target: extractTarget(req),
       args: req.params,
       headers: extractHeaders(req),
     };
 
-    const token = extractToken(req, ctx);
+    const token = extractToken(req, rawCtx);
+    const sanitizedReq = stripBridgeParams(req);
+    const ctx: BridgeContext = {
+      ...rawCtx,
+      args: sanitizedReq.params,
+    };
+
     if (!token) {
       const reason: DenialReason = 'AGENT_NOT_FOUND';
       const denial = denialResponse(reason);
@@ -121,7 +137,7 @@ export function wrapMcpHandler<TReq extends McpRequest, TRes>(
     // today — when the verify-call shape gains one, thread mcpMethod/mcpTarget
     // through here. For now the action string carries the discriminator.
     const result = await config.aegis.verify(token, {
-      action: `${config.actionPrefix}${req.method}`,
+      action: buildVerifyAction(config.actionPrefix, ctx),
     });
 
     if (!result.valid) {
@@ -136,7 +152,7 @@ export function wrapMcpHandler<TReq extends McpRequest, TRes>(
       throw new BridgeDenialError(reason, result);
     }
 
-    return handler(req, { ...ctx, aegisVerify: result });
+    return handler(sanitizedReq, { ...ctx, aegisVerify: result });
   };
 }
 
@@ -163,9 +179,15 @@ function extractHeaders(req: McpRequest): Record<string, string> {
   // them. This extractor handles both.
   const params = req.params ?? {};
   const headers = params['_aegis_headers'];
-  return typeof headers === 'object' && headers !== null
-    ? (headers as Record<string, string>)
-    : {};
+  if (typeof headers !== 'object' || headers === null) return {};
+
+  const normalized: Record<string, string> = {};
+  for (const [name, value] of Object.entries(headers)) {
+    if (typeof value === 'string') {
+      normalized[name.toLowerCase()] = value;
+    }
+  }
+  return normalized;
 }
 
 function extractToken(req: McpRequest, ctx: BridgeContext): string | null {
@@ -173,6 +195,53 @@ function extractToken(req: McpRequest, ctx: BridgeContext): string | null {
   if (headerToken) return headerToken;
   const argToken = (req.params ?? {})['_aegis_token'];
   return typeof argToken === 'string' ? argToken : null;
+}
+
+function stripBridgeParams<TReq extends McpRequest>(req: TReq): TReq {
+  if (!req.params) return req;
+
+  const params = Object.fromEntries(
+    Object.entries(req.params).filter(([key]) => key !== '_aegis_token' && key !== '_aegis_headers'),
+  );
+  if (Object.keys(params).length === Object.keys(req.params).length) return req;
+
+  return { ...req, params } as TReq;
+}
+
+/**
+ * MCP methods that scope to a specific named target. For these, the
+ * action claim is constructed per-target so policies can grant
+ * per-tool, per-resource, or per-prompt access — denying everything
+ * else behind the same JSON-RPC method.
+ *
+ * `tools/call` uses a flat target namespace (`${prefix}${target}`)
+ * because tool names are unique within an MCP server (MCP spec §3.2):
+ * a policy on `mcp.fs.read_file` cannot accidentally match a resource
+ * URI that happens to spell `read_file`.
+ *
+ * `resources/*` and `prompts/get` namespace the target under the
+ * method (`${prefix}${method}.${target}`) because resource URIs and
+ * prompt names live in separate, attacker-influenced namespaces — a
+ * resource URI of `read_file` must NOT match a tool-scoped policy.
+ *
+ * List methods (`tools/list`, `resources/list`, `prompts/list`) have
+ * no target and fall back to `${prefix}${method}`.
+ */
+function buildVerifyAction(prefix: string, ctx: BridgeContext): string {
+  if (ctx.target) {
+    if (ctx.method === 'tools/call') {
+      return `${prefix}${ctx.target}`;
+    }
+    if (
+      ctx.method === 'resources/read' ||
+      ctx.method === 'resources/subscribe' ||
+      ctx.method === 'resources/unsubscribe' ||
+      ctx.method === 'prompts/get'
+    ) {
+      return `${prefix}${ctx.method}.${ctx.target}`;
+    }
+  }
+  return `${prefix}${ctx.method}`;
 }
 
 const BAND_ORDER: Record<NonNullable<BridgeConfig['minTrustBand']>, number> = {
