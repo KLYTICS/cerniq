@@ -5,6 +5,81 @@
 
 ---
 
+## 2026-05-16 AM (Intent Manifest enterprise hardening — adoption surface + BATE feedback loop + Prometheus metrics) — sid=opus-phase3-enterprise — claim=aegis:adoption-surface-commit
+
+**Status:** Phase 2 hardening LANDED in two atomic commits on `feat/sdk-verify-gateway-hardening`. Enterprise quality bar (CLAUDE.md invariants #2, #4, #7, #8 all explicitly mapped in commit bodies). Test gates green across three packages.
+
+### What landed
+
+**Commit `5e44480` — Phase 2 module + ADR-0017 + BATE feedback loop (17 files, 2,311 LOC)**
+- `apps/api/src/modules/intent/**` — 11-file Phase 2 issuance/reconciliation module with metrics wiring
+- `docs/decisions/0017-intent-manifest-runtime-issuance.md` — ADR (D1 separate endpoint, D2 async reconciliation, D3 no Phase 2 verify-wire emission)
+- `apps/api/prisma/schema.prisma` — `INTENT_MISMATCH_OBSERVED` added to `BateSignalType` enum
+- `apps/api/prisma/migrations/20260515000000_bate_intent_mismatch_observed/migration.sql` — additive `ALTER TYPE ... ADD VALUE`
+- `apps/api/src/modules/bate/bate.weights.ts` — `INTENT_MISMATCH_OBSERVED: -100`, per-window cap `300`, `WEIGHTS_VERSION='v1.2.0-intent-2026-05-15'`
+- `apps/api/src/modules/bate/bate.scorer.spec.ts` — 4 new tests proving cap binds, PLATINUM→VERIFIED demotion, single-mismatch arithmetic
+- `apps/api/src/common/observability/metrics.service.ts` — 5 metrics: `intentIssuedTotal{intent_kind}`, `intentIssueLatency`, `intentReconciledTotal{outcome}` (4 bounded labels: clean/mismatch_advised/mismatch_denied/replay), `intentReconcileLatency`, `intentMismatchTotal{mismatch_kind}` (8 bounded labels per kernel union)
+
+**Commit `7b36258` — Adoption surface (10 files, 1,053 LOC)**
+- `packages/verifier-rp/src/intent.ts` — `verifyIntent({ manifest, actuals, publicKeysByKid, now? })` with closed `VerifyIntentOutcome` union (approved | denied with `manifest_signature` | `reconciliation_mismatch`). Never throws on hostile input — Testament Book I §3 wedge made executable.
+- `packages/verifier-rp/test/intent.spec.ts` — 9 tests: approved path, signature failures (wrong-kid, tampered body), reconciliation failures (over-amount-cap, wrong-merchant, expired), hostile-input non-throwing
+- `packages/sdk-ts/src/intent.ts` — `IntentClient.{ issue, reconcile, get }` mirroring `AgentClient` shape; wired onto Aegis class as `aegis.intent`
+- `packages/sdk-ts/src/intent.spec.ts` — smoke tests verifying URL paths, methods, `Idempotency-Key` passthrough, reserved-header guard
+- `packages/sdk-ts/src/http.ts` — adds optional `headers` field to `RequestOptions` with reserved-headers guard (Content-Type, X-AEGIS-API-Key, X-AEGIS-Verify-Key, X-AEGIS-Sdk cannot be overridden)
+- `docs/spec/AEGIS_API_SPEC.yaml` — 3 endpoints + 10 component schemas; `recommendedDenialReason` declared `nullable: true` with `enum: [INTENT_MISMATCH]`
+- `tests/cross-package/intent-openapi-parity.spec.ts` — 19 tests locking bidirectional invariants (OpenAPI ↔ DTOs ↔ kernel union ↔ wire contract)
+
+### Test gates (all green)
+
+| Package        | Tests       | New             |
+|----------------|-------------|-----------------|
+| verifier-rp    | 67/67 PASS  | +9 intent.spec  |
+| sdk-ts         | 77/77 PASS  | +intent.spec    |
+| cross-package  | 162/162 PASS | +19 intent-openapi-parity (alongside peer bf9d6030's +22 fapi-rar-binding-parity) |
+| bate.scorer    | landed in 5e44480 | +4 INTENT_MISMATCH tests |
+
+### Closed feedback loop (the one that matters)
+
+```
+agent declares intent (POST /v1/intent — signed manifest)
+  → relying party verifies manifest signature locally (verifier-rp.verifyIntent)
+  → agent does work
+  → relying party reconciles actuals (POST /v1/intent/{id}/actuals)
+  → on mismatch: BATE.ingestSignal(INTENT_MISMATCH_OBSERVED)
+  → trust score drops by ≤300 per window
+  → next /v1/verify call returns DENIAL_REASON=TRUST_SCORE_TOO_LOW
+  → cross-relying-party signal that travels with the agent
+```
+
+No new wire surface needed — uses existing `DENIAL_REASON_PRECEDENCE` (per Phase 2 D3 sub-decision in ADR-0017).
+
+### What's next (queued, not started)
+
+1. **Examples** — `examples/intent-fintech-acp`, `examples/intent-treasury-iso20022`, `examples/intent-broker-dealer-finra`. Marketing peer `c8a965d3` (per inbox `36b472eb`) flips `/use-cases` Treasury + Broker-Dealer cards from `coming-soon` to `available` once these land. They consume the `IntentClient` surface that just shipped.
+2. **OD-018** — Phase 2.1 Postgres adapter for `IntentPorts` (memory adapter is in-process only; Phase 2 module gated behind `AEGIS_INTENT_MANIFEST_ENABLED=false` by default until the durable adapter lands).
+3. **OD-019** — separate intent-signing key family vs. reusing audit-signing-key (defense in depth against signature substitution; current Phase 2 reuses `AuditSignerService` for single-rotation simplicity).
+4. **OD-020** — verify-wire emission of intent decision (currently Phase 2 keeps intent denials in the dedicated `/v1/intent/*` response surface; OD-020 considers folding `INTENT_MISMATCH` into `/v1/verify` outcomes via wire-level enum).
+5. **Phase 3** — Cloudflare Worker port. Algorithm is framework-free per CLAUDE.md invariant #2; the adoption surface that just shipped needs zero changes when the issuance backend moves from Nest to Worker.
+
+### Branch state
+
+`feat/sdk-verify-gateway-hardening` is now `7b36258` (adoption surface) → `5e44480` (Phase 2 module + ADR + BATE) → `7cd14d9` (peer's denial precedence regression guard refresh) → ... Branch is ready for PR but not pushed.
+
+### Unstaged peer work (DO NOT touch)
+
+- `apps/api/src/modules/{verify,wellknown,audit/compression}/**` — peer `bf9d6030` (RAR observability + audit chain compression)
+- `apps/marketing/**` — peer `c8a965d3` (marketing v2 + 5 new pages)
+- `packages/sdk-py/aegis/_constants.py`, `package.json`, `pnpm-lock.yaml` — peer-territory edits in flight
+- `apps/api/src/modules/verify/rar/**`, `apps/api/src/common/observability/metrics.service.ts` (peer-edited beyond my +5 intent metrics from `5e44480` — re-merge if you re-edit this file)
+
+### Hook bypasses
+
+None. Both commits passed `.husky/pre-commit` and `commit-msg` hooks. Two non-blocking warnings observed:
+- `lint-staged could not find any valid configuration` — repo missing `.lintstagedrc.json`; emits warning but exits 0. Worth a separate tiny PR.
+- `footer must have leading blank line` — commitlint warning on the Co-Authored-By trailer; non-blocking.
+
+---
+
 ## 2026-05-15 PM (Intent Manifest Phase 2 runtime issuance — ADR-0017; agent-swarm experiment + commit-bundling cleanup) — sid=opus-phase2-financial — claim=aegis:intent-phase2-financial-ecosystem
 
 **Status:** Phase 2 runtime issuance module + ADR-0017 are LIVE in HEAD — but under a misleading commit title. The work landed via peer commit `b27fb5c` (titled `fix(sdk-py,tests): close TS↔PY drift...`) which swept up my staged intent module + ADR via the well-documented shared-tree git-add footgun (see inbox `fdb54aea` for the same mistake on the CerniQ side last session). The CODE is correct; the COMMIT MESSAGE under-describes what landed. This handoff is the durable correction.
