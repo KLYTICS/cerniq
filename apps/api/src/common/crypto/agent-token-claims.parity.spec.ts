@@ -66,14 +66,26 @@ type Equal<X, Y> = (<T>() => T extends X ? 1 : 2) extends
   : false;
 
 // Meta-sanity: prove `Equal<>` itself distinguishes identical from
-// non-identical shapes. These two lines must BOTH compile for the
-// parity gate below to be trustworthy. If a future TypeScript change
-// broke higher-order-inference equality, the second line would fail
-// to compile and surface the regression BEFORE the gate would.
+// non-identical shapes — across the four drift modes that
+// AgentTokenClaims specifically can exhibit:
+//   1. Field added on one side                  → caught by basic structural diff
+//   2. Type changed on a field (string→number)  → caught by basic structural diff
+//   3. Optional ↔ required                      → matters: 7 of 12 fields are optional
+//   4. `readonly` modifier                       → matters: authorization_details uses ReadonlyArray
+//
+// ALL four control lines below must compile for the gate to be
+// trustworthy against the drift modes our interface exposes. If a
+// future TypeScript change narrowed Equal<>'s sensitivity on any
+// dimension, the corresponding control would fail to compile and
+// surface the regression BEFORE the gate could silently pass.
 const _equalIsSoundForIdentical: Equal<{ a: number }, { a: number }> = true;
 const _equalIsSoundForDifferent: Equal<{ a: number }, { a: string }> = false;
+const _equalDetectsOptionalDrift: Equal<{ a: number }, { a?: number }> = false;
+const _equalDetectsReadonlyDrift: Equal<{ readonly a: number }, { a: number }> = false;
 void _equalIsSoundForIdentical;
 void _equalIsSoundForDifferent;
+void _equalDetectsOptionalDrift;
+void _equalDetectsReadonlyDrift;
 
 // THE GATE. If parity drifts, this line fails to typecheck.
 const _assertNestAlgorithmParity: Equal<NestAgentTokenClaims, AlgorithmAgentTokenClaims> = true;
