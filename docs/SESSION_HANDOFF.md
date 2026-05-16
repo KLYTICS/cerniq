@@ -5,6 +5,85 @@
 
 ---
 
+## 2026-05-16 EVENING (Intent Manifest threat model — feature-specific addendum) — sid=opus-phase3-enterprise — claim=aegis:intent-threat-model
+
+**Status:** Closes the security-readiness loop on the intent-manifest stack alongside the operator-readiness loop (`0fd8018` runbook). A feature-specific threat model addendum to `docs/THREAT_MODEL.md`, structured to match the existing T# catalog convention (IM-T1 through IM-T14, scoped to avoid collision with master `T*` numbers).
+
+### What landed (this commit)
+
+```
+docs/THREAT_MODEL_INTENT_MANIFEST.md   +440 LOC  (NEW)
+docs/SESSION_HANDOFF.md                          (this entry)
+```
+
+### Contents
+
+1. **Scope** — covered: wire surface, kernel, verifier-rp, AEGIS issuance/reconciliation, BATE feedback, Prisma storage. NOT covered: AEGIS infra compromise, KMS compromise (governed by `docs/SECURITY.md`).
+2. **Trust boundaries** — ASCII diagram of the agent → AEGIS → RP → BATE flow.
+3. **Trust assumptions** — 5 explicit assumptions including the audit-signing-key-family reuse decision (and OD-019 as the alternative).
+4. **Threat catalog** — 14 numbered threats (IM-T1 through IM-T14) with likelihood / impact / mitigation / status columns, matching the existing `docs/THREAT_MODEL.md` table format.
+5. **Attack scenario narratives** — 7 of the 14 threats elaborated with concrete attacker actions, defenses in place, and identified gaps.
+6. **Cryptographic choices** — table covering the 6 cryptographic surfaces (signing, canonicalization, key custody, encoding, idempotency, ID generation) + an explicit note on pre-image domain separation as a future-schema-version concern.
+7. **Defense-in-depth recommendations** — 8 actionable items for operators + relying parties.
+8. **Key compromise scenarios** — 4 scenarios with impact / defense / detection / response (audit signer, agent private key, DB read-only, DB read-write).
+9. **Operator security checklist** — 8 items to confirm before production flip.
+10. **Compliance touchpoints** — table mapping intent-manifest defenses to SOC2 CC6.1/CC6.7/CC7.2, NIST AI Agent Identity, FAPI 2.0 (RAR), PCI DSS, FINRA Rule 3110, ISO 20022.
+11. **Reference table** — every related artifact with purpose.
+12. **Filed follow-ups** — 4 items surfaced by writing the threat model itself (see below).
+
+### Real findings surfaced by the threat model
+
+The most rigorous post-implementation security review yielded **3 actual engineering findings** (filed inline in the threat model):
+
+1. **IM-T2 (cross-RP replay) is partial-not-covered.** The `verifyTokenJti` cross-check is currently CALLER responsibility — `verifyIntent` doesn't enforce it. Diligent RPs catch replay; careless ones don't. **Fix:** move `verifyTokenJti` into `verifyIntent` as a required input so the compile-error catches forgetful integrators. Filed as follow-up #1 in the threat model.
+2. **IM-T4 (beneficiary substitution) has a hidden gap.** `merchantId` is OPTIONAL on `CommerceActionClaim`. Treasury operators who omit it disable the wrong-merchant check entirely while assuming graduated mode protects them — graduated only relaxes `over-call-count`, but if `merchantId` is unset the wrong-merchant check is SKIPPED altogether (`reconcile.ts:153`). **Documentation imperative:** explicit warning in per-vertical READMEs.
+3. **Domain separation is a latent risk for future schema versions.** The canonical pre-image is `canonicalize(body)` with no domain-separator byte. v1 is safe (audit chain pre-image is structurally distinct), but v2 schema changes could create cross-protocol signature substitution opportunities. **Future-mitigation:** add explicit `"intent-v1:"` byte prefix when v2 ships. Documented in `manifest.ts:6-10` already; threat model surfaces the explicit guidance.
+
+### CLAUDE.md alignment
+
+- Docs rule "Docs must reflect code, not aspiration": every claim references a specific line number, SHA, file path, or DTO field.
+- Docs rule "Security, billing, policy, public API, denial reasons, and discovery-surface docs must move with implementation": this threat model lands AFTER the corresponding implementation (Phase 2 + Phase 2.1) so it can analyze the as-built system, not aspirational design.
+- Docs rule "ADRs/decisions should record constraints and rejected alternatives, not just conclusions": each threat row includes status (Covered / Partial / Open) so the security team can see what's NOT mitigated.
+
+### What's next (queued, NOT started)
+
+The intent-manifest stack is now **operator + security readiness complete**. Remaining items:
+
+1. **IM-T2 follow-up code fix** — `verifyTokenJti` as required input to `verifyIntent`. ~30 min commit; closes the largest catalog gap.
+2. **Integration spec against live Postgres** — validates the Phase 2.1 adapter end-to-end in CI.
+3. **OD-019** — separate intent-signing key family (defense-in-depth from IM-T6 / IM-T11).
+4. **OD-020** — verify-wire emission of intent decision. ADR-0017 D3 decided AGAINST in Phase 2; reconsider in Phase 3.
+5. **Phase 3 CF Worker port** — third `IntentPorts` adapter.
+6. **SDK-py intent mirror** — cross-language parity with TS `IntentClient`.
+7. **RP onboarding doc** — `docs/RP_ONBOARDING_INTENT.md` covering per-vertical reconciliation policy recommendations (filed follow-up #4 from threat model).
+
+### Coordination
+
+Peer state at commit:
+- `bf9d6030` on `aegis:jar-iss-iat-enforcement` (verify.algorithm.ts + verify.ports.ts) — no overlap.
+- `c8a965d3` released `aegis:runbook-flow-b-correction` (landed as `fcbfb4d`) — no overlap.
+
+This commit touches only `docs/THREAT_MODEL_INTENT_MANIFEST.md` (new file) + `docs/SESSION_HANDOFF.md` (append). Clean staging.
+
+---
+
+## 2026-05-16 · sid=3e2203ee4c7e · session
+
+Three enterprise-quality follow-on commits landed on feat/sdk-verify-gateway-hardening: 7230181 ships the abandoned prom-alerts generator + denial-reasons.rules.yml with a corrected annotations: indent (would have lost ALL runbook context on the 3 critical alerts); 4e9a11b adds JSDoc operational warnings to JarValidationOptions covering log-exposure of authorization_details, maxAgeSeconds DoS misconfig, and the heterogeneous-fleet enforcement trap; 87b3e5f adds a structural parity gate via Equal<> for the dual AgentTokenClaims interfaces (Nest jwt.util ↔ algorithm verify.ports) so future field-additions to one side without the other fail typecheck. All three are standalone narrow-scope commits; no peer overlap.
+
+### Files touched
+
+- `scripts/generate-prom-alerts.ts`
+- `infra/observability/alerts/denial-reasons.rules.yml`
+- `apps/api/src/common/crypto/jwt.util.ts`
+- `apps/api/src/common/crypto/agent-token-claims.parity.spec.ts`
+
+### Next steps
+
+1) Husky pre-commit hook has an exit-code bug: 'if ! make ...; then code=$?' inverts the exit so preflight's gating exit-2 reads as 0/1 and never blocks. Real preflight gating fail (uncataloged AegisError subclass) is leaking past today. 2) prom-alerts CI gate is drift-only — pnpm check:prom-alerts-gen would have passed the broken-but-deterministic output. Adding a promtool semantic-check (or a YAML-parse sanity test) closes this class permanently. 3) Bundle-lane peer should ship the package.json gen:prom-alerts + check:prom-alerts-gen wiring as part of broader coordinated commit.
+
+---
+
 ## 2026-05-16 LATE-PM (Operator runbook for intent-manifest production flip) — sid=opus-phase3-enterprise — claim=aegis:intent-runbook
 
 **Status:** The intent-manifest stack is now operator-ready. The Phase 2.1 commit (`2cabeba`) made the production gate technically flippable; this commit makes it *operationally* flippable by shipping the runbook that walks the deploy team through the flip sequence, smoke test, observability watch, rollback, and known-failure remediation.
