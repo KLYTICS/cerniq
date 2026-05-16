@@ -26,6 +26,7 @@
     "seed": "tsx ../../scripts/seed-dev.ts"
   },
   "dependencies": {
+    "@aegis/intent-manifest": "workspace:*",
     "@aegis/sdk": "workspace:*",
     "@aegis/types": "workspace:*",
     "@nestjs/common": "^11.0.0",

@@ -82,4 +82,62 @@ describe('BateScorer', () => {
     expect(scorer.bandFromScore(249)).toBe('FLAGGED');
     expect(scorer.bandFromScore(0)).toBe('FLAGGED');
   });
+
+  // ── ADR-0017 — Intent Manifest closes the security feedback loop ──
+  describe('INTENT_MISMATCH_OBSERVED (ADR-0017)', () => {
+    it('penalises a single intent mismatch by -100 (the configured delta)', () => {
+      const before = scorer.compute({
+        currentScore: 700,
+        createdAt: new Date(NOW - 1_000),
+        recentSignals: [],
+      });
+      const after = scorer.compute({
+        currentScore: 700,
+        createdAt: new Date(NOW - 1_000),
+        recentSignals: [signal('INTENT_MISMATCH_OBSERVED', 'HIGH')],
+      });
+      expect(before - after).toBe(100);
+    });
+
+    it('3 mismatches × -100 = 300 drop, exactly at the per-window cap', () => {
+      const score = scorer.compute({
+        currentScore: 700,
+        createdAt: new Date(NOW - 1_000),
+        recentSignals: [
+          signal('INTENT_MISMATCH_OBSERVED', 'HIGH'),
+          signal('INTENT_MISMATCH_OBSERVED', 'HIGH'),
+          signal('INTENT_MISMATCH_OBSERVED', 'HIGH'),
+        ],
+      });
+      expect(score).toBe(400);
+    });
+
+    it('4+ mismatches in one window cap at 300 — the per-window cap binds', () => {
+      const score = scorer.compute({
+        currentScore: 700,
+        createdAt: new Date(NOW - 1_000),
+        recentSignals: Array.from({ length: 8 }, () =>
+          signal('INTENT_MISMATCH_OBSERVED', 'HIGH'),
+        ),
+      });
+      // 700 - 300 (capped) = 400 — extra mismatches do NOT keep dropping
+      // the score within the same window. Cross-window persistence comes
+      // from the score floor being lower next time.
+      expect(score).toBe(400);
+    });
+
+    it('mismatch alone can move a PLATINUM agent to VERIFIED but not below', () => {
+      // PLATINUM cutoff is 750; cap is 300; starting at PLATINUM 800 →
+      // 500 (VERIFIED). Demonstrates that a single bad reconciliation
+      // window is meaningful-but-not-catastrophic.
+      const score = scorer.compute({
+        currentScore: 800,
+        createdAt: new Date(NOW - 1_000),
+        recentSignals: Array.from({ length: 10 }, () =>
+          signal('INTENT_MISMATCH_OBSERVED', 'HIGH'),
+        ),
+      });
+      expect(scorer.bandFromScore(score)).toBe('VERIFIED');
+    });
+  });
 });

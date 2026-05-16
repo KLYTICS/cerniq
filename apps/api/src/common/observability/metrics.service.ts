@@ -221,6 +221,80 @@ export class MetricsService implements OnModuleInit {
     help: 'Number of TRIAL_EXHAUSTED denials emitted (cap reached or fail-closed).',
   });
 
+  /**
+   * RFC-9396 RAR (Rich Authorization Requests) decision metrics.
+   *
+   * Labels are bounded enums:
+   *   - `result`: 'allow' | 'deny'
+   *   - `detail_type`: bounded by REGISTERED_AUTH_DETAIL_TYPES in
+   *     verify/rar/rar.types.ts (currently: trading_order |
+   *     payment_initiation | data_access | agent_action | 'none' when
+   *     evaluator short-circuits before matching).
+   *   - `deny_reason`: bounded by RarDenyReason union ('allow' when
+   *     result=allow). New variants require updating this comment and
+   *     the RAR evaluator together.
+   *
+   * Use these to alert on RAR deny spikes per detail_type — a sudden
+   * elevation in `limit_exceeded` on `trading_order`, for example, is
+   * a signal that an agent is misconfigured or compromised.
+   */
+  readonly rarEvaluationsTotal = new Counter({
+    name: 'aegis_rar_evaluations_total',
+    help: 'RFC-9396 RAR evaluations by outcome, detail type, and deny reason.',
+    labelNames: ['result', 'detail_type', 'deny_reason'] as const,
+  });
+
+  readonly rarEvaluationLatency = new Histogram({
+    name: 'aegis_rar_evaluation_latency_seconds',
+    help: 'Latency of /v1/verify/rar/evaluate in seconds. Pure-function evaluator — sub-millisecond expected.',
+    labelNames: ['result'] as const,
+    // RAR evaluator is pure-function; sub-ms expected. Buckets sized to
+    // catch a regression that would push past 5ms (i.e. accidental I/O).
+    buckets: [0.0001, 0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1],
+  });
+
+  // ── Intent Manifest (ADR-0017) ─────────────────────────────────────
+  //
+  // Operator dashboard SLOs typically:
+  //   - issued_total — adoption metric; expect monotonic growth once
+  //     AEGIS_INTENT_MANIFEST_ENABLED flips.
+  //   - reconciled_total{outcome="mismatch_denied"} — security signal;
+  //     spike rate > 1/sec per principal warrants a manual review.
+  //   - mismatch_total — per-kind breakdown; over-amount-cap + wrong-
+  //     merchant are stronger signals than over-call-count.
+
+  readonly intentIssuedTotal = new Counter({
+    name: 'aegis_intent_issued_total',
+    help: 'Intent manifests issued via POST /v1/intent.',
+    labelNames: ['intent_kind'] as const, // 'http-call' | 'commerce-action' | 'tool-invocation'
+  });
+
+  readonly intentIssueLatency = new Histogram({
+    name: 'aegis_intent_issue_latency_seconds',
+    help: 'Latency of POST /v1/intent end-to-end (algorithm + adapter).',
+    // Issuance includes KMS-backed signing — sub-50ms in steady state.
+    buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1],
+  });
+
+  readonly intentReconciledTotal = new Counter({
+    name: 'aegis_intent_reconciled_total',
+    help: 'Intent reconciliation outcomes by terminal result.',
+    labelNames: ['outcome'] as const, // 'clean' | 'mismatch_advised' | 'mismatch_denied' | 'replay'
+  });
+
+  readonly intentReconcileLatency = new Histogram({
+    name: 'aegis_intent_reconcile_latency_seconds',
+    help: 'Latency of POST /v1/intent/{id}/actuals end-to-end.',
+    buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1],
+  });
+
+  readonly intentMismatchTotal = new Counter({
+    name: 'aegis_intent_mismatch_total',
+    help: 'Individual IntentMismatchKind occurrences across reconciliation outcomes.',
+    labelNames: ['mismatch_kind'] as const,
+    // Bounded enum — 8 kinds per packages/intent-manifest types.ts.
+  });
+
   onModuleInit(): void {
     // Default Node + process metrics — heap, event loop lag, GC, etc.
     collectDefaultMetrics({ register: this.registry, prefix: 'aegis_' });
@@ -244,6 +318,13 @@ export class MetricsService implements OnModuleInit {
     this.registry.registerMetric(this.bullmqJobsTotal);
     this.registry.registerMetric(this.trialUsageIncrementedTotal);
     this.registry.registerMetric(this.trialExhaustedTotal);
+    this.registry.registerMetric(this.rarEvaluationsTotal);
+    this.registry.registerMetric(this.rarEvaluationLatency);
+    this.registry.registerMetric(this.intentIssuedTotal);
+    this.registry.registerMetric(this.intentIssueLatency);
+    this.registry.registerMetric(this.intentReconciledTotal);
+    this.registry.registerMetric(this.intentReconcileLatency);
+    this.registry.registerMetric(this.intentMismatchTotal);
   }
 
   /**

@@ -429,6 +429,13 @@ enum BateSignalType {
   // ── DPoP — RFC 9449 (ADR-0010, M-024) ─────────────────────────────
   AGENT_NO_DPOP
   AGENT_DPOP_REPLAY_ATTEMPT
+
+  // ── Intent Manifest — ADR-0016 + ADR-0017 ─────────────────────────
+  // INTENT_MISMATCH_OBSERVED: fires when reconcileIntent() returns a
+  //   non-null recommendedDenialReason (i.e. strict mismatch OR
+  //   breached graduated tolerance). HIGH severity by default — the
+  //   agent declared X and did Y, which is unambiguously bad signal.
+  INTENT_MISMATCH_OBSERVED
 }
 
 enum SignalSeverity {
