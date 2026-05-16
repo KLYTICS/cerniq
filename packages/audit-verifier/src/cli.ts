@@ -72,10 +72,68 @@ interface VerifyManifestsArgs extends CommonOptions {
 
 type CliArgs = VerifyArgs | VerifyManifestsArgs;
 
+const USAGE_TEXT = `aegis-audit-verify — offline audit-chain + manifest-corpus verifier
+
+Usage:
+  aegis-audit-verify verify <export.ndjson> [options]
+  aegis-audit-verify verify-manifests <dir> [options]
+
+Subcommands:
+  verify             Walk an NDJSON export of AuditEvent rows; verify
+                     the row chain (signatures + prev-hash links).
+  verify-manifests   Walk a directory of audit-compression manifests
+                     (*.manifest.json); verify each signature and the
+                     per-slice manifest chain. Offline corpus path
+                     (ADR-0015 / M-036).
+
+Options (shared):
+  --jwks <url>           Fetch JWKS from URL (HTTPS).
+  --jwks-file <path>     Read JWKS from a local file (airgapped path).
+  --json                 Emit machine-readable JSON to stdout.
+
+Options (verify only):
+  --no-fail-fast         Walk every row even after a break; report all.
+  --max-row-detail <n>   Cap the per-row detail in JSON output (default 100).
+
+Options (verify-manifests only):
+  --recursive            Recurse into subdirectories. Default: flat.
+
+Exit codes:
+  0  chain intact / corpus valid
+  1  chain break detected (signature or link mismatch)
+  2  argument / IO error / empty input
+
+Examples:
+  aegis-audit-verify verify ./export.ndjson \\
+    --jwks https://api.aegislabs.io/.well-known/audit-signing-key
+
+  aegis-audit-verify verify-manifests ./audit-corpus/ \\
+    --jwks-file ./aegis-audit-jwks.json --json > manifest-report.json
+`;
+
+function printUsage(stream: typeof stdout | typeof stderr): void {
+  stream.write(USAGE_TEXT);
+}
+
 function parseArgs(input: string[]): CliArgs {
   const sub = input[0];
+  // Root-level help: -h / --help / 'help' / 'help-all' print usage to stdout
+  // and exit 0. Without this branch the strict subcommand check below would
+  // emit a cryptic "first argument must be verify or verify-manifests" to
+  // stderr — an operator running --help (or no args while exploring) deserves
+  // the usage block, not an error.
+  if (sub === '--help' || sub === '-h' || sub === 'help') {
+    printUsage(stdout);
+    exit(0);
+  }
   if (sub !== 'verify' && sub !== 'verify-manifests') {
-    fail('first argument must be "verify" or "verify-manifests"', 2);
+    printUsage(stderr);
+    fail(
+      sub === undefined
+        ? 'no subcommand given; see usage above (or run --help for the same)'
+        : `unknown subcommand "${sub}"; expected "verify" or "verify-manifests" — see usage above`,
+      2,
+    );
   }
   const pathArg = input[1];
   if (!pathArg || pathArg.startsWith('--')) {
