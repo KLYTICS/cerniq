@@ -52,3 +52,17 @@ tmp/
 # Often contain rotating API keys / token material; never commit.
 tests/results/
 **/perf-baseline.json.local
+
+# Spec-drift report — written by apps/api/scripts/check-openapi-prisma-parity.ts
+# on drift detection (exit 1). Embeds absolute local paths (REPO_ROOT-prefixed
+# prismaPath / specPath) so it's machine-specific by construction. The drift
+# gate is the script's exit code; the JSON exists for debugging.
+spec-sync.json
+
+# Per-session Claude state — settings.local.json + claude/worktrees/* used by
+# parallel Claude sessions for coordination. None of it is portable.
+.claude/
+
+# Per-session Codex/OMX state — logs/, metrics.json, state/. Same reasoning
+# as .claude/ — local-only session telemetry, not source.
+.omx/
