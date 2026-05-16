@@ -115,33 +115,46 @@ function printUsage(stream: typeof stdout | typeof stderr): void {
   stream.write(USAGE_TEXT);
 }
 
-function parseArgs(input: string[]): CliArgs {
+// Discriminated result type for parseArgs. Lets the parser stay side-effect
+// free (no exit, no stderr writes) so every branch is unit-testable. The
+// caller (main) handles the I/O and exit-code mapping. Three states:
+//
+//   ok        — args ready, run the subcommand.
+//   help      — operator asked for usage (--help / -h / 'help' as arg0).
+//               Caller prints to stdout, exits 0.
+//   invalid   — argv is malformed in some way. Caller prints to stderr
+//               and exits 2. `message` is the actionable detail to follow
+//               the usage block.
+export type ParseResult =
+  | { ok: true; args: CliArgs }
+  | { ok: false; reason: 'help'; exitCode: 0 }
+  | { ok: false; reason: 'invalid'; message: string; exitCode: 2 };
+
+const ASK_HELP = { ok: false, reason: 'help', exitCode: 0 } as const;
+const invalid = (message: string): ParseResult => ({ ok: false, reason: 'invalid', message, exitCode: 2 });
+
+export function parseArgs(input: string[]): ParseResult {
   const sub = input[0];
-  // Root-level help: -h / --help / 'help' / 'help-all' print usage to stdout
-  // and exit 0. Without this branch the strict subcommand check below would
-  // emit a cryptic "first argument must be verify or verify-manifests" to
-  // stderr — an operator running --help (or no args while exploring) deserves
-  // the usage block, not an error.
+  // Root-level help: -h / --help / 'help' as the first arg are operator-
+  // initiated usage requests, not error paths. Caller prints to stdout and
+  // exits 0. Anything else routes through the strict subcommand check below
+  // (printing to stderr + exit 2 via the 'invalid' branch).
   if (sub === '--help' || sub === '-h' || sub === 'help') {
-    printUsage(stdout);
-    exit(0);
+    return ASK_HELP;
   }
   if (sub !== 'verify' && sub !== 'verify-manifests') {
-    printUsage(stderr);
-    fail(
+    return invalid(
       sub === undefined
         ? 'no subcommand given; see usage above (or run --help for the same)'
         : `unknown subcommand "${sub}"; expected "verify" or "verify-manifests" — see usage above`,
-      2,
     );
   }
   const pathArg = input[1];
   if (!pathArg || pathArg.startsWith('--')) {
-    fail(
+    return invalid(
       sub === 'verify'
         ? 'missing NDJSON path: aegis-audit-verify verify <path>'
         : 'missing directory: aegis-audit-verify verify-manifests <dir>',
-      2,
     );
   }
   const get = (flag: string): string | undefined => {
@@ -155,32 +168,37 @@ function parseArgs(input: string[]): CliArgs {
     json: input.includes('--json'),
   };
   if (!common.jwksUrl && !common.jwksFile) {
-    fail('one of --jwks <url> or --jwks-file <path> is required', 2);
+    return invalid('one of --jwks <url> or --jwks-file <path> is required');
   }
   if (common.jwksUrl && common.jwksFile) {
-    fail('use --jwks OR --jwks-file, not both', 2);
+    return invalid('use --jwks OR --jwks-file, not both');
   }
 
   if (sub === 'verify') {
-    const maxRowDetail = Number(get('--max-row-detail') ?? '100');
+    const rawMaxRowDetail = get('--max-row-detail');
+    const maxRowDetail = Number(rawMaxRowDetail ?? '100');
     if (!Number.isInteger(maxRowDetail) || maxRowDetail < 0) {
-      fail(`--max-row-detail must be a non-negative integer, got "${get('--max-row-detail')}"`, 2);
+      return invalid(`--max-row-detail must be a non-negative integer, got "${rawMaxRowDetail}"`);
     }
-    // `pathArg` is narrowed to `string` here because the earlier
-    // `if (!pathArg || …) fail(...)` exits via `fail(): never`.
     return {
-      command: 'verify',
-      ndjsonPath: pathArg,
-      failFast: !input.includes('--no-fail-fast'),
-      maxRowDetail,
-      ...common,
+      ok: true,
+      args: {
+        command: 'verify',
+        ndjsonPath: pathArg,
+        failFast: !input.includes('--no-fail-fast'),
+        maxRowDetail,
+        ...common,
+      },
     };
   }
   return {
-    command: 'verify-manifests',
-    dir: pathArg,
-    recursive: input.includes('--recursive'),
-    ...common,
+    ok: true,
+    args: {
+      command: 'verify-manifests',
+      dir: pathArg,
+      recursive: input.includes('--recursive'),
+      ...common,
+    },
   };
 }
 
@@ -189,7 +207,23 @@ async function loadJwks(opts: CommonOptions): Promise<JwksDocument> {
 }
 
 async function main(): Promise<number> {
-  const args = parseArgs(argv.slice(2));
+  const parsed = parseArgs(argv.slice(2));
+  if (!parsed.ok) {
+    // Dispatch the two non-ok branches:
+    //   help    → usage to stdout, exit 0 (operator-requested).
+    //   invalid → usage to stderr THEN actionable error message, exit 2.
+    // Keeping the usage block before the error gives the operator both
+    // the catalogue of options and the specific thing they got wrong,
+    // without having to re-run with --help to find out.
+    if (parsed.reason === 'help') {
+      printUsage(stdout);
+      return parsed.exitCode;
+    }
+    printUsage(stderr);
+    stderr.write(`aegis-audit-verify: ${parsed.message}\n`);
+    return parsed.exitCode;
+  }
+  const { args } = parsed;
   const jwks = await loadJwks(args);
 
   if (args.command === 'verify') {
@@ -307,9 +341,26 @@ function fail(msg: string, code: number): never {
   exit(code);
 }
 
-main()
-  .then((code) => exit(code))
-  .catch((err: unknown) => {
-    stderr.write(`aegis-audit-verify: fatal — ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
-    exit(2);
-  });
+// Entry-point guard: only auto-run main() when this module is the binary
+// the OS invoked (process.argv[1] is the cli artifact). When the module is
+// imported — e.g. by cli.spec.ts to test parseArgs — argv[1] is the test
+// runner instead, and we skip the side-effects to avoid calling process.exit
+// inside vitest. Matches dist/cli.{cjs,mjs} (tsup output) plus the in-source
+// path used during vitest transform.
+const entryPath = process.argv[1] ?? '';
+const isCliEntry =
+  entryPath.endsWith('/cli.cjs') ||
+  entryPath.endsWith('/cli.mjs') ||
+  entryPath.endsWith('/cli.js') ||
+  entryPath.endsWith('/cli.ts') ||
+  entryPath.endsWith('\\cli.cjs') ||
+  entryPath.endsWith('\\cli.mjs');
+
+if (isCliEntry) {
+  main()
+    .then((code) => exit(code))
+    .catch((err: unknown) => {
+      stderr.write(`aegis-audit-verify: fatal — ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
+      exit(2);
+    });
+}
