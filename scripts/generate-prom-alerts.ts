@@ -227,6 +227,102 @@ export function renderRules(
   return lines.join('\n');
 }
 
+/**
+ * Structural validation of the rendered YAML.
+ *
+ * Catches the bug class that bit us pre-7230181: a YAML indentation
+ * mistake (annotations: children at the same indent as `annotations:`
+ * itself) parses as `annotations: null` with the entries as siblings
+ * of `annotations:`, silently dropping every operator annotation
+ * (summary, description, relying_party_action, operator_check,
+ * runbook_md, threshold_note) when promtool / Alertmanager parses
+ * the file.
+ *
+ * The previous CI gate `pnpm check:prom-alerts-gen` was drift-only —
+ * regenerate + `git diff --exit-code`. Drift checks pass on a
+ * deterministically-broken generator (re-running produces the same
+ * broken bytes). This validator closes the class permanently by
+ * checking SEMANTIC structure, not just diff.
+ *
+ * Runs after rendering, before write. A failure aborts the script
+ * non-zero; the file on disk remains the previously-correct version.
+ */
+export function validateStructure(yamlStr: string): void {
+  const parsed = parseYaml(yamlStr) as unknown;
+  if (typeof parsed !== 'object' || parsed === null) {
+    throw new Error('generate-prom-alerts: validation: parsed YAML is not an object');
+  }
+  const top = parsed as Record<string, unknown>;
+  if (!Array.isArray(top.groups)) {
+    throw new Error('generate-prom-alerts: validation: top-level `groups:` must be an array');
+  }
+  for (const [gIdx, group] of top.groups.entries()) {
+    if (typeof group !== 'object' || group === null) {
+      throw new Error(`generate-prom-alerts: validation: group[${gIdx}] is not an object`);
+    }
+    const g = group as Record<string, unknown>;
+    if (typeof g.name !== 'string') {
+      throw new Error(`generate-prom-alerts: validation: group[${gIdx}].name must be string`);
+    }
+    if (!Array.isArray(g.rules)) {
+      throw new Error(`generate-prom-alerts: validation: group[${gIdx}=${g.name}].rules must be array`);
+    }
+    for (const [rIdx, rule] of g.rules.entries()) {
+      validateRule(rule, `group[${gIdx}=${g.name}].rules[${rIdx}]`);
+    }
+  }
+}
+
+function validateRule(rule: unknown, path: string): void {
+  if (typeof rule !== 'object' || rule === null) {
+    throw new Error(`generate-prom-alerts: validation: ${path} is not an object`);
+  }
+  const r = rule as Record<string, unknown>;
+
+  // Recording rule.
+  if (typeof r.record === 'string') {
+    if (typeof r.expr !== 'string') {
+      throw new Error(`generate-prom-alerts: validation: ${path}.expr (recording rule) must be string`);
+    }
+    return;
+  }
+
+  // Alert rule.
+  if (typeof r.alert === 'string') {
+    if (typeof r.expr !== 'string') {
+      throw new Error(`generate-prom-alerts: validation: ${path}.expr (alert rule) must be string`);
+    }
+    if (typeof r.for !== 'string') {
+      throw new Error(`generate-prom-alerts: validation: ${path}.for must be string`);
+    }
+    if (typeof r.labels !== 'object' || r.labels === null || Array.isArray(r.labels)) {
+      throw new Error(`generate-prom-alerts: validation: ${path}.labels must be a non-null object`);
+    }
+    // The Phase-A bug-class check: if annotations: parses as null or
+    // is missing, the indentation in the generator is wrong (children
+    // must be 2 spaces deeper than the `annotations:` key). DO NOT
+    // weaken this check — its specific structural shape catches a
+    // class of silent annotation-loss that drift-only CI gates miss.
+    if (typeof r.annotations !== 'object' || r.annotations === null || Array.isArray(r.annotations)) {
+      throw new Error(
+        `generate-prom-alerts: validation: ${path}.annotations must be a non-null object. ` +
+          `If the YAML "looks fine" in your editor, check that annotations: children are indented ` +
+          `2 spaces DEEPER than the annotations: key (10 spaces vs 8 for our alert-rule shape). ` +
+          `This bug class was first caught in 2026-05 (commit 7230181); see annotationLine() in this file.`,
+      );
+    }
+    const ann = r.annotations as Record<string, unknown>;
+    if (typeof ann.summary !== 'string' || typeof ann.description !== 'string') {
+      throw new Error(
+        `generate-prom-alerts: validation: ${path}.annotations must have non-empty summary + description strings`,
+      );
+    }
+    return;
+  }
+
+  throw new Error(`generate-prom-alerts: validation: ${path} must have either \`record:\` or \`alert:\` key`);
+}
+
 async function main(): Promise<number> {
   const canonical = await loadCanonical();
   const yamlFile = loadYaml();
@@ -254,6 +350,12 @@ async function main(): Promise<number> {
   }
 
   const out = renderRules(entries, canonical);
+
+  // Structural validation BEFORE write. Throws on invariant violation;
+  // the previously-correct file on disk is preserved. See validateStructure
+  // docstring for the bug class this catches.
+  validateStructure(out);
+
   writeFileSync(RULES_OUT, out, 'utf8');
   process.stdout.write(
     `generate-prom-alerts: wrote 1 recording rule + ${criticalReasons.length} baseline alerts\n  ${RULES_OUT}\n`,
