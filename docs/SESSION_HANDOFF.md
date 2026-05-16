@@ -5,6 +5,71 @@
 
 ---
 
+## 2026-05-16 · sid=760241c55352 · rfc-9101-jar-runtime
+
+RFC-9101 JAR runtime capability landed (db55481): JwtUtil.verifyAndDecode accepts opt-in JarValidationOptions {requiredAudience, requiredIssuer, maxAgeSeconds} + AgentTokenClaims gains iss/aud/authorization_details. 22/22 tests pass (5 backward-compat + 17 new JAR). Rescued from dead peer bf9d6030 v1 (started 14:37:26 UTC, never heartbeated). Foundation only — NO discovery promotion, NO hot-path integration (that's the live bf9d6030 v2 scope aegis:rar-in-jar-hotpath-integration).
+
+### Files touched
+
+- `apps/api/src/common/crypto/jwt.util.ts`
+- `apps/api/src/common/crypto/jwt.util.jar.spec.ts`
+
+### Next steps
+
+1) bf9d6030 v2 wires hot-path RAR-in-JAR evaluation in verify.algorithm.ts (their current scope). 2) Bundle lane composes the remaining unstaged FAPI work into a coordinated multi-RFC promotion commit (wellknown.service + spec, oauth-error-mapping, oauth-as-metadata.dto, discovery.dto, 05_FAPI_2_0_PROFILE.md, fapi-rar-binding-parity.spec, fapi-buyer-integration-journey.spec). Discovery promotion of RFC-9101 belongs in that bundle, NOT this JAR runtime commit.
+
+---
+
+## 2026-05-16 MIDDAY (Intent Manifest vertical examples — three runnable adoption demos, post-bundle split) — sid=opus-phase3-enterprise — claim=aegis:intent-vertical-examples
+
+**Status:** Three intent-manifest vertical examples + `examples/README.md` refresh landed as a standalone commit after near-replay of the b27fb5c bundle-footgun pattern. End state is clean: my examples have their own commit + accurate title; peer c8a965d3's scenario harness sits in their working tree, ready for them to re-commit cleanly under `feat(scenarios)` without my work in the bundle path.
+
+### What landed (this commit)
+
+```
+examples/README.md                                  |  54 ++-  (stale 2-entry index → full 12-entry refresh)
+examples/intent-fintech-acp/                        | 319 ++   (5 files: ACP, ACME-FLORIST, $200 USD cap, strict)
+examples/intent-treasury-iso20022/                  | 333 ++   (5 files: ISO 20022 pacs.008, EUR 50k, graduated 5%)
+examples/intent-broker-dealer-finra/               | 380 ++   (5 files: FINRA 3110, 100 AAPL @ $195 NASDAQ, strict)
+```
+
+Each example: `package.json` + `tsconfig.json` + `src/index.ts` + `src/index.spec.ts` + `README.md`. Total: **16 files, ~1,086 LOC**.
+
+### Design choices
+
+1. **All three verticals use `commerce-action`**, not separate `IntentClaim` union members. The kernel locks `IntentClaim` to 3 shapes per ADR-0016 (`packages/intent-manifest/src/types.ts:88`); the verticals differentiate via the `action` verb (`acp.payment`, `iso20022.pacs.008`, `finra.equity.buy`) and `merchantId` encoding (merchant brand / beneficiary IBAN / venue identifier).
+2. **Examples run OFFLINE** — no AEGIS API in the request path. Signing happens locally in the demo (AEGIS holds the signer in production via M-051 KMS); verification is the same code-path the merchant runs in production against the AEGIS-published JWKS at `/.well-known/audit-signing-key`. This is the wedge: relying parties adopt without AEGIS roundtrips.
+3. **Examples are NOT pnpm workspace members** — matches existing convention (`acp-bridge`, `fintech-payments`, etc. are also outside `pnpm-workspace.yaml` globs). The `workspace:*` notation in `package.json` is a documentation artifact for in-monorepo development; per-example `pnpm install` is the path for standalone use.
+4. **Treasury example deliberately uses `graduated` mode** to exercise the kernel's footgun-by-design (`packages/intent-manifest/src/reconcile.ts:232`): graduated mode tolerates `over-call-count` up to `floor(maxCalls × 1.05)` but NON-count mismatches (`wrong-merchant`, `over-amount-cap`) remain STRICTLY denying. Right semantics for treasury: batch overrun forgivable, wire to wrong account unrecoverable.
+
+### Doc bug in already-shipped commit 7b36258 (caught while writing examples)
+
+The body of commit `7b36258` (Intent adoption surface) wrote `outcome: 'approved' | 'denied'` in the three-line wedge snippet. The kernel's actual discriminator field is `kind`, not `outcome`. The IDENTIFIER `outcome` is fine as the variable name (e.g. `const outcome = verifyIntent(...)`); the FIELD access is `outcome.kind`. Examples land with the correct `outcome.kind` access. Prior commit bodies are immutable per repo convention. Reader: when adopting `verifyIntent`, switch on `result.kind`, not `result.outcome`.
+
+### Adoption trajectory unblocked
+
+Marketing peer `c8a965d3`'s hook (inbox msg `36b472eb`, prior session): once `examples/intent-fintech-acp` + `intent-treasury-iso20022` + `intent-broker-dealer-finra` land, `/use-cases` Treasury + Broker-Dealer cards flip from `coming-soon` to `available`. **Unblock condition met by this commit.** The card flip is a single `apps/marketing/lib/use-cases.ts` edit on the marketing peer's side — coordinate via peer msg.
+
+### Coordination note (the non-trivial path)
+
+This nearly replayed the b27fb5c bundle-footgun pattern. Sequence:
+
+1. I wrote 16 files staged for a clean standalone commit.
+2. Before I could commit, peer `c8a965d3` ran `git add . && git commit` on their scenario harness — sweeping my staged work into their commit `a90517a` (titled `feat(scenarios)`).
+3. Peer immediately ran `git reset HEAD~1` (presumably noticing the title undersold the contents).
+4. The reset put both surfaces (mine + theirs) back into the working tree / staging area.
+5. I unstaged peer's `tests/scenarios/**` files, re-staged ONLY mine, and committed as a standalone commit under `feat(examples)`.
+
+Result: peer's scenario harness sits in their working tree, ready for them to commit cleanly under `feat(scenarios)` without my work in the bundle path. My examples sit in HEAD under accurate scope.
+
+**Filed for next session:** the bundle lane needs an enforceable "I am the bundler right now" claim with TTL (memory `feedback_aegis_bundle_lane.md` already names this pattern; the missing piece is a hook-enforced signal). Pre-commit `claude-peers conflict-check` catches path-overlap with claims; it does NOT catch bundle interleaving.
+
+### Branch state
+
+`feat/sdk-verify-gateway-hardening` is **>30 commits ahead of origin** — not pushed. My direct commits on the branch: `5e44480` (Phase 2 module + ADR + BATE), `7b36258` (adoption surface), `80f117f` (prior handoff entry), plus this commit (examples) + this handoff entry.
+
+---
+
 ## 2026-05-16 AM (Intent Manifest enterprise hardening — adoption surface + BATE feedback loop + Prometheus metrics) — sid=opus-phase3-enterprise — claim=aegis:adoption-surface-commit
 
 **Status:** Phase 2 hardening LANDED in two atomic commits on `feat/sdk-verify-gateway-hardening`. Enterprise quality bar (CLAUDE.md invariants #2, #4, #7, #8 all explicitly mapped in commit bodies). Test gates green across three packages.
