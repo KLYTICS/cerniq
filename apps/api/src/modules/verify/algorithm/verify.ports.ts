@@ -20,7 +20,8 @@ export type DenialReason =
   | 'TRIAL_EXHAUSTED'           // ADR-0014: free-trial lifetime cap (HTTP 402)
   | 'SPEND_LIMIT_EXCEEDED'
   | 'TRUST_SCORE_TOO_LOW'
-  | 'ANOMALY_FLAGGED';
+  | 'ANOMALY_FLAGGED'
+  | 'INTENT_MISMATCH';          // ADR-0016: intent-bound attestation
 
 export interface VerifyAlgorithmInput {
   token: string;

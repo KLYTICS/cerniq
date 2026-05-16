@@ -65,8 +65,16 @@ export type WebhookEvent = (typeof WEBHOOK_EVENT)[keyof typeof WEBHOOK_EVENT];
 // have been validated but before any spend accounting — a trial principal
 // has no "spend limit" in the policy sense; their cap is the lifetime
 // verify counter. HTTP 402 (Payment Required).
+//
+// INTENT_MISMATCH was appended 2026-05-15 per ADR-0016 (intent-bound
+// attestation). It fires when the agent's actual call deviates from the
+// signed intent manifest issued alongside the verify token, under STRICT
+// or breached-tolerance GRADUATED reconciliation. Forward-compatible:
+// older relying-party SDKs see it as an unknown reason and fall through
+// to denialReasonRank() === +Infinity, which their existing escalation
+// logic already handles. Append-only per CLAUDE.md invariant 6.
 export const DENIAL_REASON_PRECEDENCE = [
-  'PLAN_LIMIT_EXCEEDED', // billing gate — pre-algorithm; not part of the 10-step chain
+  'PLAN_LIMIT_EXCEEDED', // billing gate — pre-algorithm; not part of the 11-step chain
   'AGENT_NOT_FOUND',
   'AGENT_REVOKED',
   'INVALID_SIGNATURE',
@@ -77,6 +85,7 @@ export const DENIAL_REASON_PRECEDENCE = [
   'SPEND_LIMIT_EXCEEDED',
   'TRUST_SCORE_TOO_LOW',
   'ANOMALY_FLAGGED',
+  'INTENT_MISMATCH', // ADR-0016: intent-bound attestation
 ] as const;
 
 export type DenialReason = (typeof DENIAL_REASON_PRECEDENCE)[number];

@@ -588,6 +588,7 @@ components:
             - SPEND_LIMIT_EXCEEDED
             - TRUST_SCORE_TOO_LOW
             - ANOMALY_FLAGGED
+            - INTENT_MISMATCH
         verifiedAt:
           type: string
           format: date-time
