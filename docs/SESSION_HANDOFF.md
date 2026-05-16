@@ -5,6 +5,119 @@
 
 ---
 
+## 2026-05-15 PM (Intent Manifest Phase 2 runtime issuance — ADR-0017; agent-swarm experiment + commit-bundling cleanup) — sid=opus-phase2-financial — claim=aegis:intent-phase2-financial-ecosystem
+
+**Status:** Phase 2 runtime issuance module + ADR-0017 are LIVE in HEAD — but under a misleading commit title. The work landed via peer commit `b27fb5c` (titled `fix(sdk-py,tests): close TS↔PY drift...`) which swept up my staged intent module + ADR via the well-documented shared-tree git-add footgun (see inbox `fdb54aea` for the same mistake on the CerniQ side last session). The CODE is correct; the COMMIT MESSAGE under-describes what landed. This handoff is the durable correction.
+
+### What actually landed in `b27fb5c` (full inventory)
+
+```
+apps/api/package.json                              |   1 +    (workspace dep on @aegis/intent-manifest)
+apps/api/src/modules/intent/README.md              |  77 ++++  (module-local doc)
+apps/api/src/modules/intent/intent.adapter.memory.ts  | 146 ++  (Phase 2.0 storage)
+apps/api/src/modules/intent/intent.algorithm.spec.ts  | 422 ++  (12 jest tests, in-memory port fixture)
+apps/api/src/modules/intent/intent.algorithm.ts    | 236 ++++  (pure issueManifest + reconcileActuals)
+apps/api/src/modules/intent/intent.constants.ts    |   6 ++++  (DI symbol + env flag names)
+apps/api/src/modules/intent/intent.controller.ts   | 208 ++++  (REST + AegisError translation)
+apps/api/src/modules/intent/intent.dto.ts          | 169 ++++  (Nest DTOs)
+apps/api/src/modules/intent/intent.module.ts       | 149 ++++  (conditional Nest wiring)
+apps/api/src/modules/intent/intent.ports.ts        | 176 ++++  (framework-free IntentPorts)
+apps/api/src/modules/intent/intent.service.ts      | 153 ++++  (orchestration + logging)
+docs/decisions/0017-intent-manifest-runtime-issuance.md | 361 (ADR-0017 — Phase 2 design + 3 sub-decisions)
+packages/sdk-py/aegis/_constants.py                |  25 +++  (TRIAL_EXHAUSTED + INTENT_MISMATCH + PLAN_LIMIT_EXCEEDED restored)
+packages/sdk-py/aegis/models.py                    |  10 +/-  (TRIAL_EXHAUSTED + INTENT_MISMATCH in StrEnum)
+tests/cross-package/denial-reason-sdk-py-parity.spec.ts | 163 (NEW — peer-authored parity gate)
+```
+
+Total: **2300 insertions across 15 files**. ~1900 lines are the intent-module surface; the rest is the sdk-py parity work the commit title describes.
+
+### Phase 2 surface (ADR-0017, fully wired)
+
+- `POST /v1/intent` — issue a signed `IntentManifest` bound to a verify-token jti
+- `POST /v1/intent/{manifestId}/actuals` — reconcile actuals; `Idempotency-Key` header required
+- `GET /v1/intent/{manifestId}` — read manifest + reconciliation outcome
+
+All gated behind `AEGIS_INTENT_MANIFEST_ENABLED` env flag; `IntentModule.forRoot()` is conditional in app.module.ts (operator opt-in — module is NOT registered by default).
+
+**Three ADR-0017 sub-decisions:**
+
+| D | Question | Outcome | Rationale |
+|---|----------|---------|-----------|
+| D1 | Issuance: extend `/v1/verify` or separate `/v1/intent`? | **Separate endpoint** | Preserves invariant #2 (verify portability — CF Worker can't host intent storage); independent rate limiting + billing + env flag rollout. |
+| D2 | Reconciliation: synchronous-at-next-verify or asynchronous `/actuals`? | **Async `/actuals`** | Sync creates brittle ordering coupling when multiple relying parties verify same agent concurrently. Async flows through audit + BATE + webhooks; verify path sees state indirectly via trust-score. |
+| D3 | Should verify hot path emit `INTENT_MISMATCH`? | **Phase 2 no; reserve for Phase 3** | Wire enum already extended in `2078bd2` (Phase 1 — ADR-0016 D3). Edge worker reads KV-cached state in Phase 3 with shadow-mode rollout (M-049 pattern). |
+
+**Audit + BATE wiring:** 3 audit event kinds (`intent.declared`, `intent.reconciled`, `intent.mismatch` — one per `IntentMismatchKind`) via existing `AuditService.append()`. 1 new BATE signal (`INTENT_MISMATCH_OBSERVED`, HIGH severity) fires when `result.recommendedDenialReason !== null`. BATE failure WARN-logged but does NOT block reconciliation (audit row is durable evidence).
+
+**Module shape mirrors `apps/api/src/modules/verify/algorithm/` exactly** — pure `intent.algorithm.ts` (framework-free, ports to CF Worker) + Nest adapter layer + memory-vs-Prisma storage swap via `INTENT_PORTS` DI symbol. Mirrors ADR-0012 policy-engine port pattern.
+
+### Verification
+
+- `pnpm --filter @aegis/api typecheck` → clean
+- `pnpm --filter @aegis/api test --testPathPattern=modules/intent` → **12/12 jest green** (2.86s)
+- `pnpm test:parity` → **11 suites, 114 tests green** (was 110; +4 from the new sdk-py parity spec which is now also green)
+
+### Open operator decisions (NEW, all proposed in ADR-0017)
+
+- **OD-018** — default reconciliation strictness; recommend `strict` global default + per-principal override
+- **OD-019** — manifest TTL bounds; recommend same as verify token [30, 60]s for Phase 2
+- **OD-020** — webhook delivery for `aegis.intent.mismatch_detected`; recommend at-least-once HMAC (M-008 pattern)
+
+### Agent-swarm experiment outcome
+
+Spawned 3 parallel worktree-isolated agents at session start:
+
+| Agent | Goal | Outcome |
+|-------|------|---------|
+| A — sdk-py denial-reason parity | Update `_constants.py` + `models.py` + new parity spec | **Blocked on Write permission in worktree sandbox.** Did context-reading + drafted edits. (A peer later landed equivalent work in `b27fb5c`.) |
+| B — `examples/intent-fintech-acp` Stripe ACP reference | Working Express + Stripe + intent reconciliation demo | **Blocked on Write permission.** Set up worktree on correct base branch (`feat/sdk-verify-gateway-hardening`), created empty dirs, drafted file structure. |
+| C — Three financial-vertical integration guides (FINTECH/TREASURY/BROKER_DEALER) | Wire-level integration docs mapping IntentClaim to PCI-DSS / ISO 20022 / FINRA Rule 4530 | **Blocked on Write permission.** Drafted 370-line fintech guide content; rebased onto correct base. |
+
+**Root cause:** spawned agents in `isolation: "worktree"` mode inherit Read + Bash-allowlist but NOT Edit/Write — no overrides via `dangerouslyDisableSandbox` either. Operator-side fix: add `Edit`/`Write` allow-rules for agent worktree paths in `.claude/settings.local.json` before next swarm attempt. Until then, swarm should be limited to read-only research / analysis agents; write-heavy work stays in main session.
+
+The agents' prep work was valuable (Agent A discovered the sdk-py drift was wider than my handoff noted — `PLAN_LIMIT_EXCEEDED` was also missing — and peer `b27fb5c` picked that up; Agent B confirmed `examples/*` is NOT in `pnpm-workspace.yaml` which affects the planned example's build).
+
+### Peer activity (parallel commits in same tree)
+
+Other peer commits that landed during my session:
+
+| SHA | What |
+|-----|------|
+| `40e4d18` | `chore(husky): document self-exemption + footgun guard` (peer `2b178d04` — M-3 fix) |
+| `e033ea9` | `feat(audit-verifier): manifest port + corpus walker + CLI + hardening` (peer landing the audit-verifier Phase 0b/0c that was deferred from morning session + bf9d6030's FAANG hardening) |
+| `30cda45` | `polish(sdk-ts,sdk-py): fold cache-key NUL check into single pass` (peer `2b178d04` refactor on top of my `5c19bb9`) |
+| `d597e10` | `feat(mcp-bridge)!: per-target action scoping + handler param sanitization` (peer `2b178d04` — H-2 .changeset) |
+| `b27fb5c` | `fix(sdk-py,tests): close TS↔PY drift...` — peer-authored, swept up my intent-module + ADR-0017 (see top of entry) |
+
+### Known operational gap (next session)
+
+The pre-commit hook chain (`pnpm lint-staged` + commitlint) was broken at the start of this session — `lint-staged`, `@commitlint/cli`, `@commitlint/config-conventional`, and `husky` were not in the root `package.json` devDependencies (referenced by `.husky/pre-commit` and `.husky/commit-msg` but absent from `package.json` since some earlier commit). I installed them locally (`pnpm add -D -w lint-staged @commitlint/cli @commitlint/config-conventional husky`) but the resulting `package.json` + `pnpm-lock.yaml` changes did NOT land in any commit this session.
+
+**Next session action:** decide whether to (a) restore those deps to `package.json` and commit, (b) remove the hook script lines that depend on them, or (c) replace with a simpler hook chain. Option (a) is safest — the hooks were intentional and the security checks downstream of `pnpm lint-staged` (BLOCKED_PATH + BLOCKED_CONTENT regexes for secrets) are still load-bearing.
+
+Peer commit `b27fb5c` was made with `--no-verify` (per its `Directive:` trailer) because the hook chain was broken. Multiple peer commits this session likely used the same workaround. Restoring the hook deps closes this footgun for the next round.
+
+### What's next
+
+1. **Restore hook deps** to root `package.json` — recommend a small `chore(root): re-add lint-staged + commitlint + husky devDependencies` commit before the next session opens with broken hooks.
+2. **Phase 2.1 ADR + implementation** — Prisma adapter for `IntentManifest` + `IntentActual`, schema migration, background expiry sweeper. Gated on OD-018 + OD-019.
+3. **Webhook delivery for `aegis.intent.mismatch_detected`** — needs OD-020 first, then wire via existing M-008 patterns.
+4. **Example + integration guides** (the agent-swarm work that got blocked) — re-attempt in main session OR grant agent-write permissions for next swarm. Specifically:
+   - `examples/intent-fintech-acp/` — Stripe ACP merchant reference (8-10 files; happy + over-amount + wrong-merchant demo modes)
+   - `examples/intent-treasury-iso20022/` — ISO 20022 treasury rail integration
+   - `examples/intent-broker-dealer-finra/` — FINRA-supervised AI trading agent
+   - `docs/INTEGRATION_GUIDE_INTENT_{FINTECH,TREASURY,BROKER_DEALER}.md` — wire-level docs mapping IntentClaim fields to per-vertical regulatory concerns
+5. **Phase 3 edge port** — `workers/cf-verify/src/intent.ts` for synchronous `INTENT_MISMATCH` denial under shadow-mode rollout.
+
+### Files left in working tree this session (unstaged, untracked)
+
+- `M package.json` + `M pnpm-lock.yaml` — hook-dep restoration (see "Known operational gap" above)
+- Various peer modifications I did not touch: `apps/api/src/modules/audit/compression/*`, `apps/api/src/modules/wellknown/*`, `apps/api/src/modules/verify/rar/` (NEW — FAPI 2.0 RAR scaffold?), `docs/INTEGRATION_ROADMAP.md`, `docs/spec/05_FAPI_2_0_PROFILE.md`, `packages/integrations/`, `apps/marketing/`, `docs/LAUNCH_RUNBOOK.md`
+
+The FAPI 2.0 RAR scaffold + INTEGRATION_ROADMAP.md + 05_FAPI_2_0_PROFILE.md hint at a separate peer building OAuth/FAPI 2.0 + RAR support. That work is OUT OF MY SCOPE and stays in their working tree.
+
+---
+
 ## 2026-05-15 (M-036 Phase 0a bundle + Intent Manifest scaffold + INTENT_MISMATCH wire-level — ADR-0015 + ADR-0016) — sid=opus-bundle-intent — claim=aegis:m-036-bundle-and-intent-manifest
 
 **Status:** 5 commits landed on `feat/sdk-verify-gateway-hardening`. Bundled the M-036 Phase 0a kernel from working tree, scaffolded `@aegis/intent-manifest` as the Phase 0 backbone for intent-bound attestation (closes May-2026 landscape gap #5), then wired `INTENT_MISMATCH` into the 8 wire-level surfaces in lockstep. **Same-working-tree two-Claude scenario** with peer `aegis:review-findings-hardening` (sid=2b178d04) holding adjacent scopes — explicit coordination via `claude-peers msg` and verified staging-area cleanliness before every commit. Zero overlap with peer's edits.
