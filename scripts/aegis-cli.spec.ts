@@ -9,6 +9,13 @@
 import { describe, it, expect } from 'vitest';
 import type { Command, Option } from 'commander';
 
+// Canonical denial-reason precedence is sourced from @aegis/types so this
+// spec stays self-maintaining: when a future ADR appends a reason to the
+// canonical tuple, this spec immediately fails until DENIAL_DESCRIPTIONS
+// gains a matching entry. Prerequisite: @aegis/types built fresh before
+// test run — `pnpm -F @aegis/types build` (or `pnpm -r build`). The
+// `check` script orchestrates this in CI.
+import { DENIAL_REASON_PRECEDENCE } from '@aegis/types';
 import { buildCli, DENIAL_DESCRIPTIONS } from './aegis-cli.js';
 
 type Cmd = Command;
@@ -111,27 +118,36 @@ describe('buildCli — command surface', () => {
 });
 
 describe('DENIAL_DESCRIPTIONS', () => {
-  it('covers every denial reason from CLAUDE.md precedence', () => {
-    // Mirrors DENIAL_REASON_PRECEDENCE (packages/types/src/constants.ts) —
-    // PLAN_LIMIT_EXCEEDED is the billing pre-gate, TRIAL_EXHAUSTED was added
-    // 2026-05-05 (ADR-0014), INTENT_MISMATCH was added 2026-05-15 (ADR-0016).
-    const required = [
-      'PLAN_LIMIT_EXCEEDED',
-      'AGENT_NOT_FOUND',
-      'AGENT_REVOKED',
-      'INVALID_SIGNATURE',
-      'POLICY_REVOKED',
-      'POLICY_EXPIRED',
-      'SCOPE_NOT_GRANTED',
-      'TRIAL_EXHAUSTED',
-      'SPEND_LIMIT_EXCEEDED',
-      'TRUST_SCORE_TOO_LOW',
-      'ANOMALY_FLAGGED',
-      'INTENT_MISMATCH',
-    ];
-    for (const reason of required) {
-      expect(DENIAL_DESCRIPTIONS[reason]).toBeDefined();
-      expect(DENIAL_DESCRIPTIONS[reason]!.length).toBeGreaterThan(10);
+  // Self-maintaining gate: iterate the canonical precedence directly from
+  // @aegis/types instead of a hardcoded mirror. The previous shape held a
+  // local `required[]` copy that silently drifted — TRIAL_EXHAUSTED (added
+  // 2026-05-05 per ADR-0014) lived as orphan drift for 10 days before
+  // INTENT_MISMATCH (ADR-0016) surfaced the same class of bug. Importing
+  // the canonical eliminates the drift surface entirely: any future ADR
+  // that appends a reason fails this test until a description is added.
+  it('describes every reason in canonical DENIAL_REASON_PRECEDENCE', () => {
+    for (const reason of DENIAL_REASON_PRECEDENCE) {
+      expect(
+        DENIAL_DESCRIPTIONS[reason],
+        `DENIAL_DESCRIPTIONS missing entry for canonical reason "${reason}"`,
+      ).toBeDefined();
+      expect(
+        DENIAL_DESCRIPTIONS[reason]!.length,
+        `DENIAL_DESCRIPTIONS["${reason}"] is shorter than the >10-char floor`,
+      ).toBeGreaterThan(10);
+    }
+  });
+
+  // Symmetric check — catches stale descriptions left behind if a reason
+  // is ever renamed or removed from the canonical precedence. Cheap to
+  // run; closes the second drift surface.
+  it('has no descriptions for reasons absent from canonical precedence', () => {
+    const canonical = new Set<string>(DENIAL_REASON_PRECEDENCE);
+    for (const reason of Object.keys(DENIAL_DESCRIPTIONS)) {
+      expect(
+        canonical.has(reason),
+        `DENIAL_DESCRIPTIONS has entry for "${reason}" which is not in DENIAL_REASON_PRECEDENCE — remove the description or restore the canonical entry`,
+      ).toBe(true);
     }
   });
 
