@@ -1,0 +1,122 @@
+# Dependabot configuration — automated dependency update PRs.
+#
+# Closes follow-up #3 from PR #17 (SHA-pin sweep): "Dependabot config to
+# monitor SHA-pinned actions and auto-PR bumps with verification."
+#
+# Together with the upstream pieces:
+#   PR #15  — pin trivy-action to a post-incident SHA (CRITICAL fix)
+#   PR #17  — SHA-pin all 33 action references
+#   PR #18  — diff-based CI gate rejecting non-SHA-pinned additions
+#   THIS    — Dependabot config: auto-PR maintenance bumps
+#
+# The four-piece pattern:
+#   1. Spot-fix the active CRITICAL (#15)
+#   2. Sweep the rest to the same discipline (#17)
+#   3. Gate against regression (#18)
+#   4. Forward-maintenance via Dependabot (this PR)
+#
+# Tunables you may want to revisit:
+#   - open-pull-requests-limit: ratcheted low to keep PR queue manageable;
+#     raise if you want broader coverage in one go.
+#   - schedule.interval: "weekly" is the conservative default. Switch to
+#     "daily" for the security-critical surfaces if appetite grows.
+#   - groups: batches related updates into one PR to reduce reviewer noise.
+#     The minor/patch group is the highest-noise reducer; security stays
+#     ungrouped so each CVE remediation gets its own auditable PR.
+
+version: 2
+
+updates:
+  # ─────────────────────────────────────────────────────────────────────
+  # GitHub Actions — auto-bump SHA pins when upstream cuts new versions.
+  # PR #17 pinned all 33 action references; without this, those pins drift
+  # out of date and we'd be running 12-month-old action SHAs eventually.
+  # Dependabot proposes the new SHA with the corresponding tag comment;
+  # PR #18's gate will accept the new SHA pin format automatically.
+  # ─────────────────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      # All non-security action bumps in one PR per week, reduces noise.
+      # Security-flagged action updates still get their own PR.
+      actions-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # npm (pnpm workspaces). Dependabot reads the root package.json plus
+  # all workspace manifests via pnpm-workspace.yaml.
+  # ─────────────────────────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    versioning-strategy: "increase-if-necessary"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "npm"
+    groups:
+      # Batch minor/patch bumps to cut PR volume; security bumps stay
+      # ungrouped so each one is auditable individually.
+      npm-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+      # Group all type-only definitions together — low risk, high volume.
+      types:
+        patterns:
+          - "@types/*"
+    ignore:
+      # @nestjs/* peer-dep churn — bump in coordinated waves, not auto.
+      - dependency-name: "@nestjs/*"
+        update-types:
+          - "version-update:semver-major"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Go module — packages/cli only. PR #20 already bumped jose2go to v1.8.0;
+  # Dependabot picks up subsequent vulns as they're flagged.
+  # ─────────────────────────────────────────────────────────────────────
+  - package-ecosystem: "gomod"
+    directory: "/packages/cli"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps/go)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "go"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Python — packages/sdk-py (pyproject.toml).
+  # ─────────────────────────────────────────────────────────────────────
+  - package-ecosystem: "pip"
+    directory: "/packages/sdk-py"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps/py)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
