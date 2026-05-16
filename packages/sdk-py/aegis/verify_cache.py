@@ -136,6 +136,12 @@ def build_cache_key(token: str, ctx: VerifyCacheContext | None = None) -> str:
     fields are joined with NUL — illegal in HTTP header values, agent IDs,
     and every context field per the API schema — so ``("a","b")`` and
     ``("a|b","")`` cannot collide.
+
+    Defensive: any input field containing NUL is rejected with
+    ``ValueError``. The schema forbids NUL in these positions, but the
+    function is part of the cache hot-path and a malformed token (e.g.
+    smuggled through a proxy) must not silently collide across contexts
+    in a shared backend (Redis/CF KV). Reject loudly at the boundary.
     """
     c = ctx or VerifyCacheContext()
     parts = [
@@ -146,6 +152,8 @@ def build_cache_key(token: str, ctx: VerifyCacheContext | None = None) -> str:
         c.merchant_id or "",
         c.merchant_domain or "",
     ]
+    if any("\x00" in p for p in parts):
+        raise ValueError("cache-key field contains NUL byte")
     canonical = "\x00".join(parts).encode("utf-8")
     return hashlib.sha256(canonical).hexdigest()
 

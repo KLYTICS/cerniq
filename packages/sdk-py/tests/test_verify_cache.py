@@ -56,6 +56,19 @@ class TestBuildCacheKey:
         )
         assert a != b
 
+    def test_rejects_nul_byte_in_any_field(self) -> None:
+        # A token containing NUL would otherwise collide canonically with
+        # a different (token, ctx) tuple in a shared backend (Redis/CF KV).
+        # Boundary rejection prevents cross-context cache poisoning.
+        with pytest.raises(ValueError, match="NUL"):
+            build_cache_key("a\x00b")
+        with pytest.raises(ValueError, match="NUL"):
+            build_cache_key("tok", VerifyCacheContext(action="a\x00b"))
+        with pytest.raises(ValueError, match="NUL"):
+            build_cache_key(
+                "tok", VerifyCacheContext(merchant_domain="x\x00y")
+            )
+
     def test_amount_format_parity_with_ts_in_currency_range(self) -> None:
         """Auditor peer 8e446976 finding #2: ``repr(1e20)`` diverges from
         JS ``String(1e20)`` at scientific-notation magnitudes. Lock the
