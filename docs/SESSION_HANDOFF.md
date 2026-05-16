@@ -5,6 +5,102 @@
 
 ---
 
+## 2026-05-15 (M-036 Phase 0a bundle + Intent Manifest scaffold + INTENT_MISMATCH wire-level — ADR-0015 + ADR-0016) — sid=opus-bundle-intent — claim=aegis:m-036-bundle-and-intent-manifest
+
+**Status:** 5 commits landed on `feat/sdk-verify-gateway-hardening`. Bundled the M-036 Phase 0a kernel from working tree, scaffolded `@aegis/intent-manifest` as the Phase 0 backbone for intent-bound attestation (closes May-2026 landscape gap #5), then wired `INTENT_MISMATCH` into the 8 wire-level surfaces in lockstep. **Same-working-tree two-Claude scenario** with peer `aegis:review-findings-hardening` (sid=2b178d04) holding adjacent scopes — explicit coordination via `claude-peers msg` and verified staging-area cleanliness before every commit. Zero overlap with peer's edits.
+
+### Commits on this branch
+
+| SHA | What |
+| --- | ---- |
+| `f19b021` | feat(audit): M-036 Phase 0a — manifest kernel + ADR-0015 |
+| `5c19bb9` | fix(sdk-ts): boundary-reject NUL byte in cache-key fields |
+| `7cf3a48` | docs: THE AEGIS TESTAMENT (operating doctrine) + OD-017 + M-036 status |
+| `1a05696` | feat(intent-manifest): scaffold + lock kernel (ADR-0016) |
+| `2078bd2` | feat(types,api,verifier-rp): wire INTENT_MISMATCH across 8 surfaces (ADR-0016) |
+
+### What shipped — M-036 Phase 0a bundle
+
+`apps/api/src/modules/audit/compression/` (6 files, 1,001 LOC kernel + 41 jest tests green) + `docs/decisions/0015-audit-storage-compression.md`. Dep-free, schema-free, framework-free signature-bearing core for the audit-storage-compression initiative. Phases 1-3 BLOCKED ON OPERATOR via OD-017 (added in this session's `OPERATOR_DECISIONS.md` edit). Companion `THE_AEGIS_TESTAMENT.md` (2164 lines, custodian: Erwin Kiess-Alfonso) lands the operating doctrine for the platform.
+
+**Phase 0b (audit-verifier portable port) + Phase 0c (CLI corpus walker) + cross-package parity test deferred to peer sid=2b178d04** — they hold `packages/audit-verifier/**` and will commit the verifier mirror + `tests/cross-package/audit-manifest-parity.spec.ts` alongside. The parity test cannot be committed unilaterally because it imports from both my Phase 0a kernel AND their not-yet-committed audit-verifier mirror; partial commit would red CI.
+
+### What shipped — Intent Manifest scaffold (NEW package)
+
+`packages/intent-manifest/` — pure-package kernel for intent-bound attestation, mirrors `@aegis/audit-verifier` shape (zero NestJS/DI/Node-only imports; `@noble/ed25519` + `@noble/hashes` only; edge-runtime safe). 24 vitest tests green (2 suites). Surface:
+
+- `IntentManifestBody` + `SignedIntentManifest` — signed declaration of agent intent for the next 30-60s window, anchored to verify-token `jti`+sha256.
+- Three `IntentClaim` variants (locked all three per ADR-0016): `http-call`, `commerce-action`, `tool-invocation` — each maps to a distinct Testament IV adoption wedge.
+- `signManifest` / `verifyManifest` — Ed25519 primitives with closed-enum `VerifyFailure` union; pattern-identical to audit-verifier.
+- `reconcileIntent(signed, actuals, opts)` — pure function returning typed `ReconciliationResult` with closed `IntentMismatchKind` enum. `assertNever` enforces discriminator exhaustiveness at compile time.
+- `INTENT_MISMATCH_DENIAL_REASON` exported as literal `'INTENT_MISMATCH'` constant — kept off `@aegis/types` runtime dep to preserve edge portability.
+
+**Operator decisions locked (full rationale in ADR-0016):**
+
+| # | Decision | Locked outcome |
+|---|----------|----------------|
+| D1 | IntentClaim envelope shape | Keep all three (`http-call`, `commerce-action`, `tool-invocation`) — each maps to a distinct adoption wedge per Testament IV §i-iii. Deprecation path: issuance-side rejection, never type-member removal. |
+| D2 | Reconciliation strictness + `graduated` semantics | Default `strict`; `graduated` tolerates over-call-count up to `floor(maxCalls × 1.2)` (20% default); non-count mismatches (`wrong-merchant`, `over-amount-cap`, `wrong-method`, `wrong-endpoint`, `arg-shape-mismatch`) always strict regardless of tolerance. |
+| D3 | `INTENT_MISMATCH` placement | Append at end of `DENIAL_REASON_PRECEDENCE` (after `ANOMALY_FLAGGED`). Forward-compatible per CLAUDE.md invariant 6 — no API minor version bump. |
+
+### What shipped — wire-level INTENT_MISMATCH (8 surfaces, atomic commit 2078bd2)
+
+| Surface | Change |
+| --- | --- |
+| `packages/types/src/constants.ts` | `DENIAL_REASON_PRECEDENCE` 11→12 reasons. |
+| `packages/sdk-ts/src/denial-reason.generated.ts` | Regenerated via `pnpm gen:denial-reason`. |
+| `apps/api/src/modules/verify/verify.dto.ts` | `DenialReason` union (wire shape). |
+| `apps/api/src/modules/verify/algorithm/verify.ports.ts` | `DenialReason` (worker-portable shape). |
+| `apps/api/src/common/policy-engine/engine.interface.ts` | `DenialReason` (Cedar/OPA evaluator contract). |
+| `packages/verifier-rp/src/types.ts` | `DenialReason` (RP-side observability superset, preserves `REPLAY_DETECTED`). |
+| `docs/spec/AEGIS_API_SPEC.yaml` | `VerifyResponse.denialReason.enum`. |
+| `tests/cross-package/denial-precedence-enum.spec.ts` | `CANONICAL` fixture array 10→11 entries (algorithm-chain view). |
+
+### Verification
+
+- `pnpm test:parity` → **10 suites, 106 tests green** (was 105, +1 from peer scope audit-manifest spec). `denial-precedence-enum.spec.ts` 6/6 with updated 11-reason CANONICAL fixture.
+- `pnpm --filter @aegis/intent-manifest typecheck` → clean.
+- `pnpm --filter @aegis/intent-manifest test` → 2 suites, **24 tests green** (502ms).
+- `pnpm --filter @aegis/api typecheck` → clean (3 modified files).
+- `pnpm --filter @aegis/verifier-rp typecheck` → clean.
+- `pnpm --filter @aegis/types typecheck` → clean.
+- `pnpm --filter @aegis/sdk test` → 5 suites, **73 tests green** (post NUL-byte fix +1).
+
+### Coordination & scope notes
+
+- Peer `aegis:review-findings-hardening` (sid=2b178d04) is in the SAME working tree (advisory warning at claim time, ack'd). Two coordination messages sent via `claude-peers msg`: (1) deferring `tests/cross-package/audit-manifest-parity.spec.ts` to their commit (imports from both scopes), (2) initial trim of my claim to non-overlapping paths.
+- Peer modified `apps/api/src/modules/audit/compression/manifest.chain.ts` (and adjacent files) AFTER my `f19b021` — they added a `malformed_manifest` `ChainWalkFailure` member with a body-sanity check (intra-manifest invariants like `firstSeq > lastSeq`). Those mods stay in their working tree for their commit; my staging area was verified clean of those edits before every commit.
+- Working tree left for peer to commit: `packages/audit-verifier/src/{cli,index}.ts`, `packages/mcp-bridge/**`, `packages/sdk-py/aegis/verify_cache.py` (+tests), `packages/sdk-ts/src/cache.ts` (refactored to `.some()` form on top of my `5c19bb9`), `.husky/pre-commit`, `.changeset/scope-mcp-tools-call-action.md`, `apps/api/src/modules/audit/compression/**` (post-f19b021 mods).
+- Untracked items left for separate ownership: `apps/marketing/`, `docs/LAUNCH_RUNBOOK.md`, `.changeset/scope-mcp-tools-call-action.md`. Mystery scopes; did not touch.
+- `pnpm-lock.yaml` is dirty (249 lines) from the `pnpm install --filter @aegis/intent-manifest` triggered when scaffolding the new package, plus accumulated peer-installations. Workspace packages resolve via symlink and `@noble/*` deps already exist via audit-verifier, so frozen-lockfile CI should be fine for `@aegis/intent-manifest` even without a lockfile commit. **Recommend next session bundle pnpm-lock.yaml updates with peer's audit-verifier commit** (they likely changed deps too via M-1 kid sanitization).
+
+### Known gap — sdk-py mirror stale (predates this session, surfaced here)
+
+`packages/sdk-py/aegis/_constants.py` `DENIAL_REASON_PRECEDENCE` tuple is missing BOTH `TRIAL_EXHAUSTED` (ADR-0014, 2026-05-05) AND `INTENT_MISMATCH` (this session). `packages/sdk-py/aegis/models.py` `DenialReason` StrEnum same gap. There is no cross-package parity test enforcing TS↔PY denial-reason consistency, so the drift has gone unnoticed.
+
+Intentionally NOT fixed in this session because:
+1. Adding `INTENT_MISMATCH` alone would deepen pre-existing drift, not fix it.
+2. The right fix bundles `TRIAL_EXHAUSTED` + `INTENT_MISMATCH` together AND adds the missing cross-package parity test in one commit.
+3. Peer holds `packages/sdk-py/aegis/verify_cache.py` (adjacent file, but not the constants/models files).
+
+**Next session should:** create a single commit bringing sdk-py up to canonical parity (12 reasons including `PLAN_LIMIT_EXCEEDED` pre-gate), and add `tests/cross-package/denial-reason-sdk-py-parity.spec.ts` that runs the same byte-identity contract as `denial-reason-parity.spec.ts` does for sdk-ts.
+
+### Phases remaining for @aegis/intent-manifest
+
+- **Phase 1** (this commit) — kernel locked, wire-level enum extended ✅
+- **Phase 2** — runtime issuance: new `apps/api/src/modules/intent/**` module behind `AEGIS_INTENT_MANIFEST_ENABLED` env flag; verify-path reconciliation via `IntentReconcilerPort` (mirrors ADR-0012 policy-engine port pattern); new audit events `intent.declared` / `intent.reconciled` / `intent.mismatch`. Separate ADR.
+- **Phase 3** — edge port for `workers/cf-verify` shadow-mode rollout (M-049 pattern).
+
+### What's next
+
+1. **Peer to commit** their audit-verifier + sdk-py + mcp-bridge + .husky + .changeset bundle. Cross-package audit-manifest parity test lands with that.
+2. **sdk-py denial-reason parity** — full canonical sync + new parity test (see "Known gap" above).
+3. **Intent Manifest Phase 2** — write ADR (mirror ADR-0012 port pattern), then scaffold `apps/api/src/modules/intent/**` issuance module behind env flag.
+4. **OD-017 operator review** — `OPERATOR_DECISIONS.md` has the eight-sub-decision row ready for sign-off; unblocks M-036 Phases 1-3.
+5. **Lockfile reconciliation commit** — after peer + sdk-py work lands, single `chore: refresh pnpm-lock.yaml after intent-manifest + audit-verifier + sdk-py installs`.
+
+---
+
 ## 2026-05-12 (CLI credentials file-mode hardening — TS scaffold ↔ Go canonical parity) — sid=836a9934 — claim=aegis:cli-credentials-file-mode
 
 **Status:** Landed. Single-file security fix in unclaimed scope (`packages/cli/src/credentials.ts`); paired vitest spec green; no peer overlap (probed via `claude-peers status` before claiming, verified zero edits to `packages/cli/**` after release).
