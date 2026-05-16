@@ -335,6 +335,41 @@ Expected: `trustScore` reduced by ~100 points vs. pre-smoke baseline
 
 ---
 
+## Relying-party integration (the wedge — what your integrators write)
+
+The AEGIS-side flip you're running enables the `/v1/intent/*` endpoints.
+The other half — relying-party (merchant, treasury, broker-dealer) code
+— is the same shape in dev and prod, using the published
+`@aegis/verifier-rp` package:
+
+```ts
+import { verifyIntent } from '@aegis/verifier-rp';
+
+app.post('/api/charge', async (req, res) => {
+  // Extract jti from the verify token your existing AegisVerifier already decoded.
+  const verifyJwt = req.aegis.decoded; // your existing decoder output
+  const outcome = verifyIntent({
+    manifest: req.body.intentManifest,
+    actuals: [observationFromRequest(req)],
+    publicKeysByKid: await aegisJwksCache.keys(),
+    // REQUIRED — closes IM-T2 cross-RP replay. Compile-error if omitted.
+    expectedVerifyTokenJti: verifyJwt.jti,
+  });
+  if (outcome.kind === 'denied') {
+    return res.status(403).json({ reason: outcome.reason.kind });
+  }
+  // ...process the charge, then async-emit to /v1/intent/{id}/actuals
+});
+```
+
+`expectedVerifyTokenJti` is REQUIRED by the type signature — there is no
+"forget to check" path. See `docs/THREAT_MODEL_INTENT_MANIFEST.md` IM-T2
+for the threat this defense closes. Runnable end-to-end demos for ACP,
+ISO 20022 treasury, and FINRA broker-dealer verticals are in
+`examples/intent-*` (all offline — no AEGIS API required to run).
+
+---
+
 ## Rollback
 
 If anything looks wrong during smoke or the 15-min observation window:

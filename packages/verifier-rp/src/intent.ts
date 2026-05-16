@@ -1,30 +1,32 @@
 // verifyIntent — the relying-party adoption wedge for AEGIS Intent
-// Manifest (ADR-0016 + ADR-0017). One-line call replaces the
-// boilerplate every ACP merchant / treasury platform / broker-dealer
-// would otherwise have to write themselves:
+// Manifest (ADR-0016 + ADR-0017). One call replaces the boilerplate
+// every ACP merchant / treasury platform / broker-dealer would otherwise
+// have to write themselves:
 //
 //   import { verifyIntent } from '@aegis/verifier-rp';
 //
-//   const result = await verifyIntent({
+//   const result = verifyIntent({
 //     manifest,                  // SignedIntentManifest from POST /v1/intent
-//     actual,                    // ActualCallObservation built from your handler input
+//     actuals,                   // ActualCallObservation[] built from your handler input
 //     publicKeysByKid,           // your JWKS-cached AEGIS audit signing keys
+//     expectedVerifyTokenJti,    // jti from the verify token you're about to honor
 //   });
-//   if (result.kind === 'denied') return res.status(403).json({ reason: result.reason });
+//   if (result.kind === 'denied') return res.status(403).json({ reason: result.reason.kind });
 //
-// This is two operations stitched into one:
-//   1. verifyManifest()   — Ed25519 signature integrity over the body
-//   2. reconcileIntent()  — semantic reconciliation of actual vs declared
+// This is THREE operations stitched into one:
+//   1. verifyManifest()                — Ed25519 signature integrity over the body
+//   2. verify-token binding check      — manifest.body.verifyTokenJti === expected
+//   3. reconcileIntent()               — semantic reconciliation of actual vs declared
 //
-// Both come from @aegis/intent-manifest (the framework-free kernel).
-// This wrapper exists in verifier-rp because:
-//   - relying parties already depend on this package for verify-token
-//     offline verification (AegisVerifier class)
-//   - the JWKS cache they use for verify tokens is the SAME cache that
-//     should hold the intent-manifest signing keys (audit signer family
-//     per ADR-0011 + M-051)
-//   - bundling avoids the relying party having two near-identical
-//     ed25519 verification code paths
+// Steps 1 + 3 come from @aegis/intent-manifest (the framework-free kernel);
+// step 2 is enforced here. Per the Intent Manifest threat model
+// (docs/THREAT_MODEL_INTENT_MANIFEST.md IM-T2), the verify-token binding
+// closes the cross-RP replay attack: an attacker who intercepts a manifest
+// issued for verify-token T against relying party RP-A cannot present that
+// same manifest to RP-B (whose verify token has a different jti). The
+// binding USED to be caller-responsibility (a docstring note); making it
+// a REQUIRED input here promotes it to a compile-error for forgetful
+// integrators.
 //
 // Edge-runtime safe (no Node-only APIs) per CLAUDE.md invariant #2.
 
@@ -57,6 +59,24 @@ export interface VerifyIntentInput {
    * The relying party MUST cache this from /.well-known/audit-signing-key.
    */
   publicKeysByKid: Readonly<Record<string, Uint8Array>>;
+  /**
+   * The `jti` claim of the verify token this RP is about to honor.
+   * REQUIRED to prevent cross-RP manifest replay (threat IM-T2):
+   * an attacker who intercepts a manifest issued for verify-token T
+   * against RP-A cannot present it to RP-B (different jti).
+   *
+   * Extract this from the verify token your existing AegisVerifier
+   * already decoded — the JWT's `jti` claim.
+   */
+  expectedVerifyTokenJti: string;
+  /**
+   * Optional SHA-256 base64url of the verify token bytes. When provided,
+   * defends additionally against a (rare) jti collision where the same
+   * jti was issued for two different verify-token bodies. Most RPs can
+   * omit this; treasury / broker-dealer verticals with high-value bindings
+   * should compute and pass it for belt-and-braces.
+   */
+  expectedVerifyTokenSha256B64Url?: string;
   /** Override the system clock for tests. */
   now?: () => number;
 }
@@ -64,6 +84,18 @@ export interface VerifyIntentInput {
 export type VerifyIntentDenialReason =
   /** Manifest signature did not verify (one of the kernel VerifyFailure kinds). */
   | { kind: 'manifest_signature'; cause: KernelVerifyFailure; detail?: string }
+  /**
+   * Manifest signature was valid, but the manifest's `verifyTokenJti`
+   * (or `verifyTokenSha256B64Url`, when checked) does not match the
+   * verify token this RP is about to honor. Indicates cross-RP replay
+   * (threat IM-T2) or a stale manifest paired with the wrong token.
+   */
+  | {
+      kind: 'verify_token_binding_mismatch';
+      field: 'jti' | 'sha256';
+      expected: string;
+      actual: string;
+    }
   /** Reconciliation said STRICT denial or GRADUATED breach. */
   | { kind: 'reconciliation_mismatch'; result: ReconciliationResult };
 
@@ -76,28 +108,25 @@ export type VerifyIntentOutcome =
 // ────────────────────────────────────────────────────────────────────────
 
 /**
- * Verify a signed intent manifest AND reconcile observed actuals against
- * the declared intent. Returns a closed-enum VerifyIntentOutcome.
+ * Verify a signed intent manifest, check the verify-token binding, AND
+ * reconcile observed actuals against the declared intent. Returns a
+ * closed-enum VerifyIntentOutcome.
  *
- * **The "one line" relying parties write to integrate AEGIS Intent
- * Manifest** (Testament Book I §3). Everything upstream (issuing the
- * manifest, populating actuals, caching the JWKS) is per-RP plumbing;
- * the decision logic is this one call.
+ * **The wedge** (Testament Book I §3) — three lines on the RP side:
  *
- * Failure semantics:
- *   - bad signature  → `denied` with reason.kind === 'manifest_signature'
- *   - bad timing     → `denied` because reconcileIntent records a
- *                      manifest-expired / not-yet-valid mismatch and
- *                      mapDenialReason returns INTENT_MISMATCH under
- *                      strict mode
- *   - clean match    → `approved`
- *   - tolerated      → `approved` with result.mismatches populated
- *                      (advisory mode or graduated within tolerance)
+ *   const result = verifyIntent({ manifest, actuals, publicKeysByKid, expectedVerifyTokenJti });
+ *   if (result.kind === 'denied') return res.status(403).json({ reason: result.reason.kind });
+ *   // ...proceed with the action, then async-emit actuals to AEGIS...
  *
- * Never throws on bad input — every failure path returns a typed denial.
- * Throws ONLY if the caller hands in something structurally illegal
- * (e.g. a non-Uint8Array public key) — those are programmer errors,
- * not relying-party-runtime errors.
+ * Failure ordering (each step assumes prior steps passed):
+ *   1. signature                → `denied` `manifest_signature` (kernel cause)
+ *   2. verify-token binding     → `denied` `verify_token_binding_mismatch`
+ *   3. reconciliation           → `denied` `reconciliation_mismatch` OR `approved`
+ *
+ * Never throws on user-recoverable failure — every path returns a typed
+ * denial. Throws ONLY on structurally illegal inputs (non-Uint8Array
+ * public keys, missing required fields the type system prevents) —
+ * those are programmer errors, not relying-party-runtime errors.
  */
 export function verifyIntent(input: VerifyIntentInput): VerifyIntentOutcome {
   // Step 1 — signature integrity. Stateless; no expiry/principal check.
@@ -113,7 +142,37 @@ export function verifyIntent(input: VerifyIntentInput): VerifyIntentOutcome {
     };
   }
 
-  // Step 2 — semantic reconciliation. Closed-enum result; never throws.
+  // Step 2 — verify-token binding. Closes IM-T2 (cross-RP replay).
+  // Compared AFTER signature passes so a forged manifest doesn't waste
+  // the binding-check error code on the caller's audit log.
+  const bodyJti = input.manifest.body.verifyTokenJti;
+  if (bodyJti !== input.expectedVerifyTokenJti) {
+    return {
+      kind: 'denied',
+      reason: {
+        kind: 'verify_token_binding_mismatch',
+        field: 'jti',
+        expected: input.expectedVerifyTokenJti,
+        actual: bodyJti,
+      },
+    };
+  }
+  if (input.expectedVerifyTokenSha256B64Url !== undefined) {
+    const bodySha = input.manifest.body.verifyTokenSha256B64Url;
+    if (bodySha !== input.expectedVerifyTokenSha256B64Url) {
+      return {
+        kind: 'denied',
+        reason: {
+          kind: 'verify_token_binding_mismatch',
+          field: 'sha256',
+          expected: input.expectedVerifyTokenSha256B64Url,
+          actual: bodySha,
+        },
+      };
+    }
+  }
+
+  // Step 3 — semantic reconciliation. Closed-enum result; never throws.
   const result = reconcileIntent(input.manifest, input.actuals, {
     now: input.now ?? Date.now,
   });

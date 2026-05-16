@@ -75,7 +75,7 @@ AEGIS reconciliation
 | #      | Threat                                               | Likelihood | Impact   | Mitigation                                                                                                    | Status     |
 | ------ | ---------------------------------------------------- | ---------- | -------- | ------------------------------------------------------------------------------------------------------------- | ---------- |
 | IM-T1  | Manifest signature forgery                           | Low        | Critical | Ed25519 over canonical JSON; signing key custody via KMS (M-051) or env fallback                              | Covered    |
-| IM-T2  | Cross-RP manifest replay                             | High       | Medium   | `verifyTokenJti` binding; RP MUST cross-check against the verify token it's about to honor                    | Partial    |
+| IM-T2  | Cross-RP manifest replay                             | High       | Medium   | `verifyTokenJti` binding ENFORCED as required input to `verifyIntent` (compile-error on omit); optional `expectedVerifyTokenSha256B64Url` for belt-and-braces | Covered    |
 | IM-T3  | Scope overrun (declared X, did Y)                    | High       | High     | Strict reconciliation default; `IntentMismatchKind` closed enum; deny + BATE signal travels                   | Covered    |
 | IM-T4  | Beneficiary substitution (treasury vertical)         | Medium     | Critical | `wrong-merchant` mismatch is ALWAYS strict regardless of graduated tolerance (reconcile.ts:232)               | Covered    |
 | IM-T5  | Idempotency key abuse (replay or conflict)           | Medium     | Medium   | Deep-body equality check; same-key+different-body → typed `idempotency_conflict` (intent.adapter.prisma.ts)   | Covered    |
@@ -106,14 +106,14 @@ $200 cap and process a charge.
 RPs MUST cross-check these against the verify token they're about to
 honor. RP-B's verify token has a different `jti`, so the binding fails.
 
-**Gap.** Relying parties that don't perform the cross-check are
-vulnerable. **Mitigation: the operator runbook
-(`docs/runbooks/intent-manifest-enable.md`) and the verifier-rp adoption
-surface must document the cross-check requirement.** Currently the
-`verifyIntent` function does NOT enforce this (it's signature + semantic
-only; the binding is a caller responsibility). **Filed for follow-up:**
-move the `verifyTokenJti` check into `verifyIntent` as a required input,
-making the binding compile-error if omitted.
+**Defense (closed in follow-up).** The `verifyTokenJti` cross-check is
+now a REQUIRED input to `verifyIntent` (`packages/verifier-rp/src/intent.ts`
+`VerifyIntentInput.expectedVerifyTokenJti`). Omitting it is a TypeScript
+compile-error, not a runtime warning — forgetful integrators cannot ship
+the unsafe variant by accident. Optional `expectedVerifyTokenSha256B64Url`
+provides belt-and-braces against the (rare) jti-collision case where the
+same jti was issued for two different verify-token bodies. Status moved
+from "Partial" to "Covered" as of this commit.
 
 ### IM-T3 — Scope overrun (declared X, did Y)
 
@@ -399,7 +399,7 @@ Before enabling intent-manifest in production:
 
 ### Filed follow-ups from this threat model
 
-1. **IM-T2 mitigation gap** — move `verifyTokenJti` cross-check into `verifyIntent` as a required input. Currently caller responsibility, which is too easy to forget.
+1. ~~IM-T2 mitigation gap — move `verifyTokenJti` cross-check into `verifyIntent` as a required input.~~ **DONE** in follow-up commit (see status `Covered` above).
 2. **IM-T6 / IM-T11 mitigation** — implement OD-019 (separate intent-signing key family) to limit blast radius of audit-key compromise.
 3. **Domain separation** — when intent-manifest schema version bumps (v1 → v2), add explicit `"intent-v1:"` domain-separation byte to canonical pre-image to prevent cross-protocol signature substitution.
 4. **RP onboarding checklist** — publish per-vertical reconciliation policy recommendations as a separate doc (`docs/RP_ONBOARDING_INTENT.md`).

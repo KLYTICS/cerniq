@@ -155,6 +155,8 @@ export async function runDemo(
       manifest: signed,
       actuals: [actual],
       publicKeysByKid,
+      // IM-T2 defense — see intent-fintech-acp/src/index.ts for full note.
+      expectedVerifyTokenJti: 'jti_demo_finra_01',
       now: nowMs,
     });
     const mismatches =

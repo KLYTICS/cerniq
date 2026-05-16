@@ -130,6 +130,10 @@ export async function runDemo(
       manifest: signed,
       actuals: [actual],
       publicKeysByKid,
+      // IM-T2 defense: bind the manifest to the verify-token the RP is
+      // about to honor. In production, extract this from the JWT's jti
+      // claim via your existing AegisVerifier decode.
+      expectedVerifyTokenJti: 'jti_demo_acp_01',
       now: nowMs,
     });
     const mismatches =

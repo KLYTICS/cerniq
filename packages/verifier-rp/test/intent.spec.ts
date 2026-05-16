@@ -66,6 +66,7 @@ describe('verifyIntent — adoption-wedge surface', () => {
         manifest: buildSignedManifest(),
         actuals: [chargeActual()],
         publicKeysByKid: { [KID]: FIXED_PUB },
+        expectedVerifyTokenJti: 'jti_test',
         now: fakeNow,
       });
       expect(out.kind).toBe('approved');
@@ -80,6 +81,7 @@ describe('verifyIntent — adoption-wedge surface', () => {
         manifest: buildSignedManifest({ reconciliation: { strictness: 'advisory' } }),
         actuals: [chargeActual({ payload: { action: 'stripe.refund', merchantId: 'merch_42', amount: '5' } })],
         publicKeysByKid: { [KID]: FIXED_PUB },
+        expectedVerifyTokenJti: 'jti_test',
         now: fakeNow,
       });
       expect(out.kind).toBe('approved');
@@ -96,6 +98,7 @@ describe('verifyIntent — adoption-wedge surface', () => {
         manifest: buildSignedManifest(),
         actuals: [chargeActual()],
         publicKeysByKid: { 'other-kid': FIXED_PUB },
+        expectedVerifyTokenJti: 'jti_test',
         now: fakeNow,
       });
       expect(out.kind).toBe('denied');
@@ -114,6 +117,7 @@ describe('verifyIntent — adoption-wedge surface', () => {
         manifest: tampered,
         actuals: [chargeActual()],
         publicKeysByKid: { [KID]: FIXED_PUB },
+        expectedVerifyTokenJti: 'jti_test',
         now: fakeNow,
       });
       expect(out.kind).toBe('denied');
@@ -129,6 +133,7 @@ describe('verifyIntent — adoption-wedge surface', () => {
         manifest: buildSignedManifest(),
         actuals: [chargeActual({ payload: { action: 'stripe.charge', merchantId: 'merch_42', amount: '999.00' } })],
         publicKeysByKid: { [KID]: FIXED_PUB },
+        expectedVerifyTokenJti: 'jti_test',
         now: fakeNow,
       });
       expect(out.kind).toBe('denied');
@@ -146,6 +151,7 @@ describe('verifyIntent — adoption-wedge surface', () => {
         manifest: buildSignedManifest(),
         actuals: [chargeActual({ payload: { action: 'stripe.charge', merchantId: 'attacker_merch', amount: '5.00' } })],
         publicKeysByKid: { [KID]: FIXED_PUB },
+        expectedVerifyTokenJti: 'jti_test',
         now: fakeNow,
       });
       expect(out.kind).toBe('denied');
@@ -159,6 +165,7 @@ describe('verifyIntent — adoption-wedge surface', () => {
         manifest: buildSignedManifest(),
         actuals: [chargeActual()],
         publicKeysByKid: { [KID]: FIXED_PUB },
+        expectedVerifyTokenJti: 'jti_test',
         now: () => (NOW_SEC + 9999) * 1000,
       });
       expect(out.kind).toBe('denied');
@@ -178,6 +185,7 @@ describe('verifyIntent — adoption-wedge surface', () => {
           manifest: buildSignedManifest(),
           actuals: [chargeActual({ payload: { action: 'X', merchantId: 'Y', amount: '99999' } })],
           publicKeysByKid: { 'wrong-kid': FIXED_PUB },
+          expectedVerifyTokenJti: 'jti_test',
           now: () => 99999999999999,
         });
       }).not.toThrow();
@@ -189,8 +197,89 @@ describe('verifyIntent — adoption-wedge surface', () => {
           manifest: buildSignedManifest({ issuedAt: Math.floor(Date.now() / 1000), expiresAt: Math.floor(Date.now() / 1000) + 60 }),
           actuals: [chargeActual({ observedAt: Math.floor(Date.now() / 1000) })],
           publicKeysByKid: { [KID]: FIXED_PUB },
+          expectedVerifyTokenJti: 'jti_test',
         });
       }).not.toThrow();
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // IM-T2 — verify-token binding (cross-RP replay defense)
+  // ─────────────────────────────────────────────────────────────────────
+  // Closes the gap surfaced in docs/THREAT_MODEL_INTENT_MANIFEST.md:
+  // before this defense, an attacker who intercepted a manifest issued
+  // for verify-token T at relying party RP-A could replay it against
+  // RP-B (different verify token, different jti). The binding check
+  // makes that replay surface a typed denial instead of a silent pass.
+
+  describe('denied — verify-token binding (IM-T2 defense)', () => {
+    it('expected jti differs from manifest jti → denied with verify_token_binding_mismatch', () => {
+      const out = verifyIntent({
+        manifest: buildSignedManifest(), // body.verifyTokenJti = 'jti_test'
+        actuals: [chargeActual()],
+        publicKeysByKid: { [KID]: FIXED_PUB },
+        // RP is honoring a DIFFERENT verify token than the one the manifest binds to.
+        expectedVerifyTokenJti: 'jti_belongs_to_other_rp',
+        now: fakeNow,
+      });
+      expect(out.kind).toBe('denied');
+      if (out.kind === 'denied') {
+        expect(out.reason.kind).toBe('verify_token_binding_mismatch');
+        if (out.reason.kind === 'verify_token_binding_mismatch') {
+          expect(out.reason.field).toBe('jti');
+          expect(out.reason.expected).toBe('jti_belongs_to_other_rp');
+          expect(out.reason.actual).toBe('jti_test');
+        }
+      }
+    });
+
+    it('expected sha256 differs from manifest sha256 → denied with field=sha256', () => {
+      const out = verifyIntent({
+        manifest: buildSignedManifest(), // body.verifyTokenSha256B64Url = 'aGVsbG8'
+        actuals: [chargeActual()],
+        publicKeysByKid: { [KID]: FIXED_PUB },
+        expectedVerifyTokenJti: 'jti_test', // jti matches
+        expectedVerifyTokenSha256B64Url: 'd29ybGQ', // but sha256 does NOT
+        now: fakeNow,
+      });
+      expect(out.kind).toBe('denied');
+      if (out.kind === 'denied' && out.reason.kind === 'verify_token_binding_mismatch') {
+        expect(out.reason.field).toBe('sha256');
+        expect(out.reason.expected).toBe('d29ybGQ');
+        expect(out.reason.actual).toBe('aGVsbG8');
+      }
+    });
+
+    it('binding check fires AFTER signature — forged manifest gets signature error, not binding error', () => {
+      // A manifest with a tampered body would fail signature first. The
+      // binding error is reserved for cases where the signature is valid
+      // but the manifest was issued for a different verify-token context.
+      const signed = buildSignedManifest();
+      const tampered = { ...signed, body: { ...signed.body, verifyTokenJti: 'attacker_jti' } };
+      const out = verifyIntent({
+        manifest: tampered,
+        actuals: [chargeActual()],
+        publicKeysByKid: { [KID]: FIXED_PUB },
+        expectedVerifyTokenJti: 'attacker_jti', // would match the tampered body
+        now: fakeNow,
+      });
+      // ...but signature fails first because the body bytes changed.
+      expect(out.kind).toBe('denied');
+      if (out.kind === 'denied') {
+        expect(out.reason.kind).toBe('manifest_signature');
+      }
+    });
+
+    it('matching sha256 (optional) does not block clean path', () => {
+      const out = verifyIntent({
+        manifest: buildSignedManifest(),
+        actuals: [chargeActual()],
+        publicKeysByKid: { [KID]: FIXED_PUB },
+        expectedVerifyTokenJti: 'jti_test',
+        expectedVerifyTokenSha256B64Url: 'aGVsbG8', // matches the body
+        now: fakeNow,
+      });
+      expect(out.kind).toBe('approved');
     });
   });
 });

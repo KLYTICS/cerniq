@@ -5,6 +5,91 @@
 
 ---
 
+## 2026-05-16 LATE-EVENING (verifier-rp IM-T2 fix + missing barrel exports) — sid=opus-phase3-enterprise — claim=aegis:intent-im-t2-fix
+
+**Status:** Closes the largest threat-model gap (IM-T2 cross-RP replay) in the same session that surfaced it — demonstrating the post-ship review discipline ships concrete code, not just documentation. Also fixes a real bug from `7b36258`: the verifier-rp barrel (`index.ts`) never exported `verifyIntent` or its types, so external consumers couldn't import via the package name. Hidden by the examples-not-in-workspace gap noted earlier.
+
+### What landed (this commit)
+
+```
+packages/verifier-rp/src/intent.ts            (±60 LOC)  — IM-T2 binding check + extended union
+packages/verifier-rp/src/index.ts             (+12 LOC)  — barrel exports for verifyIntent + types
+packages/verifier-rp/test/intent.spec.ts      (±35 LOC)  — 4 existing updated + 4 new binding tests
+examples/intent-fintech-acp/src/index.ts      (+5 LOC)   — pass expectedVerifyTokenJti
+examples/intent-treasury-iso20022/src/index.ts (+3 LOC)  — pass expectedVerifyTokenJti
+examples/intent-broker-dealer-finra/src/index.ts (+3 LOC) — pass expectedVerifyTokenJti
+docs/THREAT_MODEL_INTENT_MANIFEST.md          (±10 LOC)  — IM-T2 status Partial → Covered
+docs/runbooks/intent-manifest-enable.md       (+33 LOC)  — RP integration section with new field
+docs/SESSION_HANDOFF.md                                  — this entry
+```
+
+### Two bugs fixed in one commit (both from this session)
+
+**Bug 1 — IM-T2 (the threat model finding).** `verifyTokenJti` cross-check was caller-responsibility (a docstring note in `verifyIntent`'s JSDoc). A diligent RP would catch cross-RP replay; a forgetful one would ship a vulnerability. Fix: `expectedVerifyTokenJti` is now a REQUIRED input to `VerifyIntentInput`. Omitting it is a TypeScript compile-error. Optional `expectedVerifyTokenSha256B64Url` for belt-and-braces in high-value verticals. Extended `VerifyIntentDenialReason` union with a new `verify_token_binding_mismatch` variant.
+
+**Bug 2 — Missing barrel exports.** `packages/verifier-rp/src/index.ts` had zero references to `verifyIntent` (confirmed via `git log` — last touched at initial baseline `714be5a`). My commit `7b36258` shipped the function but never added the export. External `import { verifyIntent } from '@aegis/verifier-rp'` would TS error. Hidden because:
+- Tests use relative imports (`../src/intent`) so they passed.
+- Examples aren't pnpm workspace members so they never typechecked.
+
+Both bugs are the kind that **post-ship review surfaces but design review misses**. Filing them in the same commit as the fix closes the loop coherently.
+
+### Gates
+
+| Gate | Before | After |
+|------|--------|-------|
+| verifier-rp tests | 67/67 | **71/71** (+4 binding tests) |
+| cross-package parity | 162/162 | 180/180 (peer adds also landed) |
+| TypeScript compile errors at call sites | 0 (silent gap) | **4 caught at compile-time** (the fix WORKING — every existing `verifyIntent` call required the new field) |
+
+The 4-compile-errors are the IM-T2 fix's signature feature: forgetful integrators get hard build failures, not silent vulnerabilities. The fix doesn't *prevent* developers from skipping the binding check — but the only way to do so is to explicitly write `expectedVerifyTokenJti: ''` (or a stub value), which is itself a security-review red flag in any code review.
+
+### Threat model status update
+
+```
+IM-T2 Cross-RP manifest replay: Partial → Covered
+```
+
+Filed follow-up #1 in `docs/THREAT_MODEL_INTENT_MANIFEST.md` is now **DONE** (marked struck-through with reference to this commit). Three follow-ups remain: OD-019 (separate signer), domain separation for v2 schema, per-vertical RP onboarding doc.
+
+### What's next (queued, NOT started — unchanged from prior entry)
+
+1. Integration spec against live Postgres for the Prisma adapter
+2. OD-019 — separate intent-signing key family
+3. OD-020 — verify-wire emission (decided AGAINST in Phase 2)
+4. Phase 3 CF Worker port
+5. SDK-py intent mirror
+6. RP onboarding doc
+
+### Coordination
+
+Peer state at commit time:
+- `bf9d6030`'s round-8 JAR enforcement landed (entry above) — no overlap (verify.algorithm.ts vs. my packages/verifier-rp/).
+- No active peer claims overlap `packages/verifier-rp/**`.
+
+This commit touches only files I've authored this session. Clean staging, no peer-territory drift.
+
+---
+
+## 2026-05-16 · sid=bf9d603026c1 · jar-iss-iat-enforcement
+
+Round 8 closes the decoded-but-not-enforced JAR audit pattern. RFC 9101 iss + iat enforcement now wired at the verify algorithm (Step 3.5 + Step 3.6), symmetrical to round 7's Step 3.4 aud binding. All three JAR claim gates are operator-opt-in via env (AEGIS_API_BASE_URL/AEGIS_ISSUER, AEGIS_STRICT_JAR_ISS, AEGIS_MAX_TOKEN_AGE_SECONDS). Defaults preserve pre-JAR backward compat. Each gate runs BEFORE the replay cache so rejected tokens do not consume their jti. Mismatch maps to INVALID_SIGNATURE per ADR-0004 (locked enum); the specific gate flows to observability not the public enum. 40 algorithm tests + 17 jwt.util.jar + 180 cross-package parity all green. FAPI 2.0 profile §2 RFC-9101 row updated with code+test refs; §3.3 deferred follow-on rewritten to bundle the three env vars into a future AEGIS_FAPI_STRICT_MODE macro. Files STAGED (uncommitted, bundle-lane discipline).
+
+### Files touched
+
+- `apps/api/src/config/config.schema.ts`
+- `apps/api/src/config/config.service.ts`
+- `apps/api/src/modules/verify/verify.service.ts`
+- `apps/api/src/modules/verify/algorithm/verify.algorithm.ts`
+- `apps/api/src/modules/verify/algorithm/verify.algorithm.spec.ts`
+- `apps/api/src/modules/verify/algorithm/verify.ports.ts`
+- `docs/spec/05_FAPI_2_0_PROFILE.md`
+
+### Next steps
+
+Operator: enable AEGIS_API_BASE_URL in production env first, then AEGIS_STRICT_JAR_ISS once SDK fleet emits iss, finally AEGIS_MAX_TOKEN_AGE_SECONDS (start ≥60s, FAPI 2.0 ceiling is 300s) after measuring p99 RTT. SDK side: ensure signed tokens carry iss=sub and a recent iat. Future round: bundle the three envs into AEGIS_FAPI_STRICT_MODE=true with a boot-time pre-flight warn.
+
+---
+
 ## 2026-05-16 EVENING (Intent Manifest threat model — feature-specific addendum) — sid=opus-phase3-enterprise — claim=aegis:intent-threat-model
 
 **Status:** Closes the security-readiness loop on the intent-manifest stack alongside the operator-readiness loop (`0fd8018` runbook). A feature-specific threat model addendum to `docs/THREAT_MODEL.md`, structured to match the existing T# catalog convention (IM-T1 through IM-T14, scoped to avoid collision with master `T*` numbers).
