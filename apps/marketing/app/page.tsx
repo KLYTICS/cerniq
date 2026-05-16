@@ -1,7 +1,5 @@
 // AEGIS marketing landing — cinematic single-page. Mostly server-rendered;
 // client islands for the verify-burst, live counter, and code typewriter.
-// Pricing CTAs route to Stripe Payment Links provisioned by the operator
-// (see docs/LAUNCH_RUNBOOK.md § Day 2). Env-var unset → mailto fallback.
 
 import { AuditChain } from '../components/AuditChain';
 import { CodeTypewriter } from '../components/CodeTypewriter';
@@ -13,16 +11,22 @@ import { BY_CATEGORY, CATEGORY_LABELS } from '../lib/integrations';
 const SALES_EMAIL = process.env.NEXT_PUBLIC_SALES_EMAIL ?? 'sales@aegislabs.io';
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'https://app.aegis.dev';
 
-function checkoutHref(envVar: string | undefined, planLabel: string): string {
-  if (envVar && envVar.startsWith('https://')) return envVar;
+// Why mailto for every paid plan: the self-serve checkout path is not wired
+// end-to-end. apps/api/src/modules/billing/stripe.service.ts:553-559 requires
+// session.metadata.principalId, but Stripe Payment Links cannot inject that;
+// no email service exists in apps/api/; the webhook handler does not issue
+// API keys on checkout. Until those three gaps close (and Auth0 v4 lands per
+// operator decision #5), any "Start Free" button that takes money without
+// fulfillment is a fraud surface. See docs/LAUNCH_RUNBOOK.md § Phase 0.
+function planMailto(planLabel: string): string {
   return `mailto:${SALES_EMAIL}?subject=${encodeURIComponent(`AEGIS — ${planLabel} plan`)}`;
 }
 
 const LINKS = {
-  developer: checkoutHref(process.env.NEXT_PUBLIC_STRIPE_LINK_DEVELOPER, 'Developer'),
-  team:      checkoutHref(process.env.NEXT_PUBLIC_STRIPE_LINK_TEAM, 'Team'),
-  scale:     checkoutHref(process.env.NEXT_PUBLIC_STRIPE_LINK_SCALE, 'Scale'),
-  enterprise: `mailto:${SALES_EMAIL}?subject=${encodeURIComponent('AEGIS — Enterprise inquiry')}`,
+  developer:  planMailto('Developer'),
+  team:       planMailto('Team'),
+  scale:      planMailto('Scale'),
+  enterprise: planMailto('Enterprise inquiry'),
 };
 
 // Featured 12 for the home-page integration preview — mix of LLM + framework + cloud + workflow

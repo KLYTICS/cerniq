@@ -1,8 +1,10 @@
 # AEGIS — Launch Runbook (Ship to First $49)
 
-> Profit-optimized sequence. Each day is sequential, gated, and small enough to ship before EOD. Acceptance criterion: **a stranger can find aegis.dev, click Start Free, complete Stripe checkout, receive an API key by email, and make a successful `POST /v1/verify` call.**
+> Profit-optimized sequence. Each day is sequential, gated, and small enough to ship before EOD.
 >
-> Today: 2026-05-15. Target first $49 charge: 2026-05-20.
+> **Acceptance criterion (corrected 2026-05-16):** the operator can hand a prospect a magic-link signup, the prospect receives an admin-provisioned API key over a sales channel, and makes a successful `POST /v1/verify` call. **Self-serve checkout is deferred** — see Phase 0 below. The original "stranger → Stripe Payment Link → email API key" criterion is not satisfied by the wired code path.
+>
+> Today: 2026-05-16. Target first $49 charge: 2026-05-23 (revised from 2026-05-20 to absorb Phase 0 reality).
 
 This runbook complements — does **not** replace — `docs/PRODUCTION_CHECKLIST.md` (the security gate) and `docs/DEPLOYMENT_GUIDE.md` (the deploy mechanics). Both are prerequisites for the steps below. This file is the *sequencing layer* — what to do, in what order, today.
 
@@ -32,6 +34,43 @@ The five gates between code-complete and first-dollar:
 3. **Prod Ed25519 keys.** Not generated.
 4. **Railway project.** Not linked.
 5. **Vercel projects.** Marketing + dashboard not deployed.
+
+---
+
+## ⚠️ Phase 0 — Self-serve flow prerequisites (added 2026-05-16)
+
+This runbook originally assumed **Flow A**: stranger clicks a Stripe Payment Link, the webhook handler provisions an account and an API key, and the API key arrives by email. A 2026-05-16 read of `apps/api/src/modules/billing/` and `apps/dashboard/app/` shows Flow A is **not wired**. The actually-wired path is **Flow B**: authenticated principal initiates `createCheckoutSession` from inside the dashboard (`apps/api/src/modules/billing/billing.controller.ts:222-225`), and `onCheckoutCompleted` updates the plan tier on the *existing* principal record.
+
+Four gaps must close before either Flow A or Flow B is a stranger-shaped journey. Until then, **sales-driven onboarding via mailto is the only honest path** — and the marketing CTAs have been downgraded accordingly (`apps/marketing/app/page.tsx`, 2026-05-16). The operator MUST NOT create live-mode Stripe Payment Links.
+
+### Gap 1 — Bare Payment Links lack authenticated principal
+
+`apps/api/src/modules/billing/stripe.service.ts:553-559` throws if `session.metadata.principalId` is missing. Stripe Payment Links created in the Stripe dashboard cannot inject server-controlled metadata at link creation. Two viable fixes:
+
+- **(A) Build per-customer Payment Link issuance** — call `stripe.paymentLinks.create({ metadata: { principalId } })` server-side per signup, return a per-prospect URL. Complex; only worth it if cold-start signup turns out to be the dominant funnel.
+- **(B) Ship Flow B fully** — already the wired path; needs Gap 2 + Gap 3 + Gap 4 to close to be customer-shaped.
+
+Recommended: **(B)**. Defer **(A)** until cold-start customer acquisition signals it is needed.
+
+### Gap 2 — No email service in `apps/api/`
+
+A 2026-05-16 grep across `apps/api/src/` for `resend|sendgrid|nodemailer|mailgun|EmailService|sendEmail` returned zero matches. The original Day 2 § 2.4 step "email the API key to the customer" therefore cannot execute. Required work: pick a provider (Resend is the lowest-friction option — single dep, edge-friendly, transactional-first), wire `EmailService` with a typed contract that takes a recipient + a `template-id` + a typed `template-vars` payload, add a `EMAIL_PROVIDER_*` cluster to `apps/api/src/config/config.schema.ts`, and stub a Mailtrap-style staging mode. Owner: TBD; this is operator-track work, not a Claude lane until the operator picks a provider.
+
+### Gap 3 — No API-key auto-issuance in billing webhook
+
+`onCheckoutCompleted` in `stripe.service.ts` updates `planTier` on an existing principal but does not call any `issueApiKey` / `provisionApiKey` / `generateApiKey` path (grep confirmed 0 matches in `apps/api/src/modules/billing/`). Required work: after the plan update, issue an initial full-scope API key (BCrypt-hashed at rest per `API_KEY_BCRYPT_COST=12`), surface the plaintext key once via Gap 2's email service. Pair with a `billing.api-key-issuance.spec.ts` covering the success path and the "already-has-key" idempotency case.
+
+### Gap 4 — Auth0 v4 + signup route both missing
+
+Operator decision #5 in root `CLAUDE.md`: "Auth0 v4 SDK install and real provider configuration are required before the dashboard login receiver is live." Additionally, `apps/dashboard/app/` has no `signup/` directory and no `welcome/` directory. Either Auth0 hosted signup is delegated (then Auth0 v4 must be wired) or a signup route is built (then it must hand off to Flow B's authenticated checkout). The runbook's original "redirect to `https://app.${OP_DOMAIN}/welcome?session_id=...`" target does not exist.
+
+### What this means for the Day-by-Day plan
+
+- **Day 1** — unchanged. Distribution surface (marketing + dashboard on Vercel) ships as written.
+- **Day 2** — **partially deferred**. Stripe live mode prices + env vars on Railway still ship. **Do NOT create Payment Links.** § 2.2 and § 2.4 below are flagged accordingly.
+- **Day 3** — unchanged. Railway deploy still ships; the billing webhook handles plan updates for any Flow B customer who reaches it.
+- **Day 4** — **replaced**. End-to-end test runs against the sales-driven path: operator provisions an admin key out-of-band, prospect uses it against the live API, paying customer is invoiced manually via Stripe until Phase 0 closes.
+- **Day 5** — unchanged.
 
 ---
 
@@ -106,22 +145,26 @@ In Stripe dashboard → live mode (NOT test):
 
 **DO NOT** create `STRIPE_PRICE_SCALE` yet. The Scale tier ($1,499) requires a Prisma `PlanTier` enum migration that hasn't shipped (Round 18 territory). The marketing page already routes "Contact for Scale" → sales mailto.
 
-### 2.2 Stripe Payment Links (45 min)
+### 2.2 Stripe Payment Links — **DEFERRED (Phase 0)**
 
-For each price above (Developer + Team only — Scale + Enterprise stay sales-driven), create a Stripe Payment Link in live mode:
+**Do not create Payment Links in live mode.** Phase 0 Gap 1 makes them throw on every webhook call. The original procedure (Payment Link → after-payment URL → `https://app.${OP_DOMAIN}/welcome?session_id=...`) is preserved below for the moment Phase 0 closes, but **do not execute it** until then:
 
-1. Stripe → Payment Links → "+ New" → select the price → check "Collect billing address"
-2. After-payment: redirect to `https://app.${OP_DOMAIN}/welcome?session_id={CHECKOUT_SESSION_ID}`
-3. Copy the link URL — looks like `https://buy.stripe.com/live_xxx`
+> ~~For each price above (Developer + Team only — Scale + Enterprise stay sales-driven), create a Stripe Payment Link in live mode:~~
+>
+> ~~1. Stripe → Payment Links → "+ New" → select the price → check "Collect billing address"~~
+> ~~2. After-payment: redirect to `https://app.${OP_DOMAIN}/welcome?session_id={CHECKOUT_SESSION_ID}`~~
+> ~~3. Copy the link URL — looks like `https://buy.stripe.com/live_xxx`~~
+>
+> ~~Add to Vercel marketing env vars:~~
+>
+> ```sh
+> # cd apps/marketing
+> # vercel env add NEXT_PUBLIC_STRIPE_LINK_DEVELOPER   # value: the buy.stripe.com URL
+> # vercel env add NEXT_PUBLIC_STRIPE_LINK_TEAM        # value: the buy.stripe.com URL
+> # vercel --prod    # redeploy with new env vars
+> ```
 
-Add to Vercel marketing env vars:
-
-```sh
-cd apps/marketing
-vercel env add NEXT_PUBLIC_STRIPE_LINK_DEVELOPER   # value: the buy.stripe.com URL
-vercel env add NEXT_PUBLIC_STRIPE_LINK_TEAM        # value: the buy.stripe.com URL
-vercel --prod    # redeploy with new env vars
-```
+`apps/marketing/app/page.tsx` no longer reads `NEXT_PUBLIC_STRIPE_LINK_*` (2026-05-16); paid-plan CTAs route to `mailto:${SALES_EMAIL}` until Phase 0 closes. Setting those env vars on Vercel has no effect — there is no code path that consumes them anymore.
 
 ### 2.3 Stripe webhook endpoint (30 min, but blocked until Day 3 API is live)
 
@@ -130,19 +173,18 @@ In Stripe → Developers → Webhooks → "+ Add endpoint":
 - Events to listen for: `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted`
 - Copy the signing secret → `STRIPE_WEBHOOK_SECRET` on Railway
 
-### 2.4 Verify webhook handler does the right thing
+### 2.4 Verify webhook handler does the right thing — **DISCOVERY (Phase 0)**
 
-Before going live, confirm `apps/api/src/modules/billing/` handles `checkout.session.completed` by:
-1. Creating the account
-2. Provisioning an initial API key with FULL scope
-3. Emailing the API key to the customer
+2026-05-16 read of `apps/api/src/modules/billing/` already answered this question:
 
-```sh
-cd ~/Desktop/aegis
-grep -rn "checkout.session.completed\|provisionApiKey\|sendApiKeyEmail" apps/api/src/modules/billing/
-```
+| Step | Wired? | Evidence |
+|---|---|---|
+| Receive `checkout.session.completed` | ✅ | `stripe.service.ts:323` → `onCheckoutCompleted` |
+| Account creation | ❌ | Handler operates on **existing** principal only; throws if `session.metadata.principalId` is missing (`stripe.service.ts:553-559`) |
+| API-key provisioning | ❌ | Zero grep matches for `issueApiKey \| provisionApiKey \| generateApiKey` in billing module |
+| Email the API key | ❌ | Zero grep matches for `resend \| sendgrid \| nodemailer \| mailgun \| EmailService` anywhere in `apps/api/src/` |
 
-If any of these are missing, that's a Day 2.5 task — write the missing handler before Day 3 deploy.
+These three "❌" rows are Phase 0 Gaps 1, 3, and 2 respectively. They were originally framed as a "Day 2.5 task" of unknown size; they are in fact at least a one-week engineering sprint (provider selection, schema migration, secret management, idempotent issuance, retry semantics, parity tests). For v1 launch, **bypass them entirely**: provision the first customers via admin API + manual Stripe invoice (see revised Day 4 below).
 
 ---
 
@@ -242,25 +284,37 @@ Copy the resulting API key → `vercel env add AEGIS_DASHBOARD_API_KEY` for the 
 
 ---
 
-## Day 4 — End-to-end signup test (target: 2 hours)
+## Day 4 — End-to-end smoke test (target: 2 hours, sales-driven path)
 
-The hardest part. Pretend you're a stranger.
+Phase 0 makes the stranger-shaped flow unshipable for v1. Run the **sales-driven** smoke test instead. This is what the marketing CTAs (now mailto-only) actually deliver.
 
 1. Open an incognito window, no cookies.
-2. Navigate to `https://${OP_DOMAIN}`. Confirm landing renders. Click "Start free — 10K verifies".
-3. Confirm you land on the Stripe Payment Link for Developer.
-4. Complete checkout with a real card (use your own; refund after if needed).
-5. Stripe redirects to `https://app.${OP_DOMAIN}/welcome?session_id=...`.
-6. Confirm the dashboard processes the session, shows your API key, and an email arrives at the checkout email address.
-7. Use the API key in a quickstart locally:
+2. Navigate to `https://${OP_DOMAIN}`. Confirm landing renders. Click "Get your AEGIS key" / "Start Developer" / any paid-plan CTA.
+3. Confirm the browser opens a `mailto:sales@aegislabs.io` (or your operator-set `NEXT_PUBLIC_SALES_EMAIL`) compose window with the plan name pre-filled in the subject. **No Stripe redirect should occur.** If you see a Stripe URL, something has regressed — `apps/marketing/app/page.tsx`'s `planMailto` was bypassed.
+4. From a separate window, log into the Railway-deployed API as the admin (see Day 3 § 3.6). Provision a prospect account:
 
 ```sh
-export AEGIS_KEY="<your-aegis-key>"
+# From a local terminal with admin API key
+curl -X POST https://api.${OP_DOMAIN}/v1/principals \
+  -H "Authorization: Bearer ${AEGIS_ADMIN_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{ "email": "prospect@example.com", "planTier": "DEVELOPER" }'
+# expect: 201 with { principalId, apiKey } — copy the apiKey, it is shown ONCE
+```
+
+5. Send the apiKey to the prospect over your sales channel (out-of-band — phone, signed PDF, encrypted vault link). **Never copy-paste keys into chat / email**; treat them like Ed25519 prod secrets.
+6. Manually invoice via Stripe: Stripe dashboard → Customers → New customer → invoice for $49 (Developer) or $299 (Team) referencing the price IDs from Day 2 § 2.1. Mark the invoice as `Auto-charge if a payment method is on file` so the prospect's stored card auto-charges on subsequent months. Once the invoice paid event fires, the Day 3 webhook handler's `customer.subscription.updated` path will sync the plan tier on the principal.
+7. Prospect uses the API key in a quickstart locally:
+
+```sh
+export AEGIS_KEY="<the-apikey-you-sent>"
 pnpm --filter @aegis/sdk exec node ./examples/verify.js
 # expect: { valid: true, trustScore: 500, ... }
 ```
 
-If any step fails, the gating bug is identified. Fix forward — don't accept partial flows.
+If step 4 fails, the admin-API path is the bug. If step 7 fails, the verify path is the bug. Both are recoverable without losing the prospect — the API key was sent by you, not by an automated webhook, so you can re-issue.
+
+> **Reminder:** the long-term goal is to compress steps 4-6 into a self-serve flow (Phase 0 close). v1 launch ships with the manual path; v1.1 ships Phase 0. Do not gate v1 on automation.
 
 ### Known follow-ups (already accepted)
 
@@ -292,10 +346,12 @@ You can stop the launch sprint when **all five** of the following are true:
 | # | Acceptance | How to verify |
 |---|---|---|
 | 1 | `https://${OP_DOMAIN}` returns 200 with the landing page | `curl -I https://${OP_DOMAIN}` |
-| 2 | `https://app.${OP_DOMAIN}/login` returns the dashboard login | Visit in incognito |
+| 2 | `https://app.${OP_DOMAIN}/login` returns the dashboard login | Visit in incognito (note: serves an empty state until Auth0 v4 is wired per OD #5) |
 | 3 | `https://api.${OP_DOMAIN}/v1/health/ready` returns 200 | `curl https://api.${OP_DOMAIN}/v1/health/ready` |
-| 4 | A Stripe Payment Link → webhook → API-key-email flow completes end-to-end | Day 4 smoke test |
+| 4 | Sales-driven path E2E: marketing CTA → mailto opens → admin provisions principal + API key → manual Stripe invoice → prospect runs `POST /v1/verify` successfully | Day 4 smoke test (revised 2026-05-16) |
 | 5 | At least one paying customer (you count if no one external signs up in week 1) | Stripe dashboard → live mode → recent payments |
+
+**Post-v1 acceptance (Phase 0 close, v1.1):** add a row 4b — "Authenticated dashboard signup → in-dashboard checkout → automated API key issuance → email delivery". Gate v1.1 on Phase 0 Gaps 1-4 closing, not v1.
 
 Anything beyond this list — SOC 2, status page, GDPR DPA template, CF Workers — is **post-launch hardening**. Do not gate launch on it.
 
