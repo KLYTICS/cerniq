@@ -180,6 +180,60 @@ describe('parseArgs — verify-manifests', () => {
   });
 });
 
+describe('parseArgs — flag-value validation (silent-typo guards)', () => {
+  // Before getFlag's tristate shape, each of these inputs slipped through
+  // with a misleading downstream error (or no error at all). These tests
+  // lock the explicit, flag-named error messages so the operator sees
+  // "you forgot the value for X" rather than a confusing fallback error
+  // or a silently-defaulted run.
+
+  it('--jwks at end of argv → flag-specific error (not the generic "one of --jwks ..." fallback)', () => {
+    const r = parseArgs(['verify', './x.ndjson', '--jwks']);
+    expectInvalid(r, /--jwks requires a URL value/);
+  });
+
+  it('--jwks followed by another flag → flag-specific error, NOT a silently-captured "--json" URL', () => {
+    // Before the fix: jwksUrl became literally "--json", loadJwksFromUrl
+    // failed later with a URL-parse error far from the actual mistake.
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', '--json']);
+    expectInvalid(r, /--jwks requires a URL value/);
+  });
+
+  it('--jwks-file at end of argv → flag-specific error', () => {
+    expectInvalid(parseArgs(['verify', './x.ndjson', '--jwks-file']), /--jwks-file requires a path value/);
+  });
+
+  it('--jwks-file followed by another flag → flag-specific error', () => {
+    expectInvalid(
+      parseArgs(['verify', './x.ndjson', '--jwks-file', '--json']),
+      /--jwks-file requires a path value/,
+    );
+  });
+
+  it('--max-row-detail at end of argv → flag-specific error (NOT a silent default to 100)', () => {
+    // Before the fix: silently defaulted to 100; operator's "I want 50" intent
+    // was discarded without any signal. Now the missing value is an explicit
+    // error so the operator learns about their typo.
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', 'https://x', '--max-row-detail']);
+    expectInvalid(r, /--max-row-detail requires a non-negative integer value/);
+  });
+
+  it('--max-row-detail followed by another flag → flag-specific error', () => {
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', 'https://x', '--max-row-detail', '--json']);
+    expectInvalid(r, /--max-row-detail requires a non-negative integer value/);
+  });
+
+  it('--jwks with a valid URL at end of argv → still ok (negative case for the guard)', () => {
+    // Sanity: the missing-value guard must NOT fire when the flag has a
+    // real value, even if it's the last arg.
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', 'https://example.com/jwks']);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    if (r.args.command !== 'verify') return;
+    expect(r.args.jwksUrl).toBe('https://example.com/jwks');
+  });
+});
+
 describe('parseArgs — purity contract', () => {
   it('does not mutate the input argv array', () => {
     const argv: readonly string[] = Object.freeze([

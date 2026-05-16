@@ -157,14 +157,45 @@ export function parseArgs(input: string[]): ParseResult {
         : 'missing directory: aegis-audit-verify verify-manifests <dir>',
     );
   }
-  const get = (flag: string): string | undefined => {
+  // getFlag distinguishes three states the old get() collapsed into one:
+  //
+  //   { present: false, value: undefined }                 — flag absent
+  //   { present: true,  value: undefined }                 — flag present but
+  //                                                          no value follows
+  //                                                          (end of argv OR
+  //                                                          another --flag)
+  //   { present: true,  value: '<string>' }                — flag with value
+  //
+  // The old shape returned undefined for both "absent" and "missing value",
+  // so callers could not emit a flag-specific error. Bugs that hid here:
+  //   - `aegis-audit-verify verify x --jwks` (end of argv): silently fell
+  //     through to "one of --jwks <url> or --jwks-file <path> is required",
+  //     misleading because operator DID specify --jwks.
+  //   - `aegis-audit-verify verify x --jwks --json`: silently captured
+  //     '--json' as the JWKS URL, only failing later at loadJwksFromUrl.
+  //   - `aegis-audit-verify verify x --jwks y --max-row-detail` (end of argv):
+  //     silently defaulted maxRowDetail to 100 — operator intent discarded
+  //     without any signal.
+  const getFlag = (flag: string): { present: boolean; value: string | undefined } => {
     const idx = input.indexOf(flag);
-    if (idx === -1 || idx === input.length - 1) return undefined;
-    return input[idx + 1];
+    if (idx === -1) return { present: false, value: undefined };
+    if (idx === input.length - 1) return { present: true, value: undefined };
+    const next = input[idx + 1]!;
+    if (next.startsWith('--')) return { present: true, value: undefined };
+    return { present: true, value: next };
   };
+
+  const jwksFlag = getFlag('--jwks');
+  const jwksFileFlag = getFlag('--jwks-file');
+  if (jwksFlag.present && jwksFlag.value === undefined) {
+    return invalid('--jwks requires a URL value (got end of argv or another flag)');
+  }
+  if (jwksFileFlag.present && jwksFileFlag.value === undefined) {
+    return invalid('--jwks-file requires a path value (got end of argv or another flag)');
+  }
   const common: CommonOptions = {
-    jwksUrl: get('--jwks'),
-    jwksFile: get('--jwks-file'),
+    jwksUrl: jwksFlag.value,
+    jwksFile: jwksFileFlag.value,
     json: input.includes('--json'),
   };
   if (!common.jwksUrl && !common.jwksFile) {
@@ -175,10 +206,13 @@ export function parseArgs(input: string[]): ParseResult {
   }
 
   if (sub === 'verify') {
-    const rawMaxRowDetail = get('--max-row-detail');
-    const maxRowDetail = Number(rawMaxRowDetail ?? '100');
+    const maxRowDetailFlag = getFlag('--max-row-detail');
+    if (maxRowDetailFlag.present && maxRowDetailFlag.value === undefined) {
+      return invalid('--max-row-detail requires a non-negative integer value (got end of argv or another flag)');
+    }
+    const maxRowDetail = Number(maxRowDetailFlag.value ?? '100');
     if (!Number.isInteger(maxRowDetail) || maxRowDetail < 0) {
-      return invalid(`--max-row-detail must be a non-negative integer, got "${rawMaxRowDetail}"`);
+      return invalid(`--max-row-detail must be a non-negative integer, got "${maxRowDetailFlag.value}"`);
     }
     return {
       ok: true,
