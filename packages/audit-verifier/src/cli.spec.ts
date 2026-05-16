@@ -234,6 +234,98 @@ describe('parseArgs — flag-value validation (silent-typo guards)', () => {
   });
 });
 
+describe('parseArgs — unknown-flag rejection (operator-typo + wrong-subcommand)', () => {
+  // These tests lock the contract that *every* `--xxx` arg in argv must
+  // belong to the active subcommand's known set. Before this guard, typos
+  // like `--josn` or wrong-subcommand flags like `--max-row-detail` on
+  // verify-manifests were silently absorbed.
+
+  it('verify with a typo flag → error names the bad flag', () => {
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', 'https://y', '--josn']);
+    expectInvalid(r, /unknown flag "--josn"/);
+  });
+
+  it('verify with a made-up flag → error names it', () => {
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', 'https://y', '--frobnicate']);
+    expectInvalid(r, /unknown flag "--frobnicate"/);
+  });
+
+  it('unknown-flag error includes the subcommand name', () => {
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', 'https://y', '--nope']);
+    expectInvalid(r, /for "verify" subcommand/);
+  });
+
+  it('unknown-flag error includes the valid-flag catalogue for actionable recovery', () => {
+    // JS default sort is lexicographic by char code, not dictionary order,
+    // so `--json` (s=0x73) comes before `--jwks` (w=0x77). The test locks
+    // the actual emitted ordering so a future sort change doesn't silently
+    // shuffle the operator-facing catalogue.
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', 'https://y', '--nope']);
+    expectInvalid(r, /valid flags: --json, --jwks, --jwks-file, --max-row-detail, --no-fail-fast/);
+  });
+
+  it('verify-manifests with --max-row-detail (verify-only flag) → rejected as unknown for this sub', () => {
+    // Cross-subcommand flag misuse: --max-row-detail only applies to verify
+    // (NDJSON row chain) and is meaningless for manifest corpus walking.
+    // Previously silently ignored; now caught with the right error.
+    const r = parseArgs(['verify-manifests', './corpus', '--jwks', 'https://y', '--max-row-detail', '50']);
+    expectInvalid(r, /unknown flag "--max-row-detail" for "verify-manifests" subcommand/);
+  });
+
+  it('verify with --recursive (manifests-only flag) → rejected as unknown for this sub', () => {
+    // Same wrong-subcommand check in the other direction.
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', 'https://y', '--recursive']);
+    expectInvalid(r, /unknown flag "--recursive" for "verify" subcommand/);
+  });
+
+  it('verify-manifests with valid --recursive → still ok (negative case for the guard)', () => {
+    const r = parseArgs(['verify-manifests', './corpus', '--jwks', 'https://y', '--recursive']);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    if (r.args.command !== 'verify-manifests') return;
+    expect(r.args.recursive).toBe(true);
+  });
+
+  it('verify with all valid flags toggled → still ok (negative case)', () => {
+    // Lock that legitimate flag combinations remain accepted post-guard.
+    const r = parseArgs([
+      'verify',
+      './x.ndjson',
+      '--jwks-file',
+      './j.json',
+      '--no-fail-fast',
+      '--max-row-detail',
+      '25',
+      '--json',
+    ]);
+    expect(r.ok).toBe(true);
+  });
+});
+
+describe('parseArgs — subcommand --help routing (UX)', () => {
+  // Operators expect `<cmd> <sub> --help` to print help, not error on
+  // missing-path or unknown-flag. Help-anywhere detection short-circuits.
+
+  it('verify --help → help result (not "missing NDJSON path")', () => {
+    expectHelp(parseArgs(['verify', '--help']));
+  });
+
+  it('verify -h → help result', () => {
+    expectHelp(parseArgs(['verify', '-h']));
+  });
+
+  it('verify-manifests --help → help result', () => {
+    expectHelp(parseArgs(['verify-manifests', '--help']));
+  });
+
+  it('--help after a valid path + flags → still routes to help', () => {
+    // Once help is anywhere in argv past the subcommand, it wins. This
+    // prevents the unknown-flag walk from rejecting --help as unknown,
+    // and prevents tristate from interpreting --help as a flag-value.
+    expectHelp(parseArgs(['verify', './x.ndjson', '--jwks', 'https://y', '--help']));
+  });
+});
+
 describe('parseArgs — purity contract', () => {
   it('does not mutate the input argv array', () => {
     const argv: readonly string[] = Object.freeze([

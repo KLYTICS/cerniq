@@ -133,6 +133,24 @@ export type ParseResult =
 const ASK_HELP = { ok: false, reason: 'help', exitCode: 0 } as const;
 const invalid = (message: string): ParseResult => ({ ok: false, reason: 'invalid', message, exitCode: 2 });
 
+// Per-subcommand known-flag sets. Drives the unknown-flag walk so an
+// operator typo like `--josn` or `--frobnicate` (or a subcommand-mismatch
+// like `verify-manifests d --max-row-detail 5`) fails fast with the
+// catalogue of valid flags, instead of silently absorbing the typo.
+const VERIFY_FLAGS: ReadonlySet<string> = new Set([
+  '--jwks',
+  '--jwks-file',
+  '--json',
+  '--no-fail-fast',
+  '--max-row-detail',
+]);
+const VERIFY_MANIFESTS_FLAGS: ReadonlySet<string> = new Set([
+  '--jwks',
+  '--jwks-file',
+  '--json',
+  '--recursive',
+]);
+
 export function parseArgs(input: string[]): ParseResult {
   const sub = input[0];
   // Root-level help: -h / --help / 'help' as the first arg are operator-
@@ -149,6 +167,18 @@ export function parseArgs(input: string[]): ParseResult {
         : `unknown subcommand "${sub}"; expected "verify" or "verify-manifests" — see usage above`,
     );
   }
+  // Help-anywhere routing: `aegis-audit-verify verify --help` is a UX
+  // expectation in every modern CLI. We don't yet have subcommand-specific
+  // help bodies, but routing to root usage is strictly better than the
+  // alternatives (path-validation rejecting `--help` as "missing NDJSON
+  // path", or the unknown-flag walk rejecting `--help` as unknown). When
+  // subcommand-specific help is added later, this branch becomes the
+  // dispatch point.
+  for (let i = 1; i < input.length; i++) {
+    if (input[i] === '--help' || input[i] === '-h') {
+      return ASK_HELP;
+    }
+  }
   const pathArg = input[1];
   if (!pathArg || pathArg.startsWith('--')) {
     return invalid(
@@ -156,6 +186,29 @@ export function parseArgs(input: string[]): ParseResult {
         ? 'missing NDJSON path: aegis-audit-verify verify <path>'
         : 'missing directory: aegis-audit-verify verify-manifests <dir>',
     );
+  }
+  // Unknown-flag walk: scan input[2..] (past subcommand + path) for any
+  // `--xxx` arg that isn't in this subcommand's whitelist. Catches:
+  //   - Typos:                 verify x --josn --jwks https://y
+  //   - Wrong subcommand:      verify-manifests d --jwks y --max-row-detail 5
+  //   - Made-up flags:         verify x --jwks y --frobnicate
+  // The previous parser silently absorbed all of these, leaving the
+  // operator with no signal that their intent was discarded.
+  //
+  // Caveat: this walk doesn't know which `--xxx` slots are flag values
+  // (e.g. `--jwks --json` would flag `--json` as the value-slot for
+  // `--jwks`, then walk would see `--json` as a known flag — no false
+  // positive). The tristate getFlag below catches the missing-value
+  // case earlier with a more specific error.
+  const known = sub === 'verify' ? VERIFY_FLAGS : VERIFY_MANIFESTS_FLAGS;
+  for (let i = 2; i < input.length; i++) {
+    const arg = input[i]!;
+    if (arg.startsWith('--') && !known.has(arg)) {
+      const validList = [...known].sort().join(', ');
+      return invalid(
+        `unknown flag "${arg}" for "${sub}" subcommand — valid flags: ${validList}`,
+      );
+    }
   }
   // getFlag distinguishes three states the old get() collapsed into one:
   //
