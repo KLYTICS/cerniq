@@ -69,19 +69,25 @@ class Currency(StrEnum):
 
 
 class DenialReason(StrEnum):
-    # Billing pre-gate — fires BEFORE the 9-step algorithm chain.
+    # Mirrors ``packages/types/src/constants.ts`` DENIAL_REASON_PRECEDENCE
+    # exactly. Order matches the canonical tuple. Cross-package parity is
+    # guarded by ``tests/cross-package/denial-reason-sdk-py-parity.spec.ts``.
+
+    # Billing pre-gate — fires BEFORE the 11-step algorithm chain.
     # Relying parties receiving this should direct users to upgrade their plan.
     PLAN_LIMIT_EXCEEDED = "PLAN_LIMIT_EXCEEDED"
-    # 9-step algorithm chain (in precedence order):
+    # 11-step algorithm chain (in precedence order):
     AGENT_NOT_FOUND = "AGENT_NOT_FOUND"
     AGENT_REVOKED = "AGENT_REVOKED"
     INVALID_SIGNATURE = "INVALID_SIGNATURE"
     POLICY_REVOKED = "POLICY_REVOKED"
     POLICY_EXPIRED = "POLICY_EXPIRED"
     SCOPE_NOT_GRANTED = "SCOPE_NOT_GRANTED"
+    TRIAL_EXHAUSTED = "TRIAL_EXHAUSTED"  # ADR-0014: free-trial design
     SPEND_LIMIT_EXCEEDED = "SPEND_LIMIT_EXCEEDED"
     TRUST_SCORE_TOO_LOW = "TRUST_SCORE_TOO_LOW"
     ANOMALY_FLAGGED = "ANOMALY_FLAGGED"
+    INTENT_MISMATCH = "INTENT_MISMATCH"  # ADR-0016: intent-bound attestation
 
 
 class SignalSeverity(StrEnum):

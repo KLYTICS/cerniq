@@ -34,16 +34,41 @@ POLICY_TTL_MAX_DAYS: Final[int] = 365
 VERIFY_RESULT_DEFAULT_TTL_SECONDS: Final[int] = 30
 
 # ── Denial reason precedence (top wins) ──────────────────────
+# Mirrors ``packages/types/src/constants.ts`` DENIAL_REASON_PRECEDENCE
+# exactly. Cross-package parity is guarded by
+# ``tests/cross-package/denial-reason-sdk-py-parity.spec.ts``.
+#
+# PLAN_LIMIT_EXCEEDED is listed first because it fires as a billing
+# pre-gate BEFORE the security algorithm chain — it never competes
+# with the algorithm reasons. Relying parties receiving this code
+# should direct the user to upgrade their AEGIS plan, not retry.
+#
+# TRIAL_EXHAUSTED (ADR-0014) sits between SCOPE_NOT_GRANTED and
+# SPEND_LIMIT_EXCEEDED — trial exhaustion is a billing-tier gate that
+# fires after the agent + policy have been validated but before any
+# spend accounting. HTTP 402 (Payment Required).
+#
+# INTENT_MISMATCH (ADR-0016) is appended at the end. It fires under
+# STRICT or breached-tolerance GRADUATED reconciliation when the
+# agent's actual call deviates from the signed intent manifest.
+#
+# Append-only after merge per the CLAUDE.md denial-precedence
+# invariant. Adding new reasons must go at the END of this tuple AND
+# the canonical TS tuple in the same commit; the parity test will
+# red-CI any divergent order.
 DENIAL_REASON_PRECEDENCE: Final[tuple[str, ...]] = (
+    "PLAN_LIMIT_EXCEEDED",  # billing gate — pre-algorithm
     "AGENT_NOT_FOUND",
     "AGENT_REVOKED",
     "INVALID_SIGNATURE",
     "POLICY_REVOKED",
     "POLICY_EXPIRED",
     "SCOPE_NOT_GRANTED",
+    "TRIAL_EXHAUSTED",  # ADR-0014: free-trial design
     "SPEND_LIMIT_EXCEEDED",
     "TRUST_SCORE_TOO_LOW",
     "ANOMALY_FLAGGED",
+    "INTENT_MISMATCH",  # ADR-0016: intent-bound attestation
 )
 
 # ── Webhook event names ──────────────────────────────────────
