@@ -134,7 +134,7 @@ jobs:
         uses: actions/checkout@v4 # pin: replace with full sha before merge
 
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.24.0 # pin: replace with full sha before merge
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0 — post-incident (2026-04-22) SHA pin, closes CVE-2026-33634
         with:
           scan-type: fs
           scan-ref: '.'
