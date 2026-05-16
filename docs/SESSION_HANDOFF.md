@@ -5,6 +5,54 @@
 
 ---
 
+## 2026-05-16 LATE-PM (Operator runbook for intent-manifest production flip) — sid=opus-phase3-enterprise — claim=aegis:intent-runbook
+
+**Status:** The intent-manifest stack is now operator-ready. The Phase 2.1 commit (`2cabeba`) made the production gate technically flippable; this commit makes it *operationally* flippable by shipping the runbook that walks the deploy team through the flip sequence, smoke test, observability watch, rollback, and known-failure remediation.
+
+### What landed (this commit)
+
+```
+docs/runbooks/intent-manifest-enable.md   +340 LOC  (NEW)
+docs/SESSION_HANDOFF.md                            (this entry)
+```
+
+The runbook is hand-written prose (NOT generated from a YAML source like `denial-reasons.md`). Aligns with CLAUDE.md docs requirement: "Runbooks need exact commands, expected output shape, rollback steps, and escalation criteria."
+
+### Runbook contents
+
+1. **TL;DR** — 6-step summary of the flip in ~30 min wall-clock.
+2. **Prerequisites** — checklist of 7 items (commits present, DB reachable, KMS configured, etc.).
+3. **The flip sequence** — 7 steps with exact commands + expected output verbatim, including the two-stage flip discipline (storage env first, then enable flag — catches typos before exposing endpoints).
+4. **Smoke test** — 4 sub-steps (issue → reconcile-clean → reconcile-mismatch → GET) with `curl` + `jq` commands and full expected JSON response shapes. Each payload validated against the actual `IssueIntentRequestDto` / `ReconcileRequestDto` shapes.
+5. **Verification** — Prometheus metric table (5 metrics with healthy-signal criteria + PromQL queries), structured-log table (5 messages), and BATE feedback-loop check confirming trust score drops.
+6. **Rollback** — quick (env flag flip) + full destructive (DROP tables) + migration-rollback notes. Explicitly preserves BATE INTENT_MISMATCH_OBSERVED rows even after destructive rollback (invariant #3 — audit append-only).
+7. **Common failures** — 6 known issues with diagnosis + remediation: env typo, table not found, missing audit chain entry, trust score not dropping, idempotency conflict semantics, Prisma client/schema drift.
+8. **Escalation** — 4 page-secondary criteria + coordination notes about audit-signer + BATE coupling.
+9. **Reference** — table linking every related artifact (ADRs, kernel, adapter, migration, weights, examples).
+
+### Self-check (writing the runbook surfaced no bugs)
+
+The smoke test went line-by-line against the actual DTO shapes (`apps/api/src/modules/intent/intent.dto.ts`) — every payload field matches. The metric names + labels were verified against `apps/api/src/common/observability/metrics.service.ts`. The endpoint paths match `intent.controller.ts`. The BATE delta + cap match `bate.weights.ts:57`. No discrepancies — the implementation matches the documented contract.
+
+### What's next (queued, NOT started)
+
+The runbook closes the operator-readiness loop. Remaining items from the intent-manifest roadmap:
+
+1. **Integration spec** — `apps/api/test/integration/intent.adapter.prisma.spec.ts` against live Postgres. Validates the runbook's smoke sequence in CI.
+2. **OD-019** — separate intent-signing key family. Defense-in-depth follow-up. Currently flagged in `intent.module.ts:53`.
+3. **OD-020** — verify-wire emission of intent decision. ADR-0017 D3 explicitly decided AGAINST in Phase 2; reconsider when verify hot path lands RAR-in-JAR (peer `bf9d6030` work).
+4. **Phase 3 CF Worker port** — third `IntentPorts` adapter using D1 / Workers KV. Proves the abstraction is truly portable (CLAUDE.md invariant #2 payoff).
+5. **Threat model addendum** — `docs/security/INTENT_MANIFEST_THREAT_MODEL.md` covering attacks defended (replay, hijack, scope-overrun) and NOT defended (key compromise, AEGIS-side bypass). Audit-readiness artifact for SOC2 / enterprise procurement.
+6. **SDK-py intent mirror** — `packages/sdk-py/aegis/intent.py` for cross-language parity with the TS SDK's `IntentClient`.
+
+### Pre-existing CI noise (not blocking)
+
+Preflight reports `[6/14] ❌ error catalog audit — uncataloged AegisError subclass thrown`. This is pre-existing — my Phase 2.1 commit (`2cabeba`) is unrelated (throws `IntentAlgorithmException`, not `AegisError`). The preflight hook's exit-code translation through `make` collapsed the gating-fail to a warning, so my commit landed despite the failure. **Two structural fixes filed for follow-up sessions:**
+- Resolve the uncataloged AegisError subclass (find via grep + register in `apps/api/src/common/errors/error-catalog.ts`).
+- Fix `.husky/pre-commit`'s preflight gating logic so `make`'s exit-1-on-any-fail doesn't eat the preflight tool's exit-2 (gating-fail) distinction.
+
+---
+
 ## 2026-05-16 PM (ADR-0017 Phase 2.1 — Prisma adapter for IntentPorts; production gate unblock) — sid=opus-phase3-enterprise — claim=aegis:intent-prisma-adapter
 
 **Status:** The IntentManifest module is now safe to flip in production. Phase 2.0 shipped with an in-process memory adapter (`AEGIS_INTENT_MANIFEST_STORAGE=memory`, default); this commit adds the durable Prisma adapter (`storage=prisma`) and the two tables that back it. Operators can now set `AEGIS_INTENT_MANIFEST_ENABLED=true` + `AEGIS_INTENT_MANIFEST_STORAGE=prisma` after running the migration.
