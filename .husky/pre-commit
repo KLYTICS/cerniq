@@ -12,16 +12,49 @@ pnpm lint-staged
 # Block accidental commits of `.env`, secrets, raw private keys, or other
 # clearly-not-shippable artifacts. Belt-and-braces alongside the security CI.
 #
+# Two distinct dimensions, two distinct regexes:
+#
+#   BLOCKED_PATH    — matches the FILENAME of a staged file. Catches
+#                     `.env`, `.env.local`, `secrets/*`, `*.pem`, `*.key`.
+#   BLOCKED_CONTENT — matches FILE CONTENTS. Catches AEGIS-shaped
+#                     plaintext keys and credential env-var assignments
+#                     (`aegis_sk_…`, `aegis_vk_…`, `JWT_ED25519_PRIVATE_KEY_B64=…`).
+#
+# The two were previously combined in one regex run against file contents,
+# which produced false positives on TypeScript lines like `process.env.FOO`
+# (the `\.env\.[^.]+$` alternative matched at line-end). Splitting eliminates
+# the cross-domain collision.
+#
 # Test files (*.spec.ts, *.test.ts, /tests/, /__tests__/, *.fixture.*) are
-# allowed to contain placeholder keys — they exist to drive coverage of the
-# rejection paths. Real-key shapes outside test files still trip the gate.
-BLOCKED='\.env$|\.env\.[^.]+$|^secrets/|\.pem$|\.key$|aegis_sk_[A-Za-z0-9]+|aegis_vk_[A-Za-z0-9]+|JWT_ED25519_PRIVATE_KEY_B64=|AUDIT_SIGNING_KEY_B64='
-TEST_FILE_ALLOWLIST='\.(spec|test|fixture|mock|stub)\.(ts|tsx|js|jsx|mjs|cjs)$|/tests?/|/__tests?__/|/test/|/_stubs/|tools/postman/'
-HITS=$(git diff --cached --name-only -z | xargs -0 -r grep -lE "$BLOCKED" 2>/dev/null \
+# exempt from BLOCKED_CONTENT — they drive coverage of rejection paths.
+# Test files are NOT exempt from BLOCKED_PATH (a real `.env` shouldn't
+# slip through under a test directory).
+#
+# `^\.husky/` is in the allowlist because THIS FILE contains the literal
+# `JWT_ED25519_PRIVATE_KEY_B64=` and `AUDIT_SIGNING_KEY_B64=` substrings as
+# part of its own BLOCKED_CONTENT regex. Without the exemption, staging an
+# edit to this hook would trip the hook against itself.
+# Footgun: any other file landed under `.husky/` is also exempt. Keep this
+# directory limited to hook scripts; do NOT use it for secret material.
+BLOCKED_PATH='(^|/)\.env(\.[^/]+)?$|(^|/)secrets/|\.pem$|\.key$'
+BLOCKED_CONTENT='aegis_sk_[A-Za-z0-9]+|aegis_vk_[A-Za-z0-9]+|JWT_ED25519_PRIVATE_KEY_B64=|AUDIT_SIGNING_KEY_B64='
+TEST_FILE_ALLOWLIST='\.(spec|test|fixture|mock|stub)\.(ts|tsx|js|jsx|mjs|cjs)$|/tests?/|/__tests?__/|/test/|/_stubs/|tools/postman/|^\.husky/'
+
+STAGED=$(git diff --cached --name-only)
+
+PATH_HITS=$(echo "$STAGED" | grep -E "$BLOCKED_PATH" || true)
+if [ -n "$PATH_HITS" ]; then
+  echo "✖ Refusing to commit secret-shaped file paths:"
+  echo "$PATH_HITS" | sed 's/^/    /'
+  echo "  See .gitignore + docs/SECURITY.md before bypassing this check."
+  exit 1
+fi
+
+CONTENT_HITS=$(git diff --cached --name-only -z | xargs -0 -r grep -lE "$BLOCKED_CONTENT" 2>/dev/null \
        | grep -vE "$TEST_FILE_ALLOWLIST" || true)
-if [ -n "$HITS" ]; then
+if [ -n "$CONTENT_HITS" ]; then
   echo "✖ Refusing to commit a likely secret outside of test files:"
-  echo "$HITS" | sed 's/^/    /'
+  echo "$CONTENT_HITS" | sed 's/^/    /'
   echo "  See .gitignore + docs/SECURITY.md before bypassing this check."
   exit 1
 fi
