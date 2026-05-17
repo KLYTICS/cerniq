@@ -39,6 +39,9 @@ The five gates between code-complete and first-dollar:
 
 ## ⚠️ Phase 0 — Self-serve flow prerequisites (added 2026-05-16)
 
+> **Run** `bash scripts/launch-runbook/phase-0-check.sh` to test gap status. Each gap below has a single-grep executable check; the script exits non-zero while any gap remains. When you think you've closed a gap, run the script — if it still reports FAIL, the gap is not closed. This is the Rule-10 termination criterion: the runbook is testable, not just readable.
+
+
 This runbook originally assumed **Flow A**: stranger clicks a Stripe Payment Link, the webhook handler provisions an account and an API key, and the API key arrives by email. A 2026-05-16 read of `apps/api/src/modules/billing/` and `apps/dashboard/app/` shows Flow A is **not wired**. The actually-wired path is **Flow B**: authenticated principal initiates `createCheckoutSession` from inside the dashboard (`apps/api/src/modules/billing/billing.controller.ts:222-225`), and `onCheckoutCompleted` updates the plan tier on the *existing* principal record.
 
 **Five gaps** must close before any customer can be onboarded. **Gap 4 (Auth0 v4) and Gap 5 (no admin principal-creation path) are load-bearing — until they close, there is no wired way to convert a prospect into a principal record.** Until then, the marketing CTAs route to mailto (`apps/marketing/app/page.tsx`, 2026-05-16) and the operator MUST NOT create live-mode Stripe Payment Links.
