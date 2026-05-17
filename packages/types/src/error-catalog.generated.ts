@@ -102,6 +102,14 @@ export const GENERATED_ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>
     customerMessage: "An idempotency key was reused with a different request body.",
     category: "validation",
   }),
+  ["intent_algorithm_failure"]: Object.freeze({
+    className: "IntentAlgorithmException",
+    code: "intent_algorithm_failure",
+    httpStatus: 422,
+    retryable: false,
+    customerMessage: "Intent manifest operation failed validation. Check the manifest id, idempotency key, and TTL.",
+    category: "validation",
+  }),
   ["internal_error"]: Object.freeze({
     className: "InternalError",
     code: "internal_error",
@@ -163,7 +171,7 @@ export const GENERATED_ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>
     code: "scope_not_granted",
     httpStatus: 403,
     retryable: false,
-    customerMessage: "Action not in agent’s allowed scopes.",
+    customerMessage: "Action not in agent's allowed scopes.",
     category: "policy",
   }),
   ["service_unavailable"]: Object.freeze({

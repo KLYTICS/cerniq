@@ -93,6 +93,14 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "customerMessage": "An idempotency key was reused with a different request body.",
         "category": "validation",
     },
+    "intent_algorithm_failure": {
+        "className": "IntentAlgorithmException",
+        "code": "intent_algorithm_failure",
+        "httpStatus": 422,
+        "retryable": False,
+        "customerMessage": "Intent manifest operation failed validation. Check the manifest id, idempotency key, and TTL.",
+        "category": "validation",
+    },
     "internal_error": {
         "className": "InternalError",
         "code": "internal_error",
@@ -156,7 +164,7 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "code": "scope_not_granted",
         "httpStatus": 403,
         "retryable": False,
-        "customerMessage": "Action not in agent’s allowed scopes.",
+        "customerMessage": "Action not in agent's allowed scopes.",
         "category": "policy",
     },
     "service_unavailable": {

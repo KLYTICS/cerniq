@@ -777,7 +777,7 @@
     },
     {
       "name": "Denial Precedence Walk-through",
-      "description": "Reproducible tour through every `denialReason` AEGIS can emit, in canonical precedence order (CLAUDE.md invariant 6 / ADR-0004 + ADR-0014).\n\nEach request hits POST /v1/verify with a payload contrived to trigger exactly that denial reason. Every test asserts both `valid:false` and `denialReason` matches the expected string.\n\nPrecedence (top wins):\n  AGENT_NOT_FOUND → AGENT_REVOKED → INVALID_SIGNATURE → POLICY_REVOKED → POLICY_EXPIRED → SCOPE_NOT_GRANTED → TRIAL_EXHAUSTED → SPEND_LIMIT_EXCEEDED → TRUST_SCORE_TOO_LOW → ANOMALY_FLAGGED",
+      "description": "Reproducible tour through every `denialReason` AEGIS can emit, in canonical precedence order (CLAUDE.md invariant 6 / ADR-0004 + ADR-0014 + ADR-0016).\n\nEntries 1–10 hit POST /v1/verify with payloads contrived to trigger exactly that denial reason; each asserts `valid:false` and `denialReason` matches the expected string. Entry 11 (INTENT_MISMATCH) is emitted from POST /v1/intent/{manifestId}/actuals per ADR-0017 D3 (Phase 2 keeps intent denials in the dedicated /v1/intent/* response surface, not folded into /v1/verify); it asserts `recommendedDenialReason: 'INTENT_MISMATCH'` and a non-empty `mismatches[]` array.\n\nPrecedence (top wins):\n  AGENT_NOT_FOUND → AGENT_REVOKED → INVALID_SIGNATURE → POLICY_REVOKED → POLICY_EXPIRED → SCOPE_NOT_GRANTED → TRIAL_EXHAUSTED → SPEND_LIMIT_EXCEEDED → TRUST_SCORE_TOO_LOW → ANOMALY_FLAGGED → INTENT_MISMATCH",
       "item": [
         {
           "name": "1. AGENT_NOT_FOUND",
@@ -1136,6 +1136,43 @@
               "path": ["v1", "verify"]
             },
             "description": "Precondition: send a context block with strong anomaly signals (high velocity, impossible geo jump, brand-new merchant for a long-running agent). The BATE realtime layer flags it. Expect `denialReason: ANOMALY_FLAGGED` (position 10)."
+          },
+          "response": []
+        },
+        {
+          "name": "11. INTENT_MISMATCH",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('recommendedDenialReason = INTENT_MISMATCH', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.recommendedDenialReason).to.eql('INTENT_MISMATCH');",
+                  "  pm.expect(body.mismatches).to.be.an('array').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-AEGIS-API-Key", "value": "{{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "walk-through-intent-mismatch-{{$timestamp}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actuals\": [{\n    \"observedAt\": {{$timestamp}},\n    \"kind\": \"commerce-action\",\n    \"payload\": { \"action\": \"acp.payment\", \"merchantId\": \"ROGUE-MERCHANT\", \"amount\": \"500.00\", \"currency\": \"USD\" }\n  }]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/intent/{{manifest_id}}/actuals",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "intent", "{{manifest_id}}", "actuals"]
+            },
+            "description": "Precondition: issue an intent manifest first via POST /v1/intent declaring a bounded action (e.g. action='acp.payment', merchantId='ACME-FLORIST', amountCap=$200, strictness='strict'). Capture the returned `manifestId` into the environment variable {{manifest_id}}. Then POST actuals that VIOLATE the declared intent (this fixture sends a wrong merchantId AND an amount over the cap to trigger two mismatches). Under strict reconciliation, expect HTTP 200 with `recommendedDenialReason: 'INTENT_MISMATCH'` and a non-empty `mismatches[]` array containing entries with `kind: 'wrong-merchant'` and `kind: 'over-amount-cap'`.\n\nWire-surface note: INTENT_MISMATCH is emitted from POST /v1/intent/{manifestId}/actuals, NOT POST /v1/verify (per ADR-0017 D3 — Phase 2 keeps intent denials in the dedicated /v1/intent/* response surface). The other 10 walk-through entries above all hit /v1/verify; this one hits the intent reconciliation endpoint. Precedence position 11 (per `DENIAL_REASON_PRECEDENCE` in `packages/types/src/constants.ts`, ADR-0016 DECISION 3).\n\nCross-RP travel: the same reconciliation also fires `INTENT_MISMATCH_OBSERVED` to BATE (`apps/api/src/modules/bate/bate.weights.ts:57` — `-100` per signal, `300` per-window cap). The agent's trust score drops; subsequent /v1/verify calls for the same agent against ANY relying party may return `TRUST_SCORE_TOO_LOW` (position 9) once the band cutoff is crossed."
           },
           "response": []
         }
