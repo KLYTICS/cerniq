@@ -34,6 +34,22 @@ HttpMethod = Literal["GET", "POST", "PUT", "PATCH", "DELETE"]
 
 _DEFAULT_USER_AGENT: Final[str] = f"aegis-python/{__version__}"
 
+# Headers callers cannot override via ``extra_headers=``. Mirrors the
+# reserved-headers list in ``packages/sdk-ts/src/http.ts`` — these are
+# HttpClient contract (auth, content-negotiation, request-id) and a
+# caller-supplied override could leak the verify key on a management
+# call (or vice versa) or break content-negotiation in subtle ways.
+_RESERVED_HEADERS_LOWER: Final[frozenset[str]] = frozenset(
+    {
+        "accept",
+        "content-type",
+        "user-agent",
+        AEGIS_HEADER_API_KEY.lower(),
+        AEGIS_HEADER_VERIFY_KEY.lower(),
+        AEGIS_HEADER_REQUEST_ID.lower(),
+    }
+)
+
 
 class HttpClient:
     """Async HTTP transport for the AEGIS API.
@@ -201,7 +217,14 @@ class HttpClient:
                 )
             headers[AEGIS_HEADER_API_KEY] = self._api_key
         if extra:
-            headers.update(extra)
+            for k, v in extra.items():
+                if k.lower() in _RESERVED_HEADERS_LOWER:
+                    # Silently skip — matches the TS SDK behavior at
+                    # packages/sdk-ts/src/http.ts. Callers that need to
+                    # override these are doing something the SDK contract
+                    # forbids; we don't raise to keep the call ergonomic.
+                    continue
+                headers[k] = v
         return headers
 
     @staticmethod

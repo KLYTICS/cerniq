@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from ._version import __version__
 from .client import Aegis, AsyncAegis
+from .intent import IntentClient
 from .verify_cache import (
     CachedVerify,
     MemoryVerifyCache,
@@ -115,6 +116,7 @@ __all__ = [
     "ConflictError",
     "Currency",
     "DenialReason",
+    "IntentClient",
     "Keypair",
     "NetworkError",
     "NotFoundError",
