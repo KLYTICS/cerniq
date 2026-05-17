@@ -76,14 +76,29 @@ export async function signManifest(
  *
  *  Caller contract for kid resolution: the caller MUST resolve the
  *  pubkey from `signed.body.signingKeyId` (not from any out-of-band
- *  header) — the kid is committed to the signed bytes, so any mismatch
- *  collapses to `invalid_signature` and an attacker cannot redirect
- *  verification at a foreign key. Pass `null` to signal "kid not in
- *  the published JWKS" so this function short-circuits with
- *  `unknown_signing_key` and callers don't duplicate that branch. */
+ *  header). The kid is committed to the signed bytes, so a mismatch
+ *  would already collapse to `invalid_signature` — but `expectedKid`
+ *  lets the caller declare which kid it *thinks* it resolved, and we
+ *  hard-fail with `kid_mismatch` if the body disagrees. This is
+ *  defense-in-depth: a future caller that accidentally resolves the
+ *  pubkey from an out-of-band header fails loudly instead of silently
+ *  routing through the crypto-failure label. Pass `undefined` to keep
+ *  the legacy (no-assertion) behaviour.
+ *
+ *  Pass `publicKeyB64Url = null` to signal "kid not in the published
+ *  JWKS" so this function short-circuits with `unknown_signing_key`
+ *  and callers don't duplicate that branch.
+ *
+ *  Failure-reason taxonomy is *deliberately* split between caller and
+ *  operator error surfaces (see `ManifestVerifyFailure`): bad sig →
+ *  `malformed_signature` / `invalid_signature` (caller / attacker
+ *  controlled), bad pubkey → `malformed_public_key` (operator
+ *  controlled). Never conflate them — JWKS-rotation incidents must
+ *  not look like tamper events in SIEM. */
 export async function verifyManifest(
   signed: SignedAuditCompressionManifest,
   publicKeyB64Url: string | null,
+  expectedKid?: string,
 ): Promise<ManifestVerifyResult> {
   if (signed.signatureAlg !== 'ed25519') {
     return { ok: false, reason: 'wrong_alg' };
@@ -91,17 +106,44 @@ export async function verifyManifest(
   if (publicKeyB64Url === null) {
     return { ok: false, reason: 'unknown_signing_key' };
   }
-  // Decoding caller-supplied base64url can fail (attacker-controlled
-  // signature, operator-misconfigured pubkey). canonicalJson of a typed
-  // body cannot fail and so does not need its own catch — drop drift
-  // between "what the union promises" and "what we actually surface".
+  if (expectedKid !== undefined && expectedKid !== signed.body.signingKeyId) {
+    return { ok: false, reason: 'kid_mismatch' };
+  }
+  // Signature bytes are caller- (or attacker-) supplied; pubkey bytes
+  // are operator-supplied (published JWKS). Separate catches AND
+  // length checks so the failure-reason taxonomy preserves blame
+  // attribution.
+  //
+  // The catches handle a strict-decoder migration (today's decoder
+  // wraps Node's `Buffer.from(s, 'base64url')` which is permissive —
+  // it strips invalid chars rather than throwing — but a future swap
+  // to a strict decoder (e.g. `@noble/hashes/utils.base64urlnopad`)
+  // would surface decode failures here).
+  //
+  // The length checks are the *active* gate today: Ed25519 signatures
+  // are exactly 64 bytes and public keys are exactly 32 bytes. Anything
+  // else is malformed — and since permissive base64url decoding can
+  // silently produce wrong-length output for garbage input, the length
+  // gate catches what the catch can't.
+  const ED25519_SIG_LEN = 64;
+  const ED25519_PUBKEY_LEN = 32;
   let sigBytes: Uint8Array;
-  let pubBytes: Uint8Array;
   try {
     sigBytes = decodeBase64Url(signed.signatureB64Url);
+  } catch {
+    return { ok: false, reason: 'malformed_signature' };
+  }
+  if (sigBytes.length !== ED25519_SIG_LEN) {
+    return { ok: false, reason: 'malformed_signature' };
+  }
+  let pubBytes: Uint8Array;
+  try {
     pubBytes = decodeBase64Url(publicKeyB64Url);
   } catch {
-    return { ok: false, reason: 'malformed_body' };
+    return { ok: false, reason: 'malformed_public_key' };
+  }
+  if (pubBytes.length !== ED25519_PUBKEY_LEN) {
+    return { ok: false, reason: 'malformed_public_key' };
   }
   const message = enc.encode(canonicalJson(signed.body));
   let ok = false;

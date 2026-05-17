@@ -216,3 +216,76 @@ describe('walkManifestChain — tamper modes', () => {
     expect(res.ok).toBe(false);
   });
 });
+
+describe('walkManifestChain — intra-manifest sanity (malformed_manifest)', () => {
+  // These cases defend against honest-writer regressions: a future bug
+  // in the compactor that produces a malformed-but-signed manifest body.
+  // Signature alone is insufficient — it binds bytes, not semantics. The
+  // walk refuses to vouch for a nonsensical span even when the crypto
+  // looks fine.
+
+  it('malformed_manifest when firstSeq > lastSeq inside a single manifest', () => {
+    const chain = chainOf(1);
+    chain[0] = { ...chain[0], firstSeq: 100, lastSeq: 50 };
+    const res = walkManifestChain(chain);
+    expect(res).toEqual({ ok: false, failedAtIndex: 0, reason: 'malformed_manifest' });
+  });
+
+  it('malformed_manifest when rowCount is zero', () => {
+    const chain = chainOf(1);
+    chain[0] = { ...chain[0], rowCount: 0 };
+    const res = walkManifestChain(chain);
+    expect(res).toEqual({ ok: false, failedAtIndex: 0, reason: 'malformed_manifest' });
+  });
+
+  it('malformed_manifest when rowCount is negative', () => {
+    const chain = chainOf(1);
+    chain[0] = { ...chain[0], rowCount: -1 };
+    const res = walkManifestChain(chain);
+    expect(res).toEqual({ ok: false, failedAtIndex: 0, reason: 'malformed_manifest' });
+  });
+
+  it('malformed_manifest when firstEventId > lastEventId (ULID lex order)', () => {
+    const chain = chainOf(1);
+    chain[0] = { ...chain[0], firstEventId: 'zzzz', lastEventId: 'aaaa' };
+    const res = walkManifestChain(chain);
+    expect(res).toEqual({ ok: false, failedAtIndex: 0, reason: 'malformed_manifest' });
+  });
+
+  it('malformed_manifest fires on the bad manifest, not its successor', () => {
+    const chain = chainOf(3);
+    chain[1] = { ...chain[1], firstSeq: 250, lastSeq: 150 };
+    const res = walkManifestChain(chain);
+    // i=1, not i=2 — we want the bad span attributed to its own slot
+    expect(res).toEqual({ ok: false, failedAtIndex: 1, reason: 'malformed_manifest' });
+  });
+
+  it('intra-manifest sanity precedes prev_hash check', () => {
+    // If both checks would fire, intra-manifest sanity wins — it's the
+    // cheaper check and the more actionable failure label for operators.
+    const chain = chainOf(2);
+    chain[1] = {
+      ...chain[1],
+      firstSeq: 999,
+      lastSeq: 1,             // malformed
+      prevManifestHashB64Url: 'wrong-hash',  // also broken
+    };
+    const res = walkManifestChain(chain);
+    expect(res).toEqual({ ok: false, failedAtIndex: 1, reason: 'malformed_manifest' });
+  });
+
+  it('a single-row manifest with firstSeq=lastSeq is valid', () => {
+    // Boundary: firstSeq <= lastSeq, not strictly less. A single-row
+    // manifest is legal — rowCount=1, firstSeq=lastSeq.
+    const chain = chainOf(1);
+    chain[0] = {
+      ...chain[0],
+      firstSeq: 42,
+      lastSeq: 42,
+      rowCount: 1,
+      firstEventId: 'e_only',
+      lastEventId: 'e_only',
+    };
+    expect(walkManifestChain(chain)).toEqual({ ok: true, verified: 1 });
+  });
+});

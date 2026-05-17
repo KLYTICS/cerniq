@@ -74,6 +74,19 @@ describe('canonicalJson — parity with AuditChainUtil.canonicalize', () => {
     { name: 'boolean + null mix', value: { flag: true, off: false, miss: null } },
     { name: 'empty object', value: {} },
     { name: 'empty array', value: { xs: [] } },
+    // Edge-case shapes mirroring tests/cross-package/audit-manifest-parity.spec.ts.
+    // Locks kernel-side parity against `AuditChainUtil.canonicalize` on the
+    // same surface the cross-package parity guards — if either canonicalizer
+    // ever drifts on an escape, surrogate, or key-sort edge case, kernel
+    // tests fail before the cross-package suite even runs.
+    { name: 'empty-string key', value: { '': 'empty', a: 1 } },
+    { name: 'embedded double-quote in value', value: { s: 'has "quote" inside' } },
+    { name: 'embedded backslash in value', value: { s: 'path\\to\\thing' } },
+    { name: 'embedded control chars (\\n \\t \\r)', value: { s: 'line1\nline2\ttab\rreturn' } },
+    { name: 'embedded quote in key', value: { 'k"q': 1, a: 2 } },
+    { name: 'high-codepoint Unicode (surrogate pair)', value: { emoji: '🦅', name: 'AEGIS' } },
+    { name: 'mixed Unicode in keys', value: { 'café': 1, 'cafe': 2, 'カフェ': 3 } },
+    { name: 'key sort with numeric-looking strings', value: { '10': 'a', '2': 'b', '1': 'c' } },
     { name: 'sample manifest body', value: sampleBody() },
     {
       name: 'manifest body with anchored row chain',
@@ -179,6 +192,89 @@ describe('signManifest / verifyManifest', () => {
       pubB64,
     );
     expect(result).toEqual({ ok: false, reason: 'wrong_alg' });
+  });
+
+  it('fails with reason=malformed_signature when signature is not base64url', async () => {
+    const { priv, pubB64 } = await genKeys();
+    const signed = await signManifest(sampleBody(), (msg) => ed.signAsync(msg, priv));
+    // '!' is not a valid base64url alphabet character — decodeBase64Url throws.
+    const tampered: SignedAuditCompressionManifest = {
+      ...signed,
+      signatureB64Url: 'not-base64url-!!!@@@',
+    };
+    const result = await verifyManifest(tampered, pubB64);
+    expect(result).toEqual({ ok: false, reason: 'malformed_signature' });
+  });
+
+  it('fails with reason=malformed_public_key when pubkey is not base64url', async () => {
+    const { priv } = await genKeys();
+    const signed = await signManifest(sampleBody(), (msg) => ed.signAsync(msg, priv));
+    const result = await verifyManifest(signed, 'not-a-pubkey-!!!@@@');
+    expect(result).toEqual({ ok: false, reason: 'malformed_public_key' });
+  });
+
+  it('separates sig-decode failure from pubkey-decode failure (taxonomy parity)', async () => {
+    // Both inputs are syntactically bad in different ways. The kernel must
+    // route them to *different* reasons — conflating them would poison
+    // SIEM tamper alerts during JWKS rotation incidents.
+    const { priv, pubB64 } = await genKeys();
+    const signed = await signManifest(sampleBody(), (msg) => ed.signAsync(msg, priv));
+    const badSig = await verifyManifest({ ...signed, signatureB64Url: '!!!' }, pubB64);
+    const badPub = await verifyManifest(signed, '!!!');
+    expect(badSig.ok).toBe(false);
+    expect(badPub.ok).toBe(false);
+    if (!badSig.ok && !badPub.ok) {
+      expect(badSig.reason).toBe('malformed_signature');
+      expect(badPub.reason).toBe('malformed_public_key');
+      expect(badSig.reason).not.toBe(badPub.reason);
+    }
+  });
+
+  it('expectedKid=undefined preserves legacy behavior (sig verifies)', async () => {
+    const { priv, pubB64 } = await genKeys();
+    const signed = await signManifest(sampleBody(), (msg) => ed.signAsync(msg, priv));
+    const result = await verifyManifest(signed, pubB64, undefined);
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('expectedKid matching body.signingKeyId allows verification', async () => {
+    const { priv, pubB64 } = await genKeys();
+    const body = sampleBody({ signingKeyId: 'kid-claim-q3' });
+    const signed = await signManifest(body, (msg) => ed.signAsync(msg, priv));
+    const result = await verifyManifest(signed, pubB64, 'kid-claim-q3');
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('fails with reason=kid_mismatch when expectedKid disagrees with body.signingKeyId', async () => {
+    // Defense-in-depth: a future caller that resolves pubkey from an
+    // out-of-band header (instead of from body.signingKeyId) gets caught
+    // here BEFORE the crypto check — so JWKS-rotation slop doesn't
+    // silently route through `invalid_signature` and look like tamper.
+    const { priv, pubB64 } = await genKeys();
+    const body = sampleBody({ signingKeyId: 'kid-real' });
+    const signed = await signManifest(body, (msg) => ed.signAsync(msg, priv));
+    const result = await verifyManifest(signed, pubB64, 'kid-WRONG');
+    expect(result).toEqual({ ok: false, reason: 'kid_mismatch' });
+  });
+
+  it('kid_mismatch short-circuits BEFORE crypto verification (perf + blame)', async () => {
+    // If a caller passes a wrong-kid expectation, we should NEVER even
+    // attempt ed.verifyAsync — the reason must remain `kid_mismatch`,
+    // not collapse to `invalid_signature`. Distinguishing them in the
+    // metric labels is the whole point.
+    const { priv, pubB64 } = await genKeys();
+    const signed = await signManifest(
+      sampleBody({ signingKeyId: 'kid-a' }),
+      (msg) => ed.signAsync(msg, priv),
+    );
+    // Tamper the body too — without the kid short-circuit this would
+    // become `invalid_signature`. With it, `kid_mismatch` wins.
+    const tampered: SignedAuditCompressionManifest = {
+      ...signed,
+      body: { ...signed.body, rowCount: signed.body.rowCount + 1 },
+    };
+    const result = await verifyManifest(tampered, pubB64, 'kid-b');
+    expect(result).toEqual({ ok: false, reason: 'kid_mismatch' });
   });
 
   it('signing is deterministic for ed25519 (same body + key = same sig)', async () => {

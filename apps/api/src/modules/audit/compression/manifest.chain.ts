@@ -91,7 +91,13 @@ export type ChainWalkFailure =
   | 'seq_not_monotonic'
   | 'row_chain_break'
   | 'signature_invalid'
-  | 'empty_input';
+  | 'empty_input'
+  /** An individual manifest's internal fields are mutually inconsistent
+   *  (e.g. `firstSeq > lastSeq`, `rowCount <= 0`, or `firstEventId >
+   *  lastEventId`). Defence against an honest-writer regression that
+   *  produces a malformed-but-signed manifest — the signature still
+   *  verifies, but the walk refuses to vouch for a nonsensical body. */
+  | 'malformed_manifest';
 
 /** Walk a per-slice ordered sequence of *already signature-verified*
  *  manifests and confirm the manifest chain + row-chain anchors are
@@ -128,6 +134,19 @@ export function walkManifestChain(
   for (let i = 0; i < manifests.length; i++) {
     const m = manifests[i];
 
+    // Intra-manifest sanity — even a signed manifest must obey the
+    // structural invariants its own body claims. An honest-writer bug
+    // (or a payload-validator regression) can produce a manifest with
+    // `firstSeq > lastSeq` etc. that signs and verifies cleanly; the
+    // walk catches it so we never vouch for a nonsensical span.
+    if (
+      m.firstSeq > m.lastSeq ||
+      m.rowCount <= 0 ||
+      m.firstEventId > m.lastEventId
+    ) {
+      return { ok: false, failedAtIndex: i, reason: 'malformed_manifest' };
+    }
+
     if (m.tenantSliceId !== slice) {
       return { ok: false, failedAtIndex: i, reason: 'slice_mismatch' };
     }
@@ -141,9 +160,10 @@ export function walkManifestChain(
       if (m.firstSeq <= prevBody.lastSeq) {
         return { ok: false, failedAtIndex: i, reason: 'seq_not_monotonic' };
       }
-      // Row-chain anchor across the manifest boundary. Null on either
-      // side means the row chain genuinely starts here (slice genesis),
-      // which is only valid at i=0 — we're past that branch.
+      // Row-chain anchor across the manifest boundary. `firstChainHashB64Url`
+      // null means the row chain genuinely starts here (slice genesis),
+      // which is only valid at i=0 — past that branch, a null value is
+      // a chain break. `lastChainHashB64Url` is non-nullable by type.
       if (
         m.firstChainHashB64Url === null ||
         m.firstChainHashB64Url !== prevBody.lastChainHashB64Url

@@ -54,10 +54,16 @@ export interface AuditCompressionManifestBody {
   /** Seal-time slice strategy — informational, not load-bearing. */
   sliceStrategy: SliceStrategy;
 
-  /** First `AuditEvent.seq` covered by this file. Inclusive. */
+  /** First `AuditEvent.seq` covered by this file. Inclusive.
+   *  Wire type is Postgres BIGSERIAL (int64); captured as JS `number`
+   *  because we expect << 2^53 events per slice across product lifetime
+   *  (≈ 285k years at 1 event / ms / slice). If this assumption ever
+   *  drifts, migrate to `bigint` + a JSON-serialization shim and bump
+   *  manifest schema `v`. */
   firstSeq: number;
 
-  /** Last `AuditEvent.seq` covered by this file. Inclusive. */
+  /** Last `AuditEvent.seq` covered by this file. Inclusive. See
+   *  `firstSeq` for the JS-number cap rationale. */
   lastSeq: number;
 
   /** `AuditEvent.id` of the first row in this file. */
@@ -157,5 +163,23 @@ export type ManifestVerifyResult =
 export type ManifestVerifyFailure =
   | 'invalid_signature'
   | 'wrong_alg'
+  /** The signed body's shape itself failed validation — reserved for
+   *  future shape-validators upstream of verify. Today this reason is
+   *  never returned by `verifyManifest`; it remains in the union as the
+   *  documented home for caller-side body-shape rejections. */
   | 'malformed_body'
+  /** Caller-supplied signature bytes failed base64url decoding — the
+   *  signature itself, not the body. Distinguished from
+   *  `'invalid_signature'` (cryptographic mismatch) so attacker-supplied
+   *  garbage signatures route to a different metric label than tamper. */
+  | 'malformed_signature'
+  /** Operator-supplied public key bytes failed base64url decoding —
+   *  this is a JWKS misconfiguration, never a tamper signal. Routes
+   *  separately so JWKS rotation incidents don't poison tamper alerts. */
+  | 'malformed_public_key'
+  /** The pubkey resolved by the caller belongs to a different kid than
+   *  `body.signingKeyId` claims. Surfaces when the caller violates the
+   *  kid-binding contract (e.g. looks up pubkey from an out-of-band
+   *  header instead of from the signed body). */
+  | 'kid_mismatch'
   | 'unknown_signing_key';
