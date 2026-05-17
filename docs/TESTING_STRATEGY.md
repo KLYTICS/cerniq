@@ -65,22 +65,22 @@ Every crypto function requires a paired `.spec.ts`. No exceptions.
 
 describe('ed25519', () => {
   it('round-trips: sign → verify with same key', async () => {
-    const { privateKey, publicKey } = await generateKeyPair();
+    const { privateKey, publicKey } = await generateKeypair();
     const message = new TextEncoder().encode('hello aegis');
     const sig = await sign(message, privateKey);
     expect(await verify(sig, message, publicKey)).toBe(true);
   });
 
   it('rejects: signature from different key', async () => {
-    const kp1 = await generateKeyPair();
-    const kp2 = await generateKeyPair();
+    const kp1 = await generateKeypair();
+    const kp2 = await generateKeypair();
     const message = new TextEncoder().encode('hello');
     const sig = await sign(message, kp1.privateKey);
     expect(await verify(sig, message, kp2.publicKey)).toBe(false);
   });
 
   it('rejects: tampered message', async () => {
-    const { privateKey, publicKey } = await generateKeyPair();
+    const { privateKey, publicKey } = await generateKeypair();
     const original = new TextEncoder().encode('pay $100');
     const tampered = new TextEncoder().encode('pay $999');
     const sig = await sign(original, privateKey);
@@ -88,7 +88,7 @@ describe('ed25519', () => {
   });
 
   it('rejects: truncated signature', async () => {
-    const { privateKey, publicKey } = await generateKeyPair();
+    const { privateKey, publicKey } = await generateKeypair();
     const msg = new TextEncoder().encode('hi');
     const sig = await sign(msg, privateKey);
     const truncated = sig.slice(0, 32); // Ed25519 sigs are 64 bytes
@@ -253,7 +253,7 @@ describe('VerifyService (integration)', () => {
     
     // Seed test data
     testPrincipal = await seedPrincipal(prisma);
-    keyPair = await generateKeyPair();
+    keyPair = await generateKeypair();
     testAgent = await seedAgent(prisma, testPrincipal.id, keyPair.publicKey);
   });
 
@@ -589,7 +589,7 @@ describe('Ed25519 properties', () => {
     await fc.assert(fc.asyncProperty(
       fc.uint8Array({ minLength: 1, maxLength: 1024 }),
       async (message) => {
-        const { privateKey, publicKey } = await generateKeyPair();
+        const { privateKey, publicKey } = await generateKeypair();
         const sig = await sign(message, privateKey);
         return await verify(sig, message, publicKey);
       }
@@ -600,8 +600,8 @@ describe('Ed25519 properties', () => {
     await fc.assert(fc.asyncProperty(
       fc.uint8Array({ minLength: 1, maxLength: 1024 }),
       async (message) => {
-        const kp1 = await generateKeyPair();
-        const kp2 = await generateKeyPair();
+        const kp1 = await generateKeypair();
+        const kp2 = await generateKeypair();
         const sig = await sign(message, kp1.privateKey);
         return !(await verify(sig, message, kp2.publicKey));
       }

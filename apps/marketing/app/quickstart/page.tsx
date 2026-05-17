@@ -47,9 +47,9 @@ go get github.com/klytics/aegis/sdk-go`,
     title: 'Generate an agent keypair (locally)',
     description: 'Private keys never leave your environment. AEGIS stores only the public half. This invariant is non-negotiable — CLAUDE.md §invariant-1.',
     language: 'ts',
-    code: `import { generateKeyPair } from '@aegis/sdk';
+    code: `import { generateKeypair } from '@aegis/sdk';
 
-const { privateKey, publicKey } = await generateKeyPair();
+const { privateKey, publicKey } = await generateKeypair();
 
 // Store privateKey in your secret manager — AWS Secrets Manager,
 // HashiCorp Vault, GCP Secret Manager, or your environment.
@@ -61,17 +61,24 @@ const { privateKey, publicKey } = await generateKeyPair();
     title: 'Sign an action and verify it',
     description: 'The agent signs the action it wants to take. AEGIS verifies the signature, applies your policy, returns a trust score, and writes a signed audit row.',
     language: 'ts',
-    code: `import { Aegis, signAction } from '@aegis/sdk';
+    code: `import { Aegis, signAgentToken } from '@aegis/sdk';
 
 const aegis = new Aegis({ apiKey: process.env.AEGIS_KEY });
 
-// 1. Agent signs the intent
-const token = await signAction({
-  privateKey,
-  agentId: 'agt_b7c2f',
+// 0. One-time setup (run once per agent, IDs cached for that agent's lifetime):
+//      const agent  = await aegis.agents.register({ publicKey, name: 'My Agent' });
+//      const policy = await aegis.policies.create({
+//        agentId: agent.id,
+//        scopes: [{ category: 'orders.create',
+//                   spendLimit: { currency: 'USD', maxPerTransaction: 100 } }],
+//        expiresInSeconds: 86_400,
+//      });
+
+// 1. Agent signs the intent (private key never leaves the agent's runtime)
+const token = await signAgentToken(privateKey, agent.id, policy.id, {
   action: 'orders.create',
   amount: 99.00,
-  expiresAt: Date.now() + 60_000,  // 60s validity window
+  ttlSeconds: 60,
 });
 
 // 2. Relying party (your service) calls AEGIS to verify
@@ -81,7 +88,7 @@ const result = await aegis.verify(token, {
 });
 
 if (!result.valid) {
-  throw new Error(\`AEGIS denied: \${result.reason}\`);
+  throw new Error(\`AEGIS denied: \${result.denialReason}\`);
 }
 
 console.log(\`Trust score: \${result.trustScore} (band: \${result.trustBand})\`);`,
