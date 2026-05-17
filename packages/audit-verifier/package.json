@@ -34,7 +34,7 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsup && pnpm build:dts",
-    "build:dts": "tsc --emitDeclarationOnly --outDir dist && node -e \"require('fs').copyFileSync('dist/index.d.ts','dist/index.d.cts');require('fs').copyFileSync('dist/cli.d.ts','dist/cli.d.cts')\"",
+    "build:dts": "tsc --emitDeclarationOnly --outDir dist --incremental false && node -e \"require('fs').copyFileSync('dist/index.d.ts','dist/index.d.cts');require('fs').copyFileSync('dist/cli.d.ts','dist/cli.d.cts')\"",
     "prepublishOnly": "pnpm build",
     "dev": "tsup --watch",
     "test": "vitest run",
