@@ -6,9 +6,9 @@ import type { Metadata } from 'next';
 import { ALL_INTEGRATIONS, BY_CATEGORY, CATEGORY_DESC, CATEGORY_LABELS, STATUS_LABEL, type Integration, type Status } from '../../lib/integrations';
 
 export const metadata: Metadata = {
-  title: 'Integrations — AEGIS',
+  title: 'Integrations — AEGIS · FAPI 2.0-shaped verification across the stack',
   description:
-    'AEGIS attaches as a verification layer to every major LLM provider, agent framework, workflow tool, and cloud platform. 80+ integrations across 9 categories.',
+    'AEGIS attaches as a verification layer to every major LLM provider, agent framework, workflow tool, and cloud platform — under one FAPI 2.0-shaped contract: RFC 9101 JAR + RFC 9396 RAR + Ed25519 (RFC 8032) audit chain. 80+ integration surfaces across 9 categories.',
 };
 
 const SALES_EMAIL = process.env.NEXT_PUBLIC_SALES_EMAIL ?? 'sales@aegislabs.io';
@@ -141,17 +141,18 @@ export default function IntegrationsPage() {
             <span className="eyebrow">Standards Alignment</span>
             <h2>Built on citable specs. Profiled for the regulated stack.</h2>
             <p>
-              AEGIS publishes its standards posture at <code>/.well-known/openid-configuration</code> via
-              a FAPI 2.0–aligned discovery profile. Every claim here is either <strong>implemented</strong>{' '}
-              (citable to running code + tests today) or <strong>aligned</strong> (roadmapped per the
-              published profile §3).
+              AEGIS publishes its standards posture at <code>/.well-known/aegis-configuration</code> and{' '}
+              <code>/.well-known/oauth-authorization-server</code> (RFC 8414). Every claim here is either{' '}
+              <strong>implemented</strong> (citable to running code + tests today) or{' '}
+              <strong>aligned</strong> (roadmapped per the published profile §3). The complete table with
+              file refs lives on <a href="/security">/security</a>.
             </p>
           </div>
           <div className="layers">
             <article className="layer">
               <span className="layer-tag">Implemented</span>
               <h3>RFC 8032 — Ed25519</h3>
-              <p>EdDSA signature algorithm for all agent + audit signatures.</p>
+              <p>EdDSA signature algorithm for all agent + audit signatures. JWA-registered per RFC 8037.</p>
             </article>
             <article className="layer">
               <span className="layer-tag">Implemented</span>
@@ -165,28 +166,43 @@ export default function IntegrationsPage() {
             </article>
             <article className="layer">
               <span className="layer-tag">Implemented</span>
+              <h3>RFC 8414 — OAuth AS Metadata</h3>
+              <p>OAuth-flavored discovery at <code>/.well-known/oauth-authorization-server</code>. AEGIS-honest subset: issuer, jwks_uri, signing_alg_values_supported, authorization_details_types_supported.</p>
+            </article>
+            <article className="layer">
+              <span className="layer-tag">Implemented</span>
               <h3>RFC 9396 — RAR</h3>
-              <p>OAuth 2.0 Rich Authorization Requests live at <code>POST /v1/verify/rar/evaluate</code>. 4 detail types registered.</p>
+              <p>OAuth 2.0 Rich Authorization Requests live at <code>POST /v1/verify/rar/evaluate</code>. 4 detail types registered (trading_order, payment_initiation, data_access, agent_action).</p>
+            </article>
+            <article className="layer">
+              <span className="layer-tag">Implemented</span>
+              <h3>RFC 9101 — JAR</h3>
+              <p>JWT-Secured Authorization Requests with operator-gated aud / iss / iat enforcement. Strict-FAPI conformance reachable per-deployment via three env switches.</p>
+            </article>
+            <article className="layer">
+              <span className="layer-tag">Implemented</span>
+              <h3>RFC 6749 §5.2 — OAuth error envelope</h3>
+              <p>Canonical OAuth error field alongside the AEGIS denialReason on every <code>/v1/verify</code> denial. Closed mapping table (12 denial reasons → 5 OAuth error values).</p>
             </article>
             <article className="layer">
               <span className="layer-tag">Aligned</span>
               <h3>FAPI 2.0</h3>
-              <p>Discovery profile published + RAR implemented. Token-binding + DPoP on the roadmap.</p>
+              <p>Aligned via the implemented stack: RAR + JAR + AS Metadata. Three honest asterisks: EdDSA-only signing (deliberate per RFC 8037), JAR opt-in not mandatory, no mTLS / DPoP yet.</p>
             </article>
             <article className="layer">
               <span className="layer-tag">Aligned</span>
               <h3>RFC 9449 — DPoP</h3>
-              <p>Demonstrating Proof-of-Possession scaffold landed; promotion gated.</p>
+              <p>Demonstrating Proof-of-Possession scaffold landed; promotion gated on browser + edge runtime support. Q4 2026 target.</p>
             </article>
             <article className="layer">
               <span className="layer-tag">Aligned</span>
               <h3>RFC 9421 — HTTP Message Signatures</h3>
-              <p>Roadmap — paired with the verify hot-path edge port (Phase 3).</p>
+              <p>Wire-level message integrity for outbound webhooks. Paired with the Cloudflare Workers verify edge (Phase 3). Q4 2026 target.</p>
             </article>
             <article className="layer">
               <span className="layer-tag">Aligned</span>
               <h3>NIST AI Agent Identity</h3>
-              <p>Following NIST&rsquo;s 2026 guidance as it publishes; first to map.</p>
+              <p>Following NIST&rsquo;s 2026 guidance as it publishes; first to map our profile.</p>
             </article>
           </div>
         </div>
