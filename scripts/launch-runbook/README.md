@@ -25,6 +25,22 @@ Exit codes:
 - **As a pre-PR check** when the branch claims to close a Phase 0 gap. If `phase-0-check.sh` still reports the gap as FAIL, the claim is false.
 - **As a smoke test post-IDP-install.** When the operator wires Auth0 v4 (or Clerk, or WorkOS), this script confirms Gap 4 flips from FAIL to PASS.
 
+## check-discovery-mirror.sh
+
+Companion to `phase-0-check.sh`, but focused on a different drift class. Verifies that `apps/marketing/app/security/page.tsx`'s `ENDPOINTS` array is a 1:1 mirror of `apps/api/src/modules/wellknown/wellknown.controller.ts`'s `@Get` decorators. Surfaces two failure modes:
+
+- **OVER-CLAIM** — marketing advertises a `/.well-known/*` path that no controller routes (auditor copy-pastes the URL → 404).
+- **UNDER-CLAIM** — controller routes a `/.well-known/*` path that marketing omits (under-sell of the discovery surface).
+
+```sh
+bash scripts/launch-runbook/check-discovery-mirror.sh             # summary mode
+bash scripts/launch-runbook/check-discovery-mirror.sh --verbose   # show both lists
+```
+
+Exit codes: `0` clean, `1` drift, `2` misconfig (file moved/renamed). Runs in <1s on a fresh clone.
+
+This script was born from commit `6927dea` which caught a pre-existing marketing bug (page advertised `/.well-known/openid-configuration` which doesn't exist; actual route was `aegis-configuration`). The mirror discipline lives in the script now so the next drift gets caught mechanically.
+
 ## Adding new checks
 
 Each check is a single-purpose grep with a clear PASS/FAIL semantic. Follow the pattern in `phase-0-check.sh`:
