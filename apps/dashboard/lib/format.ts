@@ -60,3 +60,29 @@ export function statusTone(status: string): 'ok' | 'warn' | 'crit' | 'muted' {
       return 'muted';
   }
 }
+
+/**
+ * Format a `DenialContextKind` snake_case value into a short human-readable
+ * label suitable for dense table cells. Examples:
+ *   "jar_aud_mismatch"          → "JAR aud mismatch"
+ *   "rar_limit_exceeded"        → "RAR limit exceeded"
+ *   "scope_domain_not_allowed"  → "Scope domain not allowed"
+ *
+ * The mapping is intentionally minimal — JAR/RAR/PII stay uppercase
+ * (acronyms; rendering "Jar" or "Rar" reads worse than the all-caps
+ * convention used in our docs). Unknown kinds fall through to the
+ * snake → space transform so future-added kinds (additive enum
+ * evolution) still render acceptably.
+ */
+export function formatDenialContextKind(kind: string | null | undefined): string {
+  if (!kind) return '–';
+  const ACRONYMS = new Set(['jar', 'rar', 'pii', 'jti', 'iat', 'aud', 'iss']);
+  const words = String(kind).split('_').filter(Boolean);
+  if (words.length === 0) return '–';
+  return words
+    .map((w, i) => {
+      if (ACRONYMS.has(w)) return w.toUpperCase();
+      return i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w;
+    })
+    .join(' ');
+}
