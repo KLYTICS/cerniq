@@ -45,7 +45,7 @@ export default function Landing() {
 
   return (
     <>
-      <Hero primaryHref={LINKS.developer} secondaryHref="#quickstart" />
+      <Hero primaryHref={LINKS.developer} />
 
       <ProviderMarquee />
 
@@ -70,60 +70,67 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ─── Four layers ─────────────────────────────────────────── */}
+      {/* ─── Wedge value-props ────────────────────────────────────
+          Per wedge doc §11 (~/Desktop/AEGIS_WEDGE_FINANCIAL_STANDARDS_2026-05-15.md):
+          three specific value props that map to docs/spec/05_FAPI_2_0_PROFILE.md
+          § 5 ALLOWED-claims table. No DPoP / RFC 9421 / ISO 20022 present-tense
+          claims (those are roadmap per §3.5, §3.6 of the FAPI profile).
+      */}
       <section id="layers" className="reveal">
         <div className="container">
           <div className="section-head">
-            <span className="eyebrow">Four Layers, One Gateway</span>
-            <h2>Verify identity. Enforce policy. Attest behavior. Sign the audit.</h2>
+            <span className="eyebrow">Why financial-rail teams ship on AEGIS</span>
+            <h2>Standards your security team already knows. Audit your regulator already trusts.</h2>
             <p>
-              Every agent action passes through four orthogonal checks before the relying party trusts
-              it. Each layer is independently revocable, observable, and policy-bounded.
+              AEGIS is not a bespoke agent protocol. It is the standards layer between AI agents and the
+              financial APIs they call — FAPI 2.0-shaped, auditor-ready by construction, and built from
+              published RFCs your reviewers can grep against in a CVE database.
             </p>
           </div>
 
           <div className="layers">
             <article className="layer">
-              <span className="layer-tag">L1 — Identity</span>
-              <h3>Per-agent keypair, public-key gateway.</h3>
-              <p>Ed25519 keypair tied to a verified human or organizational principal.</p>
+              <span className="layer-tag">FAPI 2.0-shaped</span>
+              <h3>Looks like a Plaid request, not a bespoke protocol.</h3>
+              <p>
+                Your agent&rsquo;s API call carries an RFC 9101 JAR + RFC 9396 RAR scope. Your security
+                team already knows how to review it; your relying-party already knows how to verify it.
+              </p>
               <ul>
-                <li>Private keys never enter AEGIS</li>
-                <li>JWKS at /.well-known</li>
-                <li>Per-agent revoke &lt;1s</li>
+                <li>RFC 9101 JAR — aud/iss/iat operator-gated</li>
+                <li>RFC 9396 RAR — 4 detail types live</li>
+                <li>RFC 8414 AS metadata discoverable</li>
               </ul>
             </article>
 
             <article className="layer">
-              <span className="layer-tag">L2 — Policy</span>
-              <h3>Fine-grained, revocable scopes.</h3>
-              <p>OAuth 2.0 RAR (RFC 9396): per-order caps, per-day caps, trading-hours constraints.</p>
+              <span className="layer-tag">Auditor-ready out of the box</span>
+              <h3>Append-only hash chain. Offline-verifiable on a laptop.</h3>
+              <p>
+                Every verified action emits a signed AuditEvent in our hash chain. Export a Parquet +
+                manifest tarball (ADR-0015) and your SOC 2 auditor verifies it without an AEGIS
+                round-trip. SR 11-7 model-governance evidence comes for free.
+              </p>
               <ul>
-                <li>4 RAR detail types live</li>
-                <li>Plan-aware throttling</li>
-                <li>Locked denial precedence</li>
+                <li>Ed25519-signed per row</li>
+                <li>Parquet + manifest export</li>
+                <li>Offline corpus verifier in the SDK</li>
               </ul>
             </article>
 
             <article className="layer">
-              <span className="layer-tag">L3 — BATE</span>
-              <h3>Behavioral attestation, 0–1000 trust score.</h3>
-              <p>Compounds reputation across sessions. Anomaly detection at the edge.</p>
+              <span className="layer-tag">Standards, not inventions</span>
+              <h3>Seven RFCs implemented. Two more on the roadmap.</h3>
+              <p>
+                Ed25519 (RFC 8032), OAuth 2.0 RAR (RFC 9396), FAPI 2.0 JAR (RFC 9101), OAuth 2.0 AS
+                Metadata (RFC 8414), OAuth 2.0 error envelope (RFC 6749 § 5.2), JWKS (RFC 7517),
+                security.txt (RFC 9116). DPoP (RFC 9449) and HTTP Message Signatures (RFC 9421) on
+                the roadmap. Every primitive maps to a published standard with a CVE channel.
+              </p>
               <ul>
-                <li>5 anomaly rules online</li>
-                <li>Per-agent trust band</li>
-                <li>Webhook on score drift</li>
-              </ul>
-            </article>
-
-            <article className="layer">
-              <span className="layer-tag">L4 — Audit</span>
-              <h3>Append-only, AEGIS-signed event log.</h3>
-              <p>Hash-chained, Ed25519-signed per row. Offline verifier ships in the SDK.</p>
-              <ul>
-                <li>NDJSON · S3 · Parquet</li>
-                <li>Offline corpus verify</li>
-                <li>SOC 2 / FINRA / COSSEC</li>
+                <li>Every claim grep-verifiable</li>
+                <li>No bespoke crypto</li>
+                <li>Discoverable at /.well-known/</li>
               </ul>
             </article>
           </div>

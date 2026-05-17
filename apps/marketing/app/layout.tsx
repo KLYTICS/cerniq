@@ -2,24 +2,29 @@ import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import './globals.css';
 
+// Canonical domain per wedge re-positioning 2026-05-15: aegis.klytics.io is
+// canonical; aegis.dev is a parked redirect. All defaults reflect canonical.
+// Title + description follow ~/Desktop/AEGIS_WEDGE_FINANCIAL_STANDARDS_2026-05-15.md
+// § 11, reconciled against docs/spec/05_FAPI_2_0_PROFILE.md § 5 forbidden-claims
+// table (no DPoP/RFC 9421/ISO 20022 in present tense).
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://aegis.dev'),
-  title: 'AEGIS — Cryptographic identity for AI agents',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://aegis.klytics.io'),
+  title: 'AEGIS — FAPI 2.0 authorization & audit for AI agents on financial rails',
   description:
-    'Neutral verification layer between AI agents and the services they act on. Ed25519-signed identity, policy enforcement, behavioral attestation, and signed audit trails. ACP-compatible. FAPI 2.0-aligned. <80ms p99 verify.',
+    'Sign every order. Scope every transfer. Audit every fill. FAPI 2.0 JAR (RFC 9101) + OAuth 2.0 RAR (RFC 9396) + hash-chained Ed25519 audit trail for AI agents acting on broker, payments, and banking APIs. DPoP and HTTP Message Signatures on the roadmap.',
   applicationName: 'AEGIS',
   openGraph: {
-    title: 'AEGIS — Cryptographic identity for AI agents',
+    title: 'AEGIS — FAPI 2.0 authorization for AI agents in financial services',
     description:
-      'Sign every action. Scope every permission. Audit every outcome. The neutral verification layer for AI agents.',
+      'The standards layer between AI agents and the financial APIs they call. SOC 2 + ISO 27001 evidence built in via a signed, append-only audit chain.',
     type: 'website',
     url: '/',
     siteName: 'AEGIS',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AEGIS — Cryptographic identity for AI agents',
-    description: 'Verify every AI agent. Sign every action. Audit every outcome.',
+    title: 'AEGIS — FAPI 2.0 auth & audit for AI agents on financial rails',
+    description: 'Sign every order. Scope every transfer. Audit every fill. The standards layer for AI agents on financial APIs.',
   },
   robots: { index: true, follow: true },
 };
@@ -30,10 +35,10 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://aegis.dev';
-const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'https://app.aegis.dev';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://aegis.klytics.io';
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'https://app.aegis.klytics.io';
 const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL ?? '/quickstart';
-const STATUS_URL = process.env.NEXT_PUBLIC_STATUS_URL ?? 'https://status.aegis.dev';
+const STATUS_URL = process.env.NEXT_PUBLIC_STATUS_URL ?? 'https://status.aegis.klytics.io';
 const SECURITY_EMAIL = process.env.NEXT_PUBLIC_SECURITY_EMAIL ?? 'security@aegislabs.io';
 const SALES_EMAIL = process.env.NEXT_PUBLIC_SALES_EMAIL ?? 'sales@aegislabs.io';
 
@@ -58,11 +63,11 @@ const JSON_LD = {
     {
       '@type': 'SoftwareApplication',
       '@id': `${SITE_URL}/#product`,
-      name: 'AEGIS — Agent Gateway & Identity',
+      name: 'AEGIS — FAPI 2.0 authorization & audit for AI agents',
       applicationCategory: 'SecurityApplication',
       operatingSystem: 'Web · Edge · Node · Python · Go',
       description:
-        'Cryptographic identity, policy enforcement, behavioral attestation, and signed audit rails for AI agents. Ed25519-signed. ACP-compatible. FAPI 2.0-aligned.',
+        'FAPI 2.0 JAR (RFC 9101) + OAuth 2.0 RAR (RFC 9396) + Ed25519 (RFC 8032) hash-chained audit trail for AI agents acting on financial APIs. The standards layer between AI agents and broker, payments, and banking systems.',
       offers: [
         { '@type': 'Offer', name: 'Developer',  price: '49',   priceCurrency: 'USD', priceSpecification: { '@type': 'UnitPriceSpecification', referenceQuantity: { '@type': 'QuantitativeValue', value: 50000, unitCode: 'C62' }, billingDuration: 'P1M' } },
         { '@type': 'Offer', name: 'Team',       price: '299',  priceCurrency: 'USD', priceSpecification: { '@type': 'UnitPriceSpecification', referenceQuantity: { '@type': 'QuantitativeValue', value: 500000, unitCode: 'C62' }, billingDuration: 'P1M' } },
