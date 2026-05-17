@@ -21,7 +21,12 @@ interface StandardEntry {
   evidence?: string;
 }
 
-const IMPLEMENTED: StandardEntry[] = [
+// Exported so tests/cross-package/marketing-security-standards-parity.spec.ts
+// can assert this list stays in sync with wellknown.service.ts'
+// STANDARDS_IMPLEMENTED. Drift between this marketing surface and the
+// discovery endpoint is a procurement-killing class of bug — buyers
+// compare both during security review.
+export const IMPLEMENTED: StandardEntry[] = [
   { rfc: 'RFC 8032', name: 'EdDSA — Ed25519',
     blurb: 'All agent + audit signatures use Ed25519. One curve, one library, no RSA. Registered in JWA (RFC 8037).',
     evidence: '@noble/ed25519 + paired tests on every signing path' },
@@ -48,7 +53,7 @@ const IMPLEMENTED: StandardEntry[] = [
     evidence: 'oauth-error-mapping.ts + spec — 10 mapping-correctness tests' },
 ];
 
-const ALIGNED: StandardEntry[] = [
+export const ALIGNED: StandardEntry[] = [
   { rfc: 'FAPI 2.0', name: 'Financial-grade API Security Profile',
     blurb: 'Aligned via the implemented stack: RFC 9396 RAR + RFC 9101 JAR (operator-opt-in aud/iss/iat) + RFC 8414 AS Metadata. EdDSA-only signing (FAPI baseline historically expects RS/PS/ES256; EdDSA is deliberate per RFC 8037 JWA registration). No mTLS / DPoP yet — DPoP roadmapped below.',
     evidence: 'docs/spec/05_FAPI_2_0_PROFILE.md' },
