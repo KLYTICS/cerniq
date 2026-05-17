@@ -64,6 +64,17 @@ export interface AuditRow {
   agentId: string;
   decision: 'approved' | 'denied' | 'flagged';
   decisionReason?: string | null;
+  /**
+   * Closed-enum discriminator below `decisionReason`. Present on denial
+   * rows when the API populates it (planned: future audit-row schema
+   * extension once verify-side denialContext is persisted on
+   * `AuditEvent`). Until then, this field is always absent. Surfacing
+   * it now keeps the type contract honest and lets the UI render the
+   * kind label as soon as the API ships it.
+   *
+   * Closed-enum values: see `@aegis/types` `DENIAL_CONTEXT_KINDS`.
+   */
+  denialContextKind?: string | null;
   policyId?: string | null;
   amount?: number | null;
   currency?: string | null;

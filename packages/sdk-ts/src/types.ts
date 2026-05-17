@@ -80,6 +80,20 @@ export interface SignContext {
 export { DENIAL_REASONS, type DenialReason } from './denial-reason.generated.js';
 import type { DenialReason } from './denial-reason.generated.js';
 
+// Denial context discriminator (closed enum) — re-exported from canonical
+// home in `@aegis/types`. Set on denial responses; null on approval. Lets
+// integrators differentiate the five INVALID_SIGNATURE rejection conditions
+// (signature / aud / iss / iat / replay) and nine RAR sub-reasons without
+// growing the locked DenialReason enum. See FAPI 2.0 profile §2.6 for the
+// threat-model split (kind public, specifics in operator logs only).
+export {
+  DENIAL_CONTEXT_KINDS,
+  isDenialContextKind,
+  type DenialContext,
+  type DenialContextKind,
+} from '@aegis/types';
+import type { DenialContext } from '@aegis/types';
+
 export interface VerifyResult {
   valid: boolean;
   agentId: string | null;
@@ -88,6 +102,14 @@ export interface VerifyResult {
   trustBand: TrustBand | null;
   scopesGranted: string[];
   denialReason: DenialReason | null;
+  /**
+   * Closed-enum discriminator below `denialReason`. Set whenever
+   * `denialReason` is set (denial paths); null on approval. Use the `kind`
+   * field to switch-exhaustive in UI labels, telemetry tagging, or routing
+   * logic. Stable additive evolution: adding a kind is non-breaking;
+   * removing or renaming requires a major SDK bump.
+   */
+  denialContext: DenialContext | null;
   verifiedAt: string;
   ttl: number;
 }

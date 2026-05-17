@@ -14,7 +14,7 @@ import {
   type AuditRow,
 } from '../../lib/api-client';
 import { authConfigured } from '../../lib/auth';
-import { fmtNum, fmtPct, relativeTime, shortId } from '../../lib/format';
+import { fmtNum, fmtPct, formatDenialContextKind, relativeTime, shortId } from '../../lib/format';
 
 export const metadata: Metadata = {
   title: 'Audit · AEGIS',
@@ -149,6 +149,7 @@ function AuditBody({ data }: { data: Result }) {
               <th>agent</th>
               <th>decision</th>
               <th>reason</th>
+              <th>context</th>
               <th>policy</th>
               <th className="num">amount</th>
               <th>domain</th>
@@ -167,6 +168,9 @@ function AuditBody({ data }: { data: Result }) {
                   <span className={`badge badge-${decisionTone(event.decision)}`}>{event.decision}</span>
                 </td>
                 <td className="mono dim">{event.decisionReason ?? '–'}</td>
+                <td className="dim" title={event.denialContextKind ?? undefined}>
+                  {formatDenialContextKind(event.denialContextKind)}
+                </td>
                 <td className="mono dim">{event.policyId ? shortId(event.policyId, 6, 4) : '–'}</td>
                 <td className="num mono">
                   {event.amount !== null && event.amount !== undefined

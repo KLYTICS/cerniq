@@ -113,3 +113,84 @@ export function denialReasonRank(reason: string): number {
 export function moreSeverDenialReason(a: DenialReason, b: DenialReason): DenialReason {
   return denialReasonRank(a) <= denialReasonRank(b) ? a : b;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Denial context discriminator — a closed enum that lives BELOW the locked
+// ADR-0004 denial-precedence chain. Five distinct rejection conditions
+// collapse to INVALID_SIGNATURE in the public response (signature / aud /
+// iss / iat / replay), and nine RAR sub-reasons collapse to SCOPE_NOT_GRANTED;
+// the discriminator below lets operators + integrators differentiate them
+// WITHOUT growing the locked DenialReason enum (which would require a 90-day
+// customer notice + major version bump per CLAUDE.md invariant 6).
+//
+// Threat-model split: kind IS returned in the public /v1/verify response
+// (operator-debug + integrator-debug win). Specifics (expected aud, max-age
+// threshold, etc.) are NOT carried on this type — those flow to operator-side
+// structured logs only. See docs/spec/05_FAPI_2_0_PROFILE.md §2.6.
+//
+// Additive evolution: appending new kinds is non-breaking (forward-compat:
+// older consumers fall through to default UI/log handling). Removing or
+// renaming a kind is a breaking change.
+export const DENIAL_CONTEXT_KINDS = [
+  // Step 1 — malformed token (cannot determine claimed agent)
+  'token_malformed',
+  // Step 2 — agent
+  'agent_unknown',                  // unknown agent_id
+  'agent_revoked',                  // explicitly REVOKED
+  'agent_suspended',                // status other than ACTIVE/REVOKED (collapses to AGENT_NOT_FOUND publicly)
+  // Step 3 — cryptographic signature
+  'signature_invalid',
+  // Step 3.4-3.6 — RFC 9101 JAR claim binding (each → INVALID_SIGNATURE publicly)
+  'jar_aud_mismatch',               // token aud differs from operator's expectedAudience
+  'jar_iss_sub_mismatch',           // token iss !== sub under strict-iss enforcement
+  'jar_iat_stale',                  // token iat older than maxTokenAgeSeconds
+  // Step 3.7 — replay cache
+  'replay_consumed',                // jti already consumed (→ INVALID_SIGNATURE)
+  'replay_port_outage',             // cache port threw (→ ANOMALY_FLAGGED, fail-closed)
+  // Step 4 — policy
+  'policy_missing',                 // policy_id not in DB (collapses to POLICY_EXPIRED publicly)
+  'policy_revoked',
+  'policy_expired',
+  // Step 5 — scope category
+  'scope_category_not_granted',
+  // Step 6 — domain allow-list
+  'scope_domain_not_allowed',
+  // Step 6.5 — RAR evaluation (each → SCOPE_NOT_GRANTED publicly).
+  // Names align 1:1 with RarDenyReason in apps/api/.../rar/rar.types.ts.
+  'rar_type_unauthorized',
+  'rar_action_unauthorized',
+  'rar_instrument_not_whitelisted',
+  'rar_destination_not_whitelisted',
+  'rar_resource_not_whitelisted',
+  'rar_limit_exceeded',
+  'rar_currency_unauthorized',
+  'rar_pii_disallowed',
+  'rar_outside_trading_hours',
+  'rar_no_authorization_details',
+  // Step 7 — spend limits
+  'spend_limit_exceeded',
+  // Step 8 — trust score
+  'trust_below_minimum',
+  // Step 9 — anomaly hard-flag
+  'anomaly_flagged',
+  // Pre-algorithm gates surfaced through this enum for service-layer parity.
+  'plan_limit_exceeded',
+  'trial_exhausted',
+  // Intent manifest mismatch (ADR-0016).
+  'intent_mismatch',
+] as const;
+
+export type DenialContextKind = (typeof DENIAL_CONTEXT_KINDS)[number];
+
+/** Public-safe denial context surfaced on verify responses. Shape is
+ *  intentionally minimal: just the discriminator kind. Anything richer
+ *  would risk leaking operator config or per-deployment policy thresholds
+ *  into buyer-visible responses (threat-model split, FAPI §2.6). */
+export interface DenialContext {
+  kind: DenialContextKind;
+}
+
+/** Type-guard for narrow runtime checks (e.g. UI label dispatch). */
+export function isDenialContextKind(value: unknown): value is DenialContextKind {
+  return typeof value === 'string' && (DENIAL_CONTEXT_KINDS as readonly string[]).includes(value);
+}
