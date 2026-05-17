@@ -26,6 +26,12 @@ interface Step {
   detail?: string;
 }
 
+// ⚠ When editing a `language: 'ts'` code block below, also update the
+//   matching `_typeCheckedSnippet_*` function in
+//   `tests/cross-package/quickstart-snippets-parity.spec.ts` so the spec
+//   's tsc gate catches future drift between this page's rendered code
+//   and @aegis/sdk. Without that update, the spec holds the stale shape
+//   and silently passes.
 const STEPS: Step[] = [
   {
     n: '01',

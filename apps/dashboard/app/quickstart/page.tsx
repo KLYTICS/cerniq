@@ -167,6 +167,12 @@ function Step({ n, title, body, snippet }: { n: number; title: string; body: str
   );
 }
 
+// ⚠ When editing the snippet array below, also update
+//   `_typeCheckedSnippet_dashboard_bootstrap` in
+//   `tests/cross-package/quickstart-snippets-parity.spec.ts` so the
+//   spec's tsc gate catches future drift between this rendered code
+//   and @aegis/sdk. Without that update, the spec holds the stale
+//   shape and silently passes.
 function BootstrapBlock({ apiBaseUrl }: { apiBaseUrl: string }) {
   const snippet = [
     `// quickstart.ts — full first-run flow. ~30 lines.`,
