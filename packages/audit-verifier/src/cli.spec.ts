@@ -12,12 +12,22 @@
 //   - Happy paths: 'verify' and 'verify-manifests' return ok=true with
 //     the expected discriminated args shape and flag-bound defaults.
 //
-// Why not subprocess-spawn the CLI: pnpm exec node dist/cli.cjs --help
-// would test the same surface end-to-end, but depends on a built dist
-// (the build script itself has a tsbuildinfo cache bug — flagged in
-// commit 96f87b3's footer). Pure-function testing here keeps the spec
-// fast (millisecond-scale), build-independent, and isolates parser
-// regressions from build-pipeline regressions.
+// Two layers of test rigor sit on top of parseArgs:
+//   - Unit + property: directly call parseArgs and assert ParseResult
+//     shape. Fast (ms), build-independent, isolates parser regressions
+//     from build-pipeline regressions. Most of this file.
+//   - Subprocess: invoke the built dist/cli.cjs via spawnSync and
+//     observe exit code + stdout/stderr. Validates the entry-point
+//     guard, main() dispatch, stream demuxing, and OS-level exit-code
+//     propagation — the integration concerns unit tests can't reach.
+//     Lives in the trailing describe block. Conditional-skips when
+//     dist is missing so the unit tests stay runnable during dev
+//     before any build has happened.
+
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
@@ -439,5 +449,148 @@ describe('parseArgs — total-function contract (pathological inputs)', () => {
     if (!r.ok) return;
     if (r.args.command !== 'verify') return;
     expect(r.args.jwksUrl).toBe('https://first');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Subprocess integration suite
+// ─────────────────────────────────────────────────────────────────────
+//
+// The unit tests above call parseArgs directly. That proves the parser
+// is correct in isolation but says nothing about how the BINARY behaves
+// when an operator types `aegis-audit-verify ...` in a real shell.
+// These tests fill that gap by spawning the built `dist/cli.cjs` and
+// observing exit code + stdout + stderr.
+//
+// What this layer uniquely proves:
+//   1. The entry-point guard at the bottom of cli.ts (the argv[1]
+//      suffix check) actually fires when invoked as a binary. Unit
+//      tests only prove it does NOT fire on import.
+//   2. main()'s dispatch correctly routes help to stdout vs invalid
+//      to stderr + the usage block precedes the error message.
+//   3. OS-level exit codes propagate (no Node-side wrapping eats
+//      them; pipe-friendly).
+//   4. The tsup-built CJS bundle is invokable by node without ESM
+//      interop errors.
+//
+// Conditional skip: if dist/cli.cjs doesn't exist (developer hasn't
+// run `pnpm -F @aegis/audit-verifier build` yet), the suite skips
+// rather than failing. CI is expected to build before test.
+
+const THIS_FILE = fileURLToPath(import.meta.url);
+const CLI_PATH = resolve(dirname(THIS_FILE), '..', 'dist', 'cli.cjs');
+const HAS_DIST = existsSync(CLI_PATH);
+
+const describeWhenDist = HAS_DIST ? describe : describe.skip;
+
+interface SpawnOutcome {
+  status: number;
+  stdout: string;
+  stderr: string;
+}
+
+function runCli(...args: string[]): SpawnOutcome {
+  const r = spawnSync('node', [CLI_PATH, ...args], {
+    encoding: 'utf8',
+    // Empty stdin; CLI shouldn't read from it.
+    input: '',
+    // 5s should be more than enough for argv-only paths (no IO);
+    // anything slower is a regression worth surfacing.
+    timeout: 5_000,
+  });
+  // spawnSync's status can be null if killed by signal; coerce to a
+  // sentinel that fails any === assertion the test makes.
+  return {
+    status: r.status ?? -1,
+    stdout: r.stdout ?? '',
+    stderr: r.stderr ?? '',
+  };
+}
+
+describeWhenDist('subprocess: dist/cli.cjs invocation contract', () => {
+  it('--help prints usage to stdout, empty stderr, exit 0', () => {
+    const r = runCli('--help');
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/aegis-audit-verify/);
+    expect(r.stdout).toMatch(/verify <export\.ndjson>/);
+    expect(r.stdout).toMatch(/verify-manifests <dir>/);
+    expect(r.stderr).toBe('');
+  });
+
+  it('-h short flag matches --help behavior', () => {
+    const r = runCli('-h');
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/aegis-audit-verify/);
+    expect(r.stderr).toBe('');
+  });
+
+  it("'help' as bare subcommand matches --help", () => {
+    const r = runCli('help');
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/aegis-audit-verify/);
+  });
+
+  it('no args → usage to stderr + specific error + exit 2', () => {
+    const r = runCli();
+    expect(r.status).toBe(2);
+    // Usage block precedes the error so the operator sees both context
+    // and the specific thing they got wrong.
+    expect(r.stderr).toMatch(/aegis-audit-verify — offline audit-chain/);
+    expect(r.stderr).toMatch(/no subcommand given/);
+    expect(r.stdout).toBe('');
+  });
+
+  it('unknown subcommand → usage + named-value error + exit 2', () => {
+    const r = runCli('nuke-everything');
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/unknown subcommand "nuke-everything"/);
+    expect(r.stdout).toBe('');
+  });
+
+  it('verify with no path → missing-path error + exit 2', () => {
+    const r = runCli('verify');
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/missing NDJSON path/);
+  });
+
+  it('verify with unknown flag → flag-rejection error + valid catalogue + exit 2', () => {
+    const r = runCli('verify', './x.ndjson', '--jwks', 'https://y', '--frobnicate');
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/unknown flag "--frobnicate"/);
+    expect(r.stderr).toMatch(/valid flags:/);
+  });
+
+  it('verify with --jwks at end of argv → flag-specific missing-value error + exit 2', () => {
+    const r = runCli('verify', './x.ndjson', '--jwks');
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/--jwks requires a URL value/);
+  });
+
+  it('verify-manifests with verify-only flag → wrong-subcommand rejection + exit 2', () => {
+    const r = runCli('verify-manifests', './corpus', '--jwks', 'https://y', '--max-row-detail', '50');
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/unknown flag "--max-row-detail" for "verify-manifests"/);
+  });
+
+  it('subcommand --help routes to root usage (UX expectation)', () => {
+    const r = runCli('verify', '--help');
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/aegis-audit-verify/);
+    expect(r.stderr).toBe('');
+  });
+
+  it('entry-point guard fires on binary invocation (negative lock for module-load behavior)', () => {
+    // The unit tests prove the guard does NOT fire when cli.ts is
+    // imported (no main() side-effect during vitest module load).
+    // This is the symmetric lock: the guard DOES fire when the binary
+    // is invoked as a process. Without this assertion, a regression
+    // that breaks the suffix-match (e.g. someone tightens the check
+    // and accidentally excludes cli.cjs) would silently produce a
+    // binary that exits 0 with no output.
+    const r = runCli('--help');
+    // Any non-empty stdout proves main() ran. Combined with exit 0,
+    // proves the guard fired AND main() dispatched correctly.
+    expect(r.stdout.length).toBeGreaterThan(0);
+    expect(r.status).toBe(0);
   });
 });
