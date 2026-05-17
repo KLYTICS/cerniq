@@ -6,12 +6,12 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Security — AEGIS',
+  title: 'Security — AEGIS · FAPI 2.0-shaped, auditor-verifiable',
   description:
-    'AEGIS publishes its standards posture at /.well-known/openid-configuration via a FAPI 2.0–aligned discovery profile. Ed25519 (RFC 8032), JWKS (RFC 7517), security.txt (RFC 9116) implemented today. RAR, DPoP, JAR, HTTP-sig on the roadmap.',
+    'AEGIS publishes its standards posture at /.well-known/aegis-configuration + /.well-known/oauth-authorization-server. Ed25519 (RFC 8032), JWKS (RFC 7517), security.txt (RFC 9116), RAR (RFC 9396), JAR (RFC 9101), OAuth AS Metadata (RFC 8414), OAuth error envelope (RFC 6749 §5.2) implemented today. DPoP (RFC 9449) and HTTP Message Signatures (RFC 9421) on the roadmap.',
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://api.aegis.dev';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://api.aegis.klytics.io';
 const SECURITY_EMAIL = process.env.NEXT_PUBLIC_SECURITY_EMAIL ?? 'security@aegislabs.io';
 
 interface StandardEntry {
@@ -23,7 +23,7 @@ interface StandardEntry {
 
 const IMPLEMENTED: StandardEntry[] = [
   { rfc: 'RFC 8032', name: 'EdDSA — Ed25519',
-    blurb: 'All agent + audit signatures use Ed25519. One curve, one library, no RSA. Audited.',
+    blurb: 'All agent + audit signatures use Ed25519. One curve, one library, no RSA. Registered in JWA (RFC 8037).',
     evidence: '@noble/ed25519 + paired tests on every signing path' },
   { rfc: 'RFC 7517', name: 'JSON Web Key Set (JWKS)',
     blurb: 'Public keys discoverable at /.well-known/jwks.json and /.well-known/audit-signing-key.',
@@ -31,26 +31,32 @@ const IMPLEMENTED: StandardEntry[] = [
   { rfc: 'RFC 9116', name: 'security.txt',
     blurb: 'Coordinated disclosure surface published at /.well-known/security.txt.',
     evidence: `${API_BASE}/.well-known/security.txt` },
-  { rfc: 'OpenID Discovery 1.0', name: 'Discovery profile',
-    blurb: 'Capability advertisement at /.well-known/openid-configuration. FAPI 2.0 fields populated.',
-    evidence: 'wellknown.service.ts — DISCOVERY_SPEC_VERSION 1.2.0' },
+  { rfc: 'AEGIS Discovery', name: 'Discovery profile (FAPI 2.0-shaped)',
+    blurb: 'Capability ledger at /.well-known/aegis-configuration. Lists every implemented + aligned standard with promotion-test refs. FAPI 2.0 fields populated.',
+    evidence: 'wellknown.controller.ts:89 — getAegisConfiguration()' },
+  { rfc: 'RFC 8414', name: 'OAuth 2.0 Authorization Server Metadata',
+    blurb: 'OAuth-style discovery at /.well-known/oauth-authorization-server returns the AEGIS-honest subset (issuer, jwks_uri, signing_alg_values_supported, authorization_details_types_supported).',
+    evidence: 'wellknown.controller.ts:116 — getOAuthAuthorizationServerMetadata()' },
   { rfc: 'RFC 9396', name: 'Rich Authorization Requests (RAR)',
-    blurb: 'authorization_details semantic on the verify path. 4 detail types registered (trading_order, payment_initiation, data_access, agent_action). Live endpoint.',
-    evidence: 'POST /v1/verify/rar/evaluate — 37 paired tests, stateless evaluator' },
+    blurb: 'authorization_details semantic on the verify path. 4 detail types registered (trading_order, payment_initiation, data_access, agent_action). Stateless evaluator at POST /v1/verify/rar/evaluate.',
+    evidence: 'apps/api/src/modules/verify/rar/ — 43 paired tests' },
+  { rfc: 'RFC 9101', name: 'JWT-Secured Authorization Requests (JAR)',
+    blurb: 'Request-object signature verification with operator-gated aud / iss / iat enforcement. Strict-FAPI conformance reachable per-deployment via three env switches; default permissive for backward compatibility.',
+    evidence: 'verify.algorithm.ts Steps 3.4 / 3.5 / 3.6 + jwt.util.jar.spec.ts' },
+  { rfc: 'RFC 6749 §5.2', name: 'OAuth 2.0 error envelope',
+    blurb: 'Every /v1/verify denial carries a canonical OAuth error field alongside the AEGIS denialReason. Mapping is a published closed table (12 denial reasons → 5 OAuth error values), Object.freeze\'d to prevent runtime mutation.',
+    evidence: 'oauth-error-mapping.ts + spec — 10 mapping-correctness tests' },
 ];
 
 const ALIGNED: StandardEntry[] = [
   { rfc: 'FAPI 2.0', name: 'Financial-grade API Security Profile',
-    blurb: 'Aligned via the discovery profile + RFC-9396 RAR implemented. Token-binding + DPoP on the implementation roadmap.',
+    blurb: 'Aligned via the implemented stack: RFC 9396 RAR + RFC 9101 JAR (operator-opt-in aud/iss/iat) + RFC 8414 AS Metadata. EdDSA-only signing (FAPI baseline historically expects RS/PS/ES256; EdDSA is deliberate per RFC 8037 JWA registration). No mTLS / DPoP yet — DPoP roadmapped below.',
     evidence: 'docs/spec/05_FAPI_2_0_PROFILE.md' },
   { rfc: 'RFC 9449', name: 'Demonstrating Proof-of-Possession (DPoP)',
-    blurb: 'Token-binding scaffold landed. Promotion gated on browser + edge runtime support matrix.',
-    evidence: 'Roadmap §3.3' },
-  { rfc: 'RFC 9101', name: 'JWT-Secured Authorization Requests (JAR)',
-    blurb: 'Request-object signature verification. Paired with FAPI 2.0 advanced profile.',
+    blurb: 'Token-binding scaffold landed. Promotion gated on browser + edge runtime support matrix. Q4 2026 target.',
     evidence: 'Roadmap §3.5' },
   { rfc: 'RFC 9421', name: 'HTTP Message Signatures',
-    blurb: 'Wire-level message integrity. Paired with the Cloudflare Workers verify edge (Phase 3).',
+    blurb: 'Wire-level message integrity for outbound webhooks. Paired with the Cloudflare Workers verify edge (Phase 3). Q4 2026 target.',
     evidence: 'Roadmap §3.6' },
   { rfc: 'NIST AI Agent Identity', name: 'NIST AI Agent Identity Initiative',
     blurb: 'Following the standards-development clock — first to map our profile to NIST guidance as it ships.',
@@ -95,11 +101,14 @@ interface DiscoveryEndpoint {
 }
 
 const ENDPOINTS: DiscoveryEndpoint[] = [
-  { path: '/.well-known/openid-configuration', description: 'Discovery — FAPI 2.0 profile, supported algorithms, endpoints.' },
-  { path: '/.well-known/jwks.json',             description: 'JWT verification key set.' },
-  { path: '/.well-known/audit-signing-key',     description: 'Audit chain signing key set — distinct from JWT keys.' },
-  { path: '/.well-known/security.txt',          description: 'Coordinated disclosure surface per RFC 9116.' },
-  { path: '/.well-known/pricing.json',          description: 'Public pricing mirror — canonical source for marketing + dashboard.' },
+  { path: '/.well-known/aegis-configuration',         description: 'AEGIS discovery profile — FAPI 2.0-shaped capability ledger with standards_implemented + standards_aligned.' },
+  { path: '/.well-known/oauth-authorization-server',  description: 'RFC 8414 OAuth 2.0 AS Metadata — AEGIS-honest subset (issuer, jwks_uri, signing_alg_values_supported, authorization_details_types_supported).' },
+  { path: '/.well-known/jwks.json',                   description: 'RFC 7517 JWT verification key set.' },
+  { path: '/.well-known/audit-signing-key',           description: 'Audit-chain signing key set — distinct from JWT keys (deliberate domain separation).' },
+  { path: '/.well-known/security.txt',                description: 'RFC 9116 coordinated-disclosure surface.' },
+  { path: '/.well-known/retention-policy.json',       description: 'Per-tier audit retention floor — operator + auditor-facing, plan-aware.' },
+  { path: '/.well-known/llms.txt',                    description: 'AI-agent-facing capability hint (proposed standard).' },
+  { path: '/.well-known/pricing.json',                description: 'Public pricing mirror — canonical source for marketing + dashboard.' },
 ];
 
 export default function SecurityPage() {
@@ -108,17 +117,19 @@ export default function SecurityPage() {
       {/* ─── Hero ────────────────────────────────────────────────── */}
       <section className="hero">
         <div className="container hero-inner">
-          <span className="eyebrow">Security</span>
+          <span className="eyebrow">Security · FAPI 2.0-shaped</span>
           <h1>Verifiable security. <span className="accent">Not aspirational.</span></h1>
           <p>
-            Every claim on this page is either <strong>implemented</strong> (citable to running
-            code + tests today) or <strong>aligned</strong> (roadmapped with promotion tests). AEGIS
-            publishes its standards posture at the discovery endpoint — auditors verify our claims
-            without ever talking to us.
+            Every claim on this page is either <strong>implemented</strong> (citable to running code
+            + tests today) or <strong>aligned</strong> (roadmapped with promotion tests). AEGIS publishes
+            two parallel discovery surfaces — an AEGIS-flavored ledger at{' '}
+            <code>/.well-known/aegis-configuration</code> and an OAuth-flavored mirror at{' '}
+            <code>/.well-known/oauth-authorization-server</code> (RFC 8414). Auditors verify our claims
+            without talking to us.
           </p>
           <div className="hero-proof" style={{ marginTop: 24 }}>
             <span>{IMPLEMENTED.length} standards implemented</span>
-            <span>{ALIGNED.length} aligned, in flight</span>
+            <span>{ALIGNED.length} aligned, on a clock</span>
             <span>{OPERATIONAL.length} operational invariants locked</span>
             <span>{ENDPOINTS.length} public .well-known endpoints</span>
           </div>
@@ -130,11 +141,13 @@ export default function SecurityPage() {
         <div className="container">
           <div className="section-head">
             <span className="eyebrow">Implemented Today</span>
-            <h2>Standards with running code and paired tests.</h2>
+            <h2>Eight standards. Every primitive maps to a published RFC.</h2>
             <p>
-              Each row below is anchored to a file path and a passing test. The discovery endpoint
-              advertises these in <code>standards_implemented</code> — request{' '}
-              <code>{API_BASE}/.well-known/openid-configuration</code> for the live ledger.
+              Each row below is anchored to a file path and a passing test. The capability ledger at{' '}
+              <code>{API_BASE}/.well-known/aegis-configuration</code> advertises these in{' '}
+              <code>standards_implemented</code>; the OAuth-style mirror is at{' '}
+              <code>{API_BASE}/.well-known/oauth-authorization-server</code>. No marketing claim here
+              that the discovery surface does not corroborate.
             </p>
           </div>
           <div className="integration-grid">
