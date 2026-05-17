@@ -80,6 +80,12 @@ jobs:
           cache-dependency-path: packages/cli/go.sum
       - uses: goreleaser/goreleaser-action@v6
         with:
+          # AEGIS is a polyglot monorepo — go.mod lives at packages/cli,
+          # not repo root. `workdir:` chdirs the action so the before
+          # hook (`go mod tidy`) and `go build` find the module.
+          # Pair with .goreleaser.yaml `builds[0].main: .` (relative to
+          # this workdir).
+          workdir: packages/cli
           distribution: goreleaser
           version: '~> v2'
           args: release --snapshot --clean --skip=publish,sign,sbom
