@@ -6,9 +6,9 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Use cases — AEGIS',
+  title: 'Use cases — AEGIS on financial rails first',
   description:
-    'AEGIS in production: fintech payments (ACP-aligned), banking rails, SaaS seat provisioning, AI platform governance, reconciliation, treasury, broker-dealer (FINRA), CI/CD preflight, and relying-party verification.',
+    'AEGIS in production: ACP-aligned fintech payments, ISO 20022 treasury wires, FINRA Rule 3110 broker-dealer order entry, banking rails, reconciliation. Each financial vertical maps to a runnable example using Intent Manifest + FAPI 2.0 JAR + OAuth 2.0 RAR.',
 };
 
 const SALES_EMAIL = process.env.NEXT_PUBLIC_SALES_EMAIL ?? 'sales@aegislabs.io';
@@ -29,12 +29,12 @@ const USE_CASES: UseCase[] = [
   // ── Financial verticals ───────────────────────────────────────
   {
     vertical: 'financial',
-    title: 'Fintech Payments',
-    problem: 'AI agents initiate payments. Issuers need cryptographic proof of who authorized which transfer for which principal.',
-    solution: 'ACP-compatible verify with intent manifest. Agent signs intent (action + amount + counterparty); AEGIS verifies before the payment fires; audit chain proves it after.',
-    primitives: ['ACP bridge', 'Intent manifest', 'Spend-bound policy', 'Audit chain'],
+    title: 'Agentic Commerce (ACP) Payments',
+    problem: 'AI shopping agents executing ACP payments on behalf of users need merchant-bound, amount-capped, single-use authorization that the merchant can verify locally before the charge runs.',
+    solution: 'Intent manifest declares action + merchant + amount cap + max-calls + strict reconciliation before the charge fires. The merchant calls verifyIntent({ manifest, actuals, publicKeysByKid }) from @aegis/verifier-rp — closed-enum outcome, no AEGIS API in the request path.',
+    primitives: ['Intent manifest', 'ACP-compatible', '@aegis/verifier-rp', 'Strict reconciliation'],
     status: 'available',
-    exampleHref: `${REPO_URL}/tree/main/examples/fintech-payments`,
+    exampleHref: `${REPO_URL}/tree/main/examples/intent-fintech-acp`,
   },
   {
     vertical: 'financial',
@@ -56,21 +56,21 @@ const USE_CASES: UseCase[] = [
   },
   {
     vertical: 'financial',
-    title: 'Treasury Operations',
-    problem: 'ISO 20022 messages from autonomous treasury agents need cryptographic provenance and per-tenant policy isolation.',
-    solution: 'Intent manifest binds the ISO 20022 message to a signed action. Multi-tenant isolation by principalId carries to every audit row.',
-    primitives: ['Intent manifest (Phase 2)', 'ISO 20022 envelope', 'Per-tenant audit'],
-    status: 'coming-soon',
-    exampleHref: `mailto:${SALES_EMAIL}?subject=${encodeURIComponent('AEGIS — Treasury / ISO 20022 use case')}`,
+    title: 'Treasury Operations (ISO 20022)',
+    problem: 'AI treasury agents executing SWIFT MT103 / ISO 20022 pacs.008 wires need cryptographic provenance, beneficiary binding, and tolerance-aware reconciliation against the settlement notification.',
+    solution: 'Intent manifest binds the pacs.008 message to a signed pre-execution declaration: action, amount cap, beneficiary (encoded in merchantId), and a graduated reconciliation tolerance. Relying-party verifyIntent() returns a closed-enum outcome — no AEGIS round-trip needed at execution time.',
+    primitives: ['Intent manifest', 'ISO 20022 pacs.008', 'Graduated reconciliation', '@aegis/verifier-rp'],
+    status: 'available',
+    exampleHref: `${REPO_URL}/tree/main/examples/intent-treasury-iso20022`,
   },
   {
     vertical: 'financial',
-    title: 'Broker-Dealer (FINRA)',
-    problem: 'Order entry by AI agents requires FINRA Rule 3110 supervision evidence — provable, irrevocable, time-stamped.',
-    solution: 'Audit chain (L4) provides FINRA-grade record-keeping. Intent manifest carries the supervision context. Retention enforcement honors plan-locked windows.',
-    primitives: ['Audit chain (FINRA-ready)', 'Intent manifest', 'Retention floor'],
-    status: 'coming-soon',
-    exampleHref: `mailto:${SALES_EMAIL}?subject=${encodeURIComponent('AEGIS — Broker-Dealer / FINRA use case')}`,
+    title: 'Broker-Dealer (FINRA Rule 3110)',
+    problem: 'AI portfolio-rebalancing agents placing equity orders require FINRA Rule 3110 supervision evidence — signed before the order hits the OMS, reconciled against the fill report, retained for the regulator-mandated window.',
+    solution: 'Intent manifest issues a signed cryptographic supervision trail keyed on venue + symbol + qty + limit price + strict (zero-tolerance) reconciliation. The broker-dealer’s relying-party verifies offline; the hash-chained audit row becomes the Rule 3110 supervision artifact.',
+    primitives: ['Intent manifest', 'FINRA Rule 3110', 'Strict reconciliation', 'Hash-chained audit'],
+    status: 'available',
+    exampleHref: `${REPO_URL}/tree/main/examples/intent-broker-dealer-finra`,
   },
   // ── Operational use cases ─────────────────────────────────────
   {
@@ -181,17 +181,19 @@ export default function UseCasesPage() {
       {/* ─── Hero ────────────────────────────────────────────────── */}
       <section className="hero">
         <div className="container hero-inner">
-          <span className="eyebrow">Use Cases</span>
-          <h1>AEGIS in <span className="accent">production.</span></h1>
+          <span className="eyebrow">Use Cases · Financial rails first</span>
+          <h1>Where AI agents touch <span className="accent">money.</span></h1>
           <p>
-            Ten verticals already shipping or in flight. Every card below maps to a real example
-            directory in the repo or an in-flight intent-manifest Phase-2 wedge. AEGIS attaches to your
-            stack — the patterns are sector-agnostic but the proof points are concrete.
+            AEGIS leads with the verticals where the regulators are already asking the questions
+            our audit chain answers — ACP-aligned payments, ISO 20022 treasury wires, FINRA Rule 3110
+            broker-dealer order entry. Each card below maps to a runnable example directory; the
+            financial three are end-to-end intent-manifest scenarios with cryptographic supervision
+            built in.
           </p>
           <div className="hero-proof" style={{ marginTop: 24 }}>
-            <span>{FINANCIAL.filter((c) => c.status === 'available').length}/{FINANCIAL.length} financial verticals live</span>
-            <span>{OPERATIONAL.filter((c) => c.status === 'available').length}/{OPERATIONAL.length} operational use cases live</span>
-            <span>10 example apps in the repo</span>
+            <span>{FINANCIAL.filter((c) => c.status === 'available').length}/{FINANCIAL.length} financial verticals — runnable today</span>
+            <span>{OPERATIONAL.filter((c) => c.status === 'available').length}/{OPERATIONAL.length} operational patterns — same primitives</span>
+            <span>Intent Manifest · FAPI 2.0 JAR · OAuth 2.0 RAR</span>
           </div>
         </div>
       </section>
@@ -201,11 +203,13 @@ export default function UseCasesPage() {
         <div className="container">
           <div className="section-head">
             <span className="eyebrow">Financial Verticals</span>
-            <h2>Regulated industries with provable agent identity.</h2>
+            <h2>Standards your regulator already trusts.</h2>
             <p>
-              Fintech, banking, treasury, and broker-dealer surfaces benefit from AEGIS the most — the
-              regulators are already asking the questions our audit chain answers. Intent manifest +
-              audit chain together make agent-initiated financial actions provable end-to-end.
+              Each of the five cards below names a regulator the buyer&rsquo;s compliance team already
+              answers to (ACP issuer, ISO 20022 settlement counterparty, FINRA Rule 3110 supervisor,
+              federal banking examiner, SOC 2 audit). The intent-manifest scenarios (ACP / ISO 20022 /
+              FINRA) are end-to-end runnable examples; banking-rails and reconciliation are the
+              underlying L1+L2+L4 patterns those scenarios compose from.
             </p>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 1, background: 'var(--border)', border: '1px solid var(--border)', borderRadius: 4, overflow: 'hidden' }}>
