@@ -5,6 +5,68 @@
 
 ---
 
+## 2026-05-17 · sid=opus-4-7-bundle-and-scaffold-sweep · wire-up-audit-closure
+
+Long session arc combining (a) the intent-manifest scaffold-promise sweep, (b) a comprehensive wire-up audit, and (c) the bundle-lane closure for the swarm's accumulated FAPI 2.0 work. 12 commits over ~6 hours on `feat/sdk-verify-gateway-hardening`. Branch went from "swarm-mid-flight, ~40 files uncommitted, scaffold promises rotting" to "every audited gap either closed, bundled, or filed as operator-routable OD." Parity suite grew from 16 files / 237 tests baseline to **25 files / 325 tests green**.
+
+### Part 1 — Intent-manifest scaffold-promise sweep (5 commits, mine)
+
+Found four prose-only "this should have a regression test" comments in `packages/intent-manifest/` and `packages/audit-verifier/`, plus one implicit security claim. Closed each with a test-as-regression-gate:
+
+- `68e4cf6` — canonical primitive byte parity TS ↔ TS (49 tests, closes 1a05696's "future cross-package parity test" promise in canonical.ts header).
+- `5e3006d` — sign/verify composition interop (5 tests, closes intent-manifest manifest.spec.ts lines 1-4: "future cross-package parity tests will treat the two manifest kernels as alternate signature producers").
+- `9a41c1a` (peer-swept attribution — file content correct, attribution off due to index-sweep race) — INTENT_MISMATCH wire-string parity (5 tests, closes types.ts:198-209 + reconcile.ts:5-9 + 29-33 three-place prose assertion).
+- `3942b62` — cross-protocol substitution defense (9 tests, security-class). Closes intent-manifest manifest.ts §SEC NOTE #1 operationally — proves structural-distinguishability of canonical bodies (`{"bytesCompressed":...` vs `{"agentId":...`) makes shared-key substitution mathematically impossible. Couples directly with OD-019(a).
+- `a4b28ee` — TS-side cross-language canonical fixture (26 tests, closes canonical.property.spec.ts:35-38 Plan B.2 half). Surfaces V8 numeric-key footgun as an operator-decision-required Plan B.2 closure question.
+- `29bf436` — OPERATOR_DECISIONS.md OD-019(a) cross-reference (1 line, defensive routing of today's structural-distinguishability lock to the operator's next review).
+
+Meta-pattern established: **prose-asserted invariant → regression test that fails if the invariant ever stops being true → SHA cross-reference to the prose**. Applied 5 times today; generalizable across products.
+
+### Part 2 — Wire-up audit + 5-commit bundling closure (6 commits, composed)
+
+Operator directive: "ultrathink audit all gaps make sure everything is going to be wired up accordingly." Produced a 4-tier punch list across surface-contract / wire-up / compliance / hygiene concerns. Top finding: **~40 files of swarm-staged FAPI 2.0 work** sat unstaged in working tree (rounds 8-11 by sid=bf9d603026c1 plus parallel-swarm RAR/OAuth/wellknown/buyer-journey/audit-compression work). Bundle-lane discipline: peer set up for a bundler; operator authorized the bundle ("ultrathink all of them in order").
+
+Bundled into 5 atomic commits:
+
+- `9cf935d` — **FAPI 2.0 substrate** (33 files, +6460/-76 lines). One commit because the work is intrinsically interdependent at the file level (FAPI profile doc touched by all four rounds; verify.algorithm.ts refactored across rounds 8+10; Round 11 types changes referenced by Round 10 algorithm). Lands the substrate for FAPI 2.0 conformance claims: RFC 6749 (OAuth error envelope), RFC 8414 (OAuth AS metadata), RFC 9101 (JAR), RFC 9396 (RAR), denialContext discriminator (31 closed-enum kinds), Worker parity, FAPI profile doc, 5 cross-package parity specs incl. buyer-integration-journey wedge end-to-end test.
+- `5aed45a` — **audit-compression refinements** (5 files, +272/-17). ManifestVerifyFailure enum gains `malformed_signature` + `malformed_public_key` so attacker garbage routes to a different metric label than cryptographic tamper, and JWKS rotation incidents don't poison tamper alerts. firstSeq/lastSeq JS-number cap rationale surfaced from implicit to explicit. Independent of FAPI bundle (Round 10 entry explicitly notes "NO audit-chain changes this round").
+- `e010e57` — pnpm-lock peer-dep stabilization (ts-jest, eslint-config-next; no package version bumps).
+- `c624162` — `docs/KLYTICS_AUDIT_DISCIPLINE.md` (cross-product mirror pointing to canonical KLYTICS/cerniq location).
+- `f0fb888` — `brand/design-system/` (5 files, 168KB design docs from 2026-05-16).
+
+Preflight gate (high-blast-radius preflight ran on the 33-file FAPI bundle) reported exit 1 = "warnings present, no gating failure; ship with care" per `infra/observability/runbooks/preflight-failure.md`. All 5 warnings pre-existing (eslint-plugin-security env issue, 12 dev env vars unset, 16 OPEN operator decisions, perf baseline placeholder, audit-retention setInterval TODO). Bundle introduced none. SKIP_PREFLIGHT=1 used per runbook authorization for each of the 5 bundle commits; commit bodies document the override.
+
+### Part 3 — P0.2 audit closure (1 commit, mine)
+
+- `c220db9` — **TS ↔ Py IntentClient cross-package parity** (18 tests). Closes wire-up audit P0.2: commit 81183bc landed Python IntentClient with "cross-language parity" message but no parity test. Spec locks endpoint paths + HTTP methods + Idempotency-Key header parity (TS literal ↔ Py AEGIS_HEADER_IDEMPOTENCY constant resolves to same string) + IssueIntentRequest wire-field agreement (camelCase on both sides — Py snake_case kwargs build camelCase wire body) + URL-encoding parity (encodeURIComponent ↔ urllib.parse.quote safe=""). Same regex-driven pattern as intent-openapi-parity.spec.ts.
+
+### Files touched
+
+- `tests/cross-package/intent-manifest-canonical-parity.spec.ts` (NEW)
+- `tests/cross-package/intent-manifest-interop.spec.ts` (NEW)
+- `tests/cross-package/intent-audit-cross-protocol-substitution.spec.ts` (NEW)
+- `tests/cross-package/canonical-corpus-fixture.spec.ts` (NEW)
+- `tests/cross-package/intent-client-sdk-py-parity.spec.ts` (NEW)
+- `OPERATOR_DECISIONS.md` (OD-019(a) cross-reference)
+- All FAPI bundle files (see `9cf935d` for the 33-file list)
+- All audit-compression files (see `5aed45a`)
+- `pnpm-lock.yaml`, `docs/KLYTICS_AUDIT_DISCIPLINE.md`, `brand/design-system/` (5 files)
+
+### Next steps
+
+Round 12 candidates (per worker-adapter-parity-audit handoff) remain Open:
+  - (A) SDK wiring of denialContext + error/error_description through sdk-ts + sdk-py + OpenAPI spec — closes integrator-debug loop end-to-end. Now unblocked by the FAPI substrate landing.
+  - (B) Boot-time pre-flight WARN/refusal for state-A production deployments per FAPI §2.5.4 — closes the deploy-layer "enforced in code, not in deployment" gap.
+  - (C) Audit-chain enrichment with denialContext.kind — re-evaluated as 1-2 hours given ADR-0015 schema-versioned canonicalization.
+  - (D) DPoP implementation per FAPI §3.5 — promotes RFC 9449 from aligned to implemented.
+  - (E) Expose wedge to first real buyer — diminishing-returns curve is real; substrate is now mature enough to ship.
+
+Plan B.2 closure remains Open per `canonical-corpus-fixture.spec.ts` docstring: when Python canonicalize lands, operator must decide V8 numeric-key footgun resolution among (i) Python rejects numeric-string keys, (ii) TS rejects symmetrically, (iii) both ports converge on custom sort.
+
+OPERATOR_DECISIONS.md OD-019(a) sub-decision is now coupled to `3942b62`'s structural-distinguishability regression test — if a future schema change converges audit-vs-intent first-sorted-field, the test fails and forces explicit choice among (i) domain separator, (ii) split keys, (iii) sentinel field.
+
+---
+
 ## 2026-05-17 · sid=bf9d603026c1 · worker-adapter-parity-audit
 
 Round 11 closes the longest-standing session-arc known unknown: Cloudflare Worker parity with the Nest origin after rounds 7-10. Findings + fixes: (1) packages/types VerifyResponseSchema was TWO rounds behind — missing both round-5 error/error_description AND round-10 denialContext fields. Synced. (2) packages/types is the wire-contract source of truth per packages/CLAUDE.md; DENIAL_CONTEXT_KINDS now lives in constants.ts as the canonical source, with verify.ports.ts mirroring it. (3) Worker edge-verify.ts deny() refactored to thread DenialContextKind through every callsite; matchScope helper now returns failKind to distinguish scope_category_not_granted vs scope_domain_not_allowed (parity with origin Step 5/6). (4) Worker forwards RAR-in-JAR tokens to origin (Phase 3 may add edge evaluator). (5) New cross-package parity test fapi-worker-parity.spec.ts (11 tests, 4 distinct locks): bit-for-bit set equality between types-constants and ports-mirror, snake_case naming convention, schema accepts/rejects denialContext correctly, every Worker denial response carries denialContext.kind, all decided edge responses round-trip through VerifyResponseSchema, RAR-in-JAR forwards to origin. Mutation-tested by typo'ing 'jar_aud_mismatch' in constants.ts → 3 locks caught it. (6) FAPI profile §2.5.3 (new) documents Worker-side edge config + the design that JAR-strict checks are origin-only; numbering of pre-flight check moved to §2.5.4. Verification: @aegis/types + @aegis/api + @aegis/cf-verify all typecheck clean; 272 cross-package tests green (+15 from round 10 baseline of 257). Worker test suite remains gated behind Phase 3 deploy path per workers/cf-verify/package.json deploy guard — that's a separate Phase-3 readiness concern, not a parity gap. Files STAGED on feat/sdk-verify-gateway-hardening — bundle-lane discipline.
