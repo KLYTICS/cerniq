@@ -63,9 +63,9 @@ A 2026-05-16 grep across `apps/api/src/` for `resend|sendgrid|nodemailer|mailgun
 
 `onCheckoutCompleted` in `stripe.service.ts` updates `planTier` on an existing principal but does not call any `issueApiKey` / `provisionApiKey` / `generateApiKey` path (grep confirmed 0 matches in `apps/api/src/modules/billing/`). Required work: after the plan update, issue an initial full-scope API key (BCrypt-hashed at rest per `API_KEY_BCRYPT_COST=12`), surface the plaintext key once via Gap 2's email service. Pair with a `billing.api-key-issuance.spec.ts` covering the success path and the "already-has-key" idempotency case.
 
-### Gap 4 — Auth0 v4 + signup route both missing
+### Gap 4 — IDP SDK + signup route both missing
 
-Operator decision #5 in root `CLAUDE.md`: "Auth0 v4 SDK install and real provider configuration are required before the dashboard login receiver is live." Additionally, `apps/dashboard/app/` has no `signup/` directory and no `welcome/` directory. Either Auth0 hosted signup is delegated (then Auth0 v4 must be wired) or a signup route is built (then it must hand off to Flow B's authenticated checkout). The runbook's original "redirect to `https://app.${OP_DOMAIN}/welcome?session_id=...`" target does not exist.
+Operator decision #5 in root `CLAUDE.md`: "Auth0 v4 SDK install and real provider configuration are required before the dashboard login receiver is live." [ADR-0009](./decisions/0009-auth0-bridge.md) made Auth0 the design-time default; [ADR-0019](./decisions/0019-idp-v1-selection.md) (proposed, 2026-05-16) refines this for v1 launch — recommends Clerk for the Developer-tier cold-start cohort on unit-economics grounds, with Auth0 deferred to the first Enterprise customer. Either decision closes Gap 4 once its SDK appears in `apps/dashboard/package.json`. Additionally, `apps/dashboard/app/` has no `signup/` directory and no `welcome/` directory — Clerk's hosted UI flow eliminates the need to build `/signup/`; the `/welcome/` redirect target in the original (Flow-A) runbook is also no longer needed under Flow B (in-dashboard checkout post-signup).
 
 ### Gap 5 — No admin path to create a principal in production (added round 2, 2026-05-16)
 
