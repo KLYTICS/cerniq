@@ -5,6 +5,76 @@
 
 ---
 
+## 2026-05-17 · sid=bf9d603026c1 · worker-adapter-parity-audit
+
+Round 11 closes the longest-standing session-arc known unknown: Cloudflare Worker parity with the Nest origin after rounds 7-10. Findings + fixes: (1) packages/types VerifyResponseSchema was TWO rounds behind — missing both round-5 error/error_description AND round-10 denialContext fields. Synced. (2) packages/types is the wire-contract source of truth per packages/CLAUDE.md; DENIAL_CONTEXT_KINDS now lives in constants.ts as the canonical source, with verify.ports.ts mirroring it. (3) Worker edge-verify.ts deny() refactored to thread DenialContextKind through every callsite; matchScope helper now returns failKind to distinguish scope_category_not_granted vs scope_domain_not_allowed (parity with origin Step 5/6). (4) Worker forwards RAR-in-JAR tokens to origin (Phase 3 may add edge evaluator). (5) New cross-package parity test fapi-worker-parity.spec.ts (11 tests, 4 distinct locks): bit-for-bit set equality between types-constants and ports-mirror, snake_case naming convention, schema accepts/rejects denialContext correctly, every Worker denial response carries denialContext.kind, all decided edge responses round-trip through VerifyResponseSchema, RAR-in-JAR forwards to origin. Mutation-tested by typo'ing 'jar_aud_mismatch' in constants.ts → 3 locks caught it. (6) FAPI profile §2.5.3 (new) documents Worker-side edge config + the design that JAR-strict checks are origin-only; numbering of pre-flight check moved to §2.5.4. Verification: @aegis/types + @aegis/api + @aegis/cf-verify all typecheck clean; 272 cross-package tests green (+15 from round 10 baseline of 257). Worker test suite remains gated behind Phase 3 deploy path per workers/cf-verify/package.json deploy guard — that's a separate Phase-3 readiness concern, not a parity gap. Files STAGED on feat/sdk-verify-gateway-hardening — bundle-lane discipline.
+
+### Files touched
+
+- `packages/types/src/constants.ts`
+- `packages/types/src/schemas.ts`
+- `workers/cf-verify/src/edge-verify.ts`
+- `workers/cf-verify/src/token.ts`
+- `tests/cross-package/fapi-worker-parity.spec.ts`
+- `docs/spec/05_FAPI_2_0_PROFILE.md`
+
+### Next steps
+
+Round 12 candidates: (A) SDK wiring of denialContext + error/error_description through sdk-ts + sdk-py + OpenAPI spec — closes integrator-debug loop end-to-end now that the schema is source-of-truth-aligned. (B) Boot-time pre-flight WARN/refusal for state-A production deployments per FAPI profile §2.5.4 — closes deploy-layer 'enforced in code, not in deployment' gap. (C) Audit-chain enrichment with denialContext.kind — re-evaluated as 1-2 hours given ADR-0015 schema-versioned canonicalization. (D) DPoP implementation per §3.5 — promotes RFC 9449 from aligned to implemented. (E) Stop iterating internally; expose wedge to first real buyer — diminishing-returns curve is real.
+
+---
+
+## 2026-05-17 · sid=bf9d603026c1 · denial-context-discriminator
+
+Round 10 ships the structural primitive that lets future JAR/policy gate additions compound rather than accumulate INVALID_SIGNATURE-debt. denialContext discriminator (closed enum of 28 kinds in verify.ports.ts) is now emitted at every deny() callsite — operators + integrators can differentiate the five INVALID_SIGNATURE rejections (signature/aud/iss/iat/replay) and the nine RAR sub-reasons without growing the locked ADR-0004 enum. Refactored deny() to options object (8 positional args → 1). Public DTO carries {kind} only; specifics (expected aud, max-age threshold, iat age, jti) stay in structured logs via reconstructDenialSpecifics() in verify.service.ts. Threat-model split documented in new FAPI profile §2.6. Cross-package parity (fapi-denial-context-parity.spec.ts, 8 tests) locks: closed enum set, naming convention (snake_case), DenialReason→kind coverage mapping is total, INVALID_SIGNATURE has ≥5 kinds, SCOPE_NOT_GRANTED has ≥9 kinds, algorithm behavioral lock. Mutation-tested by swapping jar_aud_mismatch→signature_invalid; spec caught it. NO audit-chain changes this round (hash-chain canonicalization is separate work). 56 algorithm tests + 63 verify-related + 251 cross-package all green. Files STAGED on feat/sdk-verify-gateway-hardening — bundle-lane discipline.
+
+### Files touched
+
+- `apps/api/src/modules/verify/algorithm/verify.ports.ts`
+- `apps/api/src/modules/verify/algorithm/verify.algorithm.ts`
+- `apps/api/src/modules/verify/algorithm/verify.algorithm.spec.ts`
+- `apps/api/src/modules/verify/verify.dto.ts`
+- `apps/api/src/modules/verify/verify.service.ts`
+- `docs/spec/05_FAPI_2_0_PROFILE.md`
+- `tests/cross-package/fapi-denial-context-parity.spec.ts`
+
+### Next steps
+
+Round 11 candidates (operator choice): (A) wire denialContext through SDK packages (sdk-ts + sdk-py) + OpenAPI spec + dashboard denial UI — closes the integrator-debug loop end-to-end; (B) boot-time pre-flight WARN/refusal for state-A production deployments per FAPI profile §2.5.3 — closes the deploy-layer 'enforced in code, not in deployment' gap; (C) audit-chain enrichment so AuditEvent rows carry denialContext.kind — requires hash-chain canonicalization design + migration; (D) DPoP implementation per FAPI profile §3.5 — promotes RFC 9449 from aligned to implemented.
+
+---
+
+## 2026-05-17 · sid=bf9d603026c1 · fapi-doc-marketing-truth-parity
+
+Round 9 closes the FAPI doc drift class: §5 marketing-claim table promoted (RFC-9396 + RFC-9101 forbidden→allowed, EdDSA + opt-in-aud asterisks added), new §2.5 'Production deployment for FAPI-grade conformance' tells operators which envs to set + rollout discipline + the three-state deployment ladder, §6 promotion workflow gets explicit '§5 audit + §2.5 audit + downstream-doc audit' steps so future RFC promotions can't silently leave §5 stale. New cross-package parity test (fapi-jar-algorithm-binding-parity.spec.ts, 8 tests) locks discovery↔algorithm-Step-3.4/3.5/3.6-binding symbol-level — the depth that the existing per-RFC parity test does NOT cover. Mutation-tested by disabling Step 3.4 enforcement; 2 tests caught the regression (direct gate + cross-cutting replay-cache invariant) before restore. 188 cross-package tests green; api typecheck clean; prettier clean. Files STAGED on feat/sdk-verify-gateway-hardening.
+
+### Files touched
+
+- `docs/spec/05_FAPI_2_0_PROFILE.md`
+- `tests/cross-package/fapi-jar-algorithm-binding-parity.spec.ts`
+
+### Next steps
+
+Round 10 candidate (operator decision): bundle the three enforcement envs into AEGIS_FAPI_STRICT_MODE=true macro + boot-time pre-flight WARN for production deployments without AEGIS_API_BASE_URL set. Per-token claims.act/amt/cur/dom binding gap remains — coordinate with intent module peer 115e12ee (Phase 2.1 just landed) before unilateral action. Worker adapter parity gap remains an operator decision: pre-screening vs. redundant origin.
+
+---
+
+## 2026-05-16 · sid=3e2203ee4c7e · enterprise-quality-handoff-delta
+
+Delta to earlier Phase A/B/C handoff — three additional enterprise-quality commits landed on feat/sdk-verify-gateway-hardening, plus a meta-pattern worth flagging. 461256d completes the AgentTokenClaims parity gate's meta-sanity with optional-drift + readonly-drift controls — Equal<> is now provably robust against all four drift modes the interface exposes. dab23c8 fixes a POSIX-shell exit-code inversion bug in .husky/pre-commit (capturing $? inside the then-branch of 'if ! make ...' always reads 0/1, not the inner exit) — preflight gating failures (exit ≥ 2) were silently leaking through; now they correctly block. d86a523 adds in-generator structural validation to scripts/generate-prom-alerts.ts — the existing CI gate 'pnpm check:prom-alerts-gen' was drift-only and would have passed the broken-but-deterministic output Phase A fixed; the new validateStructure() check runs after rendering and throws on annotations:null, missing summary/description, or any structural deviation. Empirically verified via tsx --eval on the exported function.
+
+### Files touched
+
+- `apps/api/src/common/crypto/agent-token-claims.parity.spec.ts`
+- `.husky/pre-commit`
+- `scripts/generate-prom-alerts.ts`
+
+### Next steps
+
+Two immediate downstream effects: (1) the next HBR-path commit on this branch will be REJECTED by the now-load-bearing preflight gate on the existing 'uncataloged AegisError subclass thrown' finding — whoever takes the next verify-algorithm or alerts edit must register the offending class in apps/api/src/common/errors/error-catalog.ts first. (2) The prom-alerts validator is in-generator only — pnpm gen:prom-alerts now self-validates, but the package.json alias wiring (gen:prom-alerts + check:prom-alerts-gen) remains in the dead session's unstaged surface and should land via the bundler-lane peer's coordinated commit. Two follow-ons remain: eslint-plugin-security install (touches contested pnpm-lock.yaml) + SDK signAgentToken JAR variant (no caller yet).
+
+---
+
 ## 2026-05-16 LATE-EVENING (verifier-rp IM-T2 fix + missing barrel exports) — sid=opus-phase3-enterprise — claim=aegis:intent-im-t2-fix
 
 **Status:** Closes the largest threat-model gap (IM-T2 cross-RP replay) in the same session that surfaced it — demonstrating the post-ship review discipline ships concrete code, not just documentation. Also fixes a real bug from `7b36258`: the verifier-rp barrel (`index.ts`) never exported `verifyIntent` or its types, so external consumers couldn't import via the package name. Hidden by the examples-not-in-workspace gap noted earlier.

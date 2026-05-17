@@ -10,8 +10,8 @@ const ALG = 'EdDSA';
 const TYP = 'JWT';
 
 export interface AgentTokenClaims {
-  sub: string;  // agentId
-  pid: string;  // policyId
+  sub: string; // agentId
+  pid: string; // policyId
   act?: string;
   amt?: number;
   cur?: string;
@@ -19,9 +19,22 @@ export interface AgentTokenClaims {
   iat: number;
   exp: number;
   jti: string;
+  // RFC 9101 (JAR) optional claims — kept aligned with origin's
+  // `AgentTokenClaims` in apps/api/src/modules/verify/algorithm/verify.ports.ts.
+  // Edge decodes these for forwarding decisions (e.g. RAR-in-JAR forwards
+  // to origin); it does NOT enforce aud/iss/iat at the edge — those are
+  // origin-only because they need operator config the cache doesn't carry.
+  iss?: string;
+  aud?: string;
+  authorization_details?: ReadonlyArray<Record<string, unknown>>;
 }
 
-export type DecodedToken = { header: { alg: string; typ: string }; claims: AgentTokenClaims; signingInput: Uint8Array; signature: Uint8Array };
+export type DecodedToken = {
+  header: { alg: string; typ: string };
+  claims: AgentTokenClaims;
+  signingInput: Uint8Array;
+  signature: Uint8Array;
+};
 
 /**
  * Decode without verifying. Used to look up the cached agent record
@@ -78,7 +91,10 @@ function b64uToString(s: string): string {
   return new TextDecoder().decode(b64uToBytes(s));
 }
 function b64uToBytes(s: string): Uint8Array {
-  const padded = s.replace(/-/g, '+').replace(/_/g, '/').padEnd(s.length + ((4 - (s.length % 4)) % 4), '=');
+  const padded = s
+    .replace(/-/g, '+')
+    .replace(/_/g, '/')
+    .padEnd(s.length + ((4 - (s.length % 4)) % 4), '=');
   const bin = atob(padded);
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);

@@ -6,6 +6,7 @@ import { decodeBase64Url, encodeBase64Url } from '../../common/crypto/ed25519.ut
 import { PLANS, TRIAL_LIFETIME_CAP, getPlan } from '../billing/plans';
 import type { AuditSigningKeyDto, JwkEd25519Dto, JwksDto } from './dto/jwks.dto';
 import type { AegisConfigurationDto } from './dto/discovery.dto';
+import type { OAuthAuthorizationServerMetadataDto } from './dto/oauth-as-metadata.dto';
 import type {
   RetentionPolicyDto,
   RetentionPolicyTierDto,
@@ -18,8 +19,91 @@ import type { PricingDto, PricingTierDto } from './dto/pricing.dto';
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
 import * as pkgJson from '../../../package.json';
 
-/** Spec-doc schema version. Bump on breaking change to AegisConfigurationDto shape. */
-const DISCOVERY_SPEC_VERSION = '1.0.0';
+/** Spec-doc schema version. Bump major on breaking change, minor on
+ *  additive field set.
+ *  1.1.0 — added FAPI-2.0-aligned metadata block (fapi_profile,
+ *          standards_implemented/aligned, signing alg values,
+ *          agent_authentication_methods_supported, op_policy_uri, op_tos_uri).
+ *  1.2.0 — promoted RFC-9396 (RAR) from aligned → implemented; added
+ *          `authorization_details_types_supported` field listing the four
+ *          registered detail types (trading_order, payment_initiation,
+ *          data_access, agent_action).
+ *  1.3.0 — promoted RFC-8414 (OAuth AS Metadata) via new endpoint
+ *          /.well-known/oauth-authorization-server; promoted RFC-6749
+ *          (OAuth error envelope §5.2) via canonical `error` field on
+ *          verify response. Two RFCs moved from aligned → implemented.
+ *  1.4.0 — promoted RFC-9101 (JAR — JWT Authorization Request) via
+ *          opt-in claim validation on JwtUtil.verifyAndDecode
+ *          (requiredAudience, requiredIssuer, maxAgeSeconds) and
+ *          authorization_details claim support. Existing `token` field
+ *          on /v1/verify is RFC-9101 shape-compatible.
+ *  See docs/spec/05_FAPI_2_0_PROFILE.md for the binding contract. */
+const DISCOVERY_SPEC_VERSION = '1.4.0';
+
+/** Identifier of the AEGIS FAPI profile binding. Bump on any breaking
+ *  change to the standards-binding contract; minor on additive RFC
+ *  coverage. Authority: docs/spec/05_FAPI_2_0_PROFILE.md. */
+const FAPI_PROFILE_ID = 'aegis-fapi-2.0-aligned-1.0';
+
+/** Standards AEGIS bindingly implements today — every entry must be
+ *  citable to running code + tests in this repo. Adding to this list
+ *  without a corresponding implementation gate is a CLAUDE.md invariant
+ *  #4 violation (no fabricated data). */
+const STANDARDS_IMPLEMENTED: readonly string[] = Object.freeze([
+  'RFC-8032', // EdDSA (Ed25519) — apps/api/src/common/crypto/ed25519.util.ts
+  'RFC-7517', // JWKS — wellknown.service.ts getJwks()
+  'RFC-9116', // security.txt — wellknown.service.ts getSecurityTxt()
+  'RFC-9396', // RAR — apps/api/src/modules/verify/rar/{evaluator,controller}.ts
+              // promoted from `aligned` on 2026-05-15 — promotion test:
+              // rar.evaluator.spec.ts + rar.controller.spec.ts. Exposes
+              // POST /v1/verify/rar/evaluate as a stateless decision
+              // endpoint with 4 registered detail types.
+  'RFC-8414', // OAuth 2.0 Authorization Server Metadata — served at
+              // /.well-known/oauth-authorization-server. Honest subset:
+              // empty arrays for fields AEGIS doesn't implement (e.g.
+              // response_types_supported) + AEGIS-specific aegis_*
+              // extensions per RFC 8414 §2.4. Promoted 2026-05-15.
+  'RFC-6749', // OAuth 2.0 — error envelope §5.2. Every denial returned
+              // from /v1/verify carries an `error` field (OAuth-canonical)
+              // alongside the AEGIS-specific `denialReason`. Mapping table:
+              // apps/api/src/modules/verify/oauth-error-mapping.ts.
+              // Promoted 2026-05-15.
+  'RFC-9101', // JAR (JWT Authorization Request) — apps/api/src/common/crypto/
+              // jwt.util.ts verifyAndDecode accepts opt-in JAR validation
+              // (requiredAudience, requiredIssuer, maxAgeSeconds). The
+              // existing `token` field on /v1/verify is shape-compatible
+              // with RFC 9101 request objects: agent signs an Ed25519 JWT
+              // with iat/exp/jti + optional iss/aud/authorization_details.
+              // Binding test: jwt.util.jar.spec.ts. Promoted 2026-05-16.
+]);
+
+/** Standards AEGIS is positionally aligned with — the discovery shape
+ *  mirrors them, but a wire-level contract test would fail today. Each
+ *  entry has a Q3-Q4 2026 implementation gate in the FAPI profile spec.
+ *  Honesty-by-construction: never promote to STANDARDS_IMPLEMENTED until
+ *  a binding integration test passes. */
+const STANDARDS_ALIGNED: readonly string[] = Object.freeze([
+  'RFC-9449', // DPoP — proof-of-possession headers, planned
+  'RFC-9421', // HTTP Message Signatures — webhook signing alternative, planned
+]);
+
+const AGENT_AUTH_METHODS: readonly string[] = Object.freeze([
+  'ed25519_canonical_json',
+]);
+
+/** Registered RAR `authorization_details` types (RFC 9396 §2.1). The
+ *  discovery doc surfaces these so a FAPI client can statically know
+ *  which RAR shapes AEGIS will accept on /v1/verify/rar/evaluate.
+ *  Mirrors `REGISTERED_AUTH_DETAIL_TYPES` in rar.types.ts; the parity
+ *  is asserted by the wellknown service spec. */
+const AUTHORIZATION_DETAILS_TYPES_SUPPORTED: readonly string[] = Object.freeze([
+  'trading_order',
+  'payment_initiation',
+  'data_access',
+  'agent_action',
+]);
+
+const FAPI_PROFILE_DOC_URL = 'https://docs.aegislabs.io/spec/05_FAPI_2_0_PROFILE';
 /** Spec-doc schema version for retention-policy.json. Independent from DISCOVERY_SPEC_VERSION. */
 const RETENTION_POLICY_SPEC_VERSION = '1.0.0';
 /** Spec-doc schema version for pricing.json. Independent from DISCOVERY_SPEC_VERSION. */
@@ -339,6 +423,70 @@ export class WellknownService implements OnModuleInit {
       llms_txt: wk('llms.txt'),
       retention_policy_uri: wk('retention-policy.json'),
       pricing_uri: wk('pricing.json'),
+
+      // FAPI-2.0-aligned metadata (additive, 1.1.0). See top-of-file
+      // FAPI_PROFILE_* + STANDARDS_* constants for the binding contract.
+      fapi_profile: FAPI_PROFILE_ID,
+      fapi_profile_spec_uri: FAPI_PROFILE_DOC_URL,
+      standards_implemented: [...STANDARDS_IMPLEMENTED],
+      standards_aligned: [...STANDARDS_ALIGNED],
+      signing_alg_values_supported: ['EdDSA'],
+      agent_signing_alg_values_supported: ['EdDSA'],
+      agent_authentication_methods_supported: [...AGENT_AUTH_METHODS],
+      authorization_details_types_supported: [...AUTHORIZATION_DETAILS_TYPES_SUPPORTED],
+      op_policy_uri: process.env.AEGIS_OP_POLICY_URI || undefined,
+      op_tos_uri: process.env.AEGIS_OP_TOS_URI || undefined,
+    };
+  }
+
+  /**
+   * RFC 8414 — OAuth 2.0 Authorization Server Metadata.
+   *
+   * Published at /.well-known/oauth-authorization-server with the HONEST
+   * subset of RFC 8414 fields for AEGIS's role (authorization-decision-
+   * and-audit-layer, NOT a full OAuth AS issuing authorization codes or
+   * access tokens). Fields whose flow AEGIS doesn't implement are empty
+   * arrays per RFC 8414 §2 ("an empty array means the AS does not
+   * support that feature") — this is the lying-by-omission alternative
+   * to publishing fake endpoints.
+   *
+   * AEGIS-specific extensions are namespaced `aegis_*` per RFC 8414 §2.4
+   * (additional metadata parameters) so a strict RFC 8414 parser ignores
+   * them without breaking.
+   *
+   * Cross-reference: docs/spec/05_FAPI_2_0_PROFILE.md §2 RFC-8414 row.
+   */
+  getOAuthAuthorizationServerMetadata(): OAuthAuthorizationServerMetadataDto {
+    const base = trimSlash(this.config.apiBaseUrl ?? ISSUER);
+    const v = (path: string): string => `${base}/v1${path}`;
+    const wk = (path: string): string => `${base}/.well-known/${path}`;
+    return {
+      issuer: base,
+      // AEGIS does not issue OAuth authorization codes or implicit tokens.
+      // Empty array per RFC 8414 §2 is the honest signal.
+      response_types_supported: [],
+      jwks_uri: wk('jwks.json'),
+      introspection_endpoint: v('/verify'),
+      introspection_endpoint_auth_methods_supported: ['api_key_bearer'],
+      // AEGIS uses API keys for relying-party auth, not signed JWTs.
+      introspection_endpoint_auth_signing_alg_values_supported: [],
+      // AEGIS does not issue OAuth tokens — token_endpoint is absent
+      // and the auth methods array is empty for the same reason.
+      token_endpoint_auth_methods_supported: [],
+      // Signing algs for AEGIS-emitted JWS (audit events, signed receipts).
+      token_endpoint_auth_signing_alg_values_supported: ['EdDSA'],
+      service_documentation: 'https://docs.aegislabs.io',
+      op_policy_uri: process.env.AEGIS_OP_POLICY_URI || undefined,
+      op_tos_uri: process.env.AEGIS_OP_TOS_URI || undefined,
+      // FAPI 2.0 §6.1 — mirrors aegis-configuration. Single source of
+      // truth is AUTHORIZATION_DETAILS_TYPES_SUPPORTED.
+      authorization_details_types_supported: [...AUTHORIZATION_DETAILS_TYPES_SUPPORTED],
+      request_object_signing_alg_values_supported: ['EdDSA'],
+      // AEGIS-specific (RFC 8414 §2.4 namespaced).
+      aegis_service_type: 'authorization-decision-and-audit-layer',
+      aegis_rar_evaluate_endpoint: v('/verify/rar/evaluate'),
+      aegis_configuration_uri: wk('aegis-configuration'),
+      aegis_fapi_profile: FAPI_PROFILE_ID,
     };
   }
 

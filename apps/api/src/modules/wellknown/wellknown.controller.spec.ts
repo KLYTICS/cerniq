@@ -180,7 +180,10 @@ describe('WellknownController', () => {
       const out = ctl.configuration(res);
 
       expect(out.issuer).toBe('https://api.aegislabs.io');
-      expect(out.spec_version).toBe('1.0.0');
+      // Bumped through 1.1.0 (FAPI metadata) → 1.2.0 (RFC-9396 promotion)
+      // → 1.3.0 (RFC-8414 + RFC-6749 promotion) → 1.4.0 (RFC-9101 JAR
+      // promotion + RAR-in-JAR hot-path integration).
+      expect(out.spec_version).toBe('1.4.0');
       expect(out.jwks_uri).toBe('https://api.aegislabs.io/.well-known/jwks.json');
       expect(out.audit_signing_key_uri).toBe(
         'https://api.aegislabs.io/.well-known/audit-signing-key',

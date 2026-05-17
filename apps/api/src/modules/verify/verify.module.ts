@@ -3,6 +3,7 @@ import { VerifyController } from './verify.controller';
 import { VerifyService } from './verify.service';
 import { SpendGuardService } from './spend-guard.service';
 import { ReplayCacheService } from './replay-cache.service';
+import { RarController } from './rar/rar.controller';
 import { BateModule } from '../bate/bate.module';
 import { AuditModule } from '../audit/audit.module';
 import { BillingModule } from '../billing/billing.module';
@@ -15,9 +16,14 @@ import { PlanAwareThrottlerGuard } from '../../common/throttle/plan-aware-thrott
 // provider (NOT APP_GUARD) so other endpoints continue to use the global
 // flat ThrottlerGuard from app.module.ts. The guard is wired via
 // `@UseGuards(PlanAwareThrottlerGuard)` on VerifyController.
+//
+// RFC-9396 RAR: RarController exposes POST /v1/verify/rar/evaluate as a
+// stateless decision endpoint. No service deps — pure evaluator. Lives
+// in the verify module because it shares the VerifyKeyOnly auth surface
+// and the FAPI-2.0-aligned wedge positions RAR as a verify concern.
 @Module({
   imports: [BateModule, AuditModule, BillingModule],
-  controllers: [VerifyController],
+  controllers: [VerifyController, RarController],
   providers: [VerifyService, SpendGuardService, ReplayCacheService, PlanAwareThrottlerGuard],
   exports: [VerifyService],
 })

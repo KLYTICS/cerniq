@@ -111,4 +111,57 @@ export class VerifyResponseDto {
 
   @ApiProperty({ nullable: true, description: 'ID of the audit row this decision generated. Use it to reference the decision in support tickets.' })
   auditEventId!: string | null;
+
+  /**
+   * RFC 6749 §5.2 — OAuth-canonical error code. Populated whenever
+   * `denialReason` is set; null on approval. Mapped via the closed
+   * table in `oauth-error-mapping.ts` (parity-tested). Lets buyers
+   * with existing OAuth review playbooks handle AEGIS denials without
+   * learning AEGIS-specific reason codes — the `denialReason` field
+   * remains the source of truth for AEGIS-internal logic.
+   */
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'RFC 6749 §5.2 canonical error code. Set iff denialReason is set.',
+    example: 'invalid_token',
+  })
+  error?: string | null;
+
+  /**
+   * RFC 6749 §5.2 — Human-readable description for the `error` value.
+   * Public-safe wording; no internal jargon or stack details.
+   */
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'RFC 6749 §5.2 error_description. Set iff denialReason is set.',
+    example: 'Agent signature failed verification.',
+  })
+  error_description?: string | null;
+
+  /**
+   * Public-safe denial discriminator. Round-10 addition: lets operators
+   * + integrators differentiate the five INVALID_SIGNATURE rejection
+   * conditions (signature / aud / iss / iat / replay) and the nine RAR
+   * sub-reasons (action_unauthorized / limit_exceeded / etc.) without
+   * growing the locked ADR-0004 denial-precedence enum (which would
+   * require a 90-day customer notice + major version bump).
+   *
+   * Shape is intentionally minimal: `{ kind: '<closed-enum-value>' }`.
+   * Specifics (expected aud, max-age threshold, etc.) are NOT carried
+   * here — those flow to operator-side structured logs only. See
+   * `docs/spec/05_FAPI_2_0_PROFILE.md` §2.6 for the threat-model split.
+   *
+   * Closed-enum values: see `DenialContextKind` in
+   * `apps/api/src/modules/verify/algorithm/verify.ports.ts`. Stable
+   * additive evolution applies — adding a kind is non-breaking;
+   * removing or renaming requires a major version bump.
+   */
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      'Public-safe denial discriminator. Set iff denialReason is set. ' +
+      'See FAPI 2.0 profile §2.6 for threat model.',
+    example: { kind: 'jar_aud_mismatch' },
+  })
+  denialContext?: { kind: string } | null;
 }

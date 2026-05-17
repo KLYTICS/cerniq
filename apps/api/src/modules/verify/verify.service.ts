@@ -13,6 +13,7 @@ import { MetricsService } from '../../common/observability/metrics.service';
 import { withSpan } from '../../common/observability/spans';
 import { type VerifyRequestDto, type VerifyResponseDto } from './verify.dto';
 import { verifyAlgorithm } from './algorithm/verify.algorithm';
+import { oauthErrorFor } from './oauth-error-mapping';
 import type {
   AgentSnapshot,
   AuditAppendInput,
@@ -106,6 +107,7 @@ export class VerifyService {
         `plan=${quota.planTier} quota=${quota.monthlyQuota}`,
       );
       this.metrics.verifyTotal.inc({ decision: 'DENIED', denial_reason: 'PLAN_LIMIT_EXCEEDED' });
+      const oauth = oauthErrorFor('PLAN_LIMIT_EXCEEDED');
       return {
         valid: false,
         agentId: null,
@@ -117,6 +119,9 @@ export class VerifyService {
         verifiedAt: new Date().toISOString(),
         ttl: 0,
         auditEventId: null,
+        error: oauth.error,
+        error_description: oauth.error_description,
+        denialContext: { kind: 'plan_limit_exceeded' },
       };
     }
     // ── End G-2 quota gate ────────────────────────────────────────────────────
@@ -133,6 +138,7 @@ export class VerifyService {
         `verify DENIED=TRIAL_EXHAUSTED principal=${relyingPartyPrincipalId} reason=${trial.reason}`,
       );
       this.metrics.verifyTotal.inc({ decision: 'DENIED', denial_reason: 'TRIAL_EXHAUSTED' });
+      const oauth = oauthErrorFor('TRIAL_EXHAUSTED');
       return {
         valid: false,
         agentId: null,
@@ -144,6 +150,9 @@ export class VerifyService {
         verifiedAt: new Date().toISOString(),
         ttl: 0,
         auditEventId: null,
+        error: oauth.error,
+        error_description: oauth.error_description,
+        denialContext: { kind: 'trial_exhausted' },
       };
     }
     // ── End G-2b trial gate ──────────────────────────────────────────────────
@@ -189,6 +198,29 @@ export class VerifyService {
         });
       },
       featureFlags: { bateEnabled: this.config.enableBate },
+
+      // RFC 9101 (JAR) audience binding — port returns the configured
+      // issuer URL. Algorithm Step 3.4 fires INVALID_SIGNATURE when a
+      // token's `aud` claim mismatches. Returning undefined (env unset)
+      // disables the gate for backward compat — operator opts in by
+      // configuring AEGIS_API_BASE_URL / AEGIS_ISSUER in production.
+      expectedAudience: () => {
+        const url = this.config.apiBaseUrl;
+        if (!url) return undefined;
+        // Trim trailing slash so 'https://x/' and 'https://x' match a
+        // canonical `aud` claim. Cheap normalization at the boundary.
+        return url.endsWith('/') ? url.slice(0, -1) : url;
+      },
+
+      // RFC 9101 (JAR) max-iat-age binding — Step 3.6 rejects tokens
+      // whose `iat` is older than this many seconds. Operator opts in
+      // via AEGIS_MAX_TOKEN_AGE_SECONDS; undefined disables the gate.
+      maxTokenAgeSeconds: () => this.config.maxTokenAgeSeconds,
+
+      // RFC 9101 §4 iss-vs-sub consistency — Step 3.5 rejects tokens
+      // with `iss !== sub` when present. Operator opts in via
+      // AEGIS_STRICT_JAR_ISS=true; false disables the gate.
+      requireIssMatchesSub: () => this.config.strictJarIss,
     };
 
     // Manual span — auto-instrumentation already covers the HTTP and DB
@@ -226,6 +258,34 @@ export class VerifyService {
     this.metrics.verifyLatency.observe({ decision }, result.latencyMs / 1000);
     this.metrics.verifyTotal.inc({ decision, denial_reason: result.denialReason ?? 'none' });
 
+    // Round-10 — emit structured log enriched with specifics. The
+    // algorithm intentionally carries only the discriminator kind to
+    // keep operator config out of buyer-visible responses; the service
+    // adapter reconstructs the specifics from input + config for
+    // operator-side debugging. This is the one place where the
+    // "specifics-stay-internal" policy is realized.
+    //
+    // Specifics are reconstructed only for kinds where they exist; the
+    // log line stays useful for kinds without specifics (agent_revoked,
+    // anomaly_flagged, etc.) because the discriminator itself names
+    // the gate.
+    if (result.denialContext) {
+      const kind = result.denialContext.kind;
+      const specifics = this.reconstructDenialSpecifics(kind, dto, result.agentId);
+      this.logger.warn(
+        `verify DENIED reason=${result.denialReason} kind=${kind} ` +
+        `agent=${result.agentId ?? 'n/a'} rp=${relyingPartyPrincipalId}` +
+        (specifics ? ` ${specifics}` : ''),
+      );
+    }
+
+    // RFC 6749 §5.2 — populate canonical error envelope iff denied.
+    // The algorithm result is the source of truth; this is a pure
+    // additive translation through the closed mapping table.
+    const oauth = result.denialReason
+      ? oauthErrorFor(result.denialReason)
+      : null;
+
     return {
       valid: result.valid,
       agentId: result.agentId,
@@ -237,7 +297,78 @@ export class VerifyService {
       verifiedAt: result.verifiedAt,
       ttl: result.ttl,
       auditEventId: result.auditEventId,
+      error: oauth?.error ?? null,
+      error_description: oauth?.error_description ?? null,
+      denialContext: result.denialContext,
     };
+  }
+
+  /**
+   * Reconstruct human-readable specifics for a denial-context kind to
+   * enrich the structured log line. Kept in the service adapter — NOT
+   * in the algorithm — so the algorithm stays framework-free and the
+   * specifics never leak into the buyer-visible response. Returns null
+   * when the kind has no useful specifics beyond what the discriminator
+   * already names.
+   *
+   * Inputs that might be tenant-sensitive (the JWT itself) are decoded
+   * here without verification because the discriminator already tells
+   * us the verify step that failed — re-decoding can't make the failure
+   * worse. Decode failures are non-fatal.
+   */
+  private reconstructDenialSpecifics(
+    kind: string,
+    dto: VerifyRequestDto,
+    agentId: string | null,
+  ): string | null {
+    switch (kind) {
+      case 'jar_aud_mismatch': {
+        const expected = this.config.apiBaseUrl;
+        const claims = this.jwt.decodeUnsafe(dto.token);
+        const got = claims?.aud ?? '<missing>';
+        return `expected_aud=${expected ?? '<unset>'} got_aud=${got}`;
+      }
+      case 'jar_iss_sub_mismatch': {
+        const claims = this.jwt.decodeUnsafe(dto.token);
+        return `sub=${claims?.sub ?? '<unknown>'} iss=${claims?.iss ?? '<missing>'}`;
+      }
+      case 'jar_iat_stale': {
+        const claims = this.jwt.decodeUnsafe(dto.token);
+        const maxAge = this.config.maxTokenAgeSeconds;
+        if (claims && typeof claims.iat === 'number') {
+          const ageSec = Math.floor(Date.now() / 1000) - claims.iat;
+          return `iat_age_seconds=${ageSec} max_age_seconds=${maxAge ?? '<unset>'}`;
+        }
+        return `max_age_seconds=${maxAge ?? '<unset>'}`;
+      }
+      case 'replay_consumed': {
+        const claims = this.jwt.decodeUnsafe(dto.token);
+        return `jti=${claims?.jti ?? '<unknown>'}`;
+      }
+      case 'scope_category_not_granted':
+      case 'scope_domain_not_allowed':
+        return `action=${dto.action ?? '<none>'} domain=${dto.merchantDomain ?? '<none>'}`;
+      case 'spend_limit_exceeded':
+        return `amount=${dto.amount ?? '<none>'} currency=${dto.currency ?? '<none>'}`;
+      case 'rar_action_unauthorized':
+      case 'rar_limit_exceeded':
+      case 'rar_outside_trading_hours':
+      case 'rar_instrument_not_whitelisted':
+      case 'rar_destination_not_whitelisted':
+      case 'rar_resource_not_whitelisted':
+      case 'rar_type_unauthorized':
+      case 'rar_currency_unauthorized':
+      case 'rar_pii_disallowed':
+        return `action=${dto.action ?? '<none>'} amount=${dto.amount ?? '<none>'} merchant=${dto.merchantId ?? '<none>'}`;
+      case 'agent_unknown':
+      case 'agent_revoked':
+      case 'agent_suspended':
+        return `claimed_agent=${agentId ?? '<unparseable>'}`;
+      default:
+        // Kinds where the discriminator alone is sufficient (signature_invalid,
+        // anomaly_flagged, token_malformed, plan_limit_exceeded, etc.).
+        return null;
+    }
   }
 
   private async loadAgent(agentId: string): Promise<AgentSnapshot | null> {
