@@ -66,7 +66,7 @@ func AutoDisable(w io.Writer) {
 // "label (right-padded to 18) : value". Used by aegis whoami, doctor,
 // agents show, etc.
 func Row(w io.Writer, label, value string) {
-	fmt.Fprintf(w, "%s  %s\n",
+	_, _ = fmt.Fprintf(w, "%s  %s\n",
 		Styles.Label.Width(18).Render(label),
 		Styles.Value.Render(value),
 	)
@@ -76,19 +76,19 @@ func Row(w io.Writer, label, value string) {
 // characters — the same shape used by examples/node-quickstart's
 // expected-output sample so the operator sees consistent framing.
 func Heading(w io.Writer, title string) {
-	fmt.Fprintln(w, Styles.Heading.Render("── "+title+" ──"))
+	_, _ = fmt.Fprintln(w, Styles.Heading.Render("── "+title+" ──"))
 }
 
 // OK / Warn / Err render a single-line status indicator. The leading
 // glyph is monochrome on no-color terminals so meaning is preserved.
 func OK(w io.Writer, msg string) {
-	fmt.Fprintf(w, "%s %s\n", Styles.OK.Render("✓"), msg)
+	_, _ = fmt.Fprintf(w, "%s %s\n", Styles.OK.Render("✓"), msg)
 }
 
 func Warn(w io.Writer, msg string) {
-	fmt.Fprintf(w, "%s %s\n", Styles.Warn.Render("!"), msg)
+	_, _ = fmt.Fprintf(w, "%s %s\n", Styles.Warn.Render("!"), msg)
 }
 
 func Err(w io.Writer, msg string) {
-	fmt.Fprintf(w, "%s %s\n", Styles.Err.Render("✗"), msg)
+	_, _ = fmt.Fprintf(w, "%s %s\n", Styles.Err.Render("✗"), msg)
 }

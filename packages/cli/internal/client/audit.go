@@ -62,7 +62,7 @@ func (c *Client) EventsExport(ctx context.Context, agentID string, w io.Writer) 
 	if err != nil {
 		return fmt.Errorf("transport: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(resp.Body)
 		return parseAPIError(resp.StatusCode, body)

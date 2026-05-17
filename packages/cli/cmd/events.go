@@ -167,7 +167,7 @@ func runEventsTail(cmd *cobra.Command, args []string) error {
 	}
 }
 
-func runEventsExport(cmd *cobra.Command, args []string) error {
+func runEventsExport(cmd *cobra.Command, args []string) (err error) {
 	ui.AutoDisable(cmd.OutOrStdout())
 	c, _, err := cliutil.NewClient(cliutil.BuildOpts{
 		ConfigPath: flagConfig, BaseURLFlag: flagBaseURL, APIKeyFlag: flagAPIKey, RequireAuth: true,
@@ -178,11 +178,17 @@ func runEventsExport(cmd *cobra.Command, args []string) error {
 	out, _ := cmd.Flags().GetString("out")
 	w := cmd.OutOrStdout()
 	if out != "-" {
-		f, err := os.OpenFile(out, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
-		if err != nil {
-			return fmt.Errorf("open --out: %w", err)
+		f, ferr := os.OpenFile(out, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+		if ferr != nil {
+			return fmt.Errorf("open --out: %w", ferr)
 		}
-		defer f.Close()
+		defer func() {
+			// Capture Close error so a flush failure on a O_TRUNC write
+			// file cannot silently produce a corrupt export.
+			if cerr := f.Close(); cerr != nil && err == nil {
+				err = fmt.Errorf("close --out: %w", cerr)
+			}
+		}()
 		w = f
 	}
 	// Long-running stream — give it 10 minutes; large tenants have multi-GB exports.
@@ -219,5 +225,5 @@ func renderEventRow(w interface {
 	if e.RelyingParty != "" {
 		line += "  rp=" + e.RelyingParty
 	}
-	fmt.Fprintln(w, line)
+	_, _ = fmt.Fprintln(w, line)
 }

@@ -152,7 +152,7 @@ func runAgentsRegister(cmd *cobra.Command, _ []string) error {
 	ui.Row(w, "verification token", resp.VerificationToken)
 	if priv != "" {
 		ui.Heading(w, "private key — printed ONCE, save now")
-		fmt.Fprintln(w, priv)
+		_, _ = fmt.Fprintln(w, priv)
 		ui.Warn(w, "AEGIS holds only the public key. If you lose this private key, register a new agent.")
 	}
 	return nil

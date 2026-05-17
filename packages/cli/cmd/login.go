@@ -65,13 +65,13 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		// to the live flow. For now we direct the user to the dashboard
 		// to mint a key manually — explicit failure beats fabricated
 		// success per CLAUDE.md invariant 4.
-		fmt.Fprintln(cmd.ErrOrStderr(),
+		_, _ = fmt.Fprintln(cmd.ErrOrStderr(),
 			"Device-code OAuth flow ships with M-040a + Auth0 module integration.")
-		fmt.Fprintln(cmd.ErrOrStderr(),
+		_, _ = fmt.Fprintln(cmd.ErrOrStderr(),
 			"Until then, mint a key in the dashboard and run:")
-		fmt.Fprintf(cmd.ErrOrStderr(),
+		_, _ = fmt.Fprintf(cmd.ErrOrStderr(),
 			"  aegis login --api-key aegis_sk_...\n")
-		fmt.Fprintln(cmd.ErrOrStderr(),
+		_, _ = fmt.Fprintln(cmd.ErrOrStderr(),
 			"Or set AEGIS_API_KEY in your shell.")
 		return errors.New("interactive login not yet wired — use --api-key")
 	}
