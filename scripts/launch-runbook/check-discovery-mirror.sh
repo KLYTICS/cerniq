@@ -1,21 +1,24 @@
 #!/usr/bin/env bash
 # scripts/launch-runbook/check-discovery-mirror.sh
 #
-# Verifies apps/marketing/app/security/page.tsx ENDPOINTS array is a 1:1
-# mirror of apps/api/src/modules/wellknown/wellknown.controller.ts @Get
-# decorators. Catches the two failure modes that bit /security on
-# 2026-05-16 (commit 6927dea):
+# Verifies that EVERY marketing page's /.well-known/* claims are routed
+# by apps/api/src/modules/wellknown/wellknown.controller.ts. Catches the
+# two failure modes that bit /security on 2026-05-16 (commit 6927dea):
 #
-#   - OVER-CLAIM: marketing advertises a /.well-known/* path that
+#   - OVER-CLAIM: a marketing page advertises a /.well-known/* path that
 #     no controller routes (auditor copy-pastes the URL → 404).
-#   - UNDER-CLAIM: controller routes a /.well-known/* path that
-#     marketing omits (under-sell of the discovery surface).
+#   - UNDER-CLAIM: the controller routes a /.well-known/* path that
+#     apps/marketing/app/security/page.tsx omits (under-sell of the
+#     canonical discovery surface).
+#
+# Scope evolution:
+#   - 87edb47 (initial): single-page check against /security/page.tsx
+#   - this commit: multi-page over-claim sweep across all
+#     apps/marketing/app/**/page.tsx + canonical under-claim check on
+#     /security/page.tsx only.
 #
 # Pure bash + grep + awk + comm. Runs in <1s on a fresh clone.
 # Exit 0 = perfectly mirrored. Exit 1 = drift. Exit 2 = misconfig.
-#
-# Usage:
-#   bash scripts/launch-runbook/check-discovery-mirror.sh [--verbose]
 
 set -u
 cd "$(dirname "$0")/../.." || { echo "could not cd to repo root"; exit 2; }
@@ -30,14 +33,14 @@ else
 fi
 
 CONTROLLER="apps/api/src/modules/wellknown/wellknown.controller.ts"
-PAGE="apps/marketing/app/security/page.tsx"
+CANONICAL_PAGE="apps/marketing/app/security/page.tsx"
 
 if [ ! -f "$CONTROLLER" ]; then
   printf "${RED}✗${RESET} controller missing: %s\n" "$CONTROLLER" >&2
   exit 2
 fi
-if [ ! -f "$PAGE" ]; then
-  printf "${RED}✗${RESET} marketing page missing: %s\n" "$PAGE" >&2
+if [ ! -f "$CANONICAL_PAGE" ]; then
+  printf "${RED}✗${RESET} canonical marketing page missing: %s\n" "$CANONICAL_PAGE" >&2
   exit 2
 fi
 
@@ -50,81 +53,99 @@ routes_from_controller() {
     | sort -u
 }
 
-# Paths from marketing ENDPOINTS array — extract any /.well-known/* literal
-# (regardless of where it appears: inside the ENDPOINTS array literal, in
-# code comments mentioning a path, or in hero/section prose). We accept
-# all of these as "page claims this endpoint exists" because they're all
-# customer-readable.
-#
+# /.well-known/* literals from a single marketing page.
 # Regex anchors the trailing char to alphanumeric/underscore/hyphen so a
 # path appearing at sentence-end ("see /.well-known/security.txt.") does
-# NOT include the trailing period — that was the script's own first-run
-# false positive that this comment commemorates.
-paths_from_marketing() {
-  grep -oE "/\.well-known/[a-zA-Z0-9._-]*[a-zA-Z0-9_-]" "$PAGE" \
+# NOT include the trailing period — that was this script's own first-run
+# false positive (see commit 87edb47).
+paths_from_page() {
+  local page="$1"
+  grep -oE "/\.well-known/[a-zA-Z0-9._-]*[a-zA-Z0-9_-]" "$page" 2>/dev/null \
     | sort -u
 }
 
 CONTROLLER_LIST=$(routes_from_controller)
-PAGE_LIST=$(paths_from_marketing)
-
 if [ -z "$CONTROLLER_LIST" ]; then
   printf "${RED}✗${RESET} no @Get decorators found in %s\n" "$CONTROLLER" >&2
   exit 2
 fi
-if [ -z "$PAGE_LIST" ]; then
-  printf "${YELLOW}!${RESET} no /.well-known/* paths found in %s\n" "$PAGE" >&2
-  printf "  (page may have been restructured; manual review recommended)\n" >&2
-  exit 1
+
+# Auto-discover marketing pages that reference any /.well-known/* path.
+# Caller doesn't need to maintain a list; new pages get covered automatically.
+# Portable bash 3.2+ (no `mapfile` — macOS default Bash predates Bash 4).
+MARKETING_PAGES=()
+while IFS= read -r line; do
+  [ -n "$line" ] && MARKETING_PAGES+=("$line")
+done < <(grep -rlE "/\.well-known/" apps/marketing/app/ 2>/dev/null \
+  | grep -E "\.tsx?$" | sort -u)
+
+PAGE_COUNT="${#MARKETING_PAGES[@]}"
+if [ "$PAGE_COUNT" -eq 0 ]; then
+  printf "${YELLOW}!${RESET} no marketing pages contain /.well-known/* — skipping over-claim sweep.\n"
 fi
-
-# Over-claim: in page but not in controller.
-OVER_CLAIM=$(comm -23 <(printf "%s\n" "$PAGE_LIST") <(printf "%s\n" "$CONTROLLER_LIST"))
-
-# Under-claim: in controller but not in page.
-UNDER_CLAIM=$(comm -13 <(printf "%s\n" "$PAGE_LIST") <(printf "%s\n" "$CONTROLLER_LIST"))
-
-# Matched: in both.
-MATCHED=$(comm -12 <(printf "%s\n" "$PAGE_LIST") <(printf "%s\n" "$CONTROLLER_LIST"))
-
-OVER_COUNT=$(printf "%s" "$OVER_CLAIM"  | grep -c . || true)
-UNDER_COUNT=$(printf "%s" "$UNDER_CLAIM" | grep -c . || true)
-MATCH_COUNT=$(printf "%s" "$MATCHED"     | grep -c . || true)
 
 printf "${BOLD}${CYAN}Discovery-endpoint mirror check${RESET}\n"
 printf "  controller: %s\n" "$CONTROLLER"
-printf "  page:       %s\n\n" "$PAGE"
+printf "  scanning:   %d marketing page(s) under apps/marketing/app/\n\n" "$PAGE_COUNT"
 
-if [ "$VERBOSE" = 1 ] || [ "$OVER_COUNT" -gt 0 ] || [ "$UNDER_COUNT" -gt 0 ]; then
-  printf "${CYAN}Routes in controller:${RESET}\n"
-  printf "%s\n" "$CONTROLLER_LIST" | sed 's/^/  /'
-  printf "\n${CYAN}Paths in marketing page:${RESET}\n"
-  printf "%s\n" "$PAGE_LIST" | sed 's/^/  /'
-  printf "\n"
+TOTAL_OVER=0
+TOTAL_UNDER=0
+TOTAL_MATCH=0
+DIRTY_FILES=()
+
+# Per-page over-claim sweep. Bash 3.2-safe iteration of (possibly empty) array.
+for ((i = 0; i < PAGE_COUNT; i++)); do
+  page="${MARKETING_PAGES[$i]}"
+  PAGE_LIST=$(paths_from_page "$page")
+  if [ -z "$PAGE_LIST" ]; then continue; fi
+
+  OVER_CLAIM=$(comm -23 <(printf "%s\n" "$PAGE_LIST") <(printf "%s\n" "$CONTROLLER_LIST"))
+  OVER_COUNT=$(printf "%s" "$OVER_CLAIM" | grep -c . || true)
+
+  MATCHED=$(comm -12 <(printf "%s\n" "$PAGE_LIST") <(printf "%s\n" "$CONTROLLER_LIST"))
+  MATCH_COUNT=$(printf "%s" "$MATCHED" | grep -c . || true)
+
+  TOTAL_OVER=$((TOTAL_OVER + OVER_COUNT))
+  TOTAL_MATCH=$((TOTAL_MATCH + MATCH_COUNT))
+
+  rel_page="${page#./}"
+  if [ "$OVER_COUNT" -gt 0 ]; then
+    DIRTY_FILES+=("$rel_page")
+    printf "  ${RED}✗${RESET} %s — %d over-claim(s):\n" "$rel_page" "$OVER_COUNT"
+    printf "%s\n" "$OVER_CLAIM" | sed 's/^/      /'
+  elif [ "$VERBOSE" = 1 ]; then
+    printf "  ${GREEN}✓${RESET} %s — %d match(es), 0 over-claim\n" "$rel_page" "$MATCH_COUNT"
+  fi
+done
+
+if [ "$TOTAL_OVER" -eq 0 ]; then
+  [ "$VERBOSE" = 1 ] || printf "  ${GREEN}✓${RESET} %d page(s) clean — no over-claims.\n" "$PAGE_COUNT"
 fi
 
-if [ "$OVER_COUNT" -gt 0 ]; then
-  printf "${RED}✗ Over-claim — page advertises endpoint(s) the controller does NOT route:${RESET}\n"
-  printf "%s\n" "$OVER_CLAIM" | sed 's/^/  /'
-  printf "  ${YELLOW}Effect:${RESET} auditor copies the URL → 404.\n"
-  printf "  ${YELLOW}Fix:${RESET} remove from %s ENDPOINTS array, or add an @Get to %s.\n\n" "$PAGE" "$CONTROLLER"
-fi
+# Under-claim check — canonical page only.
+printf "\n${CYAN}Under-claim check (canonical: %s):${RESET}\n" "$CANONICAL_PAGE"
+CANONICAL_PATHS=$(paths_from_page "$CANONICAL_PAGE")
+UNDER_CLAIM=$(comm -13 <(printf "%s\n" "$CANONICAL_PATHS") <(printf "%s\n" "$CONTROLLER_LIST"))
+UNDER_COUNT=$(printf "%s" "$UNDER_CLAIM" | grep -c . || true)
+TOTAL_UNDER="$UNDER_COUNT"
 
 if [ "$UNDER_COUNT" -gt 0 ]; then
-  printf "${YELLOW}! Under-claim — controller routes endpoint(s) the page does NOT advertise:${RESET}\n"
-  printf "%s\n" "$UNDER_CLAIM" | sed 's/^/  /'
-  printf "  ${YELLOW}Effect:${RESET} buyers under-estimate the discovery surface.\n"
-  printf "  ${YELLOW}Fix:${RESET} add to %s ENDPOINTS array with a one-line description.\n\n" "$PAGE"
+  printf "  ${YELLOW}!${RESET} controller routes the following endpoint(s) but %s omits them:\n" "$CANONICAL_PAGE"
+  printf "%s\n" "$UNDER_CLAIM" | sed 's/^/      /'
+  printf "  ${YELLOW}Effect:${RESET} discovery surface under-sold.\n"
+  printf "  ${YELLOW}Fix:${RESET} add to the ENDPOINTS array with a one-line description.\n"
+else
+  printf "  ${GREEN}✓${RESET} all %d controller route(s) advertised on /security.\n" \
+    "$(printf "%s" "$CONTROLLER_LIST" | grep -c .)"
 fi
 
-if [ "$OVER_COUNT" -eq 0 ] && [ "$UNDER_COUNT" -eq 0 ]; then
-  printf "${BOLD}${GREEN}✓ Mirror clean${RESET} — %d endpoint(s) match 1:1.\n" "$MATCH_COUNT"
+# Summary.
+printf "\n"
+if [ "$TOTAL_OVER" -eq 0 ] && [ "$TOTAL_UNDER" -eq 0 ]; then
+  printf "${BOLD}${GREEN}✓ Discovery mirror clean${RESET} across %d page(s).\n" "$PAGE_COUNT"
   exit 0
 fi
 
-# Final summary on drift.
-printf "${BOLD}${RED}✗ Mirror drift${RESET} — %d match / %d over-claim / %d under-claim\n" \
-  "$MATCH_COUNT" "$OVER_COUNT" "$UNDER_COUNT"
-# Over-claim is a customer-facing 404 → blocks. Under-claim is a quality
-# nag that prevents sales-velocity. Both fail the gate.
+printf "${BOLD}${RED}✗ Discovery mirror drift${RESET}  over-claim=%d (%d page%s)  under-claim=%d\n" \
+  "$TOTAL_OVER" "${#DIRTY_FILES[@]}" "$([ "${#DIRTY_FILES[@]}" -ne 1 ] && echo 's')" "$TOTAL_UNDER"
 exit 1

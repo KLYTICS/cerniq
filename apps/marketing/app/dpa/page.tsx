@@ -231,7 +231,7 @@ export default function DpaPage() {
         </ul>
         <p style={{ marginTop: 12 }}>
           Public self-serve verification surfaces: <a href="/security">/security</a> +
-          <code> /.well-known/openid-configuration</code> + the AEGIS audit chain itself
+          <code> /.well-known/aegis-configuration</code> + the AEGIS audit chain itself
           (offline verifier ships in the SDK).
         </p>
       </Section>

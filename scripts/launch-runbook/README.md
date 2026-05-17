@@ -41,6 +41,8 @@ Exit codes: `0` clean, `1` drift, `2` misconfig (file moved/renamed). Runs in <1
 
 This script was born from commit `6927dea` which caught a pre-existing marketing bug (page advertised `/.well-known/openid-configuration` which doesn't exist; actual route was `aegis-configuration`). The mirror discipline lives in the script now so the next drift gets caught mechanically.
 
+**Multi-page sweep (since the follow-up extension):** auto-discovers every `.tsx` file under `apps/marketing/app/` that references any `/.well-known/*` path and runs the over-claim check per file. The first run of the extension caught a *third* instance of the same `openid-configuration` drift in `apps/marketing/app/dpa/page.tsx` — the bug class propagates across pages when the original speculation was authored in one place and copy-pasted. Under-claim check stays anchored to `apps/marketing/app/security/page.tsx` as the canonical enumeration; other pages only fail on over-claim.
+
 ## Adding new checks
 
 Each check is a single-purpose grep with a clear PASS/FAIL semantic. Follow the pattern in `phase-0-check.sh`:
