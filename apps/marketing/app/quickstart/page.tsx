@@ -65,14 +65,15 @@ const { privateKey, publicKey } = await generateKeypair();
 
 const aegis = new Aegis({ apiKey: process.env.AEGIS_KEY });
 
-// 0. One-time setup per agent — returns the agent.id + policy.id
+// 0. One-time setup per agent — returns the agent.agentId + policy.policyId
 //    you'll cache for that agent's lifetime:
-//      const agent  = await aegis.agents.register({ publicKey, name: 'My Agent' });
-//      const policy = await aegis.policies.create({
-//        agentId: agent.id,
-//        scopes: [{ category: 'orders.create',
+//      const agent  = await aegis.agents.register({
+//        publicKey, runtime: 'CUSTOM', label: 'My Agent',
+//      });
+//      const policy = await aegis.policies.create(agent.agentId, {
+//        scopes: [{ category: 'commerce',
 //                   spendLimit: { currency: 'USD', maxPerTransaction: 100 } }],
-//        expiresInSeconds: 86_400,
+//        expiresAt: new Date(Date.now() + 86_400_000),
 //      });
 
 // 1. Agent signs the intent (private key never leaves the agent's runtime).
