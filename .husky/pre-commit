@@ -37,12 +37,19 @@ pnpm lint-staged
 # Footgun: any other file landed under `.husky/` is also exempt. Keep this
 # directory limited to hook scripts; do NOT use it for secret material.
 BLOCKED_PATH='(^|/)\.env(\.[^/]+)?$|(^|/)secrets/|\.pem$|\.key$'
-BLOCKED_CONTENT='aegis_sk_[A-Za-z0-9]+|aegis_vk_[A-Za-z0-9]+|JWT_ED25519_PRIVATE_KEY_B64=|AUDIT_SIGNING_KEY_B64='
+BLOCKED_CONTENT='aegis_sk_[A-Za-z0-9]+|aegis_vk_[A-Za-z0-9]+|JWT_ED25519_PRIVATE_KEY_B64=[A-Za-z0-9+/=_-]|AUDIT_SIGNING_KEY_B64=[A-Za-z0-9+/=_-]'
 TEST_FILE_ALLOWLIST='\.(spec|test|fixture|mock|stub)\.(ts|tsx|js|jsx|mjs|cjs)$|/tests?/|/__tests?__/|/test/|/_stubs/|tools/postman/|^\.husky/'
 
 STAGED=$(git diff --cached --name-only)
 
-PATH_HITS=$(echo "$STAGED" | grep -E "$BLOCKED_PATH" || true)
+# `.env.example` is the canonical committed template — `.gitignore` explicitly
+# whitelists it (`!.env.example`). POSIX ERE has no negative lookahead, so the
+# cleanest exemption is a pre-filter on the path-hit input rather than torturing
+# BLOCKED_PATH. The BLOCKED_CONTENT check still runs on .env.example contents,
+# so a real key pasted into the template would still be caught.
+STAGED_FOR_PATH_CHECK=$(echo "$STAGED" | grep -v '\.env\.example$' || true)
+
+PATH_HITS=$(echo "$STAGED_FOR_PATH_CHECK" | grep -E "$BLOCKED_PATH" || true)
 if [ -n "$PATH_HITS" ]; then
   echo "✖ Refusing to commit secret-shaped file paths:"
   echo "$PATH_HITS" | sed 's/^/    /'
