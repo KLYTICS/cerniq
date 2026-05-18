@@ -91,15 +91,26 @@ jobs:
           # semantic boundary, immune to adjacent type aliases (TrustBand
           # in verifier-rp, PolicyScope in engine) that a line-counted
           # `grep -A N` would falsely include.
+          # All three extractors emit BARE values (no quotes) so `comm`
+          # comparisons aren't broken by quote-format mismatch — the
+          # engine/verifier files store enum values as TS string literals
+          # `'AGENT_NOT_FOUND'` (with quotes); the OpenAPI YAML stores them
+          # as bare list items `- AGENT_NOT_FOUND` (no quotes). The
+          # original workflow returned `'AGENT_NOT_FOUND'` from engine/
+          # verifier and `AGENT_NOT_FOUND` from openapi — `comm` saw them
+          # as different strings and the comparison silently produced
+          # wrong diffs. This bug was masked for months by the substring
+          # trap in extract_openapi (which returned essentially nothing
+          # comparable), so the quote-format bug never surfaced.
           extract_engine() {
             sed -n '/type DenialReason =/,/;/p' \
               apps/api/src/common/policy-engine/engine.interface.ts \
-              | grep -oE "'[A-Z_]+'" | sort -u
+              | grep -oE "'[A-Z_]+'" | tr -d "'" | sort -u
           }
           extract_verifier() {
             sed -n '/type DenialReason =/,/;/p' \
               packages/verifier-rp/src/types.ts 2>/dev/null \
-              | grep -oE "'[A-Z_]+'" | sort -u || true
+              | grep -oE "'[A-Z_]+'" | tr -d "'" | sort -u || true
           }
           extract_openapi() {
             # Anchor on schema-level indentation (4 spaces under
