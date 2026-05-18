@@ -5,6 +5,66 @@
 
 ---
 
+## 2026-05-18 (M-056 spec-sync regression closure) - sid=cc-spec-sync - claim=spec-sync-denial-reason-schema
+
+**Status:** PR #26 open against main, `fix/spec-sync-denial-reason-schema`.
+
+### What shipped (PR #26)
+
+Closes the spec-sync `Denial precedence enum (ADR-0004)` regression that
+has been failing on every PR + main push since ~2026-05-05. Two
+independent bugs compounded into a misleading "spec is missing 10 enums"
+report (real root cause: schema never existed + substring trap on
+`recommendedDenialReason`).
+
+- `docs/spec/AEGIS_API_SPEC.yaml` — adds canonical top-level
+  `DenialReason` enum schema (engine's 10 reasons, ADR-0004 precedence).
+- `.github/workflows/spec-sync.yml` — `extract_engine` /
+  `extract_verifier` use `sed` between `type DenialReason =` and `;`
+  (semantic boundary; line-counted `-A N` window was contaminating
+  verifier extract with adjacent `TrustBand` literals). `extract_openapi`
+  uses anchored `awk` (4-space schema indent) + list-item-only grep
+  (immune to description prose with uppercase acronyms).
+
+### Verification
+
+- Local bash simulation: `engine ⊆ verifier ∧ engine ⊆ openapi` PASS.
+- `pnpm check:openapi-zod` against feat YAML + DenialReason injection: 13
+  pre-existing missing-in-zod entries unchanged (no new
+  `DenialReason MISSING`).
+- `pnpm check:openapi-prisma`: 3 pre-existing drift entries unchanged.
+- CI on PR #26 will confirm the precedence check turns green; jobs (1)
+  and (2) remain red (out of scope, separate PRs).
+
+### Not in this PR
+
+- `OpenAPI ↔ Zod` drift (13 components — ActualCallObservation,
+  AgentStatus, GetIntentResponse, IntentClaim, IntentMismatch,
+  IssueIntentRequest, IssueIntentResponse, ReconcileIntentRequest,
+  ReconcileIntentResponse, ReconciliationPolicy, SignedIntentManifest).
+  Needs spec-backfill module + operator alignment on intent-manifest
+  public exposure.
+- `OpenAPI ↔ Prisma` drift (AgentIdentity missing 5, AgentPolicy
+  missing 4, AuditEvent missing 12, AgentStatus enum missing
+  `PENDING_VERIFICATION`). Needs operator alignment on which Prisma
+  fields are publicly exposable (`redactionReason`, hash fields).
+- When ADR-0016 `INTENT_MISMATCH` lands on main (currently on
+  `feat/sdk-verify-gateway-hardening` commit 2078bd2), extend the new
+  `DenialReason` schema + inline `VerifyResponse.denialReason` enum
+  together. Consider `$ref` refactor at that time.
+
+### What's next
+
+1. CI on PR #26 → expect denial-precedence to turn green; spec-sync
+   workflow overall remains UNSTABLE pending (1) and (2).
+2. Open separate PRs for OpenAPI ↔ Zod intent-schema backfill and
+   OpenAPI ↔ Prisma AuditEvent/Agent backfill (M-057, M-058 in
+   WORK_BOARD).
+3. After ADR-0016 lands on main, follow-up commit to extend
+   `DenialReason` enum.
+
+---
+
 ## 2026-05-08 (Claude guidance enterprise audit refresh) - sid=codex-local - claim=unclaimed-docs-guidance
 
 **Status:** Landed. Root `CLAUDE.md` was rebuilt as the public-company-grade

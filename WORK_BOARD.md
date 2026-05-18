@@ -829,6 +829,37 @@ See `docs/spec/01_MASTER.md` § 7 (Phase 3) and the master backlog
   (3) Denial precedence enum byte-identical across engine, verifier-rp,
   OpenAPI (ADR-0004 lock).
 
+### M-056.1 · Spec-sync denial-precedence regression closure
+- **STATUS**: in-review at PR #26 (`fix/spec-sync-denial-reason-schema`),
+  opened 2026-05-18.
+- **Paths**: `docs/spec/AEGIS_API_SPEC.yaml`,
+  `.github/workflows/spec-sync.yml`.
+- **Why**: M-056 job (3) `Denial precedence enum (ADR-0004)` has been
+  failing on every PR + main push since ~2026-05-05 due to two
+  compounded bugs: (a) OpenAPI YAML never had a top-level
+  `DenialReason` schema (only inline `VerifyResponse.denialReason`);
+  (b) `extract_openapi()` grep matched the `recommendedDenialReason:`
+  property substring first, masquerading as schema drift. Detail in
+  PR #26 body.
+- **Shipped in PR #26**: top-level `DenialReason` schema with engine's
+  10 reasons (ADR-0004 order); `extract_engine` / `extract_verifier`
+  rewritten to `sed -n '/type DenialReason =/,/;/p'` (semantic
+  boundary, immune to adjacent type aliases like verifier-rp's
+  TrustBand); `extract_openapi` rewritten to anchored awk +
+  list-item-only grep.
+- **Not closed**: M-056 jobs (1) and (2) — `OpenAPI ↔ Zod` (13
+  pre-existing intent-schema drifts) and `OpenAPI ↔ Prisma` (3
+  pre-existing AuditEvent / AgentIdentity / AgentPolicy drifts) —
+  remain red. These need separate spec-backfill modules (M-057 /
+  M-058) with operator alignment on whether deferred Prisma fields
+  (e.g. `AuditEvent.redactionReason`, `policySnapshotHash`) are
+  publicly exposable.
+- **Follow-up coupling**: when ADR-0016 `INTENT_MISMATCH` wire-up
+  (currently on `feat/sdk-verify-gateway-hardening` commit 2078bd2)
+  lands on main, extend the new `DenialReason` enum + inline
+  `VerifyResponse.denialReason` together in a single follow-up;
+  consider `$ref` refactor at that point.
+
 ---
 
 ## How to add a new module to this board
