@@ -110,7 +110,7 @@ export default function TermsPage() {
         <p style={{ marginTop: 12 }}>
           If we miss the target, we credit 10% of the affected month&rsquo;s fees per 0.1%
           below target, capped at 50% of the monthly fee. Status posted at
-          <code> status.aegis.dev</code>. Credits apply to the next invoice, are not paid
+          <code> status.aegis.klytics.io</code>. Credits apply to the next invoice, are not paid
           out in cash, and are the sole remedy for SLA breach.
         </p>
       </Section>

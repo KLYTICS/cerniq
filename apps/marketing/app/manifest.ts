@@ -14,10 +14,7 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: '#020617',
     theme_color: '#3730A3',
     icons: [
-      // Operator: drop favicon.png + 192/512 PNG icons into apps/marketing/public/
-      // and these entries will resolve. Until then the manifest is valid but icon-less.
-      { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-      { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+      { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml' },
     ],
   };
 }

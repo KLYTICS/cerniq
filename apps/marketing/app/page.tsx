@@ -9,7 +9,7 @@ import { TrustGauge } from '../components/TrustGauge';
 import { BY_CATEGORY, CATEGORY_LABELS } from '../lib/integrations';
 
 const SALES_EMAIL = process.env.NEXT_PUBLIC_SALES_EMAIL ?? 'sales@aegislabs.io';
-const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'https://app.aegis.dev';
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'https://app.aegis.klytics.io';
 
 // Why mailto for every paid plan: the self-serve checkout path is not wired
 // end-to-end. apps/api/src/modules/billing/stripe.service.ts:553-559 requires
@@ -249,8 +249,9 @@ export default function Landing() {
               </article>
             ))}
           </div>
-          <div style={{ marginTop: 24, textAlign: 'center' }}>
+          <div className="integration-actions">
             <a href="/integrations" className="btn btn-ghost">Browse all 80+ integrations →</a>
+            <a href="/everywhere" className="btn btn-ghost">AEGIS Everywhere operating manual →</a>
           </div>
         </div>
       </section>

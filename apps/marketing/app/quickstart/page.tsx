@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     'Ten minutes from zero to a working AEGIS verify call. Install SDK, generate keypair, sign an action, verify, and confirm the audit chain.',
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://api.aegis.dev';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://api.aegis.klytics.io';
 const REPO_URL = process.env.NEXT_PUBLIC_REPO_URL ?? 'https://github.com/klytics/aegis';
 
 interface Step {

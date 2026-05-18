@@ -726,6 +726,14 @@ ul li { margin: 4px 0; }
 .integration-card .meta .status-pill.beta         { background: color-mix(in srgb, var(--warn) 14%, transparent); color: #FCD34D; border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
 .integration-card .meta .status-pill.coming-soon  { background: var(--accent-wash); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
 .integration-card .meta .status-pill.planned      { color: var(--text-mute); }
+.integration-actions {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  text-align: center;
+}
 
 /* ── Section + headings spacing patch for cinematic flow ─────────── */
 .hero-cinematic-layout {
@@ -756,6 +764,20 @@ ul li { margin: 4px 0; }
 
 /* ── Responsive ───────────────────────────────────────────────────── */
 @media (max-width: 880px) {
+  .site-header-inner { gap: 12px; overflow: hidden; }
+  .site-header nav {
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .site-header nav::-webkit-scrollbar { display: none; }
+  .site-header nav a { flex: 0 0 auto; }
+  .site-footer nav {
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+  }
   h1 { font-size: 34px; }
   h2 { font-size: 22px; }
   .hero { padding: 56px 0 48px; }

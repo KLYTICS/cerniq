@@ -3,7 +3,7 @@
 
 import type { MetadataRoute } from 'next';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://aegis.dev';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://aegis.klytics.io';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
@@ -12,6 +12,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/try`,          lastModified: now, changeFrequency: 'weekly',  priority: 0.98 },
     { url: `${SITE_URL}/quickstart`,   lastModified: now, changeFrequency: 'weekly',  priority: 0.95 },
     { url: `${SITE_URL}/integrations`, lastModified: now, changeFrequency: 'weekly',  priority: 0.9 },
+    { url: `${SITE_URL}/everywhere`,   lastModified: now, changeFrequency: 'weekly',  priority: 0.85 },
     { url: `${SITE_URL}/security`,     lastModified: now, changeFrequency: 'weekly',  priority: 0.9 },
     { url: `${SITE_URL}/use-cases`,    lastModified: now, changeFrequency: 'weekly',  priority: 0.9 },
     { url: `${SITE_URL}/changelog`,    lastModified: now, changeFrequency: 'weekly',  priority: 0.7 },
