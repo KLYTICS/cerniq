@@ -5,6 +5,98 @@
 
 ---
 
+## 2026-05-18 · sid=opus-4-7-feat-flush-and-spec-sync-onion-peel · feat/sdk-verify-gateway-hardening + fix/spec-sync-denial-reason-schema
+
+Two-lane session: flushed 7 + 4 pending commits on
+`feat/sdk-verify-gateway-hardening` to origin, then opened a separate
+fix-it PR off main that closes the M-056 spec-sync `Denial precedence`
+regression that's been red on every PR + main push since ~2026-05-05.
+
+### Lane A — feat/sdk-verify-gateway-hardening flush (4 new commits, mine)
+
+Pushed `78e7b8c..79eb867` (11 commits total: 7 pre-existing
+swarm/bundle work + 4 today). All 6 pre-push doctor gates green.
+
+  - `6f1048b fix(husky)` — two false-positives in pre-commit secret scan:
+    (a) `.env.example` path allowlist (gitignore whitelists it, hook
+    didn't); (b) `BLOCKED_CONTENT` requires base64-ish char after `KEY=`
+    so empty templates pass while real assignments still trip.
+  - `22dc9a5 chore(env)` — adds `WORKOS_API_KEY` +
+    `WORKOS_COOKIE_PASSWORD` with provider-factory-throws rationale; +
+    Stripe `STRIPE_PRICE_TEAM/SCALE` → `STRIPE_PRICE_GROWTH` revert with
+    inline DRIFT WARNING (ADR-0014 rename hasn't shipped in
+    `config.schema.ts` yet — new vars would be Zod-stripped).
+  - `4296fae feat(marketing)` — `aegis.dev` → `aegis.klytics.io` fallback
+    canonicalization across page/quickstart/robots/sitemap/terms; new
+    `/everywhere` (549L operating manual) + `/stripe-mode` redirect; SVG
+    PWA icon (manifest entry was pointing at missing PNGs); responsive
+    header/footer fixes for ≤880px width.
+  - `79eb867 docs(execution)` — 436-line GTM/validation/video-asset
+    brief at `docs/execution/AEGIS_LATEST_SESSION_GTM_VALIDATION_2026-05-17.md`.
+    Executive read: technical thesis is far stronger than average
+    pre-launch security product; business launch story is not yet
+    self-serve (phase-0-check fails 5/8). Right next move: founder-led
+    pilot wedge with 5-10 manually-onboarded high-signal buyers.
+
+PR #2 CI is UNSTABLE — 3 greens (CLI test ubuntu/macos/windows) and 4
+pre-existing reds (spec-sync trio + CLI lint). All red checks failed
+identically on parent SHAs 78e7b8c, 0659008, c1dc017, a1d23c9 — NOT
+caused by today's flush. CLI lint is being chased on a peer worktree
+`~/Desktop/aegis-ci-fix` branch `ci/cli-go-1.24`.
+
+### Lane B — M-056 spec-sync regression closure (PR #26, off main)
+
+`fix/spec-sync-denial-reason-schema` worktree at
+`~/Desktop/aegis-spec-sync`. Three onion-peel bugs found and fixed in
+one PR after the spec-sync precedence check had been red for 5+ SHAs:
+
+  - **Bug 1: Missing canonical schema.** OpenAPI YAML never had a
+    top-level `DenialReason` schema; the only `DenialReason`-shaped
+    field was inline on `VerifyResponse.denialReason`.
+  - **Bug 2: Substring trap.** `extract_openapi()` grep matched
+    `recommendedDenialReason:` (a property on `ReconcileIntentResponse`,
+    enum `INTENT_MISMATCH`) before the canonical schema. For 5+ SHAs
+    the report said "spec is missing 10 enums" — actually the schema
+    didn't exist; the trap returned `INTENT_MISMATCH` as a single hit.
+  - **Bug 3: Quote-format mismatch (latent, surfaced after fixing 1+2).**
+    Engine/verifier extractors returned `'AGENT_NOT_FOUND'` (quoted TS
+    literals); openapi extractor returned `AGENT_NOT_FOUND` (bare YAML
+    list items). `comm -23` compared them as different strings — every
+    engine value showed up as "missing in openapi". This bug was
+    masked for months by Bug 2; once Bug 2 was fixed, Bug 3 surfaced
+    immediately.
+
+Fix at `19a9b5b` (schema + grep anchor) and `23bda90` (quote-strip).
+PR #26 status as of 2026-05-18T09:30Z: `Denial precedence enum
+(ADR-0004)` SUCCESS. Other spec-sync jobs still RED — pre-existing
+intent-schema drift (13 components in OpenAPI ↔ Zod) and Prisma drift
+(AuditEvent / AgentIdentity / AgentPolicy missing fields, AgentStatus
+enum missing `PENDING_VERIFICATION`) — out of scope, separate PRs
+(M-057, M-058 placeholders in `WORK_BOARD.md`).
+
+### What's next
+
+1. PR #26 review + merge. Once on main, the workflow + schema land
+   for everyone.
+2. After PR #26 merges, rebase `feat/sdk-verify-gateway-hardening`
+   onto main and add a 1-line commit extending `DenialReason` enum
+   with `INTENT_MISMATCH` (feat's engine has 11 reasons including
+   INTENT_MISMATCH per ADR-0016 commit `2078bd2`; PR #26's schema has
+   only main's 10 reasons). Spec-sync precedence on PR #2 should
+   turn green after that.
+3. Open M-057 PR for OpenAPI ↔ Zod intent-schema backfill (13
+   components — ActualCallObservation, AgentStatus, GetIntentResponse,
+   IntentClaim, IntentMismatch, IssueIntentRequest, IssueIntentResponse,
+   ReconcileIntentRequest, ReconcileIntentResponse, ReconciliationPolicy,
+   SignedIntentManifest, etc.). Needs operator alignment on what's
+   publicly exposable.
+4. Open M-058 PR for OpenAPI ↔ Prisma drift. Needs operator alignment
+   on `AuditEvent.redactionReason`, `policySnapshotHash`, and other
+   hash fields — some may be intentionally internal-only.
+5. CLI lint lane (`ci/cli-go-1.24` peer worktree) — not mine to touch.
+
+---
+
 ## 2026-05-17 · sid=opus-4-7-bundle-and-scaffold-sweep · wire-up-audit-closure
 
 Long session arc combining (a) the intent-manifest scaffold-promise sweep, (b) a comprehensive wire-up audit, and (c) the bundle-lane closure for the swarm's accumulated FAPI 2.0 work. 12 commits over ~6 hours on `feat/sdk-verify-gateway-hardening`. Branch went from "swarm-mid-flight, ~40 files uncommitted, scaffold promises rotting" to "every audited gap either closed, bundled, or filed as operator-routable OD." Parity suite grew from 16 files / 237 tests baseline to **25 files / 325 tests green**.
