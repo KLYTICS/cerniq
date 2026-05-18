@@ -596,6 +596,35 @@ components:
           description: Seconds this result can be cached by relying party
           example: 30
 
+    DenialReason:
+      type: string
+      description: |
+        Canonical denial reason returned by the policy engine on
+        `valid: false` responses. The engine
+        (`apps/api/src/common/policy-engine/engine.interface.ts`) is the
+        source of truth; relying-party SDKs (`packages/verifier-rp`) MAY
+        carry a superset (e.g. `REPLAY_DETECTED` is client-cache-only and
+        never returned by the API). Enum order below is the canonical
+        DENIAL PRECEDENCE per ADR-0004 § "Denial Precedence".
+        `PLAN_LIMIT_EXCEEDED` is a billing pre-gate that fires BEFORE the
+        algorithm chain — it is documented inline on
+        `VerifyResponse.denialReason` and is NOT enumerated here because
+        the engine type does not include it. Reconciling that drift is
+        tracked in the M-056 regression handoff.
+        When ADR-0016 (`INTENT_MISMATCH`) lands on main, extend this
+        enum and the `VerifyResponse.denialReason` inline list together.
+      enum:
+        - AGENT_NOT_FOUND
+        - AGENT_REVOKED
+        - INVALID_SIGNATURE
+        - POLICY_REVOKED
+        - POLICY_EXPIRED
+        - SCOPE_NOT_GRANTED
+        - TRIAL_EXHAUSTED
+        - SPEND_LIMIT_EXCEEDED
+        - TRUST_SCORE_TOO_LOW
+        - ANOMALY_FLAGGED
+
     AuditEvent:
       type: object
       properties:
