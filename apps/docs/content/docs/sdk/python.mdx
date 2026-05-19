@@ -1,0 +1,98 @@
+---
+title: Python SDK (aegis)
+description: Async-first Python SDK with sync wrapper. Pydantic v2 models, strict mypy, byte-equivalent JWT to the TypeScript SDK.
+---
+
+<SdkVersionBadges />
+
+## Install
+
+```bash
+pip install aegis
+# or
+uv pip install aegis
+# or
+poetry add aegis
+```
+
+## Runtime requirements
+
+- **Python** ≥ 3.11
+- **HTTPS** to `api.aegislabs.io` (or your operator-controlled `AEGIS_API_BASE_URL`)
+
+## Surface at a glance
+
+```python
+import asyncio
+from aegis import AsyncAegis, generate_keypair, sign
+
+async def main() -> None:
+    aegis = AsyncAegis(api_key="ak_live_...")
+
+    public_key, private_key = generate_keypair()
+    agent = await aegis.agents.register(public_key=public_key, label="checkout-bot")
+
+    policy = await aegis.policies.create(
+        agent_id=agent.id,
+        scope={"actions": ["charge"], "spend_limit_usd": 500},
+        ttl_seconds=60,
+    )
+
+    token = sign(
+        private_key,
+        agent_id=agent.id,
+        policy_id=policy.id,
+        action="charge",
+        amount=49,
+    )
+
+    result = await aegis.verify(token)
+    if not result.allowed:
+        raise SystemExit(f"denied: {result.denial_reason}")
+
+asyncio.run(main())
+```
+
+## Async-first, sync available
+
+`AsyncAegis` is the primary client — designed for `asyncio` apps,
+FastAPI, LangChain, CrewAI, and async agent frameworks. A thin `Aegis`
+synchronous wrapper is also available for scripts and notebooks:
+
+```python
+from aegis import Aegis  # sync wrapper
+
+aegis = Aegis(api_key="ak_live_...")
+result = aegis.verify(token)
+```
+
+## Module map
+
+| Module             | What lives there                                                  |
+| ------------------ | ----------------------------------------------------------------- |
+| `aegis.agents`     | Register, list, revoke, inspect agent identities                  |
+| `aegis.policies`   | Issue, list, revoke scoped policies                               |
+| `aegis.verify`     | The verify hot path                                                |
+| `aegis.audit`      | Cursor-paginated event reader; NDJSON export                       |
+| `aegis.webhooks`   | Subscription + delivery management                                |
+| `aegis.crypto`     | `generate_keypair()`, `sign()`, helpers — local-only key material |
+| `aegis.errors`     | `AegisError`, `NotFoundError`, `RateLimitedError`, etc.           |
+| `aegis.models`     | Pydantic v2 wire-shape models (`Agent`, `Policy`, `VerifyResult`) |
+
+## Wire parity with `@aegis/sdk` (TypeScript)
+
+Both SDKs produce **byte-equivalent JWT** for the same `(privateKey, claims)`
+input. This is enforced by a cross-package parity test at
+[`tests/cross-package/sdk-api-jwt-parity.spec.ts`](https://github.com/klytics/aegis/tree/main/tests/cross-package/).
+A token minted by the Python SDK can be verified by `@aegis/verifier-rp` and
+vice-versa.
+
+## Type safety
+
+Every wire shape is a Pydantic v2 model under `aegis.models`. `mypy
+--strict` runs clean in CI. IDEs that support PEP 604 unions get full
+autocomplete on `verify()` results.
+
+## Source
+
+[`packages/sdk-py/`](https://github.com/klytics/aegis/tree/main/packages/sdk-py)

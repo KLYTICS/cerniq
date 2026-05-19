@@ -1,0 +1,82 @@
+---
+title: TypeScript SDK (@aegis/sdk)
+description: Browser- and edge-safe TypeScript SDK. Cryptographic identity, scoped policies, and the verify hot path.
+---
+
+<SdkVersionBadges />
+
+## Install
+
+```bash
+npm install @aegis/sdk
+# or
+pnpm add @aegis/sdk
+# or
+yarn add @aegis/sdk
+```
+
+## Runtime requirements
+
+- **Node** ≥ 20, or any browser supporting WebCrypto (Chrome 88+, Firefox 87+, Safari 14+), or an edge runtime (Cloudflare Workers, Vercel Edge, Deno).
+- **No Node-only imports** — the SDK uses `@noble/ed25519` and Web `fetch`, so it runs identically in browser, edge, and Node contexts.
+
+## Surface at a glance
+
+```ts
+import {
+  Aegis,            // primary client class
+  generateKeypair,  // mint Ed25519 keypair locally (private key never leaves your process)
+  sign,             // sign an authority token with a private key
+  type DenialReason,
+  DENIAL_REASON_PRECEDENCE,
+} from '@aegis/sdk';
+
+const aegis = new Aegis({ apiKey: process.env.AEGIS_API_KEY! });
+
+await aegis.agents.register({ /* … */ });
+await aegis.policies.create({ /* … */ });
+await aegis.verify(token);
+```
+
+## Auto-generated reference
+
+The full type-level reference for `@aegis/sdk` — every class, method,
+parameter, return type, and JSDoc comment — is regenerated from
+[`packages/sdk-ts/src/`](https://github.com/klytics/aegis/tree/main/packages/sdk-ts/src)
+on every dev and build cycle via [TypeDoc](https://typedoc.org/).
+
+Browse it under `/docs/sdk/(generated)/typescript/` once `pnpm install`
+and the predev hook have populated the workspace.
+
+- [Aegis client class](/docs/sdk/typescript/classes/Aegis)
+- [generateKeypair function](/docs/sdk/typescript/functions/generateKeypair)
+- [sign function](/docs/sdk/typescript/functions/sign)
+- [DenialReason type](/docs/sdk/typescript/types/DenialReason)
+
+If those links 404, the TypeDoc step has not run in this environment.
+Run `pnpm --filter @aegis/docs sdk:generate` to populate locally.
+
+## Common recipes
+
+| Need                                    | Recipe                                                                                                  |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Verify in a browser without a backend   | Use `@aegis/sdk` directly in the client bundle — it's WebCrypto-only.                                   |
+| Verify in an edge function              | Same; no `node:crypto` is imported.                                                                     |
+| Verify **offline** (no AEGIS round-trip) | Use `@aegis/verifier-rp` instead (see [verifier-rp](/docs/sdk/verifier-rp)).                            |
+| Subscribe to lifecycle webhooks         | `aegis.webhooks.subscriptions.create({ url, events })` — see [Webhooks API](/docs/api/webhooks).        |
+| Export audit chain for SOC2 evidence    | `aegis.audit.export({ format: 'ndjson' })` — see [Audit API](/docs/api/audit).                          |
+
+## Error handling
+
+Every method throws a typed `AegisError` subclass on failure. Common shapes:
+
+| Class                | When                                                          |
+| -------------------- | ------------------------------------------------------------- |
+| `NotFoundError`      | Agent, policy, or audit-event id does not exist               |
+| `RateLimitedError`   | Per-tier throttle hit (OD-006); includes `retryAfterSeconds`  |
+| `AuthError`          | API key invalid, expired, or insufficient scope               |
+| `ValidationError`    | Request body failed Zod validation                            |
+| `VerifyDeniedError`  | `verify()` returned `allowed: false`; exposes `denialReason`  |
+
+Build retry / escalation logic on the [denial precedence](/docs/concepts/denial-precedence)
+order — not on string equality.

@@ -1,0 +1,62 @@
+---
+title: TypeScript Quickstart
+description: From zero to first verify in under five minutes. Browser- and edge-safe SDK.
+---
+
+```ts
+import { Aegis, generateKeypair, sign } from '@aegis/sdk';
+
+const aegis = new Aegis({ apiKey: process.env.AEGIS_API_KEY! });
+
+// 1. Mint an agent keypair. The private key never leaves your process —
+//    AEGIS only ever sees the public key.
+const { publicKey, privateKey } = await generateKeypair();
+
+// 2. Register the agent. AEGIS stores only the public key.
+const agent = await aegis.agents.register({
+  publicKey,
+  label: 'checkout-bot',
+});
+
+// 3. Issue a scoped, short-lived policy. TTL is bounded between 30s and 60s
+//    on the server — see TOKEN_TTL_MAX_SECONDS in @aegis/types.
+const policy = await aegis.policies.create({
+  agentId: agent.id,
+  scope: { actions: ['charge'], spendLimitUsd: 500 },
+  ttlSeconds: 60,
+});
+
+// 4. Sign an authority token using the local private key.
+const token = await sign(privateKey, {
+  agentId: agent.id,
+  policyId: policy.id,
+  action: 'charge',
+  amount: 49,
+});
+
+// 5. Verify before performing the action. The verify call returns a typed
+//    denial reason if the request fails any step in the precedence chain.
+const result = await aegis.verify(token);
+if (!result.allowed) {
+  console.error(`denied: ${result.denialReason}`);
+  process.exit(1);
+}
+
+// 6. Now perform the actual action — AEGIS has signed an audit row noting
+//    the allow decision under the agent + policy.
+await chargeCard(49);
+```
+
+## What happens on the wire
+
+Every `verify` call is a single round-trip. Offline verification — useful for
+edge environments or relying parties that want zero AEGIS dependency in the
+hot path — is available via `@aegis/verifier-rp`, which validates the same
+token against the JWKS published at `/.well-known/aegis-jwks.json`.
+
+## Failure modes
+
+When `verify` denies, the result carries a single `denialReason` from the
+[wire contract](/docs/concepts/denial-precedence). The first failure wins —
+AEGIS does not list every issue. Relying-party SDKs build retry, escalation,
+and logging logic on this exact precedence order.

@@ -1,0 +1,46 @@
+---
+title: Denial precedence
+description: The wire contract for verify failures. First match wins. Importing — not mirroring — keeps this page honest.
+---
+
+When AEGIS denies a verify request, it returns exactly one `denialReason`.
+The order below is **part of the wire contract** — relying-party SDKs build
+retry, escalation, and logging logic on this exact order. Adding a new
+reason is only non-breaking when it goes at the **end** of the list.
+
+<DenialPrecedence />
+
+## How this page stays honest
+
+The table above is generated from `DENIAL_REASON_PRECEDENCE` in
+`packages/types/src/constants.ts` — the same constant the API, the SDK, the
+relying-party verifier, and the CLI all import. A cross-package parity test
+(`tests/cross-package/docs-denial-precedence-parity.spec.ts`) fails the build
+if this component ever mirrors the array as a string literal instead of
+importing it. There is no second source of truth to keep in sync.
+
+## Adding a new denial reason
+
+1. Append the reason to `DENIAL_REASON_PRECEDENCE`. Never insert in the middle.
+2. Add it to `docs/spec/AEGIS_API_SPEC.yaml` under the same denial-reason enum.
+3. Map an HTTP status code — typically `403`; use `402` for billing gates and `429` for rate or spend windows.
+4. Run `pnpm test:parity` — the build fails until every surface agrees.
+5. Add a human-readable entry to `REASON_COPY` in
+   `apps/docs/components/live/denial-precedence.tsx`. The parity test then
+   re-runs and asserts the new reason has copy.
+
+## Why the order matters
+
+The verify algorithm is a fail-closed pipeline. Each check runs in
+precedence order; the first failure is returned and no later checks are
+even attempted. This means:
+
+- **Logging**: a relying party that wants to dashboard denials does not need
+  to invent its own severity scoring — the position in the array is the
+  severity.
+- **Retry**: only `SPEND_LIMIT_EXCEEDED` and `TRUST_SCORE_TOO_LOW` are
+  retryable with backoff. Everything else means the request will never
+  succeed in its current shape — retry would be wasted load.
+- **Escalation**: a `PLAN_LIMIT_EXCEEDED` or `TRIAL_EXHAUSTED` should route
+  to billing/sales, not to security oncall. The denial reason carries that
+  routing for you.

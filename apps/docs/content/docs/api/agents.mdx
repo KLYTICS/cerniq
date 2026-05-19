@@ -1,0 +1,65 @@
+---
+title: Agents API
+description: Register, list, revoke, and inspect agent identities. Authentication via X-AEGIS-API-Key with FULL scope.
+---
+
+The full OpenAPI spec lives at
+[`docs/spec/AEGIS_API_SPEC.yaml`](https://github.com/klytics/aegis/blob/main/docs/spec/AEGIS_API_SPEC.yaml).
+A `fumadocs-openapi`-generated, try-it-out-capable reference is the next
+content drop on this route (`pnpm --filter @aegis/docs openapi:generate`).
+
+## Endpoints in this slice
+
+| Method | Path                       | Purpose                                   |
+| ------ | -------------------------- | ----------------------------------------- |
+| POST   | `/v1/agents`               | Register a new agent (public key required) |
+| GET    | `/v1/agents`               | List agents owned by the calling principal |
+| GET    | `/v1/agents/:id`           | Inspect a single agent                    |
+| DELETE | `/v1/agents/:id`           | Revoke an agent (irreversible)            |
+
+Authentication: `X-AEGIS-API-Key` header with **FULL** scope. A
+`X-AEGIS-Verify-Key` (verify-only) is rejected by this namespace.
+
+## Example — register
+
+```bash
+curl -X POST https://api.aegislabs.io/v1/agents \
+  -H "X-AEGIS-API-Key: $AEGIS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "publicKey": "MCowBQYDK2VwAyEA...",
+    "label": "checkout-bot",
+    "metadata": { "env": "production" }
+  }'
+```
+
+Response (`201 Created`):
+
+```json
+{
+  "id": "agent_01HXYZ...",
+  "principalId": "prn_01HXYZ...",
+  "label": "checkout-bot",
+  "publicKey": "MCowBQYDK2VwAyEA...",
+  "trustScore": 500,
+  "trustBand": "VERIFIED",
+  "createdAt": "2026-05-08T14:32:11Z",
+  "revokedAt": null
+}
+```
+
+## Failure modes
+
+Every error returns the standard AEGIS error envelope:
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "publicKey must be a valid Ed25519 SPKI",
+    "requestId": "req_01HXYZ..."
+  }
+}
+```
+
+The full error catalog is in `packages/types/src/error-catalog.generated.ts`.
