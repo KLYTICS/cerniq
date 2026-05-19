@@ -189,11 +189,35 @@ via `claude-peers msg`.
 - **Pre-req**: M-005 must keep its core logic in framework-free utilities.
 
 ### M-014 · Documentation site — docs.aegislabs.io
-- **STATUS**: open
-- **Paths**: `apps/docs/**` (create), `docs/site-content/**`
-- **Goal**: Mintlify or Docusaurus, quickstart, API reference (auto from
-  OpenAPI), SDK reference (auto from TypeDoc), guides for LangChain /
-  AutoGen / CrewAI integration.
+- **STATUS**: ✅ **FULLY SHIPPED** by sid=gifted-payne @ 2026-05-18 (Round 24 vertical slice + Round 25 max-functionality wire + Round 26 max-width extension). Remaining work is content authorship, not platform.
+  Framework: **Fumadocs 14** on Next.js 16 + React 19 (no vendor lock-in; matches dashboard stack reality).
+  Round 25 wired:
+    - **OpenAPI auto-render**: `apps/docs/scripts/generate-api-docs.mjs` runs `fumadocs-openapi generate` pre-build and pre-dev against `docs/spec/AEGIS_API_SPEC.yaml` → output under gitignored `content/docs/api/(generated)/`.
+    - **Search**: Orama via `fumadocs-core/search/server` at `app/api/search/route.ts` — zero vendor, no Algolia, no Pagefind sidecar.
+    - **CI gates**: `.github/workflows/docs.yml` runs typecheck, cross-package parity, lychee link-check, and a main-only `next build` gate.
+    - **Deploy**: `apps/docs/vercel.json` set up for monorepo-aware Vercel build.
+    - **Live components (6 total)**: prior 3 from Round 24 (`DenialPrecedence`, `PricingTable`, `SdkVersionBadges`) plus `StatusBadge` (reads `/health` from `AEGIS_API_BASE_URL`), `TrustBandLegend` (imports `TRUST_BAND_THRESHOLDS`), `WebhookEventCatalog` (imports `WEBHOOK_EVENT`).
+    - **Parity tests (3 total)**: prior denial-precedence test plus `docs-trust-bands-parity.spec.ts`, `docs-webhook-events-parity.spec.ts`. Build fails if any docs component drops a wire-constant import.
+    - **Content backbone**: 4 persona pages (SRE, developer, security, auditor); 3 industry quickstarts (fintech-payments, ai-platform-tool-call, saas-seat-provisioning); 3 new concept pages (trust-bands, audit-chain, webhooks); 4 new API reference pages (policies, verify, audit, webhooks, billing); compliance overview.
+    - **SEO + AI-crawler surface**: `app/sitemap.ts`, `app/robots.ts`, `app/llms.txt/route.ts` (llmstxt.org convention — curated index for AI consumers).
+  Round 26 wired (the previously-deferred Round 25 candidates, all of them, max-width):
+    - **TypeDoc → SDK reference**: `apps/docs/typedoc.json` + `apps/docs/scripts/generate-sdk-docs.mjs`. Regenerates on every `pnpm dev`/`pnpm build` via the same `predev`/`prebuild` hook pattern as the OpenAPI generator. Output under gitignored `content/docs/sdk/(generated)/typescript/`.
+    - **Curated SDK landings** for the 4 non-TS public packages: `sdk/{python,cli,verifier-rp,mcp}.mdx`. All linked from the new `/docs/sdk` nav section.
+    - **Lighthouse CI**: `apps/docs/lighthouserc.json` + `.github/workflows/lighthouse-docs.yml`. Strict budgets — perf ≥ 0.85, a11y ≥ 0.95, best-practices ≥ 0.9, SEO ≥ 0.95. Runs `next start` + Lighthouse on 7 representative URLs.
+    - **Open Graph images** via `next/og`: `app/opengraph-image.tsx` (homepage aurora-gradient hero), `app/docs/[[...slug]]/opengraph-image.tsx` (per-page dynamic title + section + description), `app/twitter-image.tsx` (re-exports OG).
+    - **`<JwksFingerprint/>`** live component: RFC 7638 thumbprints of `/.well-known/audit-signing-key`, computed in-page with `createHash('sha256')`. Embedded in auditor persona, compliance overview, and audit-chain concept.
+    - **PR preview auto-comment**: `.github/workflows/docs-preview-comment.yml` posts a curated reviewer checklist on every docs PR (alongside Vercel's auto preview-URL comment). `apps/docs/.vercelignore` trims deploy bundle.
+    - **QoL adds** (max-width signal): `/api/docs` structured JSON index for AI consumers (companion to `/llms.txt`); `<RunnableExample/>` MDX wrapper for StackBlitz/CodeSandbox embeds; branded 404 page; `CHANGELOG.md`; `CONTRIBUTING.md`.
+    - **Bugfix**: `<SdkVersionBadges/>` displayed package directory names (`@aegis/sdk-ts`, `@aegis/cli`) instead of published names (`@aegis/sdk`, `aegis (cli)`).
+  Remaining for M-014 closure (operator-only — no further code work):
+    - `pnpm install` from repo root.
+    - Vercel project pointed at `apps/docs/` Root Directory.
+    - `docs.aegislabs.io` DNS.
+    - Env on Vercel: `AEGIS_API_BASE_URL`, `NEXT_PUBLIC_DOCS_URL`.
+- **Paths**: `apps/docs/**`, `tests/cross-package/docs-*.spec.ts`, `.github/workflows/docs.yml`, `.github/workflows/lighthouse-docs.yml`, `.github/workflows/docs-preview-comment.yml`
+- **Goal**: Live (not static) documentation — every customer-visible contract
+  renders from the running platform or workspace source. Drift becomes a
+  build break, not a customer ticket.
 
 ### M-015 · Python SDK
 - **STATUS**: ✅ landed by sid=a9198691 @ 2026-05-01 — 24 files, 70 tests green, mypy --strict clean, ruff clean, JWT byte-equivalent to TS SDK
