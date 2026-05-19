@@ -1,0 +1,53 @@
+---
+title: Billing API
+description: Stripe-backed plans, usage metering, and the pricing-discovery endpoint.
+---
+
+AEGIS billing is Stripe-backed. Plans, overage prices, and the trial cap
+are documented in [ADR-0014](https://github.com/klytics/aegis/blob/main/docs/decisions/0014-pricing-and-free-trial.md).
+
+## Pricing — live discovery
+
+```bash
+curl https://api.aegislabs.io/.well-known/pricing.json
+```
+
+Public, unauthenticated, `Cache-Control: public, max-age=3600`. This
+documentation page and the dashboard pricing page both consume it:
+
+<PricingTable />
+
+## Plan tiers
+
+| Tier        | Price        | Verifies              | Overage              |
+| ----------- | ------------ | --------------------- | -------------------- |
+| Free Trial  | $0           | 10K lifetime          | —                    |
+| Developer   | $49 / mo     | 50K / mo              | $0.0008 / verify     |
+| Team        | $299 / mo    | 500K / mo             | $0.0008 / verify     |
+| Scale       | $1,499 / mo  | 5M / mo               | $0.0008 / verify     |
+| Enterprise  | Custom       | Negotiated            | Negotiated           |
+
+Free trial exhaustion is a **lifetime product gate** — the denial reason
+is `TRIAL_EXHAUSTED` from the [denial precedence](/docs/concepts/denial-precedence).
+HTTP 402 (Payment Required).
+
+## Endpoints
+
+| Method | Path                                     | Purpose                                       |
+| ------ | ---------------------------------------- | --------------------------------------------- |
+| GET    | `/v1/billing/subscription`               | Current plan, usage, renewal date             |
+| POST   | `/v1/billing/portal-session`             | Create a Stripe Customer Portal session       |
+| POST   | `/v1/billing/checkout-session`           | Upgrade flow (creates Stripe Checkout)        |
+| POST   | `/v1/billing/webhook`                    | Stripe webhook receiver (signature-verified)  |
+
+The Stripe webhook handler is mounted at a separate signature-verified
+endpoint — never call it directly. Refer to
+[`docs/RUNBOOK.md` § Billing](https://github.com/klytics/aegis/blob/main/docs/RUNBOOK.md)
+for operational runbooks.
+
+## Usage metering
+
+Verify counts roll up nightly to Stripe metered prices. Failed Stripe
+metering does **not** block the verify hot path — failures surface in
+operator metrics, not in customer responses. See
+[ADR-0014](https://github.com/klytics/aegis/blob/main/docs/decisions/0014-pricing-and-free-trial.md) for the metering contract.

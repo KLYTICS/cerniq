@@ -1,0 +1,89 @@
+---
+title: Audit chain
+description: Append-only, hash-chained, signed event log. Third-party verifiable. GDPR-redactable without breaking the chain.
+---
+
+Every consequential decision AEGIS makes produces an `AuditEvent` row.
+The set of rows for a principal forms a hash chain — each row carries
+`prevHash` of the previous row's signed bytes, and the chain root is
+anchored by AEGIS's audit signing key.
+
+## Why a hash chain (and not just a database table)
+
+The chain gives **third-party verifiability**. A relying party, auditor,
+or regulator can replay an exported NDJSON slice and prove:
+
+1. No row was inserted between known rows (`prevHash` linkage).
+2. No row was mutated after signing (signature over canonical bytes).
+3. The chain originates from AEGIS's published signing key
+   (`/.well-known/audit-signing-key` returns the JWKS).
+
+A breach of the AEGIS database that tampered with rows would invalidate the
+signatures — and the published public key proves which rows were genuine.
+
+## Row shape
+
+```json
+{
+  "id": "evt_01HXYZ...",
+  "principalId": "prn_01HXYZ...",
+  "agentId": "agent_01HXYZ...",
+  "policyId": "pol_01HXYZ...",
+  "action": "verify",
+  "decision": "allowed",
+  "decisionReasonHash": "sha256:...",
+  "timestamp": "2026-05-08T14:32:11Z",
+  "prevHash": "sha256:...",
+  "signingKeyId": "kid-2026-q2",
+  "signature": "ed25519:..."
+}
+```
+
+Note: `decisionReason` is **hashed**, not stored in cleartext. This is the
+GDPR-erasability hack — the signature covers `decisionReasonHash`, so
+nulling the corresponding cleartext column (or never storing it) does not
+break verification. See [`docs/decisions/0006-audit-redactability.md`](https://github.com/klytics/aegis/blob/main/docs/decisions/0006-audit-redactability.md).
+
+## GDPR erasure flow
+
+```bash
+curl -X POST https://api.aegislabs.io/v1/compliance/audit/redact-event \
+  -H "X-AEGIS-API-Key: $AEGIS_API_KEY" \
+  -d '{ "eventId": "evt_01HXYZ..." }'
+```
+
+This nulls the PII fields in the row body. The hash and signature continue
+to cover `decisionReasonHash`, so the chain stays verifiable. A meta-row
+noting the redaction (who, when, which row) is itself appended to the
+chain — the act of redacting is auditable.
+
+## Offline verification
+
+The
+[`@aegis/verifier-rp`](https://github.com/klytics/aegis/tree/main/packages/verifier-rp)
+package verifies tokens **and** audit-chain exports offline. Useful for
+auditors who want to validate AEGIS independently:
+
+```ts
+import { AegisVerifier } from '@aegis/verifier-rp';
+import { readFileSync } from 'node:fs';
+
+const verifier = new AegisVerifier({
+  jwksUri: 'https://api.aegislabs.io/.well-known/audit-signing-key',
+});
+
+const ndjson = readFileSync('./audit-export.ndjson', 'utf-8');
+const result = await verifier.verifyAuditExport(ndjson);
+console.log(result.valid, result.brokenAt);
+```
+
+## Key rotation
+
+The JWKS at `/.well-known/audit-signing-key` lists both the current and
+previous public keys during a cutover window. Every row carries
+`signingKeyId` so a verifier knows which JWK to check. Rotation procedure
+lives in [`docs/decisions/0011-key-rotation-kms.md`](https://github.com/klytics/aegis/blob/main/docs/decisions/0011-key-rotation-kms.md).
+
+## Currently-published keys
+
+<JwksFingerprint />

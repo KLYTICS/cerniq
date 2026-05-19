@@ -1,0 +1,86 @@
+---
+title: Verify API
+description: The verify hot path. Returns allowed/denied with a typed denial reason. p99 < 200 ms warm.
+---
+
+`POST /v1/verify` is the single network round-trip for the verify loop.
+The endpoint walks the [denial precedence](/docs/concepts/denial-precedence)
+fail-closed pipeline and returns the first failure (or `allowed: true`).
+
+## Request
+
+```bash
+curl -X POST https://api.aegislabs.io/v1/verify \
+  -H "X-AEGIS-Verify-Key: $AEGIS_VERIFY_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "eyJhbGciOiJFZERTQSI...",
+    "action": "charge",
+    "amount": 49,
+    "currency": "USD",
+    "context": { "merchantDomain": "example.com" }
+  }'
+```
+
+The `X-AEGIS-Verify-Key` is the verify-only API key. Use it on the
+relying-party side. Never expose your `X-AEGIS-API-Key` (FULL scope) to
+the verify hot path.
+
+## Successful response
+
+```json
+{
+  "allowed": true,
+  "agentId": "agent_01HXYZ...",
+  "policyId": "pol_01HXYZ...",
+  "trustScore": 612,
+  "trustBand": "VERIFIED",
+  "validUntil": "2026-05-08T14:33:11Z",
+  "auditEventId": "evt_01HXYZ...",
+  "cacheTtlSeconds": 30
+}
+```
+
+Cache the response for up to `cacheTtlSeconds` (default 30) — see
+`VERIFY_RESULT_DEFAULT_TTL_SECONDS` in `@aegis/types`. The cache key is
+the token hash.
+
+## Denial response
+
+```json
+{
+  "allowed": false,
+  "denialReason": "SPEND_LIMIT_EXCEEDED",
+  "denialDetails": {
+    "spentUsd": 487.5,
+    "limitUsd": 500.0,
+    "windowEndsAt": "2026-05-09T00:00:00Z"
+  },
+  "auditEventId": "evt_01HXYZ..."
+}
+```
+
+The denial reason is one of the values from [denial
+precedence](/docs/concepts/denial-precedence). Build your retry / escalation /
+logging on the array's order — never on string equality alone.
+
+## Performance contract
+
+| Metric              | Target              |
+| ------------------- | ------------------- |
+| p50 (warm cache)    | < 40 ms             |
+| p99 (warm cache)    | < 200 ms            |
+| p99 (cache miss)    | < 350 ms            |
+| 5xx rate            | < 0.1% over 5 min   |
+
+The warm-cache path hits Redis for agent + policy + spend counter; the
+cache-miss path adds two Postgres reads. See [SRE persona](/docs/personas/sre).
+
+## Edge verification
+
+For environments where the round-trip is unacceptable, use the offline
+verifier [`@aegis/verifier-rp`](https://github.com/klytics/aegis/tree/main/packages/verifier-rp).
+It validates the same token against the JWKS published at
+`/.well-known/aegis-jwks.json` without contacting AEGIS at all. Spend
+limits and trust scores are not available in offline mode — design your
+policy scopes accordingly.

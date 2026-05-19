@@ -1,0 +1,95 @@
+---
+title: Relying-party verifier (@aegis/verifier-rp)
+description: Offline AEGIS token + audit-chain verification. JWKS-cached. Express, Fastify, Hono, and edge-runtime adapters.
+---
+
+`@aegis/verifier-rp` is the package merchants and downstream services ship
+when they want to verify AEGIS tokens **without** a network round-trip to
+AEGIS on the hot path. It validates the token's EdDSA signature against
+the JWKS published at `/.well-known/aegis-jwks.json`, with a small in-
+memory revocation cache (`/status` poll + invalidation hook).
+
+## Install
+
+```bash
+npm install @aegis/verifier-rp
+```
+
+## Quickstart
+
+```ts
+import { AegisVerifier } from '@aegis/verifier-rp';
+
+const verifier = new AegisVerifier({
+  jwksUri: 'https://api.aegislabs.io/.well-known/aegis-jwks.json',
+  getAgentPublicKey: async (agentId) => {
+    // The RP supplies how to resolve agent public keys. Typically:
+    // - a DB lookup if you've cached agent registration callbacks
+    // - or a direct HTTPS GET to /v1/agents/:id and cache locally
+    return await db.agents.findPublicKey(agentId);
+  },
+});
+
+const result = await verifier.verify(token);
+if (!result.allowed) {
+  console.error(result.denialReason);
+}
+```
+
+## What it does NOT cover
+
+Offline verification cannot enforce:
+
+- **Spend limits** — relies on AEGIS's atomic counter
+- **Trust scores** — relies on BATE recomputation
+- **Real-time anomaly detection** — relies on AEGIS signal ingestion
+
+Design your policy scopes accordingly: hard limits (action allow-list,
+TTL, signature, scope) are offline-enforceable; soft limits (spend, trust,
+anomaly) require the online verify path.
+
+## Replay defense
+
+LRU cache keyed on JWT `jti`. Configurable size; default 10,000 entries.
+Replay attempts return `INVALID_SIGNATURE` (or `REPLAY_DETECTED` if the
+operator opted out of the wire-level collapse — see WORK_BOARD M-016 open
+question).
+
+## Audit chain verification
+
+The same package verifies NDJSON audit exports offline — useful for
+auditors:
+
+```ts
+const ndjson = readFileSync('./audit-export.ndjson', 'utf-8');
+const result = await verifier.verifyAuditExport(ndjson);
+console.log(result.valid, result.firstInvalidEventId, result.count);
+```
+
+See [Compliance overview](/docs/compliance) for the third-party
+verification flow.
+
+## Adapters
+
+Drop-in middleware for the most common frameworks:
+
+```ts
+// Express
+import { expressAegis } from '@aegis/verifier-rp/express';
+app.use('/api', expressAegis(verifier));
+
+// Fastify
+import { fastifyAegis } from '@aegis/verifier-rp/fastify';
+await app.register(fastifyAegis, { verifier });
+
+// Hono (edge-runtime safe)
+import { honoAegis } from '@aegis/verifier-rp/hono';
+app.use('/api/*', honoAegis(verifier));
+```
+
+All adapters are tree-shakeable subpath exports — importing one does not
+bring in the others.
+
+## Source
+
+[`packages/verifier-rp/`](https://github.com/klytics/aegis/tree/main/packages/verifier-rp)

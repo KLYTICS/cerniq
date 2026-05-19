@@ -1,0 +1,53 @@
+---
+title: Developer
+description: Build with AEGIS. SDKs, quickstarts, MCP integration, recipes.
+---
+
+If you're integrating an AI agent with a service that performs real-world
+actions — charging cards, provisioning seats, calling APIs, writing files —
+AEGIS is the verification layer between the two.
+
+<SdkVersionBadges />
+
+## Five-minute path
+
+1. **Install** the SDK for your language — see badges above.
+2. **Mint a keypair** with `generateKeypair()`. Private key stays in your process.
+3. **Register the agent** via `aegis.agents.register({ publicKey })`. AEGIS only ever sees the public key.
+4. **Issue a scoped policy** with `aegis.policies.create({ scope, ttlSeconds })`.
+5. **Verify before acting** with `await aegis.verify(token)` — if `allowed === false`, do not perform the action.
+
+Full walkthroughs:
+
+- [TypeScript Quickstart](/docs/quickstart/typescript)
+- [Fintech: payments authorization](/docs/quickstart/fintech-payments)
+- [AI platforms: MCP tool calls](/docs/quickstart/ai-platform-tool-call)
+- [SaaS: SCIM seat provisioning](/docs/quickstart/saas-seat-provisioning)
+
+## SDK surface
+
+| Method                          | Purpose                                  |
+| ------------------------------- | ---------------------------------------- |
+| `aegis.agents.register(input)`  | Register a new agent public key          |
+| `aegis.agents.list()`           | List agents owned by this principal      |
+| `aegis.agents.show(id)`         | Inspect a single agent                   |
+| `aegis.agents.revoke(id)`       | Revoke an agent (irreversible)           |
+| `aegis.policies.create(input)`  | Issue a scoped, signed policy            |
+| `aegis.policies.list()`         | List active policies                     |
+| `aegis.policies.revoke(id)`     | Revoke a policy                          |
+| `aegis.verify(token)`           | The verify hot path                      |
+| `aegis.audit.list(params)`      | Paginated audit-event reader             |
+| `aegis.audit.export(params)`    | NDJSON streaming export for SOC2 evidence |
+
+Both TypeScript and Python SDKs preserve byte-identical JWT shapes — see
+the [denial precedence](/docs/concepts/denial-precedence) page for the wire
+contract relying parties build retry logic on.
+
+## Recipes
+
+| Need                                                   | Read                                                                                  |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| Verify offline (no network round-trip in the hot path) | [`@aegis/verifier-rp`](https://github.com/klytics/aegis/tree/main/packages/verifier-rp) |
+| Subscribe to lifecycle events                          | [Webhooks concept](/docs/concepts/webhooks)                                           |
+| Integrate with Claude Desktop / MCP                    | [`@aegis/mcp-server`](https://github.com/klytics/aegis/tree/main/packages/mcp-server) |
+| Add AEGIS to a LangChain agent                         | [`examples/ai-platform-tool-call`](https://github.com/klytics/aegis/tree/main/examples/ai-platform-tool-call) |

@@ -1,0 +1,64 @@
+---
+title: SaaS — SCIM seat provisioning
+description: SCIM-shaped agent provisioning. The cleanest greenfield wedge for AEGIS adoption.
+---
+
+Full runnable example:
+[`examples/saas-seat-provisioning/`](https://github.com/klytics/aegis/tree/main/examples/saas-seat-provisioning).
+
+## Why SCIM-shaped
+
+Enterprise customers already operate on SCIM for human seat provisioning.
+The same pattern works for **agent** seat provisioning — one agent identity
+per service account per customer, with a per-seat policy that bounds scope
+and spend.
+
+## Endpoints
+
+| Method  | Path                  | Maps to                                       |
+| ------- | --------------------- | --------------------------------------------- |
+| POST    | `/scim/v2/Agents`     | `aegis.agents.register({ publicKey, label })` |
+| GET     | `/scim/v2/Agents/:id` | `aegis.agents.show(id)`                       |
+| DELETE  | `/scim/v2/Agents/:id` | `aegis.agents.revoke(id)`                     |
+| POST    | `/scim/v2/Policies`   | `aegis.policies.create({ agentId, scope })`   |
+
+## Flow
+
+```ts
+// 1. Enterprise IDP provisions an agent seat via SCIM POST.
+const agent = await aegis.agents.register({
+  publicKey: scimRequest.body.publicKey,
+  label: scimRequest.body.userName,
+  metadata: {
+    scimExternalId: scimRequest.body.externalId,
+    department: scimRequest.body.department,
+  },
+});
+
+// 2. A default per-seat policy is issued automatically.
+const policy = await aegis.policies.create({
+  agentId: agent.id,
+  scope: {
+    actions: defaultActionsForDepartment(scimRequest.body.department),
+    spendLimitUsd: defaultSpendForDepartment(scimRequest.body.department),
+    minimumTrustBand: 'VERIFIED',
+  },
+  ttlSeconds: 60,
+});
+
+// 3. The SCIM response carries both the agent id and the policy id, so the
+//    enterprise IDP can track which agents have active authority.
+return {
+  id: agent.id,
+  externalId: scimRequest.body.externalId,
+  meta: { aegisPolicyId: policy.id },
+};
+```
+
+## Deprovisioning
+
+A SCIM DELETE on `/scim/v2/Agents/:id` maps to `aegis.agents.revoke(id)`,
+which is irreversible. All future verify requests using that agent's
+signature return `AGENT_REVOKED` from the [denial precedence](/docs/concepts/denial-precedence).
+The audit chain preserves the revocation event under
+`aegis.agent.revoked` (see [webhook events](/docs/concepts/webhooks)).

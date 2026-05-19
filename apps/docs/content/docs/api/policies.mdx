@@ -1,0 +1,71 @@
+---
+title: Policies API
+description: Issue, list, and revoke scoped, signed, time-bound policies.
+---
+
+A policy is a signed JWT (EdDSA) that binds an agent to a specific scope —
+which actions it may perform, with what spend ceiling, at what minimum
+trust band — for a bounded TTL.
+
+## Endpoints
+
+| Method | Path                 | Purpose                                        |
+| ------ | -------------------- | ---------------------------------------------- |
+| POST   | `/v1/policies`       | Create a scoped policy                         |
+| GET    | `/v1/policies`       | List active policies for the calling principal |
+| GET    | `/v1/policies/:id`   | Inspect a single policy                        |
+| DELETE | `/v1/policies/:id`   | Revoke a policy (sets `revokedAt`)             |
+
+Authentication: `X-AEGIS-API-Key` with **FULL** scope.
+
+## Create
+
+```bash
+curl -X POST https://api.aegislabs.io/v1/policies \
+  -H "X-AEGIS-API-Key: $AEGIS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agentId": "agent_01HXYZ...",
+    "scope": {
+      "actions": ["charge"],
+      "spendLimitUsd": 500,
+      "minimumTrustBand": "VERIFIED"
+    },
+    "ttlSeconds": 60
+  }'
+```
+
+Response (`201 Created`):
+
+```json
+{
+  "id": "pol_01HXYZ...",
+  "agentId": "agent_01HXYZ...",
+  "scope": { "actions": ["charge"], "spendLimitUsd": 500, "minimumTrustBand": "VERIFIED" },
+  "issuedAt": "2026-05-08T14:32:11Z",
+  "expiresAt": "2026-05-08T14:33:11Z",
+  "revokedAt": null,
+  "signedToken": "eyJhbGciOiJFZERTQSIsImtpZCI6ImtpZC0yMDI2LXEyIn0..."
+}
+```
+
+The `signedToken` is the JWT signed by AEGIS's policy signing key. The
+agent's authority token (the one passed to `/v1/verify`) embeds this
+policy id and is signed by the agent's private key.
+
+## TTL bounds
+
+`ttlSeconds` is bounded between `TOKEN_TTL_MIN_SECONDS` (30) and
+`TOKEN_TTL_MAX_SECONDS` (60) — see `packages/types/src/constants.ts`. The
+policy as a record may live longer (`POLICY_TTL_MAX_DAYS = 365`), but
+authority tokens minted against it are short-lived.
+
+## Revocation
+
+```bash
+curl -X DELETE https://api.aegislabs.io/v1/policies/pol_01HXYZ... \
+  -H "X-AEGIS-API-Key: $AEGIS_API_KEY"
+```
+
+Sets `revokedAt`. Future verify requests using this policy fail with
+`POLICY_REVOKED` from the [denial precedence](/docs/concepts/denial-precedence).

@@ -1,0 +1,14 @@
+# Files Vercel doesn't need for the docs build. Reduces the upload bundle
+# size and excludes unrelated repo artifacts from the build context.
+**/*.test.ts
+**/*.spec.ts
+tests/
+apps/api/
+infra/
+docs/audit_2026q2/
+docs/finance/
+docs/spec/AEGIS-Pitch-Deck.pptx
+*.docx
+*.pptx
+*.xlsx
+.lighthouseci/

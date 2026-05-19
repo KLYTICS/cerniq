@@ -1,0 +1,12 @@
+.next
+.source
+node_modules
+*.tsbuildinfo
+next-env.d.ts
+
+# Lighthouse CI artifacts
+.lighthouseci/
+
+# Generated MDX, regenerated pre-build by scripts/generate-*.mjs.
+content/docs/api/(generated)/
+content/docs/sdk/(generated)/
