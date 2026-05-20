@@ -1,6 +1,5 @@
 @import "tailwindcss";
-@import "fumadocs-ui/css/preset.css" layer(preset);
-@import "fumadocs-ui/css/neutral.css" layer(theme);
+@import "fumadocs-ui/style.css";
 
 /* AEGIS brand tokens — mirrored from brand/02_design-tokens.json */
 :root {

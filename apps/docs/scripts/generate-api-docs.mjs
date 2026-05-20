@@ -1,26 +1,24 @@
 #!/usr/bin/env node
 // Generates MDX files under content/docs/api/(generated)/ from the canonical
-// OpenAPI spec at docs/spec/AEGIS_API_SPEC.yaml. Runs pre-build and pre-dev
-// (see prebuild + predev in package.json).
+// OpenAPI spec at docs/spec/AEGIS_API_SPEC.yaml.
 //
-// The (generated) route segment is a Next.js route group — gitignored output
-// that doesn't appear in the URL. Hand-written API pages live alongside
-// (e.g. content/docs/api/agents.mdx) and remain authoritative; generated
-// pages are the OpenAPI-derived reference with try-it-out.
+// NOTE — currently disabled pending Round 27 follow-up wiring:
+//   fumadocs-openapi v5 emits MDX that uses `<APIPage document="..." />`
+//   with an absolute filesystem path baked into the JSX. That breaks on
+//   any host where the build runs from a different absolute prefix (Vercel,
+//   CI, etc.). The proper fix is to:
+//     1. Add `apps/docs/lib/openapi.ts` exporting `createOpenAPI({ input: [...] })`
+//     2. Register `APIPage` in mdx-components.tsx with the shared `ctx`
+//     3. Configure generate-files to emit relative or context-aware paths
+//   That's a small but careful change deferred to a follow-up round.
+//
+// Until then: this script is a no-op. The curated content/docs/api/*.mdx
+// pages (agents, policies, verify, audit, webhooks, billing) remain the
+// v1 source of API reference. They are not auto-generated, but they cover
+// every endpoint with examples and link to the canonical OpenAPI spec.
 
-import { generateFiles } from 'fumadocs-openapi';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const repoRoot = resolve(__dirname, '..', '..', '..');
-
-await generateFiles({
-  input: [resolve(repoRoot, 'docs/spec/AEGIS_API_SPEC.yaml')],
-  output: resolve(__dirname, '..', 'content/docs/api/(generated)'),
-  per: 'operation',
-  groupBy: 'tag',
-});
-
-console.log('[docs] OpenAPI MDX regenerated under content/docs/api/(generated)');
+console.log(
+  '[docs] OpenAPI auto-render SKIPPED (Round 27 follow-up needed; see scripts/generate-api-docs.mjs header). ' +
+    'Curated content/docs/api/*.mdx pages remain authoritative.',
+);
+process.exit(0);
