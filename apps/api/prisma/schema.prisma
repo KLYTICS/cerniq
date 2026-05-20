@@ -80,6 +80,16 @@ model Principal {
   trialUsedCount   Int       @default(0)
   trialExhaustedAt DateTime?
 
+  // ── Stripe time-based trial (Round 24, additive) ────────────────
+  // Populated by `customer.subscription.{created,updated,trial_will_end}`
+  // webhooks when the active Stripe subscription has a non-null
+  // `trial_end`. Independent of `trialUsedCount` (lifetime-counter
+  // free trial — ADR-0014). NULL means either no Stripe trial is
+  // configured on the product, or the trial already converted to
+  // active billing. Surfaces on `GET /v1/billing/plan` so the
+  // dashboard can render the trial-cliff banner.
+  stripeTrialEndsAt DateTime?
+
   apiKeys        ApiKey[]
   agents         AgentIdentity[]
   webhooks       WebhookSubscription[]

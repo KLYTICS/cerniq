@@ -17,6 +17,8 @@ class ErrorCatalogEntry(TypedDict, total=False):
     backoff: str  # one of: none, linear, exponential, on_retry_after_header
     customerMessage: str
     category: str  # auth|validation|policy|rate_limit|billing|crypto|transient|internal
+    next: str  # one-line actionable next step (Round 25)
+    docsUrl: str  # stable docs URL for this error (Round 25)
 
 
 GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
@@ -27,6 +29,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "Agent identity not found.",
         "category": "policy",
+        "next": "Register the agent via aegis.agents.register(...) or verify the agentId is correct",
+        "docsUrl": "https://docs.aegislabs.io/errors/agent_not_found",
     },
     "agent_revoked": {
         "className": "AgentRevokedError",
@@ -35,6 +39,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "Agent identity has been revoked.",
         "category": "policy",
+        "next": "Register a fresh agent — revocation is permanent and intentional",
+        "docsUrl": "https://docs.aegislabs.io/errors/agent_revoked",
     },
     "already_rotated": {
         "className": "AlreadyRotatedError",
@@ -43,6 +49,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "This API key has already been rotated. Rotate the active key instead.",
         "category": "auth",
+        "next": "Use the rotated key returned by the previous rotation call",
+        "docsUrl": "https://docs.aegislabs.io/errors/already_rotated",
     },
     "anomaly_flagged": {
         "className": "AnomalyFlaggedError",
@@ -51,6 +59,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "Behavioral anomaly detected; agent has been quarantined.",
         "category": "policy",
+        "next": "Review the audit log for the flagged event; contact support@aegislabs.io if false-positive",
+        "docsUrl": "https://docs.aegislabs.io/errors/anomaly_flagged",
     },
     "auth_required": {
         "className": "AuthenticationError",
@@ -59,6 +69,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "Authentication required. Provide a valid AEGIS API key.",
         "category": "auth",
+        "next": "Set AEGIS_API_KEY in your environment, or pass apiKey to the SDK constructor",
+        "docsUrl": "https://docs.aegislabs.io/errors/auth_required",
     },
     "forbidden": {
         "className": "AuthorizationError",
@@ -67,6 +79,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "You are not permitted to perform this action.",
         "category": "auth",
+        "next": "Use an API key with the required scope, or contact your principal owner",
+        "docsUrl": "https://docs.aegislabs.io/errors/forbidden",
     },
     "upstream_unavailable": {
         "className": "CircuitOpenError",
@@ -76,6 +90,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "backoff": "exponential",
         "customerMessage": "An upstream service is temporarily unavailable. Retry shortly.",
         "category": "transient",
+        "next": "Upstream circuit is open; retry with backoff. The breaker auto-closes after a probe succeeds",
+        "docsUrl": "https://docs.aegislabs.io/errors/upstream_unavailable",
     },
     "conflict": {
         "className": "ConflictError",
@@ -84,6 +100,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "The request conflicts with the current state of the resource.",
         "category": "validation",
+        "next": "Re-read the resource, reconcile your local state, and retry",
+        "docsUrl": "https://docs.aegislabs.io/errors/conflict",
     },
     "idempotency_conflict": {
         "className": "IdempotencyConflictError",
@@ -92,6 +110,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "An idempotency key was reused with a different request body.",
         "category": "validation",
+        "next": "Reuse a unique Idempotency-Key per distinct request body",
+        "docsUrl": "https://docs.aegislabs.io/errors/idempotency_conflict",
     },
     "internal_error": {
         "className": "InternalError",
@@ -101,6 +121,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "backoff": "exponential",
         "customerMessage": "An internal error occurred. The request can be retried.",
         "category": "internal",
+        "next": "Retry with exponential backoff; if persistent, check https://status.aegislabs.io",
+        "docsUrl": "https://docs.aegislabs.io/errors/internal_error",
     },
     "invalid_signature": {
         "className": "InvalidSignatureError",
@@ -109,6 +131,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "Request signature is invalid or expired.",
         "category": "crypto",
+        "next": "Check clock skew (NTP), key match (agentId ↔ privateKey), and token TTL (default 60s)",
+        "docsUrl": "https://docs.aegislabs.io/errors/invalid_signature",
     },
     "not_found": {
         "className": "NotFoundError",
@@ -117,6 +141,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "The requested resource was not found.",
         "category": "validation",
+        "next": "Verify the resource id exists for your principal — list with the corresponding *.list() method",
+        "docsUrl": "https://docs.aegislabs.io/errors/not_found",
     },
     "plan_limit_exceeded": {
         "className": "PlanLimitExceededError",
@@ -125,6 +151,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "Plan monthly verify quota exceeded. Upgrade or wait for the next period.",
         "category": "billing",
+        "next": "Upgrade at https://aegislabs.io/billing, or wait for the monthly period reset",
+        "docsUrl": "https://docs.aegislabs.io/errors/plan_limit_exceeded",
     },
     "policy_expired": {
         "className": "PolicyExpiredError",
@@ -133,6 +161,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "Agent policy has expired. Re-authorize the agent.",
         "category": "policy",
+        "next": "Mint a new policy via aegis.policies.create(agentId, ...) with a future expiresAt",
+        "docsUrl": "https://docs.aegislabs.io/errors/policy_expired",
     },
     "policy_revoked": {
         "className": "PolicyRevokedError",
@@ -141,6 +171,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "Agent policy was revoked.",
         "category": "policy",
+        "next": "Mint a new policy — revocation is permanent; revoked policies cannot be reactivated",
+        "docsUrl": "https://docs.aegislabs.io/errors/policy_revoked",
     },
     "rate_limited": {
         "className": "RateLimitedError",
@@ -150,14 +182,18 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "backoff": "on_retry_after_header",
         "customerMessage": "Rate limit exceeded. Honor the Retry-After header before retrying.",
         "category": "rate_limit",
+        "next": "Wait the Retry-After seconds before retrying; consider request batching",
+        "docsUrl": "https://docs.aegislabs.io/errors/rate_limited",
     },
     "scope_not_granted": {
         "className": "ScopeNotGrantedError",
         "code": "scope_not_granted",
         "httpStatus": 403,
         "retryable": False,
-        "customerMessage": "Action not in agent’s allowed scopes.",
+        "customerMessage": "Action not in agent's allowed scopes.",
         "category": "policy",
+        "next": "Add the action's scope to the agent's policy, or use a policy that already grants it",
+        "docsUrl": "https://docs.aegislabs.io/errors/scope_not_granted",
     },
     "service_unavailable": {
         "className": "ServiceUnavailableError",
@@ -167,6 +203,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "backoff": "exponential",
         "customerMessage": "The service is temporarily unavailable. Retry shortly.",
         "category": "transient",
+        "next": "Retry with exponential backoff; check https://status.aegislabs.io",
+        "docsUrl": "https://docs.aegislabs.io/errors/service_unavailable",
     },
     "spend_limit_exceeded": {
         "className": "SpendLimitExceededError",
@@ -175,6 +213,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "Agent spend limit exceeded for the current period.",
         "category": "billing",
+        "next": "Wait for the period reset or update the policy's spendLimit via aegis.policies.create(...)",
+        "docsUrl": "https://docs.aegislabs.io/errors/spend_limit_exceeded",
     },
     "trial_exhausted": {
         "className": "TrialExhaustedError",
@@ -183,6 +223,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "Free trial verify cap reached. Upgrade to a paid plan to continue.",
         "category": "billing",
+        "next": "Upgrade at https://aegislabs.io/billing — lifetime trial cap is intentional",
+        "docsUrl": "https://docs.aegislabs.io/errors/trial_exhausted",
     },
     "trust_score_too_low": {
         "className": "TrustScoreTooLowError",
@@ -191,6 +233,8 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "Agent trust score is below the configured threshold.",
         "category": "policy",
+        "next": "Build agent reputation over time, or lower the relying party's minTrustBand requirement",
+        "docsUrl": "https://docs.aegislabs.io/errors/trust_score_too_low",
     },
     "invalid_request": {
         "className": "ValidationError",
@@ -199,5 +243,7 @@ GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {
         "retryable": False,
         "customerMessage": "The request payload failed validation.",
         "category": "validation",
+        "next": "Check the request body against the OpenAPI schema or the SDK types",
+        "docsUrl": "https://docs.aegislabs.io/errors/invalid_request",
     },
 }

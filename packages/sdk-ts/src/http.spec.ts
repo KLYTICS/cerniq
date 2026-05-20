@@ -90,6 +90,8 @@ describe('nextDelayMs (catalog-driven backoff)', () => {
     backoff,
     customerMessage: 'x',
     category: 'transient' as const,
+    next: 'retry the request',
+    docsUrl: 'https://docs.aegislabs.io/errors/whatever',
   });
 
   test('none/undefined backoff returns null', () => {

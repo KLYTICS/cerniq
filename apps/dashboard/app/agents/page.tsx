@@ -11,6 +11,8 @@ import {
   type AgentListResult,
 } from '../../lib/api-client';
 import { authConfigured } from '../../lib/auth';
+import { loadPlan } from '../../lib/billing';
+import { TrialCliffBanner } from '../billing/_components/TrialCliffBanner';
 import { AgentMetricStrip } from './components/AgentMetricStrip';
 import { AgentTable } from './components/AgentTable';
 import { RegisterAgentForm } from './components/RegisterAgentForm';
@@ -52,7 +54,13 @@ export default async function AgentsPage({ searchParams }: PageProps) {
     limit: 50,
   };
 
-  const outcome = await safeListAgents(filter);
+  // Trial-cliff banner is best-effort: a plan-fetch failure must not block
+  // the agents view (per dashboard CLAUDE.md "honest error states"). Render
+  // the banner only when the plan loads cleanly.
+  const [outcome, planLoad] = await Promise.all([
+    safeListAgents(filter),
+    loadPlan(),
+  ]);
 
   return (
     <section className="aegis-page">
@@ -68,6 +76,8 @@ export default async function AgentsPage({ searchParams }: PageProps) {
           {authConfigured() ? <RegisterAgentForm /> : null}
         </div>
       </header>
+
+      {planLoad.ok ? <TrialCliffBanner plan={planLoad.plan} compact /> : null}
 
       {outcome.error ? (
         <div className="data-empty error" role="alert">

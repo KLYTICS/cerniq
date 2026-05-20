@@ -171,6 +171,18 @@ export class PlanSummaryDto {
       'ISO timestamp at which the lifetime cap was first hit. Null while still inside the cap.',
   })
   trialExhaustedAt!: string | null;
+
+  // ── Stripe time-based trial (Round 24) ──────────────────────────────────
+  // Mirrors `subscription.trial_end` for paid-tier subscriptions that were
+  // created with a Stripe-side trial period. Null when no trial is active.
+  // Independent of the lifetime counter above; the dashboard banner fires
+  // on whichever cliff is closer.
+
+  @ApiPropertyOptional({
+    description:
+      'ISO timestamp at which the Stripe-side time-based trial ends. Null when no trial is active.',
+  })
+  stripeTrialEndsAt!: string | null;
 }
 
 export class WebhookAckDto {
@@ -310,6 +322,7 @@ export class BillingController {
         subscriptionStatus: true,
         stripeCustomerId: true,
         stripeSubscriptionId: true,
+        stripeTrialEndsAt: true,
       },
     });
     if (!principal) {
@@ -348,6 +361,9 @@ export class BillingController {
       subscriptionStatus: principal.subscriptionStatus,
       stripeCustomerId: principal.stripeCustomerId,
       stripeSubscriptionId: principal.stripeSubscriptionId,
+      stripeTrialEndsAt: principal.stripeTrialEndsAt
+        ? principal.stripeTrialEndsAt.toISOString()
+        : null,
       ...trialFields,
     };
   }

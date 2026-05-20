@@ -6,7 +6,28 @@
 npm install @aegis/sdk
 ```
 
-## Quickstart
+## Quickstart — one call
+
+Round 25 — `Aegis.quickstart()` collapses the canonical 5-step flow into a
+single call. Reads `AEGIS_API_KEY` from env, generates and stores a
+keypair, registers the agent, mints a default policy, and returns a
+pre-bound signer:
+
+```ts
+import { Aegis } from '@aegis/sdk';
+
+const { aegis, sign } = await Aegis.quickstart({ label: 'my-first-agent' });
+
+const token = await sign({ action: 'commerce.purchase', amount: 100, currency: 'USD' });
+const result = await aegis.verify(token);
+console.log(result.valid ? 'ok' : result.denialReason);
+```
+
+The keypair lives on disk at `~/.aegis/keys/my-first-agent.json` (Node),
+in IndexedDB (browser), or in-memory (Cloudflare Workers / Vercel Edge).
+Pass `storage:` to override — see [Key storage](#key-storage) below.
+
+## Quickstart — explicit (the underlying 5 steps)
 
 ```ts
 import { Aegis, generateKeypair } from '@aegis/sdk';
@@ -66,10 +87,62 @@ if (!result.valid) {
 - **Revocation is instant.** `aegis.agents.revoke(agentId)` propagates to the
   edge cache in seconds; existing tokens immediately fail verification.
 
-## Runtime
+## Runtime + regions
 
-Works in Node.js ≥ 18, Cloudflare Workers, Deno, and modern browsers.
-Crypto uses `@noble/ed25519` (audited, zero native deps).
+```ts
+Aegis.runtime();      // 'node' | 'edge' | 'browser' | 'bun' | 'deno' | 'cloudflare-workers' | 'unknown'
+Aegis.capabilities(); // { runtime, hasFilesystem, hasBrowserStorage, hasWebCrypto, hasFetch }
+```
+
+Region selection (US/EU/APAC) — set `AEGIS_REGION=eu` in env or pass
+`new Aegis({ region: 'eu' })`. Explicit `baseUrl` and `AEGIS_API_URL`
+env take precedence so self-hosted AEGIS deployments work without code
+changes.
+
+## Key storage
+
+```ts
+import { fileSystemKeyStorage, indexedDBKeyStorage, memoryKeyStorage } from '@aegis/sdk';
+
+// Node: ~/.aegis/keys/<name>.json, mode 0600 (default on Node).
+const storage = fileSystemKeyStorage();
+
+// Browser: origin-scoped IndexedDB.
+// const storage = indexedDBKeyStorage();
+
+// Edge / tests: in-process Map.
+// const storage = memoryKeyStorage();
+
+const bundle = await Aegis.quickstart({ label: 'prod-agent', storage });
+```
+
+For production browser flows or any high-stakes context, use a KMS-backed
+adapter (the SDK ships the `KmsKeyStorage` shape; provider implementations
+land in companion `@aegis/adapter-*` packages).
+
+## Errors — every error tells you what to do
+
+Round 25 — every `AegisError` carries `next` and `docsUrl`:
+
+```ts
+import { AegisError } from '@aegis/sdk';
+
+try {
+  await aegis.verify(token);
+} catch (err) {
+  if (err instanceof AegisError) {
+    console.error(err.message);         // customer-safe message
+    console.error('Next:', err.next);   // one-line fix
+    console.error('Docs:', err.docsUrl);
+  }
+}
+```
+
+## Runtime support
+
+Works in Node.js ≥ 18, Cloudflare Workers, Deno, Bun, Vercel Edge Runtime,
+and modern browsers. Crypto uses `@noble/ed25519` (audited, zero native
+deps).
 
 ## License
 

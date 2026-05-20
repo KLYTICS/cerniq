@@ -1,0 +1,46 @@
+{
+  "name": "@aegis/adapter-aws-lambda",
+  "version": "0.1.0-preview",
+  "description": "Drop-in AEGIS verification helpers for AWS Lambda handlers (API Gateway v1/v2 + Lambda function URLs).",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "@aegis/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@aegis/sdk": "workspace:*",
+    "@types/node": "^20.14.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.9"
+  },
+  "keywords": [
+    "aegis",
+    "aws",
+    "lambda",
+    "serverless",
+    "api-gateway",
+    "agent-identity",
+    "verify"
+  ]
+}

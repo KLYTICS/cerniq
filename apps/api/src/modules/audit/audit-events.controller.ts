@@ -14,13 +14,39 @@ import type { Response } from 'express';
 import { Auth } from '../../common/decorators/auth.decorator';
 import type { AuthenticatedKey } from '../auth/api-key.service';
 import { AuditService } from './audit.service';
-import { AuditQueryDto } from './audit.dto';
+import { AuditEventsQueryDto, AuditLogResponseDto, AuditQueryDto } from './audit.dto';
 
 @ApiTags('Audit')
 @ApiSecurity('ApiKeyAuth')
 @Controller('audit-events')
 export class AuditEventsController {
   constructor(private readonly audit: AuditService) {}
+
+  /**
+   * GET /v1/audit-events
+   *
+   * Principal-wide paginated audit list. Round 24 Lane B added the
+   * `?stripeEventId=` filter so operators can reconcile Stripe webhook
+   * activity to the matching audit row(s) without fanning out across
+   * agents. Other filters: `from`/`to` (ISO timestamps), `limit`, `cursor`.
+   *
+   * Same wire shape as `GET /v1/agents/:agentId/audit` so dashboards can
+   * reuse rendering without branching by scope.
+   */
+  @Get()
+  @ApiOperation({
+    summary: 'Paginated principal-wide audit log.',
+    description:
+      'Returns audit events for the calling principal, newest first. Use ' +
+      '`?stripeEventId=evt_…` to reconcile a Stripe activity item with the ' +
+      'AEGIS audit chain (Round 24 Lane B). Other filters: from, to, limit, cursor.',
+  })
+  list(
+    @Auth() auth: AuthenticatedKey,
+    @Query() query: AuditEventsQueryDto,
+  ): Promise<AuditLogResponseDto> {
+    return this.audit.listTenant(auth.principalId, query);
+  }
 
   /**
    * GET /v1/audit-events/export

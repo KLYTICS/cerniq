@@ -38,6 +38,21 @@ from .errors import (
     ServerError,
     ValidationError,
 )
+from .key_storage import (
+    KeyStorage,
+    KmsKeyStorage,
+    StoredKey,
+    default_key_storage,
+    file_system_key_storage,
+    memory_key_storage,
+)
+from .quickstart import QuickstartBundle, quickstart
+from .runtime import (
+    PythonRuntime,
+    RuntimeCapabilities,
+    capabilities,
+    detect_runtime,
+)
 from .models import (
     AgentPolicy,
     AgentRecord,
@@ -85,7 +100,9 @@ __all__ = [
     "ConflictError",
     "Currency",
     "DenialReason",
+    "KeyStorage",
     "Keypair",
+    "KmsKeyStorage",
     "NetworkError",
     "NotFoundError",
     "PolicyCategory",
@@ -93,7 +110,10 @@ __all__ = [
     "PolicyRecord",
     "PolicyScope",
     "PolicyStatus",
+    "PythonRuntime",
+    "QuickstartBundle",
     "RateLimitedError",
+    "RuntimeCapabilities",
     "ReportAccepted",
     "ReportEventType",
     "ReportRequest",
@@ -101,6 +121,7 @@ __all__ = [
     "SignContext",
     "SignalSeverity",
     "SpendLimit",
+    "StoredKey",
     "TrustBand",
     "ValidationError",
     "VerifyRequest",
@@ -109,8 +130,14 @@ __all__ = [
     "__version__",
     "b64u_decode",
     "b64u_encode",
+    "capabilities",
     "decode_unsafe",
+    "default_key_storage",
+    "detect_runtime",
+    "file_system_key_storage",
     "generate_keypair",
+    "memory_key_storage",
+    "quickstart",
     "sign_agent_token",
     "verify_agent_token",
 ]

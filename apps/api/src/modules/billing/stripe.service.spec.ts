@@ -24,13 +24,24 @@ interface FakePrincipalRow {
   stripeSubscriptionId: string | null;
   subscriptionStatus?: string | null;
   stripeOverageItemId?: string | null;
+  stripeTrialEndsAt?: Date | null;
 }
 
-function makePrismaStub(initial: FakePrincipalRow[]) {
+function makePrismaStub(
+  initial: FakePrincipalRow[],
+  opts: { hasStripeTrialEndsAtColumn?: boolean } = {},
+) {
   const rows = new Map(initial.map((p) => [p.id, { ...p }]));
+  // Round 25 supplement audit fix W14 — the self-check calls
+  // `$queryRawUnsafe` against information_schema. Mock that here.
+  const $queryRawUnsafe = jest.fn(async () => {
+    if (opts.hasStripeTrialEndsAtColumn === false) return [];
+    return [{ column_name: 'stripeTrialEndsAt' }];
+  });
 
   return {
     rows,
+    $queryRawUnsafe,
     principal: {
       findUnique: jest.fn(async ({ where }: { where: { id: string } }) => {
         // Return a snapshot (clone) so subsequent updates don't mutate the
@@ -218,6 +229,82 @@ function build(overrides: {
 // ─────────────────────────────────────────────────────────────────────────
 
 describe('StripeService', () => {
+  describe('onModuleInit() — schema self-check (Round 25 supplement W14)', () => {
+    it('stays quiet when stripeTrialEndsAt column exists', async () => {
+      const { svc, prisma } = build();
+      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+      try {
+        await svc.onModuleInit();
+        expect(prisma.$queryRawUnsafe).toHaveBeenCalled();
+        // type-rationale: jest infers the mock's call-tuple as `[]` here;
+        // cast through unknown to read the first arg as a string.
+        const query = (prisma.$queryRawUnsafe.mock.calls[0] as unknown as [string])?.[0] ?? '';
+        expect(query).toContain("table_name = 'Principal'");
+        expect(query).toContain("column_name = 'stripeTrialEndsAt'");
+        const errorCalls = errorSpy.mock.calls.filter((c) =>
+          String(c[0]).includes('SCHEMA DRIFT'),
+        );
+        expect(errorCalls).toHaveLength(0);
+      } finally {
+        errorSpy.mockRestore();
+      }
+    });
+
+    it('logs SCHEMA DRIFT when stripeTrialEndsAt column is missing', async () => {
+      // build() uses makePrismaStub() — pass the option through.
+      const fakeStripe = makeFakeStripe();
+      const factory: StripeFactory = jest.fn(() => fakeStripe) as unknown as StripeFactory;
+      const prisma = makePrismaStub([], { hasStripeTrialEndsAtColumn: false });
+      const redis = makeRedisStub();
+      const config = makeConfigStub();
+      const usage = makeUsageGuardStub();
+      const audit = makeAuditStub();
+      const svc = new StripeService(
+        prisma as unknown as import('../../common/prisma/prisma.service').PrismaService,
+        redis as unknown as import('../../common/redis/redis.service').RedisService,
+        config,
+        usage as unknown as import('./usage-guard.service').UsageGuardService,
+        audit as unknown as import('../audit/audit.service').AuditService,
+        factory,
+      );
+      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+      try {
+        await svc.onModuleInit();
+        const errorCalls = errorSpy.mock.calls.filter((c) =>
+          String(c[0]).includes('SCHEMA DRIFT'),
+        );
+        expect(errorCalls).toHaveLength(1);
+        expect(String(errorCalls[0]?.[0])).toContain('20260520000000_add_stripe_trial_ends_at');
+        // Message must name the operator action — the runbook substring may
+        // be either `prisma migrate deploy` or the pnpm-script equivalent.
+        expect(String(errorCalls[0]?.[0])).toMatch(/prisma:migrate|prisma migrate/);
+      } finally {
+        errorSpy.mockRestore();
+      }
+    });
+
+    it('swallows self-check failures so boot is never gated', async () => {
+      const fakeStripe = makeFakeStripe();
+      const factory: StripeFactory = jest.fn(() => fakeStripe) as unknown as StripeFactory;
+      const prisma = makePrismaStub([]);
+      prisma.$queryRawUnsafe.mockRejectedValueOnce(new Error('connection refused'));
+      const redis = makeRedisStub();
+      const config = makeConfigStub();
+      const usage = makeUsageGuardStub();
+      const audit = makeAuditStub();
+      const svc = new StripeService(
+        prisma as unknown as import('../../common/prisma/prisma.service').PrismaService,
+        redis as unknown as import('../../common/redis/redis.service').RedisService,
+        config,
+        usage as unknown as import('./usage-guard.service').UsageGuardService,
+        audit as unknown as import('../audit/audit.service').AuditService,
+        factory,
+      );
+      // Must NOT throw.
+      await expect(svc.onModuleInit()).resolves.toBeUndefined();
+    });
+  });
+
   describe('isEnabled()', () => {
     it('false when STRIPE_SECRET_KEY absent', () => {
       const { svc } = build({ config: { stripeSecretKey: undefined } });
@@ -445,6 +532,77 @@ describe('StripeService', () => {
       expect(prisma.rows.get('p1')?.planTier).toBe('FREE');
       expect(prisma.rows.get('p1')?.stripeSubscriptionId).toBeNull();
       expect(usage.invalidatePlanCache).toHaveBeenCalledWith('p1');
+    });
+
+    it('customer.subscription.trial_will_end persists stripeTrialEndsAt and audits', async () => {
+      const trialEnd = Math.floor(Date.now() / 1000) + 3 * 86_400;
+      const { svc, prisma, audit } = build({
+        principals: [
+          {
+            id: 'p1',
+            email: 'a@b',
+            planTier: 'DEVELOPER',
+            stripeCustomerId: 'cus_trial',
+            stripeSubscriptionId: 'sub_trial',
+          },
+        ],
+      });
+      const out = await svc.handleWebhookEvent(
+        ev({
+          id: 'evt_trial_will_end_1',
+          type: 'customer.subscription.trial_will_end',
+          data: {
+            object: {
+              id: 'sub_trial',
+              customer: 'cus_trial',
+              trial_end: trialEnd,
+            },
+          },
+        }),
+      );
+      expect(out).toEqual({ handled: true, principalId: 'p1' });
+      const stored = prisma.rows.get('p1')?.stripeTrialEndsAt;
+      expect(stored).toBeInstanceOf(Date);
+      expect(stored?.getTime()).toBe(trialEnd * 1000);
+      // Plan tier unchanged — trial_will_end is a heads-up, not a state mutation.
+      expect(prisma.rows.get('p1')?.planTier).toBe('DEVELOPER');
+      const trialCalls = audit.append.mock.calls.filter(
+        (c) => c[0].action === 'billing.trial_will_end',
+      );
+      expect(trialCalls).toHaveLength(1);
+      expect(trialCalls[0][0]).toMatchObject({
+        principalId: 'p1',
+        action: 'billing.trial_will_end',
+        policySnapshot: {
+          stripeEventId: 'evt_trial_will_end_1',
+          subscriptionId: 'sub_trial',
+          customerId: 'cus_trial',
+        },
+      });
+    });
+
+    it('customer.subscription.trial_will_end with no linked principal returns handled=false', async () => {
+      const { svc, audit } = build();
+      const out = await svc.handleWebhookEvent(
+        ev({
+          id: 'evt_trial_orphan',
+          type: 'customer.subscription.trial_will_end',
+          data: {
+            object: {
+              id: 'sub_orphan',
+              customer: 'cus_orphan',
+              trial_end: Math.floor(Date.now() / 1000) + 86_400,
+            },
+          },
+        }),
+      );
+      expect(out.handled).toBe(false);
+      // No audit row when no principal is found — silent loss is impossible
+      // because the warning is logged and the SETNX idempotency key remains
+      // set so Stripe's retry produces the same no-op result.
+      expect(audit.append).not.toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'billing.trial_will_end' }),
+      );
     });
 
     it('unknown event type returns handled=false (no error)', async () => {

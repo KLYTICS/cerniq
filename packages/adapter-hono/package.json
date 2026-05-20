@@ -1,0 +1,47 @@
+{
+  "name": "@aegis/adapter-hono",
+  "version": "0.1.0-preview",
+  "description": "Drop-in AEGIS verification middleware for Hono. Edge-safe; works on Workers, Vercel Edge, Deno, Bun, and Node.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "@aegis/sdk": "workspace:*",
+    "hono": ">=4"
+  },
+  "devDependencies": {
+    "@aegis/sdk": "workspace:*",
+    "@types/node": "^20.14.0",
+    "hono": "^4.6.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.9"
+  },
+  "keywords": [
+    "aegis",
+    "hono",
+    "middleware",
+    "edge",
+    "agent-identity",
+    "verify"
+  ]
+}

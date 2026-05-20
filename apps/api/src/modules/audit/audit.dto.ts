@@ -27,6 +27,23 @@ export class AuditQueryDto {
   cursor?: string;
 }
 
+/**
+ * Query params for `GET /v1/audit-events` (principal-wide audit list).
+ * Extends `AuditQueryDto` with the `stripeEventId` filter so operators
+ * can reconcile a Stripe activity item to the matching audit row(s)
+ * without fanning out across agents.
+ */
+export class AuditEventsQueryDto extends AuditQueryDto {
+  @ApiPropertyOptional({
+    description:
+      "Filter to audit events whose `policySnapshot.stripeEventId` equals the given Stripe event id (e.g. 'evt_1Q8…'). " +
+      'Used for forensic reconciliation between Stripe activity and the AEGIS audit chain. Postgres-only — relies on a JSON path filter.',
+  })
+  @IsOptional()
+  @IsString()
+  stripeEventId?: string;
+}
+
 export class AuditEventDto {
   @ApiProperty()
   eventId!: string;

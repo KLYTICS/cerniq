@@ -98,6 +98,14 @@ export interface AegisConfig {
   /** Verify-only key (`aegis_vk_…`). Required for `verify()` calls — relying parties should never see the management key. */
   verifyKey?: string;
   baseUrl?: string;
+  /**
+   * Round 25 — region selector. When neither `baseUrl` nor `AEGIS_API_URL`
+   * env is set, the SDK resolves the endpoint via this. `'auto'` falls
+   * through to the default endpoint (geo-routing will be wired by the
+   * deployment once EU/APAC endpoints are live; the SDK contract is
+   * forward-compatible).
+   */
+  region?: 'us' | 'eu' | 'apac' | 'auto';
   timeoutMs?: number;
   fetch?: typeof globalThis.fetch;
   userAgent?: string;

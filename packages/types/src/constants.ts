@@ -23,6 +23,24 @@ export const TOKEN_TTL_MIN_SECONDS = 30;
 export const TOKEN_TTL_MAX_SECONDS = 60;
 export const POLICY_TTL_MAX_DAYS = 365;
 
+// Trial-cliff UX thresholds — Round 24. AEGIS has two independent trial
+// cliffs that both surface a banner on the dashboard before the user hits
+// the hard `TRIAL_EXHAUSTED` denial:
+//
+//   1. **Counter trial** (FREE tier, 10K lifetime verifies per ADR-0014).
+//      Warn when `trialUsedCount / trialCap` is at or above this percent.
+//   2. **Stripe time trial** (paid tier with `trial_period_days` set on
+//      the Stripe product). Warn when `stripeTrialEndsAt` is within this
+//      many days. Stripe itself emits `customer.subscription.trial_will_end`
+//      exactly 3 days before, but we pre-warn earlier to give the operator
+//      time to update card details without urgency.
+//
+// Both constants are part of the cross-package parity contract — the
+// dashboard imports them so the API + dashboard never disagree on when
+// the banner should appear.
+export const TRIAL_WARN_THRESHOLD_PERCENT = 80;
+export const TRIAL_WARN_THRESHOLD_DAYS = 7;
+
 // Verify-response cache TTL — how long a relying party may cache a 200 result.
 export const VERIFY_RESULT_DEFAULT_TTL_SECONDS = 30;
 

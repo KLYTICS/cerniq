@@ -1,17 +1,15 @@
-// Dashboard safe-redirect parity test — open-redirect defense for the
+// Dashboard safe-redirect unit tests — open-redirect defense for the
 // `/login?redirect=…` → Auth0 `returnTo` flow that closes Round 21's
 // AutoCheckout conversion funnel.
 //
-// Lives in tests/cross-package because the dashboard has no dedicated
-// test runner yet (M-020-pkg-install will add one); the validator is
-// pure TS with no React/Next imports so it runs cleanly here.
+// Round 24 Lane C colocated this spec next to its source module after
+// the dashboard package gained its own vitest harness. The previous
+// cross-package copy at `tests/cross-package/dashboard-safe-redirect.spec.ts`
+// is retired in the same change.
 
 import { describe, expect, it } from 'vitest';
 
-import {
-  buildLoginHref,
-  safeRedirect,
-} from '../../apps/dashboard/lib/safe-redirect';
+import { buildLoginHref, safeRedirect } from '../lib/safe-redirect';
 
 describe('dashboard/safeRedirect', () => {
   it('passes a same-origin path', () => {

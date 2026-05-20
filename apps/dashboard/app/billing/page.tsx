@@ -15,6 +15,7 @@ import { loadPlan } from '../../lib/billing';
 import type { PlanSummary } from '../../lib/api-client';
 
 import { PastDueBanner } from './_components/PastDueBanner';
+import { TrialCliffBanner } from './_components/TrialCliffBanner';
 import { TrialCountdown } from './_components/TrialCountdown';
 import { UpgradeButton } from './_components/UpgradeButton';
 import { UsageStrip } from './_components/UsageStrip';
@@ -109,6 +110,7 @@ function BillingBody({ plan }: { plan: PlanSummary }): ReactElement {
   return (
     <>
       <PastDueBanner plan={plan} />
+      <TrialCliffBanner plan={plan} />
 
       <PlanMetricStrip plan={plan} />
 

@@ -5,7 +5,7 @@ import { AppConfigService } from '../../config/config.service';
 import { AuditChainUtil } from '../../common/crypto/audit-chain.util';
 import { Ed25519Util, decodeBase64Url, encodeBase64Url } from '../../common/crypto/ed25519.util';
 import { withSpan } from '../../common/observability/spans';
-import { AuditQueryDto, AuditLogResponseDto } from './audit.dto';
+import { AuditEventsQueryDto, AuditQueryDto, AuditLogResponseDto } from './audit.dto';
 
 export interface AppendAuditInput {
   /**
@@ -271,6 +271,74 @@ export class AuditService {
       where.timestamp = {};
       if (query.from) where.timestamp.gte = new Date(query.from);
       if (query.to) where.timestamp.lte = new Date(query.to);
+    }
+
+    const events = await this.prisma.auditEvent.findMany({
+      where,
+      orderBy: { timestamp: 'desc' },
+      take: limit + 1,
+      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+    });
+
+    const hasMore = events.length > limit;
+    const sliced = hasMore ? events.slice(0, limit) : events;
+
+    return {
+      events: sliced.map((e) => ({
+        eventId: e.id,
+        agentId: e.agentId,
+        claimedAgentId: e.claimedAgentId,
+        principalId: e.principalId,
+        timestamp: e.timestamp.toISOString(),
+        action: e.action,
+        actionHash: e.actionHash,
+        relyingParty: e.relyingParty,
+        decision: e.decision,
+        decisionReason: e.denialReason,
+        trustScoreAtEvent: e.trustScoreAtEvent,
+        signature: e.aegisSignature,
+      })),
+      nextCursor: hasMore ? (sliced[sliced.length - 1]?.id ?? null) : null,
+      count: sliced.length,
+    };
+  }
+
+  /**
+   * Principal-wide audit list (Round 24 Lane B).
+   *
+   * Sister to `list()` (which scopes to one agentId) — this one scopes by
+   * principal only and supports the `?stripeEventId=` JSON-path filter so
+   * operators can reconcile a Stripe webhook to the audit chain without
+   * fanning out across agents.
+   *
+   * CLAUDE.md invariant #5 — every query carries `principalId`. Cross-tenant
+   * leakage is impossible because the filter is added to the WHERE clause,
+   * not enforced post-fetch.
+   *
+   * Postgres-only: the `stripeEventId` filter uses Prisma's JSON path
+   * operator (`policySnapshot: { path: ['stripeEventId'], equals: ... }`),
+   * which compiles to a `->>` traversal that Postgres can index with GIN
+   * if the audit table ever needs it. For now the cardinality is low
+   * enough (one row per Stripe event per principal) that a sequential scan
+   * is fine.
+   */
+  async listTenant(
+    principalId: string,
+    query: AuditEventsQueryDto,
+  ): Promise<AuditLogResponseDto> {
+    const limit = query.limit ?? 100;
+    const where: Prisma.AuditEventWhereInput = { principalId };
+    if (query.from || query.to) {
+      where.timestamp = {};
+      if (query.from) where.timestamp.gte = new Date(query.from);
+      if (query.to) where.timestamp.lte = new Date(query.to);
+    }
+    if (query.stripeEventId) {
+      // Prisma's typed JSON filter — emits `policy_snapshot->>'stripeEventId' = $1`.
+      where.policySnapshot = {
+        path: ['stripeEventId'],
+        equals: query.stripeEventId,
+      };
     }
 
     const events = await this.prisma.auditEvent.findMany({

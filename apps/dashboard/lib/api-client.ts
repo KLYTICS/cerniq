@@ -220,6 +220,48 @@ export async function listAudit(
   return request<AuditPage>(`agents/${encodeURIComponent(agentId)}/audit`, { query: { ...params } });
 }
 
+/**
+ * Wire shape of the API's `AuditEventDto` (apps/api/src/modules/audit/audit.dto.ts).
+ * Distinct from the dashboard-local `AuditRow` because the API uses
+ * `eventId`/uppercase decision enums; we keep the wire shape verbatim
+ * so the caller can decide whether to normalize for display.
+ */
+export interface AuditEventWire {
+  eventId: string;
+  agentId: string | null;
+  claimedAgentId?: string | null;
+  principalId: string;
+  timestamp: string;
+  action: string | null;
+  actionHash: string;
+  relyingParty?: string | null;
+  decision: 'APPROVED' | 'DENIED' | 'FLAGGED';
+  decisionReason?: string | null;
+  trustScoreAtEvent: number;
+  signature: string;
+}
+
+export interface AuditEventsListResponse {
+  events: AuditEventWire[];
+  nextCursor?: string | null;
+  count: number;
+}
+
+/**
+ * `GET /v1/audit-events` — principal-wide audit list. Round 24 Lane B
+ * adds the `stripeEventId` filter for forensic reconciliation between
+ * Stripe webhook activity and the audit chain.
+ */
+export async function listAuditEvents(params: {
+  limit?: number;
+  cursor?: string;
+  from?: string;
+  to?: string;
+  stripeEventId?: string;
+} = {}): Promise<AuditEventsListResponse> {
+  return request<AuditEventsListResponse>('audit-events', { query: { ...params } });
+}
+
 // ── Handshake (M-003) ─────────────────────────────────────────────────────
 
 export interface HandshakeStatus {
@@ -268,6 +310,15 @@ export interface PlanSummary {
   subscriptionStatus: string | null;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
+  // Round 21 — lifetime counter trial (FREE-tier only, ADR-0014).
+  // Null on paid tiers and ENTERPRISE.
+  trialUsedCount?: number | null;
+  trialCap?: number | null;
+  trialExhaustedAt?: string | null;
+  // Round 24 — Stripe time-based trial deadline. Null when no Stripe
+  // trial is active on the current subscription. Surfaced so the dashboard
+  // can render a TrialCliffBanner for paid-tier customers in trial.
+  stripeTrialEndsAt?: string | null;
 }
 
 export async function getPlanSummary(): Promise<PlanSummary> {

@@ -10,7 +10,9 @@ import {
   AegisAuthMissingError,
   listAgents,
   listAudit,
+  listAuditEvents,
   type AgentRow,
+  type AuditEventWire,
   type AuditRow,
 } from '../../lib/api-client';
 import { authConfigured } from '../../lib/auth';
@@ -19,6 +21,21 @@ import { fmtNum, fmtPct, relativeTime, shortId } from '../../lib/format';
 export const metadata: Metadata = {
   title: 'Audit · AEGIS',
 };
+
+interface AuditPageProps {
+  searchParams?: Promise<{ stripeEventId?: string }> | { stripeEventId?: string };
+}
+
+function pickStripeEventId(raw: string | string[] | undefined): string | null {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof v !== 'string') return null;
+  const trimmed = v.trim();
+  if (trimmed.length === 0 || trimmed.length > 128) return null;
+  // Stripe event ids are `evt_` followed by alphanumeric; accept that
+  // shape strictly so a malformed input never reaches the API.
+  if (!/^evt_[A-Za-z0-9]+$/.test(trimmed)) return null;
+  return trimmed;
+}
 
 const MAX_AGENT_FANOUT = 50;
 const PER_AGENT_SLICE = 10;
@@ -77,8 +94,33 @@ async function fetchAggregatedAudit(): Promise<Result | { error: { code: string;
   };
 }
 
-export default async function AuditPage() {
-  const data = await fetchAggregatedAudit();
+interface StripeFilterResult {
+  events: AuditEventWire[];
+  error?: { code: string; message: string };
+}
+
+async function fetchByStripeEventId(stripeEventId: string): Promise<StripeFilterResult> {
+  try {
+    const page = await listAuditEvents({ stripeEventId, limit: 100 });
+    return { events: page.events };
+  } catch (err) {
+    if (err instanceof AegisAuthMissingError) {
+      return {
+        events: [],
+        error: { code: err.code, message: 'Set AEGIS_DASHBOARD_API_KEY to populate this view.' },
+      };
+    }
+    if (err instanceof AegisApiError) {
+      return { events: [], error: { code: err.code, message: err.message } };
+    }
+    return { events: [], error: { code: 'UNKNOWN', message: 'Unexpected error contacting AEGIS API.' } };
+  }
+}
+
+export default async function AuditPage({ searchParams }: AuditPageProps) {
+  // Next 16 made `searchParams` async; await is a no-op if a plain object is passed.
+  const sp = searchParams instanceof Promise ? await searchParams : searchParams;
+  const stripeEventId = pickStripeEventId(sp?.stripeEventId);
 
   return (
     <section className="aegis-page">
@@ -95,16 +137,125 @@ export default async function AuditPage() {
         <div className="data-empty">
           <p>Set <code>AEGIS_DASHBOARD_API_KEY</code> to populate this view.</p>
         </div>
-      ) : 'error' in data ? (
-        <div className="data-empty error" role="alert">
-          <p>
-            <strong>{data.error.code}</strong> — {data.error.message}
-          </p>
-        </div>
       ) : (
-        <AuditBody data={data} />
+        <>
+          <StripeFilterBar current={stripeEventId} />
+          {stripeEventId ? (
+            <StripeFilteredView stripeEventId={stripeEventId} />
+          ) : (
+            <DefaultAuditView />
+          )}
+        </>
       )}
     </section>
+  );
+}
+
+async function DefaultAuditView() {
+  const data = await fetchAggregatedAudit();
+  if ('error' in data) {
+    return (
+      <div className="data-empty error" role="alert">
+        <p>
+          <strong>{data.error.code}</strong> — {data.error.message}
+        </p>
+      </div>
+    );
+  }
+  return <AuditBody data={data} />;
+}
+
+async function StripeFilteredView({ stripeEventId }: { stripeEventId: string }) {
+  const result = await fetchByStripeEventId(stripeEventId);
+  if (result.error) {
+    return (
+      <div className="data-empty error" role="alert">
+        <p>
+          <strong>{result.error.code}</strong> — {result.error.message}
+        </p>
+      </div>
+    );
+  }
+  return (
+    <>
+      <p className="muted" style={{ marginBottom: 12 }}>
+        Showing {result.events.length} audit event{result.events.length === 1 ? '' : 's'} matching{' '}
+        <code>{stripeEventId}</code>.
+      </p>
+      {result.events.length === 0 ? (
+        <div className="data-empty">
+          <p>No audit events found for this Stripe event id.</p>
+        </div>
+      ) : (
+        <div className="table-scroll">
+          <table className="data-table dense" aria-label="Audit events for Stripe id">
+            <thead>
+              <tr>
+                <th>when</th>
+                <th>event id</th>
+                <th>action</th>
+                <th>decision</th>
+                <th>agent</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.events.map((e) => (
+                <tr key={e.eventId}>
+                  <td className="dim">{relativeTime(e.timestamp)}</td>
+                  <td className="mono">{shortId(e.eventId, 8, 4)}</td>
+                  <td className="mono dim">{e.action ?? '–'}</td>
+                  <td>
+                    <span
+                      className={`badge badge-${decisionTone(e.decision.toLowerCase())}`}
+                    >
+                      {e.decision.toLowerCase()}
+                    </span>
+                  </td>
+                  <td className="mono dim">
+                    {e.agentId
+                      ? shortId(e.agentId, 6, 4)
+                      : e.claimedAgentId
+                        ? `(${shortId(e.claimedAgentId, 6, 4)})`
+                        : '–'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  );
+}
+
+function StripeFilterBar({ current }: { current: string | null }) {
+  return (
+    <form
+      method="get"
+      className="filter-bar"
+      aria-label="Filter by Stripe event id"
+      style={{ marginBottom: 12 }}
+    >
+      <label>
+        <span>stripe event id</span>
+        <input
+          name="stripeEventId"
+          type="text"
+          defaultValue={current ?? ''}
+          placeholder="evt_…"
+          pattern="evt_[A-Za-z0-9]+"
+          title="Stripe event id starts with evt_ followed by alphanumeric characters."
+          aria-label="Filter audit events by Stripe event id"
+          style={{ minWidth: 240, fontFamily: 'var(--mono)' }}
+        />
+      </label>
+      <button type="submit">filter</button>
+      {current ? (
+        <a href="/audit" aria-label="Clear stripeEventId filter">
+          clear
+        </a>
+      ) : null}
+    </form>
   );
 }
 

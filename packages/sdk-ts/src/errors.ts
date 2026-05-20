@@ -18,6 +18,20 @@ export abstract class AegisError extends Error {
   abstract readonly code: string;
   /** Stable lower-snake-case code from the server catalog (or undefined for transport-only errors). */
   readonly catalogCode: string | undefined;
+  /**
+   * Round 25 — one-line actionable next step. Read from the catalog's `next`
+   * field when one is available; undefined for transport errors that don't
+   * have a server catalog entry (e.g. AegisNetworkError). Surfaced so dev
+   * tools and humans hitting `err.message` followed by `err.next` get a
+   * complete diagnostic without leaving the terminal.
+   */
+  readonly next: string | undefined;
+  /**
+   * Round 25 — stable docs URL for this error code. Pattern:
+   * `https://docs.aegislabs.io/errors/<code>`. Deep-link target for IDE
+   * hover cards, error toasts, and `aegis doctor` red rows.
+   */
+  readonly docsUrl: string | undefined;
   static readonly catalog: ErrorCatalogEntry | undefined = undefined;
   /**
    * Minifier-safe class discriminator. Subclasses MUST override with the
@@ -45,6 +59,8 @@ export abstract class AegisError extends Error {
     }
     this.name = target.catalogKey;
     this.catalogCode = catalogCode ?? target.catalog?.code;
+    this.next = target.catalog?.next;
+    this.docsUrl = target.catalog?.docsUrl;
   }
 }
 

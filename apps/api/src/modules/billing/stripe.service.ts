@@ -27,7 +27,7 @@
 // `plans.ts` are correct enough to scaffold against; price ids come from
 // env vars so the operator can flip live ids without a code change.
 
-import { forwardRef, Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger, Optional, type OnModuleInit } from '@nestjs/common';
 import type { PlanTier } from '@prisma/client';
 
 import { AppConfigService } from '../../config/config.service';
@@ -131,7 +131,7 @@ export interface HandleWebhookResult {
 }
 
 @Injectable()
-export class StripeService {
+export class StripeService implements OnModuleInit {
   private readonly logger = new Logger(StripeService.name);
   private readonly stripeFactory: StripeFactory;
   private stripeClient: StripeSdk | null = null;
@@ -184,6 +184,51 @@ export class StripeService {
           }
         : undefined,
     });
+  }
+
+  /**
+   * Round 25 supplement audit fix W14 — schema self-check.
+   *
+   * Round 24 added `Principal.stripeTrialEndsAt` via migration
+   * `20260520000000_add_stripe_trial_ends_at`. If an operator deploys
+   * the API without running `prisma migrate deploy`, the
+   * `customer.subscription.trial_will_end` webhook handler will fail at
+   * write-time because the column doesn't exist. That fails AFTER the
+   * SETNX idempotency key is rolled back (so Stripe retries forever)
+   * and the operator only sees the failure in webhook delivery logs.
+   *
+   * This boot-time check surfaces the failure on the first request to
+   * the API, naming the migration the operator needs to run. Doesn't
+   * crash boot — the service can still serve every non-trial-related
+   * path while the operator backfills the migration.
+   */
+  async onModuleInit(): Promise<void> {
+    try {
+      // information_schema.columns is the standard cross-Postgres-version
+      // way to introspect schema. Cheaper than introspecting Prisma
+      // metadata at runtime and doesn't require a Prisma client method.
+      const rows = await this.prisma.$queryRawUnsafe<Array<{ column_name: string }>>(
+        `SELECT column_name
+           FROM information_schema.columns
+          WHERE table_name = 'Principal'
+            AND column_name = 'stripeTrialEndsAt'`,
+      );
+      if (rows.length === 0) {
+        this.logger.error(
+          'SCHEMA DRIFT: Principal.stripeTrialEndsAt column is missing. ' +
+            'Round 24 added this column via migration ' +
+            '`apps/api/prisma/migrations/20260520000000_add_stripe_trial_ends_at`. ' +
+            'Run `pnpm --filter @aegis/api prisma:migrate-deploy` (or equivalent) ' +
+            'before serving traffic — the customer.subscription.trial_will_end ' +
+            'webhook handler will fail loudly on first delivery without it.',
+        );
+      }
+    } catch (err) {
+      // Self-check failure should never gate API boot. Log and move on.
+      this.logger.warn(
+        `StripeService schema self-check skipped: ${(err as Error).message}`,
+      );
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────
@@ -325,6 +370,8 @@ export class StripeService {
         case 'customer.subscription.updated':
         case 'customer.subscription.created':
           return await this.onSubscriptionUpdated(event);
+        case 'customer.subscription.trial_will_end':
+          return await this.onTrialWillEnd(event);
         case 'customer.subscription.deleted':
           return await this.onSubscriptionDeleted(event);
         case 'invoice.payment_failed':
@@ -559,6 +606,7 @@ export class StripeService {
     let planTier: PlanTier | null = null;
     let subscriptionStatus: string | null = null;
     let overageItemId: string | null = null;
+    let trialEndsAt: Date | null = null;
     if (session.subscription) {
       const stripe = this.client();
       const subId = session.subscription;
@@ -566,6 +614,7 @@ export class StripeService {
       planTier = this.deriveSubscriptionState(sub)?.planTier ?? null;
       subscriptionStatus = this.readSubscriptionStatus(sub);
       overageItemId = this.extractOverageItemId(sub);
+      trialEndsAt = this.readSubscriptionTrialEnd(sub);
     }
     if (!planTier && session.metadata?.planTier) {
       const candidate = session.metadata.planTier as PlanTier;
@@ -599,6 +648,10 @@ export class StripeService {
         // Always write the overage-item id (including null) so a downgrade
         // / mid-cycle remove of the metered line clears the stale id.
         stripeOverageItemId: overageItemId,
+        // Round 24: persist Stripe-side trial deadline if the subscription
+        // carries one. Always write (including null) so a re-checkout that
+        // skipped trial clears any stale value.
+        stripeTrialEndsAt: trialEndsAt,
       },
     });
     await this.usageGuard.invalidatePlanCache(principalId);
@@ -640,6 +693,7 @@ export class StripeService {
     // Look up principal by stripeSubscriptionId.
     const subscriptionStatus = this.readSubscriptionStatus(sub);
     const overageItemId = this.extractOverageItemId(sub);
+    const trialEndsAt = this.readSubscriptionTrialEnd(sub);
     const principal = await this.prisma.principal.findFirst({
       where: { stripeSubscriptionId: subId },
       select: { id: true, planTier: true },
@@ -660,6 +714,7 @@ export class StripeService {
               typeof sub.customer === 'string' ? sub.customer : undefined,
             ...(subscriptionStatus !== null ? { subscriptionStatus } : {}),
             stripeOverageItemId: overageItemId,
+            stripeTrialEndsAt: trialEndsAt,
           },
         });
         await this.usageGuard.invalidatePlanCache(metaPid);
@@ -686,6 +741,7 @@ export class StripeService {
         planTier: state.planTier,
         ...(subscriptionStatus !== null ? { subscriptionStatus } : {}),
         stripeOverageItemId: overageItemId,
+        stripeTrialEndsAt: trialEndsAt,
       },
     });
     await this.usageGuard.invalidatePlanCache(principal.id);
@@ -720,7 +776,12 @@ export class StripeService {
     }
     await this.prisma.principal.update({
       where: { id: principal.id },
-      data: { planTier: 'FREE', stripeSubscriptionId: null, stripeOverageItemId: null },
+      data: {
+        planTier: 'FREE',
+        stripeSubscriptionId: null,
+        stripeOverageItemId: null,
+        stripeTrialEndsAt: null,
+      },
     });
     await this.usageGuard.invalidatePlanCache(principal.id);
     if (principal.planTier !== 'FREE') {
@@ -733,6 +794,71 @@ export class StripeService {
       });
     }
     return { handled: true, principalId: principal.id, planTier: 'FREE' };
+  }
+
+  // ── Trial lifecycle (Round 24) ───────────────────────────────────────
+
+  /**
+   * Stripe fires `customer.subscription.trial_will_end` exactly 3 days
+   * before a time-based trial converts to active billing. We:
+   *
+   *   1. Persist `stripeTrialEndsAt` from `subscription.trial_end` so
+   *      the dashboard banner has a deadline to count down to.
+   *   2. Emit a `billing.trial_will_end` audit row so the conversion
+   *      cliff is visible in SOC2 evidence and PLG funnel analysis.
+   *
+   * No plan-tier mutation — the trial is still active. If the user
+   * fails to update payment by `trial_end`, Stripe transitions the
+   * subscription to `past_due` (handled by `onPaymentFailed`) or
+   * `canceled` (handled by `onSubscriptionDeleted`), which downgrades
+   * them to FREE through the existing paths. The `trial_will_end`
+   * event is purely a heads-up — never a state mutation by itself.
+   *
+   * Idempotency: the surrounding `handleWebhookEvent` SETNX prevents
+   * duplicate dispatch within the 7-day window. Beyond that, audit
+   * append carries `stripeEventId` in `policySnapshot` so a forensic
+   * pass can join events to source.
+   */
+  private async onTrialWillEnd(event: StripeEvent): Promise<HandleWebhookResult> {
+    const sub = event.data.object as {
+      id?: string;
+      customer?: string | null;
+      metadata?: Record<string, string> | null;
+    };
+    const subId = sub.id;
+    if (!subId) {
+      throw new ValidationError(
+        `Stripe customer.subscription.trial_will_end (event ${event.id}) missing subscription id.`,
+      );
+    }
+    const trialEndsAt = this.readSubscriptionTrialEnd(sub);
+    const customerId = typeof sub.customer === 'string' ? sub.customer : null;
+    const principal = await this.findPrincipalForInvoice(subId, customerId);
+    if (!principal) {
+      this.logger.warn(
+        `Stripe customer.subscription.trial_will_end for ${subId}: no principal linked.`,
+      );
+      return { handled: false };
+    }
+    await this.prisma.principal.update({
+      where: { id: principal.id },
+      data: { stripeTrialEndsAt: trialEndsAt },
+    });
+    await this.audit.append({
+      agentId: null,
+      principalId: principal.id,
+      action: 'billing.trial_will_end',
+      decision: 'APPROVED',
+      policySnapshot: {
+        stripeEventId: event.id,
+        subscriptionId: subId,
+        customerId,
+        trialEndsAt: trialEndsAt ? trialEndsAt.toISOString() : null,
+      },
+      trustScoreAtEvent: 0,
+      trustBandAtEvent: 'VERIFIED',
+    });
+    return { handled: true, principalId: principal.id };
   }
 
   // ── Payment lifecycle handlers ───────────────────────────────────────
@@ -935,6 +1061,22 @@ export class StripeService {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const status = (sub as any).status;
     return typeof status === 'string' ? status : null;
+  }
+
+  /**
+   * Read `subscription.trial_end` (Stripe's unix timestamp in seconds) and
+   * return a JS Date. Stripe represents "no trial" as `null` or `0`; we
+   * collapse both to `null` so downstream writes are unambiguous.
+   */
+  private readSubscriptionTrialEnd(sub: unknown): Date | null {
+    if (typeof sub !== 'object' || sub === null) return null;
+    // type-rationale: Stripe.Subscription.trial_end is `number | null`
+    // (unix seconds). We narrow with a runtime check; absent or 0
+    // means no trial.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const trialEnd = (sub as any).trial_end;
+    if (typeof trialEnd !== 'number' || trialEnd <= 0) return null;
+    return new Date(trialEnd * 1000);
   }
 
   private readMetadataPrincipalId(sub: unknown): string | null {

@@ -192,6 +192,23 @@ function makePrisma(initialEvents: AuditEventRow[] = [], agents: Array<{ id: str
         let filtered = events.filter((e) => {
           if (where?.agentId !== undefined && e.agentId !== where.agentId) return false;
           if (where?.principalId !== undefined && e.principalId !== where.principalId) return false;
+          // Round 24 Lane B: `policySnapshot: { path: [...], equals: ... }`
+          // JSON path filter. The mock walks the saved snapshot the same way
+          // Prisma's `->>` traversal does in Postgres.
+          if (where?.policySnapshot && typeof where.policySnapshot === 'object') {
+            const filter = where.policySnapshot as { path?: string[]; equals?: unknown };
+            if (Array.isArray(filter.path) && 'equals' in filter) {
+              let cursor: unknown = e.policySnapshot;
+              for (const key of filter.path) {
+                if (cursor === null || typeof cursor !== 'object') {
+                  cursor = undefined;
+                  break;
+                }
+                cursor = (cursor as Record<string, unknown>)[key];
+              }
+              if (cursor !== filter.equals) return false;
+            }
+          }
           return true;
         });
         // Stable order: by timestamp asc or desc
@@ -563,6 +580,74 @@ describe('AuditService', () => {
         items.push(row);
       }
       expect(items).toHaveLength(2);
+    });
+  });
+
+  // ── listTenant() — Round 24 Lane B ─────────────────────────────────────────
+
+  describe('listTenant()', () => {
+    function makeBillingEventRow(
+      eventId: string,
+      principalId: string,
+      timestamp: Date,
+      stripeEventId: string | null,
+    ): AuditEventRow {
+      // Billing audit events carry `agentId: null`; we pass a placeholder
+      // through the positional arg and override to null via `overrides`.
+      return makeEventRow(eventId, 'agt_placeholder', principalId, timestamp, {
+        agentId: null,
+        action: 'billing.plan_changed',
+        policySnapshot: stripeEventId
+          ? { stripeEventId, from: 'FREE', to: 'DEVELOPER' }
+          : { other: 'field' },
+      });
+    }
+
+    it('returns only events for the requesting principal', async () => {
+      const events = [
+        makeBillingEventRow('evt_a1', 'prn_A', new Date(2026, 4, 1), 'evt_stripe_1'),
+        makeBillingEventRow('evt_b1', 'prn_B', new Date(2026, 4, 1), 'evt_stripe_2'),
+      ];
+      const { svc } = makeService({ initialEvents: events });
+      const out = await svc.listTenant('prn_A', {});
+      expect(out.events.map((e) => e.eventId)).toEqual(['evt_a1']);
+      expect(out.count).toBe(1);
+    });
+
+    it('filters by stripeEventId JSON path', async () => {
+      const events = [
+        makeBillingEventRow('evt_match', 'prn_A', new Date(2026, 4, 1), 'evt_stripe_match'),
+        makeBillingEventRow('evt_other', 'prn_A', new Date(2026, 4, 2), 'evt_stripe_other'),
+        makeBillingEventRow('evt_nostripe', 'prn_A', new Date(2026, 4, 3), null),
+      ];
+      const { svc } = makeService({ initialEvents: events });
+      const out = await svc.listTenant('prn_A', { stripeEventId: 'evt_stripe_match' });
+      expect(out.events.map((e) => e.eventId)).toEqual(['evt_match']);
+    });
+
+    it('returns empty results when no event matches the stripeEventId filter', async () => {
+      const events = [
+        makeBillingEventRow('evt_a1', 'prn_A', new Date(), 'evt_stripe_x'),
+      ];
+      const { svc } = makeService({ initialEvents: events });
+      const out = await svc.listTenant('prn_A', { stripeEventId: 'evt_nonexistent' });
+      expect(out.events).toEqual([]);
+      expect(out.count).toBe(0);
+      expect(out.nextCursor).toBeNull();
+    });
+
+    it('does not leak rows with the same stripeEventId across principals', async () => {
+      // Tenant-isolation regression guard — invariant 5. The JSON filter
+      // alone is not enough; the principalId WHERE clause is the boundary.
+      const events = [
+        makeBillingEventRow('evt_a1', 'prn_A', new Date(2026, 4, 1), 'evt_stripe_collide'),
+        makeBillingEventRow('evt_b1', 'prn_B', new Date(2026, 4, 1), 'evt_stripe_collide'),
+      ];
+      const { svc } = makeService({ initialEvents: events });
+      const outA = await svc.listTenant('prn_A', { stripeEventId: 'evt_stripe_collide' });
+      const outB = await svc.listTenant('prn_B', { stripeEventId: 'evt_stripe_collide' });
+      expect(outA.events.map((e) => e.principalId)).toEqual(['prn_A']);
+      expect(outB.events.map((e) => e.principalId)).toEqual(['prn_B']);
     });
   });
 

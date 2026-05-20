@@ -34,6 +34,22 @@ export interface ErrorCatalogEntry {
   customerMessage: string;
   /** Coarse classification used by ops dashboards. */
   category: 'auth' | 'validation' | 'policy' | 'rate_limit' | 'billing' | 'crypto' | 'transient' | 'internal';
+  /**
+   * One-line actionable next step for the developer hitting this error.
+   * Round 25 — required for every entry. Read by:
+   *   - SDK `AegisError.next` (TS + Python)
+   *   - CLI `aegis doctor` red-row remediation column
+   *   - Dashboard error toasts
+   * Style guide: imperative, ≤ 100 chars, names the env var / method / URL
+   * the developer should touch. Never end with a period (chained with the
+   * customer message in UI surfaces).
+   */
+  next: string;
+  /**
+   * Stable docs URL for this error. Pattern: `https://docs.aegislabs.io/errors/<code>`.
+   * Surfaced by SDKs as `AegisError.docsUrl` so developer tools can deep-link.
+   */
+  docsUrl: string;
 }
 
 /**
@@ -52,6 +68,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: 'Authentication required. Provide a valid AEGIS API key.',
     category: 'auth',
+    next: 'Set AEGIS_API_KEY in your environment, or pass apiKey to the SDK constructor',
+    docsUrl: 'https://docs.aegislabs.io/errors/auth_required',
   },
 
   AuthorizationError: {
@@ -60,6 +78,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: 'You are not permitted to perform this action.',
     category: 'auth',
+    next: 'Use an API key with the required scope, or contact your principal owner',
+    docsUrl: 'https://docs.aegislabs.io/errors/forbidden',
   },
 
   NotFoundError: {
@@ -68,6 +88,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: 'The requested resource was not found.',
     category: 'validation',
+    next: 'Verify the resource id exists for your principal — list with the corresponding *.list() method',
+    docsUrl: 'https://docs.aegislabs.io/errors/not_found',
   },
 
   ValidationError: {
@@ -76,6 +98,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: 'The request payload failed validation.',
     category: 'validation',
+    next: 'Check the request body against the OpenAPI schema or the SDK types',
+    docsUrl: 'https://docs.aegislabs.io/errors/invalid_request',
   },
 
   ConflictError: {
@@ -84,6 +108,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: 'The request conflicts with the current state of the resource.',
     category: 'validation',
+    next: 'Re-read the resource, reconcile your local state, and retry',
+    docsUrl: 'https://docs.aegislabs.io/errors/conflict',
   },
 
   AlreadyRotatedError: {
@@ -92,6 +118,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: 'This API key has already been rotated. Rotate the active key instead.',
     category: 'auth',
+    next: 'Use the rotated key returned by the previous rotation call',
+    docsUrl: 'https://docs.aegislabs.io/errors/already_rotated',
   },
 
   IdempotencyConflictError: {
@@ -100,6 +128,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: 'An idempotency key was reused with a different request body.',
     category: 'validation',
+    next: 'Reuse a unique Idempotency-Key per distinct request body',
+    docsUrl: 'https://docs.aegislabs.io/errors/idempotency_conflict',
   },
 
   RateLimitedError: {
@@ -109,6 +139,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     backoff: 'on_retry_after_header',
     customerMessage: 'Rate limit exceeded. Honor the Retry-After header before retrying.',
     category: 'rate_limit',
+    next: 'Wait the Retry-After seconds before retrying; consider request batching',
+    docsUrl: 'https://docs.aegislabs.io/errors/rate_limited',
   },
 
   InternalError: {
@@ -118,6 +150,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     backoff: 'exponential',
     customerMessage: 'An internal error occurred. The request can be retried.',
     category: 'internal',
+    next: 'Retry with exponential backoff; if persistent, check https://status.aegislabs.io',
+    docsUrl: 'https://docs.aegislabs.io/errors/internal_error',
   },
 
   ServiceUnavailableError: {
@@ -127,6 +161,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     backoff: 'exponential',
     customerMessage: 'The service is temporarily unavailable. Retry shortly.',
     category: 'transient',
+    next: 'Retry with exponential backoff; check https://status.aegislabs.io',
+    docsUrl: 'https://docs.aegislabs.io/errors/service_unavailable',
   },
 
   // --- non-AegisError throwers we still want cataloged ---
@@ -141,6 +177,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     backoff: 'exponential',
     customerMessage: 'An upstream service is temporarily unavailable. Retry shortly.',
     category: 'transient',
+    next: 'Upstream circuit is open; retry with backoff. The breaker auto-closes after a probe succeeds',
+    docsUrl: 'https://docs.aegislabs.io/errors/upstream_unavailable',
   },
 
   // --- denial-precedence semantic codes (reserved for verify hot path) ---
@@ -154,6 +192,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: 'Agent identity not found.',
     category: 'policy',
+    next: 'Register the agent via aegis.agents.register(...) or verify the agentId is correct',
+    docsUrl: 'https://docs.aegislabs.io/errors/agent_not_found',
   },
   AgentRevokedError: {
     code: 'agent_revoked',
@@ -161,6 +201,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: 'Agent identity has been revoked.',
     category: 'policy',
+    next: 'Register a fresh agent — revocation is permanent and intentional',
+    docsUrl: 'https://docs.aegislabs.io/errors/agent_revoked',
   },
   InvalidSignatureError: {
     code: 'invalid_signature',
@@ -168,6 +210,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: 'Request signature is invalid or expired.',
     category: 'crypto',
+    next: 'Check clock skew (NTP), key match (agentId ↔ privateKey), and token TTL (default 60s)',
+    docsUrl: 'https://docs.aegislabs.io/errors/invalid_signature',
   },
   PolicyExpiredError: {
     code: 'policy_expired',
@@ -175,6 +219,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: 'Agent policy has expired. Re-authorize the agent.',
     category: 'policy',
+    next: 'Mint a new policy via aegis.policies.create(agentId, ...) with a future expiresAt',
+    docsUrl: 'https://docs.aegislabs.io/errors/policy_expired',
   },
   PolicyRevokedError: {
     code: 'policy_revoked',
@@ -182,6 +228,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: 'Agent policy was revoked.',
     category: 'policy',
+    next: 'Mint a new policy — revocation is permanent; revoked policies cannot be reactivated',
+    docsUrl: 'https://docs.aegislabs.io/errors/policy_revoked',
   },
   ScopeNotGrantedError: {
     code: 'scope_not_granted',
@@ -189,6 +237,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: "Action not in agent's allowed scopes.",
     category: 'policy',
+    next: "Add the action's scope to the agent's policy, or use a policy that already grants it",
+    docsUrl: 'https://docs.aegislabs.io/errors/scope_not_granted',
   },
   TrialExhaustedError: {
     code: 'trial_exhausted',
@@ -196,6 +246,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: 'Free trial verify cap reached. Upgrade to a paid plan to continue.',
     category: 'billing',
+    next: 'Upgrade at https://aegislabs.io/billing — lifetime trial cap is intentional',
+    docsUrl: 'https://docs.aegislabs.io/errors/trial_exhausted',
   },
   SpendLimitExceededError: {
     code: 'spend_limit_exceeded',
@@ -203,6 +255,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: 'Agent spend limit exceeded for the current period.',
     category: 'billing',
+    next: "Wait for the period reset or update the policy's spendLimit via aegis.policies.create(...)",
+    docsUrl: 'https://docs.aegislabs.io/errors/spend_limit_exceeded',
   },
   TrustScoreTooLowError: {
     code: 'trust_score_too_low',
@@ -210,6 +264,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: 'Agent trust score is below the configured threshold.',
     category: 'policy',
+    next: "Build agent reputation over time, or lower the relying party's minTrustBand requirement",
+    docsUrl: 'https://docs.aegislabs.io/errors/trust_score_too_low',
   },
   AnomalyFlaggedError: {
     code: 'anomaly_flagged',
@@ -217,6 +273,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: 'Behavioral anomaly detected; agent has been quarantined.',
     category: 'policy',
+    next: 'Review the audit log for the flagged event; contact support@aegislabs.io if false-positive',
+    docsUrl: 'https://docs.aegislabs.io/errors/anomaly_flagged',
   },
   PlanLimitExceededError: {
     code: 'plan_limit_exceeded',
@@ -224,6 +282,8 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     retryable: false,
     customerMessage: 'Plan monthly verify quota exceeded. Upgrade or wait for the next period.',
     category: 'billing',
+    next: 'Upgrade at https://aegislabs.io/billing, or wait for the monthly period reset',
+    docsUrl: 'https://docs.aegislabs.io/errors/plan_limit_exceeded',
   },
 });
 
@@ -235,6 +295,8 @@ const INTERNAL_FALLBACK: ErrorCatalogEntry = {
   backoff: 'exponential',
   customerMessage: 'An internal error occurred. The request can be retried.',
   category: 'internal',
+  next: 'Retry with exponential backoff; if persistent, check https://status.aegislabs.io',
+  docsUrl: 'https://docs.aegislabs.io/errors/internal_error',
 };
 
 /**

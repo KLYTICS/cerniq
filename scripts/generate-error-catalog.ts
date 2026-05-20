@@ -30,6 +30,9 @@ interface ErrorCatalogEntry {
   backoff?: 'none' | 'linear' | 'exponential' | 'on_retry_after_header';
   customerMessage: string;
   category: 'auth' | 'validation' | 'policy' | 'rate_limit' | 'billing' | 'crypto' | 'transient' | 'internal';
+  // Round 25 — required for every entry.
+  next: string;
+  docsUrl: string;
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -88,6 +91,10 @@ function renderTs(catalog: Readonly<Record<string, ErrorCatalogEntry>>): string 
   lines.push('  backoff?: Backoff;');
   lines.push('  customerMessage: string;');
   lines.push('  category: Category;');
+  lines.push('  /** One-line actionable next step the developer should take. */');
+  lines.push('  next: string;');
+  lines.push('  /** Stable docs URL for this error. */');
+  lines.push('  docsUrl: string;');
   lines.push('}');
   lines.push('');
   lines.push('/** Catalog keyed by stable `code` (lower-snake-case). */');
@@ -103,6 +110,8 @@ function renderTs(catalog: Readonly<Record<string, ErrorCatalogEntry>>): string 
     lines.push(`    retryable: ${entry.retryable}${backoff},`);
     lines.push(`    customerMessage: ${quotedMsg},`);
     lines.push(`    category: ${JSON.stringify(entry.category)},`);
+    lines.push(`    next: ${JSON.stringify(entry.next)},`);
+    lines.push(`    docsUrl: ${JSON.stringify(entry.docsUrl)},`);
     lines.push(`  }),`);
   }
   lines.push('});');
@@ -139,9 +148,11 @@ function renderPy(catalog: Readonly<Record<string, ErrorCatalogEntry>>): string 
   lines.push('    code: str');
   lines.push('    httpStatus: int');
   lines.push('    retryable: bool');
-  lines.push('    backoff: str  # one of: none, linear, exponential, on_retry_after_header');
+    lines.push('    backoff: str  # one of: none, linear, exponential, on_retry_after_header');
   lines.push('    customerMessage: str');
   lines.push('    category: str  # auth|validation|policy|rate_limit|billing|crypto|transient|internal');
+  lines.push('    next: str  # one-line actionable next step (Round 25)');
+  lines.push('    docsUrl: str  # stable docs URL for this error (Round 25)');
   lines.push('');
   lines.push('');
   lines.push('GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {');
@@ -156,6 +167,8 @@ function renderPy(catalog: Readonly<Record<string, ErrorCatalogEntry>>): string 
     }
     lines.push(`        "customerMessage": ${pyRepr(entry.customerMessage)},`);
     lines.push(`        "category": ${pyRepr(entry.category)},`);
+    lines.push(`        "next": ${pyRepr(entry.next)},`);
+    lines.push(`        "docsUrl": ${pyRepr(entry.docsUrl)},`);
     lines.push(`    },`);
   }
   lines.push('}');
