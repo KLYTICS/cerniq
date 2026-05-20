@@ -1,0 +1,248 @@
+name: Deploy API + worker (Railway)
+
+# Triggered after CI on main succeeds. Deploys @aegis/api and the BullMQ worker
+# to Railway, runs the smoke-gate from infra/railway/README.md § 5, and on
+# smoke failure rolls back to the previous deployment automatically.
+#
+# Encodes the manual runbook at infra/railway/README.md into CI so a human
+# does not have to follow it. The runbook is the test plan for this workflow.
+#
+# OPERATOR-INPUT-NEEDED secrets (configure once in GitHub repo → Settings →
+# Secrets and variables → Actions → Repository secrets):
+#   RAILWAY_TOKEN                — Railway project token (Railway dashboard →
+#                                  Project → Settings → Tokens)
+#   RAILWAY_API_SERVICE_ID       — UUID of the aegis-api Railway service
+#   RAILWAY_WORKER_SERVICE_ID    — UUID of the aegis-worker Railway service
+#   DEPLOY_API_BASE_URL          — e.g. https://api.aegislabs.io (the verify URL)
+#   DEPLOY_NOTIFY_WEBHOOK_URL    — Slack/Discord webhook for rollback alerts
+#                                  (optional; rollback still works without it)
+#
+# Smoke gate: hits the 6 endpoints from infra/railway/README.md § 5.
+# Any non-200 (or 200 on /docs in prod) triggers rollback.
+#
+# Rollback semantics: redeploy the previous Railway deployment by ID. Forward-
+# only Prisma migrations are NOT rolled back — see infra/railway/README.md § 6.
+# The workflow alerts but does NOT attempt automated DB rollback.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_smoke:
+        description: 'Skip smoke gate (emergency redeploy only — DO NOT use without operator sign-off)'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: deploy-api-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  deployments: write
+  actions: read
+
+jobs:
+  gate:
+    name: Pre-deploy gate
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    outputs:
+      should_deploy: ${{ steps.decide.outputs.should_deploy }}
+    steps:
+      - id: decide
+        # Belt-and-braces: confirm we're on main and CI passed.
+        # workflow_run filters can lag in edge cases (branch deletion right
+        # after merge), so re-verify here before consuming a Railway deploy.
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || \
+             [ "${{ github.event.workflow_run.conclusion }}" = "success" ]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::CI did not succeed on main; skipping deploy."
+          fi
+
+  deploy:
+    name: Deploy api + worker
+    needs: gate
+    if: needs.gate.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production-api
+      url: ${{ secrets.DEPLOY_API_BASE_URL }}
+    outputs:
+      api_deployment_id: ${{ steps.deploy_api.outputs.deployment_id }}
+      worker_deployment_id: ${{ steps.deploy_worker.outputs.deployment_id }}
+      api_previous_deployment_id: ${{ steps.snapshot.outputs.api_previous_deployment_id }}
+      worker_previous_deployment_id: ${{ steps.snapshot.outputs.worker_previous_deployment_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need the merged commit (the one CI just validated), not the PR head.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Install Railway CLI
+        # Pinning to a tag would be safer but Railway publishes only `latest`
+        # via the install script. Mitigation: lock checksum once CLI ships
+        # versioned installer (tracked in OPERATOR_DECISIONS.md OD-deploy-1).
+        run: |
+          curl -fsSL https://railway.app/install.sh | sh
+          echo "$HOME/.railway/bin" >> "$GITHUB_PATH"
+
+      - name: Snapshot current deployments (for rollback)
+        id: snapshot
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Railway CLI emits JSON when called with --json. The first entry is
+          # always the active deployment. We capture its ID *before* deploying
+          # so rollback (next step on failure) has a known-good target.
+          api_prev=$(railway deployments --service "${{ secrets.RAILWAY_API_SERVICE_ID }}" --json 2>/dev/null \
+            | jq -r '.[0].id // empty')
+          worker_prev=$(railway deployments --service "${{ secrets.RAILWAY_WORKER_SERVICE_ID }}" --json 2>/dev/null \
+            | jq -r '.[0].id // empty')
+          echo "api_previous_deployment_id=$api_prev" >> "$GITHUB_OUTPUT"
+          echo "worker_previous_deployment_id=$worker_prev" >> "$GITHUB_OUTPUT"
+          echo "::notice::Snapshot — api_prev=$api_prev worker_prev=$worker_prev"
+
+      - name: Deploy API service
+        id: deploy_api
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        # --service binds to the API service; --detach returns when the build
+        # is queued (we wait for healthcheck via the smoke gate, not the CLI's
+        # in-flight stream, because the CLI stream can hang on slow builds).
+        run: |
+          set -euo pipefail
+          railway up --service "${{ secrets.RAILWAY_API_SERVICE_ID }}" --detach
+          # Poll until the new deployment leaves BUILDING/DEPLOYING.
+          deadline=$(( $(date +%s) + 600 ))
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            status=$(railway deployments --service "${{ secrets.RAILWAY_API_SERVICE_ID }}" --json \
+              | jq -r '.[0].status')
+            id=$(railway deployments --service "${{ secrets.RAILWAY_API_SERVICE_ID }}" --json \
+              | jq -r '.[0].id')
+            case "$status" in
+              SUCCESS) echo "deployment_id=$id" >> "$GITHUB_OUTPUT"; exit 0;;
+              FAILED|CRASHED|REMOVED) echo "::error::API deploy ended in $status"; exit 1;;
+              *) echo "API status=$status, waiting..."; sleep 15;;
+            esac
+          done
+          echo "::error::API deploy timed out after 10 minutes"
+          exit 1
+
+      - name: Deploy worker service
+        id: deploy_worker
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        # Worker has no public ingress so no smoke from outside; we rely on
+        # Railway's build+boot status. Worker queue health is verified by the
+        # post-deploy job (it reads `worker.*started` from logs).
+        run: |
+          set -euo pipefail
+          railway up --service "${{ secrets.RAILWAY_WORKER_SERVICE_ID }}" --detach
+          deadline=$(( $(date +%s) + 600 ))
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            status=$(railway deployments --service "${{ secrets.RAILWAY_WORKER_SERVICE_ID }}" --json \
+              | jq -r '.[0].status')
+            id=$(railway deployments --service "${{ secrets.RAILWAY_WORKER_SERVICE_ID }}" --json \
+              | jq -r '.[0].id')
+            case "$status" in
+              SUCCESS) echo "deployment_id=$id" >> "$GITHUB_OUTPUT"; exit 0;;
+              FAILED|CRASHED|REMOVED) echo "::error::Worker deploy ended in $status"; exit 1;;
+              *) echo "Worker status=$status, waiting..."; sleep 15;;
+            esac
+          done
+          echo "::error::Worker deploy timed out after 10 minutes"
+          exit 1
+
+  smoke:
+    name: Smoke gate
+    needs: deploy
+    if: needs.deploy.result == 'success' && github.event.inputs.skip_smoke != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run smoke (matches infra/railway/README.md § 5)
+        env:
+          API: ${{ secrets.DEPLOY_API_BASE_URL }}
+        run: bash scripts/deploy/smoke-api.sh
+
+      - name: Trigger audit-chain integrity check (post-deploy hook)
+        # The audit-chain-integrity workflow listens for this dispatch event
+        # — we fire it on success so the chain is verified against the just-
+        # deployed environment. Failure of that workflow pages independently.
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          event-type: deployed-staging
+          client-payload: |
+            {
+              "sha": "${{ github.sha }}",
+              "api_deployment_id": "${{ needs.deploy.outputs.api_deployment_id }}",
+              "ref": "${{ github.ref_name }}"
+            }
+
+  rollback:
+    name: Automatic rollback
+    needs: [deploy, smoke]
+    if: failure() && needs.deploy.result == 'success'
+    # Only runs if deploy succeeded but smoke failed. A failed deploy doesn't
+    # need rollback because the previous deployment is still serving traffic.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Install Railway CLI
+        run: |
+          curl -fsSL https://railway.app/install.sh | sh
+          echo "$HOME/.railway/bin" >> "$GITHUB_PATH"
+
+      - name: Rollback API service
+        if: needs.deploy.outputs.api_previous_deployment_id != ''
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "::warning::Smoke failed — rolling API back to ${{ needs.deploy.outputs.api_previous_deployment_id }}"
+          railway redeploy "${{ needs.deploy.outputs.api_previous_deployment_id }}" \
+            --service "${{ secrets.RAILWAY_API_SERVICE_ID }}" --yes
+
+      - name: Rollback worker service
+        if: needs.deploy.outputs.worker_previous_deployment_id != ''
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "::warning::Rolling worker back to ${{ needs.deploy.outputs.worker_previous_deployment_id }}"
+          railway redeploy "${{ needs.deploy.outputs.worker_previous_deployment_id }}" \
+            --service "${{ secrets.RAILWAY_WORKER_SERVICE_ID }}" --yes
+
+      - name: Notify operator
+        if: secrets.DEPLOY_NOTIFY_WEBHOOK_URL != ''
+        # Webhook contract: minimal JSON, no secrets in the body. Slack and
+        # Discord both accept this shape via their incoming-webhook endpoints.
+        run: |
+          curl -fsSL -X POST -H 'Content-Type: application/json' \
+            --data "$(jq -nc \
+              --arg sha "${{ github.sha }}" \
+              --arg run "${{ github.run_id }}" \
+              --arg env "production-api" \
+              '{text: ("🚨 AEGIS deploy rolled back — sha=" + $sha + " env=" + $env + " run=https://github.com/" + env.GITHUB_REPOSITORY + "/actions/runs/" + $run)}')" \
+            "${{ secrets.DEPLOY_NOTIFY_WEBHOOK_URL }}" || true
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+      - name: Fail the workflow
+        # Rollback succeeded ≠ the deploy succeeded. The run is still red so
+        # the operator's notification surface (GitHub status badge, email,
+        # required-check on the next PR) reflects the production state.
+        run: exit 1
