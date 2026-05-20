@@ -1,0 +1,28 @@
+{
+  "name": "@aegis/e2e-continuous",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AEGIS — continuous E2E funnel monitor. Drives the live customer journey against staging every 15 minutes and pages on failure.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --root .",
+    "test:report": "tsx run-report.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aegis/sdk": "link:../../packages/sdk-ts",
+    "@aegis/types": "link:../../packages/types",
+    "@aegis/verifier-rp": "link:../../packages/verifier-rp"
+  },
+  "devDependencies": {
+    "@aegis/tsconfig": "link:../../packages/tsconfig",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  }
+}

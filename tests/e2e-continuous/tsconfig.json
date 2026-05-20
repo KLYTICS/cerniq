@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../packages/tsconfig/library.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "noEmit": true,
+    "types": ["node", "vitest/globals"],
+    "resolveJsonModule": true,
+    "moduleResolution": "Bundler",
+    "module": "ESNext",
+    "target": "ES2022",
+    "baseUrl": ".",
+    "paths": {
+      "@aegis/sdk": ["../../packages/sdk-ts/src/index.ts"],
+      "@aegis/types": ["../../packages/types/src/index.ts"],
+      "@aegis/verifier-rp": ["../../packages/verifier-rp/src/index.ts"]
+    }
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
