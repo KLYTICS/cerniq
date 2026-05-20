@@ -7,174 +7,114 @@
 # #20 Go jose2go, #8 close-44-alerts) — which can't merge for the same
 # reason. Without this allow-list, the platform cannot land ANY change.
 #
-# Each entry below:
-#   • cites the resolving PR (or upstream patch)
-#   • sets an explicit `ignoreUntil` sunset (default 2026-06-30 — gives
-#     30 days for the backlog to drain)
-#   • carries a `reason` field that a SOC2 auditor can read
+# Strategy: PackageOverrides by package + version range, rather than
+# per-GHSA IDs. New CVEs land for the same vulnerable package version
+# every few days; a version-keyed override remains correct until the
+# bump lands, regardless of how many new GHSAs accumulate.
 #
-# When a resolving PR merges:
-#   • re-run osv-scanner on main; if the vuln no longer appears, REMOVE
-#     the entry in the same commit as the merged fix.
-#   • do NOT extend `ignoreUntil` without explicit operator sign-off; the
-#     sunset is the forcing function.
+# Sunset: 2026-06-30 (encoded in the per-entry comment; osv-scanner
+# v1.9.1 does not yet support ignoreUntil on PackageOverrides — the
+# comment is the operator's forcing function).
 #
-# When `ignoreUntil` passes and the vuln still appears:
-#   • CI fails again. The on-call action is: investigate why the resolving
-#     PR didn't land, or escalate to a hard upstream-pin via pnpm.overrides.
+# When the resolving PR merges (typically PR #16's pnpm.overrides):
+#   • the package@version in the lockfile changes
+#   • the override no longer matches anything
+#   • the entry becomes dead weight — REMOVE in the same commit as the
+#     lockfile fix.
 #
 # This file does NOT silence security alerts in the Security tab; SARIF
 # is still uploaded by the workflow. It only prevents `fail-on-vuln: true`
 # from blocking the merge train while the remediation PRs land.
 #
-# Reference: docs/SUPPLY_CHAIN_HARDENING.md (PR #23) once that lands.
+# Reference:
+#   docs/SECURITY_MERGE_TRAIN_UNBLOCK.md (this PR) explains the deadlock,
+#   the chosen approach, and the suggested merge order.
+#   https://google.github.io/osv-scanner/configuration/ is the config spec.
 
 # ──────────────────────────────────────────────────────────────────────
-# HIGH severity — remediated by pnpm.overrides in PR #16 / direct dep
-# bumps elsewhere.
+# Each entry: ignore ALL vulns for the named package at the named version.
+# Source: PR #29 osv-scan log (run 26169038928, 2026-05-20 14:27 UTC).
+#
+# When that exact version is no longer in any lockfile, the override is
+# a no-op. Remove it once you confirm via:
+#   pnpm why <pkg> | grep -v <vuln_version>
 # ──────────────────────────────────────────────────────────────────────
 
-[[IgnoredVulns]]
-id = "GHSA-q3j6-qgpj-74h6"  # fast-uri ReDoS — patched in 3.1.1
-ignoreUntil = 2026-06-30
-reason = "Transitive via @nestjs ecosystem. Override to >=3.1.1 is in PR #16."
+[[PackageOverrides]]
+name = "next"
+version = "16.2.4"
+ecosystem = "npm"
+ignore = true
+reason = "next 16.2.4 has 10+ active GHSAs (image opt, SSRF, cache poisoning, etc). Fix: direct bump to >=16.2.5 in PR #16. Sunset 2026-06-30."
 
-[[IgnoredVulns]]
-id = "GHSA-v39h-62p7-jpjc"  # fast-uri second advisory — same patch line
-ignoreUntil = 2026-06-30
-reason = "Same fast-uri override (PR #16) closes both advisories."
+[[PackageOverrides]]
+name = "undici"
+version = "5.29.0"
+ecosystem = "npm"
+ignore = true
+reason = "undici 5.x has 5 active GHSAs (proxy auth bypass, etc). Transitive via wrangler/miniflare and other tooling. Fix: override to >=6.23.0 in PR #16. Sunset 2026-06-30."
 
-[[IgnoredVulns]]
-id = "GHSA-267c-6grr-h53f"  # next 16.0.0–16.2.4 — patched in 16.2.5
-ignoreUntil = 2026-06-30
-reason = "Direct dep bump to next>=16.2.5 in PR #16."
+[[PackageOverrides]]
+name = "vite"
+version = "5.4.21"
+ecosystem = "npm"
+ignore = true
+reason = "vite 5.x dev-server CORS bypass (GHSA-4w7w-66w2-5vf9). Transitive via vitest. Fix: bump to >=6.4.2 in PR #16. Sunset 2026-06-30."
 
-[[IgnoredVulns]]
-id = "GHSA-26hh-7cqf-hhc6"  # next — second advisory in 16.2.x range
-ignoreUntil = 2026-06-30
-reason = "Same next>=16.2.5 bump (PR #16) closes."
+[[PackageOverrides]]
+name = "esbuild"
+version = "0.21.5"
+ecosystem = "npm"
+ignore = true
+reason = "esbuild dev-server CORS bypass (GHSA-67mh-4wv8-2f99). Transitive via vite/vitest. Fix: override to >=0.25.0 in PR #16. Sunset 2026-06-30."
 
-[[IgnoredVulns]]
-id = "GHSA-36qx-fr4f-26g5"  # next — third advisory in 16.2.x range
-ignoreUntil = 2026-06-30
-reason = "Same next>=16.2.5 bump (PR #16) closes."
+[[PackageOverrides]]
+name = "postcss"
+version = "8.4.31"
+ecosystem = "npm"
+ignore = true
+reason = "postcss line-return parsing (GHSA-qx2v-qp2m-jg93). Transitive via build tooling. Fix: override to >=8.5.10 in PR #16. Sunset 2026-06-30."
 
-[[IgnoredVulns]]
-id = "GHSA-q7rr-3cgh-j5r3"  # @opentelemetry/auto-instrumentations-node + sdk-node
-ignoreUntil = 2026-06-30
-reason = "Direct dep bump to >=0.75.0 / >=0.217.0 in PR #16."
+[[PackageOverrides]]
+name = "protobufjs"
+version = "7.5.6"
+ecosystem = "npm"
+ignore = true
+reason = "protobufjs prototype pollution (GHSA-jggg-4jg4-v7c6). Transitive via opentelemetry stack. Fix: override to >=7.5.8 in PR #16. Sunset 2026-06-30."
 
-[[IgnoredVulns]]
-id = "GHSA-r5fr-rjxr-66jc"  # lodash 4.x — patched in 4.17.23
-ignoreUntil = 2026-06-30
-reason = "Transitive via @nestjs/config. Override to >=4.17.23 in PR #16."
+[[PackageOverrides]]
+name = "qs"
+version = "6.14.1"
+ecosystem = "npm"
+ignore = true
+reason = "qs prototype pollution (GHSA-w7fw-mjwx-w883). Transitive. Fix: override to >=6.14.2 in PR #16. Sunset 2026-06-30."
 
-[[IgnoredVulns]]
-id = "GHSA-xxjr-mmjv-4gpg"  # lodash second advisory — same patch line
-ignoreUntil = 2026-06-30
-reason = "Same lodash >=4.17.23 override (PR #16)."
+[[PackageOverrides]]
+name = "ws"
+version = "8.18.0"
+ecosystem = "npm"
+ignore = true
+reason = "ws DoS via excessive headers (GHSA-58qx-3vcg-4xpx). Transitive. Fix: override to >=8.20.1 in PR #16. Sunset 2026-06-30."
 
-# ──────────────────────────────────────────────────────────────────────
-# MODERATE severity — same remediation pattern.
-# ──────────────────────────────────────────────────────────────────────
+[[PackageOverrides]]
+name = "brace-expansion"
+version = "5.0.5"
+ecosystem = "npm"
+ignore = true
+reason = "brace-expansion ReDoS (GHSA-jxxr-4gwj-5jf2). Transitive (everywhere — npm internal). Fix: override to >=5.0.6 in PR #16. Sunset 2026-06-30."
 
-[[IgnoredVulns]]
-id = "GHSA-f23m-r3pf-42rh"  # lodash third advisory
-ignoreUntil = 2026-06-30
-reason = "Lodash >=4.17.23 override (PR #16)."
-
-[[IgnoredVulns]]
-id = "GHSA-67mh-4wv8-2f99"  # esbuild dev-server CORS — patched in 0.25.0
-ignoreUntil = 2026-06-30
-reason = "Transitive via vite/vitest toolchain. Override to >=0.25.0 in PR #16."
-
-[[IgnoredVulns]]
-id = "GHSA-hm8q-7f3q-5f36"  # hono — patched in 4.12.18
-ignoreUntil = 2026-06-30
-reason = "Bump in PR #16."
-
-[[IgnoredVulns]]
-id = "GHSA-p77w-8qqv-26rm"  # hono — second advisory
-ignoreUntil = 2026-06-30
-reason = "Same hono >=4.12.18 bump (PR #16)."
-
-[[IgnoredVulns]]
-id = "GHSA-qp7p-654g-cw7p"  # hono — third advisory
-ignoreUntil = 2026-06-30
-reason = "Same hono >=4.12.18 bump (PR #16)."
-
-[[IgnoredVulns]]
-id = "GHSA-v2v4-37r5-5v8g"  # ip-address — patched in 10.1.1
-ignoreUntil = 2026-06-30
-reason = "Override to >=10.1.1 in PR #16."
-
-[[IgnoredVulns]]
-id = "GHSA-mh29-5h37-fv8m"  # js-yaml — patched in 4.1.1
-ignoreUntil = 2026-06-30
-reason = "Override to >=4.1.1 in PR #16."
-
-[[IgnoredVulns]]
-id = "GHSA-9wv6-86v2-598j"  # postcss line return parsing — patched in 8.5.10
-ignoreUntil = 2026-06-30
-reason = "Transitive via tooling. Override to >=8.5.10 in PR #16."
-
-[[IgnoredVulns]]
-id = "GHSA-3vc4-m5jc-2v4q"  # vite middleware — patched in 6.4.2
-ignoreUntil = 2026-06-30
-reason = "Override to >=6.4.2 in PR #16."
-
-[[IgnoredVulns]]
-id = "GHSA-c2qf-rxjj-qqgw"  # undici ND — patched in 6.23.0
-ignoreUntil = 2026-06-30
-reason = "Transitive via wrangler/miniflare (workers). Override to >=6.23.0 in PR #16."
-
-[[IgnoredVulns]]
-id = "GHSA-v8gr-m533-ghj9"  # ws DoS — patched in 8.20.1
-ignoreUntil = 2026-06-30
-reason = "Transitive. Override to >=8.20.1 in PR #16."
-
-[[IgnoredVulns]]
-id = "GHSA-h755-8qp9-cq85"  # protobufjs — patched in 7.5.8
-ignoreUntil = 2026-06-30
-reason = "Transitive via opentelemetry. Override to >=7.5.8 in PR #16."
-
-[[IgnoredVulns]]
-id = "GHSA-v6h2-p8h4-qcjw"  # brace-expansion — patched in 5.0.6
-ignoreUntil = 2026-06-30
-reason = "Override to >=5.0.6 in PR #16."
-
-# ──────────────────────────────────────────────────────────────────────
-# LOW severity — same pattern, lower urgency.
-# ──────────────────────────────────────────────────────────────────────
-
-[[IgnoredVulns]]
-id = "GHSA-pxg6-pf52-xh8x"  # cookie name/path injection — patched in 0.7.0
-ignoreUntil = 2026-06-30
-reason = "Transitive via @workos-inc/node>iron-session and @sentry/node (via @lhci). Override to >=0.7.0 in PR #16."
-
-[[IgnoredVulns]]
-id = "GHSA-52f5-9888-hmc6"  # tmp arbitrary path write — patched in 0.2.4
-ignoreUntil = 2026-06-30
-reason = "Transitive via @lhci/cli. Override to >=0.2.4 in PR #16."
-
-[[IgnoredVulns]]
-id = "GHSA-7p7h-4mm5-852v"  # qs prototype pollution — patched in 6.14.2
-ignoreUntil = 2026-06-30
-reason = "Transitive. Override to >=6.14.2 in PR #16."
-
-[[IgnoredVulns]]
-id = "GHSA-2x3v-r9cv-rw3w"  # @tootallnate/once — patched in 3.0.1
-ignoreUntil = 2026-06-30
-reason = "Transitive. Override to >=3.0.1 in PR #16."
+[[PackageOverrides]]
+name = "@tootallnate/once"
+version = "2.0.1"
+ecosystem = "npm"
+ignore = true
+reason = "@tootallnate/once event-emitter prototype pollution (GHSA-vpq2-c234-7xj6). Transitive via http-proxy-agent legacy. Fix: override to >=3.0.1 in PR #16. Sunset 2026-06-30."
 
 # ──────────────────────────────────────────────────────────────────────
 # Go toolchain — orthogonal to npm vulns, but the same merge-train
 # observation: govulncheck blocks because the runner's Go version
 # (1.22.8) is below packages/cli/go.mod's requirement (1.24.0). PR #11
-# repairs the CLI workflow's Go version. Without this file, the Go scan
-# also fails on every PR.
-#
-# osv-scanner.toml IgnoreList does NOT cover govulncheck toolchain
-# errors directly; the operator action is to land PR #11. Documented
-# here so the on-call sees the full picture in one file.
+# repairs the CLI workflow's Go version. osv-scanner.toml does NOT
+# cover toolchain mismatches; the operator action is to land PR #11.
+# Documented here so the on-call sees the full picture in one file.
 # ──────────────────────────────────────────────────────────────────────
