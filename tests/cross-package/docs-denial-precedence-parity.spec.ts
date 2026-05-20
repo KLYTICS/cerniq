@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DENIAL_REASON_PRECEDENCE } from '@aegis/types';
+// Import from source path, not package alias — @aegis/types points to dist/
+// which is not built at parity-test time. Matches the pattern used by
+// existing parity specs (e.g. denial-reason-parity.spec.ts).
+import { DENIAL_REASON_PRECEDENCE } from '../../packages/types/src/constants';
 
 // Cross-package parity gate for @aegis/docs.
 //
