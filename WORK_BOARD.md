@@ -855,6 +855,91 @@ See `docs/spec/01_MASTER.md` § 7 (Phase 3) and the master backlog
 
 ---
 
+---
+
+## SPRINT S3 — Infrastructure sync (2026-05-20)
+
+> Charter: close the gap between "code shipped" and "self-maintaining
+> production." Push-to-main becomes the deploy trigger; CI is the gate;
+> the smoke gate is the contract; auto-rollback protects customers.
+> Dependabot stops bleeding CVEs.
+
+### M-DEPLOY-1 · CI-gated deploy pipeline with auto-rollback
+- **STATUS**: ✅ shipped by sid=dreamy-diffie @ 2026-05-20
+- **Paths**:
+  - `.github/workflows/deploy-api.yml` (Railway API + worker, snapshot →
+    deploy → smoke → repository_dispatch → on-fail rollback + webhook)
+  - `.github/workflows/deploy-vercel.yml` (Vercel dashboard + docs,
+    matrixed; snapshot → pull → build → deploy → smoke → rollback)
+  - `scripts/deploy/smoke-api.sh` (7 gates encoding
+    `infra/railway/README.md` § 5)
+  - `scripts/deploy/smoke-vercel.sh` (per-app dashboard + docs gate sets)
+  - `scripts/deploy/README.md` (operator setup checklist of secrets +
+    failure-mode quick reference)
+  - `infra/observability/runbooks/deploy-pipeline.md` (on-call runbook,
+    indexed in `runbooks/README.md`)
+- **Goal**: push-to-main → CI gates → deploy → smoke gate → on-success
+  fires `deployed-staging` repository_dispatch (already wired into
+  `audit-chain-integrity.yml`); on-failure rolls back the failed app +
+  alerts via webhook. Rollback is automatic (the cost of an unnecessary
+  rollback is one deploy; the cost of leaving prod broken is trust).
+- **OPERATOR-INPUT-NEEDED**: GitHub repo secrets per
+  `scripts/deploy/README.md` (Railway token + service IDs, Vercel token +
+  project IDs, public URLs, optional notify webhook).
+
+### M-DEPLOY-2 · Dependabot grouped updates + auto-merge
+- **STATUS**: ✅ shipped by sid=dreamy-diffie @ 2026-05-20 · fixes the
+  6 currently-failing per-CVE Dependabot PRs on main (2026-05-20)
+- **Paths**:
+  - `.github/dependabot.yml` (groups: security-all, nestjs, prisma,
+    nextjs, testing, lint, types, minor-and-patch; daily for npm,
+    weekly for actions + docker)
+  - `.github/workflows/auto-merge-deps.yml` (auto-merge patch/minor +
+    security-all via `gh pr merge --auto --squash`; major bumps
+    explicitly comment for human review)
+- **Goal**: collapse one-PR-per-CVE failures into grouped daily PRs;
+  patches and minors auto-merge when CI green; majors comment-only.
+- **Acceptance**: existing 6 broken PRs resolve on next Dependabot run.
+
+### M-OBS-1 · Continuous E2E funnel monitor
+- **STATUS**: ✅ shipped by sid=background-peer @ 2026-05-20 (paired
+  delegation from sid=dreamy-diffie)
+- **Paths**:
+  - `tests/e2e-continuous/{funnel.spec.ts,run-report.ts,vitest.config.ts,
+    package.json,tsconfig.json,README.md}`
+  - `.github/workflows/continuous-e2e.yml` (15-min cron; funnel → report
+    → publish to gh-pages → page on failure)
+- **Goal**: exercise the full customer funnel (landing → pricing →
+  signup probe → agent register → policy → verify ALLOW → verify DENY
+  INVALID_SIGNATURE → audit-export structural check → cleanup) every
+  15 min against staging. Failure pages a webhook.
+- **OPERATOR-INPUT-NEEDED**: `AEGIS_E2E_BASE_URL`,
+  `E2E_BOOTSTRAP_API_KEY` (bound to a pre-provisioned
+  `e2e-continuous` principal), `E2E_PAGE_WEBHOOK_URL`. Operator must
+  also create the orphan `gh-pages` branch before the publish job
+  succeeds (one-time).
+- **Known gaps left as TODO** (out of session scope):
+  1. No `/v1/principals` admin-create endpoint — step uses bootstrap
+     probe instead of fresh principal per run.
+  2. `@aegis/verifier-rp` doesn't yet export `verifyAuditChain(rows,
+     jwks)` — step 9 validates structural integrity only; deeper offline
+     verification stays in `audit-chain-integrity.yml`.
+  3. Trial-exhaustion step gated behind `E2E_RUN_TRIAL_EXHAUSTION=true`
+     because the prod cap (10 000) is infeasible to loop on a 15-min
+     cron — needs daily probe job + small cap override.
+
+### M-OBS-2 · Sentry release tracking + public status page (deferred)
+- **STATUS**: open · pending operator inputs (Sentry org/project slugs,
+  decision on status page hosting — recommended: embed `/status` MDX
+  page in `@aegis/docs` reading from existing `<StatusBadge/>` live
+  component + gh-pages funnel run history from M-OBS-1)
+- **Paths** (planned):
+  - `.github/workflows/deploy-api.yml` extension (Sentry release step)
+  - `.github/workflows/deploy-vercel.yml` extension (Sentry release step)
+  - `apps/docs/content/docs/status.mdx` (or separate `apps/status/`)
+
+---
+
 ## How to add a new module to this board
 
 1. ID it sequentially within the active sprint section.

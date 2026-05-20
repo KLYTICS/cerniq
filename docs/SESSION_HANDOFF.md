@@ -445,6 +445,56 @@ that cancelled the rest before reasoning about per-PR fixes. Inverted, the
 single-PR fix unblocks the whole train.
 ---
 
+## 2026-05-20 (Infrastructure sync — push-to-main deploy pipeline + dependency self-maintenance + continuous E2E) · sid=dreamy-diffie + background-peer · claim=aegis:infra-deploy-pipeline
+
+**Status:** ✅ Phase 1 + Phase 3 + continuous E2E shipped in one arc. Phase 2 partial (deploy-pipeline runbook landed; Sentry release tracking + status page deferred pending operator inputs — see WORK_BOARD M-OBS-2).
+
+### Why this round mattered
+
+The repo had enormous depth (M-001 through M-056 mostly shipped — KMS adapters, policy engines, CF Worker edge verify, Python SDK, Go CLI, full docs platform) but the last 5 commits on main were CI fixes, and 6 Dependabot security-update PRs were failing one-by-one. That's the classic "all the code exists, none of the glue works" state. This round adds the glue: push-to-main → deploy → smoke → rollback, grouped dependency updates that don't fail one-CVE-at-a-time, and a continuous E2E funnel that pages when the customer flow breaks.
+
+### What shipped
+
+**M-DEPLOY-1 — CI-gated deploy pipeline (Railway + Vercel) with auto-rollback**
+- `.github/workflows/deploy-api.yml` — triggered by CI success on main via `workflow_run`. Snapshot current deployment IDs → `railway up` for API and worker → smoke-gate from `infra/railway/README.md` § 5 → on success fire `deployed-staging` repository_dispatch (already wired into `audit-chain-integrity.yml`) → on failure run `railway redeploy <previous-id>` for each affected service and POST to operator webhook. Concurrency-locked. Forward-only Prisma migrations explicitly NOT auto-rolled (per `infra/railway/README.md` § 6) — runbook covers the schema-recovery path.
+- `.github/workflows/deploy-vercel.yml` — matrix over dashboard + docs. Each app independently: snapshot prev URL → `vercel pull` → `vercel build` → `vercel deploy --prebuilt --prod` → per-app smoke gate → on failure `vercel rollback`. Atomic per-app: a docs failure doesn't roll the dashboard back.
+- `scripts/deploy/smoke-api.sh` — encodes the 7 gates from the Railway runbook into a CI-runnable script. Helpers `gate` (plain HTTP) and `gate_jq` (JSON-shape assertions); adding a new gate is one line.
+- `scripts/deploy/smoke-vercel.sh` — per-app gate sets (dashboard: landing + login + pricing + 404; docs: landing + /docs + sitemap + robots + llms.txt + content-check + 404).
+- `scripts/deploy/README.md` — operator setup checklist of every required secret with source, plus a failure-mode quick reference.
+- `infra/observability/runbooks/deploy-pipeline.md` — on-call runbook with first-5-minutes flow, smoke-gate failure decoder, forward-fix-vs-revert decision, and "rollback also failed" escalation. Indexed in `runbooks/README.md` under build-time/process runbooks.
+
+**M-DEPLOY-2 — Dependabot grouped updates + auto-merge**
+- `.github/dependabot.yml` (new — there was no Dependabot config before this round). Eight groups: `security-all` (all CVEs collapse to one PR/day), `nestjs`, `prisma`, `nextjs` (next + react + fumadocs together), `testing` (vitest + vitejs), `lint` (eslint + prettier + typescript-eslint), `types` (@types/*), `minor-and-patch` (long tail). Daily for npm; weekly for github-actions and docker. Directly fixes the 6 currently-failing one-PR-per-CVE updates on main.
+- `.github/workflows/auto-merge-deps.yml` — patch + minor + security-all auto-merge via `gh pr merge --auto --squash`; major bumps comment for explicit human review. `pull_request_target` + Dependabot identity check + branch-protection assumption (operator-owned).
+
+**M-OBS-1 — Continuous E2E funnel monitor** (delegated to background peer)
+- `tests/e2e-continuous/` — new dir, isolated from existing `tests/e2e/` regression suite. Vitest single-fork sequential. Funnel: landing → pricing → signup probe → agent register (Ed25519 keypair generated in-test via SDK) → policy create → verify ALLOW → verify DENY/INVALID_SIGNATURE → audit-export structural check → cleanup. Synthetic accounts use `e2e-continuous+<run-id>@aegislabs.io` for janitor sweep.
+- `.github/workflows/continuous-e2e.yml` — 15-min cron; three jobs (funnel → publish-report-to-gh-pages → page-on-failure-via-webhook). Concurrency group prevents racing the synthetic principal.
+- Honest gaps captured as TODOs in `tests/e2e-continuous/README.md`: no `/v1/principals` admin-create endpoint (uses bootstrap probe), no `verifyAuditChain(rows, jwks)` export in `@aegis/verifier-rp` (structural-only check), trial-exhaustion step gated behind env flag because looping the 10 000 cap on 15-min cron is infeasible.
+
+### Operator action items (in priority order)
+
+1. **GitHub repo secrets per `scripts/deploy/README.md`** (Railway token, service IDs, Vercel token, project IDs, public URLs, optional notify webhook). Without these, `deploy-api.yml` and `deploy-vercel.yml` exit early with `::notice::`.
+2. **Branch protection on `main`** — require `CI` + `Security` workflows as passing checks before merge. The auto-merge workflow relies on this.
+3. **Create orphan `gh-pages` branch** — one-time, so the continuous E2E publish-report job can append run history.
+4. **Pre-provision `e2e-continuous@aegislabs.io` principal in staging + mint a management API key as `E2E_BOOTSTRAP_API_KEY`** — the continuous E2E suite probes against this; doesn't admin-create per run.
+5. **Decide on Sentry org/project + status page approach** — Phase 2 leftover. Either embed `/status` in `@aegis/docs` (recommended; lets us reuse `<StatusBadge/>` + the gh-pages run history) or stand up a separate cstate static site.
+
+### What's next
+
+The "self-maintainability" gap that remains is the **Phase 2 leftover** (Sentry release tracking + public status page). Both need operator inputs before they can be wired — see WORK_BOARD M-OBS-2.
+
+Beyond that, the next high-leverage arc is closing the operator-owned items in `OPERATOR_DECISIONS.md`: pricing tier hard gates, Auth0 prod tenant, KMS provider choice. None of those need more code — they need decisions. Until those land, the platform can deploy and serve customers, but the conversion loop terminates at the manual checkout step.
+
+### Discipline notes
+
+- **The runbook is the test plan for the workflow.** I wrote `smoke-api.sh` by literally encoding `infra/railway/README.md` § 5 line-by-line. Future smoke-gate edits should keep the script and runbook in sync — a gate added to the script without a runbook entry is a gate no on-call can act on.
+- **Auto-rollback is a customer-trust trade.** Default-on with an emergency `skip_smoke: true` escape hatch. The cost of an unnecessary rollback is one extra deploy; the cost of leaving prod broken is trust. Documented in the deploy-pipeline runbook so the next on-call doesn't second-guess it.
+- **Per-CVE Dependabot PRs are an antipattern.** When "Dependabot PR for X failed" recurs, the fix is rarely the dep itself — it's the absence of grouping. Confirmed by inspecting the 6 failing runs (all hit peer-dep conflicts trying to install in isolation).
+
+
+---
+
 ## 2026-05-18 (Round 26 audit pass — caught 4 critical bugs before commit) · sid=gifted-payne · claim=aegis:M-014
 
 **Status:** ✅ Cold-review audit of Rounds 24-26 caught and fixed 4 critical bugs that would have broken on first `pnpm install` + first PR. Worth documenting because the same audit discipline should apply to every multi-round arc.
