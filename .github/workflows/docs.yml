@@ -29,8 +29,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
+        # pnpm version is taken from root package.json "packageManager" field.
+        # Specifying `version:` here would conflict per pnpm/action-setup v4.
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -53,8 +53,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
+        # pnpm version is taken from root package.json "packageManager" field.
+        # Specifying `version:` here would conflict per pnpm/action-setup v4.
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -71,7 +71,10 @@ jobs:
       - name: Lychee link check
         uses: lycheeverse/lychee-action@v2
         with:
-          args: --no-progress --max-concurrency 4 'apps/docs/content/**/*.mdx' 'apps/docs/README.md'
+          # --exclude '^/' skips root-relative URLs (validated by Next.js routing,
+          # not deployable until the site is live)
+          # --exclude '^http://localhost' skips dev-only references in README
+          args: --no-progress --max-concurrency 4 --exclude '^/' --exclude '^http://localhost' 'apps/docs/content/**/*.mdx' 'apps/docs/README.md'
           fail: true
 
   build-and-pack:
@@ -81,8 +84,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
+        # pnpm version is taken from root package.json "packageManager" field.
+        # Specifying `version:` here would conflict per pnpm/action-setup v4.
       - uses: actions/setup-node@v4
         with:
           node-version: 20
