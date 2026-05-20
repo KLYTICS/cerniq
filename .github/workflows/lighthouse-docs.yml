@@ -30,6 +30,10 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Build @aegis/types (sibling workspace dep)
+        # apps/docs imports from @aegis/types which resolves to dist/;
+        # must be built before docs build can succeed.
+        run: pnpm --filter @aegis/types build
       - name: Build @aegis/docs
         run: pnpm --filter @aegis/docs build
         env:
