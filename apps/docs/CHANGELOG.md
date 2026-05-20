@@ -5,6 +5,22 @@ All notable changes to the docs site. Format mirrors
 
 ## [Unreleased]
 
+### Round 26 post-push build verification (2026-05-19)
+After pushing the platform commits (de3f7e3, 299c73f, b02348e), ran `pnpm --filter @aegis/docs build` end-to-end for the first time. The build surfaced 6 issues that the source-only audit had missed. All fixed in this round:
+
+- **Fixed**: `apps/docs/scripts/generate-api-docs.mjs` was passing an absolute `output` path to `fumadocs-openapi.generateFiles`, which the lib treats as relative-to-cwd — produced files at a doubled path (`apps/docs/Users/money/.../apps/docs/content/...`). Now `chdir` to appRoot first and pass `./content/docs/api/(generated)`.
+- **Fixed**: `apps/docs/app/docs/[[...slug]]/opengraph-image.tsx` removed entirely. Next 16 rejects any file segment after an optional catch-all (`[[...slug]]`) with `Optional catch-all must be the last part of the URL`. The homepage `/opengraph-image.tsx` remains as the shared OG; per-page dynamic OG is deferred to a follow-up that uses a non-optional catch-all or a dedicated `/api/og/[...slug]` route.
+- **Fixed**: `apps/docs/app/twitter-image.tsx` re-exported `runtime` from `opengraph-image.tsx`. Next 16 cannot infer the `runtime` export from re-exports. Now declared inline.
+- **Fixed**: `apps/docs/app/global.css` used `fumadocs-ui/css/preset.css` (a Fumadocs v15 path). v14.7.7 (what we have) exports `./style.css`. Switched to that.
+- **Fixed**: `apps/docs/scripts/generate-api-docs.mjs` is now a documented no-op pending Round 27 wiring. The generated MDX uses `<APIPage document="..." />` with an absolute path baked into the JSX, which breaks on any deploy where the build runs from a different prefix (Vercel, CI). Proper wiring needs `apps/docs/lib/openapi.ts` exporting `createOpenAPI({ input: [...] })` + `APIPage` registered in `mdx-components.tsx` with the shared `ctx`. Until then, the curated `content/docs/api/*.mdx` pages remain authoritative.
+- **Fixed**: `apps/docs/scripts/generate-sdk-docs.mjs` now exits 0 on TypeDoc failure (was propagating the non-zero exit). TypeDoc 0.27.9 + typedoc-plugin-markdown 4.11.0 have a peer-constraint chain that doesn't satisfy under TS 5.9 — graceful degradation lets the build proceed with the curated `content/docs/sdk/typescript.mdx` as v1 source.
+- **Fixed**: `apps/docs/typedoc.json` stripped advanced options (`expandObjects`, `parametersFormat`, etc.) that typedoc-plugin-markdown 4.11 can't load against typedoc 0.27.
+- **Fixed**: `apps/docs/app/layout.tsx` added `metadataBase` to clear Next's resolver-URL warning. Defaults to `NEXT_PUBLIC_DOCS_URL` env, falls back to the prod hostname.
+
+**Build result after fixes**: `pnpm --filter @aegis/docs build` exits 0; 35 routes generated; all 25 docs pages prerendered; `/api/docs`, `/api/search`, `/llms.txt`, `/sitemap.xml`, `/robots.txt`, `/opengraph-image`, `/twitter-image` all wired.
+
+**Discipline lesson**: source-only audits catch wrong-string and missing-step bugs but cannot catch runtime/build-time bugs (Satori flex, Fumadocs CSS exports, Next route conventions, peer-dep semantics under specific versions). Future multi-round arcs that produce build artifacts should include an actual `build` run as an explicit audit step before any commit, not just `typecheck`. Added to `apps/docs/CONTRIBUTING.md` and the docs CI workflow already runs the full build chain.
+
 ### Round 26 audit pass (2026-05-18)
 - **Fixed**: GitHub org references across all docs MDX. Was `github.com/aegislabs/aegis` (55 refs); actual is `github.com/klytics/aegis` per repo remote and `packages/sdk-ts/package.json` `repository.url`.
 - **Fixed**: ADR filename references where I had guessed the convention. `0006-audit-redact.md` → `0006-audit-redactability.md`, `0008-mcp-control-plane.md` → `0008-mcp-as-control-plane.md`, `0010-dpop-replay.md` → `0010-dpop-replay-prevention.md`, `0011-key-rotation.md` → `0011-key-rotation-kms.md`.
