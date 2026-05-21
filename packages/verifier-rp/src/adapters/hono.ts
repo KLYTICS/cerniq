@@ -3,8 +3,8 @@
 
 import type { Context, MiddlewareHandler } from 'hono';
 
-import type { AegisVerifier } from '../verifier.js';
 import type { VerifyContext, VerifyOptions } from '../types.js';
+import type { AegisVerifier } from '../verifier.js';
 
 const DEFAULT_HEADER = 'X-AEGIS-Token';
 

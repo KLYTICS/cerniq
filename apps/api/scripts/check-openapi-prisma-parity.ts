@@ -189,6 +189,12 @@ const MODEL_MAPPINGS: readonly ModelMapping[] = [
       'spendRecords',
       'updatedAt',
       'createdAt',
+      // Lifecycle + counters not surfaced on AgentResponseDto:
+      'revokedAt',
+      'revokedReason',
+      'verifyCount',
+      'verifyCountDay',
+      'bateSignals',
     ]),
   },
   {
@@ -205,12 +211,17 @@ const MODEL_MAPPINGS: readonly ModelMapping[] = [
       'spendRecords',
       'createdAt',
       'updatedAt',
+      // Internal counters / hash not on PolicyResponseDto:
+      'tokenHash',
+      'revokedAt',
+      'verifyCount',
     ]),
   },
   {
     prismaModel: 'AuditEvent',
     openapiComponent: 'AuditEvent',
-    renames: { id: 'eventId', createdAt: 'timestamp' },
+    // Prisma column `denialReason` → DTO/OpenAPI `decisionReason`.
+    renames: { id: 'eventId', createdAt: 'timestamp', denialReason: 'decisionReason' },
     internalFields: new Set([
       'agent',
       'policy',
@@ -227,6 +238,20 @@ const MODEL_MAPPINGS: readonly ModelMapping[] = [
       'redactedAt',
       'principalIdHash',
       'agentIdHash',
+      // Internal hash-chain inputs + redaction metadata not on AuditEventDto.
+      // Auditors verify these via the signed payload, not via the API DTO.
+      'policySnapshot',
+      'relyingPartyHash',
+      'requestedAmountHash',
+      'policySnapshotHash',
+      'redactionReason',
+      // Public on the wire but not yet surfaced on AuditEventDto — when
+      // M-006 finalisation publishes these fields on the response, move
+      // them into OpenAPI AuditEvent properties and remove from this set.
+      'requestedAmount',
+      'currency',
+      'policyId',
+      'trustBandAtEvent',
     ]),
   },
 ] as const;

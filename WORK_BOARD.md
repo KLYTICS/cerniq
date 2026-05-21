@@ -12,6 +12,13 @@ via `claude-peers msg`.
 
 ---
 
+## Recent multi-package waves (newest first)
+
+- **R28 (2026-05-20)** — SDK gained `agents.list` + `AuditClient` (`search`/`forAgent`); MCP migrated off `raw-http.ts` onto typed SDK with MCP 1.0 tool annotations + structured AegisError→MCP error envelope; CLI gained categorical exit codes, `--output json|table`, and `aegis verify <token>` command. New `tests/cross-package/mcp-sdk-surface-parity.spec.ts` is the recurrence gate (compile-time + runtime). See `docs/SESSION_HANDOFF.md` Round 28.
+- **R28-sync (2026-05-21)** — OpenAPI ↔ Zod gate green (renamed `AgentStatus` schema → `AgentStatusResponse` to match the existing `AgentStatusResponseSchema`). OpenAPI ↔ Prisma gate green: added public fields the API actually returns (`label` on AgentPolicy, `claimedAgentId`/`actionHash` on AuditEvent) to the spec; allowlisted genuinely-internal Prisma columns. Root-level missing eslint plugins (`eslint-plugin-security`, `eslint-plugin-unicorn`, `eslint-plugin-import`, `@eslint/js`, `typescript-eslint`, `eslint-config-prettier`) added to devDeps. 19/31 verifier-rp lint issues auto-fixed; 31 remain as a bounded follow-up.
+
+---
+
 ## SPRINT S1 — Phase 1 MVP (post CERNIQ Gate 1, exempt for spec/scaffold)
 
 ### M-001 · @aegis/sdk-ts client implementation

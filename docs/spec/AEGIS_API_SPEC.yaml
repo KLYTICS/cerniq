@@ -108,7 +108,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AgentStatus'
+                $ref: '#/components/schemas/AgentStatusResponse'
           description: Agent status
 
   # ─────────────────────────────────────────────────
@@ -400,7 +400,7 @@ components:
           type: string
           format: date-time
 
-    AgentStatus:
+    AgentStatusResponse:
       type: object
       properties:
         agentId:
@@ -451,6 +451,10 @@ components:
           type: string
         agentId:
           type: string
+        label:
+          type: string
+          nullable: true
+          description: Optional human-readable label set at policy creation.
         scopes:
           type: array
           items:
@@ -603,6 +607,12 @@ components:
           type: string
         agentId:
           type: string
+          nullable: true
+          description: Real agent FK; null when verify denied with AGENT_NOT_FOUND.
+        claimedAgentId:
+          type: string
+          nullable: true
+          description: Agent ID exactly as claimed in the verify request; survives agent deletion + GDPR erasure.
         principalId:
           type: string
         timestamp:
@@ -610,8 +620,14 @@ components:
           format: date-time
         action:
           type: string
+          nullable: true
+          description: Null after GDPR Art. 17 redaction; verify integrity via actionHash.
+        actionHash:
+          type: string
+          description: base64url(sha256(action)) — committed to in the signed chain payload, survives redaction.
         relyingParty:
           type: string
+          nullable: true
         decision:
           type: string
           enum: [approved, denied, flagged]
