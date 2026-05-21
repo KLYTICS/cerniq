@@ -7,6 +7,12 @@ export function registerVerifyTool(aegis: Aegis, registry: Map<string, ToolDefin
     description:
       'Verify an AEGIS agent token against the agent identity, policy, and trust score. Returns ' +
       'an APPROVED or DENIED decision with denial reason. Mirrors POST /v1/verify.',
+    annotations: {
+      title: 'Verify agent token',
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {

@@ -1,10 +1,8 @@
-import type { Aegis } from '@aegis/sdk';
-import type { RawHttp } from './raw-http.js';
+import type { Aegis, AuditSearchOptions } from '@aegis/sdk';
 import type { ToolDefinition } from './registry.js';
 
 export function registerAuditTool(
-  _aegis: Aegis,
-  rawHttp: RawHttp,
+  aegis: Aegis,
   registry: Map<string, ToolDefinition>,
 ): void {
   registry.set('aegis.audit.search', {
@@ -12,34 +10,35 @@ export function registerAuditTool(
     description:
       "Search this principal's audit events. Read-only; principals cannot read other principals' " +
       'audit logs. Each event carries a hash-chain signature verifiable against the JWKS at ' +
-      '/.well-known/audit-signing-key (ADR-0011).',
+      '/.well-known/audit-signing-key (ADR-0011). When `agent_id` is supplied the search is ' +
+      'scoped to that single agent (faster, no cross-agent filter pass).',
+    annotations: {
+      title: 'Search audit events',
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {
-        agent_id: { type: 'string' },
-        action: { type: 'string', description: 'e.g. "commerce.purchase".' },
-        decision: { type: 'string', enum: ['APPROVED', 'DENIED', 'FLAGGED'] },
+        agent_id: { type: 'string', description: 'Optional. Scopes the search to one agent.' },
         from: { type: 'string', description: 'ISO timestamp lower bound (inclusive).' },
         to: { type: 'string', description: 'ISO timestamp upper bound (exclusive).' },
-        limit: { type: 'number', minimum: 1, maximum: 200 },
+        limit: { type: 'number', minimum: 1, maximum: 1000 },
         cursor: { type: 'string' },
       },
       additionalProperties: false,
     },
-    // SDK surface for audit search is not yet modeled; the endpoint
-    // exists, so we go through the raw helper rather than reach into
-    // the SDK's private http field.
-    handler: async (args) =>
-      await rawHttp.json('/v1/audit-events', {
-        query: {
-          agent_id: typeof args.agent_id === 'string' ? args.agent_id : undefined,
-          action: typeof args.action === 'string' ? args.action : undefined,
-          decision: typeof args.decision === 'string' ? args.decision : undefined,
-          from: typeof args.from === 'string' ? args.from : undefined,
-          to: typeof args.to === 'string' ? args.to : undefined,
-          limit: typeof args.limit === 'number' ? String(args.limit) : undefined,
-          cursor: typeof args.cursor === 'string' ? args.cursor : undefined,
-        },
-      }),
+    handler: async (args) => {
+      const opts: AuditSearchOptions = {
+        ...(typeof args.from === 'string' ? { from: args.from } : {}),
+        ...(typeof args.to === 'string' ? { to: args.to } : {}),
+        ...(typeof args.limit === 'number' ? { limit: args.limit } : {}),
+        ...(typeof args.cursor === 'string' ? { cursor: args.cursor } : {}),
+      };
+      return typeof args.agent_id === 'string'
+        ? await aegis.audit.forAgent(args.agent_id, opts)
+        : await aegis.audit.search(opts);
+    },
   });
 }

@@ -1,5 +1,12 @@
 import type { HttpClient } from './http.js';
-import type { AgentRecord, AgentStatus, RegisterAgentInput, TrustBand } from './types.js';
+import type {
+  AgentListPage,
+  AgentRecord,
+  AgentStatus,
+  ListAgentsOptions,
+  RegisterAgentInput,
+  TrustBand,
+} from './types.js';
 
 export interface HandshakeChallenge {
   agentId: string;
@@ -31,6 +38,25 @@ export class AgentClient {
 
   register(input: RegisterAgentInput): Promise<AgentRecord> {
     return this.http.request<AgentRecord>('/agents/register', { method: 'POST', body: input });
+  }
+
+  /**
+   * Paginated list of agents owned by the calling principal. Server-side
+   * filtering by `status`, `runtime`, and a `search` substring (id / label /
+   * model). Pages with `nextCursor`; pass the cursor to `list()` again to
+   * fetch the next page; `null` cursor means done.
+   */
+  list(opts: ListAgentsOptions = {}): Promise<AgentListPage> {
+    return this.http.request<AgentListPage>('/agents', {
+      method: 'GET',
+      query: {
+        limit: opts.limit,
+        cursor: opts.cursor,
+        status: opts.status,
+        runtime: opts.runtime,
+        search: opts.search,
+      },
+    });
   }
 
   get(agentId: string): Promise<AgentRecord> {

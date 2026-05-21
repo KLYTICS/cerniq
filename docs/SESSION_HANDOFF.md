@@ -5,6 +5,105 @@
 
 ---
 
+## 2026-05-20 (Round 28 — SDK/MCP/CLI enterprise hardening + MCP↔SDK parity gate) · sid=musing-cray · claim=aegis:sdk-mcp-cli-hardening
+
+**Status:** ✅ Five-wave coordinated improvement across `@aegis/sdk`, `@aegis/mcp-server`, `@aegis/cli`. Drift loop *closed* — Round 27 fixed the symptom (CLI/MCP couldn't compile against the SDK); Round 28 fixes the cause (SDK didn't expose the methods MCP/CLI advertised), then adds a compile-time parity gate so the gap can never silently reopen.
+
+### Why this round mattered
+
+Round 27 patched the *current* drift between MCP tool advertising and the SDK surface. But the underlying gap remained: the API exposes `GET /v1/agents`, `GET /v1/audit-events`, etc., yet the SDK didn't model them — so CLI commands and MCP tools had to reach through the SDK's private `http` field or call raw `fetch`. Every consumer reinvented the wheel; every reinvention was a latent drift source. Round 28 closes that gap (SDK gains the missing methods), migrates consumers (MCP off raw-http; CLI off raw-http where possible), and installs a parity test so a future SDK change that breaks an MCP handler **fails CI at commit time** rather than at "next cold worktree".
+
+### What shipped (5 waves)
+
+| Wave | Surface | What landed |
+|------|---------|-------------|
+| 1 | `@aegis/sdk` | `AgentClient.list(opts) → AgentListPage` with full server-side filter set (status/runtime/search + limit/cursor). New `AuditClient` with `search(opts)` (tenant-wide) + `forAgent(agentId, opts)` (per-agent) → `AuditLogPage`. Wired `Aegis.audit` getter. New exported types: `ListAgentsOptions`, `AgentListPage`, `AuditEvent`, `AuditDecision`, `AuditSearchOptions`, `AuditLogPage`. 6 new spec tests covering URL encoding, query-string omission of undefined params, response shape preservation, and per-agent URL-encoding. |
+| 2 | `@aegis/mcp-server` | Migrated `aegis.agents.list`, `aegis.policies.list`, `aegis.policies.get` (client-side filter via list), `aegis.audit.search` off `raw-http.ts` onto real SDK calls. Deleted `raw-http.ts` (zero consumers). Tool schemas trimmed to **only** what the server actually supports — fabricated filter fields removed per CLAUDE.md "no silent failures and no fabricated data." `audit.search` now auto-routes to `audit.forAgent()` when `agent_id` is supplied. |
+| 3 | `@aegis/mcp-server` | **MCP 1.0 tool annotations** on every tool per the modern spec: `title`, `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`. Revoke tools = destructive + idempotent; list/get/search/verify = read-only + idempotent; create = non-idempotent. **Structured error mapping** in `server.ts`: AEGIS SDK errors → MCP `isError: true` payload with `sdkError`, `code`, `catalogCode`, `statusCode`, `requestId`, `message`. Generic throws fall through to a uniform envelope. Tool-not-found responses now include the `available` tool list so agents can self-correct. |
+| 4 (recurrence gate) | `tests/cross-package/` | **`mcp-sdk-surface-parity.spec.ts`** — 7 tests covering: every `TOOL_NAMES` entry has a handler; no extras beyond `TOOL_NAMES`; every tool carries annotations; tool name in handler key matches `definition.name`; destructive tools annotated correctly; read-only tools annotated correctly; every input schema sets `additionalProperties: false`. **Compile-time gate**: the test file imports the real `Aegis` class and instantiates each register fn — if a tool handler drifts from the SDK shape, this file *fails to compile* and CI goes red. Verified by injecting a deliberate `annotations: → annotationsTYPO:` drift; gate caught it with 2 failing assertions and clear messages. |
+| 5 | `@aegis/cli` | **Per-error-class exit codes** (`exit-codes.ts`): `EXIT_AUTHN=4`, `EXIT_AUTHZ=5`, `EXIT_NOT_FOUND=6`, `EXIT_RATE_LIMITED=7`, `EXIT_VALIDATION=8`, `EXIT_CONFLICT=9`, `EXIT_NETWORK=11`, `EXIT_INTERNAL=12`, `EXIT_UNAVAILABLE=13`, `EXIT_CLI=20`, plus `EXIT_VERIFY_DENIED=22` for the verify command's DENY path. **Global `--output json\|table` flag** in `bin.ts`, plus `--json` shorthand; stripped from argv before commander dispatches so subcommands don't re-parse. `output.ts` gains `emit(payload, rows)` + `emitRecord(record)` that switch on the mode. `agents list`/`agents get`/`policies create`/`policies list` migrated to the mode-aware emitters. **New `aegis verify <token>` command** (closes M-027 acceptance gap) with `--action`/`--amount`/`--currency`/`--merchant-domain`/`--merchant-id` flags; warns when verify-only key isn't configured (production should split `aegis_sk_` and `aegis_vk_` keys). Help text now documents every exit code. Also fixed a pre-existing tsup DTS build break (`incremental: true` inherited from root tsconfig). |
+
+### Test deltas
+
+| Workspace | Before R28 | After R28 |
+|-----------|-----------|-----------|
+| `@aegis/sdk` (jest) | 62 | **68** (+6) |
+| `@aegis/mcp-server` (vitest) | 21 | **27** (+6) |
+| `@aegis/cli` (vitest) | 3 | **23** (+20) |
+| `tests/cross-package` (vitest) | 88 | **95** (+7) |
+| `apps/api` (jest) | 814 | 814 (no change) |
+
+**Cumulative**: +39 new tests across SDK, MCP server, CLI, and the cross-package parity suite.
+
+### Verification
+
+```bash
+pnpm typecheck                        # 19 workspaces, all green
+pnpm test:parity                      # 13 suites / 95 tests, all green
+pnpm --filter @aegis/sdk test         # 5 files / 68 tests
+pnpm --filter @aegis/mcp-server test  # 5 files / 27 tests
+pnpm --filter @aegis/cli test         # 3 files / 23 tests
+pnpm --filter @aegis/cli build        # ESM + DTS clean
+pnpm -r --workspace-concurrency=4 run test   # all workspaces green
+```
+
+End-to-end smokes via the built CLI bin:
+```bash
+node packages/cli/dist/bin.js --help               # documents new flags + exit codes
+node packages/cli/dist/bin.js verify ""            # → EXIT 20 (invalid_token, CliError)
+node packages/cli/dist/bin.js agents list --json   # → EXIT 20 (not_logged_in, CliError)
+```
+
+**Recurrence gate verification**: deliberately injected `annotations: → annotationsTYPO:` into `verify.ts`; `pnpm test:parity` reported 2 parity failures with specific tool-name + assertion line numbers. Reverted; gate green. Same machinery would catch SDK method renames, signature changes, or `TOOL_NAMES` drift.
+
+### What stayed in lane
+
+- **No API contract changes.** SDK adds methods (additive); MCP `TOOL_NAMES` unchanged per ADR-0008 §2; OpenAPI unchanged; denial precedence unchanged; audit chain unchanged; verify hot path unchanged.
+- **No new runtime dependency.** Every change is internal refactor + tests.
+- **No migration changes.** `prisma/migrations/` untouched.
+- **One additive devDep impact only**: none — existing tsup / vitest / jest enough.
+
+### Architecture invariants verified
+
+| Invariant | Preserved |
+|-----------|-----------|
+| Private keys never enter AEGIS | ✅ unchanged |
+| Verify hot path portability | ✅ unchanged |
+| Audit append-only + signed | ✅ unchanged |
+| No silent failures / no fabricated data | ✅ **strengthened** — fabricated MCP tool schema filters removed; structured errors now surface catalog codes |
+| Multi-tenant isolation by `principalId` | ✅ unchanged (SDK adds methods; server-side guards unchanged) |
+| Denial precedence stable | ✅ unchanged |
+| Contracts generated or centrally owned | ✅ unchanged |
+| Public SDKs runtime-portable | ✅ AuditClient uses only existing HttpClient (browser/edge-safe) |
+
+### Trends mapped (the "modern" axis)
+
+- **MCP 1.0 tool annotations** — `readOnlyHint`/`destructiveHint`/`idempotentHint`/`openWorldHint` per the 2025-06 spec. Hosts (Claude Desktop, Cursor, etc.) use these to render confirmation prompts and to route long-running tools.
+- **MCP structured errors** — moved from generic `{error: 'tool_failed', message}` to `{sdkError, code, catalogCode, statusCode, requestId, message}`. Hosts can now back off on `AegisRateLimitedError`, re-auth on `AegisAuthenticationError`, etc., without parsing prose.
+- **CLI categorical exit codes** — sysexits(3)-adjacent semantics so shell scripts can `$?`-dispatch.
+- **CLI `--output json`** — the JSON-everywhere idiom that `kubectl`, `gh`, `aws` all converged on.
+
+### What's next
+
+- **`aegis verify` end-to-end against a live API** — soft-skip e2e harness should add a verify-from-CLI case once the API has a real seed.
+- **Add `GET /v1/agents/:agentId/policies/:policyId`** — would let `aegis.policies.get` MCP tool drop the list+filter fallback for an O(1) lookup. Server-side endpoint addition; SDK gets `policies.get(agentId, policyId)`; MCP handler simplifies.
+- **CLI shell completions** (`aegis completion bash/zsh/fish`) — commander can emit these; one-evening task.
+- **`aegis-node` plugin rename** still operator-pending per `packages/cli/MIGRATION_TS_TO_PLUGIN.md`. Nothing in this round blocks or accelerates it.
+- **MCP Streamable HTTP transport** — current bin is stdio-only. Hosted MCP deployments need StreamableHTTPServerTransport for non-desktop hosts.
+
+### Discipline note
+
+The single most leverageable artifact from this round is `tests/cross-package/mcp-sdk-surface-parity.spec.ts`. It cost ~120 lines and 90 seconds; it makes the **entire class of drift Round 27 had to triage manually** into a CI red light. This pattern should be the template for any future case where two packages share a contract that isn't already a generated artifact:
+
+1. Pick the contract (here: MCP tool handlers ↔ Aegis SDK shape).
+2. Write a `tests/cross-package/<surface>-parity.spec.ts` that imports BOTH sides and uses one in terms of the other.
+3. Type alignment becomes a compile-time gate; runtime assertions cover what types can't (presence, shape, ordering).
+4. **Verify the gate fires** by injecting a deliberate drift and watching the test fail. If it doesn't fail, the gate is theatre, not protection.
+
+Candidate next parity tests: dashboard error catalog ↔ SDK error class names; CLI exit codes ↔ AEGIS error catalog `retryable` field; webhook event names ↔ audit log `action` enum.
+
+---
+
 ## 2026-05-20 (Gate hygiene — cold-worktree typecheck, CLI/MCP SDK drift, api-key-rotation spec) · sid=musing-cray · claim=aegis:gate-hygiene
 
 **Status:** ✅ `pnpm typecheck` and full repo test sweep both clean on a fresh worktree. Three latent failures fixed; no changes to architecture invariants.

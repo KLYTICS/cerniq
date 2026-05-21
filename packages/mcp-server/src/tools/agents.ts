@@ -1,8 +1,8 @@
-import type { Aegis, AgentRuntime } from '@aegis/sdk';
-import type { RawHttp } from './raw-http.js';
+import type { Aegis, AgentRuntime, AgentStatus } from '@aegis/sdk';
 import type { ToolDefinition } from './registry.js';
 
 const VALID_RUNTIMES: readonly AgentRuntime[] = ['OPENAI', 'ANTHROPIC', 'GOOGLE', 'HUGGINGFACE', 'CUSTOM'];
+const VALID_STATUSES: readonly AgentStatus[] = ['PENDING_VERIFICATION', 'ACTIVE', 'SUSPENDED', 'REVOKED'];
 
 function parseRuntime(raw: unknown): AgentRuntime {
   if (typeof raw !== 'string') return 'CUSTOM';
@@ -12,7 +12,6 @@ function parseRuntime(raw: unknown): AgentRuntime {
 
 export function registerAgentsTools(
   aegis: Aegis,
-  rawHttp: RawHttp,
   registry: Map<string, ToolDefinition>,
 ): void {
   registry.set('aegis.agents.create', {
@@ -20,6 +19,13 @@ export function registerAgentsTools(
     description:
       "Register a new agent with AEGIS. The caller must supply the agent's base64url Ed25519 public key — " +
       'AEGIS never receives the private key (ADR-0002).',
+    annotations: {
+      title: 'Register agent',
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -47,6 +53,12 @@ export function registerAgentsTools(
   registry.set('aegis.agents.get', {
     name: 'aegis.agents.get',
     description: 'Fetch one agent by id.',
+    annotations: {
+      title: 'Get agent',
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: { agent_id: { type: 'string' } },
@@ -58,23 +70,33 @@ export function registerAgentsTools(
 
   registry.set('aegis.agents.list', {
     name: 'aegis.agents.list',
-    description: "List agents in the caller's principal. Paginated.",
+    description:
+      "List agents owned by the calling principal. Paginated (cursor in nextCursor). " +
+      'Filterable by status, runtime, and a substring search on id/label/model.',
+    annotations: {
+      title: 'List agents',
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {
         limit: { type: 'number', minimum: 1, maximum: 100 },
         cursor: { type: 'string' },
+        status: { type: 'string', enum: VALID_STATUSES as unknown as string[] },
+        runtime: { type: 'string', enum: VALID_RUNTIMES as unknown as string[] },
+        search: { type: 'string', description: 'Substring match on agentId / label / model.' },
       },
       additionalProperties: false,
     },
-    // SDK does not yet expose `agents.list()`; the endpoint exists, so we
-    // go through the raw helper rather than fabricate an SDK call.
     handler: async (args) =>
-      await rawHttp.json('/v1/agents', {
-        query: {
-          limit: typeof args.limit === 'number' ? String(args.limit) : undefined,
-          cursor: typeof args.cursor === 'string' ? args.cursor : undefined,
-        },
+      await aegis.agents.list({
+        ...(typeof args.limit === 'number' ? { limit: args.limit } : {}),
+        ...(typeof args.cursor === 'string' ? { cursor: args.cursor } : {}),
+        ...(typeof args.status === 'string' ? { status: args.status as AgentStatus } : {}),
+        ...(typeof args.runtime === 'string' ? { runtime: args.runtime as AgentRuntime } : {}),
+        ...(typeof args.search === 'string' ? { search: args.search } : {}),
       }),
   });
 
@@ -83,6 +105,13 @@ export function registerAgentsTools(
     description:
       'Revoke an agent. Subsequent verify calls return AGENT_REVOKED. Reversible only by re-creating ' +
       'the agent under a new id (ADR-0004).',
+    annotations: {
+      title: 'Revoke agent',
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {

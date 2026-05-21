@@ -1,8 +1,8 @@
 import * as ed from '@noble/ed25519';
 import { sha512 } from '@noble/hashes/sha512';
 import type { AgentRecord, AgentRuntime } from '@aegis/sdk';
-import { client, rawJson } from '../client.js';
-import { emitJson, emitTable, ok, info, warn } from '../output.js';
+import { client } from '../client.js';
+import { emit, emitJson, emitRecord, ok, info, warn } from '../output.js';
 
 ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
 
@@ -37,24 +37,26 @@ export async function agentsCreate(opts: { name: string; runtime?: string; print
   }
 }
 
-interface AgentListResponse {
-  agents: AgentRecord[];
-  nextCursor?: string | null;
+export interface AgentsListOptions {
+  limit?: number;
+  cursor?: string;
+  status?: string;
+  runtime?: string;
+  search?: string;
+  json?: boolean;
 }
 
-export async function agentsList(opts: { limit?: number; cursor?: string; json?: boolean }): Promise<void> {
-  // SDK has no `agents.list()` yet — go through the raw helper. The
-  // endpoint shape is the API's `GET /v1/agents` list response.
-  const params = new URLSearchParams();
-  if (opts.limit !== undefined) params.set('limit', String(opts.limit));
-  if (opts.cursor) params.set('cursor', opts.cursor);
-  const qs = params.toString();
-  const result = await rawJson<AgentListResponse>(`/v1/agents${qs ? `?${qs}` : ''}`);
-  if (opts.json) {
-    emitJson(result);
-    return;
-  }
-  emitTable(
+export async function agentsList(opts: AgentsListOptions): Promise<void> {
+  const aegis = await client();
+  const result = await aegis.agents.list({
+    ...(opts.limit !== undefined ? { limit: opts.limit } : {}),
+    ...(opts.cursor !== undefined ? { cursor: opts.cursor } : {}),
+    ...(opts.status !== undefined ? { status: opts.status as AgentRecord['status'] } : {}),
+    ...(opts.runtime !== undefined ? { runtime: opts.runtime as AgentRuntime } : {}),
+    ...(opts.search !== undefined ? { search: opts.search } : {}),
+  });
+  emit(
+    result,
     result.agents.map((a) => ({
       id: a.agentId,
       label: a.label ?? '',
@@ -69,12 +71,8 @@ export async function agentsList(opts: { limit?: number; cursor?: string; json?:
 export async function agentsGet(id: string, opts: { json?: boolean }): Promise<void> {
   const aegis = await client();
   const agent = await aegis.agents.get(id);
-  // `--json` is the explicit machine path; default is also JSON for now
-  // because agent records have no obvious row-projection. Honor the flag
-  // either way so future row-formatted output can land without breaking
-  // pipelines.
   void opts;
-  emitJson(agent);
+  emitRecord(agent as unknown as Record<string, unknown>);
 }
 
 export async function agentsRevoke(id: string, opts: { reason?: string }): Promise<void> {

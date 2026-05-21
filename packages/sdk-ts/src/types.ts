@@ -37,6 +37,27 @@ export interface RegisterAgentInput {
   label?: string;
 }
 
+export interface ListAgentsOptions {
+  /** Page size. Server defaults to 25, caps at 100. */
+  limit?: number;
+  /** Opaque cursor returned in the previous page's `nextCursor`. */
+  cursor?: string;
+  /** Filter to agents in a specific lifecycle status. */
+  status?: AgentStatus;
+  /** Filter to agents declaring a specific runtime. */
+  runtime?: AgentRuntime;
+  /** Substring match on id, label, or model. */
+  search?: string;
+}
+
+export interface AgentListPage {
+  agents: AgentRecord[];
+  /** `null` once the last page has been returned. */
+  nextCursor: string | null;
+  /** Total agents owned by this principal across all pages. */
+  total: number;
+}
+
 export interface AgentRecord {
   agentId: string;
   publicKey: string;
@@ -79,6 +100,47 @@ export interface SignContext {
 // `tests/cross-package/denial-reason-parity.spec.ts` is the gate.
 export { DENIAL_REASONS, type DenialReason } from './denial-reason.generated.js';
 import type { DenialReason } from './denial-reason.generated.js';
+
+// ── Audit ──────────────────────────────────────────────────────────────────
+
+export type AuditDecision = 'APPROVED' | 'DENIED' | 'FLAGGED';
+
+export interface AuditEvent {
+  eventId: string;
+  /** Real agent FK; `null` when verify denied with AGENT_NOT_FOUND. */
+  agentId: string | null;
+  /** Agent ID exactly as claimed in the verify request; lets you correlate denials to bad-input agents. */
+  claimedAgentId?: string | null;
+  principalId: string;
+  /** ISO timestamp. */
+  timestamp: string;
+  /** `null` after GDPR Art. 17 redaction; verify integrity via actionHash. */
+  action: string | null;
+  /** base64url(sha256(action)) — committed to in the signed chain payload, survives redaction. */
+  actionHash: string;
+  relyingParty?: string | null;
+  decision: AuditDecision;
+  decisionReason?: string | null;
+  trustScoreAtEvent: number;
+  /** AEGIS-signed chain signature. Verify against `/.well-known/audit-signing-key`. */
+  signature: string;
+}
+
+export interface AuditSearchOptions {
+  /** ISO timestamp lower bound (inclusive). */
+  from?: string;
+  /** ISO timestamp upper bound (exclusive). */
+  to?: string;
+  /** Page size. Server defaults to 100, caps at 1000. */
+  limit?: number;
+  cursor?: string;
+}
+
+export interface AuditLogPage {
+  events: AuditEvent[];
+  nextCursor: string | null;
+  count: number;
+}
 
 export interface VerifyResult {
   valid: boolean;

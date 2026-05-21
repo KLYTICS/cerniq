@@ -1,6 +1,7 @@
 import { HttpClient } from './http.js';
 import { AgentClient, type HandshakeVerified } from './agent.js';
 import { PolicyClient } from './policy.js';
+import { AuditClient } from './audit.js';
 import { signAgentToken, signHandshake } from './crypto.js';
 import type { AegisConfig, SignContext, VerifyResult } from './types.js';
 
@@ -10,6 +11,7 @@ const DEFAULT_TIMEOUT_MS = 5_000;
 export class Aegis {
   readonly agents: AgentClient;
   readonly policies: PolicyClient;
+  readonly audit: AuditClient;
   private readonly http: HttpClient;
 
   constructor(config: AegisConfig = {}) {
@@ -23,6 +25,7 @@ export class Aegis {
     });
     this.agents = new AgentClient(this.http);
     this.policies = new PolicyClient(this.http);
+    this.audit = new AuditClient(this.http);
   }
 
   /**
@@ -100,4 +103,5 @@ export type {
   BreakerState,
   FallbackMode,
 } from './verify-gateway.js';
+export { AuditClient } from './audit.js';
 export type * from './types.js';

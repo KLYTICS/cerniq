@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import type { PolicyScope } from '@aegis/sdk';
 import { CliError, client } from '../client.js';
-import { emitJson, emitTable, ok, warn } from '../output.js';
+import { emit, emitRecord, ok, warn } from '../output.js';
 
 const DEFAULT_TTL_SECONDS = 86_400;
 
@@ -15,7 +15,7 @@ export async function policiesCreate(
   const aegis = await client();
   const policy = await aegis.policies.create(opts.agentId, { scopes, expiresAt });
   ok(`policy created: ${policy.policyId}`);
-  emitJson(policy);
+  emitRecord(policy as unknown as Record<string, unknown>);
 }
 
 export async function policiesList(
@@ -29,15 +29,9 @@ export async function policiesList(
   }
   const aegis = await client();
   const policies = await aegis.policies.list(opts.agentId);
-  if (opts.json) {
-    emitJson({ agentId: opts.agentId, policies });
-    return;
-  }
-  emitTable(
-    policies.map((p) => ({
-      policyId: p.policyId,
-      expiresAt: p.expiresAt,
-    })),
+  emit(
+    { agentId: opts.agentId, policies },
+    policies.map((p) => ({ policyId: p.policyId, expiresAt: p.expiresAt })),
   );
 }
 

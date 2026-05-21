@@ -1,5 +1,4 @@
-import type { Aegis, PolicyScope } from '@aegis/sdk';
-import type { RawHttp } from './raw-http.js';
+import type { Aegis, PolicyRecord, PolicyScope } from '@aegis/sdk';
 import type { ToolDefinition } from './registry.js';
 
 const DEFAULT_TTL_SECONDS = 86_400;
@@ -12,7 +11,6 @@ function resolveExpiresAt(args: Record<string, unknown>): Date {
 
 export function registerPoliciesTools(
   aegis: Aegis,
-  rawHttp: RawHttp,
   registry: Map<string, ToolDefinition>,
 ): void {
   registry.set('aegis.policies.create', {
@@ -20,6 +18,13 @@ export function registerPoliciesTools(
     description:
       'Issue a scoped policy for an agent. Returns a signed JWT (EdDSA) the agent presents at ' +
       '/v1/verify. Spend limits, MCC ranges, and merchant allow-lists are validated server-side.',
+    annotations: {
+      title: 'Create policy',
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -29,7 +34,7 @@ export function registerPoliciesTools(
           items: {
             type: 'object',
             properties: {
-              category: { type: 'string', description: 'e.g. "commerce", "code", "data".' },
+              category: { type: 'string', description: 'e.g. "commerce", "data-read".' },
               actions: { type: 'array', items: { type: 'string' } },
               merchant_domains: { type: 'array', items: { type: 'string' } },
               spend_limit: {
@@ -62,7 +67,15 @@ export function registerPoliciesTools(
 
   registry.set('aegis.policies.get', {
     name: 'aegis.policies.get',
-    description: 'Fetch one policy by id (requires the owning agent id).',
+    description:
+      "Fetch one policy by id. Currently filters client-side from policies.list(agentId) — the API does " +
+      'not yet expose a GET /policies/:id endpoint. Throws if the policy is not found in the agent\'s list.',
+    annotations: {
+      title: 'Get policy',
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -72,49 +85,48 @@ export function registerPoliciesTools(
       required: ['agent_id', 'policy_id'],
       additionalProperties: false,
     },
-    // SDK has no PolicyClient.get(); endpoint exists, so go through raw.
-    handler: async (args) =>
-      await rawHttp.json(
-        `/v1/agents/${encodeURIComponent(String(args.agent_id))}/policies/${encodeURIComponent(String(args.policy_id))}`,
-      ),
+    handler: async (args) => {
+      const policies = await aegis.policies.list(String(args.agent_id));
+      const found = policies.find((p: PolicyRecord) => p.policyId === String(args.policy_id));
+      if (!found) {
+        throw new Error(`policy_not_found: ${args.policy_id} not in agent ${args.agent_id}`);
+      }
+      return found;
+    },
   });
 
   registry.set('aegis.policies.list', {
     name: 'aegis.policies.list',
-    description: "List policies for an agent. Pagination and status filtering are server-side.",
+    description:
+      "List policies for an agent. Returns all active policies; the API does not yet expose server-side " +
+      'status/cursor filtering on this endpoint.',
+    annotations: {
+      title: 'List policies',
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {
         agent_id: { type: 'string' },
-        status: { type: 'string', enum: ['ACTIVE', 'REVOKED', 'EXPIRED'] },
-        limit: { type: 'number', minimum: 1, maximum: 100 },
-        cursor: { type: 'string' },
       },
       required: ['agent_id'],
       additionalProperties: false,
     },
-    handler: async (args) => {
-      const agentId = String(args.agent_id);
-      // SDK list() is unfiltered; if any filter is set, go through raw so
-      // the server-side filters are honored rather than silently dropped.
-      const hasFilter =
-        typeof args.status === 'string' || typeof args.limit === 'number' || typeof args.cursor === 'string';
-      if (!hasFilter) {
-        return await aegis.policies.list(agentId);
-      }
-      return await rawHttp.json(`/v1/agents/${encodeURIComponent(agentId)}/policies`, {
-        query: {
-          status: typeof args.status === 'string' ? args.status : undefined,
-          limit: typeof args.limit === 'number' ? String(args.limit) : undefined,
-          cursor: typeof args.cursor === 'string' ? args.cursor : undefined,
-        },
-      });
-    },
+    handler: async (args) => await aegis.policies.list(String(args.agent_id)),
   });
 
   registry.set('aegis.policies.revoke', {
     name: 'aegis.policies.revoke',
     description: 'Revoke a policy immediately. All future verifies under this policy return POLICY_REVOKED.',
+    annotations: {
+      title: 'Revoke policy',
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     inputSchema: {
       type: 'object',
       properties: {
