@@ -5,6 +5,72 @@
 
 ---
 
+## 2026-05-21 (post-merge audit of PR #35 — three gaps filed as follow-ups) · sid=crazy-greider · claim=none
+
+**Status:** ⚠️ Three real gaps surfaced in the post-merge review of #35 ([7fd1c577](https://github.com/KLYTICS/aegis/commit/7fd1c577)). Filing here rather than reverting — the lint-zero baseline value is real, main is healthy, but the merge bundled mechanical autofix with security-sensitive refactors in one 290-file PR, and the post-merge audit caught what a focused review would have caught earlier.
+
+### Gap 1 — JWT claim adapter silent-coercion regression (HIGH priority follow-up)
+
+**Files:** `apps/api/src/modules/auth0/auth0.adapter.ts`, `apps/api/src/modules/idp-clerk/clerk.adapter.ts`, `apps/api/src/modules/mcp/mcp.service.ts`
+
+PR #35 replaced `String(claims.sub ?? '')` with `typeof claims.sub === 'string' ? claims.sub : ''`. Commit message described this as "fixing a real `[object Object]` stringification bug" but the actual behavioral diff is wider:
+
+| Input shape | Old | New |
+|---|---|---|
+| String `'auth0\|abc'` | same | same |
+| `undefined`/`null` | `''` | `''` |
+| Number `42` | `'42'` | `''` |
+| Object `{...}` | `'[object Object]'` (loud-but-wrong, downstream fails) | `''` (silent) |
+| Array `['a','b']` | `'a,b'` | `''` |
+| Boolean `true` | `'true'` | `''` |
+
+Four input shapes that previously surfaced as visible-but-wrong strings (causing downstream "user not found" lookups) now silently coerce to `''` — which may match a user with empty `idpUserId` (data-integrity bug) or fail-open (silent auth failure).
+
+**AEGIS doctrine violated:** *"No silent failures. Never hide an error behind an empty list, fake score, stub policy, or synthetic success."* (root CLAUDE.md § Architecture invariants #4).
+
+In production, Auth0/Clerk JWTs are spec-compliant per RFC 7519 so `sub` is always a string — the divergence rarely triggers. The risk is adversarial scenarios (alg confusion, tampered tokens, misconfigured IdP) where the new code's silent-empty-id failure mode is harder to detect than the old code's loud-downstream failure.
+
+**Suggested fix:** reject malformed JWT entirely by returning `null` from `verify()` when any required claim isn't a string. Pair with tests covering all 4 non-string input shapes.
+
+### Gap 2 — Missing paired tests for new error paths (MEDIUM priority)
+
+**AEGIS doctrine violated:** *"Crypto, auth, billing, policy, audit, and tenant-boundary changes require paired tests in the same change."* (root CLAUDE.md § Quality bar).
+
+PR #35 added new explicit error paths without corresponding tests:
+
+- `AuditSignerService: init did not produce a resolved signer.` — `apps/api/src/common/crypto/audit-signer.service.ts:135`
+- `AuditService: signing key not initialized.` — `apps/api/src/modules/audit/audit.service.ts:196`
+- `hashLeaf` empty-string overload — `apps/api/src/common/crypto/audit-chain.util.ts:123`
+
+Existing specs pass because they cover happy paths only. The new paths are reachable in real failure modes (init race, missing env config, ADR-0006 redact rows) and warrant regression tests so a future refactor doesn't quietly remove the defensive checks.
+
+### Gap 3 — `.husky/pre-commit` make exit-code rewrite bug (LOW priority)
+
+GNU make exits 2 on any failed recipe regardless of the recipe's actual exit code. The hook's `[ "$code" -ge 2 ]` check therefore misclassifies every preflight warning as a gating failure — the documented "exit 1 = warnings allowed through" path is dead code.
+
+Recent fixes `dab23c8` (preflight-exit-code-inversion), `6f1048b` (env.example false-positive), `40e4d18` (self-exemption docs) addressed adjacent bugs but not this one. Fix: call preflight directly via `pnpm -F @aegis/api exec tsx tools/preflight/preflight.ts --fast`, bypassing make so the script's actual exit code propagates.
+
+PR #35 used `SKIP_PREFLIGHT=1` (documented escape hatch) since the worktree's `.husky/pre-commit` was older than the recent fix arc and editing the live root hook would have affected parallel-session Claude worktrees.
+
+### Things that landed correctly (worth naming)
+
+- `audit-signer.service.ts ensureResolved()` helper — *net improvement* over the old `this.resolved!`: replaces a cryptic `TypeError: cannot read property 'signRaw' of undefined` with a named error pointing at the init failure mode
+- `audit.service.ts` `auditPrivateKey` null check — *net improvement* for the same reason
+- `audit-chain.util.ts hashLeaf` function overloads — *net improvement*: domain knowledge ("a non-nullish input returns a string") moved from a `!` assertion into the type system; all callers benefit
+- `@noble/hashes/sha2` migration — verified safe: `sha2.sha256 === sha256.sha256` (literally the same function reference, just a different import path)
+
+### Coordination notes for next sessions
+
+- Peer `cb70e666` is working on the `TODO(api-drift)` in `aegis:r30-parity-and-pyparity` (CLI exit-code parity + Python SDK methods). The `no-unsafe-*` relaxations in `eslint.config.mjs` for `packages/{cli,mcp-server}` should be tightened back to strict once their PR lands.
+- 6 open PRs need rebasing on top of #35: #22 chore/cli-lint-typecheck-fix, #28 push-to-main, #30 verifyAuditChain, #31 RP-compliance, #34 e2e suite, plus the active `r30-parity-and-pyparity` work.
+- Warp runner pool stalled for 5+ PRs across 2026-05-21 — Security/CI/Release workflows queued for 1.5h+ without picking up. Not PR-content related. Operator escalation territory if it persists.
+
+### Process lesson
+
+The 290-file PR mixed mechanical autofix (low risk) with security-sensitive refactors (high risk). Doctrine: *"Keep changes small enough for a reviewer to understand the risk."* The right structure would have been 5 PRs: (A) deps + plumbing + autofix, (B) per-scope relaxations, (C) audit-signer refactor, (D) audit-service refactor, (E) Next 16 migration. Bundling traded review fidelity for velocity. Worth naming as a pattern to avoid on future cross-cutting work.
+
+---
+
 ## 2026-05-21 (lint-zero — `pnpm lint` green across all 12 workspaces) · sid=crazy-greider · claim=aegis:lint-zero
 
 **Status:** ✅ Monorepo lint baseline is real for the first time. `pnpm lint`, `pnpm test`, `pnpm check:openapi-zod`, `pnpm check:openapi-prisma`, `pnpm check:migrations` all exit 0. `pnpm typecheck` is green except for the pre-existing `@aegis/cli` ↔ `@aegis/sdk` API drift documented below.
