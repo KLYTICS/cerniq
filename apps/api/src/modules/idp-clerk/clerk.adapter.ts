@@ -21,6 +21,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { AppConfigService } from '../../config/config.service';
+import {
+  extractAegisRoles,
+  isMfaSatisfied,
+  optionalStringClaim,
+  requireStringClaim,
+  requireStringClaimWithFallback,
+} from '../auth0/idp-claim-validators';
 import type { IdpAdapter, IdpUser } from '../auth0/idp.adapter';
 
 const ALLOWED_ALGS = new Set(['RS256', 'RS384', 'RS512']);
@@ -86,29 +93,69 @@ export class ClerkAdapter implements IdpAdapter {
     const algoOid = header.alg === 'RS512' ? 'RSA-SHA512' : header.alg === 'RS384' ? 'RSA-SHA384' : 'RSA-SHA256';
     if (!verifyAsymmetric(algoOid, data, pubKey, sig)) return null;
 
+    // Strict-validation of required claims. Per root CLAUDE.md invariant
+    // 4 ("No silent failures and no fabricated data"), a wrong-type or
+    // empty required claim rejects the token outright — never coerce to
+    // an empty string and register a tenant-collision-prone identity.
+    //
+    // Logs are intentionally structured-context-only: the field name and
+    // its observed JS type are recorded, but the claim *value* is never
+    // logged (it may be user-identifying). The caller of
+    // verifyAccessToken treats `null` as an auth failure and emits its
+    // own structured-warn from the request-context layer.
+    const idpUserId = requireStringClaim(claims, 'sub');
+    if (idpUserId === null) {
+      this.logger.warn(
+        `clerk_jwt_rejected reason=missing_required_claim claim=sub claimType=${typeof claims.sub}`,
+      );
+      return null;
+    }
+    // Clerk's organization id lives at `org_id` (active org) or `o.id`
+    // depending on the Clerk token version. Either source is acceptable.
+    const idpOrganizationId = requireStringClaimWithFallback(
+      claims,
+      'org_id',
+      { parentKey: 'o', nestedKey: 'id' },
+    );
+    if (idpOrganizationId === null) {
+      this.logger.warn(
+        `clerk_jwt_rejected reason=missing_required_claim claim=org_id claimType=${typeof claims.org_id}`,
+      );
+      return null;
+    }
+    const idpDomain = requireStringClaim(claims, 'org_slug');
+    if (idpDomain === null) {
+      this.logger.warn(
+        `clerk_jwt_rejected reason=missing_required_claim claim=org_slug claimType=${typeof claims.org_slug}`,
+      );
+      return null;
+    }
+    const email = requireStringClaim(claims, 'email');
+    if (email === null) {
+      this.logger.warn(
+        `clerk_jwt_rejected reason=missing_required_claim claim=email claimType=${typeof claims.email}`,
+      );
+      return null;
+    }
+
+    // Clerk roles arrive as `org_role` (single string for active org) or
+    // as a custom claim `https://aegis.dev/roles`. We normalize: only
+    // `aegis:*` roles propagate. extractAegisRoles handles wrong-type
+    // and mixed-type arrays without coercion.
+    const orgRole = optionalStringClaim(claims, 'org_role');
+    const roles = orgRole?.startsWith('aegis:')
+      ? [orgRole]
+      : extractAegisRoles(claims['https://aegis.dev/roles']);
+
     return {
-      idpUserId: typeof claims.sub === 'string' ? claims.sub : '',
-      // Clerk's organization id lives at `org_id` (active org) or `o.id`
-      // depending on the Clerk version.
-      idpOrganizationId:
-        typeof claims.org_id === 'string'
-          ? claims.org_id
-          : (() => {
-              const o = claims.o as Record<string, unknown> | undefined;
-              return typeof o?.id === 'string' ? o.id : '';
-            })(),
-      idpDomain: typeof claims.org_slug === 'string' ? claims.org_slug : '',
-      email: typeof claims.email === 'string' ? claims.email : '',
+      idpUserId,
+      idpOrganizationId,
+      idpDomain,
+      email,
       emailVerified: Boolean(claims.email_verified),
-      name: typeof claims.name === 'string' ? claims.name : null,
-      // Clerk roles arrive as `org_role` (single string for active org) or
-      // a custom claim. We normalize: only `aegis:*` roles propagate.
-      roles: typeof claims.org_role === 'string' && claims.org_role.startsWith('aegis:')
-        ? [claims.org_role]
-        : Array.isArray(claims['https://aegis.dev/roles'])
-          ? (claims['https://aegis.dev/roles'] as string[]).filter((r) => r.startsWith('aegis:'))
-          : [],
-      mfaSatisfied: Array.isArray(claims.amr) && (claims.amr as string[]).includes('mfa'),
+      name: optionalStringClaim(claims, 'name'),
+      roles,
+      mfaSatisfied: isMfaSatisfied(claims),
       rawClaims: claims,
     };
   }

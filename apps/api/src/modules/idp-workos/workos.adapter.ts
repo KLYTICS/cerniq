@@ -88,8 +88,41 @@ export class WorkOsAdapter implements IdpAdapter {
     }
     if (session.expiresAt * 1000 < Date.now()) return null;
 
-    const orgId = session.organizationId ?? session.user.organizationId ?? '';
-    const orgDomain = orgId ? await this.lookupOrgDomain(orgId) : '';
+    // Strict-validation of required session fields. WorkOSClientLike types
+    // these as `string`, but runtime payloads from a misbehaving WorkOS
+    // SDK / fake / test stub can still violate the contract. Per root
+    // CLAUDE.md invariant 4 ("No silent failures and no fabricated data"),
+    // a missing/empty required field rejects the session rather than
+    // registering a tenant-collision-prone identity. The claim *value*
+    // is never logged.
+    if (typeof session.user.id !== 'string' || session.user.id.length === 0) {
+      this.logger.warn(
+        `workos_session_rejected reason=missing_required_field field=user.id fieldType=${typeof session.user.id}`,
+      );
+      return null;
+    }
+    if (typeof session.user.email !== 'string' || session.user.email.length === 0) {
+      this.logger.warn(
+        `workos_session_rejected reason=missing_required_field field=user.email fieldType=${typeof session.user.email}`,
+      );
+      return null;
+    }
+    const orgIdRaw = session.organizationId ?? session.user.organizationId;
+    if (typeof orgIdRaw !== 'string' || orgIdRaw.length === 0) {
+      this.logger.warn(
+        `workos_session_rejected reason=missing_required_field field=organizationId fieldType=${typeof orgIdRaw}`,
+      );
+      return null;
+    }
+    const orgId: string = orgIdRaw;
+    // `idpDomain` is allowed empty: a WorkOS Organization may legitimately
+    // exist without a verified domain (e.g. invite-only orgs). The lookup
+    // failure is already logged inside `lookupOrgDomain`.
+    const orgDomain = await this.lookupOrgDomain(orgId);
+
+    const fullName = [session.user.firstName, session.user.lastName]
+      .filter((s): s is string => typeof s === 'string' && s.length > 0)
+      .join(' ');
 
     const user: IdpUser = {
       idpUserId: session.user.id,
@@ -97,10 +130,12 @@ export class WorkOsAdapter implements IdpAdapter {
       idpDomain: orgDomain,
       email: session.user.email,
       emailVerified: session.user.emailVerified,
-      name: [session.user.firstName, session.user.lastName].filter(Boolean).join(' ') || null,
+      name: fullName.length > 0 ? fullName : null,
       // WorkOS roles propagate verbatim from the corporate IdP. We filter
       // to `aegis:*` so customer-side IdP role names don't leak in.
-      roles: (session.roles ?? []).filter((r) => typeof r === 'string' && r.startsWith('aegis:')),
+      roles: (session.roles ?? []).filter(
+        (r): r is string => typeof r === 'string' && r.startsWith('aegis:'),
+      ),
       mfaSatisfied: Boolean(session.mfaEnrolled),
       rawClaims: {
         sessionId: session.sessionId,
