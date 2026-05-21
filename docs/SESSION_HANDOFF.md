@@ -5,6 +5,78 @@
 
 ---
 
+## 2026-05-21 (merge-train triage — unblocked 13-PR osv-scanner cascade) · sid=busy-khorana-7281c7 · claim=none (read-mostly PR triage)
+
+**Status:** ✅ One PR merged ([#29](https://github.com/KLYTICS/aegis/pull/29)),
+one stale PR closed ([#6](https://github.com/KLYTICS/aegis/pull/6)), 13 Tier-2
+PRs nudged with explicit rebase instructions. No code changed in this worktree.
+
+### What I diagnosed
+
+18 PRs open, each showing 5–8 failing CI checks. Root cause was **one** failing
+job (`SCA · osv-scanner`) cascading to ~7 cancelled jobs per PR via
+`concurrency.cancel-in-progress` + default `fail-fast`. Apparent failure count
+inflated by ~7× vs. real count.
+
+Two distinct root causes underneath:
+
+1. **osv-scanner** — `osv-scanner.toml` not loaded (reusable workflow at
+   `google/osv-scanner-action@v1.9.1` doesn't auto-discover next to
+   `--lockfile`); allow-list keyed by GHSA ID (fragile — new advisories land
+   faster than the file can be updated).
+2. **Spec-sync regression** — `Denial precedence enum (ADR-0004)`,
+   `OpenAPI ↔ {Zod,Prisma}` failing on PRs that don't touch those paths.
+   Workflow extractor is buggy. Fix exists in [#26](https://github.com/KLYTICS/aegis/pull/26)
+   but DIRTY (conflicts), so it can't land until rebased by the author.
+
+### What I shipped
+
+- **Merged [#29](https://github.com/KLYTICS/aegis/pull/29)** — `--config=./osv-scanner.toml`
+  + switch to `PackageOverrides` keyed by `package@version` (auto-expires when
+  the lockfile bumps past the vulnerable version; no GHSA maintenance burden).
+  Approach matches the team's saved security-tooling preference.
+- **Closed [#6](https://github.com/KLYTICS/aegis/pull/6)** as superseded by #29
+  with a pointer comment explaining the more-durable PackageOverrides approach.
+- **Rebase comments** posted on 13 Tier-2 PRs ([#10](https://github.com/KLYTICS/aegis/pull/10),
+  [#11](https://github.com/KLYTICS/aegis/pull/11), [#12](https://github.com/KLYTICS/aegis/pull/12),
+  [#15](https://github.com/KLYTICS/aegis/pull/15), [#18](https://github.com/KLYTICS/aegis/pull/18),
+  [#19](https://github.com/KLYTICS/aegis/pull/19), [#20](https://github.com/KLYTICS/aegis/pull/20),
+  [#21](https://github.com/KLYTICS/aegis/pull/21), [#22](https://github.com/KLYTICS/aegis/pull/22),
+  [#24](https://github.com/KLYTICS/aegis/pull/24), [#28](https://github.com/KLYTICS/aegis/pull/28),
+  [#30](https://github.com/KLYTICS/aegis/pull/30), [#31](https://github.com/KLYTICS/aegis/pull/31))
+  with the unblock context and a forward pointer to #26 for any remaining
+  spec-sync failures.
+
+### What's next for the merge train
+
+- **DIRTY PRs (8)** need author rebase before they can land:
+  [#4](https://github.com/KLYTICS/aegis/pull/4),
+  [#8](https://github.com/KLYTICS/aegis/pull/8),
+  [#9](https://github.com/KLYTICS/aegis/pull/9),
+  [#13](https://github.com/KLYTICS/aegis/pull/13),
+  [#14](https://github.com/KLYTICS/aegis/pull/14),
+  [#16](https://github.com/KLYTICS/aegis/pull/16),
+  [#25](https://github.com/KLYTICS/aegis/pull/25),
+  [#26](https://github.com/KLYTICS/aegis/pull/26). #26 is the most important
+  of these — it's the fix for the spec-sync regression that's gating #17.
+- **PR [#17](https://github.com/KLYTICS/aegis/pull/17)** (SHA-pin all actions)
+  will stay red until #26 lands (rebased) and #17 is rebased. After both,
+  #17 is the next-most-valuable security hardening to merge.
+- **GitHub-hosted runner queue** is backed up org-wide (zero self-hosted
+  runners). Queued runs from 2026-05-20 may stay queued indefinitely — this is
+  not a code issue. Re-pushing or merging-then-rebasing the queue is the
+  practical unstick if needed.
+
+### Discipline note
+
+This was a great example of why "every PR shows 7 failing checks" is rarely
+"7 problems" — `concurrency.cancel-in-progress: true` + parallel-fan-out makes
+one failure look like a constellation. Always identify the single failing job
+that cancelled the rest before reasoning about per-PR fixes. Inverted, the
+single-PR fix unblocks the whole train.
+
+---
+
 ## 2026-05-18 (Round 26 audit pass — caught 4 critical bugs before commit) · sid=gifted-payne · claim=aegis:M-014
 
 **Status:** ✅ Cold-review audit of Rounds 24-26 caught and fixed 4 critical bugs that would have broken on first `pnpm install` + first PR. Worth documenting because the same audit discipline should apply to every multi-round arc.
