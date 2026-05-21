@@ -40,7 +40,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────
   gitleaks:
     name: Secrets · gitleaks
-    runs-on: warp-ubuntu-latest-x64-2x
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
@@ -97,7 +97,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────
   npm-audit:
     name: SCA · pnpm audit
-    runs-on: warp-ubuntu-latest-x64-2x
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
@@ -124,7 +124,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────
   trivy-fs:
     name: SCA · trivy filesystem
-    runs-on: warp-ubuntu-latest-x64-2x
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
@@ -156,7 +156,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────
   codeql-typescript:
     name: SAST · CodeQL (JS/TS)
-    runs-on: warp-ubuntu-latest-x64-4x
+    runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
       contents: read
@@ -183,7 +183,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────
   license-check:
     name: Compliance · license allowlist
-    runs-on: warp-ubuntu-latest-x64-2x
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
@@ -260,7 +260,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────
   semgrep:
     name: SAST · semgrep
-    runs-on: warp-ubuntu-latest-x64-4x
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
@@ -292,7 +292,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────
   sbom:
     name: Supply chain · SBOM (SPDX)
-    runs-on: warp-ubuntu-latest-x64-2x
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
@@ -316,7 +316,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────
   secrets-scan-actions-permissions:
     name: Posture · workflow permissions
-    runs-on: warp-ubuntu-latest-x64-2x
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
@@ -359,7 +359,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────
   summary:
     name: Security gate · summary
-    runs-on: warp-ubuntu-latest-x64-2x
+    runs-on: ubuntu-latest
     if: always()
     needs:
       - gitleaks

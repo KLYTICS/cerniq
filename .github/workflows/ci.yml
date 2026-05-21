@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: warp-ubuntu-latest-x64-4x
+    runs-on: ubuntu-latest
     timeout-minutes: 15
 
     services:
@@ -62,6 +62,20 @@ jobs:
 
       - name: Apply Prisma migrations
         run: pnpm --filter @aegis/api prisma:deploy
+
+      - name: Build @aegis/types (consumer dependency for lint/typecheck)
+        # @aegis/types publishes dist/*.d.ts via package.json `types`/`main`,
+        # and ~every workspace consumer (sdk-ts, cli, mcp-server, postman,
+        # verifier-rp, api, dashboard, etc.) imports from it via package
+        # name resolution. Without this build, lint and typecheck across
+        # multiple workspaces fail with:
+        #   ERR_MODULE_NOT_FOUND: Cannot find module '.../@aegis/types/dist/index.js'
+        # The existing `Build` step at the end of this job produces these,
+        # but consumers need them earlier. Limiting scope to @aegis/types
+        # (not all of packages/*) keeps this step fast and avoids coupling
+        # to other packages' build health — building everything here would
+        # turn unrelated package build failures into lint-step failures.
+        run: pnpm --filter @aegis/types build
 
       - name: Lint
         run: pnpm lint
