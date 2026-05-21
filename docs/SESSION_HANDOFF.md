@@ -5,6 +5,106 @@
 
 ---
 
+## 2026-05-21 (pnpm-version cascade fix + PR #12 rebase + peer broadcast — ultrathink sync turn) · sid=busy-khorana-7281c7 · claim=none
+
+**Status:** ✅ PR #32 third commit fixes a 6-workflow pnpm-duplicate-version
+cascade discovered while triaging why PR #32's own CI was failing despite
+local greenness. PR #12 (audit-chain workflow defensive secrets) rebased
+onto current main + force-pushed, ends the 5-day false-positive cron alarm
+once CI completes. Peer broadcast sent — reached 1 active terminal
+(sid `cb70e666`).
+
+### What surfaced (and how)
+
+Investigating PR #32's red CI revealed the real cause: `pnpm/action-setup@v4`
+errors on `Error: Multiple versions of pnpm specified` when **both**
+`with: version:` is configured **and** root `package.json` has a
+`packageManager: pnpm@X.Y.Z` field. Six workflows had this anti-pattern:
+
+| Workflow | Pin | Drift? |
+| -------- | --- | ------ |
+| `ci.yml` | `9.12.3` | matches root |
+| `audit-chain-integrity.yml` | `9.12.3` | matches root |
+| `security.yml` | `${{ env.PNPM_VERSION }}=9.12.3` | matches root |
+| `spec-sync.yml` | `9` | matches root semver |
+| `release.yml` | `9.15.0` | **DRIFTED** from root 9.12.3 |
+| `sbom.yml` | `9.15.0` | **DRIFTED** from root 9.12.3 |
+
+The docs workflow was fixed for the same issue in commit cd5028a but the
+fix was never propagated. After this PR every workflow inherits the
+canonical `pnpm@9.12.3` from `package.json` — bumping pnpm is now a
+one-file change instead of seven, and version drift is structurally
+impossible.
+
+### What it cost the platform before
+
+The cascading "Multiple versions of pnpm" error masqueraded as a
+spec-sync parity failure (its first failing job in the rollup),
+hiding the real cause behind a confusing label. Every PR triggering
+these workflows since the docs-workflow fix (~2 weeks ago) accumulated
+this latent failure mode. The fix is small (6 files, 16 LOC) but it
+clears another lurking cause of "CI is mysteriously red" across the
+whole PR queue.
+
+### PR #12 rebase
+
+`fix(ci): audit-chain workflow fails fast on missing secrets +
+Slack guarded` had been UNSTABLE for 8 days because its Security
+workflow checks timed out (24h max) before PR #29 landed the
+osv-scanner fix. Rebased PR #12's single commit onto current main
+(post-#29) and force-pushed; fresh CI is running. Once green, it
+ends the daily 06:00 UTC Slack-noise alarm and surfaces the real
+issue — missing GitHub Environment secrets for staging audit-chain
+verification.
+
+The PR #12 fix-path is exactly what invariant 4 calls for: replace a
+silent cascade (verify fails on empty DB URL → Slack notification
+fails on missing webhook → the Slack failure masks the verify failure
+in the run summary) with an actionable preflight that names the missing
+secrets and the Settings → Environments path to configure them.
+
+### Peer sync
+
+`claude-peers status` showed "no active claims" but `msg all` reached
+1 recipient (sid `cb70e666`). There IS another active terminal session,
+just not holding a path claim. The broadcast included the full state
+recap so the peer terminal can pick up coherently.
+
+### Verification
+
+PR #32 latest CI (sha=9c47d71, third commit):
+```
+Denial precedence enum (ADR-0004): ✓ pass
+OpenAPI ↔ Prisma:                  ✓ pass
+OpenAPI ↔ Zod:                     ✓ pass
+typecheck:                         ✓ pass
+parity (docs ↔ types):             ✓ pass
+link-check (lychee):               ✓ pass
+Lighthouse + build:                pending (queued)
+```
+
+PR #12 latest CI (rebased onto main): all checks pending fresh.
+
+### What's next
+
+- Wait for PR #32's build + Lighthouse to complete; merge.
+- Wait for PR #12's Security workflow to complete; merge if green.
+- After PR #32 lands, the pnpm fix is on main and any future PR
+  touching CI/Security/audit-chain/release/sbom workflows benefits.
+- Audit-chain alarm finally goes silent (PR #12 + operator setting
+  the missing GitHub Environment secrets for `staging`).
+
+### Discipline note
+
+The pnpm cascade was discovered ONLY because the spec-sync CI showed
+"OpenAPI ↔ Prisma" failing while local was green. That contradiction
+forced investigation that surfaced the workflow-runtime bug. Lesson:
+when local-vs-CI diverges, the gap is the artifact — the environment
+delta IS the bug. Tracing it backwards is more valuable than re-running
+tests.
+
+---
+
 ## 2026-05-21 (spec-sync surgical fix — 3 jobs to GREEN, unblocks supply-chain PR wave) · sid=busy-khorana-7281c7 · claim=none (PR-level fix on fresh branch from main)
 
 **Status:** ✅ Fresh PR opened — [#32](https://github.com/KLYTICS/aegis/pull/32)
