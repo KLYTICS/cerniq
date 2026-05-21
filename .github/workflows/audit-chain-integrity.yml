@@ -81,6 +81,24 @@ jobs:
         working-directory: apps/api
         run: pnpm prisma generate
 
+      - name: Preflight — required environment secrets
+        # Fail fast with an operator-actionable error rather than letting
+        # the verify step crash with an obscure "connection refused" or
+        # cascade into the Slack notification step (which then masks the
+        # real root cause by failing on its own missing webhook secret).
+        run: |
+          missing=()
+          [[ -z "$DATABASE_URL" ]] && missing+=("AUDIT_DB_READONLY_URL")
+          [[ -z "$AEGIS_API_BASE" ]] && missing+=("AEGIS_API_BASE")
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            env_name="${{ github.event.inputs.environment || 'staging' }}"
+            echo "::error::Missing required GitHub Environment secrets for '$env_name': ${missing[*]}"
+            echo "::error::Configure them under: Settings → Environments → $env_name → Secrets."
+            echo "::error::Required: AUDIT_DB_READONLY_URL (read-only Postgres URL), AEGIS_API_BASE (https URL to staging/prod API)."
+            echo "::error::Optional: SLACK_INCIDENT_WEBHOOK (Slack incoming webhook for failure notifications)."
+            exit 2
+          fi
+
       - name: Verify audit chain (JSON output to artifact)
         id: verify
         working-directory: scripts
@@ -104,7 +122,12 @@ jobs:
           retention-days: 90
 
       - name: Notify Slack on failure
-        if: failure()
+        # Guard on webhook presence so the notification step doesn't itself
+        # crash and mask the real verify-step failure in the run summary.
+        # When the webhook is unconfigured (e.g. fresh environment), the
+        # verify step's exit code still surfaces the failure cleanly via
+        # CI status; we just lose the Slack ping.
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v1.27.0
         with:
           payload: |
