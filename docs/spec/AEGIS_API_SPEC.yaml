@@ -729,8 +729,10 @@ components:
         `VerifyResponse.denialReason` and is NOT enumerated here because
         the engine type does not include it. Reconciling that drift is
         tracked in the M-056 regression handoff.
-        When ADR-0016 (`INTENT_MISMATCH`) lands on main, extend this
-        enum and the `VerifyResponse.denialReason` inline list together.
+        ADR-0016 added `INTENT_MISMATCH` as the canonical denial reason
+        for intent-bound attestation failures (strict-mode reconciliation
+        or breached `maxCalls` / `maxAmount` claims). Wire-locked across
+        constants.ts ↔ verifier-rp ↔ this enum since 2026-05-15.
       enum:
         - AGENT_NOT_FOUND
         - AGENT_REVOKED
@@ -742,6 +744,7 @@ components:
         - SPEND_LIMIT_EXCEEDED
         - TRUST_SCORE_TOO_LOW
         - ANOMALY_FLAGGED
+        - INTENT_MISMATCH
 
     AuditEvent:
       type: object
