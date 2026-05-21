@@ -64,6 +64,14 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Build @aegis/types + @aegis/sdk (sibling workspace deps for tests)
+        # Parity tests import via package alias (`from '@aegis/types'`,
+        # `from '@aegis/sdk'`) whose package.json `main`/`module`/`exports`
+        # all resolve to dist/. Without these builds the test loader hits
+        # `Failed to resolve entry for package "@aegis/types"` on cold
+        # CI checkouts. The docs `typecheck` job builds @aegis/types for
+        # the same reason — mirroring the step here keeps parity green.
+        run: pnpm --filter @aegis/types --filter @aegis/sdk build
       - name: Cross-package parity tests
         run: pnpm test:parity
 
