@@ -31,7 +31,11 @@ export async function generateMetadata(props: { params: Promise<{ slug?: string[
   const page = source.getPage(params.slug);
   if (!page) return {};
   return {
-    title: `${page.data.title} · AEGIS Docs`,
-    description: page.data.description,
+    // page.data is typed `any` by fumadocs source; coerce explicitly to
+    // satisfy @typescript-eslint/restrict-template-expressions. A non-
+    // string title renders visibly (e.g. "[object Object] · AEGIS Docs"),
+    // so misformatted frontmatter fails loud rather than silent.
+    title: `${String(page.data.title)} · AEGIS Docs`,
+    description: page.data.description as string | undefined,
   };
 }
