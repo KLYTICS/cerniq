@@ -12,56 +12,23 @@ pnpm lint-staged
 # Block accidental commits of `.env`, secrets, raw private keys, or other
 # clearly-not-shippable artifacts. Belt-and-braces alongside the security CI.
 #
-# Two distinct dimensions, two distinct regexes:
-#
-#   BLOCKED_PATH    — matches the FILENAME of a staged file. Catches
-#                     `.env`, `.env.local`, `secrets/*`, `*.pem`, `*.key`.
-#   BLOCKED_CONTENT — matches FILE CONTENTS. Catches AEGIS-shaped
-#                     plaintext keys and credential env-var assignments
-#                     (`aegis_sk_…`, `aegis_vk_…`, `JWT_ED25519_PRIVATE_KEY_B64=…`).
-#
-# The two were previously combined in one regex run against file contents,
-# which produced false positives on TypeScript lines like `process.env.FOO`
-# (the `\.env\.[^.]+$` alternative matched at line-end). Splitting eliminates
-# the cross-domain collision.
-#
 # Test files (*.spec.ts, *.test.ts, /tests/, /__tests__/, *.fixture.*) are
-# exempt from BLOCKED_CONTENT — they drive coverage of rejection paths.
-# Test files are NOT exempt from BLOCKED_PATH (a real `.env` shouldn't
-# slip through under a test directory).
+# allowed to contain placeholder keys — they exist to drive coverage of the
+# rejection paths. Real-key shapes outside test files still trip the gate.
 #
 # `^\.husky/` is in the allowlist because THIS FILE contains the literal
 # `JWT_ED25519_PRIVATE_KEY_B64=` and `AUDIT_SIGNING_KEY_B64=` substrings as
-# part of its own BLOCKED_CONTENT regex. Without the exemption, staging an
-# edit to this hook would trip the hook against itself.
-# Footgun: any other file landed under `.husky/` is also exempt. Keep this
-# directory limited to hook scripts; do NOT use it for secret material.
-BLOCKED_PATH='(^|/)\.env(\.[^/]+)?$|(^|/)secrets/|\.pem$|\.key$'
-BLOCKED_CONTENT='aegis_sk_[A-Za-z0-9]+|aegis_vk_[A-Za-z0-9]+|JWT_ED25519_PRIVATE_KEY_B64=[A-Za-z0-9+/=_-]|AUDIT_SIGNING_KEY_B64=[A-Za-z0-9+/=_-]'
+# part of its own BLOCKED regex. Without the exemption, any edit to this
+# hook would trip the hook against itself (and force --no-verify, which
+# CLAUDE.md forbids). Footgun: any other file under `.husky/` is also
+# exempt — keep this directory limited to hook scripts.
+BLOCKED='\.env$|\.env\.[^.]+$|^secrets/|\.pem$|\.key$|aegis_sk_[A-Za-z0-9]+|aegis_vk_[A-Za-z0-9]+|JWT_ED25519_PRIVATE_KEY_B64=|AUDIT_SIGNING_KEY_B64='
 TEST_FILE_ALLOWLIST='\.(spec|test|fixture|mock|stub)\.(ts|tsx|js|jsx|mjs|cjs)$|/tests?/|/__tests?__/|/test/|/_stubs/|tools/postman/|^\.husky/'
-
-STAGED=$(git diff --cached --name-only)
-
-# `.env.example` is the canonical committed template — `.gitignore` explicitly
-# whitelists it (`!.env.example`). POSIX ERE has no negative lookahead, so the
-# cleanest exemption is a pre-filter on the path-hit input rather than torturing
-# BLOCKED_PATH. The BLOCKED_CONTENT check still runs on .env.example contents,
-# so a real key pasted into the template would still be caught.
-STAGED_FOR_PATH_CHECK=$(echo "$STAGED" | grep -v '\.env\.example$' || true)
-
-PATH_HITS=$(echo "$STAGED_FOR_PATH_CHECK" | grep -E "$BLOCKED_PATH" || true)
-if [ -n "$PATH_HITS" ]; then
-  echo "✖ Refusing to commit secret-shaped file paths:"
-  echo "$PATH_HITS" | sed 's/^/    /'
-  echo "  See .gitignore + docs/SECURITY.md before bypassing this check."
-  exit 1
-fi
-
-CONTENT_HITS=$(git diff --cached --name-only -z | xargs -0 -r grep -lE "$BLOCKED_CONTENT" 2>/dev/null \
+HITS=$(git diff --cached --name-only -z | xargs -0 -r grep -lE "$BLOCKED" 2>/dev/null \
        | grep -vE "$TEST_FILE_ALLOWLIST" || true)
-if [ -n "$CONTENT_HITS" ]; then
+if [ -n "$HITS" ]; then
   echo "✖ Refusing to commit a likely secret outside of test files:"
-  echo "$CONTENT_HITS" | sed 's/^/    /'
+  echo "$HITS" | sed 's/^/    /'
   echo "  See .gitignore + docs/SECURITY.md before bypassing this check."
   exit 1
 fi
@@ -83,8 +50,8 @@ fi
 # Most commits skip this entirely; the ones that need it get caught locally
 # instead of in CI 5 minutes later.
 #
-# Gates on `make preflight-fast` exit 2 (gating fail) — exit 1 (warnings)
-# is allowed through, since warnings are tracked separately.
+# Gates on preflight exit 2 (gating fail). Exit 1 (warnings) is allowed
+# through with a visible reminder; warnings are tracked separately.
 #
 # Escape hatch: SKIP_PREFLIGHT=1 git commit ... (use sparingly; pair with a
 # follow-up fix commit). Hard `--no-verify` still works for true emergencies.
@@ -92,28 +59,34 @@ HBR_PATTERN='^apps/api/src/modules/verify/algorithm/|^apps/api/prisma/schema\.pr
 if [ "${SKIP_PREFLIGHT:-0}" != "1" ] && \
    git diff --cached --name-only | grep -qE "$HBR_PATTERN"; then
   echo "preflight: high-blast-radius change staged — running fast gate..."
-  # NOTE: capture preflight's exit code via the `else` branch of a
-  # positive `if`. The previous form `if ! make ...; then code=$?` was
-  # buggy: in POSIX shells, $? inside the `then` branch of `if !` is
-  # the negated condition's value (always 0 or 1), NOT the inner
-  # command's actual exit code. That collapsed every preflight failure
-  # — including the gating exit 2 — into the warning path, so the
-  # `code -ge 2` check never fired and gating failures silently
-  # leaked past the hook. Empirical test (bash):
-  #   fake() { return $1; }
-  #   if ! fake 2; then code=$?; echo "$code"; fi   → prints 0 (BUG)
-  #   if fake 2; then :; else code=$?; echo "$code"; fi → prints 2 (OK)
-  if make -s preflight-fast; then
-    : # preflight clean — nothing to do
-  else
-    code=$?
-    if [ "$code" -ge 2 ]; then
-      echo
-      echo "✖ Preflight gating failure. See infra/observability/runbooks/preflight-failure.md."
-      echo "  Override (sparingly): SKIP_PREFLIGHT=1 git commit ..."
-      exit 1
-    fi
-    # exit 1 = warnings only — allow through with a visible reminder.
+  # Invoke preflight DIRECTLY rather than via `make -s preflight-fast`.
+  # GNU make rewrites any non-zero recipe exit to 2 — so preflight's
+  # warning-level exit 1 reached the hook as exit 2, indistinguishable
+  # from a true gating failure, and every warning blocked the commit.
+  # Calling tsx directly preserves preflight's own exit code (1 vs ≥2).
+  #
+  # The previous `if ! make ...; then code=$?` form also had a separate
+  # bug: in POSIX shells, $? inside the `then` branch of `if !` is the
+  # negated condition's value (always 0 or 1), NOT the inner command's
+  # actual exit code. That collapsed gating failures into the warning
+  # path. Capturing $? straight off the command (no `if` wrapper) avoids
+  # both pitfalls.
+  #
+  # `-F @aegis/api` is used so tsx resolves from apps/api's deps, matching
+  # the Makefile's invocation. That filter also switches cwd to apps/api,
+  # so the script path must be absolute — the Makefile uses `$(CURDIR)/…`
+  # for the same reason. We use git's authoritative top-level (hooks run
+  # there already, but being explicit removes ambiguity).
+  REPO_ROOT=$(git rev-parse --show-toplevel)
+  pnpm -s -F @aegis/api exec tsx "$REPO_ROOT/tools/preflight/preflight.ts" --fast
+  code=$?
+  if [ "$code" -ge 2 ]; then
+    echo
+    echo "✖ Preflight gating failure. See infra/observability/runbooks/preflight-failure.md."
+    echo "  Override (sparingly): SKIP_PREFLIGHT=1 git commit ..."
+    exit 1
+  fi
+  if [ "$code" -eq 1 ]; then
     echo "⚠ Preflight reports warnings (exit $code). Commit allowed; address before push."
   fi
 fi
