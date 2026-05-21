@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { sha256 } from '@noble/hashes/sha256';
 import * as ed from '@noble/ed25519';
-import { sha512 } from '@noble/hashes/sha512';
+import { sha256 } from '@noble/hashes/sha2';
+import { sha512 } from '@noble/hashes/sha2';
+import { describe, it, expect } from 'vitest';
 
 import { canonicalize, encodeBase64Url, utf8 } from './canonical.js';
 import { buildSignedMessage, computePrevHash, verifyChain } from './chain.js';

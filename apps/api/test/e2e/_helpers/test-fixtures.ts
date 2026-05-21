@@ -9,9 +9,9 @@ import { randomUUID } from 'node:crypto';
 
 import type { PrismaClient } from '@prisma/client';
 
-import { ApiKeyService } from '../../../src/modules/auth/api-key.service';
 import type { PrismaService } from '../../../src/common/prisma/prisma.service';
 import type { AppConfigService } from '../../../src/config/config.service';
+import { ApiKeyService } from '../../../src/modules/auth/api-key.service';
 
 import type { SupertestHttp } from './test-app';
 
@@ -97,12 +97,12 @@ export async function createPolicyViaApi(
   apiKey: string,
   agentId: string,
   body: {
-    scopes: Array<{
+    scopes: {
       category: string;
       spendLimit?: { currency: string; maxPerTransaction?: number; maxPerDay?: number; maxPerMonth?: number };
       allowedDomains?: string[];
       merchantCategories?: string[];
-    }>;
+    }[];
     expiresAt: string;
     label?: string;
   },

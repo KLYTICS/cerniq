@@ -1,9 +1,11 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
+
 import { Auth } from '../../common/decorators/auth.decorator';
 import type { AuthenticatedKey } from '../auth/api-key.service';
-import { PolicyService } from './policy.service';
+
 import { CreatePolicyDto, CreatePolicyResponseDto, PolicyResponseDto } from './policy.dto';
+import { PolicyService } from './policy.service';
 
 @ApiTags('Policies')
 @ApiSecurity('ApiKeyAuth')

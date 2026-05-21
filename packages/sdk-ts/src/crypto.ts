@@ -1,6 +1,7 @@
 import * as ed from '@noble/ed25519';
-import { sha512 } from '@noble/hashes/sha512';
+import { sha512 } from '@noble/hashes/sha2';
 import { ulid } from 'ulid';
+
 import type { SignContext } from './types';
 
 ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
@@ -10,7 +11,7 @@ const enc = new TextEncoder();
 export function b64uEncode(bytes: Uint8Array): string {
   // base64url, no padding — node and browsers.
   if (typeof Buffer !== 'undefined') return Buffer.from(bytes).toString('base64url');
-  let s = btoa(String.fromCharCode(...bytes));
+  const s = btoa(String.fromCharCode(...bytes));
   return s.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 

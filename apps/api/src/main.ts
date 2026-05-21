@@ -1,13 +1,13 @@
-import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
+import { Logger } from 'nestjs-pino';
 
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { AppConfigService } from './config/config.service';
 import { initTracing, type TracingHandle } from './common/observability/tracing.bootstrap';
+import { AppConfigService } from './config/config.service';
 
 async function bootstrap(): Promise<void> {
   // OTel must initialize BEFORE NestFactory so auto-instrumentation can

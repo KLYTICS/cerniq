@@ -76,12 +76,12 @@ export function buildBodyParserStack(
   return (req: import('express').Request, res: Parameters<typeof verifyParser>[1], next: Parameters<typeof verifyParser>[2]) => {
     const url = req.url ?? '';
     if (url.startsWith('/v1/verify') || url.startsWith('/v1/agents/') && url.includes('/status')) {
-      return verifyParser(req, res, next);
+      verifyParser(req, res, next); return;
     }
     if (url.startsWith('/v1/audit') || url.startsWith('/v1/agents/') && url.includes('/audit')) {
-      return auditParser(req, res, next);
+      auditParser(req, res, next); return;
     }
-    return managementParser(req, res, next);
+    managementParser(req, res, next);
   };
 }
 
@@ -102,8 +102,7 @@ function makeJsonSafetyVerifier(maxDepth: number) {
     let max = 0;
     let inString = false;
     let escape = false;
-    for (let i = 0; i < buf.length; i++) {
-      const c = buf[i];
+    for (const c of buf) {
       if (escape) {
         escape = false;
         continue;
@@ -147,7 +146,7 @@ export function stripPrototypeProperties<T>(obj: T): T {
   if (obj === null || typeof obj !== 'object') return obj;
   const banned = ['__proto__', 'constructor', 'prototype'];
   if (Array.isArray(obj)) {
-    return obj.map((v) => stripPrototypeProperties(v)) as unknown as T;
+    return obj.map((v: unknown) => stripPrototypeProperties(v)) as unknown as T;
   }
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {

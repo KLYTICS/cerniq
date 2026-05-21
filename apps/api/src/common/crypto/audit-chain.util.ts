@@ -79,7 +79,7 @@ export interface AuditChainPayloadInput {
   relyingParty: string | null;
   /** Decimal-as-string with 2dp; matches the existing canonicalization for numeric audit fields. */
   requestedAmount: string | null;
-  policySnapshot: unknown | null;
+  policySnapshot: unknown;
 }
 
 /** Result of buildPayload — both the signed payload and the persistable hashes (so callers can write the *Hash columns alongside raw). */
@@ -119,7 +119,14 @@ export class AuditChainUtil {
    *
    * Returns null iff `value === null || value === undefined` — preserves
    * the v2 invariant "absent field → null hash; present-but-empty → real hash".
+   *
+   * Overloads tell callers passing a definitely-non-nullish value (e.g. `''`
+   * as the schema-default fallback for ADR-0006 redact rows) that the result
+   * is `string`, no assertion needed.
    */
+  hashLeaf(value: string | object): string;
+  hashLeaf(value: null | undefined): null;
+  hashLeaf(value: string | object | null | undefined): string | null;
   hashLeaf(value: string | object | null | undefined): string | null {
     if (value === null || value === undefined) return null;
     const bytes =
@@ -138,7 +145,7 @@ export class AuditChainUtil {
     const policySnapshotHash =
       input.policySnapshot === null || input.policySnapshot === undefined
         ? null
-        : this.hashLeaf(input.policySnapshot as object);
+        : this.hashLeaf(input.policySnapshot);
 
     const signed: AuditChainPayload = {
       agentId: input.agentId,

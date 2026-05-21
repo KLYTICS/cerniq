@@ -1,29 +1,31 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { RedisService } from '../../common/redis/redis.service';
+import type { TrustBand } from '@prisma/client';
+
 import { JwtUtil } from '../../common/crypto/jwt.util';
-import { AuditService } from '../audit/audit.service';
-import { BateService } from '../bate/bate.service';
-import { SpendGuardService } from './spend-guard.service';
-import { ReplayCacheService } from './replay-cache.service';
-import { UsageGuardService } from '../billing/usage-guard.service';
-import { TrialService } from '../billing/trial.service';
-import { AppConfigService } from '../../config/config.service';
 import { MetricsService } from '../../common/observability/metrics.service';
 import { withSpan } from '../../common/observability/spans';
-import { type VerifyRequestDto, type VerifyResponseDto } from './verify.dto';
+import { PrismaService } from '../../common/prisma/prisma.service';
+import { RedisService } from '../../common/redis/redis.service';
+import { AppConfigService } from '../../config/config.service';
+import { AuditService } from '../audit/audit.service';
+import { BateService } from '../bate/bate.service';
+import { TrialService } from '../billing/trial.service';
+import { UsageGuardService } from '../billing/usage-guard.service';
+import type { PolicyScopeDto } from '../policy/policy.dto';
+
 import { verifyAlgorithm } from './algorithm/verify.algorithm';
 import type {
   AgentSnapshot,
   AuditAppendInput,
   BateSignalInput,
   PolicySnapshot,
-  SpendLimit,
-  TrustBand as PortableTrustBand,
   VerifyPorts,
 } from './algorithm/verify.ports';
-import type { PolicyScopeDto } from '../policy/policy.dto';
-import type { TrustBand } from '@prisma/client';
+import { ReplayCacheService } from './replay-cache.service';
+import { SpendGuardService } from './spend-guard.service';
+import { type VerifyRequestDto, type VerifyResponseDto } from './verify.dto';
+
+
 
 interface CachedAgent {
   id: string;
@@ -156,7 +158,7 @@ export class VerifyService {
       decodeJwtUnsafe: (token) => this.jwt.decodeUnsafe(token),
       consumeJti: (jti, ttl) => this.replayCache.consume(jti, ttl),
       checkSpend: async (agentId, policyId, amount, currency, limit) => {
-        const result = await this.spendGuard.check(agentId, policyId, amount, currency, limit as SpendLimit);
+        const result = await this.spendGuard.check(agentId, policyId, amount, currency, limit);
         return result.allowed;
       },
       recordSpend: (agentId, policyId, amount, currency, ctx) => {
@@ -176,7 +178,7 @@ export class VerifyService {
       ingestSignal: (signal: BateSignalInput) => {
         void this.bate
           .ingestSignal(signal)
-          .catch((err) => this.logger.error(`bate.ingestSignal failed: ${(err as Error).message}`));
+          .catch((err) => { this.logger.error(`bate.ingestSignal failed: ${(err as Error).message}`); });
       },
       touchAgent: (agentId) => {
         void this.touchAgent(agentId).catch((err) => {
@@ -201,6 +203,9 @@ export class VerifyService {
     // below — DTO doesn't carry agent.id/policy.id (they're inside the token).
     const result = await withSpan(
       'aegis.verify.algorithm',
+      // type-rationale: VerifyRequestDto is a NestJS DTO class; spreading it
+      // intentionally converts to a plain object that the algorithm consumes.
+      // eslint-disable-next-line @typescript-eslint/no-misused-spread
       () => verifyAlgorithm({ ...dto, relyingPartyPrincipalId }, ports),
       {
         'principal.id': relyingPartyPrincipalId,
@@ -219,7 +224,7 @@ export class VerifyService {
     }
 
     this.logger.debug(
-      `verify ${result.valid ? 'approved' : 'denied=' + result.denialReason} agent=${result.agentId ?? 'n/a'} latency=${result.latencyMs}ms`,
+      `verify ${result.valid ? 'approved' : `denied=${result.denialReason ?? 'unknown'}`} agent=${result.agentId ?? 'n/a'} latency=${result.latencyMs}ms`,
     );
 
     const decision = result.valid ? 'APPROVED' : 'DENIED';
@@ -231,7 +236,7 @@ export class VerifyService {
       agentId: result.agentId,
       principalId: result.principalId,
       trustScore: result.trustScore,
-      trustBand: result.trustBand as TrustBand | null,
+      trustBand: result.trustBand,
       scopesGranted: result.scopesGranted,
       denialReason: result.denialReason,
       verifiedAt: result.verifiedAt,
@@ -283,7 +288,7 @@ export class VerifyService {
       publicKey: c.publicKey,
       status: c.status as AgentSnapshot['status'],
       trustScore: c.trustScore,
-      trustBand: c.trustBand as PortableTrustBand,
+      trustBand: c.trustBand,
       principalId: c.principalId,
       flagged: c.flagged ?? false,
     };
@@ -302,7 +307,7 @@ export class VerifyService {
 
     const value: PolicySnapshot = {
       id: policy.id,
-      status: policy.status as PolicySnapshot['status'],
+      status: policy.status,
       expiresAt: policy.expiresAt.toISOString(),
       scopes: policy.scopes as unknown as PolicySnapshot['scopes'],
     };

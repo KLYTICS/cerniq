@@ -29,14 +29,16 @@
 
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import * as ed from '@noble/ed25519';
+
 import './crypto.bootstrap.js';
+import { AppConfigService } from '../../config/config.service';
+
+import { getKmsAdapter, type ActiveSigner } from './crypto.bootstrap';
 import {
   decodeBase64Url,
   encodeBase64Url,
   Ed25519Util,
 } from './ed25519.util';
-import { getKmsAdapter, type ActiveSigner } from './crypto.bootstrap';
-import { AppConfigService } from '../../config/config.service';
 
 const FALLBACK_KID = 'kid-genesis-v1';
 
@@ -77,7 +79,7 @@ export class AuditSignerService implements OnModuleDestroy {
       this.resolved = {
         kid: kmsSigner.metadata.kid,
         publicKey: kmsSigner.metadata.publicKey,
-        signRaw: (msg) => kmsSigner!.sign(msg),
+        signRaw: (msg) => kmsSigner.sign(msg),
         source: 'kms',
       };
       this.logger.log(`AuditSignerService: KMS-backed (kid=${this.resolved.kid})`);
@@ -90,11 +92,12 @@ export class AuditSignerService implements OnModuleDestroy {
     const isProd = (this.config as unknown as { nodeEnv?: string }).nodeEnv === 'production';
 
     if (priv && pub) {
-      this.envPrivateKey = decodeBase64Url(priv);
+      const privateKey = decodeBase64Url(priv);
+      this.envPrivateKey = privateKey;
       this.resolved = {
         kid: FALLBACK_KID,
         publicKey: pub,
-        signRaw: (msg) => ed.signAsync(msg, this.envPrivateKey!),
+        signRaw: (msg) => ed.signAsync(msg, privateKey),
         source: 'env',
       };
       this.logger.warn(
@@ -111,11 +114,12 @@ export class AuditSignerService implements OnModuleDestroy {
       );
     }
     const kp = await this.ed25519.generateKeypair();
-    this.envPrivateKey = kp.privateKey;
+    const privateKey = kp.privateKey;
+    this.envPrivateKey = privateKey;
     this.resolved = {
       kid: 'kid-dev-ephemeral',
       publicKey: encodeBase64Url(kp.publicKey),
-      signRaw: (msg) => ed.signAsync(msg, this.envPrivateKey!),
+      signRaw: (msg) => ed.signAsync(msg, privateKey),
       source: 'ephemeral',
     };
     this.logger.warn('AuditSignerService: EPHEMERAL keypair (dev only). DO NOT USE IN PRODUCTION.');
@@ -126,10 +130,15 @@ export class AuditSignerService implements OnModuleDestroy {
    * `kid` to stamp on the row. Callers (audit.service) persist both.
    */
   async signChainMessage(message: Uint8Array): Promise<{ signatureB64Url: string; kid: string }> {
-    if (!this.resolved) await this.init();
-    const signer = this.resolved!;
+    const signer = await this.ensureResolved();
     const sigBytes = await signer.signRaw(message);
     return { signatureB64Url: encodeBase64Url(sigBytes), kid: signer.kid };
+  }
+
+  private async ensureResolved(): Promise<ResolvedSigner> {
+    if (!this.resolved) await this.init();
+    if (!this.resolved) throw new Error('AuditSignerService: init did not produce a resolved signer.');
+    return this.resolved;
   }
 
   /**
@@ -138,24 +147,24 @@ export class AuditSignerService implements OnModuleDestroy {
    * `getActiveKid()` for the row stamp.
    */
   async signRaw(message: Uint8Array): Promise<Uint8Array> {
-    if (!this.resolved) await this.init();
-    return this.resolved!.signRaw(message);
+    const signer = await this.ensureResolved();
+    return await signer.signRaw(message);
   }
 
   /** Active kid used for the most recent (or next) sign. Read-only. */
   async getActiveKid(): Promise<string> {
-    if (!this.resolved) await this.init();
-    return this.resolved!.kid;
+    const signer = await this.ensureResolved();
+    return signer.kid;
   }
 
   /** For `/.well-known/audit-signing-key` publishing. */
   async getPublishedKey(): Promise<{ format: 'ed25519-base64url'; key: string; kid: string; source: ResolvedSigner['source'] }> {
-    if (!this.resolved) await this.init();
+    const signer = await this.ensureResolved();
     return {
       format: 'ed25519-base64url',
-      key: this.resolved!.publicKey,
-      kid: this.resolved!.kid,
-      source: this.resolved!.source,
+      key: signer.publicKey,
+      kid: signer.kid,
+      source: signer.source,
     };
   }
 

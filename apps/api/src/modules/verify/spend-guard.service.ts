@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import { ServiceUnavailableError } from '../../common/errors';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
-import { ServiceUnavailableError } from '../../common/errors';
 
 export interface SpendLimit {
   currency: string;
@@ -103,7 +103,7 @@ export class SpendGuardService {
         this.redis
           .set(dayCacheKey, daySpend, REDIS_REHYDRATE_TTL_SECONDS)
           .catch((err: unknown) =>
-            this.logger.warn(`Redis day cache rehydrate failed: ${(err as Error).message}`),
+            { this.logger.warn(`Redis day cache rehydrate failed: ${(err as Error).message}`); },
           );
       }
       if (monthAgg) {
@@ -111,7 +111,7 @@ export class SpendGuardService {
         this.redis
           .set(monthCacheKey, monthSpend, REDIS_REHYDRATE_TTL_SECONDS)
           .catch((err: unknown) =>
-            this.logger.warn(`Redis month cache rehydrate failed: ${(err as Error).message}`),
+            { this.logger.warn(`Redis month cache rehydrate failed: ${(err as Error).message}`); },
           );
       }
     }

@@ -26,11 +26,11 @@ export interface DetectorWindow {
   /** Recent signals (oldest first), typically the last 24 h. */
   signals: BateSignal[];
   /** Recent verify decisions (DENIED / FLAGGED) for the agent. */
-  recentDenials: Array<{ denialReason: string; timestamp: Date }>;
+  recentDenials: { denialReason: string; timestamp: Date }[];
   /** Recent spend records for the agent (oldest first). */
-  recentSpends: Array<{ amount: number; currency: string; timestamp: Date }>;
+  recentSpends: { amount: number; currency: string; timestamp: Date }[];
   /** Geographic signals (typically derived from request IPs). */
-  recentLocations: Array<{ countryCode: string; timestamp: Date }>;
+  recentLocations: { countryCode: string; timestamp: Date }[];
   /** Active delegation chain length (0 = no delegations). */
   delegationChainDepth: number;
 }

@@ -19,9 +19,9 @@ export { BuiltinPolicyEngine } from './builtin.engine.js';
 export { CedarPolicyEngine, type CedarEvaluatorLike } from './cedar.engine.js';
 export { OpaPolicyEngine, type OpaEvaluatorLike } from './opa.engine.js';
 
-import type { PolicyEngine, PolicyEngineId } from './engine.interface.js';
 import { BuiltinPolicyEngine } from './builtin.engine.js';
 import { CedarPolicyEngine, type CedarEvaluatorLike } from './cedar.engine.js';
+import type { PolicyEngine, PolicyEngineId } from './engine.interface.js';
 import { OpaPolicyEngine, type OpaEvaluatorLike } from './opa.engine.js';
 
 /**

@@ -1,5 +1,6 @@
-import { WebhookDeliveryWorker } from './webhook.delivery';
 import { createHmac } from 'node:crypto';
+
+import { WebhookDeliveryWorker } from './webhook.delivery';
 
 describe('WebhookDeliveryWorker.sign', () => {
   it('produces a Stripe-style header', () => {

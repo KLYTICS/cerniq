@@ -26,7 +26,7 @@ export async function withKmsSpan<T>(
   purpose: KmsKeyPurpose | undefined,
   fn: () => Promise<T>,
 ): Promise<T> {
-  return withSpan(`aegis.kms.${provider}.${op}`, fn, {
+  return await withSpan(`aegis.kms.${provider}.${op}`, fn, {
     'kms.provider': provider,
     'kms.op': op,
     kid,

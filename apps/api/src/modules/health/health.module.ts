@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
-import { HealthController } from './health.controller';
-import { MetricsController } from './metrics.controller';
+
 import { AuditModule } from '../audit/audit.module';
 import { BillingModule } from '../billing/billing.module';
+
+import { HealthController } from './health.controller';
+import { MetricsController } from './metrics.controller';
 
 /**
  * HealthModule wires the operator-facing /health/{live,ready,version} +

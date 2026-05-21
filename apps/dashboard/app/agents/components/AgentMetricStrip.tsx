@@ -1,8 +1,8 @@
 // Top-of-page metric strip. Computed from the same agent list the table
 // renders — no separate API round-trip, no risk of "active total > total".
 
-import { fmtNum, fmtPct } from '../../../lib/format';
 import type { AgentRow } from '../../../lib/api-client';
+import { fmtNum, fmtPct } from '../../../lib/format';
 
 interface Props {
   agents: AgentRow[];

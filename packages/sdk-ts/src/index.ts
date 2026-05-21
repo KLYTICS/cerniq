@@ -1,7 +1,7 @@
-import { HttpClient } from './http.js';
 import { AgentClient, type HandshakeVerified } from './agent.js';
-import { PolicyClient } from './policy.js';
 import { signAgentToken, signHandshake } from './crypto.js';
+import { HttpClient } from './http.js';
+import { PolicyClient } from './policy.js';
 import type { AegisConfig, SignContext, VerifyResult } from './types.js';
 
 const DEFAULT_BASE_URL = 'https://api.aegislabs.io';
@@ -47,7 +47,7 @@ export class Aegis {
   async handshake(agentId: string, privateKeyB64u: string): Promise<HandshakeVerified> {
     const challenge = await this.agents.challenge(agentId);
     const signature = await signHandshake(privateKeyB64u, challenge.message);
-    return this.agents.verifyHandshake(agentId, signature);
+    return await this.agents.verifyHandshake(agentId, signature);
   }
 
   /**

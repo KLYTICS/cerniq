@@ -54,7 +54,7 @@ export interface CedarEvaluatorLike {
   }): Promise<{
     decision: 'Allow' | 'Deny';
     diagnostics?: { reason?: string; errors?: string[] };
-    obligations?: Array<{ kind: string; data: Record<string, unknown> }>;
+    obligations?: { kind: string; data: Record<string, unknown> }[];
   }>;
 }
 

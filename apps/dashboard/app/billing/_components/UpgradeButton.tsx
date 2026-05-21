@@ -11,6 +11,7 @@
 // handler or expose the key. The Server Action is the proxy.
 
 import { useState, useTransition, type ReactElement } from 'react';
+
 import { startCheckout } from '../components/actions';
 
 type PaidTier = 'DEVELOPER' | 'GROWTH';
@@ -35,7 +36,7 @@ export function UpgradeButton({ currentTier }: Props): ReactElement {
 
   const tiers: PaidTier[] = (['DEVELOPER', 'GROWTH'] as const).filter(
     (t) => t !== currentTier,
-  ) as PaidTier[];
+  );
 
   function go(): void {
     setError(null);
@@ -55,7 +56,7 @@ export function UpgradeButton({ currentTier }: Props): ReactElement {
         type="button"
         className="aegis-button"
         aria-label="Upgrade plan"
-        onClick={() => setOpen(true)}
+        onClick={() => { setOpen(true); }}
       >
         Upgrade ▶
       </button>
@@ -71,7 +72,7 @@ export function UpgradeButton({ currentTier }: Props): ReactElement {
         id="upgrade-tier"
         aria-label="Select plan tier"
         value={tier}
-        onChange={(e) => setTier(e.target.value as PaidTier)}
+        onChange={(e) => { setTier(e.target.value as PaidTier); }}
         disabled={pending}
         style={{
           background: 'var(--bg-elev)',

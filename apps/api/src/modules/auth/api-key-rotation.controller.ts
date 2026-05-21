@@ -1,9 +1,11 @@
 import { Controller, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
+
+import { AuthenticationError, AuthorizationError } from '../../common/errors/aegis-error';
+
 import { ApiKeyGuard } from './api-key.guard';
 import { ApiKeyService } from './api-key.service';
-import { AuthenticationError, AuthorizationError } from '../../common/errors/aegis-error';
 
 interface RotateResponse {
   id: string;

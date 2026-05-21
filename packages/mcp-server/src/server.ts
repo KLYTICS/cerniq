@@ -2,14 +2,15 @@
 // the AEGIS API surface. Auth is by AEGIS API key, supplied either via
 // env (`AEGIS_API_KEY`) or via the host's MCP `initialize` metadata.
 
+import { Aegis } from '@aegis/sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { Aegis } from '@aegis/sdk';
-import { registerVerifyTool } from './tools/verify.js';
+
 import { registerAgentsTools } from './tools/agents.js';
-import { registerPoliciesTools } from './tools/policies.js';
 import { registerAuditTool } from './tools/audit.js';
+import { registerPoliciesTools } from './tools/policies.js';
 import { TOOL_NAMES, type ToolDefinition } from './tools/registry.js';
+import { registerVerifyTool } from './tools/verify.js';
 
 export interface AegisMcpServerOptions {
   /** AEGIS API key. If omitted, the server reads `AEGIS_API_KEY` from env. */
@@ -39,6 +40,8 @@ export function createAegisMcpServer(opts: AegisMcpServerOptions = {}): Server {
     baseUrl: opts.baseUrl ?? process.env.AEGIS_BASE_URL ?? 'https://api.aegis.dev',
   });
 
+  // TODO(mcp-sdk): migrate to `McpServer` high-level API; `Server` is deprecated
+  // but the migration touches transport wiring and handler shapes — separate PR.
   const server = new Server(
     { name: opts.name ?? 'aegis-mcp', version: '0.1.0' },
     { capabilities: { tools: {} } },
@@ -53,6 +56,7 @@ export function createAegisMcpServer(opts: AegisMcpServerOptions = {}): Server {
 
   const allowedTools = new Set(opts.allowedTools ?? TOOL_NAMES);
 
+  // eslint-disable-next-line @typescript-eslint/require-await -- MCP SDK requires an async handler.
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: Array.from(tools.values())
       .filter((t) => allowedTools.has(t.name))

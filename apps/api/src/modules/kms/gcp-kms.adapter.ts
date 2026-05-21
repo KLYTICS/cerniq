@@ -13,6 +13,7 @@
 // is "create new version, update active mapping, deprecate old."
 
 import { Injectable, Logger } from '@nestjs/common';
+
 import type {
   ActiveSigner,
   KeyMetadata,
@@ -78,9 +79,9 @@ export class GcpKmsAdapter implements KmsAdapter {
         if (entry.key.algorithm !== 'EdDSA') {
           throw new Error(`GcpKmsAdapter: ${entry.key.algorithm} not supported`);
         }
-        return withKmsSpan('gcp-kms', 'sign', kid, purpose, async () => {
+        return await withKmsSpan('gcp-kms', 'sign', kid, purpose, async () => {
           const result = await this.kms.asymmetricSign({ name: entry.key.resourceName, data: message });
-          if (!result.signature || result.signature.length !== 64) {
+          if (result.signature?.length !== 64) {
             throw new Error(`GcpKmsAdapter: KMS returned invalid Ed25519 signature length`);
           }
           return result.signature;

@@ -18,13 +18,15 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
+
+import { MetricsService } from '../../common/observability/metrics.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { AppConfigService } from '../../config/config.service';
-import { MetricsService } from '../../common/observability/metrics.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
-import { BateScorer } from './bate.scorer';
+
 import { BateAnomalyDetector, type DetectorWindow } from './bate.anomaly';
+import { BateScorer } from './bate.scorer';
 
 export const BATE_QUEUE = 'aegis.bate';
 
@@ -62,7 +64,7 @@ export class BateRecomputeWorker implements OnModuleInit, OnModuleDestroy {
       concurrency: 4, // recompute is DB-heavy; don't pile on
     });
     this.worker.on('failed', (job, err) =>
-      this.logger.warn(`BATE recompute job failed agent=${job?.data.agentId}: ${err?.message}`),
+      { this.logger.warn(`BATE recompute job failed agent=${job?.data.agentId}: ${err?.message}`); },
     );
   }
 
@@ -188,7 +190,7 @@ export class BateRecomputeWorker implements OnModuleInit, OnModuleDestroy {
           signalType: s.signalType,
           severity: s.severity,
           source: s.source,
-          payload: { reason: s.reason } as object,
+          payload: { reason: s.reason },
           idempotencyKey: `anomaly:${s.signalType}:${data.agentId}:${minute}`,
         })),
         skipDuplicates: true,

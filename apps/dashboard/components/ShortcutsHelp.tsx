@@ -63,7 +63,7 @@ export function ShortcutsHelp({ onClose }: Props) {
             <div role="listitem" key={c.id}>
               <span>{c.title}</span>
               <span className="keys">
-                {c.chord!.map((k) => (
+                {(c.chord ?? []).map((k) => (
                   <span className="kbd" key={k}>
                     {k}
                   </span>

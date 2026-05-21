@@ -11,13 +11,15 @@
  *     denial reason as data, not as an HTTP error.
  */
 
+import type { ExecutionContext } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { ExecutionContext } from '@nestjs/common';
-import { VerifyController } from './verify.controller';
-import { VerifyService } from './verify.service';
+
 import { PlanAwareThrottlerGuard } from '../../common/throttle/plan-aware-throttler.guard';
-import type { VerifyRequestDto, VerifyResponseDto } from './verify.dto';
 import type { AuthenticatedKey } from '../auth/api-key.service';
+
+import { VerifyController } from './verify.controller';
+import type { VerifyRequestDto, VerifyResponseDto } from './verify.dto';
+import { VerifyService } from './verify.service';
 
 // Allow all requests through in tests — throttling is tested separately in
 // plan-aware-throttler.guard.spec.ts; wiring it into every controller test
@@ -165,8 +167,8 @@ describe('VerifyController', () => {
     });
 
     it('passes auth.principalId, not a body-supplied principal', async () => {
-      const authA = { ...AUTH, principalId: 'prn_A' } as AuthenticatedKey;
-      const authB = { ...AUTH, principalId: 'prn_B' } as AuthenticatedKey;
+      const authA = { ...AUTH, principalId: 'prn_A' };
+      const authB = { ...AUTH, principalId: 'prn_B' };
 
       await controller.run(authA, SAMPLE_DTO);
       await controller.run(authB, SAMPLE_DTO);

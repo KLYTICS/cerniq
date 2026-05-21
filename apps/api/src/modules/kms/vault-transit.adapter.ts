@@ -14,12 +14,14 @@
 // retries via outbox per ADR-0007.
 
 import { Injectable, Logger } from '@nestjs/common';
+
 import type {
   ActiveSigner,
   KeyMetadata,
   KmsAdapter,
   KmsKeyPurpose,
 } from '../../common/crypto/crypto.bootstrap.js';
+
 import { withKmsSpan } from './kms.spans';
 
 export interface VaultTransitAdapterConfig {
@@ -83,7 +85,7 @@ export class VaultTransitAdapter implements KmsAdapter {
         if (entry.key.algorithm !== 'EdDSA') {
           throw new Error(`VaultTransitAdapter: ${entry.key.algorithm} not supported`);
         }
-        return withKmsSpan('vault-transit', 'sign', kid, purpose, async () => {
+        return await withKmsSpan('vault-transit', 'sign', kid, purpose, async () => {
           const inputB64 = Buffer.from(message).toString('base64');
           const result = await this.signWithRetry({ name: entry.key.transitName, input: inputB64 });
           const sig = parseVaultSignature(result.data.signature, entry.key.version);
@@ -134,7 +136,7 @@ export class VaultTransitAdapter implements KmsAdapter {
  * under us and we missed the kid update.
  */
 export function parseVaultSignature(envelope: string, expectedVersion: number): Uint8Array {
-  const m = envelope.match(/^vault:v(\d+):(.+)$/);
+  const m = /^vault:v(\d+):(.+)$/.exec(envelope);
   if (!m) throw new Error(`Vault envelope malformed: ${envelope.slice(0, 32)}…`);
   const version = Number.parseInt(m[1], 10);
   if (version !== expectedVersion) {

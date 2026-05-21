@@ -9,6 +9,7 @@
 import { useState, useTransition } from 'react';
 
 import { copyToClipboard } from '../lib/clipboard';
+
 import { useToast } from './ToastProvider';
 
 interface CopyButtonProps {
@@ -32,7 +33,7 @@ export function CopyButton({ value, label }: CopyButtonProps) {
           tone: 'ok',
           ttl: 1_800,
         });
-        setTimeout(() => setCopied(false), 1_400);
+        setTimeout(() => { setCopied(false); }, 1_400);
       } else {
         toast.push({ title: 'Copy failed', body: 'Browser denied clipboard access.', tone: 'crit' });
       }
@@ -73,7 +74,7 @@ export function Copyable({ value, label, children, className }: CopyableProps) {
         tone: 'ok',
         ttl: 1_400,
       });
-      setTimeout(() => setCopied(false), 1_200);
+      setTimeout(() => { setCopied(false); }, 1_200);
     } else {
       toast.push({ title: 'Copy failed', tone: 'crit' });
     }

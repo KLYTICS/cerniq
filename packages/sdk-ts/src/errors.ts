@@ -39,7 +39,7 @@ export abstract class AegisError extends Error {
     catalogCode?: string,
   ) {
     super(message);
-    const target = new.target as typeof AegisError;
+    const target = new.target;
     if (target.catalogKey === '') {
       throw new Error('AegisError subclass missing static catalogKey: ' + new.target.name);
     }
@@ -141,7 +141,7 @@ export function extractCatalogCode(env: ErrorEnvelope | { details?: unknown; err
   // Catalog `code` lives in details for the new filter shape.
   const details = (env as { details?: unknown }).details;
   if (details !== null && typeof details === 'object') {
-    const candidate = (details as Record<string, unknown>)['code'];
+    const candidate = (details as Record<string, unknown>).code;
     if (typeof candidate === 'string' && candidate.length > 0) return candidate;
   }
   // Older envelopes carry uppercase `error`; if it happens to map to a

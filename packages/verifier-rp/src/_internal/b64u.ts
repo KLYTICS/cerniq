@@ -8,8 +8,8 @@ export function b64uEncode(bytes: Uint8Array): string {
   }
   // Manual base64url for environments without Buffer (browsers, edge runtimes).
   let bin = '';
-  for (let i = 0; i < bytes.length; i++) {
-    bin += String.fromCharCode(bytes[i] as number);
+  for (const b of bytes) {
+    bin += String.fromCharCode(b);
   }
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
@@ -30,8 +30,8 @@ export function b64uDecode(s: string): Uint8Array {
   return out;
 }
 
-export function b64uDecodeJson<T = unknown>(s: string): T {
+export function b64uDecodeJson(s: string): unknown {
   const bytes = b64uDecode(s);
   const json = new TextDecoder().decode(bytes);
-  return JSON.parse(json) as T;
+  return JSON.parse(json);
 }

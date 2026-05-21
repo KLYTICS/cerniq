@@ -8,12 +8,15 @@
  *              delegates to BateService.ingestSignal
  */
 
-import { Test } from '@nestjs/testing';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import { BateController } from './bate.controller';
-import { BateService } from './bate.service';
+import { Test } from '@nestjs/testing';
+
 import { PrismaService } from '../../common/prisma/prisma.service';
 import type { AuthenticatedKey } from '../auth/api-key.service';
+
+import { BateController } from './bate.controller';
+import { BateService } from './bate.service';
+
 
 // ── Stubs ─────────────────────────────────────────────────────────────────────
 

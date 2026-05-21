@@ -3,6 +3,7 @@
 // the project's existing test runner without pulling in vitest.
 const vi = { fn: jest.fn };
 import { UnauthorizedException } from '@nestjs/common';
+
 import { Auth0Service } from './auth0.service';
 
 function build(opts: {

@@ -12,8 +12,10 @@
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ulid } from 'ulid';
+
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+
 import type {
   ListMcpServersDto,
   McpServerDto,
@@ -96,10 +98,10 @@ export class McpService {
         id: r.id,
         principalId: r.principalId,
         name: r.name,
-        endpoint: String(m.endpoint ?? ''),
+        endpoint: typeof m.endpoint === 'string' ? m.endpoint : '',
         transport: (m.transport as McpServerDto['transport']) ?? 'streamable-http',
         manifestUrl: typeof m.manifestUrl === 'string' ? m.manifestUrl : null,
-        actionPrefix: String(m.actionPrefix ?? ''),
+        actionPrefix: typeof m.actionPrefix === 'string' ? m.actionPrefix : '',
         minTrustBand: (m.minTrustBand as McpServerDto['minTrustBand']) ?? DEFAULT_MIN_TRUST_BAND,
         status: (r.status as McpServerDto['status']) ?? 'ACTIVE',
         createdAt: r.createdAt.toISOString(),

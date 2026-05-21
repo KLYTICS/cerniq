@@ -14,7 +14,7 @@ export interface Command {
   external?: boolean;
 }
 
-export const COMMANDS: ReadonlyArray<Command> = [
+export const COMMANDS: readonly Command[] = [
   {
     id: 'go-overview',
     title: 'Go to Overview',
@@ -105,7 +105,7 @@ interface ScoredCommand {
   cmd: Command;
   score: number;
   /** Indices in title that matched, used for highlighting. */
-  matchSpans: Array<[number, number]>;
+  matchSpans: [number, number][];
 }
 
 /**
@@ -127,7 +127,7 @@ export function searchCommands(query: string): ScoredCommand[] {
   for (const cmd of COMMANDS) {
     const title = cmd.title.toLowerCase();
     let score = 0;
-    const spans: Array<[number, number]> = [];
+    const spans: [number, number][] = [];
 
     if (title.startsWith(q)) {
       score += 1_000;

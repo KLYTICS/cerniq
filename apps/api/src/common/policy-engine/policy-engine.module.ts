@@ -9,11 +9,14 @@
 // `imports`.
 
 import { Module, OnModuleInit, Logger } from '@nestjs/common';
+
 import { AppConfigModule } from '../../config/config.module';
 import { AppConfigService } from '../../config/config.service';
-import { registerCedarEvaluator, registerOpaEvaluator } from './index';
+
 import { CedarWasmEvaluator } from './cedar-wasm.evaluator';
 import { OpaWasmEvaluator } from './opa-wasm.evaluator';
+
+import { registerCedarEvaluator, registerOpaEvaluator } from './index';
 
 @Module({
   imports: [AppConfigModule],

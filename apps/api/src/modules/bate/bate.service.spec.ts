@@ -10,10 +10,11 @@
  *                    skips DB write when score/band unchanged
  */
 
-import { BateService, type IngestSignalInput } from './bate.service';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { RedisService } from '../../common/redis/redis.service';
+
 import type { BateScorer } from './bate.scorer';
+import { BateService, type IngestSignalInput } from './bate.service';
 import type { BateRecomputeWorker } from './bate.worker';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -82,7 +83,7 @@ function makePrisma(agents: AgentRow[] = [], signals: SignalRow[] = []) {
     },
     // Array-form $transaction: executes each operation (already called eagerly in JS) and resolves
     $transaction: jest.fn(async (ops: Promise<unknown>[]) => {
-      return Promise.all(ops);
+      return await Promise.all(ops);
     }),
   };
 
@@ -120,8 +121,8 @@ function makeService(opts: {
   const svc = new BateService(
     prisma as unknown as PrismaService,
     redis as unknown as RedisService,
-    scorer as unknown as BateScorer,
-    worker as unknown as BateRecomputeWorker,
+    scorer,
+    worker,
   );
   return { svc, prisma, redis, scorer, worker, agents, signals, agentUpdateMock, historyCreateMock };
 }
@@ -151,14 +152,14 @@ describe('BateService', () => {
       const { svc, signals } = makeService();
       await svc.ingestSignal(BASE_SIGNAL);
       expect(signals).toHaveLength(1);
-      expect(signals[0]!.agentId).toBe('agt_1');
-      expect(signals[0]!.signalType).toBe('CLEAN_TRANSACTION');
+      expect(signals[0].agentId).toBe('agt_1');
+      expect(signals[0].signalType).toBe('CLEAN_TRANSACTION');
     });
 
     it('enqueues the recompute worker with agentId and signalId', async () => {
       const { svc, worker, signals } = makeService();
       await svc.ingestSignal(BASE_SIGNAL);
-      expect(worker.enqueue).toHaveBeenCalledWith('agt_1', signals[0]!.id);
+      expect(worker.enqueue).toHaveBeenCalledWith('agt_1', signals[0].id);
     });
 
     it('silently drops a duplicate idempotency key — returns without throwing', async () => {
@@ -191,7 +192,7 @@ describe('BateService', () => {
     it('stores the idempotencyKey on the row when provided', async () => {
       const { svc, signals } = makeService();
       await svc.ingestSignal({ ...BASE_SIGNAL, idempotencyKey: 'my-unique-key' });
-      expect(signals[0]!.idempotencyKey).toBe('my-unique-key');
+      expect(signals[0].idempotencyKey).toBe('my-unique-key');
     });
   });
 
@@ -218,8 +219,8 @@ describe('BateService', () => {
       // fixedScore=700 (PLATINUM) differs from ACTIVE_AGENT (600, VERIFIED)
       const { svc, agents } = makeService({ agents: [{ ...ACTIVE_AGENT }], fixedScore: 700, fixedBand: 'PLATINUM' });
       await svc.recompute('agt_1');
-      expect(agents[0]!.trustScore).toBe(700);
-      expect(agents[0]!.trustBand).toBe('PLATINUM');
+      expect(agents[0].trustScore).toBe(700);
+      expect(agents[0].trustBand).toBe('PLATINUM');
     });
 
     it('calls $transaction with two operations when score changes', async () => {

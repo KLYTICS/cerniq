@@ -1,10 +1,11 @@
 // Bloomberg-density agent table. Per memory `feedback_less_cards`: tabular
 // layout, monospace, every column carries operator-relevant data.
 
-import { relativeTime, shortId, statusTone, trustBandTone } from '../../../lib/format';
-import type { AgentRow } from '../../../lib/api-client';
 import { Copyable } from '../../../components/CopyButton';
 import { StatusDot } from '../../../components/StatusDot';
+import type { AgentRow } from '../../../lib/api-client';
+import { relativeTime, shortId, statusTone, trustBandTone } from '../../../lib/format';
+
 import { RevokeAgentButton } from './RevokeAgentButton';
 
 interface Props {
@@ -55,7 +56,7 @@ aegis agents register --runtime anthropic --label "shopper-bot"`}</pre>
                   <a
                     href={`/agents/${encodeURIComponent(a.agentId)}`}
                     title={a.agentId}
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); }}
                   >
                     {shortId(a.agentId, 8, 4)}
                   </a>

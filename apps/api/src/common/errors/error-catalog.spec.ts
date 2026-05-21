@@ -3,6 +3,7 @@
 // dashboard somewhere is about to start lying to a customer.
 
 import { CircuitOpenError } from '../resilience/circuit-breaker.js';
+
 import {
   AegisError,
   AlreadyRotatedError,
@@ -89,7 +90,7 @@ describe('getCatalogEntry', () => {
   });
 
   it('resolves every existing AegisError subclass that is constructible here', () => {
-    const cases: Array<[Error, string]> = [
+    const cases: [Error, string][] = [
       [new AuthenticationError(), 'auth_required'],
       [new AuthorizationError(), 'forbidden'],
       [new NotFoundError('X'), 'not_found'],
@@ -126,7 +127,7 @@ describe('catalogKey discriminator (F-06 minification safety)', () => {
   // string value matches the un-minified class name. This is what survives
   // a tsup production build of the SDK after class names are mangled to
   // single letters.
-  const subclasses: Array<[{ catalogKey: string; name: string }, string]> = [
+  const subclasses: [{ catalogKey: string; name: string }, string][] = [
     [AuthenticationError, 'AuthenticationError'],
     [AuthorizationError, 'AuthorizationError'],
     [NotFoundError, 'NotFoundError'],

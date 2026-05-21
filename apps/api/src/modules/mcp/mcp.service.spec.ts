@@ -12,10 +12,12 @@
  */
 
 import { NotFoundException } from '@nestjs/common';
-import { McpService } from './mcp.service';
+
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { AuditService } from '../audit/audit.service';
+
 import type { RegisterMcpServerDto } from './mcp.dto';
+import { McpService } from './mcp.service';
 
 // ── Prisma stub ───────────────────────────────────────────────────────────────
 
@@ -110,8 +112,8 @@ describe('McpService', () => {
     it('persists a RelyingParty row with kind=MCP_SERVER', async () => {
       const { svc, rows } = makeService();
       await svc.register('prn_A', REGISTER_DTO);
-      expect(rows[0]!.kind).toBe('MCP_SERVER');
-      expect(rows[0]!.principalId).toBe('prn_A');
+      expect(rows[0].kind).toBe('MCP_SERVER');
+      expect(rows[0].principalId).toBe('prn_A');
     });
 
     it('uses the provided minTrustBand or defaults to VERIFIED', async () => {
@@ -151,7 +153,7 @@ describe('McpService', () => {
 
       const list = await svc.list('prn_A');
       expect(list.servers).toHaveLength(1);
-      expect(list.servers[0]!.name).toBe('My MCP Server');
+      expect(list.servers[0].name).toBe('My MCP Server');
     });
 
     it('returns { servers: [], total: 0 } when principal has no servers', async () => {
@@ -175,7 +177,7 @@ describe('McpService', () => {
       const { svc, rows } = makeService();
       const { id } = await svc.register('prn_A', REGISTER_DTO);
       await svc.revoke('prn_A', id);
-      expect(rows[0]!.status).toBe('REVOKED');
+      expect(rows[0].status).toBe('REVOKED');
     });
 
     it('appends an audit event with action=mcp.server.revoke', async () => {

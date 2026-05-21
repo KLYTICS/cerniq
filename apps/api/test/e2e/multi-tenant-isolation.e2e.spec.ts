@@ -17,6 +17,7 @@ import request from 'supertest';
 import { AppConfigService } from '../../src/config/config.service';
 
 import { generateAgentKeypair, signAgentToken } from './_helpers/agent-keys';
+import { createTestApp, type SupertestHttp, type TestAppHandle } from './_helpers/test-app';
 import {
   createPolicyViaApi,
   isoInDays,
@@ -24,7 +25,6 @@ import {
   seedPrincipalAndApiKey,
   type SeededPrincipal,
 } from './_helpers/test-fixtures';
-import { createTestApp, type SupertestHttp, type TestAppHandle } from './_helpers/test-app';
 
 interface TenantBundle {
   principal: SeededPrincipal;

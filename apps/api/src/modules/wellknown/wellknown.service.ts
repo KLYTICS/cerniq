@@ -1,22 +1,25 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { createHash } from 'node:crypto';
+
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type { PlanTier } from '@prisma/client';
-import { AppConfigService } from '../../config/config.service';
+
+import * as pkgJson from '../../../package.json';
 import { decodeBase64Url, encodeBase64Url } from '../../common/crypto/ed25519.util';
+import { AppConfigService } from '../../config/config.service';
 import { PLANS, TRIAL_LIFETIME_CAP, getPlan } from '../billing/plans';
-import type { AuditSigningKeyDto, JwkEd25519Dto, JwksDto } from './dto/jwks.dto';
+
 import type { AegisConfigurationDto } from './dto/discovery.dto';
+import type { AuditSigningKeyDto, JwkEd25519Dto, JwksDto } from './dto/jwks.dto';
+import type { PricingDto, PricingTierDto } from './dto/pricing.dto';
 import type {
   RetentionPolicyDto,
   RetentionPolicyTierDto,
 } from './dto/retention-policy.dto';
-import type { PricingDto, PricingTierDto } from './dto/pricing.dto';
 
 // type-rationale: package.json is a static JSON resource and tsconfig has
 // resolveJsonModule=true. Importing once at module load avoids fs reads
 // per request.
-// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
-import * as pkgJson from '../../../package.json';
+ 
 
 /** Spec-doc schema version. Bump on breaking change to AegisConfigurationDto shape. */
 const DISCOVERY_SPEC_VERSION = '1.0.0';
@@ -272,7 +275,7 @@ export class WellknownService implements OnModuleInit {
 
     const pkg =
       (pkgJson as { default?: { version?: string }; version?: string })
-        .default ?? (pkgJson as { version?: string });
+        .default ?? (pkgJson);
 
     return {
       issuer: base,

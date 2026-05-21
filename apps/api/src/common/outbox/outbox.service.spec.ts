@@ -1,6 +1,8 @@
-import { OutboxService } from './outbox.service';
-import type { PrismaService } from '../prisma/prisma.service';
 import type { Prisma } from '@prisma/client';
+
+import type { PrismaService } from '../prisma/prisma.service';
+
+import { OutboxService } from './outbox.service';
 
 describe('OutboxService', () => {
   function build() {
@@ -43,7 +45,7 @@ describe('OutboxService', () => {
     } as unknown as Prisma.TransactionClient;
 
     const prisma = {
-      $transaction: jest.fn(async <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) => fn(txClient)),
+      $transaction: jest.fn(async <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) => await fn(txClient)),
       outboxEvent: txClient.outboxEvent,
     } as unknown as PrismaService;
 

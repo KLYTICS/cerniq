@@ -7,8 +7,8 @@
 // shares the same credential file so `aegis whoami` reflects whatever
 // the dashboard last wrote.
 
-import { readFile, writeFile, mkdir, chmod } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { readFile, writeFile, mkdir, chmod } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 

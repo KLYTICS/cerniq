@@ -5,10 +5,11 @@
  * and delegates to McpService. Tests prove the mapping and guard contract.
  */
 
-import { McpController } from './mcp.controller';
-import { McpService } from './mcp.service';
-import type { RegisterMcpServerDto } from './mcp.dto';
 import type { Request } from 'express';
+
+import { McpController } from './mcp.controller';
+import type { RegisterMcpServerDto } from './mcp.dto';
+import type { McpService } from './mcp.service';
 
 // ── Stub factory ──────────────────────────────────────────────────────────────
 
@@ -39,7 +40,7 @@ describe('McpController', () => {
 
   beforeEach(() => {
     service = makeService();
-    controller = new McpController(service as unknown as McpService);
+    controller = new McpController(service);
   });
 
   describe('register()', () => {

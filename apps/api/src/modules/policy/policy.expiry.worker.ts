@@ -21,12 +21,13 @@
 // scopes per-principal automatically by looking up the policy's owner.
 
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import type { AgentPolicy } from '@prisma/client';
 import { Queue, Worker, type Job } from 'bullmq';
 import IORedis from 'ioredis';
-import type { AgentPolicy } from '@prisma/client';
+
+import { MetricsService } from '../../common/observability/metrics.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AppConfigService } from '../../config/config.service';
-import { MetricsService } from '../../common/observability/metrics.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
 
 export const POLICY_EXPIRY_QUEUE = 'aegis.policy.expiry';
@@ -58,7 +59,7 @@ export class PolicyExpiryWorker implements OnModuleInit, OnModuleDestroy {
     this.worker = new Worker(
       POLICY_EXPIRY_QUEUE,
       async (_job: Job) => {
-        return this.sweep();
+        return await this.sweep();
       },
       {
         connection: this.connection.duplicate(),
@@ -66,7 +67,7 @@ export class PolicyExpiryWorker implements OnModuleInit, OnModuleDestroy {
       },
     );
     this.worker.on('failed', (job, err) =>
-      this.logger.warn(`policy.expiry sweep failed jobId=${job?.id}: ${err?.message}`),
+      { this.logger.warn(`policy.expiry sweep failed jobId=${job?.id}: ${err?.message}`); },
     );
 
     // Repeatable schedule — BullMQ dedupes the repeatable key so multiple
@@ -105,7 +106,7 @@ export class PolicyExpiryWorker implements OnModuleInit, OnModuleDestroy {
     // is fine here because (a) verify hot path already gates expiry, and
     // (b) the sweep concurrency=1 prevents two workers from racing on the
     // same row.
-    const expired: Array<Pick<AgentPolicy, 'id' | 'agentId' | 'expiresAt'> & { principalId?: string }> =
+    const expired: (Pick<AgentPolicy, 'id' | 'agentId' | 'expiresAt'> & { principalId?: string })[] =
       await this.prisma.agentPolicy.findMany({
         where: { revokedAt: null, status: 'ACTIVE', expiresAt: { lt: now } },
         select: {

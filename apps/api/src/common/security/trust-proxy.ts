@@ -23,6 +23,9 @@
 
 import type { Request } from 'express';
 
+// type-rationale: 'loopback' | 'cloudflare' are the canonical short-codes; arbitrary
+// strings are valid forward-proxy IP lists (Express `trust proxy` semantics).
+// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 export type TrustProxyMode = 'loopback' | 'cloudflare' | string;
 
 /**

@@ -1,15 +1,18 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
-import { BillingController } from './billing.controller';
-import { StripeService } from './stripe.service';
-import { TrialService } from './trial.service';
-import { UsageGuardService } from './usage-guard.service';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { AppConfigService } from '../../config/config.service';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+
 import {
   ServiceUnavailableError,
   ValidationError,
 } from '../../common/errors/aegis-error';
+import { PrismaService } from '../../common/prisma/prisma.service';
+import { AppConfigService } from '../../config/config.service';
+
+import { BillingController } from './billing.controller';
+import { StripeService } from './stripe.service';
+import { TrialService } from './trial.service';
+import { UsageGuardService } from './usage-guard.service';
 
 const PRINCIPAL_ID = 'prn_test_001';
 
@@ -27,8 +30,8 @@ describe('BillingController', () => {
       createPortalSession: jest.fn(),
       verifyWebhookSignature: jest.fn(),
       handleWebhookEvent: jest.fn(),
-    } as never;
-    usage = { checkQuota: jest.fn() } as never;
+    };
+    usage = { checkQuota: jest.fn() };
     // Round 21: BillingController now injects TrialService for the
     // /v1/billing/plan endpoint to surface the lifetime trial counter.
     // Default getStatus to null (principal-not-found / non-FREE returns

@@ -1,10 +1,13 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { ulid } from 'ulid';
+
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { AgentPolicy, Prisma } from '@prisma/client';
+import { ulid } from 'ulid';
+
+import { JwtUtil } from '../../common/crypto/jwt.util';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
-import { JwtUtil } from '../../common/crypto/jwt.util';
+
 import {
   type CreatePolicyDto,
   type CreatePolicyResponseDto,
@@ -73,8 +76,8 @@ export class PolicyService {
     const signedToken = await this.jwt.sign(
       // The JwtUtil signs with the supplied key. We reuse the agent token shape
       // because relying parties only need to confirm AEGIS' EdDSA signature.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      tokenPayload as any,
+       
+      tokenPayload,
       this.aegisPrivateKey,
     );
 

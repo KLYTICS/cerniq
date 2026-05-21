@@ -19,7 +19,8 @@
 //   * Cache key spans the full verify context. Same token + different
 //     amount = different decision and must miss.
 
-import { sha256 } from '@noble/hashes/sha256';
+import { sha256 } from '@noble/hashes/sha2';
+
 import type { VerifyResult } from './types.js';
 
 /** Inputs that affect a verify decision and therefore the cache key. */
@@ -135,8 +136,7 @@ export function buildCacheKey(token: string, ctx: VerifyCacheContext = {}): stri
 
 function bytesToHex(bytes: Uint8Array): string {
   let out = '';
-  for (let i = 0; i < bytes.length; i += 1) {
-    const byte = bytes[i] ?? 0;
+  for (const byte of bytes) {
     out += byte.toString(16).padStart(2, '0');
   }
   return out;

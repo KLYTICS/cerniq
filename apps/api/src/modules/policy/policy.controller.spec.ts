@@ -7,11 +7,13 @@
  */
 
 import { Test } from '@nestjs/testing';
-import { PolicyController } from './policy.controller';
-import { PolicyService } from './policy.service';
+
 import type { AuthenticatedKey } from '../auth/api-key.service';
+
+import { PolicyController } from './policy.controller';
 import type { CreatePolicyDto } from './policy.dto';
 import { ScopeCategory } from './policy.dto';
+import { PolicyService } from './policy.service';
 
 const AUTH = { principalId: 'prn_A', apiKeyId: 'key_1' } as unknown as AuthenticatedKey;
 
@@ -79,8 +81,8 @@ describe('PolicyController', () => {
   });
 
   it('auth.principalId isolation — different principals call service with their own id', async () => {
-    const authA = { ...AUTH, principalId: 'prn_A' } as AuthenticatedKey;
-    const authB = { ...AUTH, principalId: 'prn_B' } as AuthenticatedKey;
+    const authA = { ...AUTH, principalId: 'prn_A' };
+    const authB = { ...AUTH, principalId: 'prn_B' };
     await controller.list(authA, 'agt_1');
     await controller.list(authB, 'agt_1');
     expect(service.list).toHaveBeenNthCalledWith(1, 'prn_A', 'agt_1');

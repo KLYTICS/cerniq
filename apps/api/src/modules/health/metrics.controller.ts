@@ -1,8 +1,9 @@
 import { Controller, Get, Header, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { Public } from '../auth/api-key.guard';
+
 import { MetricsService } from '../../common/observability/metrics.service';
+import { Public } from '../auth/api-key.guard';
 
 @ApiTags('Health')
 @Controller()

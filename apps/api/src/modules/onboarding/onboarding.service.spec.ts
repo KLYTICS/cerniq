@@ -1,7 +1,7 @@
 import { OnboardingService } from './onboarding.service';
 
 function build(opts: { existingRow?: Record<string, unknown> } = {}) {
-  const upsertCalls: Array<{ where: unknown; create: unknown; update: unknown }> = [];
+  const upsertCalls: { where: unknown; create: unknown; update: unknown }[] = [];
   const prisma = {
     principalOnboarding: {
       upsert: jest.fn(async (args: { where: unknown; create: unknown; update: unknown }) => {

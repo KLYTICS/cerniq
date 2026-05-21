@@ -7,12 +7,12 @@
 //     height={680}
 //   />
 
-type Props = {
+interface Props {
   url: string;
   title?: string;
   height?: number;
   provider?: 'stackblitz' | 'codesandbox' | 'other';
-};
+}
 
 const PROVIDER_LABEL: Record<NonNullable<Props['provider']>, string> = {
   stackblitz: 'StackBlitz',

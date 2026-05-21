@@ -11,6 +11,7 @@ import {
   type AgentListResult,
 } from '../../lib/api-client';
 import { authConfigured } from '../../lib/auth';
+
 import { AgentMetricStrip } from './components/AgentMetricStrip';
 import { AgentTable } from './components/AgentTable';
 import { RegisterAgentForm } from './components/RegisterAgentForm';

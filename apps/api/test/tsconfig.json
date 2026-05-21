@@ -1,20 +1,20 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "module": "CommonJS",
     "moduleResolution": "Node",
     "target": "ES2022",
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "baseUrl": "./",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "useDefineForClassFields": false,
     "noUncheckedIndexedAccess": false,
+    "noEmit": true,
+    "rootDir": "./",
+    "baseUrl": "../",
     "paths": {
       "@aegis/api/*": ["src/*"]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "test"]
+  "include": ["./**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

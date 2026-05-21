@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+
 import {
   ForbiddenException,
   GoneException,
@@ -7,10 +8,12 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { AgentIdentity, Prisma } from '@prisma/client';
 import * as ed from '@noble/ed25519';
+import type { AgentIdentity, Prisma } from '@prisma/client';
+
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
+
 import {
   type ListAgentsQueryDto,
   type RegisterAgentDto,

@@ -8,11 +8,14 @@
  */
 
 import { Test } from '@nestjs/testing';
-import { AuditController } from './audit.controller';
-import { AuditService } from './audit.service';
-import type { AuthenticatedKey } from '../auth/api-key.service';
-import type { AuditQueryDto } from './audit.dto';
 import type { Response } from 'express';
+
+import type { AuthenticatedKey } from '../auth/api-key.service';
+
+import { AuditController } from './audit.controller';
+import type { AuditQueryDto } from './audit.dto';
+import { AuditService } from './audit.service';
+
 
 // ── Stubs ─────────────────────────────────────────────────────────────────────
 
@@ -25,7 +28,7 @@ function makeAuditService(events: object[] = []): jest.Mocked<Pick<AuditService,
   return {
     list: jest.fn().mockResolvedValue({ events: [], nextCursor: null, count: 0 }),
     exportStream: jest.fn().mockReturnValue(gen()),
-  } as unknown as jest.Mocked<Pick<AuditService, 'list' | 'exportStream'>>;
+  };
 }
 
 function makeRes(): jest.Mocked<Response> {
@@ -70,7 +73,7 @@ describe('AuditController', () => {
     });
 
     it('auth isolation — principalId comes from auth, not from params', async () => {
-      const authB = { ...AUTH, principalId: 'prn_B' } as AuthenticatedKey;
+      const authB = { ...AUTH, principalId: 'prn_B' };
       await controller.list(authB, 'agt_1', QUERY);
       expect(service.list).toHaveBeenCalledWith('prn_B', 'agt_1', QUERY);
     });

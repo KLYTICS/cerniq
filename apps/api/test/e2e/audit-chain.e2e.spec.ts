@@ -14,11 +14,12 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 
-import { AppConfigService } from '../../src/config/config.service';
 import { AuditChainUtil, type AuditChainPayload } from '../../src/common/crypto/audit-chain.util';
+import { AppConfigService } from '../../src/config/config.service';
 import { AuditService } from '../../src/modules/audit/audit.service';
 
 import { generateAgentKeypair, signAgentToken, type AgentKeypair } from './_helpers/agent-keys';
+import { createTestApp, type SupertestHttp, type TestAppHandle } from './_helpers/test-app';
 import {
   createPolicyViaApi,
   isoInDays,
@@ -26,7 +27,6 @@ import {
   seedPrincipalAndApiKey,
   type SeededPrincipal,
 } from './_helpers/test-fixtures';
-import { createTestApp, type SupertestHttp, type TestAppHandle } from './_helpers/test-app';
 
 interface AgentSetup {
   agentId: string;
@@ -82,7 +82,7 @@ describe('e2e: audit chain integrity', () => {
       if (c >= want) return c;
       await new Promise((r) => setTimeout(r, 100));
     }
-    return handle.prisma.auditEvent.count({ where: { agentId } });
+    return await handle.prisma.auditEvent.count({ where: { agentId } });
   }
 
   beforeAll(async () => {
@@ -152,7 +152,7 @@ describe('e2e: audit chain integrity', () => {
     // Tamper the middle row's `action`. CLAUDE.md invariant #3 forbids
     // UPDATE on AuditEvent in production; here we use the raw client to
     // SIMULATE an attacker with DB access.
-    const target = events[1]!;
+    const target = events[1];
     await handle.prisma.auditEvent.update({
       where: { id: target.id },
       data: { action: 'ATTACKER_REWROTE_ACTION' },
@@ -227,8 +227,8 @@ describe('e2e: audit chain integrity', () => {
     // Cross-chain check: feed B's first event with A's last event as the
     // claimed predecessor. The signature was computed against B's actual
     // genesis prev-hash, so the wrong prev_hash produces a verify=false.
-    const bFirst = bEvents[0]!;
-    const aLast = aEvents[aEvents.length - 1]!;
+    const bFirst = bEvents[0];
+    const aLast = aEvents[aEvents.length - 1];
     const crossOk = await chain.verify(
       {
         eventId: bFirst.id,

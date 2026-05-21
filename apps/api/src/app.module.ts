@@ -1,40 +1,39 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 
-import { AppConfigModule } from './config/config.module';
-import { AppConfigService } from './config/config.service';
-import { PrismaModule } from './common/prisma/prisma.module';
-import { RedisModule } from './common/redis/redis.module';
+import { CorrelationContext, CorrelationMiddleware, CorrelationModule } from './common/correlation';
 import { CryptoModule } from './common/crypto/crypto.module';
 import { ObservabilityModule } from './common/observability/observability.module';
 import { OutboxModule } from './common/outbox/outbox.module';
-import { CorrelationContext, CorrelationMiddleware, CorrelationModule } from './common/correlation';
-
+import { PolicyEngineModule } from './common/policy-engine/policy-engine.module';
+import { PrismaModule } from './common/prisma/prisma.module';
+import { RedisModule } from './common/redis/redis.module';
+import { AppConfigModule } from './config/config.module';
+import { AppConfigService } from './config/config.service';
+import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { Auth0Module } from './modules/auth0/auth0.module';
+import { BateModule } from './modules/bate/bate.module';
+import { BillingModule } from './modules/billing/billing.module';
+import { ComplianceModule } from './modules/compliance/compliance.module';
+import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
+import { IdpClerkModule } from './modules/idp-clerk/idp-clerk.module';
+import { IdpWorkOsModule } from './modules/idp-workos/idp-workos.module';
+import { KmsModule } from './modules/kms/kms.module';
+import { McpModule } from './modules/mcp/mcp.module';
+import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { PolicyModule } from './modules/policy/policy.module';
 import { VerifyModule } from './modules/verify/verify.module';
-import { AuditModule } from './modules/audit/audit.module';
-import { BateModule } from './modules/bate/bate.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
-import { HealthModule } from './modules/health/health.module';
 import { WellknownModule } from './modules/wellknown/wellknown.module';
 
 // Round 5–8 modules (enterprise backbone — wired here so AppModule
 // instantiates them at boot. Each module is imported individually so
 // operators can selectively disable via a fork without surgery.)
-import { KmsModule } from './modules/kms/kms.module';
-import { Auth0Module } from './modules/auth0/auth0.module';
-import { IdpClerkModule } from './modules/idp-clerk/idp-clerk.module';
-import { IdpWorkOsModule } from './modules/idp-workos/idp-workos.module';
-import { McpModule } from './modules/mcp/mcp.module';
-import { ComplianceModule } from './modules/compliance/compliance.module';
-import { OnboardingModule } from './modules/onboarding/onboarding.module';
-import { PolicyEngineModule } from './common/policy-engine/policy-engine.module';
-import { BillingModule } from './modules/billing/billing.module';
 
 @Module({
   imports: [
