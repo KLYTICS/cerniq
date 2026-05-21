@@ -21,12 +21,18 @@ function buildAuth(overrides: Partial<AuthenticatedKey> = {}): AuthenticatedKey 
   return { apiKeyId: 'ak_old', principalId: 'p_alice', scope: 'FULL', ...overrides };
 }
 
-function buildReq(auth: AuthenticatedKey | undefined): Request {
-  return { auth } as unknown as Request;
+function buildReq(auth: AuthenticatedKey | undefined, keyPlaintext: string = 'aegis_sk_mock_old_key'): Request {
+  return {
+    auth,
+    headers: {
+      'x-aegis-api-key': keyPlaintext,
+    },
+  } as unknown as Request;
 }
 
 interface RotateMock {
   rotate: jest.Mock<Promise<RotateResult>, [string, string, number]>;
+  invalidateCache: jest.Mock<Promise<void>, [string]>;
 }
 
 function buildSvc(impl: (callingId: string, principalId: string, hours: number) => Promise<RotateResult> | RotateResult): {
@@ -35,6 +41,7 @@ function buildSvc(impl: (callingId: string, principalId: string, hours: number) 
 } {
   const svc: RotateMock = {
     rotate: jest.fn(async (callingId, principalId, hours) => impl(callingId, principalId, hours)),
+    invalidateCache: jest.fn(async (_plaintext: string) => {}),
   };
   const controller = new ApiKeyRotationController(svc as unknown as ApiKeyService);
   return { controller, svc };
@@ -53,7 +60,7 @@ describe('ApiKeyRotationController.rotate (happy path)', () => {
       };
     });
 
-    const res = await controller.rotate(buildReq(buildAuth()));
+    const res = await controller.rotate(buildReq(buildAuth(), 'aegis_sk_mock_old_key'));
 
     expect(res.id).toBe('ak_new');
     expect(res.key).toBe('aegis_sk_NEWKEYNEWKEYNEWKEYNEWKE');
@@ -61,6 +68,12 @@ describe('ApiKeyRotationController.rotate (happy path)', () => {
     expect(res.oldKey.id).toBe('ak_old');
     expect(res.oldKey.expiresAt).toBe(oldExpiresAt.toISOString());
     expect(svc.rotate).toHaveBeenCalledTimes(1);
+    // Round-24 cache wire-up: the OLD plaintext must be evicted from
+    // the auth cache after a successful rotate so the next request
+    // re-reads the stamped expiresAt from Postgres rather than the
+    // 60s-TTL hot entry.
+    expect(svc.invalidateCache).toHaveBeenCalledTimes(1);
+    expect(svc.invalidateCache).toHaveBeenCalledWith('aegis_sk_mock_old_key');
   });
 
   it('passes the calling key id from the guard to the service (no client-supplied id)', async () => {

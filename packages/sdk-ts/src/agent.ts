@@ -33,6 +33,10 @@ export class AgentClient {
     return this.http.request<AgentRecord>('/agents/register', { method: 'POST', body: input });
   }
 
+  list(query?: { limit?: number; cursor?: string }): Promise<{ agents: AgentRecord[]; nextCursor: string | null }> {
+    return this.http.request('/agents', { method: 'GET', query });
+  }
+
   get(agentId: string): Promise<AgentRecord> {
     return this.http.request<AgentRecord>(`/agents/${encodeURIComponent(agentId)}`, {
       method: 'GET',

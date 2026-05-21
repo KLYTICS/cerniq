@@ -687,7 +687,7 @@ importers:
   tools/quickstart:
     dependencies:
       '@aegis/sdk':
-        specifier: link:../../packages/sdk-ts
+        specifier: workspace:*
         version: link:../../packages/sdk-ts
     devDependencies:
       '@aegis/tsconfig':

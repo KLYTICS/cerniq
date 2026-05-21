@@ -1,5 +1,5 @@
 import { client } from '../client.js';
-import { emitJson, emitTable, ok, info, warn } from '../output.js';
+import { emitTable, ok, info, warn } from '../output.js';
 
 /**
  * `aegis kms list <purpose>` — shows the JWKS for a signing purpose.

@@ -104,7 +104,10 @@ export class IntentController {
     @Body() body: ReconcileRequestDto,
   ): Promise<ReconcileResponseDto> {
     const principalId = requirePrincipalId(req);
-    const idempotencyKey = req.header(AEGIS_HEADER_IDEMPOTENCY);
+    const rawIdempotencyKey = req.header(AEGIS_HEADER_IDEMPOTENCY);
+    const idempotencyKey = Array.isArray(rawIdempotencyKey)
+      ? rawIdempotencyKey[0]
+      : rawIdempotencyKey;
     if (!idempotencyKey) {
       throw new ValidationError(
         `${AEGIS_HEADER_IDEMPOTENCY} header is required for reconciliation`,

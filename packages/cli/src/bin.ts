@@ -63,7 +63,8 @@ async function main(): Promise<void> {
     .action(policiesList);
   policies
     .command('revoke')
-    .argument('<id>')
+    .argument('<agentId>')
+    .argument('<policyId>')
     .option('--reason <r>')
     .action(policiesRevoke);
 
