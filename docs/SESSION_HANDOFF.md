@@ -5,6 +5,88 @@
 
 ---
 
+## 2026-05-21 (spec-sync surgical fix — 3 jobs to GREEN, unblocks supply-chain PR wave) · sid=busy-khorana-7281c7 · claim=none (PR-level fix on fresh branch from main)
+
+**Status:** ✅ Fresh PR opened — [#32](https://github.com/KLYTICS/aegis/pull/32)
+"fix(spec-sync): close M-056 regression — extractors + AgentStatus + AuditEvent
+wire fields". Locally green on all 3 spec-sync jobs plus 4 workspace typechecks
+and 27 parity tests. Routes around [#26](https://github.com/KLYTICS/aegis/pull/26)
+(DIRTY, -10354 lines of M-014 docs conflicts — unrebaseable in practice).
+
+### Three drifts converged into one gate
+
+1. **denial-precedence (every PR red)** — bash extractor pattern `"DenialReason:"`
+   (PascalCase + colon) didn't match the actual YAML field `denialReason:`
+   (camelCase). grep returned nothing → comparison silently reported every
+   engine value as missing in OpenAPI. Fix lifted from #26: `sed` between
+   markers + canonical `components.schemas.DenialReason` schema.
+2. **openapi-vs-zod (AgentStatus red)** — `findZodSchema()` returned the
+   **first** matching candidate. `AgentStatusSchema` exists as a z.enum
+   (status values), `AgentStatusResponseSchema` is the wire object; the
+   script grabbed the enum, then `zodObjectKeys()` returned null, every
+   OpenAPI field reported as missing. Fix: prefer `ZodObject` candidates.
+3. **openapi-vs-prisma (3 components red)** — `AgentStatus.status` enum
+   missing `pending_verification`; `AgentPolicy.label` + `AuditEvent.{claimedAgentId,
+   actionHash}` in DTOs but missing from OpenAPI YAML; Prisma's
+   `denialReason`/`aegisSignature` columns needed wire-name renames to
+   `decisionReason`/`signature`. All four faithfully addressed.
+
+### What's new in OpenAPI
+
+- `components.schemas.DenialReason` — canonical 10-value enum (engine order
+  per ADR-0004). Separate from the inline `VerifyResponse.denialReason`
+  which keeps PLAN_LIMIT_EXCEEDED at position 0 because it's the billing
+  pre-gate, not an algorithm output.
+- `AgentIdentity.status` / `AgentStatus.status` enums add `pending_verification`.
+- `AgentPolicy.label` — operator-supplied label (nullable).
+- `AuditEvent.claimedAgentId` — forensic FK preservation through GDPR
+  Art. 17 erasure (the chain signs `agentIdHash`, not the live FK).
+- `AuditEvent.actionHash` — base64url(sha256(action)) commitment so the
+  audit chain stays verifiable when the raw action is redacted.
+
+### Verification (all green locally)
+
+```text
+denial-precedence: ✓ GREEN
+openapi-zod:       ✓ GREEN
+openapi-prisma:    ✓ GREEN
+
+pnpm -F @aegis/types typecheck       → clean
+pnpm -F @aegis/api typecheck         → clean
+pnpm -F @aegis/verifier-rp typecheck → clean
+pnpm -F @aegis/sdk typecheck         → clean
+pnpm -F @aegis/types test            → 27/27 pass (incl. 16 parity tests)
+```
+
+### Knock-on unblocks
+
+Once #32 merges, the spec-sync gate is GREEN and the supply-chain hardening
+wave can rebase and land:
+
+- [#17](https://github.com/KLYTICS/aegis/pull/17) — SHA-pin all GitHub
+  Actions (33 refs / 13 actions) — real SOC2 supply-chain hardening,
+  gated on spec-sync for 5+ SHAs.
+- [#18](https://github.com/KLYTICS/aegis/pull/18), [#19](https://github.com/KLYTICS/aegis/pull/19),
+  [#20](https://github.com/KLYTICS/aegis/pull/20), [#21](https://github.com/KLYTICS/aegis/pull/21)
+  — Dependabot/semgrep/Dependabot-config wave.
+- [#25](https://github.com/KLYTICS/aegis/pull/25) — DenialContextKind wiring
+  (still DIRTY, author rebase needed but spec-sync no longer the blocker).
+- [#26](https://github.com/KLYTICS/aegis/pull/26) — can close as superseded
+  by #32 once it lands. Commented to that effect.
+
+### Discipline note
+
+Scope discipline matters: this PR could have ballooned into "fix every
+drift the parity gate now reveals" (e.g. adding the wire-narrower Prisma
+fields like `revokedAt`, `revokedReason`, `requestedAmount` to OpenAPI).
+Instead it ships exactly what's needed to make the gate green and reflects
+the **current** DTO truth — not an aspirational expansion of the public
+surface. Real follow-up exists (those fields could legitimately become
+public), but they need an API-evolution decision the operator hasn't
+been asked for yet, not a quiet drive-by addition.
+
+---
+
 ## 2026-05-21 (merge-train triage — unblocked 13-PR osv-scanner cascade) · sid=busy-khorana-7281c7 · claim=none (read-mostly PR triage)
 
 **Status:** ✅ One PR merged ([#29](https://github.com/KLYTICS/aegis/pull/29)),
