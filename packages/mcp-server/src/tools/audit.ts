@@ -1,4 +1,5 @@
 import type { Aegis } from '@aegis/sdk';
+
 import type { ToolDefinition } from './registry.js';
 
 export function registerAuditTool(aegis: Aegis, registry: Map<string, ToolDefinition>): void {
@@ -26,7 +27,8 @@ export function registerAuditTool(aegis: Aegis, registry: Map<string, ToolDefini
       // Until then this tool calls the REST API directly via aegis.http.
       const params = new URLSearchParams();
       for (const [k, v] of Object.entries(args)) {
-        if (v !== undefined && v !== null) params.set(k.replace(/_/g, ''), String(v));
+        if (v === undefined || v === null) continue;
+        params.set(k.replace(/_/g, ''), typeof v === 'string' ? v : JSON.stringify(v));
       }
       // @ts-expect-error - http accessor available on Aegis client per
       // packages/sdk-ts/src/index.ts; types lag by one publish cycle.

@@ -44,7 +44,7 @@ const storage = new AsyncLocalStorage<CorrelationState>();
  * call sites don't need to inject anything — the AsyncLocalStorage is a
  * module-level singleton scoped to the Node process.
  */
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class
+ 
 export class CorrelationContext {
   /**
    * Run `fn` with `state` bound to the current async chain. Nested `run`

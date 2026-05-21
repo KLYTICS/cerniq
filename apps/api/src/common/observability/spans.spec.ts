@@ -1,4 +1,5 @@
 import { trace, SpanStatusCode } from '@opentelemetry/api';
+
 import { setActiveSpanAttributes, withSpan } from './spans';
 
 describe('withSpan', () => {
@@ -77,7 +78,7 @@ describe('setActiveSpanAttributes', () => {
 
   it('is a no-op when no active span', () => {
     getActiveSpanSpy = jest.spyOn(trace, 'getActiveSpan').mockReturnValue(undefined);
-    expect(() => setActiveSpanAttributes({ 'agent.id': 'agt_1' })).not.toThrow();
+    expect(() => { setActiveSpanAttributes({ 'agent.id': 'agt_1' }); }).not.toThrow();
   });
 
   it('sets attributes on the active span and skips undefined', () => {

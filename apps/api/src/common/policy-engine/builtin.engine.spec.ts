@@ -8,7 +8,7 @@ const baseInput = (overrides: Partial<PolicyEvaluationInput> = {}): PolicyEvalua
     id: 'agt_1',
     status: 'ACTIVE',
     trustScore: 700,
-    trustBand: 'VERIFIED' as never,
+    trustBand: 'VERIFIED',
     principalId: 'p_1',
   },
   policy: {

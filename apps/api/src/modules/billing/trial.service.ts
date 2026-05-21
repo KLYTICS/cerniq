@@ -26,9 +26,11 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import type { PlanTier } from '@prisma/client';
+
+import { MetricsService } from '../../common/observability/metrics.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
-import { MetricsService } from '../../common/observability/metrics.service';
+
 import { TRIAL_LIFETIME_CAP } from './plans';
 
 /** Result of `checkAndIncrement`. */
@@ -126,9 +128,9 @@ export class TrialService {
           data: { trialUsedCount: newCount, trialExhaustedAt: exhaustedAt },
         })
         .catch((err) =>
-          this.logger.error(
+          { this.logger.error(
             `TrialService: failed to persist trialExhaustedAt principalId=${principalId}: ${(err as Error).message}`,
-          ),
+          ); },
         );
       return { exhausted: true, exhaustedAt, reason: 'CAP_REACHED' };
     }
@@ -141,9 +143,9 @@ export class TrialService {
           data: { trialUsedCount: newCount },
         })
         .catch((err) =>
-          this.logger.warn(
+          { this.logger.warn(
             `TrialService: periodic flush failed principalId=${principalId} count=${newCount}: ${(err as Error).message}`,
-          ),
+          ); },
         );
     }
 

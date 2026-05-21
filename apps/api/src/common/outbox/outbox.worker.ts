@@ -29,8 +29,10 @@
 // uses HMAC-signed `delivery.id` for receiver-side dedup).
 
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+
 import { AppConfigService } from '../../config/config.service';
 import { MetricsService } from '../observability/metrics.service';
+
 import { OutboxService, type OutboxKind, type OutboxPayload } from './outbox.service';
 
 export const DEFAULT_BATCH_SIZE = 32;
@@ -41,9 +43,7 @@ export const DEFAULT_TICK_INTERVAL_MS = 1_000;
 /** Max attempts before a row is left in the outbox as dead-letter. */
 export const DEFAULT_MAX_ATTEMPTS = 8;
 
-export interface OutboxHandler<K extends OutboxKind> {
-  (payload: OutboxPayload[K], context: OutboxHandlerContext): Promise<void>;
-}
+export type OutboxHandler<K extends OutboxKind> = (payload: OutboxPayload[K], context: OutboxHandlerContext) => Promise<void>;
 
 export interface OutboxHandlerContext {
   /** Outbox row id — used by handlers for trace correlation only. */

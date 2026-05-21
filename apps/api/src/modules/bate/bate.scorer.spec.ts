@@ -1,5 +1,6 @@
-import { BateScorer } from './bate.scorer';
 import type { BateSignal, BateSignalType, SignalSeverity } from '@prisma/client';
+
+import { BateScorer } from './bate.scorer';
 
 const NOW = Date.now();
 let id = 0;
@@ -21,7 +22,7 @@ function signal(
     processedAt: new Date(),
     scoreDelta: null,
     occurredAt: new Date(NOW - daysAgo * 86_400_000),
-  } as BateSignal;
+  };
 }
 
 describe('BateScorer', () => {

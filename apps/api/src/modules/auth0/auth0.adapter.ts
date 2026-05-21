@@ -5,11 +5,14 @@
 // default). RS256 today — when Auth0 GAs EdDSA, swap the alg whitelist;
 // the rest of this code is alg-agnostic.
 
-import { Injectable, Logger } from '@nestjs/common';
 import { createHash, createPublicKey, verify as verifyAsymmetric } from 'node:crypto';
+
+import { Injectable, Logger } from '@nestjs/common';
+
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { AppConfigService } from '../../config/config.service';
+
 import type { IdpAdapter, IdpUser } from './idp.adapter';
 
 const ALLOWED_ALGS = new Set(['RS256', 'RS384', 'RS512']); // Auth0 default; EdDSA when GA.
@@ -71,10 +74,18 @@ export class Auth0Adapter implements IdpAdapter {
     if (!verifyAsymmetric(algoOid, data, pubKey, sig)) return null;
 
     return {
-      idpUserId: String(claims.sub ?? ''),
-      idpOrganizationId: String(claims.org_id ?? claims.organization ?? ''),
-      idpDomain: String(claims['https://aegis.dev/domain'] ?? ''),
-      email: String(claims.email ?? ''),
+      idpUserId: typeof claims.sub === 'string' ? claims.sub : '',
+      idpOrganizationId:
+        typeof claims.org_id === 'string'
+          ? claims.org_id
+          : typeof claims.organization === 'string'
+            ? claims.organization
+            : '',
+      idpDomain:
+        typeof claims['https://aegis.dev/domain'] === 'string'
+          ? claims['https://aegis.dev/domain']
+          : '',
+      email: typeof claims.email === 'string' ? claims.email : '',
       emailVerified: Boolean(claims.email_verified),
       name: typeof claims.name === 'string' ? claims.name : null,
       roles: Array.isArray(claims['https://aegis.dev/roles']) ? (claims['https://aegis.dev/roles'] as string[]) : [],

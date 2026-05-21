@@ -1,13 +1,16 @@
-import { Body, Controller, Headers, HttpCode, Post, UnauthorizedException } from '@nestjs/common';
 import { timingSafeEqual } from 'node:crypto';
+
+import { Body, Controller, Headers, HttpCode, Post, UnauthorizedException } from '@nestjs/common';
+
 import { AppConfigService } from '../../config/config.service';
-import { Auth0Service } from './auth0.service';
+
 import type {
   Auth0ActionLoginDto,
   Auth0ActionLoginResultDto,
   Auth0ExchangeDto,
   Auth0ExchangeResultDto,
 } from './auth0.dto';
+import { Auth0Service } from './auth0.service';
 
 /**
  * Public surface for the Auth0 bridge.
@@ -36,13 +39,13 @@ export class Auth0Controller {
     @Body() dto: Auth0ActionLoginDto,
   ): Promise<Auth0ActionLoginResultDto> {
     this.assertActionSecret(secret);
-    return this.auth0.handleActionLogin(dto);
+    return await this.auth0.handleActionLogin(dto);
   }
 
   @Post('exchange')
   @HttpCode(200)
   async exchange(@Body() dto: Auth0ExchangeDto): Promise<Auth0ExchangeResultDto> {
-    return this.auth0.exchangeToken(dto);
+    return await this.auth0.exchangeToken(dto);
   }
 
   private assertActionSecret(provided: string | undefined): void {

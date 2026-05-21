@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   title: 'Sign in · AEGIS',
 };
 
-type LoginSearchParams = { redirect?: string | string[] };
+interface LoginSearchParams { redirect?: string | string[] }
 
 export default async function LoginPage({
   searchParams,

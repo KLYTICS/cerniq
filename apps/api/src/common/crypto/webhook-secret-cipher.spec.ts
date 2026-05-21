@@ -1,7 +1,8 @@
 import { randomBytes } from 'node:crypto';
 
-import { InternalError } from '../errors/aegis-error';
 import type { AppConfigService } from '../../config/config.service';
+import { InternalError } from '../errors/aegis-error';
+
 import { WebhookSecretCipher } from './webhook-secret-cipher';
 
 function stubConfig(opts: { dekB64?: string; nodeEnv?: 'development' | 'production' | 'test' } = {}): AppConfigService {
@@ -61,8 +62,8 @@ describe('WebhookSecretCipher', () => {
     const ct = cipher.encrypt('whsec_tamper_target');
     const parts = ct.split(':');
     // Flip one byte of the ciphertext segment.
-    const ctBuf = Buffer.from(parts[3]!, 'base64url');
-    ctBuf[0] = ctBuf[0]! ^ 0x01;
+    const ctBuf = Buffer.from(parts[3], 'base64url');
+    ctBuf[0] = ctBuf[0] ^ 0x01;
     parts[3] = ctBuf.toString('base64url');
     const tampered = parts.join(':');
     expect(() => cipher.decrypt(tampered)).toThrow(InternalError);
@@ -72,8 +73,8 @@ describe('WebhookSecretCipher', () => {
     const cipher = new WebhookSecretCipher(stubConfig({ dekB64: DEK_A }));
     const ct = cipher.encrypt('whsec_iv_tamper');
     const parts = ct.split(':');
-    const ivBuf = Buffer.from(parts[1]!, 'base64url');
-    ivBuf[0] = ivBuf[0]! ^ 0x01;
+    const ivBuf = Buffer.from(parts[1], 'base64url');
+    ivBuf[0] = ivBuf[0] ^ 0x01;
     parts[1] = ivBuf.toString('base64url');
     const tampered = parts.join(':');
     expect(() => cipher.decrypt(tampered)).toThrow(InternalError);
@@ -83,8 +84,8 @@ describe('WebhookSecretCipher', () => {
     const cipher = new WebhookSecretCipher(stubConfig({ dekB64: DEK_A }));
     const ct = cipher.encrypt('whsec_tag_tamper');
     const parts = ct.split(':');
-    const tagBuf = Buffer.from(parts[2]!, 'base64url');
-    tagBuf[0] = tagBuf[0]! ^ 0x01;
+    const tagBuf = Buffer.from(parts[2], 'base64url');
+    tagBuf[0] = tagBuf[0] ^ 0x01;
     parts[2] = tagBuf.toString('base64url');
     const tampered = parts.join(':');
     expect(() => cipher.decrypt(tampered)).toThrow(InternalError);
@@ -127,6 +128,7 @@ describe('WebhookSecretCipher', () => {
     });
 
     it('generates an ephemeral DEK and warns in development', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- Late-bound to avoid jest mock hoisting interactions; static import causes the spy to wire up on the wrong prototype.
       const warn = jest.spyOn(require('@nestjs/common').Logger.prototype, 'warn').mockImplementation(() => undefined);
       try {
         const cipher = new WebhookSecretCipher(stubConfig({ nodeEnv: 'development' }));

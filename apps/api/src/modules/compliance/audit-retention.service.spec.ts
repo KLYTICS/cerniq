@@ -98,7 +98,7 @@ function buildMetrics() {
 }
 
 function buildShutdown() {
-  const drains: Array<() => Promise<void>> = [];
+  const drains: (() => Promise<void>)[] = [];
   return {
     shutdown: {
       register: jest.fn((_name: string, fn: () => Promise<void>) => {
@@ -127,7 +127,7 @@ function makeService(args: {
   prisma: ReturnType<typeof buildFakePrisma>['prisma'];
   redact: ReturnType<typeof buildRedact>;
   counter: { inc: jest.Mock };
-  drains: Array<() => Promise<void>>;
+  drains: (() => Promise<void>)[];
 } {
   const { prisma } = buildFakePrisma(args.principals, args.events);
   const redact = buildRedact(args.events, { failOn: args.failOn });
@@ -216,14 +216,14 @@ describe('AuditRetentionService.runOnce', () => {
     ];
     const { svc } = makeService({ principals, events });
     const result = await svc.runOnce();
-    expect(result.perPrincipal['p_a']?.redacted).toBe(2);
-    expect(result.perPrincipal['p_b']?.redacted).toBe(1);
+    expect(result.perPrincipal.p_a?.redacted).toBe(2);
+    expect(result.perPrincipal.p_b?.redacted).toBe(1);
   });
 
   it('paginates across >100 principals', async () => {
     const principals: FakePrincipalRow[] = Array.from({ length: 250 }, (_, i) => ({
       id: `p_${String(i).padStart(4, '0')}`,
-      planTier: 'FREE' as PlanTier,
+      planTier: 'FREE',
     }));
     const events: FakeAuditRow[] = principals.map((p) => ev(`evt_${p.id}`, p.id, 60));
     const { svc, prisma } = makeService({ principals, events });

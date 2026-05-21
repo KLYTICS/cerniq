@@ -1,4 +1,5 @@
 import prompts from 'prompts';
+
 import { writeCredentials, credentialsPath, readCredentials } from '../credentials.js';
 import { info, ok, warn } from '../output.js';
 

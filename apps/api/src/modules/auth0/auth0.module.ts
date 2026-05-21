@@ -1,15 +1,17 @@
 import { Module } from '@nestjs/common';
-import { AppConfigModule } from '../../config/config.module';
+
 // type-rationale: peer's auth0 module references config.auth0Issuer +
 // config.auth0Audience + config.auth0ActionSecret which are present in
 // AppConfigService (added Round 5). Module imports AppConfigModule to
 // expose them to DI.
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { RedisModule } from '../../common/redis/redis.module';
+import { AppConfigModule } from '../../config/config.module';
 import { AuditModule } from '../audit/audit.module';
+
 import { Auth0Adapter } from './auth0.adapter';
-import { Auth0Service } from './auth0.service';
 import { Auth0Controller } from './auth0.controller';
+import { Auth0Service } from './auth0.service';
 
 /**
  * Auth0 bridge module (ADR-0009). Wires Auth0Adapter as the IdpAdapter

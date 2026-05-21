@@ -1,16 +1,17 @@
-import { VerifyService } from './verify.service';
 import { Ed25519Util, encodeBase64Url } from '../../common/crypto/ed25519.util';
 import { JwtUtil } from '../../common/crypto/jwt.util';
+import type { MetricsService } from '../../common/observability/metrics.service';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { RedisService } from '../../common/redis/redis.service';
-import type { SpendGuardService } from './spend-guard.service';
-import type { ReplayCacheService } from './replay-cache.service';
+import type { AppConfigService } from '../../config/config.service';
 import type { AuditService } from '../audit/audit.service';
 import type { BateService } from '../bate/bate.service';
-import type { AppConfigService } from '../../config/config.service';
-import type { MetricsService } from '../../common/observability/metrics.service';
-import type { UsageGuardService } from '../billing/usage-guard.service';
 import type { TrialService } from '../billing/trial.service';
+import type { UsageGuardService } from '../billing/usage-guard.service';
+
+import type { ReplayCacheService } from './replay-cache.service';
+import type { SpendGuardService } from './spend-guard.service';
+import { VerifyService } from './verify.service';
 
 const RP_PRINCIPAL = 'rp_test_principal';
 
@@ -18,7 +19,7 @@ interface PolicyRecord {
   id: string;
   status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
   expiresAt: Date;
-  scopes: Array<Record<string, unknown>>;
+  scopes: Record<string, unknown>[];
 }
 
 interface AgentRecord {
@@ -50,7 +51,7 @@ function buildHarness() {
     set: jest.fn(async (k: string, v: unknown) => {
       cache.set(k, v);
     }),
-    del: jest.fn(async (...ks: string[]) => ks.forEach((k) => cache.delete(k))),
+    del: jest.fn(async (...ks: string[]) => { ks.forEach((k) => cache.delete(k)); }),
   } as unknown as RedisService;
 
   let agent: AgentRecord | null = null;
@@ -147,7 +148,7 @@ async function token(jwt: JwtUtil, ed: Ed25519Util, sub: string, pid: string, ac
       pid,
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 60,
-      jti: 'jti_' + Math.random(),
+      jti: `jti_${String(Math.random())}`,
       ...(action ? { act: action } : {}),
       ...(amt !== undefined ? { amt } : {}),
     },

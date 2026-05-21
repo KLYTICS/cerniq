@@ -1,5 +1,5 @@
 import { client } from '../client.js';
-import { emitJson, emitTable, ok, info, warn } from '../output.js';
+import { emitTable, ok, info, warn } from '../output.js';
 
 /**
  * `aegis kms list <purpose>` — shows the JWKS for a signing purpose.
@@ -17,7 +17,7 @@ export async function kmsList(opts: { purpose?: string }): Promise<void> {
   const purposeQs = opts.purpose ? `?purpose=${opts.purpose}` : '';
   // @ts-expect-error - http accessor
   const jwks = (await aegis.http.get(`/v1/.well-known/audit-signing-key${purposeQs}`)) as {
-    keys: Array<{ kid: string; alg: string; use: string; validFrom?: string; validUntil?: string | null }>;
+    keys: { kid: string; alg: string; use: string; validFrom?: string; validUntil?: string | null }[];
   };
   emitTable(jwks.keys.map((k) => ({
     kid: k.kid,
@@ -28,6 +28,7 @@ export async function kmsList(opts: { purpose?: string }): Promise<void> {
   })));
 }
 
+// eslint-disable-next-line @typescript-eslint/require-await -- CLI command contract is async; this one is informational and prints synchronously.
 export async function kmsRotate(purpose: string): Promise<void> {
   warn(`kms rotate is a privileged operation. Confirm via the cloud KMS console.`);
   info(`Steps:`);

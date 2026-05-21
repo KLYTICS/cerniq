@@ -4,6 +4,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
+import { CopyButton, Copyable } from '../../../components/CopyButton';
+import { HandshakePanel } from '../../../components/HandshakePanel';
+import { StatusDot } from '../../../components/StatusDot';
 import {
   AegisApiError,
   getAgent,
@@ -15,9 +18,6 @@ import {
   type HandshakeStatus,
   type PolicyRow,
 } from '../../../lib/api-client';
-import { CopyButton, Copyable } from '../../../components/CopyButton';
-import { HandshakePanel } from '../../../components/HandshakePanel';
-import { StatusDot } from '../../../components/StatusDot';
 import { relativeTime, statusTone, trustBandTone } from '../../../lib/format';
 
 export const metadata: Metadata = {

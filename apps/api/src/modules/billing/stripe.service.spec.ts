@@ -5,12 +5,14 @@
 // runnable even when the npm package is not yet installed.
 
 import { Logger } from '@nestjs/common';
+
+import { ServiceUnavailableError, ValidationError } from '../../common/errors/aegis-error';
+
 import {
   StripeService,
   type StripeEvent,
   type StripeFactory,
 } from './stripe.service';
-import { ServiceUnavailableError, ValidationError } from '../../common/errors/aegis-error';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Test doubles
@@ -191,7 +193,7 @@ function build(overrides: {
   fakeStripe?: FakeStripe;
 } = {}) {
   const fakeStripe = overrides.fakeStripe ?? makeFakeStripe();
-  const factory: StripeFactory = jest.fn(() => fakeStripe) as unknown as StripeFactory;
+  const factory: StripeFactory = jest.fn(() => fakeStripe);
   const prisma = makePrismaStub(overrides.principals ?? []);
   const redis = makeRedisStub();
   const config = makeConfigStub(overrides.config);

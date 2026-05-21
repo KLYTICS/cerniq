@@ -1,4 +1,5 @@
 import * as ed from '@noble/ed25519';
+
 import { generateKeypair, signAgentToken, signHandshake, decodeUnsafe, b64uDecode } from './crypto';
 
 describe('@aegis/sdk crypto', () => {

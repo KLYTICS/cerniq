@@ -125,7 +125,7 @@ export function wrapMcpHandler<TReq extends McpRequest, TRes>(
     });
 
     if (!result.valid) {
-      const reason: DenialReason = (result.denialReason ?? 'AGENT_NOT_FOUND') as DenialReason;
+      const reason: DenialReason = (result.denialReason ?? 'AGENT_NOT_FOUND');
       if (config.onDenial) await config.onDenial(reason, ctx);
       throw new BridgeDenialError(reason, result);
     }
@@ -136,7 +136,7 @@ export function wrapMcpHandler<TReq extends McpRequest, TRes>(
       throw new BridgeDenialError(reason, result);
     }
 
-    return handler(req, { ...ctx, aegisVerify: result });
+    return await handler(req, { ...ctx, aegisVerify: result });
   };
 }
 
@@ -151,9 +151,9 @@ interface McpRequest {
 
 function extractTarget(req: McpRequest): string {
   const params = req.params ?? {};
-  if (typeof params['name'] === 'string') return params['name'];
-  if (typeof params['uri'] === 'string') return params['uri'];
-  if (typeof params['path'] === 'string') return params['path'];
+  if (typeof params.name === 'string') return params.name;
+  if (typeof params.uri === 'string') return params.uri;
+  if (typeof params.path === 'string') return params.path;
   return '';
 }
 
@@ -162,7 +162,7 @@ function extractHeaders(req: McpRequest): Record<string, string> {
   // smuggled in the params. For sse/ws, the transport adapter populates
   // them. This extractor handles both.
   const params = req.params ?? {};
-  const headers = params['_aegis_headers'];
+  const headers = params._aegis_headers;
   return typeof headers === 'object' && headers !== null
     ? (headers as Record<string, string>)
     : {};
@@ -171,7 +171,7 @@ function extractHeaders(req: McpRequest): Record<string, string> {
 function extractToken(req: McpRequest, ctx: BridgeContext): string | null {
   const headerToken = ctx.headers[AEGIS_HEADER_TOKEN.toLowerCase()];
   if (headerToken) return headerToken;
-  const argToken = (req.params ?? {})['_aegis_token'];
+  const argToken = req.params?._aegis_token;
   return typeof argToken === 'string' ? argToken : null;
 }
 
@@ -187,7 +187,7 @@ function meetsTrustBar(
   min: NonNullable<BridgeConfig['minTrustBand']>,
 ): boolean {
   if (!actual) return false;
-  return (BAND_ORDER[actual] ?? -1) >= BAND_ORDER[min];
+  return BAND_ORDER[actual] >= BAND_ORDER[min];
 }
 
 function denialResponse(reason: DenialReason): VerifyResponse {

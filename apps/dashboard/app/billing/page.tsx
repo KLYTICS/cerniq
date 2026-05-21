@@ -7,19 +7,19 @@
 // `/v1/billing/checkout`; manage actions POST to `/v1/billing/portal`.
 // Card data never touches AEGIS — see ADR-0011.
 
-import type { ReactElement } from 'react';
 import type { Metadata } from 'next';
+import type { ReactElement } from 'react';
 
+import type { PlanSummary } from '../../lib/api-client';
 import { authConfigured } from '../../lib/auth';
 import { loadPlan } from '../../lib/billing';
-import type { PlanSummary } from '../../lib/api-client';
 
+import { AutoCheckout } from './_components/AutoCheckout';
+import { ManageButton } from './_components/ManageButton';
 import { PastDueBanner } from './_components/PastDueBanner';
 import { TrialCountdown } from './_components/TrialCountdown';
 import { UpgradeButton } from './_components/UpgradeButton';
 import { UsageStrip } from './_components/UsageStrip';
-import { ManageButton } from './_components/ManageButton';
-import { AutoCheckout } from './_components/AutoCheckout';
 
 export const metadata: Metadata = {
   title: 'Billing · AEGIS',
@@ -32,10 +32,10 @@ const NUM = new Intl.NumberFormat('en-US');
 // new prospects authenticate first. When they land here with `intent=checkout`
 // AND a valid tier, auto-trigger Stripe checkout — closing the conversion
 // funnel at one click instead of two.
-type IntentSearchParams = {
+interface IntentSearchParams {
   intent?: string | string[];
   tier?: string | string[];
-};
+}
 
 const ALLOWED_CHECKOUT_TIERS = ['DEVELOPER', 'GROWTH', 'TEAM', 'SCALE'] as const;
 type AllowedCheckoutTier = (typeof ALLOWED_CHECKOUT_TIERS)[number];

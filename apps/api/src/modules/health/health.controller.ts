@@ -42,17 +42,17 @@ import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
-import { Public } from '../auth/api-key.guard';
+import * as pkgJson from '../../../package.json';
+import { AuditSignerService } from '../../common/crypto/audit-signer.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
-import { AuditSignerService } from '../../common/crypto/audit-signer.service';
+import { Public } from '../auth/api-key.guard';
 import { StripeService } from '../billing/stripe.service';
 
 // type-rationale: package.json is a static JSON resource and tsconfig has
 // resolveJsonModule=true. Importing once at module load avoids fs reads
 // per request and keeps `version` baked into the bundle.
-// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
-import * as pkgJson from '../../../package.json';
+ 
 
 const READINESS_CHECK_TIMEOUT_MS = 200;
 
@@ -101,7 +101,7 @@ export class HealthController {
     // a `default` and the raw object. We accept either shape.
     const pkg =
       (pkgJson as { default?: { version?: string }; version?: string })
-        .default ?? (pkgJson as { version?: string });
+        .default ?? (pkgJson);
     this.versionPayload = {
       version: pkg.version ?? '0.0.0',
       gitSha: process.env.GIT_SHA ?? 'dev',
@@ -177,7 +177,7 @@ export class HealthController {
         fn(),
         new Promise<never>((_resolve, reject) => {
           timeoutHandle = setTimeout(
-            () => reject(new Error(`timeout: ${READINESS_CHECK_TIMEOUT_MS}ms`)),
+            () => { reject(new Error(`timeout: ${READINESS_CHECK_TIMEOUT_MS}ms`)); },
             READINESS_CHECK_TIMEOUT_MS,
           );
         }),

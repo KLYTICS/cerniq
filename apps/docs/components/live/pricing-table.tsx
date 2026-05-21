@@ -1,19 +1,19 @@
 import 'server-only';
 
-type ApiTier = {
+interface ApiTier {
   id: string;
   name: string;
   price_usd: number | null;
   included_verifies: number | null;
   included_verifies_period: string;
   overage_usd_per_verify: number | null;
-};
+}
 
-type ApiPricing = {
+interface ApiPricing {
   spec_version: string;
   generated_at: string;
   tiers: ApiTier[];
-};
+}
 
 type FetchResult =
   | { source: 'api'; data: ApiPricing }

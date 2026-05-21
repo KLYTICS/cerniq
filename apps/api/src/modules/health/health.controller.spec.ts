@@ -15,11 +15,12 @@
 //      do not contain `aegis_`, `whsec_`, or `sk_`.
 //   9. /version returns { version, gitSha, builtAt } shape.
 
-import { HealthController } from './health.controller';
+import type { AuditSignerService } from '../../common/crypto/audit-signer.service';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { RedisService } from '../../common/redis/redis.service';
-import type { AuditSignerService } from '../../common/crypto/audit-signer.service';
 import type { StripeService } from '../billing/stripe.service';
+
+import { HealthController } from './health.controller';
 
 // type-rationale: Express Response is large and we only ever call .status()
 // on the passthrough handle. A minimal stub keeps tests legible.

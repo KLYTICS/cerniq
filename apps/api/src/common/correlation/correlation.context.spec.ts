@@ -47,14 +47,14 @@ describe('CorrelationContext', () => {
   });
 
   it('withFields outside a run is a no-op (does not throw)', () => {
-    expect(() => CorrelationContext.withFields({ principalId: 'p_lost' })).not.toThrow();
+    expect(() => { CorrelationContext.withFields({ principalId: 'p_lost' }); }).not.toThrow();
     expect(CorrelationContext.current()).toBeUndefined();
   });
 
   it('does not bleed across concurrent runs', async () => {
     // Two interleaved promise chains each set a distinct txId; assert that
     // the inner reads always observe their own.
-    const observed: Array<{ branch: string; txId: string | undefined }> = [];
+    const observed: { branch: string; txId: string | undefined }[] = [];
 
     async function branch(label: string, txId: string, delayMs: number): Promise<void> {
       await CorrelationContext.run({ txId }, async () => {

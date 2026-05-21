@@ -61,7 +61,7 @@ export async function withSpan<T>(
   options?: SpanOptions,
 ): Promise<T> {
   const tracer = trace.getTracer(TRACER_NAME);
-  return tracer.startActiveSpan(name, options ?? {}, async (span) => {
+  return await tracer.startActiveSpan(name, options ?? {}, async (span) => {
     try {
       if (attrs) {
         for (const [key, value] of Object.entries(attrs)) {

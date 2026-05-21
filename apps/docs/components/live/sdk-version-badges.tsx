@@ -14,14 +14,14 @@ function readJsonVersion(path: string): string | undefined {
 function readPyVersion(path: string): string | undefined {
   try {
     const text = readFileSync(path, 'utf8');
-    const match = text.match(/^version\s*=\s*"([^"]+)"/m);
+    const match = /^version\s*=\s*"([^"]+)"/m.exec(text);
     return match?.[1];
   } catch {
     return undefined;
   }
 }
 
-type Badge = { name: string; version: string | undefined; install: string };
+interface Badge { name: string; version: string | undefined; install: string }
 
 function loadBadges(): Badge[] {
   // Resolve from apps/docs/ up to the monorepo root.

@@ -7,11 +7,14 @@
  */
 
 import { Test } from '@nestjs/testing';
-import { AuditEventsController } from './audit-events.controller';
-import { AuditService } from './audit.service';
-import type { AuthenticatedKey } from '../auth/api-key.service';
-import type { AuditQueryDto } from './audit.dto';
 import type { Response } from 'express';
+
+import type { AuthenticatedKey } from '../auth/api-key.service';
+
+import { AuditEventsController } from './audit-events.controller';
+import type { AuditQueryDto } from './audit.dto';
+import { AuditService } from './audit.service';
+
 
 // ── Stubs ─────────────────────────────────────────────────────────────────────
 
@@ -23,7 +26,7 @@ function makeAuditService(events: object[] = []): jest.Mocked<Pick<AuditService,
   }
   return {
     exportTenantStream: jest.fn().mockReturnValue(gen()),
-  } as unknown as jest.Mocked<Pick<AuditService, 'exportTenantStream'>>;
+  };
 }
 
 function makeRes(): jest.Mocked<Response> {

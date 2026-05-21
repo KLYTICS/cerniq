@@ -9,10 +9,12 @@
  */
 
 import { Test } from '@nestjs/testing';
-import { IdentityController } from './identity.controller';
-import { IdentityService } from './identity.service';
+
 import type { AuthenticatedKey } from '../auth/api-key.service';
-import type { RegisterAgentDto, VerifyHandshakeDto } from './identity.dto';
+
+import { IdentityController } from './identity.controller';
+import type { RegisterAgentDto } from './identity.dto';
+import { IdentityService } from './identity.service';
 
 // ── Auth stub ─────────────────────────────────────────────────────────────────
 
@@ -68,7 +70,7 @@ describe('IdentityController', () => {
   describe('list()', () => {
     it('delegates to identity.list with auth.principalId and query', async () => {
       const query = { limit: 10 };
-      await controller.list(AUTH, query as never);
+      await controller.list(AUTH, query);
       expect(service.list).toHaveBeenCalledWith('prn_A', query);
     });
   });
@@ -96,7 +98,7 @@ describe('IdentityController', () => {
 
   describe('verifyHandshake()', () => {
     it('delegates to identity.verifyHandshake with auth.principalId, agentId, and signature', async () => {
-      const dto = { signature: 'hex_sig' } as VerifyHandshakeDto;
+      const dto = { signature: 'hex_sig' };
       await controller.verifyHandshake(AUTH, 'agt_1', dto);
       expect(service.verifyHandshake).toHaveBeenCalledWith('prn_A', 'agt_1', 'hex_sig');
     });
@@ -118,7 +120,7 @@ describe('IdentityController', () => {
 
   it('each invocation calls the service exactly once', async () => {
     await controller.register(AUTH, { name: 'x', publicKey: 'y' } as unknown as RegisterAgentDto);
-    await controller.list(AUTH, {} as never);
+    await controller.list(AUTH, {});
     await controller.findOne(AUTH, 'agt_x');
     await controller.revoke(AUTH, 'agt_x');
     expect(service.register).toHaveBeenCalledTimes(1);

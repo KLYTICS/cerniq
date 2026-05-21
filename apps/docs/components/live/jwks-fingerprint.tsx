@@ -11,16 +11,16 @@ import { createHash } from 'node:crypto';
 // compare them against the fingerprint in their evidence package without
 // downloading the JWKS themselves.
 
-type Jwk = {
+interface Jwk {
   kid: string;
   kty: string;
   crv?: string;
   x?: string;
   use?: string;
   alg?: string;
-};
+}
 
-type Jwks = { keys: Jwk[] };
+interface Jwks { keys: Jwk[] }
 
 type FetchResult =
   | { source: 'api'; jwks: Jwks; fetchedAt: string }

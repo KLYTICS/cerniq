@@ -174,8 +174,8 @@ function checkIPv6Blocked(address: string): string | null {
   if (lower === '::1' || lower === '0:0:0:0:0:0:0:1') return 'loopback ::1';
 
   // IPv4-mapped IPv6: ::ffff:a.b.c.d. Re-check as IPv4.
-  const v4Mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  if (v4Mapped && v4Mapped[1]) {
+  const v4Mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(lower);
+  if (v4Mapped?.[1]) {
     const v4Reason = checkIPv4Blocked(v4Mapped[1]);
     if (v4Reason) return `IPv4-mapped: ${v4Reason}`;
   }

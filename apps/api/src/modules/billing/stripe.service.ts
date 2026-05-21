@@ -30,23 +30,25 @@
 import { forwardRef, Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type { PlanTier } from '@prisma/client';
 
-import { AppConfigService } from '../../config/config.service';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { RedisService } from '../../common/redis/redis.service';
 import {
   AegisError,
   ServiceUnavailableError,
   ValidationError,
 } from '../../common/errors/aegis-error';
-import { getPlan, PLANS } from './plans';
-import { UsageGuardService } from './usage-guard.service';
-import { AuditService } from '../audit/audit.service';
+import { MetricsService } from '../../common/observability/metrics.service';
+import { PrismaService } from '../../common/prisma/prisma.service';
+import { RedisService } from '../../common/redis/redis.service';
 import {
   CIRCUIT_STATE_NUMERIC,
   CircuitBreaker,
   type BreakerMetricsSink,
 } from '../../common/resilience/circuit-breaker';
-import { MetricsService } from '../../common/observability/metrics.service';
+import { AppConfigService } from '../../config/config.service';
+import { AuditService } from '../audit/audit.service';
+
+import { getPlan, PLANS } from './plans';
+import { UsageGuardService } from './usage-guard.service';
+
 
 // We avoid `import Stripe from 'stripe'` at module-eval time because the
 // dependency is optional in dev. The factory below resolves the SDK on
@@ -55,7 +57,7 @@ import { MetricsService } from '../../common/observability/metrics.service';
 // type-rationale: The Stripe SDK ships its own types but we don't want a
 // hard import-time dependency. We re-declare the minimum surface area we
 // touch as `unknown`-tolerant interfaces, then narrow with runtime guards.
-type StripeSdk = {
+interface StripeSdk {
   // type-rationale: Stripe.Stripe constructor signature; we only need the
   // shape for the methods we call.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,7 +81,7 @@ type StripeSdk = {
   subscriptionItems: {
     createUsageRecord: (
       subscriptionItemId: string,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       params: { quantity: number; timestamp?: number; action?: 'increment' | 'set' },
     ) => Promise<{ id: string }>;
   };
@@ -90,7 +92,7 @@ type StripeSdk = {
       secret: string,
     ) => StripeEvent;
   };
-};
+}
 
 /** Minimal shape of a Stripe.Event we depend on. */
 export interface StripeEvent {
@@ -106,7 +108,7 @@ export interface StripeEvent {
 export type StripeFactory = (secretKey: string) => StripeSdk;
 
 const defaultStripeFactory: StripeFactory = (secretKey) => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const StripeCtor = require('stripe') as new (
     key: string,
     opts?: { apiVersion?: string },
@@ -147,7 +149,7 @@ export class StripeService {
    * verify would be an indication of a CPU bug, not a Stripe outage. See
    * `verifyWebhookSignature` for the documented carve-out.
    */
-  private readonly breaker: CircuitBreaker<unknown>;
+  private readonly breaker: CircuitBreaker;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -167,9 +169,9 @@ export class StripeService {
     const sink: BreakerMetricsSink | undefined = metrics
       ? {
           setState: (name, numeric) =>
-            metrics.circuitBreakerStateGauge.set({ breaker: name }, numeric),
+            { metrics.circuitBreakerStateGauge.set({ breaker: name }, numeric); },
           recordTrip: (name) =>
-            metrics.circuitBreakerTripsTotal.inc({ breaker: name }),
+            { metrics.circuitBreakerTripsTotal.inc({ breaker: name }); },
         }
       : undefined;
     this.breaker = new CircuitBreaker<unknown>({
@@ -405,7 +407,7 @@ export class StripeService {
    */
   priceIdToPlanTier(priceId: string): PlanTier | null {
     if (!priceId) return null;
-    const map: Array<{ tier: PlanTier; priceId: string | undefined }> = [
+    const map: { tier: PlanTier; priceId: string | undefined }[] = [
       { tier: 'DEVELOPER', priceId: this.config.stripePriceDeveloper },
       { tier: 'GROWTH', priceId: this.config.stripePriceGrowth },
       { tier: 'ENTERPRISE', priceId: this.config.stripePriceEnterprise },
@@ -435,7 +437,7 @@ export class StripeService {
    * thrown). Stripe rate-limits `usage_records` to 100/hr per item; if
    * we exceed that, the operator backfills via `syncSubscriptionFromStripe`.
    */
-  async recordOverage(principalId: string, count: number = 1): Promise<void> {
+  async recordOverage(principalId: string, count = 1): Promise<void> {
     if (!this.isEnabled() || count < 1) return;
     const principal = await this.prisma.principal.findUnique({
       where: { id: principalId },

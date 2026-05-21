@@ -6,7 +6,7 @@
 import { randomUUID } from 'node:crypto';
 
 import * as ed from '@noble/ed25519';
-import { sha512 } from '@noble/hashes/sha512';
+import { sha512 } from '@noble/hashes/sha2';
 
 import { encodeBase64Url } from '../../../src/common/crypto/ed25519.util';
 
@@ -90,7 +90,7 @@ export async function signAgentToken(
 export function tamperJwtSignature(token: string): string {
   const parts = token.split('.');
   if (parts.length !== 3) throw new Error('not a JWT');
-  const sig = parts[2]!;
+  const sig = parts[2];
   // Flip the first character (deterministic, avoids randomness in tests).
   const swapped = sig.startsWith('A') ? `B${sig.slice(1)}` : `A${sig.slice(1)}`;
   return `${parts[0]}.${parts[1]}.${swapped}`;

@@ -7,8 +7,8 @@
 // in a Redis-backed implementation by satisfying the ReplayCache interface
 // from `./types`.
 
-import type { ReplayCache } from './types.js';
 import { now } from './_internal/time.js';
+import type { ReplayCache } from './types.js';
 
 interface Entry {
   expiresAt: number;

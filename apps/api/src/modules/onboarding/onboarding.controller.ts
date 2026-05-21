@@ -1,8 +1,9 @@
 import { Body, Controller, ForbiddenException, Get, HttpCode, Patch, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
-import { OnboardingService } from './onboarding.service';
+
 import { OnboardingBackfill, type BackfillReport } from './onboarding.backfill';
 import type { MarkOnboardingStepDto, OnboardingStatusDto } from './onboarding.dto';
+import { OnboardingService } from './onboarding.service';
 
 /**
  * Onboarding HTTP surface (OD-012).
@@ -28,7 +29,7 @@ export class OnboardingController {
   async status(@Req() req: Request): Promise<OnboardingStatusDto> {
     const principalId = (req as unknown as { principalId?: string }).principalId;
     if (!principalId) throw new Error('principal_missing');
-    return this.onboarding.getStatus(principalId);
+    return await this.onboarding.getStatus(principalId);
   }
 
   @Patch('step')

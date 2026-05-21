@@ -83,11 +83,11 @@ export interface PolicySnapshot {
   id: string;
   status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
   expiresAt: string | Date;
-  scopes: Array<{
+  scopes: {
     category: string;
     spendLimit?: { currency: string; maxPerTransaction?: number; maxPerDay?: number; maxPerMonth?: number };
     allowedDomains?: string[];
-  }>;
+  }[];
 }
 
 export interface AgentTokenClaims {

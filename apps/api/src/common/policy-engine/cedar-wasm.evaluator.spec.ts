@@ -16,7 +16,7 @@ function fakeCedar(response: { decision: 'Allow' | 'Deny'; diagnostics?: { reaso
 describe('CedarWasmEvaluator', () => {
   it('passes principal/action/resource/context/policies/entities into cedar-wasm', async () => {
     const cedar = fakeCedar({ decision: 'Allow', diagnostics: {} });
-    const evaluator = new CedarWasmEvaluator(cedar as never);
+    const evaluator = new CedarWasmEvaluator(cedar);
     await evaluator.isAuthorized({
       principal: 'Agent::"agt_1"',
       action: 'Action::"commerce.purchase"',
@@ -35,7 +35,7 @@ describe('CedarWasmEvaluator', () => {
 
   it('throws when artifact.policies is missing', async () => {
     const cedar = fakeCedar({ decision: 'Allow' });
-    const evaluator = new CedarWasmEvaluator(cedar as never);
+    const evaluator = new CedarWasmEvaluator(cedar);
     await expect(
       evaluator.isAuthorized({
         principal: 'Agent::"a"', action: 'Action::"x"', resource: 'r', context: {},
@@ -49,7 +49,7 @@ describe('CedarWasmEvaluator', () => {
       decision: 'Deny',
       diagnostics: { reason: 'matched policy_x with aegis_deny_reason("SPEND_LIMIT_EXCEEDED")' },
     });
-    const evaluator = new CedarWasmEvaluator(cedar as never);
+    const evaluator = new CedarWasmEvaluator(cedar);
     const r = await evaluator.isAuthorized({
       principal: 'p', action: 'a', resource: 'r', context: {},
       artifact: { policies: 'permit(...);', entities: [] },
@@ -60,7 +60,7 @@ describe('CedarWasmEvaluator', () => {
 
   it('returns no obligations when diagnostics have no aegis_deny_reason', async () => {
     const cedar = fakeCedar({ decision: 'Deny', diagnostics: { reason: 'no policy matched' } });
-    const evaluator = new CedarWasmEvaluator(cedar as never);
+    const evaluator = new CedarWasmEvaluator(cedar);
     const r = await evaluator.isAuthorized({
       principal: 'p', action: 'a', resource: 'r', context: {},
       artifact: { policies: 'permit(...);' },
@@ -71,6 +71,7 @@ describe('CedarWasmEvaluator', () => {
   it('throws clearly when cedar-wasm is not installed (no module + no inject)', () => {
     // Detect whether @cedar-policy/cedar-wasm is actually present in this environment.
     let cedarAvailable = false;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- presence check for an optional native module; static import would fail to compile when absent.
     try { require('@cedar-policy/cedar-wasm'); cedarAvailable = true; } catch { /* not installed */ }
 
     if (cedarAvailable) {

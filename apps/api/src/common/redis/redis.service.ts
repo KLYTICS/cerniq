@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import Redis, { type Redis as RedisClient } from 'ioredis';
+
 import { AppConfigService } from '../../config/config.service';
 
 @Injectable()
@@ -15,8 +16,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       enableReadyCheck: true,
       lazyConnect: false,
     });
-    this.client.on('error', (err) => this.logger.error(`Redis error: ${err.message}`));
-    this.client.on('ready', () => this.logger.log('Redis ready'));
+    this.client.on('error', (err) => { this.logger.error(`Redis error: ${err.message}`); });
+    this.client.on('ready', () => { this.logger.log('Redis ready'); });
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -51,7 +52,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
+  async set(key: string, value: unknown, ttlSeconds?: number): Promise<void> {
     try {
       const payload = JSON.stringify(value);
       if (ttlSeconds && ttlSeconds > 0) {

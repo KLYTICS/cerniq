@@ -1,4 +1,5 @@
 import type { Aegis } from '@aegis/sdk';
+
 import type { ToolDefinition } from './registry.js';
 
 export function registerAgentsTools(aegis: Aegis, registry: Map<string, ToolDefinition>): void {
@@ -21,7 +22,7 @@ export function registerAgentsTools(aegis: Aegis, registry: Map<string, ToolDefi
       await aegis.agents.create({
         name: String(args.name),
         publicKey: String(args.public_key),
-        metadata: (args.metadata as Record<string, unknown>) ?? undefined,
+        metadata: args.metadata as Record<string, unknown> | undefined,
       }),
   });
 
@@ -70,8 +71,8 @@ export function registerAgentsTools(aegis: Aegis, registry: Map<string, ToolDefi
       additionalProperties: false,
     },
     handler: async (args) =>
-      await aegis.agents.revoke(String(args.agent_id), {
+      { await aegis.agents.revoke(String(args.agent_id), {
         reason: typeof args.reason === 'string' ? args.reason : undefined,
-      }),
+      }); },
   });
 }

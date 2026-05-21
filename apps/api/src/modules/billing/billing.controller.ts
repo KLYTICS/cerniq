@@ -37,18 +37,19 @@ import {
   ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsUrl, MaxLength } from 'class-validator';
 import type { PlanTier } from '@prisma/client';
+import { IsEnum, IsOptional, IsUrl, MaxLength } from 'class-validator';
 
 import { Auth } from '../../common/decorators/auth.decorator';
-import { Public } from '../auth/api-key.guard';
-import type { AuthenticatedKey } from '../auth/api-key.service';
 import {
   ServiceUnavailableError,
   ValidationError,
 } from '../../common/errors/aegis-error';
-import { AppConfigService } from '../../config/config.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { AppConfigService } from '../../config/config.service';
+import { Public } from '../auth/api-key.guard';
+import type { AuthenticatedKey } from '../auth/api-key.service';
+
 import { getPlan } from './plans';
 import { StripeService } from './stripe.service';
 import { TrialService } from './trial.service';
@@ -221,7 +222,7 @@ export class BillingController {
           'STRIPE_CHECKOUT_CANCEL_URL or pass them in the request body.',
       );
     }
-    return this.stripe.createCheckoutSession({
+    return await this.stripe.createCheckoutSession({
       principalId: auth.principalId,
       planTier: dto.planTier,
       successUrl,
@@ -249,7 +250,7 @@ export class BillingController {
     @Auth() auth: AuthenticatedKey,
     @Body() dto: CreatePortalSessionDto,
   ): Promise<PortalSessionDto> {
-    return this.stripe.createPortalSession(auth.principalId, dto.returnUrl);
+    return await this.stripe.createPortalSession(auth.principalId, dto.returnUrl);
   }
 
   /**

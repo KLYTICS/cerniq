@@ -1,6 +1,6 @@
 import { DENIAL_REASON_PRECEDENCE } from '@aegis/types';
 
-type ReasonCopy = { http: number; meaning: string; retryable: boolean };
+interface ReasonCopy { http: number; meaning: string; retryable: boolean }
 
 const REASON_COPY: Record<string, ReasonCopy> = {
   PLAN_LIMIT_EXCEEDED: {

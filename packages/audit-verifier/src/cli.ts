@@ -27,8 +27,9 @@ import { argv, exit, stdout, stderr } from 'node:process';
 
 import { verifyChain } from './chain.js';
 import { loadJwksFromFile, loadJwksFromUrl } from './jwks.js';
-import { parseAuditNdjson } from './index.js';
 import type { ChainReport } from './types.js';
+
+import { parseAuditNdjson } from './index.js';
 
 interface CliArgs {
   command: 'verify';
@@ -77,9 +78,14 @@ function parseArgs(input: string[]): CliArgs {
 async function main(): Promise<number> {
   const args = parseArgs(argv.slice(2));
 
-  const jwks = args.jwksFile
-    ? await loadJwksFromFile(args.jwksFile)
-    : await loadJwksFromUrl(args.jwksUrl!);
+  let jwks;
+  if (args.jwksFile) {
+    jwks = await loadJwksFromFile(args.jwksFile);
+  } else if (args.jwksUrl) {
+    jwks = await loadJwksFromUrl(args.jwksUrl);
+  } else {
+    fail('one of --jwks <url> or --jwks-file <path> is required', 2);
+  }
 
   const ndjson = await readFile(args.ndjsonPath, 'utf8');
   const rows = parseAuditNdjson(ndjson);

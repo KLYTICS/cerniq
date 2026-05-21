@@ -1,5 +1,5 @@
-import { OpaPolicyEngine, type OpaEvaluatorLike } from './opa.engine';
 import type { PolicyEvaluationInput } from './engine.interface';
+import { OpaPolicyEngine, type OpaEvaluatorLike } from './opa.engine';
 
 class FakeOpa implements OpaEvaluatorLike {
   constructor(private readonly resp: Awaited<ReturnType<OpaEvaluatorLike['evaluate']>> | Error) {}
@@ -11,7 +11,7 @@ class FakeOpa implements OpaEvaluatorLike {
 
 function input(over: Partial<PolicyEvaluationInput> = {}): PolicyEvaluationInput {
   return {
-    agent: { id: 'agt_1', status: 'ACTIVE', trustScore: 700, trustBand: 'VERIFIED' as never, principalId: 'p_1' },
+    agent: { id: 'agt_1', status: 'ACTIVE', trustScore: 700, trustBand: 'VERIFIED', principalId: 'p_1' },
     policy: {
       id: 'pol_1', status: 'ACTIVE',
       expiresAt: new Date(Date.now() + 60_000).toISOString(),

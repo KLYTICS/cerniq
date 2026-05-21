@@ -124,8 +124,8 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   // Combine caller-provided AbortSignal with the timeout. If both fire, the
   // first one wins; the request rejects with a stable shape regardless.
   const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(new Error('request_timeout')), DEFAULT_TIMEOUT_MS);
-  const onAbort = (): void => ac.abort(opts.signal?.reason);
+  const timer = setTimeout(() => { ac.abort(new Error('request_timeout')); }, DEFAULT_TIMEOUT_MS);
+  const onAbort = (): void => { ac.abort(opts.signal?.reason); };
   opts.signal?.addEventListener('abort', onAbort, { once: true });
 
   try {
@@ -151,10 +151,10 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     if (!res.ok) {
       const code = (payload && typeof payload === 'object' && 'error' in payload
         ? String((payload as Record<string, unknown>).error)
-        : `HTTP_${res.status}`) as string;
+        : `HTTP_${res.status}`);
       const message = (payload && typeof payload === 'object' && 'message' in payload
         ? String((payload as Record<string, unknown>).message)
-        : res.statusText) as string;
+        : res.statusText);
       throw new AegisApiError(res.status, code, message, requestId);
     }
     return payload as T;
@@ -182,11 +182,11 @@ function safeJson(text: string): unknown {
 // ── Public surface ────────────────────────────────────────────────────────
 
 export async function listAgents(params: AgentListParams = {}): Promise<AgentListResult> {
-  return request<AgentListResult>('agents', { query: { ...params } });
+  return await request<AgentListResult>('agents', { query: { ...params } });
 }
 
 export async function getAgent(agentId: string): Promise<AgentRow> {
-  return request<AgentRow>(`agents/${encodeURIComponent(agentId)}`);
+  return await request<AgentRow>(`agents/${encodeURIComponent(agentId)}`);
 }
 
 export async function registerAgent(input: {
@@ -195,7 +195,7 @@ export async function registerAgent(input: {
   model?: string;
   label?: string;
 }): Promise<AgentRow> {
-  return request<AgentRow>('agents/register', { method: 'POST', body: input });
+  return await request<AgentRow>('agents/register', { method: 'POST', body: input });
 }
 
 export async function revokeAgent(agentId: string): Promise<void> {
@@ -203,7 +203,7 @@ export async function revokeAgent(agentId: string): Promise<void> {
 }
 
 export async function listPolicies(agentId: string): Promise<PolicyRow[]> {
-  return request<PolicyRow[]>(`agents/${encodeURIComponent(agentId)}/policies`);
+  return await request<PolicyRow[]>(`agents/${encodeURIComponent(agentId)}/policies`);
 }
 
 export async function revokePolicy(agentId: string, policyId: string): Promise<void> {
@@ -217,7 +217,7 @@ export async function listAudit(
   agentId: string,
   params: { limit?: number; cursor?: string; from?: string; to?: string } = {},
 ): Promise<AuditPage> {
-  return request<AuditPage>(`agents/${encodeURIComponent(agentId)}/audit`, { query: { ...params } });
+  return await request<AuditPage>(`agents/${encodeURIComponent(agentId)}/audit`, { query: { ...params } });
 }
 
 // ── Handshake (M-003) ─────────────────────────────────────────────────────
@@ -230,7 +230,7 @@ export interface HandshakeStatus {
 }
 
 export async function getHandshakeStatus(agentId: string): Promise<HandshakeStatus> {
-  return request<HandshakeStatus>(`agents/${encodeURIComponent(agentId)}/handshake-status`);
+  return await request<HandshakeStatus>(`agents/${encodeURIComponent(agentId)}/handshake-status`);
 }
 
 // ── Webhooks ─────────────────────────────────────────────────────────────
@@ -243,14 +243,14 @@ export interface WebhookSubscriptionRow {
 }
 
 export async function listWebhooks(): Promise<WebhookSubscriptionRow[]> {
-  return request<WebhookSubscriptionRow[]>('webhooks');
+  return await request<WebhookSubscriptionRow[]>('webhooks');
 }
 
 export async function createWebhook(input: {
   url: string;
   events: string[];
 }): Promise<{ id: string; secret: string }> {
-  return request<{ id: string; secret: string }>('webhooks', { method: 'POST', body: input });
+  return await request<{ id: string; secret: string }>('webhooks', { method: 'POST', body: input });
 }
 
 export async function deleteWebhook(id: string): Promise<void> {
@@ -271,9 +271,9 @@ export interface PlanSummary {
 }
 
 export async function getPlanSummary(): Promise<PlanSummary> {
-  return request<PlanSummary>('billing/plan');
+  return await request<PlanSummary>('billing/plan');
 }
 
 export async function createCheckout(planTier: 'DEVELOPER' | 'GROWTH'): Promise<{ url: string }> {
-  return request<{ url: string }>('billing/checkout', { method: 'POST', body: { planTier } });
+  return await request<{ url: string }>('billing/checkout', { method: 'POST', body: { planTier } });
 }

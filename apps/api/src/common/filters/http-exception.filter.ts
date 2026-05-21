@@ -48,7 +48,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       const body = exception.getResponse();
       if (body && typeof body === 'object') {
         const b = body as Record<string, unknown>;
-        if (b['details'] !== undefined) details = b['details'];
+        if (b.details !== undefined) details = b.details;
       }
       catalogEntry = exception.getCatalogEntry();
       if (catalogEntry !== null) {
@@ -75,9 +75,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
         error = exception.constructor.name.replace(/Exception$/, '').toUpperCase();
       } else if (body && typeof body === 'object') {
         const b = body as Record<string, unknown>;
-        message = (b['message'] as string) ?? message;
-        error = (b['error'] as string) ?? exception.constructor.name.replace(/Exception$/, '').toUpperCase();
-        if (b['details']) details = b['details'];
+        message = (b.message as string) ?? message;
+        error = (b.error as string) ?? exception.constructor.name.replace(/Exception$/, '').toUpperCase();
+        if (b.details) details = b.details;
       }
     } else if (exception instanceof Error) {
       // Unknown error → consult catalog by class name (CircuitOpenError lands here),

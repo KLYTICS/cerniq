@@ -91,7 +91,7 @@ export function buildCorsDelegate(config: CorsConfig): CorsOptionsDelegate<Reque
     }
 
     // Management-plane: strict allow-list with credentials.
-    const origin = req.headers.origin as string | undefined;
+    const origin = req.headers.origin;
     const allowed = origin !== undefined && allowList.includes(origin);
 
     const opts: CorsOptions = {

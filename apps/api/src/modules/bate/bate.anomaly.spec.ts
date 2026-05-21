@@ -1,5 +1,6 @@
-import { BateAnomalyDetector, ANOMALY_THRESHOLDS, type DetectorWindow } from './bate.anomaly';
 import type { BateSignal } from '@prisma/client';
+
+import { BateAnomalyDetector, ANOMALY_THRESHOLDS, type DetectorWindow } from './bate.anomaly';
 
 const detector = new BateAnomalyDetector();
 const now = new Date('2026-05-02T12:00:00Z');

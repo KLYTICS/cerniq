@@ -11,6 +11,8 @@
 //      auto-reschedules with exponential backoff up to MAX_ATTEMPTS.
 //   5. On exhausted attempts or 4xx (excluding 429) → status=ABANDONED.
 
+import { createHmac } from 'node:crypto';
+
 import {
   Injectable,
   Logger,
@@ -20,12 +22,13 @@ import {
 } from '@nestjs/common';
 import { Queue, QueueEvents, Worker, type Job, type JobsOptions } from 'bullmq';
 import IORedis from 'ioredis';
-import { createHmac } from 'node:crypto';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { AppConfigService } from '../../config/config.service';
+
+import { WebhookSecretCipher } from '../../common/crypto/webhook-secret-cipher';
 import { MetricsService } from '../../common/observability/metrics.service';
 import { ShutdownService } from '../../common/observability/shutdown.service';
-import { WebhookSecretCipher } from '../../common/crypto/webhook-secret-cipher';
+import { PrismaService } from '../../common/prisma/prisma.service';
+import { AppConfigService } from '../../config/config.service';
+
 import { checkSsrf, type SsrfRejection } from './ssrf-guard';
 
 function describeSsrfRejection(r: SsrfRejection): string {
@@ -91,7 +94,7 @@ export class WebhookDeliveryWorker
     this.queue = new Queue<DeliveryJobData>(WEBHOOK_QUEUE, { connection: this.connection });
     this.worker = new Worker<DeliveryJobData>(
       WEBHOOK_QUEUE,
-      async (job) => this.process(job),
+      async (job) => { await this.process(job); },
       {
         connection: this.connection.duplicate(),
         // 8 attempts with exponential backoff: 1s → 2s → 4s → … → ~256s.
@@ -336,7 +339,7 @@ export class WebhookDeliveryWorker
     const signature = WebhookDeliveryWorker.sign(plainSecret, ts, body);
 
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+    const timer = setTimeout(() => { ctrl.abort(); }, REQUEST_TIMEOUT_MS);
 
     let responseCode: number | null = null;
     let responseBody: string | null = null;

@@ -8,6 +8,7 @@
 import type { ReactElement } from 'react';
 
 import type { PublicTier } from '../../../lib/pricing';
+
 import { CTAButton } from './CTAButton';
 
 interface TierColumnProps {

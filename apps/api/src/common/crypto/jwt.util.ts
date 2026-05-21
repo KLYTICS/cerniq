@@ -1,6 +1,7 @@
 import './crypto.bootstrap.js';
 import { Injectable, Logger } from '@nestjs/common';
 import * as ed from '@noble/ed25519';
+
 import { decodeBase64Url, encodeBase64Url } from './ed25519.util';
 
 const enc = new TextEncoder();
@@ -88,7 +89,7 @@ export class JwtUtil {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
     try {
-      const json = dec.decode(decodeBase64Url(parts[1]!));
+      const json = dec.decode(decodeBase64Url(parts[1]));
       return JSON.parse(json) as AgentTokenClaims;
     } catch {
       return null;

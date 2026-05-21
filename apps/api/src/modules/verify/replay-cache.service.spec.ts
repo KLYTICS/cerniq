@@ -12,14 +12,15 @@
  *   - SET key pattern is `verify:jti:<jti>`
  */
 
-import { ReplayCacheService } from './replay-cache.service';
 import { ServiceUnavailableError } from '../../common/errors';
 import type { RedisService } from '../../common/redis/redis.service';
+
+import { ReplayCacheService } from './replay-cache.service';
 
 // ── Redis stub ────────────────────────────────────────────────────────────────
 
 /** Simulates the raw client's SET … NX EX semantics. */
-function makeRedis(responses: Array<'OK' | null> = []) {
+function makeRedis(responses: ('OK' | null)[] = []) {
   const seen = new Set<string>();
   let callCount = 0;
   const set = jest.fn(async (_key: string, _val: string, _mode: string, _ttl: number, _nx: string) => {

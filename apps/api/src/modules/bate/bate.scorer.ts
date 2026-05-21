@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { BateSignal, BateSignalType, TrustBand } from '@prisma/client';
+
 import {
   AGE_COHORT_CAP,
   AGE_COHORT_POINTS_PER_DAY,
@@ -27,7 +28,7 @@ export interface AgentScoringInput {
 export interface ScoringExplanation {
   finalScore: number;
   delta: number;
-  contributors: Array<{ kind: string; delta: number; reason: string }>;
+  contributors: { kind: string; delta: number; reason: string }[];
   weightsVersion: string;
 }
 
@@ -148,8 +149,8 @@ function countByType(signals: BateSignal[]): Partial<Record<BateSignalType, numb
   return counts;
 }
 
-function typedEntries<K extends string, V>(o: Partial<Record<K, V>>): Array<[K, V]> {
-  return Object.entries(o) as Array<[K, V]>;
+function typedEntries<K extends string, V>(o: Partial<Record<K, V>>): [K, V][] {
+  return Object.entries(o) as [K, V][];
 }
 
 function countDistinctSignalDays(signals: BateSignal[], type: BateSignalType): number {

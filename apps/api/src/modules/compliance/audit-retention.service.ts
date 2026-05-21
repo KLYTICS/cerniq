@@ -39,10 +39,11 @@ import {
 } from '@nestjs/common';
 import type { PlanTier } from '@prisma/client';
 
-import { PrismaService } from '../../common/prisma/prisma.service';
 import { MetricsService } from '../../common/observability/metrics.service';
 import { ShutdownService } from '../../common/observability/shutdown.service';
+import { PrismaService } from '../../common/prisma/prisma.service';
 import { getPlan } from '../billing/plans';
+
 import { RedactService } from './redact.service';
 
 /** Default sweep cadence — once per 24h. Override via env at boot. */
@@ -178,14 +179,14 @@ export class AuditRetentionService implements OnModuleInit, OnModuleDestroy {
     if (this.inFlight) {
       // Coalesce: a tick fired while a previous tick is still running.
       // Surfacing a duplicate run would race on counts and waste DB time.
-      return this.inFlight;
+      return await this.inFlight;
     }
     const startedAt = new Date();
     const run = this.executeRun(options, startedAt).finally(() => {
       this.inFlight = null;
     });
     this.inFlight = run;
-    return run;
+    return await run;
   }
 
   private async executeRun(
@@ -206,7 +207,7 @@ export class AuditRetentionService implements OnModuleInit, OnModuleDestroy {
       let cursor: string | undefined;
       let processedPrincipals = 0;
       // Pagination — `id ASC` cursor is stable + cheap (PK index).
-      // eslint-disable-next-line no-constant-condition
+       
       while (true) {
         if (result.redacted >= maxEvents) break;
 

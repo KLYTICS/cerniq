@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+
 import {
   ForbiddenException,
   GoneException,
@@ -6,11 +7,13 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as ed from '@noble/ed25519';
-import { sha512 } from '@noble/hashes/sha512';
-import { IdentityService } from './identity.service';
-import { AgentRuntimeDto, AgentStatusFilter } from './identity.dto';
+import { sha512 } from '@noble/hashes/sha2';
+
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { RedisService } from '../../common/redis/redis.service';
+
+import { AgentRuntimeDto, AgentStatusFilter } from './identity.dto';
+import { IdentityService } from './identity.service';
 
 // `@noble/ed25519` v2 needs a synchronous SHA-512 hasher for the sync API.
 // We use the async API in tests, but install the sync hash anyway in case
@@ -195,7 +198,7 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
     const agentId = opts.agentId ?? 'agt_handshake';
     const status = opts.status ?? 'PENDING_VERIFICATION';
     const initialTrust = opts.trustScore ?? 500;
-    const updates: Array<{ where: { id: string }; data: Record<string, unknown> }> = [];
+    const updates: { where: { id: string }; data: Record<string, unknown> }[] = [];
 
     const findFirst = jest.fn(
       async (args: { where: { id: string; principalId: string }; select?: Record<string, true> }) => {
@@ -214,7 +217,7 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
     });
 
     const store = new Map<string, string>();
-    const setCalls: Array<[string, unknown, number | undefined]> = [];
+    const setCalls: [string, unknown, number | undefined][] = [];
     const redis = {
       get: jest.fn(async <T>(key: string): Promise<T | null> => {
         const raw = store.get(key);

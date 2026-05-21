@@ -1,16 +1,17 @@
 import { NotFoundException } from '@nestjs/common';
-import { IdentityService } from '../modules/identity/identity.service';
-import { PolicyService } from '../modules/policy/policy.service';
-import { AuditService } from '../modules/audit/audit.service';
-import { WebhooksService } from '../modules/webhooks/webhooks.service';
-import type { PrismaService } from '../common/prisma/prisma.service';
-import type { RedisService } from '../common/redis/redis.service';
-import type { JwtUtil } from '../common/crypto/jwt.util';
-import type { AppConfigService } from '../config/config.service';
+
 import type { AuditChainUtil } from '../common/crypto/audit-chain.util';
 import type { Ed25519Util } from '../common/crypto/ed25519.util';
-import type { WebhookDeliveryWorker } from '../modules/webhooks/webhook.delivery';
+import type { JwtUtil } from '../common/crypto/jwt.util';
 import type { WebhookSecretCipher } from '../common/crypto/webhook-secret-cipher';
+import type { PrismaService } from '../common/prisma/prisma.service';
+import type { RedisService } from '../common/redis/redis.service';
+import type { AppConfigService } from '../config/config.service';
+import { AuditService } from '../modules/audit/audit.service';
+import { IdentityService } from '../modules/identity/identity.service';
+import { PolicyService } from '../modules/policy/policy.service';
+import type { WebhookDeliveryWorker } from '../modules/webhooks/webhook.delivery';
+import { WebhooksService } from '../modules/webhooks/webhooks.service';
 
 /**
  * CLAUDE.md invariant #5 — multi-tenant isolation by `principalId` on every
@@ -230,7 +231,7 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       const out = await svc.list(PRINCIPAL_A, 'agt_a', {});
 
       expect(out.events).toHaveLength(1);
-      expect(out.events[0]!.eventId).toBe('evt_1');
+      expect(out.events[0].eventId).toBe('evt_1');
       // Sanity — Prisma was queried with the agent FK, never bare-empty.
       expect(harness.prisma.auditEvent.findMany as unknown as jest.Mock).toHaveBeenCalledWith(
         expect.objectContaining({ where: expect.objectContaining({ agentId: 'agt_a' }) }),
@@ -274,7 +275,7 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
 
       const aList = await svc.list(PRINCIPAL_A);
       expect(aList).toHaveLength(1);
-      expect(aList[0]!.url).toBe('https://a.example.com');
+      expect(aList[0].url).toBe('https://a.example.com');
 
       expect(harness.prisma.webhookSubscription.findMany as unknown as jest.Mock).toHaveBeenCalledWith(
         expect.objectContaining({ where: { principalId: PRINCIPAL_A } }),
@@ -370,8 +371,8 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       // type-rationale: $transaction here just sequentially awaits the
       // promise array the service passes in; matches Prisma's array-form
       // contract well enough for these isolation assertions.
-      const $transaction = jest.fn(async (ops: Array<Promise<unknown>>) => {
-        return Promise.all(ops);
+      const $transaction = jest.fn(async (ops: Promise<unknown>[]) => {
+        return await Promise.all(ops);
       });
 
       const prisma = {
@@ -410,9 +411,9 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       const bList = await svc.list(PRINCIPAL_B);
 
       expect(aList).toHaveLength(1);
-      expect(aList[0]!.url).toBe('https://hookA.example.com');
+      expect(aList[0].url).toBe('https://hookA.example.com');
       expect(bList).toHaveLength(1);
-      expect(bList[0]!.url).toBe('https://hookB.example.com');
+      expect(bList[0].url).toBe('https://hookB.example.com');
 
       // Cross-pollution check.
       expect(aList.some((s) => s.url === 'https://hookB.example.com')).toBe(false);
@@ -432,7 +433,7 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
 
       const aListAfterAttack = await svc.list(PRINCIPAL_A);
       expect(aListAfterAttack).toHaveLength(1);
-      expect(aListAfterAttack[0]!.id).toBe(subA.id);
+      expect(aListAfterAttack[0].id).toBe(subA.id);
 
       // A cleans up their own — succeeds.
       await svc.unsubscribe(PRINCIPAL_A, subA.id);
@@ -479,8 +480,8 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
         }),
       );
       expect(harness.deliveries).toHaveLength(1);
-      expect(harness.deliveries[0]!.subscriptionId).toBe(subA.id);
-      expect(harness.deliveries[0]!.subscriptionId).not.toBe(subB.id);
+      expect(harness.deliveries[0].subscriptionId).toBe(subA.id);
+      expect(harness.deliveries[0].subscriptionId).not.toBe(subB.id);
 
       // And the lookup itself was scoped — this is the upstream guard.
       expect(harness.subFindMany).toHaveBeenCalledWith(

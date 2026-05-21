@@ -5,6 +5,7 @@
 // Degrades gracefully when the portal endpoint isn't yet deployed.
 
 import { useState, useTransition, type ReactElement } from 'react';
+
 import { openPortal } from './portalAction';
 
 interface Props {

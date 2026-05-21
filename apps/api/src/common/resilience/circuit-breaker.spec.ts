@@ -164,7 +164,7 @@ describe('CircuitBreaker', () => {
     // First probe — kept pending, never resolves until we say so.
     let release!: () => void;
     const gated = new Promise<string>((resolve) => {
-      release = () => resolve('ok');
+      release = () => { resolve('ok'); };
     });
     const probe1 = cb.exec(() => gated);
 
@@ -180,7 +180,7 @@ describe('CircuitBreaker', () => {
   });
 
   it('fires onStateChange with the correct (from, to) tuple on each transition', async () => {
-    const transitions: Array<[CircuitState, CircuitState]> = [];
+    const transitions: [CircuitState, CircuitState][] = [];
     const cb = new CircuitBreaker({
       name: 'test.hook',
       failureThreshold: 1,

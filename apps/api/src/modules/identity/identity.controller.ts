@@ -1,9 +1,10 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
-import { Public } from '../auth/api-key.guard';
+
 import { Auth } from '../../common/decorators/auth.decorator';
+import { Public } from '../auth/api-key.guard';
 import type { AuthenticatedKey } from '../auth/api-key.service';
-import { IdentityService } from './identity.service';
+
 import {
   AgentListResponseDto,
   AgentResponseDto,
@@ -15,6 +16,7 @@ import {
   RegisterAgentDto,
   VerifyHandshakeDto,
 } from './identity.dto';
+import { IdentityService } from './identity.service';
 
 @ApiTags('Identity')
 @Controller('agents')

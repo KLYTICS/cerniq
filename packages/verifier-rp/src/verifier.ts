@@ -15,14 +15,15 @@
 // (config mistakes, JWKS endpoint unreachable, etc.), in which case the
 // thrown value is a {@link VerifyError} subclass.
 
+import { now, nowSeconds } from './_internal/time.js';
 import { ConfigError, VerifyError } from './errors.js';
 import { JwksClient } from './jwks.js';
-import type { JwksKey } from './types.js';
 import { parseCompactJws, verifyEdDSA, type ParsedJws } from './jwt.js';
 import { normalizeClaims, remainingTtlSeconds } from './policy-claims.js';
 import { MemoryReplayCache } from './replay-cache.js';
 import { RevocationCache } from './revocation-cache.js';
 import { checkScopeAndSpend } from './scope-check.js';
+import type { JwksKey } from './types.js';
 import type {
   AegisVerifierConfig,
   AgentStatusSnapshot,
@@ -34,7 +35,6 @@ import type {
   VerifyOutcomeFailure,
   VerifyOutcomeSuccess,
 } from './types.js';
-import { now, nowSeconds } from './_internal/time.js';
 
 const DEFAULT_BASE_URL = 'https://api.aegislabs.io/v1';
 const DEFAULT_JWKS_TTL = 3600;
@@ -55,6 +55,8 @@ export class AegisVerifier {
   private readonly revocationCache: RevocationCache;
 
   constructor(config: AegisVerifierConfig) {
+    // type-rationale: runtime JS callers can pass undefined/null despite the type.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (typeof config !== 'object' || config === null) {
       throw new ConfigError('AegisVerifier: config object is required');
     }
@@ -142,6 +144,9 @@ export class AegisVerifier {
     }
 
     // 2. alg gate.
+    // type-rationale: parsed.header.alg is typed 'EdDSA' but the parser is permissive
+    // at runtime; this guard is the only place we narrow alg from untrusted JWT bytes.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (parsed.header.alg !== 'EdDSA') {
       return this.fail('INVALID_SIGNATURE', `unsupported alg: ${String(parsed.header.alg)}`);
     }

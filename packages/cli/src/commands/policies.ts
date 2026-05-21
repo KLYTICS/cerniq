@@ -1,6 +1,7 @@
+import { readFile } from 'node:fs/promises';
+
 import { client } from '../client.js';
 import { emitJson, emitTable, ok } from '../output.js';
-import { readFile } from 'node:fs/promises';
 
 export async function policiesCreate(opts: { agentId: string; scopesFile: string; ttl?: number; json?: boolean }): Promise<void> {
   const raw = await readFile(opts.scopesFile, 'utf8');
@@ -20,7 +21,7 @@ export async function policiesList(opts: { agentId?: string; status?: string; js
   const result = (await aegis.policies.list({
     agentId: opts.agentId,
     status: opts.status as 'ACTIVE' | 'REVOKED' | 'EXPIRED' | undefined,
-  })) as { policies: Array<{ id: string; agentId: string; status: string; expiresAt: string }> };
+  })) as { policies: { id: string; agentId: string; status: string; expiresAt: string }[] };
   if (opts.json) emitJson(result);
   else emitTable(result.policies.map((p) => ({ id: p.id, agent: p.agentId, status: p.status, expires: p.expiresAt })));
 }

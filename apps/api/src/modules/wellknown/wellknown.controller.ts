@@ -9,12 +9,14 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+
 import { Public } from '../auth/api-key.guard';
-import { WellknownService } from './wellknown.service';
-import { AuditSigningKeyDto, JwksDto } from './dto/jwks.dto';
+
 import { AegisConfigurationDto } from './dto/discovery.dto';
-import { RetentionPolicyDto } from './dto/retention-policy.dto';
+import { AuditSigningKeyDto, JwksDto } from './dto/jwks.dto';
 import { PricingDto } from './dto/pricing.dto';
+import { RetentionPolicyDto } from './dto/retention-policy.dto';
+import { WellknownService } from './wellknown.service';
 
 /**
  * Cache for one day at the edge, allow stale revalidation for a week.

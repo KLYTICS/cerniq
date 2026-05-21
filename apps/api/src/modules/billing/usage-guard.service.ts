@@ -26,8 +26,10 @@
 
 import { forwardRef, Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type { PlanTier } from '@prisma/client';
+
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
+
 import { getPlan, isVerifyCallAllowed } from './plans';
 import { StripeService } from './stripe.service';
 
@@ -188,7 +190,7 @@ export class UsageGuardService {
         void this.maybeRecordOverage(principalId, post);
       })
       .catch((err) =>
-        this.logger.warn(`UsageGuardService: increment failed for principal=${principalId}: ${(err as Error).message}`),
+        { this.logger.warn(`UsageGuardService: increment failed for principal=${principalId}: ${(err as Error).message}`); },
       );
   }
 

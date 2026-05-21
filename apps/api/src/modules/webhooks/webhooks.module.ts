@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
-import { WebhooksService } from './webhooks.service';
+
+import { WebhookSecretCipher } from '../../common/crypto/webhook-secret-cipher';
+
 import { WebhookDeliveryWorker } from './webhook.delivery';
 import { WebhooksController } from './webhooks.controller';
-import { WebhookSecretCipher } from '../../common/crypto/webhook-secret-cipher';
+import { WebhooksService } from './webhooks.service';
+
 
 // G-4: WebhooksController added — exposes POST/GET/DELETE /v1/webhooks.
 // Webhook secret envelope encryption (AES-256-GCM) wraps `WebhookSubscription.secret`

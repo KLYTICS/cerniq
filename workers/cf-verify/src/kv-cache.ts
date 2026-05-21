@@ -34,12 +34,12 @@ export interface CachedPolicy {
   id: string;
   status: 'ACTIVE' | 'REVOKED' | 'EXPIRED';
   expiresAtMs: number;
-  scopes: Array<{
+  scopes: {
     category: string;
     actions?: string[];
     merchantDomains?: string[];
     spendLimit?: { amount: string; currency: string; window: 'per_request' | 'per_day' | 'lifetime' };
-  }>;
+  }[];
   cachedAt: number;
 }
 

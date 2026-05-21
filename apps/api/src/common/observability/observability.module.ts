@@ -1,7 +1,8 @@
 import { Global, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+
+import { HttpMetricsMiddleware } from './http-metrics.middleware';
 import { MetricsService } from './metrics.service';
 import { DEFAULT_GRACEFUL_SHUTDOWN_MS, ShutdownService } from './shutdown.service';
-import { HttpMetricsMiddleware } from './http-metrics.middleware';
 
 // ShutdownService takes `number` in its constructor with a TS default; Nest
 // DI can't read TS defaults at runtime so it tries to resolve `Number` as a

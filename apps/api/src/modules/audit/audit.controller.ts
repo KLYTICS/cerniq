@@ -1,10 +1,12 @@
 import { Controller, Get, Header, Param, Query, Res } from '@nestjs/common';
 import { ApiOperation, ApiProduces, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+
 import { Auth } from '../../common/decorators/auth.decorator';
 import type { AuthenticatedKey } from '../auth/api-key.service';
-import { AuditService } from './audit.service';
+
 import { AuditLogResponseDto, AuditQueryDto } from './audit.dto';
+import { AuditService } from './audit.service';
 
 @ApiTags('Audit')
 @ApiSecurity('ApiKeyAuth')

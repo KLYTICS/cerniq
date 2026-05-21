@@ -12,10 +12,10 @@
 // because the column doesn't exist yet — see test/e2e/README.md "Known
 // limits" for the migration unblock).
 
+import { AEGIS_HEADER_REQUEST_ID } from '@aegis/types';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 
-import { AEGIS_HEADER_REQUEST_ID } from '@aegis/types';
 
 import { createTestApp, type SupertestHttp, type TestAppHandle } from './_helpers/test-app';
 
@@ -53,7 +53,7 @@ describe('e2e: correlation / X-Request-Id', () => {
     expect([200, 404]).toContain(res.status);
     const generated = res.headers[HEADER_LOWER];
     expect(typeof generated).toBe('string');
-    expect(generated as string).toMatch(ULID_RE);
+    expect(generated).toMatch(ULID_RE);
   });
 
   // M-019 — AuditEvent has no correlationId / txId column. Until the
@@ -70,7 +70,7 @@ describe('e2e: correlation / X-Request-Id', () => {
     );
     expect(responses).toHaveLength(50);
     for (let i = 0; i < responses.length; i += 1) {
-      const echoed = responses[i]!.headers[HEADER_LOWER];
+      const echoed = responses[i].headers[HEADER_LOWER];
       expect(echoed).toBe(ids[i]);
     }
   });
@@ -86,6 +86,6 @@ describe('e2e: correlation / X-Request-Id', () => {
     expect([200, 404]).toContain(res.status);
     const echoed = res.headers[HEADER_LOWER];
     expect(echoed).not.toBe(bad);
-    expect(echoed as string).toMatch(ULID_RE);
+    expect(echoed).toMatch(ULID_RE);
   });
 });

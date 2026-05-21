@@ -19,8 +19,10 @@
 // `idpOrganizationId=<workos_org_id>`. WorkOS Roles are propagated as
 // `aegis:*` claims via the WorkOS Directory Sync custom-claims feature.
 
-import { Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'node:crypto';
+
+import { Injectable, Logger } from '@nestjs/common';
+
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { AppConfigService } from '../../config/config.service';
@@ -52,7 +54,7 @@ export interface WorkOsClientLike {
     expiresAt: number; // unix seconds
   }>;
   /** Fetch organization metadata for principal-bind (org domain → idpDomain). */
-  getOrganization(orgId: string): Promise<{ id: string; name: string; domains?: Array<{ domain: string }> }>;
+  getOrganization(orgId: string): Promise<{ id: string; name: string; domains?: { domain: string }[] }>;
 }
 
 @Injectable()

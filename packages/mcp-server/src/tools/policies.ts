@@ -1,4 +1,5 @@
 import type { Aegis } from '@aegis/sdk';
+
 import type { ToolDefinition } from './registry.js';
 
 export function registerPoliciesTools(aegis: Aegis, registry: Map<string, ToolDefinition>): void {
@@ -92,8 +93,8 @@ export function registerPoliciesTools(aegis: Aegis, registry: Map<string, ToolDe
       additionalProperties: false,
     },
     handler: async (args) =>
-      await aegis.policies.revoke(String(args.policy_id), {
+      { await aegis.policies.revoke(String(args.policy_id), {
         reason: typeof args.reason === 'string' ? args.reason : undefined,
-      }),
+      }); },
   });
 }

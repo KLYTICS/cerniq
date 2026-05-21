@@ -4,9 +4,8 @@
 // and a custom `aegis:open-palette` event so chord shortcuts can also trigger
 // it. Uses native portal-free fixed positioning + focus trap on input.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Route } from 'next';
 import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { searchCommands, type Command } from '../lib/commands';
 
@@ -48,7 +47,7 @@ export function CommandPalette() {
       setActiveIdx(0);
       // Wait one frame for paint so the input element is mounted.
       const id = requestAnimationFrame(() => inputRef.current?.focus());
-      return () => cancelAnimationFrame(id);
+      return () => { cancelAnimationFrame(id); };
     }
     return undefined;
   }, [open]);
@@ -76,7 +75,7 @@ export function CommandPalette() {
     } else {
       // Commands carry runtime-string hrefs (`?action=register`, etc.) that
       // typedRoutes can't statically analyze — cast to Route at the boundary.
-      router.push(cmd.href as Route);
+      router.push(cmd.href);
     }
   }
 
@@ -142,7 +141,7 @@ export function CommandPalette() {
               aria-selected={i === activeIdx}
               data-idx={i}
               data-active={i === activeIdx ? 'true' : undefined}
-              onMouseEnter={() => setActiveIdx(i)}
+              onMouseEnter={() => { setActiveIdx(i); }}
               onMouseDown={(e) => {
                 e.preventDefault();
                 execute(r.cmd);
@@ -169,7 +168,7 @@ export function CommandPalette() {
   );
 }
 
-function highlight(title: string, spans: Array<[number, number]>): React.ReactNode {
+function highlight(title: string, spans: [number, number][]): React.ReactNode {
   if (spans.length === 0) return title;
   const out: React.ReactNode[] = [];
   let cursor = 0;

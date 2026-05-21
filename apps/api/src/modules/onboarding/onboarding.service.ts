@@ -9,7 +9,9 @@
 //     success / kms.configure call markStep() to roll up the funnel)
 
 import { Injectable } from '@nestjs/common';
+
 import { PrismaService } from '../../common/prisma/prisma.service';
+
 import type { OnboardingStatusDto, OnboardingStep } from './onboarding.dto';
 
 /** Maps step → timestamp column. Stays in sync with the schema. */

@@ -17,8 +17,9 @@
 // fallback when KV is stale and the agent is revoked.
 
 import type { VerifyRequest, VerifyResponse } from '@aegis/types';
-import { makeKvCache } from './kv-cache';
+
 import { edgeVerify } from './edge-verify';
+import { makeKvCache } from './kv-cache';
 import { shadowMode, compareVerifyResponses, divergenceHeader, recordDivergence, type AnalyticsEngineLike } from './shadow';
 
 interface Env {
@@ -61,7 +62,7 @@ export default {
 
     let body: VerifyRequest;
     try {
-      body = (await req.json()) as VerifyRequest;
+      body = (await req.json());
     } catch {
       return Response.json({ error: 'INVALID_REQUEST', message: 'Body must be JSON.' }, { status: 400 });
     }
@@ -82,7 +83,7 @@ export default {
         });
       }
       // outcome === 'forward' — fall through to origin
-      return forwardToOrigin(env, body, ctx);
+      return await forwardToOrigin(env, body, ctx);
     }
 
     if (mode === 'shadow') {
@@ -95,7 +96,7 @@ export default {
       // Don't try to read origin body twice — clone for parsing, return original.
       let originParsed: VerifyResponse | null = null;
       try {
-        originParsed = (await originResp.clone().json()) as VerifyResponse;
+        originParsed = (await originResp.clone().json());
       } catch {
         originParsed = null;
       }
@@ -122,7 +123,7 @@ export default {
     }
 
     // mode === 'off'
-    return forwardToOrigin(env, body, ctx);
+    return await forwardToOrigin(env, body, ctx);
   },
 };
 
@@ -130,7 +131,7 @@ async function forwardToOrigin(env: Env, body: VerifyRequest, ctx: ExecutionCont
   const url = `${env.AEGIS_ORIGIN_URL.replace(/\/+$/, '')}/v1/verify`;
   const timeoutMs = parseInt(env.AEGIS_VERIFY_TIMEOUT_MS, 10);
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), Number.isFinite(timeoutMs) ? timeoutMs : 1500);
+  const timeoutId = setTimeout(() => { controller.abort(); }, Number.isFinite(timeoutMs) ? timeoutMs : 1500);
 
   try {
     const res = await fetch(url, {
@@ -149,7 +150,7 @@ async function forwardToOrigin(env: Env, body: VerifyRequest, ctx: ExecutionCont
     });
   } catch (err) {
     ctx.waitUntil(Promise.resolve()); // suppress unused-arg warning
-    // eslint-disable-next-line no-console
+     
     console.error('cf-verify origin fallback failed:', (err as Error).message);
     return Response.json({ ...NOT_IMPLEMENTED, denialReason: 'AGENT_NOT_FOUND' as const }, { status: 503 });
   } finally {
@@ -160,10 +161,8 @@ async function forwardToOrigin(env: Env, body: VerifyRequest, ctx: ExecutionCont
 // Edge rate limiter — Durable Object placeholder. Real implementation in
 // Phase 3 will use the token bucket algorithm with per-key counters.
 export class EdgeRateLimiter {
-  constructor(_state: DurableObjectState, _env: Env) {
-    // OPERATOR-INPUT-NEEDED: choose token-bucket vs. sliding-window semantics
-    // and whether to strictly enforce or shadow-enforce while we observe.
-  }
+  // OPERATOR-INPUT-NEEDED: choose token-bucket vs. sliding-window semantics
+  // and whether to strictly enforce or shadow-enforce while we observe.
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async fetch(_req: Request): Promise<Response> {

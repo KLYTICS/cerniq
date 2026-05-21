@@ -4,7 +4,8 @@
 // assert exact-call shape on the throttler storage (the part that
 // matters: tier-suffixed keys, no Redis hit on ENTERPRISE).
 
-import { ExecutionContext, HttpException, HttpStatus } from '@nestjs/common';
+import type { ExecutionContext} from '@nestjs/common';
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type {
   ThrottlerModuleOptions,
@@ -13,7 +14,8 @@ import type {
 import type { PlanTier } from '@prisma/client';
 
 import type { AuthenticatedKey } from '../../modules/auth/api-key.service';
-import { UsageGuardService } from '../../modules/billing/usage-guard.service';
+import type { UsageGuardService } from '../../modules/billing/usage-guard.service';
+
 import { PlanAwareThrottlerGuard } from './plan-aware-throttler.guard';
 
 interface FakeRequest {
@@ -63,7 +65,7 @@ function makeStorage(initialHits = 0): {
     };
   });
   return {
-    storage: { increment } as unknown as ThrottlerStorage,
+    storage: { increment },
     increment,
   };
 }
@@ -131,8 +133,8 @@ describe('PlanAwareThrottlerGuard', () => {
       const e = err as HttpException;
       expect(e.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
       const body = e.getResponse() as Record<string, unknown>;
-      expect(body['error']).toBe('rate_limit_exceeded');
-      expect(body['details']).toEqual({
+      expect(body.error).toBe('rate_limit_exceeded');
+      expect(body.details).toEqual({
         planTier: 'FREE',
         limit: 20,
         windowMs: 1_000,

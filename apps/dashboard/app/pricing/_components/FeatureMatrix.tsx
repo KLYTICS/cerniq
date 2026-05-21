@@ -8,6 +8,7 @@
 import type { ReactElement } from 'react';
 
 import type { FeatureRow, PublicTier } from '../../../lib/pricing';
+
 import { TierColumn } from './TierColumn';
 
 function renderCell(value: string | boolean): ReactElement | string {
@@ -21,8 +22,8 @@ export function FeatureMatrix({
   tiers,
   rows,
 }: {
-  tiers: ReadonlyArray<PublicTier>;
-  rows: ReadonlyArray<FeatureRow>;
+  tiers: readonly PublicTier[];
+  rows: readonly FeatureRow[];
 }): ReactElement {
   return (
     <table className="data-table dense pricing-table" aria-label="AEGIS pricing tiers and features">

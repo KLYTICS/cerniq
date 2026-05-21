@@ -1,5 +1,7 @@
-import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import type { ExecutionContext } from '@nestjs/common';
+import { createParamDecorator } from '@nestjs/common';
 import type { Request } from 'express';
+
 import type { AuthenticatedKey } from '../../modules/auth/api-key.service';
 
 export const Auth = createParamDecorator((_data: unknown, ctx: ExecutionContext): AuthenticatedKey => {

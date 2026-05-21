@@ -1,7 +1,9 @@
 import type { Request } from 'express';
-import { ApiKeyRotationController } from './api-key-rotation.controller';
-import { ApiKeyService } from './api-key.service';
+
 import { AlreadyRotatedError, AuthenticationError, AuthorizationError } from '../../common/errors/aegis-error';
+
+import { ApiKeyRotationController } from './api-key-rotation.controller';
+import type { ApiKeyService } from './api-key.service';
 import type { AuthenticatedKey, RotateResult } from './api-key.service';
 
 /**
@@ -34,7 +36,7 @@ function buildSvc(impl: (callingId: string, principalId: string, hours: number) 
   svc: RotateMock;
 } {
   const svc: RotateMock = {
-    rotate: jest.fn(async (callingId, principalId, hours) => impl(callingId, principalId, hours)),
+    rotate: jest.fn(async (callingId, principalId, hours) => await impl(callingId, principalId, hours)),
   };
   const controller = new ApiKeyRotationController(svc as unknown as ApiKeyService);
   return { controller, svc };
@@ -70,7 +72,7 @@ describe('ApiKeyRotationController.rotate (happy path)', () => {
     }));
     await controller.rotate(buildReq(buildAuth({ apiKeyId: 'ak_specific', principalId: 'p_bob' })));
 
-    const call = svc.rotate.mock.calls[0]!;
+    const call = svc.rotate.mock.calls[0];
     expect(call[0]).toBe('ak_specific'); // calling key id
     expect(call[1]).toBe('p_bob'); // principal id
     expect(call[2]).toBe(24); // overlapHours

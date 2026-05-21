@@ -39,8 +39,8 @@ export class AgentClient {
     });
   }
 
-  revoke(agentId: string): Promise<void> {
-    return this.http.request<void>(`/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE' });
+  async revoke(agentId: string): Promise<void> {
+    await this.http.request<undefined>(`/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE' });
   }
 
   status(

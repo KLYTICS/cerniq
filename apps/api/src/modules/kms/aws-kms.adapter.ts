@@ -25,18 +25,20 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import * as ed from '@noble/ed25519';
+
 import '../../common/crypto/crypto.bootstrap.js';
-import {
-  encodeBase64Url,
-  decodeBase64Url,
-} from '../../common/crypto/ed25519.util.js';
-import { withKmsSpan } from './kms.spans';
 import type {
   ActiveSigner,
   KeyMetadata,
   KmsAdapter,
   KmsKeyPurpose,
 } from '../../common/crypto/crypto.bootstrap.js';
+import {
+  encodeBase64Url,
+  decodeBase64Url,
+} from '../../common/crypto/ed25519.util.js';
+
+import { withKmsSpan } from './kms.spans';
 
 export interface AwsKmsAdapterConfig {
   /** AWS region for KMS Decrypt. */
@@ -94,7 +96,7 @@ export class AwsKmsAdapter implements KmsAdapter {
       if (!wrapped) continue;
       const ciphertext = decodeBase64Url(wrapped.wrappedPrivateKeyB64);
       const result = await this.kms.decrypt({ CiphertextBlob: ciphertext });
-      if (!result.Plaintext || result.Plaintext.length !== 32) {
+      if (result.Plaintext?.length !== 32) {
         throw new Error(`KMS decrypt for purpose=${purpose}: expected 32-byte Ed25519 key`);
       }
       const meta: KeyMetadata = {
@@ -127,7 +129,7 @@ export class AwsKmsAdapter implements KmsAdapter {
         if (entry.metadata.algorithm !== 'EdDSA') {
           throw new Error(`AwsKmsAdapter: hybrid/PQ signing not supported by this adapter`);
         }
-        return withKmsSpan('aws-kms', 'sign', kid, purpose, () =>
+        return await withKmsSpan('aws-kms', 'sign', kid, purpose, () =>
           ed.signAsync(message, entry.privateKey),
         );
       },

@@ -15,11 +15,12 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 
-import { AppConfigService } from '../../src/config/config.service';
 import { AuditChainUtil, type AuditChainPayload } from '../../src/common/crypto/audit-chain.util';
+import { AppConfigService } from '../../src/config/config.service';
 import { AuditService } from '../../src/modules/audit/audit.service';
 
 import { generateAgentKeypair, signAgentToken, type AgentKeypair } from './_helpers/agent-keys';
+import { createTestApp, type SupertestHttp, type TestAppHandle } from './_helpers/test-app';
 import {
   createPolicyViaApi,
   isoInDays,
@@ -29,7 +30,6 @@ import {
   type SeededPolicy,
   type SeededPrincipal,
 } from './_helpers/test-fixtures';
-import { createTestApp, type SupertestHttp, type TestAppHandle } from './_helpers/test-app';
 
 describe('e2e: full transaction flow', () => {
   let handle: TestAppHandle;
@@ -94,7 +94,7 @@ describe('e2e: full transaction flow', () => {
 
     const parts = policy.signedToken.split('.');
     expect(parts).toHaveLength(3);
-    const payload = JSON.parse(Buffer.from(parts[1]!, 'base64url').toString('utf8')) as Record<string, unknown>;
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) as Record<string, unknown>;
     expect(payload.sub).toBe(agent.agentId);
     expect(payload.pid).toBe(policy.policyId);
   });

@@ -1,12 +1,15 @@
 import { Module } from '@nestjs/common';
+
+import { PlanAwareThrottlerGuard } from '../../common/throttle/plan-aware-throttler.guard';
+import { AuditModule } from '../audit/audit.module';
+import { BateModule } from '../bate/bate.module';
+import { BillingModule } from '../billing/billing.module';
+
+import { ReplayCacheService } from './replay-cache.service';
+import { SpendGuardService } from './spend-guard.service';
 import { VerifyController } from './verify.controller';
 import { VerifyService } from './verify.service';
-import { SpendGuardService } from './spend-guard.service';
-import { ReplayCacheService } from './replay-cache.service';
-import { BateModule } from '../bate/bate.module';
-import { AuditModule } from '../audit/audit.module';
-import { BillingModule } from '../billing/billing.module';
-import { PlanAwareThrottlerGuard } from '../../common/throttle/plan-aware-throttler.guard';
+
 
 // G-2: BillingModule imported so VerifyService can inject UsageGuardService
 // and enforce plan-tier monthly verify quotas before the algorithm runs.

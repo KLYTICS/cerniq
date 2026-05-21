@@ -39,7 +39,7 @@ export function canonicalize(value: unknown): string {
 /** Encode bytes as base64url (no padding). Edge-runtime safe. */
 export function encodeBase64Url(bytes: Uint8Array): string {
   let bin = '';
-  for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]!);
+  for (const b of bytes) bin += String.fromCharCode(b);
   // btoa is available in Node >= 16 and every browser/edge runtime.
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }

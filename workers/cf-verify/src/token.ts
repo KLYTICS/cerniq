@@ -21,7 +21,7 @@ export interface AgentTokenClaims {
   jti: string;
 }
 
-export type DecodedToken = { header: { alg: string; typ: string }; claims: AgentTokenClaims; signingInput: Uint8Array; signature: Uint8Array };
+export interface DecodedToken { header: { alg: string; typ: string }; claims: AgentTokenClaims; signingInput: Uint8Array; signature: Uint8Array }
 
 /**
  * Decode without verifying. Used to look up the cached agent record

@@ -55,9 +55,9 @@ export class JwksClient {
     if (stale && !stale.stale) {
       return b64uDecode(stale.key.x);
     }
-    if (stale && stale.stale) {
+    if (stale?.stale) {
       // SWR: kick off background refresh, return stale immediately.
-      void this.refreshOnce().catch((err) => {
+      void this.refreshOnce().catch((err: unknown) => {
         this.opts.logger?.warn?.('jwks background refresh failed', { error: String(err) });
       });
       return b64uDecode(stale.key.x);
@@ -79,7 +79,7 @@ export class JwksClient {
   }
 
   private async refreshOnce(): Promise<void> {
-    if (this.inFlight) return this.inFlight;
+    if (this.inFlight) { await this.inFlight; return; }
     this.inFlight = (async () => {
       try {
         const url = this.buildUrl();
@@ -100,7 +100,7 @@ export class JwksClient {
         this.inFlight = null;
       }
     })();
-    return this.inFlight;
+    await this.inFlight;
   }
 
   private buildUrl(): string {

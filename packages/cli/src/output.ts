@@ -21,20 +21,28 @@ export function emitJson(value: unknown): void {
 }
 
 export function emitTable(rows: Record<string, unknown>[], columns?: string[]): void {
-  if (rows.length === 0) {
+  const first = rows[0];
+  if (first === undefined) {
     info('(no rows)');
     return;
   }
-  const cols = columns ?? Object.keys(rows[0]!);
+  const cols = columns ?? Object.keys(first);
   const widths = cols.map((c) =>
-    Math.max(c.length, ...rows.map((r) => String(r[c] ?? '').length)),
+    Math.max(c.length, ...rows.map((r) => stringify(r[c]).length)),
   );
-  const sep = cols.map((_, i) => '─'.repeat(widths[i]!)).join('  ');
-  process.stdout.write(cols.map((c, i) => c.padEnd(widths[i]!)).join('  ') + '\n');
+  const sep = widths.map((w) => '─'.repeat(w)).join('  ');
+  process.stdout.write(cols.map((c, i) => c.padEnd(widths[i] ?? 0)).join('  ') + '\n');
   process.stdout.write(sep + '\n');
   for (const r of rows) {
     process.stdout.write(
-      cols.map((c, i) => String(r[c] ?? '').padEnd(widths[i]!)).join('  ') + '\n',
+      cols.map((c, i) => stringify(r[c]).padEnd(widths[i] ?? 0)).join('  ') + '\n',
     );
   }
+}
+
+function stringify(v: unknown): string {
+  if (v === undefined || v === null) return '';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') return String(v);
+  return JSON.stringify(v);
 }

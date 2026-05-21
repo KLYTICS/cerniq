@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
+
 import { PrismaModule } from '../../common/prisma/prisma.module';
+
+import { OnboardingBackfill } from './onboarding.backfill';
 import { OnboardingController } from './onboarding.controller';
 import { OnboardingService } from './onboarding.service';
-import { OnboardingBackfill } from './onboarding.backfill';
 
 /**
  * Onboarding module (OD-012). Exports `OnboardingService` for direct

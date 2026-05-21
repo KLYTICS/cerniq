@@ -1,9 +1,11 @@
 import './crypto.bootstrap';
-import * as ed from '@noble/ed25519';
 import { createHash } from 'node:crypto';
+
+import * as ed from '@noble/ed25519';
 import { ulid } from 'ulid';
-import { encodeBase64Url } from './ed25519.util';
+
 import { verifyDpopProof, jwkThumbprint, type ReplayCache, type DpopJwk } from './dpop.util';
+import { encodeBase64Url } from './ed25519.util';
 
 class StubReplayCache implements ReplayCache {
   private readonly seen = new Set<string>();
@@ -125,7 +127,7 @@ describe('verifyDpopProof', () => {
     // Deterministic mutation: XOR the first byte of the 64-byte signature.
     // `s.slice(0, -2) + 'AA'` is flaky — if the last byte is already 0, the
     // base64url encoding ends in 'AA' and the "tampering" is a no-op (P≈1/256).
-    const sigBytes = Buffer.from(s!, 'base64url');
+    const sigBytes = Buffer.from(s, 'base64url');
     sigBytes[0] ^= 0xff; // always produces a different byte, never a no-op
     const tampered = `${h}.${p}.${Buffer.from(sigBytes).toString('base64url')}`;
     const r = await verifyDpopProof(tampered, { method: 'POST', url: URL, accessToken: TOKEN, replayCache: new StubReplayCache() });

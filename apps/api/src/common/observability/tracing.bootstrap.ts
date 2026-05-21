@@ -78,7 +78,7 @@ export async function initTracing(opts: TracingBootstrapOptions = {}): Promise<T
     return { enabled: false, flush: async () => undefined, shutdown: async () => undefined };
   }
   if (sdk) {
-    return { enabled: true, flush: async () => undefined, shutdown: async () => sdk?.shutdown() };
+    return { enabled: true, flush: async () => undefined, shutdown: async () => await sdk?.shutdown() };
   }
 
   // Lazy-load the OTel deps so unit tests / non-tracing deployments don't
@@ -96,7 +96,8 @@ export async function initTracing(opts: TracingBootstrapOptions = {}): Promise<T
     ({ getNodeAutoInstrumentations } = await import('@opentelemetry/auto-instrumentations-node'));
     ({ OTLPTraceExporter } = await import('@opentelemetry/exporter-trace-otlp-http'));
     ({ ConsoleSpanExporter } = await import('@opentelemetry/sdk-trace-base'));
-    SemanticResourceAttributes = (await import('@opentelemetry/semantic-conventions')).SemanticResourceAttributes as never;
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- The newer SEMRESATTRS_* exports require a larger refactor of the resource map. Tracked in M-TBD.
+    SemanticResourceAttributes = (await import('@opentelemetry/semantic-conventions')).SemanticResourceAttributes;
   } catch (err) {
     // OTel deps missing — log on stderr and continue without tracing.
     process.stderr.write(

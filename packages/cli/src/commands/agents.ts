@@ -1,5 +1,6 @@
 import * as ed from '@noble/ed25519';
-import { sha512 } from '@noble/hashes/sha512';
+import { sha512 } from '@noble/hashes/sha2';
+
 import { client } from '../client.js';
 import { emitJson, emitTable, ok, info } from '../output.js';
 
@@ -27,7 +28,7 @@ export async function agentsCreate(opts: { name: string; runtime?: string; print
 
 export async function agentsList(opts: { limit?: number; cursor?: string; json?: boolean }): Promise<void> {
   const aegis = await client();
-  const result = (await aegis.agents.list({ limit: opts.limit, cursor: opts.cursor })) as { agents: Array<{ id: string; name: string; status: string; trustScore: number; trustBand: string }> };
+  const result = (await aegis.agents.list({ limit: opts.limit, cursor: opts.cursor })) as { agents: { id: string; name: string; status: string; trustScore: number; trustBand: string }[] };
   if (opts.json) {
     emitJson(result);
     return;

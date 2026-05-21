@@ -1,8 +1,11 @@
 import { Global, Module, OnModuleInit } from '@nestjs/common';
-import { AuditController } from './audit.controller';
-import { AuditEventsController } from './audit-events.controller';
-import { AuditService } from './audit.service';
+
 import { AuditSignerService } from '../../common/crypto/audit-signer.service';
+
+import { AuditEventsController } from './audit-events.controller';
+import { AuditController } from './audit.controller';
+import { AuditService } from './audit.service';
+
 
 // Global so any feature module (verify, billing, identity, mcp) gets the
 // shared `AuditService` without re-importing AuditModule everywhere.

@@ -1,7 +1,9 @@
 import * as bcrypt from 'bcryptjs';
-import { ApiKeyService } from './api-key.service';
+
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { AppConfigService } from '../../config/config.service';
+
+import { ApiKeyService } from './api-key.service';
 
 /**
  * Security-critical surface (CLAUDE.md invariant #5 + auth boundary).
@@ -113,9 +115,9 @@ describe('ApiKeyService.issue', () => {
 
     const stored = Array.from(rows.values())[0];
     expect(stored).toBeDefined();
-    expect(stored!.keyHash).not.toEqual(result.plaintextKey);
-    expect(stored!.keyHash.startsWith('$2')).toBe(true); // bcryptjs prefix family
-    await expect(bcrypt.compare(result.plaintextKey, stored!.keyHash)).resolves.toBe(true);
+    expect(stored.keyHash).not.toEqual(result.plaintextKey);
+    expect(stored.keyHash.startsWith('$2')).toBe(true); // bcryptjs prefix family
+    await expect(bcrypt.compare(result.plaintextKey, stored.keyHash)).resolves.toBe(true);
   });
 
   it('returns keyPrefix equal to the first 12 plaintext characters', async () => {
@@ -131,7 +133,7 @@ describe('ApiKeyService.issue', () => {
     const { svc, rows } = buildHarness();
     await svc.issue('p_1', null, 'FULL');
 
-    const stored = Array.from(rows.values())[0]!;
+    const stored = Array.from(rows.values())[0];
     // bcryptjs hashes encode cost as the second `$`-segment (e.g. `$2a$04$...`).
     const cost = Number.parseInt(stored.keyHash.split('$')[2] ?? '', 10);
     expect(cost).toBe(4);

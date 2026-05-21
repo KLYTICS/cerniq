@@ -88,7 +88,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         }
         return next;
       });
-      const handle = setTimeout(() => dismiss(id), toast.ttl);
+      const handle = setTimeout(() => { dismiss(id); }, toast.ttl);
       timers.current.set(id, handle);
       return id;
     },
@@ -136,7 +136,7 @@ function ToastStack({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: st
             type="button"
             className="toast-close"
             aria-label="Dismiss notification"
-            onClick={() => onDismiss(t.id)}
+            onClick={() => { onDismiss(t.id); }}
           >
             ×
           </button>
