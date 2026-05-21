@@ -296,19 +296,58 @@ console.log(`  cross-package parity:  ${existsSync(join(REPO_ROOT, 'tests', 'vit
 // 10. Full mode — actually run the gates
 // ─────────────────────────────────────────────────────────────────
 if (FULL) {
+  // ───────────────────────────────────────────────────────────────
+  // 10a. Preflight — ensure the gates' preconditions exist.
+  //
+  // Why: `tsc @aegis/api` requires a generated Prisma client (the
+  // stub @prisma/client shipped by `pnpm install` exports zero models,
+  // so every PrismaService.<model> reference is a TS error). And tsc
+  // across workspaces requires sibling-package .d.ts files (e.g.
+  // packages/types/dist/index.d.ts).
+  //
+  // Without this preflight, doctor:full silently relies on whatever
+  // cached state the developer's workstation happens to have from
+  // prior sessions — which means fresh checkouts, worktrees, and
+  // CI runners all see "broken main" even when the code is fine.
+  // Each prep command is idempotent and fast (<2s on warm cache).
+  //
+  // If preflight itself fails, we stop here — running the gates
+  // against an inconsistent dep graph would produce noisy false
+  // failures that obscure the real problem.
+  // ───────────────────────────────────────────────────────────────
+  header('Preflight — ensure gate preconditions');
+  const preflight: Array<{ name: string; cmd: string }> = [
+    { name: 'prisma client', cmd: 'pnpm --filter @aegis/api prisma:generate' },
+    { name: '@aegis/types build', cmd: 'pnpm --filter @aegis/types build' },
+  ];
+  for (const p of preflight) {
+    process.stdout.write(`  ${p.name}: `);
+    try {
+      execSync(p.cmd, { cwd: REPO_ROOT, stdio: 'ignore', timeout: 120_000 });
+      console.log(C.green + 'ready' + C.reset);
+    } catch {
+      console.log(C.red + 'FAIL' + C.reset);
+      console.log(`  ${C.red}preflight failed — skipping gates to avoid noisy false-failures.${C.reset}`);
+      console.log(`  ${C.dim}re-run: ${p.cmd}${C.reset}`);
+      process.exit(2);
+    }
+  }
+
   header('Full mode — running gates (≈30s)');
-  const gates: Array<{ name: string; cmd: string }> = [
+  const gates: Array<{ name: string; cmd: string; timeoutMs?: number }> = [
     { name: 'tsc @aegis/api', cmd: 'pnpm --filter @aegis/api exec tsc --noEmit' },
     { name: 'tsc @aegis/types', cmd: 'pnpm --filter @aegis/types exec tsc --noEmit' },
     { name: 'tsc @aegis/verifier-rp', cmd: 'pnpm --filter @aegis/verifier-rp exec tsc --noEmit' },
     { name: 'audit:errors', cmd: 'pnpm --filter @aegis/scripts run audit:errors' },
     { name: 'cross-package parity', cmd: 'pnpm --filter @aegis/e2e run test:parity' },
-    { name: 'postman validator', cmd: 'pnpm --filter @aegis/postman exec vitest run' },
+    // postman: vitest cold-start + dep resolution can exceed 120s on a fresh
+    // worktree; bump to 180s so cold runs don't false-fail.
+    { name: 'postman validator', cmd: 'pnpm --filter @aegis/postman exec vitest run', timeoutMs: 180_000 },
   ];
   for (const g of gates) {
     process.stdout.write(`  ${g.name}: `);
     try {
-      execSync(g.cmd, { cwd: REPO_ROOT, stdio: 'ignore', timeout: 120_000 });
+      execSync(g.cmd, { cwd: REPO_ROOT, stdio: 'ignore', timeout: g.timeoutMs ?? 120_000 });
       console.log(C.green + 'PASS' + C.reset);
     } catch {
       console.log(C.red + 'FAIL' + C.reset);

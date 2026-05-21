@@ -23,7 +23,7 @@ permissions:
 jobs:
   release:
     if: github.repository == 'klytics/aegis'
-    runs-on: warp-ubuntu-latest-x64-2x
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4

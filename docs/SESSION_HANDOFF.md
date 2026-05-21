@@ -1253,6 +1253,59 @@ Everything in this drop is additive, reversible, and verifiable without operator
 - Two parallel peers in `packages/sdk-py/` may also be touching `apps/api/` paths this session could not see; a `git status` check before the next commit will reveal overlap.
 - The kernel imports `AuditChainUtil` from the spec only (production code does not depend on it). If M-037 lands a breaking change to `AuditChainUtil.canonicalize`, the parity spec catches it.
 - `OD-017` has 8 sub-decisions packaged for atomicity. If the operator accepts only some, the response should explicitly enumerate which sub-decisions are approved so the next session does not partial-implement.
+## 2026-05-21 (Gap 3 closed: husky preflight make-rewrite — PR #40 merged) · sid=09b16195 · claim=aegis:husky-preflight-make-rewrite-fix
+
+**Status:** ✅ Closes Gap 3 from the post-merge audit immediately below. Husky pre-commit hook on main now correctly distinguishes preflight's warning-level exit 1 from gating exit ≥2. Merged via PR #40 ([c0a415a](https://github.com/KLYTICS/aegis/commit/c0a415a)).
+
+### What landed
+
+Two cooperating bugs, both surgical to `.husky/pre-commit`:
+
+**Bug 1 (the audit's Gap 3): GNU make's exit-code rewrite collapsing preflight's three-valued contract.** `make -s preflight-fast` was rewriting preflight's exit 1 (warnings, ship-with-care) and exit 2 (gating, do-not-ship) into a single exit 2 — empirically reproducible in 3 lines:
+
+```sh
+printf 'one:\n\t@exit 1\n' > /tmp/m && make -s -f /tmp/m one; echo $?
+# → 2 (recipe exited 1!)
+```
+
+Replaced with `pnpm -F @aegis/api exec tsx "$REPO_ROOT/tools/preflight/preflight.ts" --fast`, capturing `$?` immediately. The previous `if ! make...; then code=$?` form had a *separate* foot-gun (`$?` inside `if !` then-branch is always 0/1, never the real value) that [dab23c8](https://github.com/KLYTICS/aegis/commit/dab23c8) fixed on feat — this PR replaces the structure entirely on main, so both bugs are gone in one commit.
+
+**Bug 2 (prerequisite): hook self-trip.** Main's `BLOCKED` regex contains the literal env-var-name patterns that the hook scans for in *file contents*; the hook file itself contains the regex; `.husky/` wasn't in `TEST_FILE_ALLOWLIST`. The hook was physically uneditable without `--no-verify`. Fixed with a single `|^\.husky/` append + explanatory comment. Feat branch *had* a broader BLOCKED → BLOCKED\_PATH / BLOCKED\_CONTENT split; kept this PR's change to the minimum surgical that lets Bug 1 land.
+
+> **Adjacent regression discovered post-merge:** feat→main sync `4af14e1` (peer @platform-hygiene's fourth sync) propagated main's looser single-regex *back into feat*, undoing feat's earlier path-shape/content-shape split. Symptom: any edit to `docs/SESSION_HANDOFF.md` would trip the BLOCKED scan against pre-existing entries that legitimately mention `.env.example` in prose. **Restored in this PR** by re-introducing the `BLOCKED_PATH` / `BLOCKED_CONTENT` split (mirroring feat's pre-merge design). The next feat→main sync will pick the fix up automatically; until then, peer's feat-branch tree still carries the regression.
+
+### Push bypass disclosed
+
+`git push --no-verify` (operator-approved via AskUserQuestion). Reason: `pnpm doctor:full` pre-push hook fails on pre-existing hermeticity gaps in fresh worktrees — missing Prisma client generation, missing workspace dist files for `@aegis/types` and others. Exactly the scope of @platform-hygiene's PR #37. The 10 CI checks on PR #40 ran and passed; auto-merged ~90s after open.
+
+### Audit findings still open (newly surfaced this session, NOT actioned in PR #40)
+
+| # | Finding | Status |
+|---|---|---|
+| A | `lint-staged` declared in devDeps but unconfigured on main (no `.lintstagedrc.*`, no `"lint-staged"` block in `package.json`). Pre-commit hook calls `pnpm lint-staged` which errors silently; the format step operators *think* runs on every commit **is never executing.** | **Needs operator decision** on which extensions × tools to wire (prettier-only is safe; `eslint --fix` could surprise; full sweep is thorough but slow). Deferred to a dedicated turn. |
+| B | `pnpm doctor:full` not hermetic on fresh worktrees (Prisma client + workspace dists). | Tracked by @platform-hygiene **PR #37** |
+| C | `BLOCKED` regex on main conflates path-shape and content-shape patterns — alternatives like `\.env$`, `^secrets/`, `\.pem$` clearly want filenames but get `grep`'d against contents (false positives on TS like `process.env.FOO`). | Feat branch has the BLOCKED_PATH/BLOCKED_CONTENT split; arrives via feat→main merge |
+
+### Topology note for parallel sessions (recommended pattern)
+
+Shipped via **sibling worktree isolation**, which worked cleanly during a high-contention period (@platform-hygiene was actively committing on the parent worktree throughout):
+
+1. `git worktree add /Users/money/Desktop/AEGIS-husky-fix -b fix/... origin/main`
+2. `pnpm install --prefer-offline` in the new worktree (~11s thanks to the shared pnpm store at `~/.local/share/pnpm/store/v3`)
+3. Edit, commit, push (`--no-verify` operator-approved), open PR, queue `gh pr merge --squash --auto`
+4. `git worktree remove` after merge lands
+
+Parent worktree on `feat/sdk-verify-gateway-hardening` was **untouched throughout** — peer's `M AGENTS.md` WIP and untracked `.cursor/` were preserved. Recommended pattern for unrelated fixes during merge-train / high-contention periods. Worktrees share `.git` (refs, objects, hooks via `core.hooksPath`) but have independent index + HEAD + `node_modules`, so they don't fight on the working tree.
+
+### Coordination notes
+
+- Closes Gap 3 from the audit immediately below.
+- Gaps 1 (JWT silent-coercion — HIGH priority) and 2 (missing paired tests — MEDIUM priority) from that audit remain **untouched**.
+- `claude-peers msg all` broadcast sent at PR #40 landing (thread 0750ac00, reached sids 377f1ab6, 9b6fe3f6, e5e1febd).
+- Finding A above (lint-staged config gap) is the highest-leverage next platform-hygiene win, but warrants an operator decision turn before shipping.
+
+---
+
 ## 2026-05-21 (post-merge audit of PR #35 — three gaps filed as follow-ups) · sid=crazy-greider · claim=none
 
 **Status:** ⚠️ Three real gaps surfaced in the post-merge review of #35 ([7fd1c577](https://github.com/KLYTICS/aegis/commit/7fd1c577)). Filing here rather than reverting — the lint-zero baseline value is real, main is healthy, but the merge bundled mechanical autofix with security-sensitive refactors in one 290-file PR, and the post-merge audit caught what a focused review would have caught earlier.
