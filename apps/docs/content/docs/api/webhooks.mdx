@@ -1,0 +1,48 @@
+---
+title: Webhooks API
+description: Manage webhook subscriptions. HMAC-signed delivery, retry with backoff, dead-letter queue.
+---
+
+See [webhooks concept](/docs/concepts/webhooks) for signature verification,
+retry semantics, and the live event catalog.
+
+## Endpoints
+
+| Method | Path                                    | Purpose                                  |
+| ------ | --------------------------------------- | ---------------------------------------- |
+| POST   | `/v1/webhooks/subscriptions`            | Create a subscription                    |
+| GET    | `/v1/webhooks/subscriptions`            | List subscriptions                       |
+| GET    | `/v1/webhooks/subscriptions/:id`        | Inspect one                              |
+| PATCH  | `/v1/webhooks/subscriptions/:id`        | Update (pause, change events, change URL) |
+| DELETE | `/v1/webhooks/subscriptions/:id`        | Delete                                   |
+| GET    | `/v1/webhooks/deliveries`               | Recent deliveries (paginated)            |
+| GET    | `/v1/webhooks/deliveries/:id`           | Inspect one delivery, including failures |
+| POST   | `/v1/webhooks/deliveries/:id/replay`    | Replay a delivery (DLQ recovery)         |
+
+Authentication: `X-AEGIS-API-Key` with **FULL** scope.
+
+## Create
+
+```bash
+curl -X POST https://api.aegislabs.io/v1/webhooks/subscriptions \
+  -H "X-AEGIS-API-Key: $AEGIS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/aegis-webhooks",
+    "events": [
+      "aegis.agent.trust_score_changed",
+      "aegis.agent.revoked"
+    ],
+    "active": true
+  }'
+```
+
+Response includes `signingSecret` (shown **once**). After creation, the
+subscription record returns the secret as `signingSecretPrefix` only.
+
+## Event catalog
+
+The set of subscribable events is the wire constant `WEBHOOK_EVENT` in
+`@aegis/types`. This page renders the live catalog from that constant:
+
+<WebhookEventCatalog />

@@ -1,0 +1,60 @@
+---
+title: SRE & On-call
+description: Run AEGIS in production. Status, runbooks, deploy, rollback, observability, incident response.
+---
+
+<StatusBadge />
+
+AEGIS is a hot-path service. The verify endpoint sits between AI agents and
+the actions they perform, so a regression has customer-visible blast radius.
+This page is the canonical entry point for everyone holding the pager.
+
+## Status & SLOs
+
+| Surface             | SLO target            | Reflected in                                   |
+| ------------------- | --------------------- | ---------------------------------------------- |
+| `/v1/verify` p99    | < 200 ms (warm cache) | Prometheus histogram `verify_latency_seconds` |
+| `/v1/verify` 5xx    | < 0.1% over 5 min     | `verify_total{result="error"}`                 |
+| Audit chain append  | 100% success          | Alert on any non-2xx from `audit.service`      |
+| Stripe webhook      | < 5 s end-to-end      | `webhook_delivery_latency_seconds`             |
+
+## First-action runbooks
+
+The full runbook library lives in [`docs/`](https://github.com/klytics/aegis/tree/main/docs).
+Start here when something's wrong:
+
+| Scenario                              | Runbook                                                                                                                          |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| p99 spike on `/v1/verify`             | [`docs/RUNBOOK.md` § Verify latency](https://github.com/klytics/aegis/blob/main/docs/RUNBOOK.md)                                |
+| Audit chain hash mismatch alarm       | [`docs/IMMUTABILITY.md`](https://github.com/klytics/aegis/blob/main/docs/IMMUTABILITY.md)                                      |
+| Redis spend counter divergence        | [`docs/FAILURE_MODES.md` § Spend TOCTOU](https://github.com/klytics/aegis/blob/main/docs/FAILURE_MODES.md)                     |
+| Stripe webhook backlog                | [`docs/RUNBOOK.md` § Billing](https://github.com/klytics/aegis/blob/main/docs/RUNBOOK.md)                                      |
+| Region-wide outage / DR cutover       | [`docs/DR_RUNBOOK.md`](https://github.com/klytics/aegis/blob/main/docs/DR_RUNBOOK.md)                                          |
+| Incident response coordination        | [`docs/INCIDENT_RESPONSE.md`](https://github.com/klytics/aegis/blob/main/docs/INCIDENT_RESPONSE.md)                            |
+| Capacity headroom & autoscale         | [`docs/CAPACITY_PLAN.md`](https://github.com/klytics/aegis/blob/main/docs/CAPACITY_PLAN.md)                                    |
+
+## Deploy & rollback
+
+- **Deploy target**: Railway for the API, Vercel for the dashboard and these docs. See [`docs/DEPLOYMENT_GUIDE.md`](https://github.com/klytics/aegis/blob/main/docs/DEPLOYMENT_GUIDE.md).
+- **Migration immutability**: every Prisma migration is append-only after merge. Never edit a previously applied migration in production. Local repair only.
+- **Rollback**: code rollbacks are safe; migrations are forward-only. If a migration is the regression, write a forward migration that restores the prior shape.
+
+## Observability surface
+
+| Source              | Shape                                                                                          |
+| ------------------- | ---------------------------------------------------------------------------------------------- |
+| Logs (Pino)         | JSON, with `requestId`, `principalId`, `agentId`, `policyId`, `denialReason` tagged            |
+| Metrics (Prom)      | `/metrics` on the API; `verify_*`, `audit_*`, `bate_*`, `webhook_*` namespaces                 |
+| Traces (OTel)       | `aegis.verify.algorithm`, `aegis.audit.chain.append`, `aegis.kms.<provider>.<op>` span names |
+| Audit chain export  | `GET /v1/audit/export.ndjson` with hash-chain verifiability — see compliance persona           |
+
+## Denial precedence — what to look at first when verify fails in production
+
+Every verify denial returns exactly one of these reasons. The order is the
+wire contract; logging tools should sort by this severity:
+
+<DenialPrecedence />
+
+A spike in any reason concentrated to a single principal usually means
+their integration broke. A spike across many principals usually means we
+did. See the verify path runbook for triage steps.

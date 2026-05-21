@@ -1,0 +1,58 @@
+---
+title: Security architect
+description: Threat model, cryptographic posture, key rotation, audit chain, and the trust boundary.
+---
+
+AEGIS is a verification layer — its security posture is the product.
+
+## Trust boundary
+
+| What AEGIS holds                          | What AEGIS does NOT hold                          |
+| ----------------------------------------- | ------------------------------------------------- |
+| Agent **public** keys (Ed25519 / EdDSA)   | Agent private keys (live and die in your process) |
+| Hash-chained, signed `AuditEvent` rows    | Cleartext PII inside `decisionReason` (hashed)    |
+| Per-principal API keys (bcrypt-hashed)    | Customer credentials of any kind                  |
+| Webhook subscriber URLs + HMAC secrets    | Anything passed in policy `metadata` cleartext at rest if encrypted-DEK is configured |
+
+A breach of the AEGIS datastore yields signed public history and bcrypt
+hashes — by design.
+
+## Cryptographic posture
+
+- **Curve**: Ed25519 (EdDSA). Audited utility, single library, browser/edge-safe.
+- **Audit chain**: prev-hash + EdDSA signature using a KMS-resident or env-provided audit key. `signingKeyId` stamped on every row.
+- **Key rotation**: JWKS publishes current + previous keys during cutover. See [`docs/SECURITY.md` § Key Rotation](https://github.com/klytics/aegis/blob/main/docs/SECURITY.md).
+- **Post-quantum**: PQ hybrid (ml_dsa65) scaffold landed in `apps/api/src/common/crypto/pq.util.ts`. Flag-gated via `AEGIS_HYBRID_PQ_ENABLED`; trigger criteria in [`docs/decisions/0013-pq-hybrid-scaffold.md`](https://github.com/klytics/aegis/blob/main/docs/decisions/0013-pq-hybrid-scaffold.md).
+- **DPoP**: optional proof-of-possession step on the verify path. Flag-gated via `AEGIS_DPOP_REQUIRED`. See [`docs/decisions/0010-dpop-replay-prevention.md`](https://github.com/klytics/aegis/blob/main/docs/decisions/0010-dpop-replay-prevention.md).
+
+## Verify hot path
+
+Every verify request walks a fail-closed pipeline. The first failure wins
+and no later checks run:
+
+<DenialPrecedence />
+
+The order is **part of the wire contract**. Relying-party SDKs build retry,
+escalation, and logging logic on this exact precedence. Adding a new reason
+is only non-breaking when it goes at the end.
+
+## Trust score bands
+
+The behavioral attestation engine (BATE) computes a per-agent trust score
+and classifies it into bands. Policies use bands directly via
+`scope.minimumTrustBand`:
+
+<TrustBandLegend />
+
+## Audit chain
+
+- Append-only — no production code path updates or deletes audit rows.
+- Each row carries `prevHash` (SHA-256 of the previous row's signed bytes) and `signature` (EdDSA over the canonical row).
+- The signing key's public half is published at `/.well-known/audit-signing-key` for offline third-party verification.
+- GDPR Art. 17 erasure operates on the row body (PII columns null-out) while preserving the chain — the signature covers `decisionReasonHash`, not raw text. See [audit-chain concept](/docs/concepts/audit-chain).
+
+## Further reading
+
+- [`docs/THREAT_MODEL_v2.md`](https://github.com/klytics/aegis/blob/main/docs/THREAT_MODEL_v2.md) — full STRIDE analysis (31 threats)
+- [`docs/ARCHITECTURE_AUDIT.md`](https://github.com/klytics/aegis/blob/main/docs/ARCHITECTURE_AUDIT.md) — 22 findings with severity
+- [`docs/SECURITY.md`](https://github.com/klytics/aegis/blob/main/docs/SECURITY.md) — operator-facing security guide

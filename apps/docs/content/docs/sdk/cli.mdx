@@ -1,0 +1,78 @@
+---
+title: CLI (aegis)
+description: Operator and developer command line. Cobra-based Go binary with kubectl-style plugin discovery.
+---
+
+The AEGIS CLI is a single static Go binary. ~5 MB cross-compiled to
+darwin/linux/windows × amd64/arm64. Authenticates via OS keychain
+(device-code OAuth on first run, `--api-key` flag for headless / CI).
+
+## Install
+
+```bash
+# macOS (Homebrew)
+brew install klytics/aegis/aegis
+
+# Linux (curl installer)
+curl -fsSL https://get.aegis.dev/install.sh | sh
+
+# Verify
+aegis --version
+```
+
+Optionally verify signature with `AEGIS_VERIFY_SIGNATURE=1` (Sigstore).
+
+## First-run authentication
+
+```bash
+aegis login                  # device-code OAuth (recommended)
+aegis login --api-key $AK    # headless / CI
+aegis whoami
+aegis doctor                 # connectivity, clock skew, JWKS reachability, onboarding state
+```
+
+Tokens cached in OS keychain (Keychain.app on darwin, Secret Service on
+linux, Credential Manager on windows).
+
+## Command surface
+
+| Namespace            | Commands                                                          |
+| -------------------- | ----------------------------------------------------------------- |
+| `aegis init`         | `--industry fintech|ai-platform|saas` — scaffold + register first agent |
+| `aegis agents`       | `register|list|show|revoke|status` (`--generate-keypair`)         |
+| `aegis policy`       | `create|list|revoke|inspect` (imperative flags or `--file`)       |
+| `aegis verify`       | Verify a token; renders denial reason in canonical precedence order |
+| `aegis events`       | `list|tail|export` — cursor pagination, signal-aware Ctrl-C, NDJSON streaming |
+| `aegis listen`       | `--forward-to <url>` — local webhook tunnel (like `stripe listen`) |
+| `aegis trigger`      | Emit a test webhook event for local development                   |
+| `aegis dash`         | TUI cockpit (bubbletea) — whoami + last 10 events + last 10 verifies |
+| `aegis kms rotate`   | Rotate the audit signing key                                      |
+| `aegis mcp install`  | Helper: writes Claude Desktop config to enable MCP integration    |
+| `aegis audit *`      | Plugin namespace owned by `aegis-audit` binary (kubectl-style)    |
+
+Every command supports `--json` for scripted output.
+
+## Plugin discovery (kubectl-style)
+
+Any `aegis-*` executable on PATH becomes a subcommand:
+
+```bash
+# drop `aegis-hello` somewhere on PATH
+$ aegis hello world
+# invokes `aegis-hello world` with all remaining args forwarded
+```
+
+This is how the `aegis audit` namespace ships — the `aegis-audit` binary
+is independent of the core CLI but discovered automatically.
+
+## Config
+
+XDG-compliant: `~/.config/aegis/config.toml`. API key lives in OS keychain
+via [`99designs/keyring`](https://github.com/99designs/keyring). Falls
+back to `AEGIS_API_KEY` env var for CI.
+
+## Source
+
+[`packages/cli/`](https://github.com/klytics/aegis/tree/main/packages/cli).
+See [OD-009 and OD-010 in `OPERATOR_DECISIONS.md`](https://github.com/klytics/aegis/blob/main/OPERATOR_DECISIONS.md)
+for the device-code OAuth decision and the distribution + binary-language locks. (The Auth0 dashboard auth decision lives in [`docs/decisions/0009-auth0-bridge.md`](https://github.com/klytics/aegis/blob/main/docs/decisions/0009-auth0-bridge.md) — separate concern from the CLI's keychain-cached token flow.)

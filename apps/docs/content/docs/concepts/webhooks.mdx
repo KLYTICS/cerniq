@@ -1,0 +1,68 @@
+---
+title: Webhooks
+description: Subscribe to AEGIS lifecycle events. HMAC-signed delivery with retry and dead-letter.
+---
+
+AEGIS emits webhooks for the agent-lifecycle and trust-band events that
+relying parties need to react to.
+
+<WebhookEventCatalog />
+
+## Subscribing
+
+```bash
+curl -X POST https://api.aegislabs.io/v1/webhooks/subscriptions \
+  -H "X-AEGIS-API-Key: $AEGIS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/aegis-webhooks",
+    "events": ["aegis.agent.trust_score_changed", "aegis.agent.revoked"],
+    "active": true
+  }'
+```
+
+Response includes a `signingSecret` (shown once). Store it; subsequent
+requests against the subscription will not return it.
+
+## Signature verification
+
+Every delivery carries an `X-AEGIS-Signature` header in Stripe-compatible
+format:
+
+```
+X-AEGIS-Signature: t=1730000000,v1=hex(hmac_sha256(secret, "<t>.<body>"))
+```
+
+Pseudo-code:
+
+```ts
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
+function verify(signatureHeader: string, body: string, secret: string): boolean {
+  const parts = Object.fromEntries(signatureHeader.split(',').map((p) => p.split('=')));
+  const expected = createHmac('sha256', secret).update(`${parts.t}.${body}`).digest('hex');
+  return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(parts.v1, 'hex'));
+}
+```
+
+The timestamp `t` is included to defeat replay; reject deliveries where
+`|now - t|` exceeds your acceptable window (5 minutes is the
+recommendation, matching Stripe).
+
+## Retry policy
+
+- **At-least-once delivery**. Your handler must be idempotent. Recommended:
+  treat the JSON payload's `id` as the idempotency key.
+- **8 attempts** with exponential backoff over ~3 days (operator default;
+  see OD-005 in `OPERATOR_DECISIONS.md`).
+- **Dead-letter queue** visible in the dashboard after the 8th failure.
+  Operator can re-emit from the DLQ once the issue is resolved.
+
+## Local development with `aegis listen`
+
+```bash
+aegis listen --forward-to http://localhost:3000/aegis-webhooks
+```
+
+This tunnels webhook deliveries to your local server without a public URL —
+similar to `stripe listen`. Shipping with [M-040d](https://github.com/klytics/aegis/blob/main/WORK_BOARD.md#m-040d).

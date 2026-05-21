@@ -1,0 +1,60 @@
+---
+title: Audit API
+description: Read and export the signed, hash-chained event log. Cursor pagination, NDJSON streaming.
+---
+
+The audit endpoints expose the chain documented in
+[concepts/audit-chain](/docs/concepts/audit-chain).
+
+## Endpoints
+
+| Method | Path                            | Purpose                                |
+| ------ | ------------------------------- | -------------------------------------- |
+| GET    | `/v1/audit/events`              | Cursor-paginated event reader          |
+| GET    | `/v1/audit/events/:id`          | Inspect a single event                 |
+| GET    | `/v1/audit/export.ndjson`       | Streaming NDJSON export for SOC2/GDPR  |
+| GET    | `/.well-known/audit-signing-key` | JWKS for offline chain verification    |
+
+Authentication: `X-AEGIS-API-Key` with **FULL** scope.
+
+## Paginated read
+
+```bash
+curl "https://api.aegislabs.io/v1/audit/events?agentId=agent_01HXYZ...&limit=50" \
+  -H "X-AEGIS-API-Key: $AEGIS_API_KEY"
+```
+
+Response:
+
+```json
+{
+  "data": [ { /* event */ }, /* ... */ ],
+  "nextCursor": "evt_01HX...",
+  "hasMore": true
+}
+```
+
+Pass `cursor=<nextCursor>` on the next call to continue. Date range filters:
+`since` and `until` as ISO 8601 timestamps.
+
+## Streaming export
+
+```bash
+curl -N "https://api.aegislabs.io/v1/audit/export.ndjson?since=2026-04-01" \
+  -H "X-AEGIS-API-Key: $AEGIS_API_KEY" \
+  -o audit-export.ndjson
+```
+
+Response is `Content-Type: application/x-ndjson` with one JSON event per
+line. Replayable with
+[`@aegis/verifier-rp`](https://github.com/klytics/aegis/tree/main/packages/verifier-rp):
+
+```ts
+const result = await verifier.verifyAuditExport(ndjsonString);
+console.log(result.valid, result.firstInvalidEventId);
+```
+
+## Compliance redact
+
+`POST /v1/compliance/audit/redact-event` nulls PII fields in a row while
+preserving chain integrity. See the [auditor persona](/docs/personas/auditor).

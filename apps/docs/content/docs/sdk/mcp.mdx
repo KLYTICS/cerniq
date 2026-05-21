@@ -1,0 +1,105 @@
+---
+title: MCP server + bridge (@aegis/mcp-server, @aegis/mcp-bridge)
+description: Drop-in MCP integration. Verify every tool call before invocation. Claude Desktop, Cursor, and any MCP-aware client.
+---
+
+AEGIS ships two MCP packages:
+
+| Package               | Use it when…                                                                              |
+| --------------------- | ----------------------------------------------------------------------------------------- |
+| `@aegis/mcp-server`   | You're building a new MCP server. Get a verified-by-default tool wrapper API.            |
+| `@aegis/mcp-bridge`   | You already have an MCP server and want to wrap it without rewriting any tool handlers.  |
+
+## `@aegis/mcp-server`
+
+### Install
+
+```bash
+npm install @aegis/mcp-server
+```
+
+### Define verified tools
+
+```ts
+import { createServer } from '@aegis/mcp-server';
+
+const server = createServer({
+  aegis: {
+    apiKey: process.env.AEGIS_API_KEY!,
+    verifyKey: process.env.AEGIS_VERIFY_KEY!,
+  },
+  tools: [
+    {
+      name: 'send-email',
+      description: 'Send a transactional email',
+      verifyAction: 'send_email',
+      schema: { /* JSON Schema */ },
+      handler: async (args, { agentId, principalId, verifyResult }) => {
+        // Runs only on `verifyResult.allowed === true`. The wrapper has
+        // already walked the denial precedence and returned a structured
+        // tool error if the verify failed.
+        await emailService.send(args);
+        return { sent: true };
+      },
+    },
+  ],
+});
+
+server.listen({ stdio: true });
+```
+
+### Claude Desktop config
+
+```json
+{
+  "mcpServers": {
+    "aegis-protected-tools": {
+      "command": "npx",
+      "args": ["@aegis/mcp-server"],
+      "env": {
+        "AEGIS_API_KEY": "ak_live_...",
+        "AEGIS_VERIFY_KEY": "vk_live_..."
+      }
+    }
+  }
+}
+```
+
+## `@aegis/mcp-bridge`
+
+Wrap an existing MCP server with verification middleware. No tool-handler
+changes required:
+
+```ts
+import { createMcpBridge } from '@aegis/mcp-bridge';
+import { myExistingMcpServer } from './my-server';
+
+export default createMcpBridge({
+  upstream: myExistingMcpServer,
+  aegis: {
+    apiKey: process.env.AEGIS_API_KEY!,
+    verifyKey: process.env.AEGIS_VERIFY_KEY!,
+  },
+  toolActionMap: {
+    'send-email': 'send_email',
+    'charge-card': 'charge',
+  },
+});
+```
+
+The bridge intercepts every tool call, extracts the authority token from
+the request envelope (`_aegis_token`), calls `aegis.verify()`, and only
+forwards to the upstream tool on `allowed: true`. Denials translate to
+structured MCP tool errors that LLMs can interpret.
+
+## Audit attribution
+
+When either package calls `/v1/verify`, it stamps the relying-party id
+into the resulting audit row. The dashboard's MCP-server list view shows
+recent invocation counts and denial rates per server — see
+[ADR-0008](https://github.com/klytics/aegis/blob/main/docs/decisions/0008-mcp-as-control-plane.md).
+
+## Source
+
+- [`packages/mcp-server/`](https://github.com/klytics/aegis/tree/main/packages/mcp-server)
+- [`packages/mcp-bridge/`](https://github.com/klytics/aegis/tree/main/packages/mcp-bridge)

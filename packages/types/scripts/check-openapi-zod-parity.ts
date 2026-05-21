@@ -193,7 +193,12 @@ function resolveProperties(
 
 /** A component name maps to `<name>Schema` exported from index.ts. We
  *  also accept `<base>RecordSchema` (used for AuditEvent → AuditEventRecord)
- *  to honor the existing naming reality without forcing a rename. */
+ *  to honor the existing naming reality without forcing a rename.
+ *
+ *  Preference: ZodObject candidates win over non-object candidates
+ *  (z.enum, primitives). `AgentStatus` is the motivating case —
+ *  `AgentStatusSchema` is the value enum, `AgentStatusResponseSchema`
+ *  is the wire response object; field-by-field parity needs the object. */
 function findZodSchema(componentName: string): ZodTypeAny | null {
   const candidates = [
     `${componentName}Schema`,
@@ -201,13 +206,16 @@ function findZodSchema(componentName: string): ZodTypeAny | null {
     `${componentName}ResponseSchema`,
     `${componentName}RecordSchema`,
   ];
+  let fallback: ZodTypeAny | null = null;
   for (const candidate of candidates) {
     const exported = (TypesIndex as Record<string, unknown>)[candidate];
     if (exported && typeof exported === 'object' && '_def' in (exported as object)) {
-      return exported as ZodTypeAny;
+      const schema = exported as ZodTypeAny;
+      if (schema instanceof ZodObject) return schema;
+      if (!fallback) fallback = schema;
     }
   }
-  return null;
+  return fallback;
 }
 
 /** Drill through `.refine`/`.transform`/`.optional` wrappers to find the
@@ -314,6 +322,21 @@ async function main(): Promise<number> {
   const components = doc.components?.schemas ?? {};
 
   const referenced = collectReferencedComponents(doc);
+
+  // Sanity check: if the OpenAPI file exists and is non-trivial but we
+  // resolved zero referenced components, that's an extractor bug (or a
+  // gutted spec), not a parity success. Make the failure loud instead
+  // of silently emitting an empty success report. Mirror of the
+  // extractor sanity-check in .github/workflows/spec-sync.yml.
+  if (raw.length > 0 && referenced.size === 0) {
+    stderr.write(
+      `\nspec-sync: ERROR — extracted zero referenced components from a non-empty OpenAPI ` +
+        `document at ${SPEC_PATH}. Likely an extractor bug in collectReferencedComponents() ` +
+        `(see paths/operations walk), not real parity. Failing loud.\n`,
+    );
+    return 1;
+  }
+
   const reports: ComponentReport[] = [];
 
   for (const [name, endpointSet] of Array.from(referenced.entries()).sort()) {

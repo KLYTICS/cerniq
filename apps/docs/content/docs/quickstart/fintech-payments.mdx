@@ -1,0 +1,73 @@
+---
+title: Fintech — payment authorization
+description: Gate every Stripe charge through aegis.verify before the authorization fires. Per-policy spend limit, denial precedence routing.
+---
+
+Full runnable example:
+[`examples/fintech-payments/`](https://github.com/klytics/aegis/tree/main/examples/fintech-payments).
+
+## Shape of the integration
+
+```ts
+import { Aegis, sign } from '@aegis/sdk';
+import Stripe from 'stripe';
+
+const aegis = new Aegis({ apiKey: process.env.AEGIS_API_KEY! });
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
+async function authorizeCharge(opts: {
+  agentId: string;
+  policyId: string;
+  privateKey: Uint8Array;
+  amount: number;
+  customerId: string;
+  paymentMethodId: string;
+}) {
+  // 1. Sign the authority token. The private key never leaves the process.
+  const token = await sign(opts.privateKey, {
+    agentId: opts.agentId,
+    policyId: opts.policyId,
+    action: 'charge',
+    amount: opts.amount,
+  });
+
+  // 2. Verify with AEGIS BEFORE Stripe. A single round-trip; p99 < 200 ms.
+  const verdict = await aegis.verify(token);
+  if (!verdict.allowed) {
+    return { ok: false as const, denialReason: verdict.denialReason };
+  }
+
+  // 3. Only now create the Stripe PaymentIntent. AEGIS has already signed
+  //    an audit row noting the allow decision under (agent, policy).
+  const intent = await stripe.paymentIntents.create({
+    customer: opts.customerId,
+    payment_method: opts.paymentMethodId,
+    amount: opts.amount * 100,
+    currency: 'usd',
+    confirm: true,
+  });
+
+  return { ok: true as const, intentId: intent.id };
+}
+```
+
+## Routing denials
+
+| Denial reason             | UX behavior                                                                              |
+| ------------------------- | ---------------------------------------------------------------------------------------- |
+| `SPEND_LIMIT_EXCEEDED`    | Show "spending limit reached for this session" and surface a one-tap "request more" flow |
+| `TRUST_SCORE_TOO_LOW`     | Offer a step-up (re-auth, additional verification) and retry                             |
+| `POLICY_EXPIRED`          | Silent — mint a fresh policy and retry once                                              |
+| `AGENT_REVOKED`           | Terminal — invalidate the agent locally; do not re-attempt                               |
+| Anything else             | Log and escalate; do not auto-retry                                                      |
+
+See [denial precedence](/docs/concepts/denial-precedence) for the full
+contract.
+
+## Why verify before Stripe (and not after)
+
+AEGIS lives between the agent and the action. Verifying after a charge has
+already fired would mean a denied verify cannot stop a real-world side
+effect — the money has already moved. The single network round-trip to
+AEGIS is the price of behavioral attestation working as an authorization
+gate, not a forensics tool.

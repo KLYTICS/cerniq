@@ -246,14 +246,25 @@ export function parsePrismaEnums(source: string): Map<string, string[]> {
  * Matches a Prisma enum to a Zod enum. Convention:
  *   Prisma `AgentRuntime`    → Zod `AgentRuntimeSchema`
  *   Prisma `PolicyStatus`    → Zod `PolicyStatusSchema`
- *   Prisma `AgentStatus`     → Zod `AgentStatusSchema`  (note: collides with
- *                              the response schema of the same Zod name)
- * Returns null if no matching ZodEnum is found in @aegis/types/schemas.
+ *   Prisma `AgentStatus`     → Zod `AgentStatusEnumSchema` (renamed in
+ *                              M-057, 2026-05-21, to free up the
+ *                              `AgentStatusSchema` name for the
+ *                              OpenAPI AgentStatus RESPONSE object).
+ *
+ * Resolution order:
+ *   1. `${prismaName}EnumSchema` — explicit enum carve-out, wins when
+ *      the original `${prismaName}Schema` name was reclaimed by a
+ *      response-object schema of the same OpenAPI component name.
+ *   2. `${prismaName}Schema` — historical default.
+ *
+ * Returns null if no matching ZodEnum is found in @aegis/types.
  */
 export function findZodEnum(prismaName: string): ZodEnum<[string, ...string[]]> | null {
   const exportsMap = TypeSchemas as Record<string, unknown>;
-  const candidate = exportsMap[`${prismaName}Schema`];
-  if (candidate instanceof ZodEnum) return candidate as ZodEnum<[string, ...string[]]>;
+  for (const name of [`${prismaName}EnumSchema`, `${prismaName}Schema`]) {
+    const candidate = exportsMap[name];
+    if (candidate instanceof ZodEnum) return candidate as ZodEnum<[string, ...string[]]>;
+  }
   return null;
 }
 

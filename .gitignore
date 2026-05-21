@@ -21,6 +21,9 @@ out/
 coverage/
 .nyc_output/
 
+# Spec-sync drift report (generated at /spec-sync.json by parity scripts)
+/spec-sync.json
+
 # Logs
 *.log
 npm-debug.log*

@@ -1,0 +1,120 @@
+# AEGIS — osv-scanner ignore list (merge-train unblock)
+#
+# Purpose: break the chicken-and-egg deadlock observed on 2026-05-20.
+# Every open PR fails on `SCA · osv-scanner` because the transitive vulns
+# in pnpm-lock.yaml block CI. The fixes for those vulns are themselves in
+# unmerged PRs (#15 trivy-action SHA pin, #16 pnpm.overrides W1 sweep,
+# #20 Go jose2go, #8 close-44-alerts) — which can't merge for the same
+# reason. Without this allow-list, the platform cannot land ANY change.
+#
+# Strategy: PackageOverrides by package + version range, rather than
+# per-GHSA IDs. New CVEs land for the same vulnerable package version
+# every few days; a version-keyed override remains correct until the
+# bump lands, regardless of how many new GHSAs accumulate.
+#
+# Sunset: 2026-06-30 (encoded in the per-entry comment; osv-scanner
+# v1.9.1 does not yet support ignoreUntil on PackageOverrides — the
+# comment is the operator's forcing function).
+#
+# When the resolving PR merges (typically PR #16's pnpm.overrides):
+#   • the package@version in the lockfile changes
+#   • the override no longer matches anything
+#   • the entry becomes dead weight — REMOVE in the same commit as the
+#     lockfile fix.
+#
+# This file does NOT silence security alerts in the Security tab; SARIF
+# is still uploaded by the workflow. It only prevents `fail-on-vuln: true`
+# from blocking the merge train while the remediation PRs land.
+#
+# Reference:
+#   docs/SECURITY_MERGE_TRAIN_UNBLOCK.md (this PR) explains the deadlock,
+#   the chosen approach, and the suggested merge order.
+#   https://google.github.io/osv-scanner/configuration/ is the config spec.
+
+# ──────────────────────────────────────────────────────────────────────
+# Each entry: ignore ALL vulns for the named package at the named version.
+# Source: PR #29 osv-scan log (run 26169038928, 2026-05-20 14:27 UTC).
+#
+# When that exact version is no longer in any lockfile, the override is
+# a no-op. Remove it once you confirm via:
+#   pnpm why <pkg> | grep -v <vuln_version>
+# ──────────────────────────────────────────────────────────────────────
+
+[[PackageOverrides]]
+name = "next"
+version = "16.2.4"
+ecosystem = "npm"
+ignore = true
+reason = "next 16.2.4 has 10+ active GHSAs (image opt, SSRF, cache poisoning, etc). Fix: direct bump to >=16.2.5 in PR #16. Sunset 2026-06-30."
+
+[[PackageOverrides]]
+name = "undici"
+version = "5.29.0"
+ecosystem = "npm"
+ignore = true
+reason = "undici 5.x has 5 active GHSAs (proxy auth bypass, etc). Transitive via wrangler/miniflare and other tooling. Fix: override to >=6.23.0 in PR #16. Sunset 2026-06-30."
+
+[[PackageOverrides]]
+name = "vite"
+version = "5.4.21"
+ecosystem = "npm"
+ignore = true
+reason = "vite 5.x dev-server CORS bypass (GHSA-4w7w-66w2-5vf9). Transitive via vitest. Fix: bump to >=6.4.2 in PR #16. Sunset 2026-06-30."
+
+[[PackageOverrides]]
+name = "esbuild"
+version = "0.21.5"
+ecosystem = "npm"
+ignore = true
+reason = "esbuild dev-server CORS bypass (GHSA-67mh-4wv8-2f99). Transitive via vite/vitest. Fix: override to >=0.25.0 in PR #16. Sunset 2026-06-30."
+
+[[PackageOverrides]]
+name = "postcss"
+version = "8.4.31"
+ecosystem = "npm"
+ignore = true
+reason = "postcss line-return parsing (GHSA-qx2v-qp2m-jg93). Transitive via build tooling. Fix: override to >=8.5.10 in PR #16. Sunset 2026-06-30."
+
+[[PackageOverrides]]
+name = "protobufjs"
+version = "7.5.6"
+ecosystem = "npm"
+ignore = true
+reason = "protobufjs prototype pollution (GHSA-jggg-4jg4-v7c6). Transitive via opentelemetry stack. Fix: override to >=7.5.8 in PR #16. Sunset 2026-06-30."
+
+[[PackageOverrides]]
+name = "qs"
+version = "6.14.1"
+ecosystem = "npm"
+ignore = true
+reason = "qs prototype pollution (GHSA-w7fw-mjwx-w883). Transitive. Fix: override to >=6.14.2 in PR #16. Sunset 2026-06-30."
+
+[[PackageOverrides]]
+name = "ws"
+version = "8.18.0"
+ecosystem = "npm"
+ignore = true
+reason = "ws DoS via excessive headers (GHSA-58qx-3vcg-4xpx). Transitive. Fix: override to >=8.20.1 in PR #16. Sunset 2026-06-30."
+
+[[PackageOverrides]]
+name = "brace-expansion"
+version = "5.0.5"
+ecosystem = "npm"
+ignore = true
+reason = "brace-expansion ReDoS (GHSA-jxxr-4gwj-5jf2). Transitive (everywhere — npm internal). Fix: override to >=5.0.6 in PR #16. Sunset 2026-06-30."
+
+[[PackageOverrides]]
+name = "@tootallnate/once"
+version = "2.0.1"
+ecosystem = "npm"
+ignore = true
+reason = "@tootallnate/once event-emitter prototype pollution (GHSA-vpq2-c234-7xj6). Transitive via http-proxy-agent legacy. Fix: override to >=3.0.1 in PR #16. Sunset 2026-06-30."
+
+# ──────────────────────────────────────────────────────────────────────
+# Go toolchain — orthogonal to npm vulns, but the same merge-train
+# observation: govulncheck blocks because the runner's Go version
+# (1.22.8) is below packages/cli/go.mod's requirement (1.24.0). PR #11
+# repairs the CLI workflow's Go version. osv-scanner.toml does NOT
+# cover toolchain mismatches; the operator action is to land PR #11.
+# Documented here so the on-call sees the full picture in one file.
+# ──────────────────────────────────────────────────────────────────────

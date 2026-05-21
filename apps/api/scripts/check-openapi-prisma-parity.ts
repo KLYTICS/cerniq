@@ -186,7 +186,14 @@ const MODEL_MAPPINGS: readonly ModelMapping[] = [
       'scoreHistory',
       'delegationsAsPrincipal',
       'delegationsAsAgent',
+      'delegationsFrom',
+      'delegationsTo',
       'spendRecords',
+      'verifyCount',
+      'verifyCountDay',
+      'bateSignals',
+      'revokedAt',
+      'revokedReason',
       'updatedAt',
       'createdAt',
     ]),
@@ -201,6 +208,9 @@ const MODEL_MAPPINGS: readonly ModelMapping[] = [
       'principalId',
       'signedToken',
       'signedTokenKeyId',
+      'tokenHash',
+      'verifyCount',
+      'revokedAt',
       'auditEvents',
       'spendRecords',
       'createdAt',
@@ -210,13 +220,22 @@ const MODEL_MAPPINGS: readonly ModelMapping[] = [
   {
     prismaModel: 'AuditEvent',
     openapiComponent: 'AuditEvent',
-    renames: { id: 'eventId', createdAt: 'timestamp' },
+    // Wire renames: the API DTO (apps/api/src/modules/audit/audit.dto.ts)
+    // surfaces these Prisma columns under different names. `denialReason`
+    // is the Prisma storage column; the wire calls it `decisionReason`
+    // (broader semantic — covers approve/flag context too). `aegisSignature`
+    // is the storage column; the wire calls it `signature` (consumer-facing).
+    renames: {
+      id: 'eventId',
+      createdAt: 'timestamp',
+      denialReason: 'decisionReason',
+      aegisSignature: 'signature',
+    },
     internalFields: new Set([
       'agent',
       'policy',
       'principal',
       'prevHash',
-      'aegisSignature',
       'signingKeyId',
       'policyEngineId',
       'engineMetadata',
@@ -227,6 +246,22 @@ const MODEL_MAPPINGS: readonly ModelMapping[] = [
       'redactedAt',
       'principalIdHash',
       'agentIdHash',
+      // Wire-narrower than storage: these Prisma columns are not exposed
+      // on the AuditEventDto and so should not be expected in the OpenAPI
+      // AuditEvent component. Storage-side hashes (the `*Hash` columns)
+      // back the GDPR-redactable raw fields per docs/decisions/0006-audit-redactability.md;
+      // they are committed to in the signed chain but never surfaced as
+      // wire fields. The raw amount/currency/policy snapshot context
+      // remains queryable via the operator-only export endpoint.
+      'requestedAmount',
+      'currency',
+      'policyId',
+      'policySnapshot',
+      'redactionReason',
+      'trustBandAtEvent',
+      'relyingPartyHash',
+      'requestedAmountHash',
+      'policySnapshotHash',
     ]),
   },
 ] as const;
@@ -415,6 +450,27 @@ async function main(): Promise<number> {
   const { enums, models } = parsePrismaSchema(prismaSrc);
   const doc = yaml.parse(specRaw) as OpenApiDoc;
   const components = doc.components?.schemas ?? {};
+
+  // Sanity check: if the Prisma schema is non-empty but the parser
+  // returned zero models / enums, that's almost certainly a regex bug
+  // in parsePrismaSchema, not a "schema is empty" state. Same for an
+  // OpenAPI document with zero components.schemas. Make the failure
+  // mode loud — the M-056 regression masqueraded as drift for 5+ SHAs
+  // precisely because an extractor silently returned nothing.
+  if (prismaSrc.length > 0 && models.size === 0 && enums.size === 0) {
+    stderr.write(
+      `\nspec-sync: ERROR — parsePrismaSchema returned zero models AND zero enums from a ` +
+        `non-empty schema at ${PRISMA_PATH}. Likely a regex bug in parsePrismaSchema(), not parity. Failing loud.\n`,
+    );
+    return 1;
+  }
+  if (specRaw.length > 0 && Object.keys(components).length === 0) {
+    stderr.write(
+      `\nspec-sync: ERROR — OpenAPI document at ${SPEC_PATH} parsed but has zero ` +
+        `components.schemas. Likely a YAML structure regression (or gutted spec). Failing loud.\n`,
+    );
+    return 1;
+  }
 
   const modelReports: ModelReport[] = MODEL_MAPPINGS.map((m) =>
     diffModel(m, models.get(m.prismaModel), components),

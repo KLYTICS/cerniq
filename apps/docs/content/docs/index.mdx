@@ -1,0 +1,37 @@
+---
+title: AEGIS in 60 seconds
+description: Verify an AI agent's authority before it acts. Public keys only, signed audit trail, vendor-neutral.
+---
+
+AEGIS is the neutral verification, policy enforcement, and behavioral
+attestation layer between AI agents and the services they act on.
+
+- **Public keys only** — AEGIS never holds, transmits, or generates private keys.
+- **Signs what it observed** — every audit row is hash-chained and signed under a published key.
+- **Vendor- and model-neutral** — works with any LLM, MCP server, or agent framework.
+
+<SdkVersionBadges />
+
+## The verify loop
+
+1. An agent signs a short-lived JWT proving authority over its identity.
+2. The relying party calls `POST /v1/verify` (or runs the offline `@aegis/verifier-rp`).
+3. AEGIS walks the [denial precedence chain](/docs/concepts/denial-precedence) — first failure wins.
+4. A signed audit row is appended to the principal's chain.
+
+## Pricing
+
+<PricingTable />
+
+This table is rendered from `/.well-known/pricing.json` at request time.
+When the operator changes a price in `apps/api/src/modules/billing/plans.ts`
+and redeploys the API, this page reflects it within the next ISR window —
+no second deploy required. If the page shows `data-source="fallback"`, the
+API endpoint is unreachable from the docs site and the build-time mirror is
+in use.
+
+## Next
+
+- [Quickstart in TypeScript](/docs/quickstart/typescript)
+- [Denial precedence (wire contract)](/docs/concepts/denial-precedence)
+- [Agents API reference](/docs/api/agents)

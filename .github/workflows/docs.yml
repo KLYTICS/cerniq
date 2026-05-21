@@ -1,0 +1,112 @@
+name: docs
+
+# Gates for @aegis/docs (apps/docs/). Runs on any PR that touches the docs
+# app, the OpenAPI spec it auto-renders from, or the wire constants its live
+# components depend on. Three jobs run in parallel:
+#   1. typecheck    — tsc --noEmit against apps/docs
+#   2. parity       — cross-package parity tests (denial precedence, trust
+#                     bands, webhook events) covering the live components
+#   3. link-check   — lychee over MDX content to catch broken anchors and
+#                     dead external links before they ship to docs.aegislabs.io
+#
+# build-and-pack runs on push to main only — it executes the full prebuild
+# (OpenAPI generate) and `next build`, ensuring the deploy target will succeed.
+
+on:
+  pull_request:
+    paths:
+      - 'apps/docs/**'
+      - 'docs/spec/AEGIS_API_SPEC.yaml'
+      - 'packages/types/**'
+      - '.github/workflows/docs.yml'
+  push:
+    branches: [main]
+
+jobs:
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        # pnpm version is taken from root package.json "packageManager" field.
+        # Specifying `version:` here would conflict per pnpm/action-setup v4.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build @aegis/types (sibling workspace dep)
+        # apps/docs imports from @aegis/types, which package.json resolves
+        # to packages/types/dist/ — must be built before docs can typecheck.
+        run: pnpm --filter @aegis/types build
+      - name: Generate Fumadocs source (.source/index.ts)
+        # tsc imports `@/.source` which only exists after fumadocs-mdx has
+        # walked content/docs/. Must run before any standalone typecheck.
+        run: pnpm --filter @aegis/docs exec fumadocs-mdx
+      - name: Generate OpenAPI MDX
+        run: pnpm --filter @aegis/docs openapi:generate
+      - name: Generate SDK reference (TypeDoc)
+        run: pnpm --filter @aegis/docs sdk:generate
+      - name: Typecheck @aegis/docs
+        run: pnpm --filter @aegis/docs typecheck
+
+  parity:
+    name: parity (docs ↔ types)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        # pnpm version is taken from root package.json "packageManager" field.
+        # Specifying `version:` here would conflict per pnpm/action-setup v4.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cross-package parity tests
+        run: pnpm test:parity
+
+  link-check:
+    name: link-check (lychee)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lychee link check
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # --base sets the root for resolving root-relative URLs into URIs
+          # (otherwise lychee errors at URL-parse time before exclude rules run).
+          # --exclude then drops the resolved internal URLs (validated by
+          # Next.js routing at build time) and dev-only localhost refs.
+          args: |
+            --no-progress
+            --max-concurrency 4
+            --base https://docs.aegislabs.io
+            --exclude '^https://docs\.aegislabs\.io'
+            --exclude '^http://localhost'
+            'apps/docs/content/**/*.mdx'
+            'apps/docs/README.md'
+          fail: true
+
+  build-and-pack:
+    name: build (main only)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        # pnpm version is taken from root package.json "packageManager" field.
+        # Specifying `version:` here would conflict per pnpm/action-setup v4.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build @aegis/types (sibling workspace dep)
+        run: pnpm --filter @aegis/types build
+      - name: Build @aegis/docs
+        run: pnpm --filter @aegis/docs build
+        env:
+          AEGIS_API_BASE_URL: https://api.aegislabs.io
+          NEXT_PUBLIC_DOCS_URL: https://docs.aegislabs.io

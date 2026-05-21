@@ -498,7 +498,7 @@ components:
           type: string
         status:
           type: string
-          enum: [active, suspended, revoked]
+          enum: [pending_verification, active, suspended, revoked]
         trustScore:
           type: integer
           minimum: 0
@@ -520,7 +520,7 @@ components:
           type: string
         status:
           type: string
-          enum: [active, suspended, revoked]
+          enum: [pending_verification, active, suspended, revoked]
         trustScore:
           type: integer
         trustBand:
@@ -564,6 +564,10 @@ components:
           type: string
         agentId:
           type: string
+        label:
+          type: string
+          nullable: true
+          description: Operator-supplied label for the policy (free-form, not interpreted).
         scopes:
           type: array
           items:
@@ -710,6 +714,35 @@ components:
           description: Seconds this result can be cached by relying party
           example: 30
 
+    DenialReason:
+      type: string
+      description: |
+        Canonical denial reason returned by the policy engine on
+        `valid: false` responses. The engine
+        (`apps/api/src/common/policy-engine/engine.interface.ts`) is the
+        source of truth; relying-party SDKs (`packages/verifier-rp`) MAY
+        carry a superset (e.g. `REPLAY_DETECTED` is client-cache-only and
+        never returned by the API). Enum order below is the canonical
+        DENIAL PRECEDENCE per ADR-0004 § "Denial Precedence".
+        `PLAN_LIMIT_EXCEEDED` is a billing pre-gate that fires BEFORE the
+        algorithm chain — it is documented inline on
+        `VerifyResponse.denialReason` and is NOT enumerated here because
+        the engine type does not include it. Reconciling that drift is
+        tracked in the M-056 regression handoff.
+        When ADR-0016 (`INTENT_MISMATCH`) lands on main, extend this
+        enum and the `VerifyResponse.denialReason` inline list together.
+      enum:
+        - AGENT_NOT_FOUND
+        - AGENT_REVOKED
+        - INVALID_SIGNATURE
+        - POLICY_REVOKED
+        - POLICY_EXPIRED
+        - SCOPE_NOT_GRANTED
+        - TRIAL_EXHAUSTED
+        - SPEND_LIMIT_EXCEEDED
+        - TRUST_SCORE_TOO_LOW
+        - ANOMALY_FLAGGED
+
     AuditEvent:
       type: object
       properties:
@@ -717,6 +750,12 @@ components:
           type: string
         agentId:
           type: string
+          nullable: true
+          description: Real agent FK; null when the verify call denied with AGENT_NOT_FOUND.
+        claimedAgentId:
+          type: string
+          nullable: true
+          description: Agent ID exactly as it appeared in the verify request — preserved even when no such agent exists, for forensic queries.
         principalId:
           type: string
         timestamp:
@@ -724,8 +763,14 @@ components:
           format: date-time
         action:
           type: string
+          nullable: true
+          description: Null after Art. 17 redaction; verify integrity via actionHash.
+        actionHash:
+          type: string
+          description: base64url(sha256(action)) — committed to in the signed chain payload so the chain stays verifiable through GDPR erasure.
         relyingParty:
           type: string
+          nullable: true
         decision:
           type: string
           enum: [approved, denied, flagged]

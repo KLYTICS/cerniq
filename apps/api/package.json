@@ -69,7 +69,7 @@
   "optionalDependencies": {
     "@aws-sdk/client-kms": "^3.700.0",
     "@cedar-policy/cedar-wasm": "^3.4.0",
-    "@google-cloud/kms": "^4.6.0",
+    "@google-cloud/kms": "^4.5.0",
     "@open-policy-agent/opa-wasm": "^1.10.0",
     "@workos-inc/node": "^7.45.0"
   },

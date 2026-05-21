@@ -43,7 +43,22 @@ export const AgentRuntimeSchema = z.enum([
   'huggingface',
   'custom',
 ]);
-export const AgentStatusSchema = z.enum(['pending_verification', 'active', 'suspended', 'revoked']);
+/**
+ * AgentStatus enum — the lifecycle states of an agent record. Renamed
+ * from `AgentStatusSchema` on 2026-05-21 (M-057) so the name
+ * `AgentStatusSchema` could be reclaimed by the AgentStatus OpenAPI
+ * RESPONSE component (the object returned by GET /v1/agents/:id/status).
+ *
+ * Backward compat: `AgentStatusValue` (the inferred string union) is
+ * unchanged. The Prisma-side parity script (scripts/verify-spec.ts)
+ * now resolves `AgentStatus` (Prisma enum) → `AgentStatusEnumSchema`.
+ */
+export const AgentStatusEnumSchema = z.enum([
+  'pending_verification',
+  'active',
+  'suspended',
+  'revoked',
+]);
 export const TrustBandSchema = z.enum(['PLATINUM', 'VERIFIED', 'WATCH', 'FLAGGED']);
 export const PolicyStatusSchema = z.enum(['active', 'expired', 'revoked']);
 export const PolicyCategorySchema = z.enum([
@@ -176,25 +191,37 @@ export const AgentIdentitySchema = z.object({
   runtime: AgentRuntimeSchema,
   model: z.string().nullable().optional(),
   label: z.string().nullable().optional(),
-  status: AgentStatusSchema,
+  status: AgentStatusEnumSchema,
   trustScore: z.number().int().min(0).max(1000),
   trustBand: TrustBandSchema,
   registeredAt: IsoDateTimeSchema,
   lastSeenAt: IsoDateTimeSchema.nullable().optional(),
 });
 
-export const AgentStatusResponseSchema = z.object({
+/**
+ * AgentStatus RESPONSE shape — the object returned by
+ * GET /v1/agents/:id/status. This name MUST match the OpenAPI component
+ * `AgentStatus` so the spec-sync gate at
+ * packages/types/scripts/check-openapi-zod-parity.ts finds it via its
+ * `${ComponentName}Schema` lookup (M-057, 2026-05-21).
+ *
+ * `AgentStatusResponseSchema` is preserved as an alias to keep older
+ * consumers compiling — both names point at the same object.
+ */
+export const AgentStatusSchema = z.object({
   agentId: AgentIdSchema,
-  status: AgentStatusSchema,
+  status: AgentStatusEnumSchema,
   trustScore: z.number().int().min(0).max(1000),
   trustBand: TrustBandSchema,
   lastSeenAt: IsoDateTimeSchema.nullable().optional(),
 });
 
+export const AgentStatusResponseSchema = AgentStatusSchema;
+
 export const AgentListQuerySchema = z.object({
   limit: z.number().int().min(1).max(100).optional(),
   cursor: AgentIdSchema.optional(),
-  status: AgentStatusSchema.optional(),
+  status: AgentStatusEnumSchema.optional(),
   runtime: AgentRuntimeSchema.optional(),
   search: z.string().min(1).max(120).optional(),
 });
@@ -317,10 +344,12 @@ export const AuditDecisionSchema = z.enum(['approved', 'denied', 'flagged']);
 
 export const AuditEventSchema = z.object({
   eventId: z.string(),
-  agentId: AgentIdSchema,
+  agentId: AgentIdSchema.nullable(),
+  claimedAgentId: z.string().nullable().optional(),
   principalId: PrincipalIdSchema,
   timestamp: IsoDateTimeSchema,
-  action: z.string(),
+  action: z.string().nullable(),
+  actionHash: z.string(),
   relyingParty: z.string().nullable().optional(),
   decision: AuditDecisionSchema,
   decisionReason: z.string().nullable().optional(),
@@ -347,7 +376,7 @@ export const ReportRequestSchema = z.object({
 // ── Inferred types (export the names consumers actually use) ────
 
 export type AgentRuntime = z.infer<typeof AgentRuntimeSchema>;
-export type AgentStatusValue = z.infer<typeof AgentStatusSchema>;
+export type AgentStatusValue = z.infer<typeof AgentStatusEnumSchema>;
 export type TrustBand = z.infer<typeof TrustBandSchema>;
 export type PolicyStatus = z.infer<typeof PolicyStatusSchema>;
 export type PolicyCategory = z.infer<typeof PolicyCategorySchema>;

@@ -1,0 +1,73 @@
+---
+title: Trust bands & BATE scoring
+description: The Behavioral Attestation & Trust Engine assigns a 0-1000 score to each agent and classifies it into four bands. Policies use bands directly.
+---
+
+The Behavioral Attestation & Trust Engine (BATE) computes a per-agent
+trust score on every signal — verifies, policy violations, fraud reports,
+relying-party flags — and classifies the score into one of four bands.
+
+<TrustBandLegend />
+
+## How the score moves
+
+Signals are weighted. The default rule-based v1 weights are:
+
+| Signal                       | Weight | Why                                              |
+| ---------------------------- | ------ | ------------------------------------------------ |
+| `CLEAN_TX`                   | `+1`   | Steady positive reinforcement                    |
+| `FRAUD_REPORT`               | `-200` | Catastrophic — single confirmed fraud drops band |
+| `VELOCITY_ANOMALY`           | `-50`  | Unusual rate of verifies vs. baseline            |
+| `GEO_INCONSISTENCY`          | `-30`  | Verifies from impossible geographic distance     |
+| `SPEND_DEVIATION`            | `-20`  | Per-currency spend pattern shift                 |
+| `FAILED_VERIFY_SPIKE`        | `-75`  | Burst of denials — possible compromise           |
+| `POLICY_VIOLATION_ATTEMPT`   | `-100` | Tried to act outside scope                       |
+
+These are interim weights pending operator decision OD-001 — see
+[OPERATOR_DECISIONS.md](https://github.com/klytics/aegis/blob/main/OPERATOR_DECISIONS.md).
+
+## Cold start
+
+New agents start at score **500** (VERIFIED band by default). KYC
+verification awards a `+150` bonus, lifting a fresh agent to 650 — well
+above the common 600 acceptance threshold. KYC is required to reach
+PLATINUM (`>= 750`).
+
+## How policies use bands
+
+`scope.minimumTrustBand` on a policy enforces a band floor at verify time:
+
+```ts
+const policy = await aegis.policies.create({
+  agentId,
+  scope: {
+    actions: ['charge'],
+    spendLimitUsd: 500,
+    minimumTrustBand: 'VERIFIED', // FLAGGED agents will fail with TRUST_SCORE_TOO_LOW
+  },
+  ttlSeconds: 60,
+});
+```
+
+When verify fails this gate the denial reason is `TRUST_SCORE_TOO_LOW`,
+which is **retryable with backoff** because BATE recomputes frequently
+and a transient anomaly may resolve before the next attempt.
+
+## When bands change, you get told
+
+Crossing a band threshold emits an `aegis.agent.trust_score_changed`
+webhook to all subscribers. See [webhooks](/docs/concepts/webhooks).
+
+## Anomaly detector rules
+
+Rule-based v1:
+
+| Rule  | What it watches                                              |
+| ----- | ------------------------------------------------------------ |
+| R-1   | Velocity — verifies per minute vs. 30-day baseline           |
+| R-2   | Geography — successive verifies separated by impossible distance |
+| R-3   | Spend pattern — per-currency coefficient of variation        |
+| R-4   | Failed-verify spike — burst of denials in a short window     |
+| R-5   | Delegation chain depth — agent acting on behalf of agent-of-agent |
+
+The full algorithm lives at [`docs/BATE_ALGORITHM.md`](https://github.com/klytics/aegis/blob/main/docs/BATE_ALGORITHM.md).

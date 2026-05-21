@@ -1,0 +1,55 @@
+name: lighthouse-docs
+
+# Performance, accessibility, best-practices, and SEO budgets for the docs
+# site. Runs on PRs touching apps/docs/** so a regression in any of those
+# four axes fails the PR before it can merge.
+#
+# Self-contained — builds the docs locally, serves via `next start`, and
+# runs Lighthouse against localhost. No Vercel dependency, no third-party
+# Lighthouse-as-a-service.
+
+on:
+  pull_request:
+    paths:
+      - 'apps/docs/**'
+      - 'packages/types/**'
+      - 'docs/spec/AEGIS_API_SPEC.yaml'
+      - '.github/workflows/lighthouse-docs.yml'
+
+jobs:
+  lighthouse:
+    name: Lighthouse CI (desktop)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        # pnpm version is taken from root package.json "packageManager" field.
+        # Specifying `version:` here would conflict per pnpm/action-setup v4.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build @aegis/types (sibling workspace dep)
+        # apps/docs imports from @aegis/types which resolves to dist/;
+        # must be built before docs build can succeed.
+        run: pnpm --filter @aegis/types build
+      - name: Build @aegis/docs
+        run: pnpm --filter @aegis/docs build
+        env:
+          AEGIS_API_BASE_URL: https://api.aegislabs.io
+          NEXT_PUBLIC_DOCS_URL: https://docs.aegislabs.io
+      - name: Install Chrome (for Lighthouse)
+        uses: browser-actions/setup-chrome@v1
+      - name: Run Lighthouse CI
+        working-directory: apps/docs
+        run: pnpm lhci:autorun
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+      - name: Upload Lighthouse artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lhci-reports
+          path: apps/docs/.lighthouseci
+          retention-days: 14
