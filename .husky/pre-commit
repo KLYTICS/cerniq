@@ -15,8 +15,15 @@ pnpm lint-staged
 # Test files (*.spec.ts, *.test.ts, /tests/, /__tests__/, *.fixture.*) are
 # allowed to contain placeholder keys — they exist to drive coverage of the
 # rejection paths. Real-key shapes outside test files still trip the gate.
+#
+# `^\.husky/` is in the allowlist because THIS FILE contains the literal
+# `JWT_ED25519_PRIVATE_KEY_B64=` and `AUDIT_SIGNING_KEY_B64=` substrings as
+# part of its own BLOCKED regex. Without the exemption, any edit to this
+# hook would trip the hook against itself (and force --no-verify, which
+# CLAUDE.md forbids). Footgun: any other file under `.husky/` is also
+# exempt — keep this directory limited to hook scripts.
 BLOCKED='\.env$|\.env\.[^.]+$|^secrets/|\.pem$|\.key$|aegis_sk_[A-Za-z0-9]+|aegis_vk_[A-Za-z0-9]+|JWT_ED25519_PRIVATE_KEY_B64=|AUDIT_SIGNING_KEY_B64='
-TEST_FILE_ALLOWLIST='\.(spec|test|fixture|mock|stub)\.(ts|tsx|js|jsx|mjs|cjs)$|/tests?/|/__tests?__/|/test/|/_stubs/|tools/postman/'
+TEST_FILE_ALLOWLIST='\.(spec|test|fixture|mock|stub)\.(ts|tsx|js|jsx|mjs|cjs)$|/tests?/|/__tests?__/|/test/|/_stubs/|tools/postman/|^\.husky/'
 HITS=$(git diff --cached --name-only -z | xargs -0 -r grep -lE "$BLOCKED" 2>/dev/null \
        | grep -vE "$TEST_FILE_ALLOWLIST" || true)
 if [ -n "$HITS" ]; then
@@ -43,8 +50,8 @@ fi
 # Most commits skip this entirely; the ones that need it get caught locally
 # instead of in CI 5 minutes later.
 #
-# Gates on `make preflight-fast` exit 2 (gating fail) — exit 1 (warnings)
-# is allowed through, since warnings are tracked separately.
+# Gates on preflight exit 2 (gating fail). Exit 1 (warnings) is allowed
+# through with a visible reminder; warnings are tracked separately.
 #
 # Escape hatch: SKIP_PREFLIGHT=1 git commit ... (use sparingly; pair with a
 # follow-up fix commit). Hard `--no-verify` still works for true emergencies.
@@ -52,15 +59,34 @@ HBR_PATTERN='^apps/api/src/modules/verify/algorithm/|^apps/api/prisma/schema\.pr
 if [ "${SKIP_PREFLIGHT:-0}" != "1" ] && \
    git diff --cached --name-only | grep -qE "$HBR_PATTERN"; then
   echo "preflight: high-blast-radius change staged — running fast gate..."
-  if ! make -s preflight-fast; then
-    code=$?
-    if [ "$code" -ge 2 ]; then
-      echo
-      echo "✖ Preflight gating failure. See infra/observability/runbooks/preflight-failure.md."
-      echo "  Override (sparingly): SKIP_PREFLIGHT=1 git commit ..."
-      exit 1
-    fi
-    # exit 1 = warnings only — allow through with a visible reminder.
+  # Invoke preflight DIRECTLY rather than via `make -s preflight-fast`.
+  # GNU make rewrites any non-zero recipe exit to 2 — so preflight's
+  # warning-level exit 1 reached the hook as exit 2, indistinguishable
+  # from a true gating failure, and every warning blocked the commit.
+  # Calling tsx directly preserves preflight's own exit code (1 vs ≥2).
+  #
+  # The previous `if ! make ...; then code=$?` form also had a separate
+  # bug: in POSIX shells, $? inside the `then` branch of `if !` is the
+  # negated condition's value (always 0 or 1), NOT the inner command's
+  # actual exit code. That collapsed gating failures into the warning
+  # path. Capturing $? straight off the command (no `if` wrapper) avoids
+  # both pitfalls.
+  #
+  # `-F @aegis/api` is used so tsx resolves from apps/api's deps, matching
+  # the Makefile's invocation. That filter also switches cwd to apps/api,
+  # so the script path must be absolute — the Makefile uses `$(CURDIR)/…`
+  # for the same reason. We use git's authoritative top-level (hooks run
+  # there already, but being explicit removes ambiguity).
+  REPO_ROOT=$(git rev-parse --show-toplevel)
+  pnpm -s -F @aegis/api exec tsx "$REPO_ROOT/tools/preflight/preflight.ts" --fast
+  code=$?
+  if [ "$code" -ge 2 ]; then
+    echo
+    echo "✖ Preflight gating failure. See infra/observability/runbooks/preflight-failure.md."
+    echo "  Override (sparingly): SKIP_PREFLIGHT=1 git commit ..."
+    exit 1
+  fi
+  if [ "$code" -eq 1 ]; then
     echo "⚠ Preflight reports warnings (exit $code). Commit allowed; address before push."
   fi
 fi
