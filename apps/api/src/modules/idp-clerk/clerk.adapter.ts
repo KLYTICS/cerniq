@@ -18,6 +18,11 @@ import { createHash, createPublicKey, verify as verifyAsymmetric } from 'node:cr
 
 import { Injectable, Logger } from '@nestjs/common';
 
+import {
+  optionalStringArrayClaim,
+  optionalStringClaim,
+  requireStringClaim,
+} from '../../common/auth/jwt-claim-validation';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { AppConfigService } from '../../config/config.service';
@@ -86,28 +91,73 @@ export class ClerkAdapter implements IdpAdapter {
     const algoOid = header.alg === 'RS512' ? 'RSA-SHA512' : header.alg === 'RS384' ? 'RSA-SHA384' : 'RSA-SHA256';
     if (!verifyAsymmetric(algoOid, data, pubKey, sig)) return null;
 
+    // Claim-type validation. Same loud-fail discipline as auth0.adapter
+    // — a malformed claim short-circuits to null per AEGIS "no silent
+    // failures" doctrine. Log claim names (not values) for ops visibility.
+    const sub = requireStringClaim(claims, 'sub');
+    const email = requireStringClaim(claims, 'email');
+    if (!sub) {
+      this.logger.warn('clerk token rejected: missing/malformed claim sub');
+      return null;
+    }
+    if (!email) {
+      this.logger.warn('clerk token rejected: missing/malformed claim email');
+      return null;
+    }
+
+    // Clerk's organization id lives at `org_id` (active org) or `o.id`
+    // depending on the Clerk version. The `o` claim is nested, so we
+    // validate it specially: if present it must be an object containing
+    // a string `id`; if absent we fall through to org_id only.
+    const orgIdClaim = optionalStringClaim(claims, 'org_id');
+    const orgDomainClaim = optionalStringClaim(claims, 'org_slug');
+    const nameClaim = optionalStringClaim(claims, 'name');
+    const orgRoleClaim = optionalStringClaim(claims, 'org_role');
+    const rolesArrayClaim = optionalStringArrayClaim(claims, 'https://aegis.dev/roles');
+    if (
+      orgIdClaim === null ||
+      orgDomainClaim === null ||
+      nameClaim === null ||
+      orgRoleClaim === null ||
+      rolesArrayClaim === null
+    ) {
+      this.logger.warn('clerk token rejected: optional claim present with wrong type');
+      return null;
+    }
+
+    // Nested `o.id` fallback for the older Clerk JWT format. If `o` is
+    // present we require it to be an object with a string `id`; if it's
+    // present but malformed (e.g. array, number), reject the token.
+    let nestedOrgId = '';
+    if (claims.o !== undefined && claims.o !== null) {
+      if (typeof claims.o !== 'object' || Array.isArray(claims.o)) {
+        this.logger.warn('clerk token rejected: o claim present but not an object');
+        return null;
+      }
+      const o = claims.o as Record<string, unknown>;
+      const oId = optionalStringClaim(o, 'id');
+      if (oId === null) {
+        this.logger.warn('clerk token rejected: o.id present with wrong type');
+        return null;
+      }
+      nestedOrgId = oId ?? '';
+    }
+
+    // Clerk roles arrive as `org_role` (single string for active org) or
+    // a custom claim. Normalize: only `aegis:*` roles propagate.
+    const roles =
+      orgRoleClaim && orgRoleClaim.startsWith('aegis:')
+        ? [orgRoleClaim]
+        : (rolesArrayClaim ?? []).filter((r) => r.startsWith('aegis:'));
+
     return {
-      idpUserId: typeof claims.sub === 'string' ? claims.sub : '',
-      // Clerk's organization id lives at `org_id` (active org) or `o.id`
-      // depending on the Clerk version.
-      idpOrganizationId:
-        typeof claims.org_id === 'string'
-          ? claims.org_id
-          : (() => {
-              const o = claims.o as Record<string, unknown> | undefined;
-              return typeof o?.id === 'string' ? o.id : '';
-            })(),
-      idpDomain: typeof claims.org_slug === 'string' ? claims.org_slug : '',
-      email: typeof claims.email === 'string' ? claims.email : '',
+      idpUserId: sub,
+      idpOrganizationId: orgIdClaim ?? nestedOrgId,
+      idpDomain: orgDomainClaim ?? '',
+      email,
       emailVerified: Boolean(claims.email_verified),
-      name: typeof claims.name === 'string' ? claims.name : null,
-      // Clerk roles arrive as `org_role` (single string for active org) or
-      // a custom claim. We normalize: only `aegis:*` roles propagate.
-      roles: typeof claims.org_role === 'string' && claims.org_role.startsWith('aegis:')
-        ? [claims.org_role]
-        : Array.isArray(claims['https://aegis.dev/roles'])
-          ? (claims['https://aegis.dev/roles'] as string[]).filter((r) => r.startsWith('aegis:'))
-          : [],
+      name: nameClaim ?? null,
+      roles,
       mfaSatisfied: Array.isArray(claims.amr) && (claims.amr as string[]).includes('mfa'),
       rawClaims: claims,
     };

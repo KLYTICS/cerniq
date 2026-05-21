@@ -9,6 +9,11 @@ import { createHash, createPublicKey, verify as verifyAsymmetric } from 'node:cr
 
 import { Injectable, Logger } from '@nestjs/common';
 
+import {
+  optionalStringArrayClaim,
+  optionalStringClaim,
+  requireStringClaim,
+} from '../../common/auth/jwt-claim-validation';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { AppConfigService } from '../../config/config.service';
@@ -73,22 +78,46 @@ export class Auth0Adapter implements IdpAdapter {
     const algoOid = header.alg === 'RS512' ? 'RSA-SHA512' : header.alg === 'RS384' ? 'RSA-SHA384' : 'RSA-SHA256';
     if (!verifyAsymmetric(algoOid, data, pubKey, sig)) return null;
 
+    // Claim-type validation. Per AEGIS "no silent failures" doctrine
+    // (CLAUDE.md), a malformed claim short-circuits to null — the same
+    // sentinel used for "signature invalid" elsewhere in this function.
+    // We log the claim NAME (never the value, which may be tenant-private)
+    // so ops can see malformed-token activity without leaking PII.
+    const sub = requireStringClaim(claims, 'sub');
+    const email = requireStringClaim(claims, 'email');
+    if (!sub) {
+      this.logger.warn('auth0 token rejected: missing/malformed claim sub');
+      return null;
+    }
+    if (!email) {
+      this.logger.warn('auth0 token rejected: missing/malformed claim email');
+      return null;
+    }
+
+    const orgIdClaim = optionalStringClaim(claims, 'org_id');
+    const orgClaim = optionalStringClaim(claims, 'organization');
+    const domainClaim = optionalStringClaim(claims, 'https://aegis.dev/domain');
+    const nameClaim = optionalStringClaim(claims, 'name');
+    const rolesClaim = optionalStringArrayClaim(claims, 'https://aegis.dev/roles');
+    if (
+      orgIdClaim === null ||
+      orgClaim === null ||
+      domainClaim === null ||
+      nameClaim === null ||
+      rolesClaim === null
+    ) {
+      this.logger.warn('auth0 token rejected: optional claim present with wrong type');
+      return null;
+    }
+
     return {
-      idpUserId: typeof claims.sub === 'string' ? claims.sub : '',
-      idpOrganizationId:
-        typeof claims.org_id === 'string'
-          ? claims.org_id
-          : typeof claims.organization === 'string'
-            ? claims.organization
-            : '',
-      idpDomain:
-        typeof claims['https://aegis.dev/domain'] === 'string'
-          ? claims['https://aegis.dev/domain']
-          : '',
-      email: typeof claims.email === 'string' ? claims.email : '',
+      idpUserId: sub,
+      idpOrganizationId: orgIdClaim ?? orgClaim ?? '',
+      idpDomain: domainClaim ?? '',
+      email,
       emailVerified: Boolean(claims.email_verified),
-      name: typeof claims.name === 'string' ? claims.name : null,
-      roles: Array.isArray(claims['https://aegis.dev/roles']) ? (claims['https://aegis.dev/roles'] as string[]) : [],
+      name: nameClaim ?? null,
+      roles: rolesClaim,
       mfaSatisfied: Array.isArray(claims.amr) && (claims.amr as string[]).includes('mfa'),
       rawClaims: claims,
     };
