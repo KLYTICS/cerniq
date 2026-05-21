@@ -77,9 +77,17 @@ jobs:
     # pin: replace with full sha before merge
     uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v1.9.1
     with:
+      # --config explicitly loads the repo-root osv-scanner.toml. Without
+      # it, the reusable workflow's auto-discovery does NOT find the file
+      # next to the lockfile in this v1.9.1 release (confirmed via PR #29
+      # run 26169038928 log — no "Loaded config from" line was emitted).
+      # The toml's PackageOverrides entries silence only the deadlocked
+      # CVEs while the remediation PRs flow; see osv-scanner.toml +
+      # docs/SECURITY_MERGE_TRAIN_UNBLOCK.md for the sunset policy.
       scan-args: |-
         --recursive
         --skip-git
+        --config=./osv-scanner.toml
         --lockfile=./pnpm-lock.yaml
         ./
       fail-on-vuln: true
