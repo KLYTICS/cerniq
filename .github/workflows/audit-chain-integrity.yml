@@ -97,7 +97,7 @@ jobs:
 
       - name: Upload result artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 (2025-03-19)
         with:
           name: audit-verify-${{ github.run_id }}-${{ github.event.inputs.environment || 'staging' }}
           path: /tmp/audit-verify/result.json
@@ -105,7 +105,7 @@ jobs:
 
       - name: Notify Slack on failure
         if: failure()
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@37ebaef184d7626c5f204ab8d3baff4262dd30f0 # v1.27.0 (2024-08-28)
         with:
           payload: |
             {
