@@ -5,6 +5,260 @@
 
 ---
 
+## 2026-05-21 (pnpm-version cascade fix + PR #12 rebase + peer broadcast — ultrathink sync turn) · sid=busy-khorana-7281c7 · claim=none
+
+**Status:** ✅ PR #32 third commit fixes a 6-workflow pnpm-duplicate-version
+cascade discovered while triaging why PR #32's own CI was failing despite
+local greenness. PR #12 (audit-chain workflow defensive secrets) rebased
+onto current main + force-pushed, ends the 5-day false-positive cron alarm
+once CI completes. Peer broadcast sent — reached 1 active terminal
+(sid `cb70e666`).
+
+### What surfaced (and how)
+
+Investigating PR #32's red CI revealed the real cause: `pnpm/action-setup@v4`
+errors on `Error: Multiple versions of pnpm specified` when **both**
+`with: version:` is configured **and** root `package.json` has a
+`packageManager: pnpm@X.Y.Z` field. Six workflows had this anti-pattern:
+
+| Workflow | Pin | Drift? |
+| -------- | --- | ------ |
+| `ci.yml` | `9.12.3` | matches root |
+| `audit-chain-integrity.yml` | `9.12.3` | matches root |
+| `security.yml` | `${{ env.PNPM_VERSION }}=9.12.3` | matches root |
+| `spec-sync.yml` | `9` | matches root semver |
+| `release.yml` | `9.15.0` | **DRIFTED** from root 9.12.3 |
+| `sbom.yml` | `9.15.0` | **DRIFTED** from root 9.12.3 |
+
+The docs workflow was fixed for the same issue in commit cd5028a but the
+fix was never propagated. After this PR every workflow inherits the
+canonical `pnpm@9.12.3` from `package.json` — bumping pnpm is now a
+one-file change instead of seven, and version drift is structurally
+impossible.
+
+### What it cost the platform before
+
+The cascading "Multiple versions of pnpm" error masqueraded as a
+spec-sync parity failure (its first failing job in the rollup),
+hiding the real cause behind a confusing label. Every PR triggering
+these workflows since the docs-workflow fix (~2 weeks ago) accumulated
+this latent failure mode. The fix is small (6 files, 16 LOC) but it
+clears another lurking cause of "CI is mysteriously red" across the
+whole PR queue.
+
+### PR #12 rebase
+
+`fix(ci): audit-chain workflow fails fast on missing secrets +
+Slack guarded` had been UNSTABLE for 8 days because its Security
+workflow checks timed out (24h max) before PR #29 landed the
+osv-scanner fix. Rebased PR #12's single commit onto current main
+(post-#29) and force-pushed; fresh CI is running. Once green, it
+ends the daily 06:00 UTC Slack-noise alarm and surfaces the real
+issue — missing GitHub Environment secrets for staging audit-chain
+verification.
+
+The PR #12 fix-path is exactly what invariant 4 calls for: replace a
+silent cascade (verify fails on empty DB URL → Slack notification
+fails on missing webhook → the Slack failure masks the verify failure
+in the run summary) with an actionable preflight that names the missing
+secrets and the Settings → Environments path to configure them.
+
+### Peer sync
+
+`claude-peers status` showed "no active claims" but `msg all` reached
+1 recipient (sid `cb70e666`). There IS another active terminal session,
+just not holding a path claim. The broadcast included the full state
+recap so the peer terminal can pick up coherently.
+
+### Verification
+
+PR #32 latest CI (sha=9c47d71, third commit):
+```
+Denial precedence enum (ADR-0004): ✓ pass
+OpenAPI ↔ Prisma:                  ✓ pass
+OpenAPI ↔ Zod:                     ✓ pass
+typecheck:                         ✓ pass
+parity (docs ↔ types):             ✓ pass
+link-check (lychee):               ✓ pass
+Lighthouse + build:                pending (queued)
+```
+
+PR #12 latest CI (rebased onto main): all checks pending fresh.
+
+### What's next
+
+- Wait for PR #32's build + Lighthouse to complete; merge.
+- Wait for PR #12's Security workflow to complete; merge if green.
+- After PR #32 lands, the pnpm fix is on main and any future PR
+  touching CI/Security/audit-chain/release/sbom workflows benefits.
+- Audit-chain alarm finally goes silent (PR #12 + operator setting
+  the missing GitHub Environment secrets for `staging`).
+
+### Discipline note
+
+The pnpm cascade was discovered ONLY because the spec-sync CI showed
+"OpenAPI ↔ Prisma" failing while local was green. That contradiction
+forced investigation that surfaced the workflow-runtime bug. Lesson:
+when local-vs-CI diverges, the gap is the artifact — the environment
+delta IS the bug. Tracing it backwards is more valuable than re-running
+tests.
+
+---
+
+## 2026-05-21 (spec-sync surgical fix — 3 jobs to GREEN, unblocks supply-chain PR wave) · sid=busy-khorana-7281c7 · claim=none (PR-level fix on fresh branch from main)
+
+**Status:** ✅ Fresh PR opened — [#32](https://github.com/KLYTICS/aegis/pull/32)
+"fix(spec-sync): close M-056 regression — extractors + AgentStatus + AuditEvent
+wire fields". Locally green on all 3 spec-sync jobs plus 4 workspace typechecks
+and 27 parity tests. Routes around [#26](https://github.com/KLYTICS/aegis/pull/26)
+(DIRTY, -10354 lines of M-014 docs conflicts — unrebaseable in practice).
+
+### Three drifts converged into one gate
+
+1. **denial-precedence (every PR red)** — bash extractor pattern `"DenialReason:"`
+   (PascalCase + colon) didn't match the actual YAML field `denialReason:`
+   (camelCase). grep returned nothing → comparison silently reported every
+   engine value as missing in OpenAPI. Fix lifted from #26: `sed` between
+   markers + canonical `components.schemas.DenialReason` schema.
+2. **openapi-vs-zod (AgentStatus red)** — `findZodSchema()` returned the
+   **first** matching candidate. `AgentStatusSchema` exists as a z.enum
+   (status values), `AgentStatusResponseSchema` is the wire object; the
+   script grabbed the enum, then `zodObjectKeys()` returned null, every
+   OpenAPI field reported as missing. Fix: prefer `ZodObject` candidates.
+3. **openapi-vs-prisma (3 components red)** — `AgentStatus.status` enum
+   missing `pending_verification`; `AgentPolicy.label` + `AuditEvent.{claimedAgentId,
+   actionHash}` in DTOs but missing from OpenAPI YAML; Prisma's
+   `denialReason`/`aegisSignature` columns needed wire-name renames to
+   `decisionReason`/`signature`. All four faithfully addressed.
+
+### What's new in OpenAPI
+
+- `components.schemas.DenialReason` — canonical 10-value enum (engine order
+  per ADR-0004). Separate from the inline `VerifyResponse.denialReason`
+  which keeps PLAN_LIMIT_EXCEEDED at position 0 because it's the billing
+  pre-gate, not an algorithm output.
+- `AgentIdentity.status` / `AgentStatus.status` enums add `pending_verification`.
+- `AgentPolicy.label` — operator-supplied label (nullable).
+- `AuditEvent.claimedAgentId` — forensic FK preservation through GDPR
+  Art. 17 erasure (the chain signs `agentIdHash`, not the live FK).
+- `AuditEvent.actionHash` — base64url(sha256(action)) commitment so the
+  audit chain stays verifiable when the raw action is redacted.
+
+### Verification (all green locally)
+
+```text
+denial-precedence: ✓ GREEN
+openapi-zod:       ✓ GREEN
+openapi-prisma:    ✓ GREEN
+
+pnpm -F @aegis/types typecheck       → clean
+pnpm -F @aegis/api typecheck         → clean
+pnpm -F @aegis/verifier-rp typecheck → clean
+pnpm -F @aegis/sdk typecheck         → clean
+pnpm -F @aegis/types test            → 27/27 pass (incl. 16 parity tests)
+```
+
+### Knock-on unblocks
+
+Once #32 merges, the spec-sync gate is GREEN and the supply-chain hardening
+wave can rebase and land:
+
+- [#17](https://github.com/KLYTICS/aegis/pull/17) — SHA-pin all GitHub
+  Actions (33 refs / 13 actions) — real SOC2 supply-chain hardening,
+  gated on spec-sync for 5+ SHAs.
+- [#18](https://github.com/KLYTICS/aegis/pull/18), [#19](https://github.com/KLYTICS/aegis/pull/19),
+  [#20](https://github.com/KLYTICS/aegis/pull/20), [#21](https://github.com/KLYTICS/aegis/pull/21)
+  — Dependabot/semgrep/Dependabot-config wave.
+- [#25](https://github.com/KLYTICS/aegis/pull/25) — DenialContextKind wiring
+  (still DIRTY, author rebase needed but spec-sync no longer the blocker).
+- [#26](https://github.com/KLYTICS/aegis/pull/26) — can close as superseded
+  by #32 once it lands. Commented to that effect.
+
+### Discipline note
+
+Scope discipline matters: this PR could have ballooned into "fix every
+drift the parity gate now reveals" (e.g. adding the wire-narrower Prisma
+fields like `revokedAt`, `revokedReason`, `requestedAmount` to OpenAPI).
+Instead it ships exactly what's needed to make the gate green and reflects
+the **current** DTO truth — not an aspirational expansion of the public
+surface. Real follow-up exists (those fields could legitimately become
+public), but they need an API-evolution decision the operator hasn't
+been asked for yet, not a quiet drive-by addition.
+
+---
+
+## 2026-05-21 (merge-train triage — unblocked 13-PR osv-scanner cascade) · sid=busy-khorana-7281c7 · claim=none (read-mostly PR triage)
+
+**Status:** ✅ One PR merged ([#29](https://github.com/KLYTICS/aegis/pull/29)),
+one stale PR closed ([#6](https://github.com/KLYTICS/aegis/pull/6)), 13 Tier-2
+PRs nudged with explicit rebase instructions. No code changed in this worktree.
+
+### What I diagnosed
+
+18 PRs open, each showing 5–8 failing CI checks. Root cause was **one** failing
+job (`SCA · osv-scanner`) cascading to ~7 cancelled jobs per PR via
+`concurrency.cancel-in-progress` + default `fail-fast`. Apparent failure count
+inflated by ~7× vs. real count.
+
+Two distinct root causes underneath:
+
+1. **osv-scanner** — `osv-scanner.toml` not loaded (reusable workflow at
+   `google/osv-scanner-action@v1.9.1` doesn't auto-discover next to
+   `--lockfile`); allow-list keyed by GHSA ID (fragile — new advisories land
+   faster than the file can be updated).
+2. **Spec-sync regression** — `Denial precedence enum (ADR-0004)`,
+   `OpenAPI ↔ {Zod,Prisma}` failing on PRs that don't touch those paths.
+   Workflow extractor is buggy. Fix exists in [#26](https://github.com/KLYTICS/aegis/pull/26)
+   but DIRTY (conflicts), so it can't land until rebased by the author.
+
+### What I shipped
+
+- **Merged [#29](https://github.com/KLYTICS/aegis/pull/29)** — `--config=./osv-scanner.toml`
+  + switch to `PackageOverrides` keyed by `package@version` (auto-expires when
+  the lockfile bumps past the vulnerable version; no GHSA maintenance burden).
+  Approach matches the team's saved security-tooling preference.
+- **Closed [#6](https://github.com/KLYTICS/aegis/pull/6)** as superseded by #29
+  with a pointer comment explaining the more-durable PackageOverrides approach.
+- **Rebase comments** posted on 13 Tier-2 PRs ([#10](https://github.com/KLYTICS/aegis/pull/10),
+  [#11](https://github.com/KLYTICS/aegis/pull/11), [#12](https://github.com/KLYTICS/aegis/pull/12),
+  [#15](https://github.com/KLYTICS/aegis/pull/15), [#18](https://github.com/KLYTICS/aegis/pull/18),
+  [#19](https://github.com/KLYTICS/aegis/pull/19), [#20](https://github.com/KLYTICS/aegis/pull/20),
+  [#21](https://github.com/KLYTICS/aegis/pull/21), [#22](https://github.com/KLYTICS/aegis/pull/22),
+  [#24](https://github.com/KLYTICS/aegis/pull/24), [#28](https://github.com/KLYTICS/aegis/pull/28),
+  [#30](https://github.com/KLYTICS/aegis/pull/30), [#31](https://github.com/KLYTICS/aegis/pull/31))
+  with the unblock context and a forward pointer to #26 for any remaining
+  spec-sync failures.
+
+### What's next for the merge train
+
+- **DIRTY PRs (8)** need author rebase before they can land:
+  [#4](https://github.com/KLYTICS/aegis/pull/4),
+  [#8](https://github.com/KLYTICS/aegis/pull/8),
+  [#9](https://github.com/KLYTICS/aegis/pull/9),
+  [#13](https://github.com/KLYTICS/aegis/pull/13),
+  [#14](https://github.com/KLYTICS/aegis/pull/14),
+  [#16](https://github.com/KLYTICS/aegis/pull/16),
+  [#25](https://github.com/KLYTICS/aegis/pull/25),
+  [#26](https://github.com/KLYTICS/aegis/pull/26). #26 is the most important
+  of these — it's the fix for the spec-sync regression that's gating #17.
+- **PR [#17](https://github.com/KLYTICS/aegis/pull/17)** (SHA-pin all actions)
+  will stay red until #26 lands (rebased) and #17 is rebased. After both,
+  #17 is the next-most-valuable security hardening to merge.
+- **GitHub-hosted runner queue** is backed up org-wide (zero self-hosted
+  runners). Queued runs from 2026-05-20 may stay queued indefinitely — this is
+  not a code issue. Re-pushing or merging-then-rebasing the queue is the
+  practical unstick if needed.
+
+### Discipline note
+
+This was a great example of why "every PR shows 7 failing checks" is rarely
+"7 problems" — `concurrency.cancel-in-progress: true` + parallel-fan-out makes
+one failure look like a constellation. Always identify the single failing job
+that cancelled the rest before reasoning about per-PR fixes. Inverted, the
+single-PR fix unblocks the whole train.
+
+---
+
 ## 2026-05-18 (Round 26 audit pass — caught 4 critical bugs before commit) · sid=gifted-payne · claim=aegis:M-014
 
 **Status:** ✅ Cold-review audit of Rounds 24-26 caught and fixed 4 critical bugs that would have broken on first `pnpm install` + first PR. Worth documenting because the same audit discipline should apply to every multi-round arc.
