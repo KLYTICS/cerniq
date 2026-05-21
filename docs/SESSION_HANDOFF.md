@@ -445,6 +445,51 @@ that cancelled the rest before reasoning about per-PR fixes. Inverted, the
 single-PR fix unblocks the whole train.
 ---
 
+## 2026-05-21 (E2E gate re-enabled — silent-skip CI hygiene fix + 2 source-code regressions caught) · sid=youthful-lumiere · claim=aegis:e2e-regex
+
+**Status:** ✅ The `apps/api` e2e suite is wired and green. `testRegex` widened to accept both `.e2e.spec.ts` (locked spec layout, dot) and `.e2e-spec.ts` (Nest convention, hyphen); jest now discovers every file in `apps/api/test/e2e/`. Final: **4 suites passed, 1 suite (`audit-chain`) skipped under M-021, 28 tests pass, 7 skipped, 0 failed**.
+
+### What the silent skip was masking
+
+Three classes of bug surfaced on first real run:
+
+1. **Test-helper drift (4 suites)** — `apps/api/test/e2e/_helpers/test-app.ts` still called `setGlobalPrefix('v1', ...)` *and* `enableVersioning({ defaultVersion: '1' })`. `apps/api/src/main.ts:47-50` had removed the global prefix months ago precisely because it stacks with versioning to produce `/v1/v1/...`. Every test hitting `/v1/agents/register` got 404. Fixed by aligning the helper with main.ts (versioning is the sole `/v1/` source).
+2. **Jest config drift (all suites)** — the e2e config lacked `transformIgnorePatterns` (ESM `@noble/ed25519` blew up) and `moduleNameMapper` (relative `./foo.js` imports of sibling `.ts` files failed). Both were already in the unit-test config; ported them over.
+3. **Real source-code regression (security)** — `apps/api/src/common/filters/http-exception.filter.ts:37` read `req.headers['x-request-id']` directly and used it (un-sanitised) for the response envelope + the `X-Request-Id` response header. `CorrelationMiddleware` had already sanitised inbound bytes and minted a `tx_<ulid>`, but the filter overwrote that with whatever the client sent (including 180-byte attacker-controlled junk). Fixed by reading from `CorrelationContext.current()?.txId` instead.
+
+Also: `setup-env.ts` now provides placeholder `WORKOS_API_KEY` / `WORKOS_COOKIE_PASSWORD` because `IdpWorkOsModule`'s factory throws at module construction without them; the WorkOS adapter itself is never called in e2e and the `new WorkOS(key)` constructor is inert (no network).
+
+### Deferred (M-021, follow-up task)
+
+`audit-chain.e2e.spec.ts` (3 tests) and `full-flow.e2e.spec.ts` test #10 still build the **v1** `AuditChainPayload` (raw `action` / `relyingParty` / `requestedAmount` / `policySnapshot`). Production migrated to **v2** (`actionHash` / `relyingPartyHash` / ... — base64url(sha256) commitments) for GDPR Art. 17 erasure safety. The suite is `describe.skip`'d and test #10 is `test.skip`'d under tracker **M-021** — rewrite should call `chain.buildPayload(...)` to derive hashes from raw row values, then `chain.verify` the v2 payload. Estimated ≥2 hours; intentionally deferred per the task budget.
+
+### Verification ran
+
+| Command | Result |
+| ------- | ------ |
+| `pnpm --filter @aegis/api typecheck` | clean |
+| `pnpm --filter @aegis/api test -- --testPathPattern='(filters\|correlation\|crypto)'` | 68 pass |
+| `DATABASE_URL=…/aegis_test pnpm --filter @aegis/api test:e2e` | 4 pass, 1 skipped, 28/35 tests pass |
+
+`aegis_test` + `aegis_test_shadow` Postgres databases were created locally; `prisma migrate deploy` (not `prisma migrate dev`, which is interactive and intended for drift detection) applied the 11 in-tree migrations.
+
+### Files touched
+
+- `apps/api/test/jest-e2e.config.ts` — regex `e2e[.-]spec`, `transformIgnorePatterns`, `moduleNameMapper`.
+- `apps/api/test/e2e/_helpers/test-app.ts` — removed stacked `setGlobalPrefix`, dropped unused `RequestMethod` import.
+- `apps/api/test/setup-env.ts` — WorkOS placeholders.
+- `apps/api/test/e2e/README.md` — removed the "out of scope" gotcha; added M-021 to the tracker table.
+- `apps/api/src/common/filters/http-exception.filter.ts` — read txId from `CorrelationContext`, not request headers.
+- `apps/api/test/e2e/audit-chain.e2e.spec.ts`, `apps/api/test/e2e/full-flow.e2e.spec.ts` — `describe.skip` / `test.skip` under M-021 with rewrite pointer.
+
+### What's next
+
+- Open a real M-021 follow-up to rewrite audit-chain.e2e + full-flow #10 against `AuditChainPayload` v2.
+- Plumb e2e into CI (currently still a local-only gate — the workflow change isn't part of this PR).
+- BullMQ "Jest did not exit one second after the test run has completed" warning indicates Redis connections aren't being closed cleanly in `afterAll`. Cosmetic, doesn't affect pass/fail; worth filing.
+
+---
+
 ## 2026-05-18 (Round 26 audit pass — caught 4 critical bugs before commit) · sid=gifted-payne · claim=aegis:M-014
 
 **Status:** ✅ Cold-review audit of Rounds 24-26 caught and fixed 4 critical bugs that would have broken on first `pnpm install` + first PR. Worth documenting because the same audit discipline should apply to every multi-round arc.

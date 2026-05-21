@@ -16,20 +16,12 @@ The existing `test:e2e` script is
 "test:e2e": "jest --config ./test/jest-e2e.config.ts --runInBand"
 ```
 
-> **Naming gotcha.** The Jest config at `apps/api/test/jest-e2e.config.ts`
-> uses `testRegex: '.*\\.e2e-spec\\.ts$'` (Nest convention with a hyphen),
-> but the files in this directory follow the locked spec layout
-> `<name>.e2e.spec.ts` (with a dot). Two options to run them today:
->
-> 1. Pass an explicit pattern:
->    `pnpm --filter @aegis/api test:e2e -- "test/e2e/.*\\.e2e\\.spec\\.ts$"`
-> 2. Add a sibling `*.e2e-spec.ts` re-export, e.g.
->    `full-flow.e2e-spec.ts → export * from './full-flow.e2e.spec'`.
->
-> The right long-term fix is a single-line edit to the Jest config to
-> accept both patterns. That edit is **out of scope for this session**
-> (config files are owned by the foundation session); flagged in
-> `docs/SESSION_HANDOFF.md`.
+The Jest config at `apps/api/test/jest-e2e.config.ts` uses
+`testRegex: '.*\\.e2e[.-]spec\\.ts$'` so both the locked spec layout
+(`<name>.e2e.spec.ts`, dot) and the Nest convention (`<name>.e2e-spec.ts`,
+hyphen) are picked up. Earlier revisions accepted only the hyphen form
+and so silently matched zero files — keep both alternatives in any
+future regex change.
 
 ## Required infrastructure
 
@@ -87,3 +79,9 @@ ApiKey, RelyingParty, Principal
 | M-019   | Verify response payload doesn't return `auditEventId`. The                    |
 |         | "approved request links to an audit row" assertion uses `GET /audit` to      |
 |         | join instead of trusting the response (no fabricated assertion).              |
+| M-021   | `AuditChainPayload` migrated from v1 (raw                                     |
+|         | action/relyingParty/requestedAmount/policySnapshot) to v2 (`*Hash`            |
+|         | commitments) for GDPR Art. 17 erasure safety. `audit-chain.e2e.spec.ts`       |
+|         | (whole suite) and `full-flow.e2e.spec.ts` test #10 still build the v1        |
+|         | shape and are `describe.skip` / `test.skip`'d until they're rewritten         |
+|         | against v2 (use `chain.buildPayload(...)` to derive hashes from raw).         |
