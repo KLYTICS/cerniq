@@ -322,6 +322,21 @@ async function main(): Promise<number> {
   const components = doc.components?.schemas ?? {};
 
   const referenced = collectReferencedComponents(doc);
+
+  // Sanity check: if the OpenAPI file exists and is non-trivial but we
+  // resolved zero referenced components, that's an extractor bug (or a
+  // gutted spec), not a parity success. Make the failure loud instead
+  // of silently emitting an empty success report. Mirror of the
+  // extractor sanity-check in .github/workflows/spec-sync.yml.
+  if (raw.length > 0 && referenced.size === 0) {
+    stderr.write(
+      `\nspec-sync: ERROR — extracted zero referenced components from a non-empty OpenAPI ` +
+        `document at ${SPEC_PATH}. Likely an extractor bug in collectReferencedComponents() ` +
+        `(see paths/operations walk), not real parity. Failing loud.\n`,
+    );
+    return 1;
+  }
+
   const reports: ComponentReport[] = [];
 
   for (const [name, endpointSet] of Array.from(referenced.entries()).sort()) {

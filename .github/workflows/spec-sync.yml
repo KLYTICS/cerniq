@@ -137,6 +137,25 @@ jobs:
           echo "=== verifier ==="; echo "$verifier"
           echo "=== openapi ==="; echo "$openapi"
 
+          # ── Extractor sanity check ────────────────────────────────────
+          # Every extractor MUST find at least one entry. Empty extraction
+          # against a non-empty source file means the extractor regex/path
+          # is broken, not real drift. The original M-056 bug masqueraded
+          # as drift for 5+ SHAs because the bash extractor silently
+          # returned nothing. This check makes that failure mode loud.
+          if [ -z "$engine" ]; then
+            echo "::error::extractor 'engine' returned empty — likely a sed/grep bug in extract_engine(), not real drift. Check apps/api/src/common/policy-engine/engine.interface.ts for a renamed 'type DenialReason ='."
+            exit 1
+          fi
+          if [ -z "$verifier" ]; then
+            echo "::error::extractor 'verifier' returned empty — likely a sed/grep bug in extract_verifier(), not real drift. Check packages/verifier-rp/src/types.ts."
+            exit 1
+          fi
+          if [ -z "$openapi" ]; then
+            echo "::error::extractor 'openapi' returned empty — likely an awk/anchor bug in extract_openapi(), not real drift. Check that components.schemas.DenialReason exists at 4-space indentation in docs/spec/AEGIS_API_SPEC.yaml."
+            exit 1
+          fi
+
           # Engine is the canonical list (it's the only one whose source
           # we control byte-for-byte). Each other surface is allowed to
           # be a SUPERSET (vendors might pre-register future reasons), but

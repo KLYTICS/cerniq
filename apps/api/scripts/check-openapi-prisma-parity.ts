@@ -451,6 +451,27 @@ async function main(): Promise<number> {
   const doc = yaml.parse(specRaw) as OpenApiDoc;
   const components = doc.components?.schemas ?? {};
 
+  // Sanity check: if the Prisma schema is non-empty but the parser
+  // returned zero models / enums, that's almost certainly a regex bug
+  // in parsePrismaSchema, not a "schema is empty" state. Same for an
+  // OpenAPI document with zero components.schemas. Make the failure
+  // mode loud — the M-056 regression masqueraded as drift for 5+ SHAs
+  // precisely because an extractor silently returned nothing.
+  if (prismaSrc.length > 0 && models.size === 0 && enums.size === 0) {
+    stderr.write(
+      `\nspec-sync: ERROR — parsePrismaSchema returned zero models AND zero enums from a ` +
+        `non-empty schema at ${PRISMA_PATH}. Likely a regex bug in parsePrismaSchema(), not parity. Failing loud.\n`,
+    );
+    return 1;
+  }
+  if (specRaw.length > 0 && Object.keys(components).length === 0) {
+    stderr.write(
+      `\nspec-sync: ERROR — OpenAPI document at ${SPEC_PATH} parsed but has zero ` +
+        `components.schemas. Likely a YAML structure regression (or gutted spec). Failing loud.\n`,
+    );
+    return 1;
+  }
+
   const modelReports: ModelReport[] = MODEL_MAPPINGS.map((m) =>
     diffModel(m, models.get(m.prismaModel), components),
   );
