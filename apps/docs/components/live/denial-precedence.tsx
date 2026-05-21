@@ -58,6 +58,12 @@ const REASON_COPY: Record<string, ReasonCopy> = {
     meaning: 'Real-time anomaly detector vetoed the request.',
     retryable: false,
   },
+  INTENT_MISMATCH: {
+    http: 403,
+    meaning:
+      'Observed actuals diverged from the issued intent manifest (ADR-0016). Reissue with a new manifest matching the real call.',
+    retryable: false,
+  },
 };
 
 export function DenialPrecedence() {
