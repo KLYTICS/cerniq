@@ -44,7 +44,11 @@ export function GET() {
       `## ${section.charAt(0).toUpperCase()}${section.slice(1)}`,
       '',
       ...ps.map(
-        (p) => `- [${p.data.title}](${SITE}${p.url}): ${p.data.description ?? ''}`,
+        // p.data is typed `any` by fumadocs source — coerce title and
+        // description to string for the template literal (per
+        // @typescript-eslint/restrict-template-expressions). Non-string
+        // values render visibly so frontmatter bugs fail loud.
+        (p) => `- [${String(p.data.title)}](${SITE}${p.url}): ${String(p.data.description ?? '')}`,
       ),
       '',
     ]),
