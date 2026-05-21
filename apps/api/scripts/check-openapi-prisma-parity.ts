@@ -186,7 +186,14 @@ const MODEL_MAPPINGS: readonly ModelMapping[] = [
       'scoreHistory',
       'delegationsAsPrincipal',
       'delegationsAsAgent',
+      'delegationsFrom',
+      'delegationsTo',
       'spendRecords',
+      'verifyCount',
+      'verifyCountDay',
+      'bateSignals',
+      'revokedAt',
+      'revokedReason',
       'updatedAt',
       'createdAt',
     ]),
@@ -201,6 +208,9 @@ const MODEL_MAPPINGS: readonly ModelMapping[] = [
       'principalId',
       'signedToken',
       'signedTokenKeyId',
+      'tokenHash',
+      'verifyCount',
+      'revokedAt',
       'auditEvents',
       'spendRecords',
       'createdAt',
@@ -210,13 +220,22 @@ const MODEL_MAPPINGS: readonly ModelMapping[] = [
   {
     prismaModel: 'AuditEvent',
     openapiComponent: 'AuditEvent',
-    renames: { id: 'eventId', createdAt: 'timestamp' },
+    // Wire renames: the API DTO (apps/api/src/modules/audit/audit.dto.ts)
+    // surfaces these Prisma columns under different names. `denialReason`
+    // is the Prisma storage column; the wire calls it `decisionReason`
+    // (broader semantic — covers approve/flag context too). `aegisSignature`
+    // is the storage column; the wire calls it `signature` (consumer-facing).
+    renames: {
+      id: 'eventId',
+      createdAt: 'timestamp',
+      denialReason: 'decisionReason',
+      aegisSignature: 'signature',
+    },
     internalFields: new Set([
       'agent',
       'policy',
       'principal',
       'prevHash',
-      'aegisSignature',
       'signingKeyId',
       'policyEngineId',
       'engineMetadata',
@@ -227,6 +246,22 @@ const MODEL_MAPPINGS: readonly ModelMapping[] = [
       'redactedAt',
       'principalIdHash',
       'agentIdHash',
+      // Wire-narrower than storage: these Prisma columns are not exposed
+      // on the AuditEventDto and so should not be expected in the OpenAPI
+      // AuditEvent component. Storage-side hashes (the `*Hash` columns)
+      // back the GDPR-redactable raw fields per docs/decisions/0006-audit-redactability.md;
+      // they are committed to in the signed chain but never surfaced as
+      // wire fields. The raw amount/currency/policy snapshot context
+      // remains queryable via the operator-only export endpoint.
+      'requestedAmount',
+      'currency',
+      'policyId',
+      'policySnapshot',
+      'redactionReason',
+      'trustBandAtEvent',
+      'relyingPartyHash',
+      'requestedAmountHash',
+      'policySnapshotHash',
     ]),
   },
 ] as const;

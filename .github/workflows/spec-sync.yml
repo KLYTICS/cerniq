@@ -82,20 +82,51 @@ jobs:
       - name: Diff DenialReason enum across files
         run: |
           set -euo pipefail
-          # All three files MUST list the same 9 denial reasons in the same order.
-          # ADR-0004 § "Denial Precedence" is the source of truth.
+          # Engine is the canonical source of truth (engine.interface.ts).
+          # ADR-0004 § "Denial Precedence" defines the locked enum. Verifier-rp
+          # MAY be a superset (e.g. REPLAY_DETECTED is client-cache-only);
+          # OpenAPI top-level DenialReason schema MUST be a superset of engine.
 
+          # Extract between `type DenialReason =` and the terminating `;` —
+          # semantic boundary, immune to adjacent type aliases (TrustBand
+          # in verifier-rp, PolicyScope in engine) that a line-counted
+          # `grep -A N` would falsely include.
+          # All three extractors emit BARE values (no quotes) so `comm`
+          # comparisons aren't broken by quote-format mismatch — the
+          # engine/verifier files store enum values as TS string literals
+          # `'AGENT_NOT_FOUND'` (with quotes); the OpenAPI YAML stores them
+          # as bare list items `- AGENT_NOT_FOUND` (no quotes). The
+          # original workflow returned `'AGENT_NOT_FOUND'` from engine/
+          # verifier and `AGENT_NOT_FOUND` from openapi — `comm` saw them
+          # as different strings and the comparison silently produced
+          # wrong diffs. This bug was masked for months by the substring
+          # trap in extract_openapi (which returned essentially nothing
+          # comparable), so the quote-format bug never surfaced.
           extract_engine() {
-            grep -A 12 "type DenialReason" apps/api/src/common/policy-engine/engine.interface.ts \
-              | grep -oE "'[A-Z_]+'" | sort -u
+            sed -n '/type DenialReason =/,/;/p' \
+              apps/api/src/common/policy-engine/engine.interface.ts \
+              | grep -oE "'[A-Z_]+'" | tr -d "'" | sort -u
           }
           extract_verifier() {
-            grep -A 12 "DenialReason" packages/verifier-rp/src/types.ts 2>/dev/null \
-              | grep -oE "'[A-Z_]+'" | sort -u || true
+            sed -n '/type DenialReason =/,/;/p' \
+              packages/verifier-rp/src/types.ts 2>/dev/null \
+              | grep -oE "'[A-Z_]+'" | tr -d "'" | sort -u || true
           }
           extract_openapi() {
-            grep -A 12 "DenialReason:" docs/spec/AEGIS_API_SPEC.yaml 2>/dev/null \
-              | grep -oE "[A-Z_]{4,}" | sort -u || true
+            # Anchor on schema-level indentation (4 spaces under
+            # components.schemas) to avoid substring matches such as
+            # `recommendedDenialReason:` (a property reference on
+            # ReconcileIntentResponse). The list-item regex `^- [A-Z_]+`
+            # restricts extraction to YAML enum entries so description
+            # prose with uppercase acronyms (ADR, AEGIS) cannot poison
+            # the comparison.
+            awk '
+              /^    DenialReason:/ { capture=1; next }
+              capture && /^    [A-Za-z]/ { capture=0 }
+              capture { print }
+            ' docs/spec/AEGIS_API_SPEC.yaml 2>/dev/null \
+              | grep -oE "^[[:space:]]+- [A-Z_]+" \
+              | grep -oE "[A-Z_]+" | sort -u || true
           }
 
           engine="$(extract_engine || true)"
