@@ -107,8 +107,8 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4 # pin: replace with full sha before merge
-        with:
-          version: ${{ env.PNPM_VERSION }}
+        # pnpm version is taken from root package.json "packageManager" field.
+        # Specifying `version:` here would conflict per pnpm/action-setup v4.
 
       - name: Setup Node
         uses: actions/setup-node@v4 # pin: replace with full sha before merge
@@ -193,8 +193,8 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4 # pin: replace with full sha before merge
-        with:
-          version: ${{ env.PNPM_VERSION }}
+        # pnpm version is taken from root package.json "packageManager" field.
+        # Specifying `version:` here would conflict per pnpm/action-setup v4.
 
       - name: Setup Node
         uses: actions/setup-node@v4 # pin: replace with full sha before merge

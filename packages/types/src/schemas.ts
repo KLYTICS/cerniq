@@ -255,10 +255,12 @@ export const AuditDecisionSchema = z.enum(['approved', 'denied', 'flagged']);
 
 export const AuditEventSchema = z.object({
   eventId: z.string(),
-  agentId: AgentIdSchema,
+  agentId: AgentIdSchema.nullable(),
+  claimedAgentId: z.string().nullable().optional(),
   principalId: PrincipalIdSchema,
   timestamp: IsoDateTimeSchema,
-  action: z.string(),
+  action: z.string().nullable(),
+  actionHash: z.string(),
   relyingParty: z.string().nullable().optional(),
   decision: AuditDecisionSchema,
   decisionReason: z.string().nullable().optional(),
