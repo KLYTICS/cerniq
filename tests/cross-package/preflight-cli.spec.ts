@@ -99,7 +99,15 @@ describe('preflight CLI', () => {
     });
 
     it('summary counts equal the number of checks', () => {
-      const r = run(['--json', '--fast']);
+      // 90s timeout for this specific assertion: a full `--fast` run on a
+      // cold CI checkout (no warm tsbuildinfo / .next cache) routinely
+      // takes 30-60s, which trips the default 30s timeout in `run()` and
+      // surfaces as `SyntaxError: Unexpected end of JSON input` at
+      // JSON.parse(r.stdout). Locally on a warm dev box this completes in
+      // ~3s. The assertion is a CONSISTENCY check (summary sums to checks
+      // length) — preserving the full --fast run keeps coverage broader
+      // than artificially restricting via --only.
+      const r = run(['--json', '--fast'], 90_000);
       const parsed = JSON.parse(r.stdout);
       const sum = parsed.summary.pass + parsed.summary.warn + parsed.summary.fail + parsed.summary.skip;
       expect(sum).toBe(parsed.summary.total);
