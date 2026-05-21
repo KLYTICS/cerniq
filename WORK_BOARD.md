@@ -871,6 +871,11 @@ See `docs/spec/01_MASTER.md` § 7 (Phase 3) and the master backlog
 
 ### M-056 · Spec-sync drift CI workflow
 - **STATUS**: shipped by sid=3e2203ee @ 2026-05-02 (Round 10).
+  Onion-peel regression fixed by sid=opus-4-7-feat-flush @ 2026-05-18
+  on `fix/spec-sync-denial-reason-schema` (PR #26 closed, superseded
+  by **PR #32 merged 2026-05-21** sha 991a288 — extractor sanity,
+  empty-extraction-fails-loud, canonical `DenialReason` top-level
+  schema, `PENDING_VERIFICATION` AgentStatus enum member).
 - **Paths**: `.github/workflows/spec-sync.yml`.
 - **Shipped**: three jobs run on PRs touching spec / types / Prisma /
   DTO / verify-algorithm paths:
@@ -878,6 +883,44 @@ See `docs/spec/01_MASTER.md` § 7 (Phase 3) and the master backlog
   (2) OpenAPI ↔ Prisma model parity,
   (3) Denial precedence enum byte-identical across engine, verifier-rp,
   OpenAPI (ADR-0004 lock).
+
+### M-057 · OpenAPI ↔ Zod intent-schema drift (CLOSED on main)
+- **STATUS**: closed by main work (PR #32 + the intent.ts Zod schemas
+  that landed alongside the spec-sync infra). Originally surfaced as
+  "13 components in OpenAPI ↔ Zod" in the 2026-05-18 handoff. Confirmed
+  green by parallel agent in 2026-05-21 session — see
+  `docs/SESSION_HANDOFF.md` 2026-05-21 entry.
+- **Paths**: `packages/types/src/intent.ts` (NEW), expanded
+  `packages/types/src/schemas.ts` for AgentStatus / AuditEvent /
+  AgentPolicy.
+- **No new PR needed** — the agent that researched this independently
+  reached the same conclusion the merge proved.
+
+### M-058 · OpenAPI ↔ Prisma drift (CLOSED on main)
+- **STATUS**: closed by main work (PR #32 — `MODEL_MAPPINGS` in
+  `apps/api/scripts/check-openapi-prisma-parity.ts` got per-model
+  `internalFields` expansion + OpenAPI public-side additions for
+  AgentPolicy.label, AuditEvent.claimedAgentId, AuditEvent.actionHash,
+  AgentStatus.pending_verification, and renames for
+  decisionReason / signature). Verified green by both the local parity
+  script post-merge and a parallel agent independently.
+- **Paths**: `apps/api/scripts/check-openapi-prisma-parity.ts`,
+  `docs/spec/AEGIS_API_SPEC.yaml`.
+- **No new PR needed**.
+
+### M-059 · DenialReason top-level OpenAPI enum INTENT_MISMATCH backfill
+- **STATUS**: closed by sid=opus-4-7-feat-merge @ 2026-05-21 on
+  `feat/sdk-verify-gateway-hardening` (commit 377fd43). Original
+  flagging in 2026-05-18 handoff "what's next" item #2.
+- **Paths**: `docs/spec/AEGIS_API_SPEC.yaml` (top-level
+  `components.schemas.DenialReason.enum`).
+- **Why this slipped past local parity**: `pnpm check:openapi-zod`
+  validates the inline `VerifyResponse.denialReason` enum (which had
+  INTENT_MISMATCH from main's merge); the CI bash extractor targets
+  the top-level reusable `DenialReason` schema, which lagged by one
+  reason. The same class of "different tools extract from different
+  spots" bug as M-056 onion-peel #2 — kept in mind for future
+  extractor design.
 
 ---
 
