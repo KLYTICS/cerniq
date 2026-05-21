@@ -5,6 +5,102 @@
 
 ---
 
+## 2026-05-21 · sid=opus-4-7-feat-merge-and-pr2-unblock · feat/sdk-verify-gateway-hardening (4 commits) + agent-worktree-leak postmortem
+
+Long session: drove `feat/sdk-verify-gateway-hardening` from "13 ahead /
+95 behind / PR CONFLICTING with 4-day-old red CI" to
+"100-commit-merged / PR MERGEABLE / 3 spec-sync gates locally green."
+Four commits land on the feat branch; PR #2 SHA flipped to **MERGEABLE**
+on 1d9699c.
+
+### What shipped (commit order)
+
+`5f43de0 chore(cli,mcp,sdk): finish SDK V2 catch-up across CLI/MCP/quickstart
++ Next 16 type path` — closed the consumer-side V2 contract migration
+that was already shipped to packages/sdk-ts. CLI now calls
+`agents.register({label, …})`, positional `policies.{create,list,revoke}
+(agentId, …)`. MCP server drops `aegis.policies.get` (V2 has no by-id
+fetch). Quickstart fixed `moduleResolution: "Bundler"` → `bundler` and
+`link:` → `workspace:*`. Next 16 `next-env.d.ts` repathed. Two
+hardening fixes folded in: idempotency-key array-unwrap on
+intent.controller; `invalidateCache` mock on api-key-rotation spec.
+
+`ed63e81 merge(main): rebase substrate — 95 commits of spec-sync + docs
+site + osv-scanner unblock` (topology corrected by 1d9699c) — pulled in
+PR #32 spec-sync infra (extractor sanity, empty-extraction-fails-loud
+M-056 root fix, canonical `DenialReason` schema, INTENT_MISMATCH in
+constants.ts, `PENDING_VERIFICATION` AgentStatus member, intent.ts Zod
+schemas — **M-057 and M-058 were already closed on main**, no separate
+PRs needed), apps/docs/ site (~6k lines), PR #29 osv-scanner sunset
+allow-list, SHA-pinning of GitHub Actions. Conflicts: package.json,
+pnpm-lock, SESSION_HANDOFF — all resolved.
+
+`1bdecfb fix(docs): add INTENT_MISMATCH copy to live denial-precedence
+component` — cross-package parity spec
+`docs-denial-precedence-parity.spec.ts` (new from main) caught a real
+gap: docs `REASON_COPY` had all 10 pre-ADR-0016 reasons but missed
+INTENT_MISMATCH. The two contracts hadn't met until our merge. The
+parity spec is doctrine enforcement of CLAUDE.md invariant 7.
+
+`1d9699c chore(merge): record main → feat merge topology that ed63e81
+missed` — ed63e81 had all the file content but only one parent (the
+`git stash --include-untracked` + pop dance dropped MERGE_HEAD between
+conflict resolution and commit). Git topology stayed 13/99, PR #2
+stayed CONFLICTING. Fix: `git merge --strategy=ours --no-ff origin/main`
+records second parent. After push: **PR #2 → MERGEABLE**.
+
+### Agent-worktree leak — postmortem
+
+Spawned M-057 + M-058 agents with `isolation: "worktree"`. M-058
+finished clean (same conclusion the merge proved: PR #32 already closed
+M-058). M-057 admitted to using absolute paths
+`/Users/money/Desktop/AEGIS/...` instead of its worktree. *Worktree
+isolation does NOT constrain absolute file paths.* When the agent's
+"revert" tried to restore "clean main" content, it clobbered our
+merged state, dropped the INTENT_MISMATCH docs fix, and left stale
+rebase state in `.git/rebase-merge/` that surfaced 4 commands later.
+Recovery: work was already pushed (1d9699c), `git rebase --abort` +
+`git reset --hard origin/feat/...` restored fully.
+
+**Defensive prompt for next swarm**: "you MUST use only the worktree
+path; never write to /Users/money/Desktop/AEGIS directly. Confirm with
+`pwd` before every Edit/Write." AND audit agent's final report for
+absolute-path mentions before trusting cleanup.
+
+### Net CI on PR #2 (SHA 1d9699c, locally verified)
+
+Pre-session red gates (4 days): OpenAPI ↔ Zod, OpenAPI ↔ Prisma,
+Denial precedence (ADR-0004), lint, SCA · osv-scanner.
+
+Post-session local:
+- OpenAPI ↔ Zod ✓ (11 intent components matched via main's intent.ts)
+- OpenAPI ↔ Prisma ✓ (3 models + AgentStatus enum aligned)
+- Denial precedence (ADR-0004) ✓ (INTENT_MISMATCH byte-identical
+  across constants.ts ↔ OpenAPI ↔ verifier-rp)
+- Cross-package parity ✓ 337/337 (after docs fix)
+- CLI lint still red — handled on peer branches #11/#22
+- SCA osv-scanner should clear via main's sunset allow-list
+
+### What's next
+
+1. Watch PR #2 CI on 1d9699c — confirm spec-sync trio + new docs-parity
+   gate flip green. Triage anything else.
+2. PR #2 review + merge once green — first time mergeable in 4+ days.
+3. Open PR backlog (16 MERGEABLE / 9 CONFLICTING). Highest-leverage
+   independent next picks:
+     * #11 `ci/cli-go-1.24` — CLI lint; clears gate on every PR
+     * #12 `fix/audit-chain-defensive-secrets` — end 5-day cron alarm
+     * #18 SHA-pin enforcement gate — complements main's #29
+     * #30 verifier-rp `verifyAuditChain`, #31 RP compliance dashboard
+     * #23 `SUPPLY_CHAIN_HARDENING.md` capstone
+4. 49 Dependabot alerts (1 crit, 17 high) on default — triage after #2
+   lands; PRs #8, #16, #20, #21 already address some.
+5. Cleanup: two leaked agent worktrees still locked at
+   `.claude/worktrees/agent-{a6a3f48fbd5d1f3da,a58a0e8f805ff51e7}`
+   (pid 96486). Not from this session; left alone.
+
+---
+
 ## 2026-05-18 · sid=opus-4-7-feat-flush-and-spec-sync-onion-peel · feat/sdk-verify-gateway-hardening + fix/spec-sync-denial-reason-schema
 
 Two-lane session: flushed 7 + 4 pending commits on
