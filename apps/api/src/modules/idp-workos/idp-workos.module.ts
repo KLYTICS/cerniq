@@ -1,10 +1,12 @@
 import { Module, Provider } from '@nestjs/common';
-import { AppConfigModule } from '../../config/config.module';
-import { AppConfigService } from '../../config/config.service';
+
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisModule } from '../../common/redis/redis.module';
 import { RedisService } from '../../common/redis/redis.service';
+import { AppConfigModule } from '../../config/config.module';
+import { AppConfigService } from '../../config/config.service';
+
 import { WorkOsAdapter, type WorkOsClientLike } from './workos.adapter';
 
 const WORKOS_CLIENT = 'AEGIS_WORKOS_CLIENT';
@@ -18,7 +20,7 @@ const workosClientProvider: Provider = {
       throw new Error('WORKOS_API_KEY required when WorkOS adapter is enabled');
     }
     // Lazy require so the SDK isn't pulled into unit-test bundles.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { WorkOS } = require('@workos-inc/node') as { WorkOS: new (key: string) => unknown };
     const sdk = new WorkOS(apiKey) as {
       userManagement: {
@@ -36,7 +38,7 @@ const workosClientProvider: Provider = {
         return out;
       },
       getOrganization: async (id) => {
-        const out = (await sdk.organizations.getOrganization(id)) as { id: string; name: string; domains?: Array<{ domain: string }> };
+        const out = (await sdk.organizations.getOrganization(id)) as { id: string; name: string; domains?: { domain: string }[] };
         return out;
       },
     };

@@ -1,6 +1,8 @@
 import '../../common/crypto/crypto.bootstrap';
 import * as ed from '@noble/ed25519';
+
 import { encodeBase64Url } from '../../common/crypto/ed25519.util';
+
 import { AwsKmsAdapter, type AwsWrappedKey, type KmsClientLike } from './aws-kms.adapter';
 
 class FakeKmsClient implements KmsClientLike {

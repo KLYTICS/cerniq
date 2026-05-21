@@ -9,10 +9,11 @@
  */
 
 import { ForbiddenException } from '@nestjs/common';
-import { OnboardingController } from './onboarding.controller';
-import { OnboardingService } from './onboarding.service';
-import { OnboardingBackfill } from './onboarding.backfill';
 import type { Request } from 'express';
+
+import type { OnboardingBackfill } from './onboarding.backfill';
+import { OnboardingController } from './onboarding.controller';
+import type { OnboardingService } from './onboarding.service';
 
 // ── Stubs ─────────────────────────────────────────────────────────────────────
 
@@ -20,14 +21,14 @@ function makeOnboarding(): jest.Mocked<Pick<OnboardingService, 'getStatus' | 'ma
   return {
     getStatus: jest.fn().mockResolvedValue({ completed: [], pending: [] }),
     markStep: jest.fn().mockResolvedValue(undefined),
-  } as unknown as jest.Mocked<Pick<OnboardingService, 'getStatus' | 'markStep'>>;
+  };
 }
 
 function makeBackfill(): jest.Mocked<Pick<OnboardingBackfill, 'run' | 'getLastReport'>> {
   return {
     run: jest.fn().mockResolvedValue({ ranAt: new Date().toISOString(), processed: 5, updated: 2 }),
     getLastReport: jest.fn().mockReturnValue({ ranAt: new Date().toISOString(), processed: 3, updated: 1 }),
-  } as unknown as jest.Mocked<Pick<OnboardingBackfill, 'run' | 'getLastReport'>>;
+  };
 }
 
 function makeReq(opts: { principalId?: string; adminHeader?: string } = {}): Request {

@@ -1,11 +1,13 @@
+import { createHash, randomBytes } from 'node:crypto';
+
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { createHash, randomBytes } from 'node:crypto';
+
+import { AlreadyRotatedError, NotFoundError, AuthorizationError } from '../../common/errors/aegis-error';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { AppConfigService } from '../../config/config.service';
 import { AuditService } from '../audit/audit.service';
-import { AlreadyRotatedError, NotFoundError, AuthorizationError } from '../../common/errors/aegis-error';
 
 export interface AuthenticatedKey {
   apiKeyId: string;
@@ -130,24 +132,24 @@ export class ApiKeyService {
     });
 
     for (const c of candidates) {
-      // eslint-disable-next-line no-await-in-loop
+       
       const ok = await bcrypt.compare(plaintext, c.keyHash);
       if (ok) {
         const resolved: AuthenticatedKey = {
           apiKeyId: c.id,
           principalId: c.principalId,
-          scope: c.scope as AuthenticatedKey['scope'],
+          scope: c.scope,
         };
         // Write-through to cache. Don't await — hot path.
         if (this.redis) {
           this.redis
             .set(cacheKey(plaintext), resolved, AUTH_CACHE_TTL_SECONDS)
-            .catch((err) => this.logger.warn(`auth cache set failed: ${(err as Error).message}`));
+            .catch((err) => { this.logger.warn(`auth cache set failed: ${(err as Error).message}`); });
         }
         // Update lastUsedAt — fire and forget.
         this.prisma.apiKey
           .update({ where: { id: c.id }, data: { lastUsedAt: new Date() } })
-          .catch((err) => this.logger.warn(`apiKey lastUsedAt update failed: ${err.message}`));
+          .catch((err: unknown) => { this.logger.warn(`apiKey lastUsedAt update failed: ${(err as Error).message}`); });
         return resolved;
       }
     }
@@ -156,7 +158,7 @@ export class ApiKeyService {
     if (this.redis) {
       this.redis
         .set(negCacheKey(plaintext), { tombstone: true }, AUTH_NEG_CACHE_TTL_SECONDS)
-        .catch((err) => this.logger.warn(`auth neg-cache set failed: ${(err as Error).message}`));
+        .catch((err) => { this.logger.warn(`auth neg-cache set failed: ${(err as Error).message}`); });
     }
     return null;
   }
@@ -201,7 +203,7 @@ export class ApiKeyService {
       select: { keyHash: true },
     });
     for (const c of candidates) {
-      // eslint-disable-next-line no-await-in-loop
+       
       const ok = await bcrypt.compare(plaintext, c.keyHash);
       if (ok) return true;
     }
@@ -271,7 +273,7 @@ export class ApiKeyService {
     }
 
     // Step 2: mint plaintext (NOT Math.random — crypto.randomBytes).
-    const scope: AuthenticatedKey['scope'] = calling.scope as AuthenticatedKey['scope'];
+    const scope: AuthenticatedKey['scope'] = calling.scope;
     const prefix = scope === 'VERIFY_ONLY' ? 'aegis_vk_' : 'aegis_sk_';
     const random = randomBytes(24).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 26);
     const plaintext = `${prefix}${random}`;
@@ -289,7 +291,7 @@ export class ApiKeyService {
         where: { id: callingKeyId },
         select: { expiresAt: true, revokedAt: true, principalId: true },
       });
-      if (!recheck || recheck.revokedAt !== null) {
+      if (recheck?.revokedAt !== null) {
         throw new NotFoundError('ApiKey');
       }
       if (recheck.principalId !== principalId) {

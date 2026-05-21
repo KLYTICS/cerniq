@@ -10,11 +10,11 @@
 // or contentEditable surface. The chord-mode timeout window is 1.2s — long
 // enough for human chord typing, short enough that stray `g` doesn't latch.
 
-import { useEffect, useState } from 'react';
-import type { Route } from 'next';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 import { COMMANDS } from '../lib/commands';
+
 import { ShortcutsHelp } from './ShortcutsHelp';
 
 const CHORD_PREFIX = 'g';
@@ -73,14 +73,14 @@ export function KeyboardShortcuts() {
       const k = e.key.toLowerCase();
 
       if (chordPending) {
-        const cmd = COMMANDS.find((c) => c.chord && c.chord[0] === CHORD_PREFIX && c.chord[1] === k);
+        const cmd = COMMANDS.find((c) => c.chord?.[0] === CHORD_PREFIX && c.chord[1] === k);
         clearChord();
         if (cmd) {
           e.preventDefault();
           if (cmd.external) {
             window.open(cmd.href, '_blank', 'noopener,noreferrer');
           } else {
-            router.push(cmd.href as Route);
+            router.push(cmd.href);
           }
         }
         return;
@@ -99,5 +99,5 @@ export function KeyboardShortcuts() {
     };
   }, [helpOpen, router]);
 
-  return helpOpen ? <ShortcutsHelp onClose={() => setHelpOpen(false)} /> : null;
+  return helpOpen ? <ShortcutsHelp onClose={() => { setHelpOpen(false); }} /> : null;
 }

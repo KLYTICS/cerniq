@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+
 import { subscribeWebhook, type SubscribeOutcome } from './actions';
 
 const DEFAULT_EVENTS = [
@@ -27,7 +28,7 @@ export function SubscribeForm() {
 
   if (!open) {
     return (
-      <button type="button" className="aegis-button" onClick={() => setOpen(true)}>
+      <button type="button" className="aegis-button" onClick={() => { setOpen(true); }}>
         Subscribe a URL
       </button>
     );
@@ -68,7 +69,7 @@ export function SubscribeForm() {
             {outcome.error}
           </p>
         ) : null}
-        {outcome && outcome.ok ? (
+        {outcome?.ok ? (
           <div role="status">
             <p className="form-warning">
               Saved. <strong>Copy the secret below now</strong> — it is shown

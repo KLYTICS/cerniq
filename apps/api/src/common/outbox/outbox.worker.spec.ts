@@ -1,10 +1,10 @@
+import type { OutboxService } from './outbox.service';
 import {
   DEFAULT_LOCK_TTL_MS,
   DEFAULT_MAX_ATTEMPTS,
   OutboxWorker,
   type OutboxHandler,
 } from './outbox.worker';
-import type { OutboxService, OutboxKind } from './outbox.service';
 
 interface FakeRow {
   id: string;
@@ -135,7 +135,7 @@ describe('OutboxWorker.tickOnce', () => {
     const { outbox, state } = buildFakeOutbox([
       {
         id: 'oe_orphan',
-        kind: 'UNKNOWN_KIND' as OutboxKind,
+        kind: 'UNKNOWN_KIND',
         payload: {},
         attempts: 0,
         processedAt: null,

@@ -15,9 +15,11 @@
  *  - FLAGGED minTrustBand accepts any band
  */
 
-import { describe, expect, it, vi } from 'vitest';
-import { BridgeDenialError, BridgeConfig, wrapMcpHandler } from './index.js';
 import type { Aegis, VerifyResult } from '@aegis/sdk';
+import { describe, expect, it, vi } from 'vitest';
+
+import type { BridgeConfig} from './index.js';
+import { BridgeDenialError, wrapMcpHandler } from './index.js';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 

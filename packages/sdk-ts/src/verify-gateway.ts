@@ -15,8 +15,6 @@
 // Portability: zero Node-only imports. Runs unchanged in Node 20+,
 // browsers, Bun, Deno, Cloudflare Workers, Vercel Edge.
 
-import type { Aegis } from './index.js';
-import { AegisError, AegisServiceUnavailableError } from './errors.js';
 import {
   MemoryVerifyCache,
   buildCacheKey,
@@ -25,7 +23,10 @@ import {
   type VerifyCache,
   type VerifyCacheContext,
 } from './cache.js';
+import { AegisError, AegisServiceUnavailableError } from './errors.js';
 import type { VerifyResult } from './types.js';
+
+import type { Aegis } from './index.js';
 
 export type BreakerState = 'closed' | 'open' | 'half-open';
 
@@ -186,7 +187,7 @@ export class VerifyGateway {
       this.inflightWaiters.set(key, next);
       this.coalesced += 1;
       this.safeHook('onCoalesce', key, next);
-      return existing;
+      return await existing;
     }
 
     this.misses += 1;
@@ -303,10 +304,10 @@ export class VerifyGateway {
     this.safeHook('onBreakerStateChange', from, to);
   }
 
-  private async handleBreakerOpen(
+  private handleBreakerOpen(
     key: string,
     cached: { result: VerifyResult; expiresAt: number } | undefined,
-  ): Promise<VerifyResult> {
+  ): VerifyResult {
     if (this.fallbackMode === 'serve-stale' && cached !== undefined) {
       this.staleServed += 1;
       this.safeHook('onStale', key, cached.result);
@@ -355,8 +356,8 @@ export class VerifyGateway {
   // without losing per-hook type safety at call sites; only the four
   // narrow `safeHook(...)` callers above produce arguments and they
   // each match the corresponding hook signature.
-  private safeHook<K extends keyof VerifyGatewayHooks>(
-    name: K,
+  private safeHook(
+    name: keyof VerifyGatewayHooks,
     ...args: unknown[]
   ): void {
     const hook = this.hooks[name];

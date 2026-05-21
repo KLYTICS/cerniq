@@ -5,9 +5,11 @@
 //   - reset
 
 import type { PlanTier } from '@prisma/client';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { RedisService } from '../../common/redis/redis.service';
-import { MetricsService } from '../../common/observability/metrics.service';
+
+import type { MetricsService } from '../../common/observability/metrics.service';
+import type { PrismaService } from '../../common/prisma/prisma.service';
+import type { RedisService } from '../../common/redis/redis.service';
+
 import { TRIAL_LIFETIME_CAP } from './plans';
 import { TrialService } from './trial.service';
 

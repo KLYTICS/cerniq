@@ -9,6 +9,8 @@
 //     so external auditors can independently verify the construction
 //     of the bytes-being-signed.
 
+import type { AuditEventRow } from './types.js';
+
 export type {
   AuditChainPayload,
   AuditEventRow,
@@ -59,8 +61,8 @@ export type {
 /** Convenience helper: parse an NDJSON file or string into AuditEventRow[]
  *  via line-streaming. Permissive — silently drops blank lines and rejects
  *  non-object lines with a clear error so callers can inspect the row id. */
-export function parseAuditNdjson(ndjson: string): import('./types.js').AuditEventRow[] {
-  const rows: import('./types.js').AuditEventRow[] = [];
+export function parseAuditNdjson(ndjson: string): AuditEventRow[] {
+  const rows: AuditEventRow[] = [];
   let lineNo = 0;
   for (const line of ndjson.split('\n')) {
     lineNo++;
@@ -75,7 +77,7 @@ export function parseAuditNdjson(ndjson: string): import('./types.js').AuditEven
     if (!parsed || typeof parsed !== 'object') {
       throw new Error(`audit-verifier: NDJSON line ${lineNo} is not an object`);
     }
-    rows.push(parsed as import('./types.js').AuditEventRow);
+    rows.push(parsed as AuditEventRow);
   }
   return rows;
 }

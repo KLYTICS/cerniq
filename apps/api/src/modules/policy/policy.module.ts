@@ -1,11 +1,12 @@
 import { Logger, Module, OnModuleInit } from '@nestjs/common';
 import * as ed from '@noble/ed25519';
-import { sha512 } from '@noble/hashes/sha512';
+import { sha512 } from '@noble/hashes/sha2';
 
 import { decodeBase64Url, Ed25519Util, encodeBase64Url } from '../../common/crypto/ed25519.util';
-import { AppConfigService } from '../../config/config.service';
 import { ObservabilityModule } from '../../common/observability/observability.module';
+import { AppConfigService } from '../../config/config.service';
 import { WebhooksModule } from '../webhooks/webhooks.module';
+
 import { PolicyController } from './policy.controller';
 import { PolicyExpiryWorker } from './policy.expiry.worker';
 import { PolicyService } from './policy.service';

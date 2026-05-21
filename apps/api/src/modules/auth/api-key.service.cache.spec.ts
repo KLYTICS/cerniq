@@ -9,10 +9,12 @@
 //   - service operates correctly when no Redis is wired (Optional injection)
 
 import * as bcrypt from 'bcryptjs';
-import { ApiKeyService, type AuthenticatedKey } from './api-key.service';
+
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { RedisService } from '../../common/redis/redis.service';
 import type { AppConfigService } from '../../config/config.service';
+
+import { ApiKeyService, type AuthenticatedKey } from './api-key.service';
 
 interface FakeRow {
   id: string;

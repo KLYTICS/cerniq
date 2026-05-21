@@ -19,7 +19,7 @@ export function RevokeAgentButton({ agentId }: Props) {
     if (!confirmed) {
       setConfirmed(true);
       // Auto-reset after 4s so a stray click doesn't leave the row armed.
-      setTimeout(() => setConfirmed(false), 4_000);
+      setTimeout(() => { setConfirmed(false); }, 4_000);
       return;
     }
     startTransition(async () => {

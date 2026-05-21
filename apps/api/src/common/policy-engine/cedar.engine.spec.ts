@@ -3,7 +3,7 @@ import type { PolicyEvaluationInput } from './engine.interface';
 
 function baseInput(over: Partial<PolicyEvaluationInput> = {}): PolicyEvaluationInput {
   return {
-    agent: { id: 'agt_1', status: 'ACTIVE', trustScore: 700, trustBand: 'VERIFIED' as never, principalId: 'p_1' },
+    agent: { id: 'agt_1', status: 'ACTIVE', trustScore: 700, trustBand: 'VERIFIED', principalId: 'p_1' },
     policy: {
       id: 'pol_1', status: 'ACTIVE',
       expiresAt: new Date(Date.now() + 60_000).toISOString(),

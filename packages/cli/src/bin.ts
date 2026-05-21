@@ -2,6 +2,10 @@
 // `aegis` — operator CLI entry point.
 
 import { Command } from 'commander';
+
+import { CliError } from './client.js';
+import { err } from './output.js';
+
 import {
   bootstrap, whoami,
   agentsCreate, agentsList, agentsGet, agentsRevoke,
@@ -10,8 +14,6 @@ import {
   kmsList, kmsRotate,
   mcpInstall,
 } from './index.js';
-import { err } from './output.js';
-import { CliError } from './client.js';
 
 async function main(): Promise<void> {
   const program = new Command();
@@ -108,7 +110,7 @@ async function main(): Promise<void> {
   await program.parseAsync(process.argv);
 }
 
-main().catch((e) => {
+main().catch((e: unknown) => {
   if (e instanceof CliError) {
     err(`${e.code}: ${e.message}`);
   } else {

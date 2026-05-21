@@ -3,6 +3,7 @@
 // independently testable.
 
 import { Aegis } from '@aegis/sdk';
+
 import { resolveCredentials } from './credentials.js';
 
 export async function client(): Promise<Aegis> {

@@ -1,6 +1,7 @@
-import { SpendGuardService, type SpendLimit } from './spend-guard.service';
-import type { RedisService } from '../../common/redis/redis.service';
 import type { PrismaService } from '../../common/prisma/prisma.service';
+import type { RedisService } from '../../common/redis/redis.service';
+
+import { SpendGuardService, type SpendLimit } from './spend-guard.service';
 
 describe('SpendGuardService.check', () => {
   function build(redisValues: Record<string, number>, postgresAggregates: Record<string, number> = {}) {

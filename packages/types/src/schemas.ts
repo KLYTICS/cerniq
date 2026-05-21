@@ -435,9 +435,9 @@ export type VerifyDenied = VerifyResponse & {
  *   }
  */
 export function isVerifyApproved(r: VerifyResponse): r is VerifyApproved {
-  return r.valid === true && r.agentId !== null && r.principalId !== null && r.trustBand !== null;
+  return r.valid && r.agentId !== null && r.principalId !== null && r.trustBand !== null;
 }
 
 export function isVerifyDenied(r: VerifyResponse): r is VerifyDenied {
-  return r.valid === false && r.denialReason !== null;
+  return !r.valid && r.denialReason !== null;
 }

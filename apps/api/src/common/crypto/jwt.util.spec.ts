@@ -1,5 +1,5 @@
-import { JwtUtil } from './jwt.util';
 import { Ed25519Util, encodeBase64Url } from './ed25519.util';
+import { JwtUtil } from './jwt.util';
 
 describe('JwtUtil', () => {
   const ed = new Ed25519Util();

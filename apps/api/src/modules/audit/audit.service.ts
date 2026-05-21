@@ -1,10 +1,14 @@
+import { randomBytes } from 'node:crypto';
+
 import { Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma, type AuditDecision, type TrustBand } from '@prisma/client';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { AppConfigService } from '../../config/config.service';
+
 import { AuditChainUtil } from '../../common/crypto/audit-chain.util';
 import { Ed25519Util, decodeBase64Url, encodeBase64Url } from '../../common/crypto/ed25519.util';
 import { withSpan } from '../../common/observability/spans';
+import { PrismaService } from '../../common/prisma/prisma.service';
+import { AppConfigService } from '../../config/config.service';
+
 import { AuditQueryDto, AuditLogResponseDto } from './audit.dto';
 
 export interface AppendAuditInput {
@@ -107,7 +111,7 @@ export class AuditService {
    * + DLQ for the SOC2 invariant; this method is the durable boundary).
    */
   async append(input: AppendAuditInput): Promise<string> {
-    return withSpan(
+    return await withSpan(
       'aegis.audit.chain.append',
       () => this.appendInternal(input),
       {
@@ -178,7 +182,8 @@ export class AuditService {
           // for dev. Both paths produce a base64url Ed25519 signature.
           let signature: string;
           let signingKid: string | undefined;
-          if (this.auditSigner) {
+          const signer = this.auditSigner;
+          if (signer) {
             signature = await this.chain.signWithSigner(
               {
                 eventId,
@@ -186,10 +191,14 @@ export class AuditService {
                 prevSignatureB64Url: prev?.aegisSignature ?? null,
                 payload: built.signed,
               },
-              (msg) => this.auditSigner!.signRaw(msg),
+              (msg) => signer.signRaw(msg),
             );
-            signingKid = await this.auditSigner.getActiveKid();
+            signingKid = await signer.getActiveKid();
           } else {
+            const privateKey = this.auditPrivateKey;
+            if (!privateKey) {
+              throw new Error('AuditService: signing key not initialized.');
+            }
             signature = await this.chain.sign(
               {
                 eventId,
@@ -197,7 +206,7 @@ export class AuditService {
                 prevSignatureB64Url: prev?.aegisSignature ?? null,
                 payload: built.signed,
               },
-              this.auditPrivateKey!,
+              privateKey,
             );
           }
 
@@ -208,7 +217,7 @@ export class AuditService {
           // sha256 of empty = 47DEQpj8...) — actually sha256 of empty
           // string is well-known. Verifier handles it.
           const actionHashForRow =
-            built.rawHashes.actionHash ?? this.chain.hashLeaf('')!;
+            built.rawHashes.actionHash ?? this.chain.hashLeaf('');
 
           await tx.auditEvent.create({
             data: {
@@ -223,7 +232,7 @@ export class AuditService {
               requestedAmount: input.requestedAmount ?? undefined,
               currency: input.currency ?? undefined,
               policyId: input.policyId,
-              policySnapshot: (input.policySnapshot ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+              policySnapshot: (input.policySnapshot ?? Prisma.JsonNull),
               actionHash: actionHashForRow,
               relyingPartyHash: built.rawHashes.relyingPartyHash,
               requestedAmountHash: built.rawHashes.requestedAmountHash,
@@ -507,7 +516,7 @@ export class AuditService {
   async redact(
     eventId: string,
     principalId: string,
-    fields: Array<'action' | 'relyingParty' | 'requestedAmount' | 'policySnapshot'>,
+    fields: ('action' | 'relyingParty' | 'requestedAmount' | 'policySnapshot')[],
     reason: string,
   ): Promise<{ eventId: string; redactedFields: string[]; redactionAuditId: string }> {
     const row = await this.prisma.auditEvent.findFirst({
@@ -566,6 +575,5 @@ export class AuditService {
 function cryptoRandomId(): string {
   // 26-char base62-ish identifier. Sufficient entropy; we're not minting
   // these per-microsecond.
-  const { randomBytes } = require('node:crypto') as typeof import('node:crypto');
   return randomBytes(20).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 26);
 }

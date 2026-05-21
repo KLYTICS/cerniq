@@ -1,3 +1,5 @@
+import type { ErrorCatalogEntry } from '@aegis/types';
+
 import {
   AegisAuthenticationError,
   AegisAuthorizationError,
@@ -12,7 +14,6 @@ import {
   catalogEntryFor,
   isAegisErrorRetryable,
 } from './errors.js';
-import type { ErrorCatalogEntry } from '@aegis/types';
 
 export interface HttpClientConfig {
   apiKey?: string | undefined;
@@ -90,7 +91,8 @@ export class HttpClient {
     const url = new URL(`/v1${path.startsWith('/') ? path : `/${path}`}`, this.baseUrl);
     if (opts.query) {
       for (const [k, v] of Object.entries(opts.query)) {
-        if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
+        if (v === undefined || v === null) continue;
+        url.searchParams.set(k, typeof v === 'string' ? v : JSON.stringify(v));
       }
     }
 
@@ -117,7 +119,7 @@ export class HttpClient {
     }
 
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), this.timeoutMs);
+    const timer = setTimeout(() => { ctrl.abort(); }, this.timeoutMs);
     try {
       const res = await this.fetchFn(url.toString(), {
         method: opts.method,
@@ -190,7 +192,7 @@ export class HttpClient {
    * with the same schedule, since transport errors carry no catalog code.
    */
   async requestWithRetry<T>(path: string, opts: RequestOptions, retryOpts: RetryOptions = {}): Promise<T> {
-    return withRetry(() => this.request<T>(path, opts), {
+    return await withRetry(() => this.request<T>(path, opts), {
       ...retryOpts,
       getRetryAfter: retryOpts.getRetryAfter ?? (() => this.lastRetryAfterSeconds),
     });
@@ -263,19 +265,13 @@ export function nextDelayMs(input: NextDelayInput): number | null {
   if (backoff === undefined || backoff === 'none') return null;
   if (backoff === 'linear') return scheduleAt(LINEAR_SCHEDULE_MS, attempt);
   if (backoff === 'exponential') return jittered(scheduleAt(EXPONENTIAL_SCHEDULE_MS, attempt));
-  if (backoff === 'on_retry_after_header') {
-    if (retryAfterSeconds === undefined || !Number.isFinite(retryAfterSeconds) || retryAfterSeconds < 0) {
-      // Server said "honor Retry-After" but didn't send one — fall back
-      // to a conservative linear schedule so we don't hammer.
-      return scheduleAt(LINEAR_SCHEDULE_MS, attempt);
-    }
-    return Math.min(Math.floor(retryAfterSeconds * 1000), MAX_RETRY_AFTER_MS);
+  // backoff is now narrowed to 'on_retry_after_header'.
+  if (retryAfterSeconds === undefined || !Number.isFinite(retryAfterSeconds) || retryAfterSeconds < 0) {
+    // Server said "honor Retry-After" but didn't send one — fall back
+    // to a conservative linear schedule so we don't hammer.
+    return scheduleAt(LINEAR_SCHEDULE_MS, attempt);
   }
-  // type-rationale: exhaustiveness sentinel — keeps the type checker happy
-  // and ensures any future Backoff variant fails closed at runtime.
-  const _exhaustive: never = backoff;
-  void _exhaustive;
-  return null;
+  return Math.min(Math.floor(retryAfterSeconds * 1000), MAX_RETRY_AFTER_MS);
 }
 
 function scheduleAt(schedule: readonly number[], attempt: number): number {
@@ -322,12 +318,12 @@ export function parseRetryAfter(headerValue: string | null | undefined): number 
 
 function extractCatalogCodeFromBody(payload: unknown): string | undefined {
   if (payload === null || typeof payload !== 'object') return undefined;
-  const code = (payload as Record<string, unknown>)['code'];
+  const code = (payload as Record<string, unknown>).code;
   if (typeof code === 'string' && code.length > 0) return code;
   // Server filter may nest under details.
-  const details = (payload as Record<string, unknown>)['details'];
+  const details = (payload as Record<string, unknown>).details;
   if (details !== null && typeof details === 'object') {
-    const inner = (details as Record<string, unknown>)['code'];
+    const inner = (details as Record<string, unknown>).code;
     if (typeof inner === 'string' && inner.length > 0) return inner;
   }
   return undefined;

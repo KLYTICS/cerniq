@@ -4,10 +4,11 @@
 // and the dashboard is part of AEGIS. The operator runs the handshake from
 // the SDK / CLI and the panel reflects state via Redis-backed status.
 
+import type { HandshakeStatus } from '../lib/api-client';
+import { relativeTime } from '../lib/format';
+
 import { CopyButton } from './CopyButton';
 import { StatusDot } from './StatusDot';
-import { relativeTime } from '../lib/format';
-import type { HandshakeStatus } from '../lib/api-client';
 
 interface Props {
   agentId: string;

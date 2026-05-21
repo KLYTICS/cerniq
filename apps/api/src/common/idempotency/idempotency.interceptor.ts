@@ -10,6 +10,7 @@
 // principal A and principal B can use the same idempotency key without
 // collision.
 
+import { AEGIS_HEADER_IDEMPOTENCY } from '@aegis/types';
 import {
   type CallHandler,
   type ExecutionContext,
@@ -20,11 +21,11 @@ import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
 import { type Observable, of, tap } from 'rxjs';
 
-import { AEGIS_HEADER_IDEMPOTENCY } from '@aegis/types';
 
 import type { AuthenticatedKey } from '../../modules/auth/api-key.service';
-import { IDEMPOTENT_KEY } from './idempotent.decorator';
+
 import { IdempotencyService } from './idempotency.service';
+import { IDEMPOTENT_KEY } from './idempotent.decorator';
 
 interface RequestWithAuth extends Request {
   auth?: AuthenticatedKey;
@@ -58,7 +59,9 @@ export class IdempotencyInterceptor implements NestInterceptor {
       return next.handle();
     }
 
-    const route = `${req.method} ${req.route?.path ?? req.path}`;
+    // Express types `req.route.path` loosely; cast at the boundary.
+    const routePath = (req.route as { path?: string } | undefined)?.path ?? req.path;
+    const route = `${req.method} ${routePath}`;
     const body = (req.body ?? null) as unknown;
 
     const hit = await this.idempotency.lookup(principalId, route, idempotencyKey, body);

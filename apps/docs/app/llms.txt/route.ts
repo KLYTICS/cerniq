@@ -17,8 +17,12 @@ export function GET() {
   const sections = new Map<string, typeof pages>();
   for (const page of pages) {
     const section = page.slugs[0] ?? 'overview';
-    if (!sections.has(section)) sections.set(section, []);
-    sections.get(section)!.push(page);
+    let bucket = sections.get(section);
+    if (!bucket) {
+      bucket = [];
+      sections.set(section, bucket);
+    }
+    bucket.push(page);
   }
 
   const body = [

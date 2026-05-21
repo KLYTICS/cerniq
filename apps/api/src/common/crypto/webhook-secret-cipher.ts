@@ -24,11 +24,12 @@
 //   - Errors are typed via AegisError (InternalError) — never raw throws.
 //   - No `any`, no Math.random; randomness comes from `randomBytes`.
 
-import { Injectable, Logger } from '@nestjs/common';
 import { createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from 'node:crypto';
 
-import { InternalError } from '../errors/aegis-error';
+import { Injectable, Logger } from '@nestjs/common';
+
 import { AppConfigService } from '../../config/config.service';
+import { InternalError } from '../errors/aegis-error';
 
 const VERSION = 'v1' as const;
 const VERSION_PREFIX = `${VERSION}:`;

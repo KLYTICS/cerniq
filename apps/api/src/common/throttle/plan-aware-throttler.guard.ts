@@ -55,8 +55,8 @@ import type { PlanTier } from '@prisma/client';
 import type { Request, Response } from 'express';
 
 import type { AuthenticatedKey } from '../../modules/auth/api-key.service';
-import { UsageGuardService } from '../../modules/billing/usage-guard.service';
 import { getPlan } from '../../modules/billing/plans';
+import { UsageGuardService } from '../../modules/billing/usage-guard.service';
 
 /** Default fallback when no principal is on the request (anonymous traffic). */
 const ANONYMOUS_FALLBACK_TIER: PlanTier = 'FREE';
@@ -180,6 +180,7 @@ export class PlanAwareThrottlerGuard extends ThrottlerGuard {
       return await super.canActivate(context);
     } catch (err) {
       // Re-raise our intentional 429s.
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison -- HttpException.getStatus() is typed `number`; HttpStatus is an enum.
       if (err instanceof HttpException && err.getStatus() === HttpStatus.TOO_MANY_REQUESTS) {
         throw err;
       }

@@ -1,10 +1,11 @@
 // `aegis mcp install` — writes an `aegis-mcp` entry into the host's MCP
 // config. Supports Claude Desktop and Cursor.
 
+import { existsSync } from 'node:fs';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+
 import { resolveCredentials } from '../credentials.js';
 import { info, ok, warn, err } from '../output.js';
 

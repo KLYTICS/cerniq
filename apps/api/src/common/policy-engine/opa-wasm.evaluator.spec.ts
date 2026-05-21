@@ -22,7 +22,7 @@ function fakeOpa(result: { allow: boolean; deny_reasons?: string[]; metadata?: R
 describe('OpaWasmEvaluator', () => {
   it('loads and evaluates a policy artifact', async () => {
     const { mod, policy } = fakeOpa({ allow: true });
-    const evaluator = new OpaWasmEvaluator(mod as never);
+    const evaluator = new OpaWasmEvaluator(mod);
     const wasmBytes = Buffer.from(new Uint8Array([1, 2, 3])).toString('base64');
     const r = await evaluator.evaluate({
       artifact: { wasmBytes, cacheKey: 'k1' },
@@ -35,7 +35,7 @@ describe('OpaWasmEvaluator', () => {
 
   it('caches loaded policies by cacheKey', async () => {
     const { mod } = fakeOpa({ allow: true });
-    const evaluator = new OpaWasmEvaluator(mod as never);
+    const evaluator = new OpaWasmEvaluator(mod);
     const wasmBytes = Buffer.from(new Uint8Array([7])).toString('base64');
     await evaluator.evaluate({ artifact: { wasmBytes, cacheKey: 'same' }, document: {} });
     await evaluator.evaluate({ artifact: { wasmBytes, cacheKey: 'same' }, document: {} });
@@ -44,7 +44,7 @@ describe('OpaWasmEvaluator', () => {
 
   it('reloads policy when cacheKey changes', async () => {
     const { mod } = fakeOpa({ allow: true });
-    const evaluator = new OpaWasmEvaluator(mod as never);
+    const evaluator = new OpaWasmEvaluator(mod);
     const w1 = Buffer.from(new Uint8Array([1])).toString('base64');
     const w2 = Buffer.from(new Uint8Array([2])).toString('base64');
     await evaluator.evaluate({ artifact: { wasmBytes: w1, cacheKey: 'k1' }, document: {} });
@@ -55,7 +55,7 @@ describe('OpaWasmEvaluator', () => {
   it('returns implicit deny on empty result array', async () => {
     const policy: FakePolicy = { evaluate: jest.fn(() => []), setData: jest.fn() };
     const mod: FakeOpaModule = { loadPolicy: jest.fn(async () => policy) };
-    const evaluator = new OpaWasmEvaluator(mod as never);
+    const evaluator = new OpaWasmEvaluator(mod);
     const r = await evaluator.evaluate({
       artifact: { wasmBytes: Buffer.from([0]).toString('base64'), cacheKey: 'x' },
       document: {},
@@ -70,7 +70,7 @@ describe('OpaWasmEvaluator', () => {
       deny_reasons: ['POLICY_EXPIRED', 'TRUST_SCORE_TOO_LOW'],
       metadata: { matched_rule: 'r17' },
     });
-    const evaluator = new OpaWasmEvaluator(mod as never);
+    const evaluator = new OpaWasmEvaluator(mod);
     const r = await evaluator.evaluate({
       artifact: { wasmBytes: Buffer.from([0]).toString('base64'), cacheKey: 'x' },
       document: {},
@@ -82,7 +82,7 @@ describe('OpaWasmEvaluator', () => {
 
   it('throws when artifact.wasmBytes is missing', async () => {
     const { mod } = fakeOpa({ allow: true });
-    const evaluator = new OpaWasmEvaluator(mod as never);
+    const evaluator = new OpaWasmEvaluator(mod);
     await expect(
       evaluator.evaluate({ artifact: {}, document: {} }),
     ).rejects.toThrow(/wasmBytes/);
@@ -91,7 +91,7 @@ describe('OpaWasmEvaluator', () => {
   it('filters non-string entries from deny_reasons', async () => {
     // OPA WASM result documents are loosely typed; defense in depth.
     const { mod } = fakeOpa({ allow: false, deny_reasons: ['POLICY_EXPIRED', null as unknown as string, 42 as unknown as string] });
-    const evaluator = new OpaWasmEvaluator(mod as never);
+    const evaluator = new OpaWasmEvaluator(mod);
     const r = await evaluator.evaluate({
       artifact: { wasmBytes: Buffer.from([0]).toString('base64'), cacheKey: 'x' },
       document: {},

@@ -27,7 +27,7 @@ describe('AegisError.catalogKey (F-06 minification safety)', () => {
   // discriminator, `new.target.name` collapses to "a"/"b"/... and
   // `err.name` becomes useless to consumers. These assertions are the
   // build-pipeline guard.
-  const cases: Array<[new (...args: never[]) => unknown, string]> = [
+  const cases: [new (...args: never[]) => unknown, string][] = [
     [AegisAuthenticationError, 'AegisAuthenticationError'],
     [AegisAuthorizationError, 'AegisAuthorizationError'],
     [AegisNotFoundError, 'AegisNotFoundError'],
@@ -233,7 +233,7 @@ describe('withRetry (public API)', () => {
 });
 
 describe('HttpClient.requestWithRetry', () => {
-  function mkClient(handlers: Array<() => Response>): HttpClient {
+  function mkClient(handlers: (() => Response)[]): HttpClient {
     let i = 0;
     const fetchFn: typeof globalThis.fetch = async () => {
       const handler = handlers[Math.min(i, handlers.length - 1)];

@@ -3,7 +3,9 @@
 
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ulid } from 'ulid';
+
 import { AuditService } from '../audit/audit.service';
+
 import { Auth0Adapter } from './auth0.adapter';
 import type {
   Auth0ActionLoginDto,

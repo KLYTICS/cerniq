@@ -1,12 +1,13 @@
 import { Body, Controller, HttpCode, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
-import { RedactService } from './redact.service';
+
 import type {
   RedactAuditByAgentDto,
   RedactAuditByAgentResultDto,
   RedactAuditEventDto,
   RedactAuditEventResultDto,
 } from './redact.dto';
+import { RedactService } from './redact.service';
 
 /**
  * GDPR Art. 17 surface.
@@ -31,7 +32,7 @@ export class RedactController {
   ): Promise<RedactAuditEventResultDto> {
     const principalId = (req as unknown as { principalId?: string }).principalId;
     if (!principalId) throw new Error('principal_missing');
-    return this.redact.redactEvent(principalId, dto);
+    return await this.redact.redactEvent(principalId, dto);
   }
 
   @Post('redact-by-agent')
@@ -42,6 +43,6 @@ export class RedactController {
   ): Promise<RedactAuditByAgentResultDto> {
     const principalId = (req as unknown as { principalId?: string }).principalId;
     if (!principalId) throw new Error('principal_missing');
-    return this.redact.redactByAgent(principalId, dto);
+    return await this.redact.redactByAgent(principalId, dto);
   }
 }

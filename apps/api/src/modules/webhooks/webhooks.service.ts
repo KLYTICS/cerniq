@@ -1,8 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
+
+import { Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import { PrismaService } from '../../common/prisma/prisma.service';
+
 import { WebhookSecretCipher } from '../../common/crypto/webhook-secret-cipher';
+import { PrismaService } from '../../common/prisma/prisma.service';
+
 import { WebhookDeliveryWorker } from './webhook.delivery';
 
 export interface WebhookEvent {
@@ -43,7 +46,7 @@ export class WebhooksService {
     await this.prisma.webhookSubscription.deleteMany({ where: { id, principalId } });
   }
 
-  async list(principalId: string): Promise<Array<{ id: string; url: string; events: string[]; active: boolean }>> {
+  async list(principalId: string): Promise<{ id: string; url: string; events: string[]; active: boolean }[]> {
     const subs = await this.prisma.webhookSubscription.findMany({ where: { principalId } });
     return subs.map((s) => ({ id: s.id, url: s.url, events: s.events, active: s.active }));
   }

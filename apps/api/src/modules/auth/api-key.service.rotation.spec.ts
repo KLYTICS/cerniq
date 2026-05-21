@@ -1,9 +1,11 @@
 import * as bcrypt from 'bcryptjs';
-import { ApiKeyService } from './api-key.service';
+
 import { AlreadyRotatedError, AuthorizationError, NotFoundError } from '../../common/errors/aegis-error';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { AppConfigService } from '../../config/config.service';
 import type { AuditService } from '../audit/audit.service';
+
+import { ApiKeyService } from './api-key.service';
 
 /**
  * Rotation-only service tests. Kept separate from api-key.service.spec.ts
@@ -80,7 +82,7 @@ function buildHarness(opts: { failTransaction?: boolean } = {}) {
         }
         throw new Error('simulated tx failure');
       }
-      return cb(txClient);
+      return await cb(txClient);
     }),
   } as unknown as PrismaService;
 

@@ -56,7 +56,7 @@ export interface AnomalyInput {
   agentPrincipalId: string;
   recentVerifies: VerifyObservation[];
   /** Trailing 30 days of approved-spend amounts for this agent. */
-  spendHistory: Array<{ amount: number; timestamp: Date }>;
+  spendHistory: { amount: number; timestamp: Date }[];
   delegationChain?: DelegationSnapshot | null;
 }
 

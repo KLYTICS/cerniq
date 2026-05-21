@@ -5,10 +5,11 @@
  * (ApiKeyGuard contract) and delegates to RedactService.
  */
 
-import { RedactController } from './redact.controller';
-import { RedactService } from './redact.service';
-import type { RedactAuditByAgentDto, RedactAuditEventDto } from './redact.dto';
 import type { Request } from 'express';
+
+import { RedactController } from './redact.controller';
+import type { RedactAuditByAgentDto, RedactAuditEventDto } from './redact.dto';
+import type { RedactService } from './redact.service';
 
 // ── Stubs ─────────────────────────────────────────────────────────────────────
 
@@ -16,7 +17,7 @@ function makeService(): jest.Mocked<Pick<RedactService, 'redactEvent' | 'redactB
   return {
     redactEvent: jest.fn().mockResolvedValue({ eventId: 'evt_1', redactedFields: ['action'], redactionAuditId: 'evt_r' }),
     redactByAgent: jest.fn().mockResolvedValue({ agentId: 'agt_1', eventsRedacted: 5, metaEventId: 'evt_m' }),
-  } as unknown as jest.Mocked<Pick<RedactService, 'redactEvent' | 'redactByAgent'>>;
+  };
 }
 
 function makeReq(principalId?: string): Request {

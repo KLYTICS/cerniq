@@ -12,8 +12,8 @@
 // stays import-safe for unit tests that mock the adapters.
 
 import { Module, OnModuleInit, Provider } from '@nestjs/common';
-import { AppConfigModule } from '../../config/config.module';
-import { AppConfigService } from '../../config/config.service';
+import * as ed from '@noble/ed25519';
+
 import {
   InMemoryKmsAdapter,
   setKmsAdapter,
@@ -21,10 +21,6 @@ import {
   type KmsAdapter,
   type KeyMetadata,
 } from '../../common/crypto/crypto.bootstrap';
-import * as ed from '@noble/ed25519';
-import { AwsKmsAdapter, type KmsClientLike } from './aws-kms.adapter';
-import { GcpKmsAdapter, type GcpKmsClientLike } from './gcp-kms.adapter';
-import { VaultTransitAdapter, type VaultClientLike } from './vault-transit.adapter';
 import { MetricsService } from '../../common/observability/metrics.service';
 import {
   CircuitBreaker,
@@ -32,6 +28,13 @@ import {
   type BreakerMetricsSink,
   type CircuitState,
 } from '../../common/resilience/circuit-breaker';
+import { AppConfigModule } from '../../config/config.module';
+import { AppConfigService } from '../../config/config.service';
+
+import { AwsKmsAdapter, type KmsClientLike } from './aws-kms.adapter';
+import { GcpKmsAdapter, type GcpKmsClientLike } from './gcp-kms.adapter';
+import { VaultTransitAdapter, type VaultClientLike } from './vault-transit.adapter';
+
 
 /**
  * Adapt MetricsService to the framework-free `BreakerMetricsSink` shape so
@@ -43,9 +46,9 @@ function metricsSink(metrics: MetricsService | null): BreakerMetricsSink | undef
   if (!metrics) return undefined;
   return {
     setState: (name, numeric) =>
-      metrics.circuitBreakerStateGauge.set({ breaker: name }, numeric),
+      { metrics.circuitBreakerStateGauge.set({ breaker: name }, numeric); },
     recordTrip: (name) =>
-      metrics.circuitBreakerTripsTotal.inc({ breaker: name }),
+      { metrics.circuitBreakerTripsTotal.inc({ breaker: name }); },
   };
 }
 
@@ -123,7 +126,7 @@ async function buildAws(
   config: AppConfigService,
   metrics: MetricsService | null,
 ): Promise<KmsAdapter> {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { KMSClient, DecryptCommand } = require('@aws-sdk/client-kms') as typeof import('@aws-sdk/client-kms');
   const region = (config as unknown as { awsRegion?: string }).awsRegion;
   if (!region) throw new Error('AWS_REGION required for AEGIS_KMS_PROVIDER=aws');
@@ -163,7 +166,7 @@ async function buildAws(
           const out = await client.send(
             new DecryptCommand({ CiphertextBlob: input.CiphertextBlob }),
           );
-          return { Plaintext: out.Plaintext as Uint8Array | undefined };
+          return { Plaintext: out.Plaintext };
         }),
     },
   );
@@ -181,7 +184,7 @@ async function buildGcp(
   // dev machines, so `typeof import(...)` resolution fails. We pin the
   // structural surface we use (just `asymmetricSign`) inline; the adapter
   // owns the fully-typed `GcpKmsClientLike` contract.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { KeyManagementServiceClient } = require('@google-cloud/kms') as {
     KeyManagementServiceClient: new () => {
       asymmetricSign(req: { name: string; data: Uint8Array }): Promise<[{ signature?: Uint8Array | string | null }]>;
@@ -292,8 +295,6 @@ async function buildVault(
   exports: [kmsAdapterProvider],
 })
 export class KmsModule implements OnModuleInit {
-  constructor() {}
-
   async onModuleInit(): Promise<void> {
     // The provider above already constructed the adapter. Register the
     // singleton accessor used by hot-path code (audit chain sign,

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+
 import { PrismaService } from '../prisma/prisma.service';
 
 export type OutboxKind = 'BATE_SIGNAL' | 'WEBHOOK_DELIVERY';
@@ -60,7 +61,7 @@ export class OutboxService {
    * callers should use {@link enqueueInTx} instead.
    */
   async enqueue<K extends OutboxKind>(kind: K, payload: OutboxPayload[K]): Promise<string> {
-    return this.enqueueInTx(this.prisma, kind, payload);
+    return await this.enqueueInTx(this.prisma, kind, payload);
   }
 
   /**
@@ -73,14 +74,14 @@ export class OutboxService {
     workerId: string,
     batchSize: number,
     lockTtlMs: number,
-  ): Promise<Array<{ id: string; kind: string; payload: unknown; attempts: number }>> {
+  ): Promise<{ id: string; kind: string; payload: unknown; attempts: number }[]> {
     const lockTtlAgo = new Date(Date.now() - lockTtlMs);
-    return this.prisma.$transaction(async (tx) => {
+    return await this.prisma.$transaction(async (tx) => {
       // Postgres dialect: SELECT ... FOR UPDATE SKIP LOCKED. Prisma
       // doesn't expose this directly; use $queryRaw for the locking,
       // then $executeRaw to claim, all in one tx.
       const rows = await tx.$queryRaw<
-        Array<{ id: string; kind: string; payload: unknown; attempts: number }>
+        { id: string; kind: string; payload: unknown; attempts: number }[]
       >`
         SELECT id, kind, payload, attempts
         FROM "OutboxEvent"

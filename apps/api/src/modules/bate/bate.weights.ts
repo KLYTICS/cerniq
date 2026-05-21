@@ -109,7 +109,7 @@ export const AGE_COHORT_POINTS_PER_DAY = 0.5;
 export const AGE_COHORT_CAP = 100; // → max bonus reached at 200 days.
 
 /** Trust band cutoffs (score → band). Inclusive lower bound. */
-export const TRUST_BAND_CUTOFFS: ReadonlyArray<{ min: number; band: TrustBand }> = Object.freeze([
+export const TRUST_BAND_CUTOFFS: readonly { min: number; band: TrustBand }[] = Object.freeze([
   { min: 750, band: 'PLATINUM' },
   { min: 500, band: 'VERIFIED' },
   { min: 250, band: 'WATCH' },

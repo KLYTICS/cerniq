@@ -5,9 +5,9 @@
 // guards, interceptors) can use `instanceof` to react to a specific
 // failure mode without parsing strings.
 
+import type { ErrorCode } from '@aegis/types';
 import { HttpException, HttpStatus } from '@nestjs/common';
 
-import type { ErrorCode } from '@aegis/types';
 
 import { ERROR_CATALOG, type ErrorCatalogEntry } from './error-catalog.js';
 
@@ -38,7 +38,7 @@ export abstract class AegisError extends HttpException {
     super({ message, ...(opts.details !== undefined ? { details: opts.details } : {}) }, status, {
       cause: opts.cause as Error | undefined,
     });
-    if ((new.target as typeof AegisError).catalogKey === '') {
+    if ((new.target).catalogKey === '') {
       throw new Error('AegisError subclass missing static catalogKey: ' + new.target.name);
     }
   }

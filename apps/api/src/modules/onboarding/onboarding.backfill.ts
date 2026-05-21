@@ -27,6 +27,7 @@
 // operator triggers it via `aegis-cli onboarding backfill` (M-027).
 
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 // `@nestjs/schedule` is an optional dep — when absent (e.g., in unit
@@ -35,7 +36,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 type CronDecorator = (expression: string) => MethodDecorator;
 let Cron: CronDecorator;
 try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   ({ Cron } = require('@nestjs/schedule') as { Cron: CronDecorator });
 } catch {
   Cron = () => () => undefined;
@@ -71,7 +72,7 @@ export class OnboardingBackfill implements OnModuleInit {
    */
   async onModuleInit(): Promise<void> {
     setTimeout(() => {
-      this.run().catch((err) => this.logger.error(`backfill on-boot run failed: ${(err as Error).message}`));
+      this.run().catch((err) => { this.logger.error(`backfill on-boot run failed: ${(err as Error).message}`); });
     }, 30_000);
   }
 
@@ -188,6 +189,6 @@ export class OnboardingBackfill implements OnModuleInit {
          WHERE src."principalId" = o."principalId"
            AND o."${boolCol}" = false`,
     );
-    return Number(result ?? 0);
+    return result ?? 0;
   }
 }

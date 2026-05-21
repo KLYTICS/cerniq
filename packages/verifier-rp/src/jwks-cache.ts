@@ -5,8 +5,8 @@
 //   - A single `inFlight` promise dedupes concurrent refresh calls so a burst
 //     of cache misses doesn't hammer the JWKS endpoint.
 
-import type { JwksKey } from './types.js';
 import { now } from './_internal/time.js';
+import type { JwksKey } from './types.js';
 
 interface CacheEntry {
   key: JwksKey;

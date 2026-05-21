@@ -12,11 +12,13 @@
  */
 
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import { PolicyService } from './policy.service';
+
+import type { JwtUtil } from '../../common/crypto/jwt.util';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { RedisService } from '../../common/redis/redis.service';
-import type { JwtUtil } from '../../common/crypto/jwt.util';
+
 import { ScopeCategory } from './policy.dto';
+import { PolicyService } from './policy.service';
 
 // ── Signing material ──────────────────────────────────────────────────────────
 
@@ -173,14 +175,14 @@ describe('PolicyService', () => {
       const { svc, jwt, policies } = makeService({ agents: [ACTIVE_AGENT] });
       await svc.create('prn_A', 'agt_1', BASE_DTO);
       expect(jwt.sign).toHaveBeenCalledTimes(1);
-      expect(policies[0]!.signedToken).toMatch(/^jwt_signed_/);
-      expect(policies[0]!.tokenHash).toHaveLength(64); // SHA-256 hex
+      expect(policies[0].signedToken).toMatch(/^jwt_signed_/);
+      expect(policies[0].tokenHash).toHaveLength(64); // SHA-256 hex
     });
 
     it('stores the policy with status ACTIVE', async () => {
       const { svc, policies } = makeService({ agents: [ACTIVE_AGENT] });
       await svc.create('prn_A', 'agt_1', BASE_DTO);
-      expect(policies[0]!.status).toBe('ACTIVE');
+      expect(policies[0].status).toBe('ACTIVE');
     });
   });
 
@@ -194,7 +196,7 @@ describe('PolicyService', () => {
       const { svc } = makeService({ agents: [ACTIVE_AGENT], policies });
       const list = await svc.list('prn_A', 'agt_1');
       expect(list).toHaveLength(1);
-      expect(list[0]!.policyId).toBe('pol_1');
+      expect(list[0].policyId).toBe('pol_1');
     });
 
     it('throws NotFoundException when agent does not belong to principal', async () => {
@@ -238,7 +240,7 @@ describe('PolicyService', () => {
       const policies = [{ ...existingPolicy }];
       const { svc, policies: stored } = makeService({ agents: [ACTIVE_AGENT], policies });
       await svc.revoke('prn_A', 'agt_1', 'pol_active');
-      expect(stored[0]!.status).toBe('REVOKED');
+      expect(stored[0].status).toBe('REVOKED');
     });
 
     it('evicts the Redis cache key for the policy', async () => {

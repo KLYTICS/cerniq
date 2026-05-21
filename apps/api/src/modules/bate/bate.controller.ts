@@ -1,11 +1,12 @@
 import { Body, Controller, ForbiddenException, HttpCode, HttpStatus, NotFoundException, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiSecurity, ApiTags } from '@nestjs/swagger';
-import { IsEnum, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
 import { BateSignalType, SignalSeverity } from '@prisma/client';
+import { IsEnum, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
 
 import { Auth } from '../../common/decorators/auth.decorator';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import type { AuthenticatedKey } from '../auth/api-key.service';
+
 import { BateService } from './bate.service';
 
 class ReportRequestDto {

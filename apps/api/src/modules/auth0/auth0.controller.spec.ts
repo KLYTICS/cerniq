@@ -8,10 +8,12 @@
  */
 
 import { UnauthorizedException } from '@nestjs/common';
+
+import type { AppConfigService } from '../../config/config.service';
+
 import { Auth0Controller } from './auth0.controller';
-import { Auth0Service } from './auth0.service';
-import { AppConfigService } from '../../config/config.service';
 import type { Auth0ActionLoginDto, Auth0ExchangeDto } from './auth0.dto';
+import type { Auth0Service } from './auth0.service';
 
 // ── Stubs ─────────────────────────────────────────────────────────────────────
 
@@ -19,13 +21,13 @@ function makeService(): jest.Mocked<Pick<Auth0Service, 'handleActionLogin' | 'ex
   return {
     handleActionLogin: jest.fn().mockResolvedValue({ principalId: 'prn_A', apiKey: 'aegis_...' }),
     exchangeToken: jest.fn().mockResolvedValue({ api_key_id: 'key_123', principal_id: 'prn_A', roles: [], expires_at: '2026-01-01T00:00:00.000Z' }),
-  } as unknown as jest.Mocked<Pick<Auth0Service, 'handleActionLogin' | 'exchangeToken'>>;
+  };
 }
 
 function makeConfig(secret = 'correct_secret'): jest.Mocked<Pick<AppConfigService, 'auth0ActionSecret'>> {
   return {
     auth0ActionSecret: secret,
-  } as unknown as jest.Mocked<Pick<AppConfigService, 'auth0ActionSecret'>>;
+  };
 }
 
 function makeController(secret?: string) {

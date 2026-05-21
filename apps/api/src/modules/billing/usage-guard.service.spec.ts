@@ -5,19 +5,21 @@
 //   - invalidatePlanCache
 
 import type { PlanTier } from '@prisma/client';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { RedisService } from '../../common/redis/redis.service';
+
+import type { PrismaService } from '../../common/prisma/prisma.service';
+import type { RedisService } from '../../common/redis/redis.service';
+
 import { UsageGuardService } from './usage-guard.service';
 
 // type-rationale: jest mock chains use `any` because ioredis-mock chain types
 // are not what we need to assert here — we only care call shape.
-type MultiChain = {
+interface MultiChain {
   set: jest.Mock;
   expire: jest.Mock;
   incr: jest.Mock;
   // type-rationale: exec returns Redis multi reply; tests just resolve [].
   exec: jest.Mock<Promise<unknown[]>, []>;
-};
+}
 
 interface MockPrisma {
   auditEvent: { count: jest.Mock };
@@ -37,7 +39,7 @@ function makeMultiChain(): MultiChain {
     expire: jest.fn(),
     incr: jest.fn(),
     exec: jest.fn().mockResolvedValue([]),
-  } as unknown as MultiChain;
+  };
   chain.set.mockReturnValue(chain);
   chain.expire.mockReturnValue(chain);
   chain.incr.mockReturnValue(chain);
@@ -271,7 +273,7 @@ describe('UsageGuardService', () => {
     it('exec rejection is swallowed (fire-and-forget, no throw)', async () => {
       redisHandles.multiChain.exec.mockRejectedValueOnce(new Error('redis exec fail'));
 
-      expect(() => service.incrementUsage(PRINCIPAL_ID)).not.toThrow();
+      expect(() => { service.incrementUsage(PRINCIPAL_ID); }).not.toThrow();
 
       // Drain the catch handler.
       await Promise.resolve();
@@ -343,7 +345,7 @@ describe('UsageGuardService', () => {
         // The class-level test setup uses the 2-arg ctor — confirm
         // incrementUsage still no-ops cleanly with no Stripe wiring.
         redisHandles.multiChain.exec.mockResolvedValueOnce([[null, 999_999]]);
-        expect(() => service.incrementUsage(PRINCIPAL_ID)).not.toThrow();
+        expect(() => { service.incrementUsage(PRINCIPAL_ID); }).not.toThrow();
       });
     });
   });

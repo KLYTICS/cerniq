@@ -32,9 +32,7 @@ const BAND_META: Record<
 };
 
 // Render highest threshold first.
-const ORDERED = (Object.entries(TRUST_BAND_THRESHOLDS) as Array<
-  [keyof typeof TRUST_BAND_THRESHOLDS, number]
->).sort((a, b) => b[1] - a[1]);
+const ORDERED = (Object.entries(TRUST_BAND_THRESHOLDS) as [keyof typeof TRUST_BAND_THRESHOLDS, number][]).sort((a, b) => b[1] - a[1]);
 
 export function TrustBandLegend() {
   return (

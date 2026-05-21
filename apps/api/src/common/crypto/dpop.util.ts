@@ -30,8 +30,10 @@
 // `Has(jti) -> bool` + `Add(jti, ttl)` interface.
 
 import './crypto.bootstrap.js';
-import * as ed from '@noble/ed25519';
 import { createHash } from 'node:crypto';
+
+import * as ed from '@noble/ed25519';
+
 import { decodeBase64Url, encodeBase64Url } from './ed25519.util.js';
 
 const enc = new TextEncoder();
@@ -113,14 +115,14 @@ export async function verifyDpopProof(proof: string, ctx: DpopVerifyContext): Pr
   let header: { typ?: string; alg?: string; jwk?: DpopJwk };
   let claims: DpopProofClaims;
   try {
-    header = JSON.parse(dec.decode(decodeBase64Url(headerB64)));
-    claims = JSON.parse(dec.decode(decodeBase64Url(payloadB64)));
+    header = JSON.parse(dec.decode(decodeBase64Url(headerB64))) as { typ?: string; alg?: string; jwk?: DpopJwk };
+    claims = JSON.parse(dec.decode(decodeBase64Url(payloadB64))) as DpopProofClaims;
   } catch {
     return fail('DPoP_MALFORMED');
   }
 
   if (header.typ !== 'dpop+jwt' || header.alg !== 'EdDSA') return fail('DPoP_BAD_HEADER');
-  if (!header.jwk || header.jwk.kty !== 'OKP' || header.jwk.crv !== 'Ed25519' || typeof header.jwk.x !== 'string') {
+  if (header.jwk?.kty !== 'OKP' || header.jwk.crv !== 'Ed25519' || typeof header.jwk.x !== 'string') {
     return fail('DPoP_BAD_KEY');
   }
 

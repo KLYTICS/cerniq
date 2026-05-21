@@ -1,9 +1,11 @@
 import { HttpStatus } from '@nestjs/common';
 import type { Response } from 'express';
-import { WellknownController, etagMatches, quotedEtag } from './wellknown.controller';
-import { WellknownService } from './wellknown.service';
+
 import { encodeBase64Url } from '../../common/crypto/ed25519.util';
 import type { AppConfigService } from '../../config/config.service';
+
+import { WellknownController, etagMatches, quotedEtag } from './wellknown.controller';
+import { WellknownService } from './wellknown.service';
 
 const ZERO_KEY_B64 = encodeBase64Url(new Uint8Array(32));
 const FIXED_ROTATED_AT = '2026-01-01T00:00:00.000Z';
@@ -141,7 +143,7 @@ describe('WellknownController', () => {
       const a = ctl.auditSigningKey(undefined, fakeResponse().res);
       const b = ctl.jwks(undefined, fakeResponse().res);
 
-      expect(a!.kid).toBe(b!.keys[0]!.kid);
+      expect(a!.kid).toBe(b!.keys[0].kid);
     });
   });
 
@@ -264,9 +266,9 @@ describe('WellknownController', () => {
       const ctl = new WellknownController(svc);
       const out = ctl.securityTxt(fakeResponse().res);
 
-      const match = out.match(/Expires: (\S+)/);
+      const match = /Expires: (\S+)/.exec(out);
       expect(match).toBeTruthy();
-      const expires = new Date(match![1]!);
+      const expires = new Date(match![1]);
       const days = (expires.getTime() - Date.now()) / 86_400_000;
       expect(days).toBeGreaterThan(360);
       expect(days).toBeLessThan(370);
@@ -325,10 +327,10 @@ describe('WellknownController', () => {
 
       // Hard-coded mirror — drift means plans.ts changed and this spec
       // catches it. Update both intentionally with an ADR.
-      expect(out.tiers.FREE!.audit_retention_days).toBe(30);
-      expect(out.tiers.DEVELOPER!.audit_retention_days).toBe(90);
-      expect(out.tiers.GROWTH!.audit_retention_days).toBe(365);
-      expect(out.tiers.ENTERPRISE!.audit_retention_days).toBe(7 * 365);
+      expect(out.tiers.FREE.audit_retention_days).toBe(30);
+      expect(out.tiers.DEVELOPER.audit_retention_days).toBe(90);
+      expect(out.tiers.GROWTH.audit_retention_days).toBe(365);
+      expect(out.tiers.ENTERPRISE.audit_retention_days).toBe(7 * 365);
     });
 
     it('emits a retention_reason format that matches audit-retention.service.ts', () => {
@@ -336,14 +338,14 @@ describe('WellknownController', () => {
       const ctl = new WellknownController(svc);
       const out = ctl.retentionPolicy(fakeResponse().res);
 
-      expect(out.tiers.FREE!.redaction_reason_format).toBe('retention_policy:plan=FREE:days=30');
-      expect(out.tiers.DEVELOPER!.redaction_reason_format).toBe(
+      expect(out.tiers.FREE.redaction_reason_format).toBe('retention_policy:plan=FREE:days=30');
+      expect(out.tiers.DEVELOPER.redaction_reason_format).toBe(
         'retention_policy:plan=DEVELOPER:days=90',
       );
-      expect(out.tiers.GROWTH!.redaction_reason_format).toBe(
+      expect(out.tiers.GROWTH.redaction_reason_format).toBe(
         'retention_policy:plan=GROWTH:days=365',
       );
-      expect(out.tiers.ENTERPRISE!.redaction_reason_format).toBe(
+      expect(out.tiers.ENTERPRISE.redaction_reason_format).toBe(
         'retention_policy:plan=ENTERPRISE:days=2555',
       );
     });
@@ -354,7 +356,7 @@ describe('WellknownController', () => {
       const out = ctl.retentionPolicy(fakeResponse().res);
 
       for (const key of Object.keys(out.tiers)) {
-        expect(out.tiers[key]!.redaction_method).toBe('redact-not-delete');
+        expect(out.tiers[key].redaction_method).toBe('redact-not-delete');
       }
     });
   });
@@ -413,9 +415,9 @@ describe('WellknownController', () => {
       const ctl = new WellknownController(svc);
       const out = ctl.pricing(fakeResponse().res);
 
-      expect(out.tiers.FREE!.monthly_verify_quota).toBeNull();
-      expect(out.tiers.ENTERPRISE!.monthly_verify_quota).toBeNull();
-      expect(out.tiers.ENTERPRISE!.agent_cap).toBeNull();
+      expect(out.tiers.FREE.monthly_verify_quota).toBeNull();
+      expect(out.tiers.ENTERPRISE.monthly_verify_quota).toBeNull();
+      expect(out.tiers.ENTERPRISE.agent_cap).toBeNull();
       // And the round-trip through JSON.stringify must not emit `null`-but-
       // also-not the literal string "Infinity".
       const serialized = JSON.stringify(out);
@@ -427,10 +429,10 @@ describe('WellknownController', () => {
       const ctl = new WellknownController(svc);
       const out = ctl.pricing(fakeResponse().res);
 
-      expect(out.tiers.FREE!.lifetime_verify_quota).toBe(10_000);
-      expect(out.tiers.DEVELOPER!.lifetime_verify_quota).toBeNull();
-      expect(out.tiers.GROWTH!.lifetime_verify_quota).toBeNull();
-      expect(out.tiers.ENTERPRISE!.lifetime_verify_quota).toBeNull();
+      expect(out.tiers.FREE.lifetime_verify_quota).toBe(10_000);
+      expect(out.tiers.DEVELOPER.lifetime_verify_quota).toBeNull();
+      expect(out.tiers.GROWTH.lifetime_verify_quota).toBeNull();
+      expect(out.tiers.ENTERPRISE.lifetime_verify_quota).toBeNull();
     });
 
     it('mirrors monthly_price_cents from plans.ts (null for ENTERPRISE)', () => {
@@ -438,10 +440,10 @@ describe('WellknownController', () => {
       const ctl = new WellknownController(svc);
       const out = ctl.pricing(fakeResponse().res);
 
-      expect(out.tiers.FREE!.monthly_price_cents).toBe(0);
-      expect(out.tiers.DEVELOPER!.monthly_price_cents).toBe(4_900);
-      expect(out.tiers.GROWTH!.monthly_price_cents).toBe(29_900);
-      expect(out.tiers.ENTERPRISE!.monthly_price_cents).toBeNull();
+      expect(out.tiers.FREE.monthly_price_cents).toBe(0);
+      expect(out.tiers.DEVELOPER.monthly_price_cents).toBe(4_900);
+      expect(out.tiers.GROWTH.monthly_price_cents).toBe(29_900);
+      expect(out.tiers.ENTERPRISE.monthly_price_cents).toBeNull();
     });
 
     it('exposes the raw E4 overage rate (8 = $0.0008/verify) on paid metered tiers', () => {
@@ -449,10 +451,10 @@ describe('WellknownController', () => {
       const ctl = new WellknownController(svc);
       const out = ctl.pricing(fakeResponse().res);
 
-      expect(out.tiers.FREE!.overage_per_call_e4).toBeNull();
-      expect(out.tiers.DEVELOPER!.overage_per_call_e4).toBe(8);
-      expect(out.tiers.GROWTH!.overage_per_call_e4).toBe(8);
-      expect(out.tiers.ENTERPRISE!.overage_per_call_e4).toBeNull();
+      expect(out.tiers.FREE.overage_per_call_e4).toBeNull();
+      expect(out.tiers.DEVELOPER.overage_per_call_e4).toBe(8);
+      expect(out.tiers.GROWTH.overage_per_call_e4).toBe(8);
+      expect(out.tiers.ENTERPRISE.overage_per_call_e4).toBeNull();
     });
 
     it('mirrors display names from plans.ts (Team rebrand for GROWTH)', () => {
@@ -460,10 +462,10 @@ describe('WellknownController', () => {
       const ctl = new WellknownController(svc);
       const out = ctl.pricing(fakeResponse().res);
 
-      expect(out.tiers.FREE!.display_name).toBe('Free trial');
-      expect(out.tiers.DEVELOPER!.display_name).toBe('Developer');
-      expect(out.tiers.GROWTH!.display_name).toBe('Team');
-      expect(out.tiers.ENTERPRISE!.display_name).toBe('Enterprise');
+      expect(out.tiers.FREE.display_name).toBe('Free trial');
+      expect(out.tiers.DEVELOPER.display_name).toBe('Developer');
+      expect(out.tiers.GROWTH.display_name).toBe('Team');
+      expect(out.tiers.ENTERPRISE.display_name).toBe('Enterprise');
     });
   });
 });

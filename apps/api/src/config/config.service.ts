@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+
 import { type AppConfig, configSchema } from './config.schema';
 
 @Injectable()

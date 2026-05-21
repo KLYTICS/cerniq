@@ -4,11 +4,11 @@
 // patch `principalId` / `apiKeyId` into the same context once it resolves
 // the API key.
 
+import { AEGIS_HEADER_REQUEST_ID } from '@aegis/types';
 import { Injectable, type NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 import { ulid } from 'ulid';
 
-import { AEGIS_HEADER_REQUEST_ID } from '@aegis/types';
 
 import { CorrelationContext, type CorrelationState } from './correlation.context';
 
@@ -66,6 +66,6 @@ export class CorrelationMiddleware implements NestMiddleware {
 
     res.setHeader(AEGIS_HEADER_REQUEST_ID, txId);
 
-    CorrelationContext.run(state, () => next());
+    CorrelationContext.run(state, () => { next(); });
   }
 }

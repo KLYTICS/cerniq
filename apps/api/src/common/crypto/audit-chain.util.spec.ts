@@ -1,13 +1,14 @@
 import './crypto.bootstrap';
-import * as ed from '@noble/ed25519';
 import { createHash } from 'node:crypto';
 
-import { encodeBase64Url } from './ed25519.util';
+import * as ed from '@noble/ed25519';
+
 import {
   AuditChainUtil,
   type AuditChainPayload,
   type AuditChainPayloadInput,
 } from './audit-chain.util';
+import { encodeBase64Url } from './ed25519.util';
 
 describe('AuditChainUtil', () => {
   const util = new AuditChainUtil();
@@ -105,7 +106,7 @@ describe('AuditChainUtil', () => {
 
     const tampered = {
       ...input,
-      payload: { ...input.payload, actionHash: util.hashLeaf('commerce.refund')! },
+      payload: { ...input.payload, actionHash: util.hashLeaf('commerce.refund') },
     };
     expect(await util.verify(tampered, sig, pubB64)).toBe(false);
   });

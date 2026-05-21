@@ -12,10 +12,11 @@
  * The enqueue path must never throw — delivery errors are logged & suppressed.
  */
 
-import { WebhooksService } from './webhooks.service';
-import { WebhookDeliveryWorker } from './webhook.delivery';
-import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { WebhookSecretCipher } from '../../common/crypto/webhook-secret-cipher';
+import type { PrismaService } from '../../common/prisma/prisma.service';
+
+import type { WebhookDeliveryWorker } from './webhook.delivery';
+import { WebhooksService } from './webhooks.service';
 
 // ── Prisma stub ───────────────────────────────────────────────────────────────
 
@@ -68,7 +69,7 @@ function makePrisma() {
         return row;
       }),
     },
-    $transaction: jest.fn(async (ops: Promise<DeliveryRow>[]) => Promise.all(ops)),
+    $transaction: jest.fn(async (ops: Promise<DeliveryRow>[]) => await Promise.all(ops)),
   };
 
   return { prisma, subs, deliveries };
@@ -125,7 +126,7 @@ describe('WebhooksService', () => {
     it('scopes the subscription to the provided principalId', async () => {
       const { svc, subs } = makeService();
       await svc.subscribe('prn_A', 'https://a.com/wh', ['*']);
-      expect(subs[0]!.principalId).toBe('prn_A');
+      expect(subs[0].principalId).toBe('prn_A');
     });
 
     it('each call generates a unique secret', async () => {
@@ -172,7 +173,7 @@ describe('WebhooksService', () => {
       await svc.subscribe('prn_B', 'https://b.com/wh', ['aegis.agent.trust_score_changed']);
       const list = await svc.list('prn_A');
       expect(list).toHaveLength(1);
-      expect(list[0]!.url).toBe('https://a.com/wh');
+      expect(list[0].url).toBe('https://a.com/wh');
     });
 
     it('returns empty array when principal has no subscriptions', async () => {

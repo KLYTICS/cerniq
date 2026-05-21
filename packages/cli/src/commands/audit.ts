@@ -44,7 +44,7 @@ export async function auditSearch(opts: { agentId?: string; from?: string; to?: 
 export async function auditVerify(opts: { from?: string; to?: string }): Promise<void> {
   const aegis = await client();
   // @ts-expect-error - http accessor
-  const jwks = (await aegis.http.get('/v1/.well-known/audit-signing-key')) as { keys: Array<{ kid: string; x: string }> };
+  const jwks = (await aegis.http.get('/v1/.well-known/audit-signing-key')) as { keys: { kid: string; x: string }[] };
   const pubByKid = new Map(jwks.keys.map((k) => [k.kid, k.x]));
   info(`fetched ${pubByKid.size} audit signing key(s)`);
 

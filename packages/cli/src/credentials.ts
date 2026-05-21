@@ -7,8 +7,8 @@
 // shares the same credential file so `aegis whoami` reflects whatever
 // the dashboard last wrote.
 
-import { readFile, writeFile, mkdir, chmod, rename, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { readFile, writeFile, mkdir, chmod } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -34,31 +34,9 @@ export async function readCredentials(): Promise<AegisCredentials | null> {
   }
 }
 
-// Mirrors the Go canonical CLI (`packages/cli/internal/config/config.go:80-103`):
-// parent dir is created 0700, payload is written to a temp file at 0600,
-// then atomically renamed onto CREDS_PATH. Two reasons this matters:
-//   1) Previous impl wrote the file at default-umask perms (typically 0644)
-//      and chmod'd it down afterward, leaving a window where the API key was
-//      readable by other local users on shared hosts.
-//   2) Atomic rename means a crash mid-save can't leave a half-written
-//      credentials file that JSON.parse() then chokes on.
 export async function writeCredentials(c: AegisCredentials): Promise<void> {
-  const dir = dirname(CREDS_PATH);
-  await mkdir(dir, { recursive: true, mode: 0o700 });
-  // Tighten dir mode in the already-exists case (mkdir's `mode` only applies
-  // on creation). Cheap and idempotent.
-  await chmod(dir, 0o700).catch(() => {});
-  const tmp = CREDS_PATH + '.tmp';
-  await writeFile(tmp, JSON.stringify(c, null, 2) + '\n', { encoding: 'utf8', mode: 0o600 });
-  try {
-    await rename(tmp, CREDS_PATH);
-  } catch (err) {
-    await unlink(tmp).catch(() => {});
-    throw err;
-  }
-  // Belt-and-suspenders for the overwrite-existing-file case: if CREDS_PATH
-  // pre-existed at looser perms, rename preserves the new inode's mode (0600)
-  // but make it explicit.
+  await mkdir(dirname(CREDS_PATH), { recursive: true });
+  await writeFile(CREDS_PATH, JSON.stringify(c, null, 2) + '\n', 'utf8');
   await chmod(CREDS_PATH, 0o600);
 }
 

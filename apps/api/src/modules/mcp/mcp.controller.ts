@@ -1,7 +1,8 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
-import { McpService } from './mcp.service';
+
 import type { ListMcpServersDto, McpServerDto, RegisterMcpServerDto } from './mcp.dto';
+import { McpService } from './mcp.service';
 
 /**
  * MCP control-plane HTTP surface (ADR-0008).
@@ -22,14 +23,14 @@ export class McpController {
   async register(@Req() req: Request, @Body() dto: RegisterMcpServerDto): Promise<McpServerDto> {
     const principalId = (req as unknown as { principalId?: string }).principalId;
     if (!principalId) throw new Error('principal_missing'); // ApiKeyGuard contract.
-    return this.mcp.register(principalId, dto);
+    return await this.mcp.register(principalId, dto);
   }
 
   @Get()
   async list(@Req() req: Request): Promise<ListMcpServersDto> {
     const principalId = (req as unknown as { principalId?: string }).principalId;
     if (!principalId) throw new Error('principal_missing');
-    return this.mcp.list(principalId);
+    return await this.mcp.list(principalId);
   }
 
   @Delete(':id')

@@ -3,9 +3,9 @@
 // returns a `ChainReport`. Designed to scale: streams the input,
 // constant memory per row regardless of total chain length.
 
-import { sha256 } from '@noble/hashes/sha256';
 import * as ed from '@noble/ed25519';
-import { sha512 } from '@noble/hashes/sha512';
+import { sha256 } from '@noble/hashes/sha2';
+import { sha512 } from '@noble/hashes/sha2';
 
 import { canonicalize, decodeBase64Url, utf8 } from './canonical.js';
 import { lookupPublicKey } from './jwks.js';
@@ -116,8 +116,8 @@ export async function verifyChain(
 
   const iter: AsyncIterable<AuditEventRow> =
     Symbol.asyncIterator in events
-      ? (events as AsyncIterable<AuditEventRow>)
-      : asyncFromIterable(events as Iterable<AuditEventRow>);
+      ? (events)
+      : asyncFromIterable(events);
 
   for await (const row of iter) {
     const idx = totalRows;
@@ -180,6 +180,7 @@ export async function verifyChain(
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/require-await -- AsyncIterable<T> contract requires the async modifier even with no await.
 async function* asyncFromIterable<T>(it: Iterable<T>): AsyncIterable<T> {
   for (const x of it) yield x;
 }

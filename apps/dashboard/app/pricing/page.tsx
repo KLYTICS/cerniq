@@ -12,6 +12,7 @@ import type { Metadata } from 'next';
 import type { ReactElement } from 'react';
 
 import { resolvePricing } from '../../lib/pricing-source';
+
 import { FeatureMatrix } from './_components/FeatureMatrix';
 
 export const metadata: Metadata = {

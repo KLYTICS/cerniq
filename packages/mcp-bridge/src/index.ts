@@ -35,10 +35,9 @@ export interface BridgeConfig {
    */
   minTrustBand?: 'PLATINUM' | 'VERIFIED' | 'WATCH' | 'FLAGGED';
   /**
-   * Action prefix for the MCP server, e.g. `'mcp.fs.'`. For `tools/call`,
-   * the prefix is concatenated with the MCP tool name to form the AEGIS
-   * `action` claim — e.g. `mcp.fs.read_file`. Other MCP methods fall back
-   * to the method name, such as `mcp.fs.resources/read`.
+   * Action prefix for the MCP server, e.g. `'mcp.fs.'`. Will be
+   * concatenated with the MCP method name to form the AEGIS `action`
+   * claim — e.g. `mcp.fs.read_file`. Used for scope matching.
    */
   actionPrefix: string;
   /**
@@ -55,16 +54,7 @@ export interface BridgeContext {
   target: string;
   /** Arguments the LLM is calling with. */
   args: unknown;
-  /**
-   * Request headers extracted from the transport.
-   *
-   * **Contract**: keys are guaranteed lowercased. Look up headers as
-   * `ctx.headers['x-aegis-token']`, not `ctx.headers['X-AEGIS-Token']`.
-   * HTTP header names are case-insensitive (RFC 9110 §5.1) and MCP
-   * transports vary (stdio, SSE, WebSocket) in the case they deliver;
-   * normalizing to lowercase here means consumers don't have to repeat
-   * the dance. Non-string header values are dropped on the way in.
-   */
+  /** Request headers extracted from the transport. */
   headers: Record<string, string>;
 }
 
@@ -112,20 +102,14 @@ export function wrapMcpHandler<TReq extends McpRequest, TRes>(
 ): (req: TReq) => Promise<TRes> {
   const minBand = config.minTrustBand ?? 'VERIFIED';
   return async (req: TReq) => {
-    const rawCtx: BridgeContext = {
+    const ctx: BridgeContext = {
       method: req.method,
       target: extractTarget(req),
       args: req.params,
       headers: extractHeaders(req),
     };
 
-    const token = extractToken(req, rawCtx);
-    const sanitizedReq = stripBridgeParams(req);
-    const ctx: BridgeContext = {
-      ...rawCtx,
-      args: sanitizedReq.params,
-    };
-
+    const token = extractToken(req, ctx);
     if (!token) {
       const reason: DenialReason = 'AGENT_NOT_FOUND';
       const denial = denialResponse(reason);
@@ -137,11 +121,11 @@ export function wrapMcpHandler<TReq extends McpRequest, TRes>(
     // today — when the verify-call shape gains one, thread mcpMethod/mcpTarget
     // through here. For now the action string carries the discriminator.
     const result = await config.aegis.verify(token, {
-      action: buildVerifyAction(config.actionPrefix, ctx),
+      action: `${config.actionPrefix}${req.method}`,
     });
 
     if (!result.valid) {
-      const reason: DenialReason = (result.denialReason ?? 'AGENT_NOT_FOUND') as DenialReason;
+      const reason: DenialReason = (result.denialReason ?? 'AGENT_NOT_FOUND');
       if (config.onDenial) await config.onDenial(reason, ctx);
       throw new BridgeDenialError(reason, result);
     }
@@ -152,7 +136,7 @@ export function wrapMcpHandler<TReq extends McpRequest, TRes>(
       throw new BridgeDenialError(reason, result);
     }
 
-    return handler(sanitizedReq, { ...ctx, aegisVerify: result });
+    return await handler(req, { ...ctx, aegisVerify: result });
   };
 }
 
@@ -167,9 +151,9 @@ interface McpRequest {
 
 function extractTarget(req: McpRequest): string {
   const params = req.params ?? {};
-  if (typeof params['name'] === 'string') return params['name'];
-  if (typeof params['uri'] === 'string') return params['uri'];
-  if (typeof params['path'] === 'string') return params['path'];
+  if (typeof params.name === 'string') return params.name;
+  if (typeof params.uri === 'string') return params.uri;
+  if (typeof params.path === 'string') return params.path;
   return '';
 }
 
@@ -178,70 +162,17 @@ function extractHeaders(req: McpRequest): Record<string, string> {
   // smuggled in the params. For sse/ws, the transport adapter populates
   // them. This extractor handles both.
   const params = req.params ?? {};
-  const headers = params['_aegis_headers'];
-  if (typeof headers !== 'object' || headers === null) return {};
-
-  const normalized: Record<string, string> = {};
-  for (const [name, value] of Object.entries(headers)) {
-    if (typeof value === 'string') {
-      normalized[name.toLowerCase()] = value;
-    }
-  }
-  return normalized;
+  const headers = params._aegis_headers;
+  return typeof headers === 'object' && headers !== null
+    ? (headers as Record<string, string>)
+    : {};
 }
 
 function extractToken(req: McpRequest, ctx: BridgeContext): string | null {
   const headerToken = ctx.headers[AEGIS_HEADER_TOKEN.toLowerCase()];
   if (headerToken) return headerToken;
-  const argToken = (req.params ?? {})['_aegis_token'];
+  const argToken = req.params?._aegis_token;
   return typeof argToken === 'string' ? argToken : null;
-}
-
-function stripBridgeParams<TReq extends McpRequest>(req: TReq): TReq {
-  if (!req.params) return req;
-
-  const params = Object.fromEntries(
-    Object.entries(req.params).filter(([key]) => key !== '_aegis_token' && key !== '_aegis_headers'),
-  );
-  if (Object.keys(params).length === Object.keys(req.params).length) return req;
-
-  return { ...req, params } as TReq;
-}
-
-/**
- * MCP methods that scope to a specific named target. For these, the
- * action claim is constructed per-target so policies can grant
- * per-tool, per-resource, or per-prompt access — denying everything
- * else behind the same JSON-RPC method.
- *
- * `tools/call` uses a flat target namespace (`${prefix}${target}`)
- * because tool names are unique within an MCP server (MCP spec §3.2):
- * a policy on `mcp.fs.read_file` cannot accidentally match a resource
- * URI that happens to spell `read_file`.
- *
- * `resources/*` and `prompts/get` namespace the target under the
- * method (`${prefix}${method}.${target}`) because resource URIs and
- * prompt names live in separate, attacker-influenced namespaces — a
- * resource URI of `read_file` must NOT match a tool-scoped policy.
- *
- * List methods (`tools/list`, `resources/list`, `prompts/list`) have
- * no target and fall back to `${prefix}${method}`.
- */
-function buildVerifyAction(prefix: string, ctx: BridgeContext): string {
-  if (ctx.target) {
-    if (ctx.method === 'tools/call') {
-      return `${prefix}${ctx.target}`;
-    }
-    if (
-      ctx.method === 'resources/read' ||
-      ctx.method === 'resources/subscribe' ||
-      ctx.method === 'resources/unsubscribe' ||
-      ctx.method === 'prompts/get'
-    ) {
-      return `${prefix}${ctx.method}.${ctx.target}`;
-    }
-  }
-  return `${prefix}${ctx.method}`;
 }
 
 const BAND_ORDER: Record<NonNullable<BridgeConfig['minTrustBand']>, number> = {
@@ -256,7 +187,7 @@ function meetsTrustBar(
   min: NonNullable<BridgeConfig['minTrustBand']>,
 ): boolean {
   if (!actual) return false;
-  return (BAND_ORDER[actual] ?? -1) >= BAND_ORDER[min];
+  return BAND_ORDER[actual] >= BAND_ORDER[min];
 }
 
 function denialResponse(reason: DenialReason): VerifyResponse {

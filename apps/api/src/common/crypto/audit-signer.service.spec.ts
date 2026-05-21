@@ -1,8 +1,9 @@
 import './crypto.bootstrap';
 import * as ed from '@noble/ed25519';
+
 import { AuditSignerService } from './audit-signer.service';
-import { Ed25519Util, encodeBase64Url } from './ed25519.util';
 import { __resetKmsForTests, InMemoryKmsAdapter, setKmsAdapter } from './crypto.bootstrap';
+import { Ed25519Util, encodeBase64Url } from './ed25519.util';
 
 function buildConfig(overrides: Partial<{ priv: string; pub: string; isProd: boolean }> = {}) {
   return {
@@ -13,7 +14,7 @@ function buildConfig(overrides: Partial<{ priv: string; pub: string; isProd: boo
 }
 
 describe('AuditSignerService', () => {
-  beforeEach(() => __resetKmsForTests());
+  beforeEach(() => { __resetKmsForTests(); });
 
   it('uses KMS-backed signing when an adapter is registered', async () => {
     const adapter = new InMemoryKmsAdapter();

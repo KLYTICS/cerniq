@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { BateSignalType, Prisma, SignalSeverity } from '@prisma/client';
+
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
+
 import { BateScorer } from './bate.scorer';
 import { BateRecomputeWorker } from './bate.worker';
 

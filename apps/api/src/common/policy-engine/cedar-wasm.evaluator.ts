@@ -52,7 +52,7 @@ export class CedarWasmEvaluator implements CedarEvaluatorLike {
       // require() to avoid TS pulling cedar-wasm into the type-graph until
       // the dep is installed; production AppModule should pre-construct
       // and pass cedarModule in.
-      // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       this.cedar = require('@cedar-policy/cedar-wasm') as CedarWasmModule;
     } catch (err) {
       throw new Error(
@@ -72,7 +72,7 @@ export class CedarWasmEvaluator implements CedarEvaluatorLike {
   }): Promise<{
     decision: 'Allow' | 'Deny';
     diagnostics?: { reason?: string; errors?: string[] };
-    obligations?: Array<{ kind: string; data: Record<string, unknown> }>;
+    obligations?: { kind: string; data: Record<string, unknown> }[];
   }> {
     // The compiled artifact in our `AgentPolicy` is a JSON object holding
     // the policy text + a flat entities catalog. Cedar-wasm operates on
@@ -114,7 +114,7 @@ export class CedarWasmEvaluator implements CedarEvaluatorLike {
  */
 function extractObligations(
   diagnostics: { reason?: string; errors?: string[] } | undefined,
-): Array<{ kind: string; data: Record<string, unknown> }> | undefined {
+): { kind: string; data: Record<string, unknown> }[] | undefined {
   if (!diagnostics?.reason) return undefined;
   const m = /aegis_deny_reason\("([A-Z_]+)"\)/.exec(diagnostics.reason);
   if (!m) return undefined;

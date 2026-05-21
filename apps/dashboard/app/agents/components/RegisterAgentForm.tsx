@@ -53,7 +53,7 @@ export function RegisterAgentForm() {
 
   if (!open) {
     return (
-      <button type="button" className="aegis-button" onClick={() => setOpen(true)}>
+      <button type="button" className="aegis-button" onClick={() => { setOpen(true); }}>
         + register agent
       </button>
     );
@@ -136,7 +136,7 @@ export function RegisterAgentForm() {
       {error ? <p className="form-error" role="alert">{error}</p> : null}
 
       <div className="form-actions">
-        <button type="button" className="aegis-button-ghost" onClick={() => setOpen(false)} disabled={pending}>
+        <button type="button" className="aegis-button-ghost" onClick={() => { setOpen(false); }} disabled={pending}>
           cancel
         </button>
         <button type="submit" className="aegis-button" disabled={pending}>

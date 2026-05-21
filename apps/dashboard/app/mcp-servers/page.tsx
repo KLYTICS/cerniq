@@ -2,8 +2,9 @@
 // Bloomberg-density data table, no card grids. ADR-0008 §4.
 
 import type { Metadata } from 'next';
-import { McpServerTable } from './components/McpServerTable';
+
 import { McpMetricStrip } from './components/McpMetricStrip';
+import { McpServerTable } from './components/McpServerTable';
 
 export const metadata: Metadata = {
   title: 'MCP servers · AEGIS',

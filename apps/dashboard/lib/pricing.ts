@@ -54,7 +54,7 @@ export interface PublicTier {
 /** Email used for Enterprise "Contact us" mailto. */
 export const SALES_EMAIL = 'sales@aegislabs.io';
 
-export const PRICING_TIERS: ReadonlyArray<PublicTier> = Object.freeze([
+export const PRICING_TIERS: readonly PublicTier[] = Object.freeze([
   {
     id: 'FREE',
     displayName: 'Free trial',
@@ -137,14 +137,14 @@ export interface FeatureRow {
   /** Row label shown in the leftmost column. */
   label: string;
   /** Cell renderer per tier — string for value rows, boolean for ✓/— rows. */
-  cells: ReadonlyArray<string | boolean>;
+  cells: readonly (string | boolean)[];
 }
 
 /**
  * The 8 feature-matrix rows in display order. Cell index aligns with
  * `PRICING_TIERS` index (FREE, DEVELOPER, TEAM, SCALE, ENTERPRISE).
  */
-export const FEATURE_ROWS: ReadonlyArray<FeatureRow> = Object.freeze([
+export const FEATURE_ROWS: readonly FeatureRow[] = Object.freeze([
   { label: 'Price', cells: PRICING_TIERS.map((t) => t.price) },
   { label: 'Verifies', cells: PRICING_TIERS.map((t) => t.verifies) },
   { label: 'Overage', cells: PRICING_TIERS.map((t) => t.overage) },

@@ -17,11 +17,13 @@
  */
 
 import { NotFoundException } from '@nestjs/common';
-import { AuditService, type AppendAuditInput } from './audit.service';
-import type { PrismaService } from '../../common/prisma/prisma.service';
-import type { AppConfigService } from '../../config/config.service';
+
 import type { AuditChainUtil } from '../../common/crypto/audit-chain.util';
 import type { Ed25519Util } from '../../common/crypto/ed25519.util';
+import type { PrismaService } from '../../common/prisma/prisma.service';
+import type { AppConfigService } from '../../config/config.service';
+
+import { AuditService, type AppendAuditInput } from './audit.service';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -95,14 +97,14 @@ function makeEd25519(): jest.Mocked<Ed25519Util> {
     }),
     sign: jest.fn(),
     verify: jest.fn(),
-  } as unknown as jest.Mocked<Ed25519Util>;
+  };
 }
 
 function makeConfig(): jest.Mocked<Pick<AppConfigService, 'auditEd25519PrivateB64' | 'auditEd25519PublicB64' | 'nodeEnv'>> {
   // No env keys → will use ephemeral key (fine for tests; not production)
   return {
-    auditEd25519PrivateB64: undefined as unknown as string,
-    auditEd25519PublicB64: undefined as unknown as string,
+    auditEd25519PrivateB64: undefined,
+    auditEd25519PublicB64: undefined,
     nodeEnv: 'test',
   };
 }
@@ -112,7 +114,7 @@ function makeConfig(): jest.Mocked<Pick<AppConfigService, 'auditEd25519PrivateB6
  * The `$transaction` mock calls the callback with a tx stub whose
  * `auditEvent.create` pushes into the same array as the outer queries.
  */
-function makePrisma(initialEvents: AuditEventRow[] = [], agents: Array<{ id: string; principalId: string }> = []) {
+function makePrisma(initialEvents: AuditEventRow[] = [], agents: { id: string; principalId: string }[] = []) {
   const events: AuditEventRow[] = [...initialEvents];
 
   // The tx stub used inside $transaction callbacks
@@ -163,7 +165,7 @@ function makePrisma(initialEvents: AuditEventRow[] = [], agents: Array<{ id: str
       if (typeof callbackOrArr === 'function') {
         return callbackOrArr(txStub);
       }
-      return Promise.all(callbackOrArr as Promise<unknown>[]);
+      return await Promise.all(callbackOrArr as Promise<unknown>[]);
     }),
     agentIdentity: {
       findFirst: jest.fn(async ({ where }: { where: { id?: string; principalId?: string } }) => {
@@ -223,7 +225,7 @@ function makePrisma(initialEvents: AuditEventRow[] = [], agents: Array<{ id: str
 
 function makeService(opts: {
   initialEvents?: AuditEventRow[];
-  agents?: Array<{ id: string; principalId: string }>;
+  agents?: { id: string; principalId: string }[];
 } = {}) {
   const { prisma, events, txStub } = makePrisma(opts.initialEvents ?? [], opts.agents ?? []);
   const config = makeConfig();
@@ -233,8 +235,8 @@ function makeService(opts: {
   const svc = new AuditService(
     prisma as unknown as PrismaService,
     config as unknown as AppConfigService,
-    chain as unknown as AuditChainUtil,
-    ed25519 as unknown as Ed25519Util,
+    chain,
+    ed25519,
     // No KMS signer — dev path
     undefined,
   );
@@ -290,7 +292,7 @@ describe('AuditService', () => {
     it('writes the chain signature to the aegisSignature column', async () => {
       const { svc, events } = makeService();
       await svc.append(BASE_APPEND);
-      expect(events[0]!.aegisSignature).toBe('fake_audit_sig_b64url');
+      expect(events[0].aegisSignature).toBe('fake_audit_sig_b64url');
     });
 
     it('passes prevEventId=null for the first event in a chain', async () => {
@@ -332,8 +334,8 @@ describe('AuditService', () => {
       const svc = new AuditService(
         prisma as unknown as PrismaService,
         config as unknown as AppConfigService,
-        chain as unknown as AuditChainUtil,
-        ed as unknown as Ed25519Util,
+        chain,
+        ed,
       );
       await expect(svc.append(BASE_APPEND)).rejects.toThrow('DEADLOCK');
     });
@@ -409,11 +411,11 @@ describe('AuditService', () => {
       const { svc } = makeService({ agents: [AGENT], initialEvents: events });
       const result = await svc.list('prn_A', 'agt_1', {});
       expect(result.events).toHaveLength(1);
-      expect(result.events[0]!.eventId).toBe('evt_alpha');
-      expect(result.events[0]!.agentId).toBe('agt_1');
-      expect(result.events[0]!.decision).toBe('APPROVED');
-      expect(result.events[0]!.trustScoreAtEvent).toBe(700);
-      expect(result.events[0]!.signature).toBe('sig_x');
+      expect(result.events[0].eventId).toBe('evt_alpha');
+      expect(result.events[0].agentId).toBe('agt_1');
+      expect(result.events[0].decision).toBe('APPROVED');
+      expect(result.events[0].trustScoreAtEvent).toBe(700);
+      expect(result.events[0].signature).toBe('sig_x');
     });
 
     it('respects the limit parameter', async () => {
@@ -520,11 +522,11 @@ describe('AuditService', () => {
     it('yields each event with the aegisSignature field', async () => {
       const events = [{ ...makeEventRow('evt_x', 'agt_1', 'prn_A', new Date()) }];
       const { svc } = makeService({ agents: [AGENT], initialEvents: events });
-      const items: Array<{ aegisSignature: string; eventId: string }> = [];
+      const items: { aegisSignature: string; eventId: string }[] = [];
       for await (const row of svc.exportStream('prn_A', 'agt_1', {})) {
-        items.push(row as { aegisSignature: string; eventId: string });
+        items.push(row);
       }
-      expect(items[0]!.aegisSignature).toBeDefined();
+      expect(items[0].aegisSignature).toBeDefined();
     });
   });
 

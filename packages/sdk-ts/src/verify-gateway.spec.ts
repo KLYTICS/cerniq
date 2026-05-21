@@ -1,7 +1,9 @@
-import { VerifyGateway } from './verify-gateway.js';
 import { AegisInternalError, AegisServiceUnavailableError } from './errors.js';
-import type { Aegis } from './index.js';
 import type { VerifyResult } from './types.js';
+import { VerifyGateway } from './verify-gateway.js';
+
+import type { Aegis } from './index.js';
+
 
 function makeResult(overrides: Partial<VerifyResult> = {}): VerifyResult {
   return {
@@ -121,7 +123,7 @@ describe('VerifyGateway: circuit breaker', () => {
     const fake = makeFake(async () => {
       throw new AegisInternalError('boom', 500, undefined);
     });
-    const stateChanges: Array<[string, string]> = [];
+    const stateChanges: [string, string][] = [];
     const gw = new VerifyGateway(fake as unknown as Aegis, {
       breakerThreshold: 2,
       hooks: {
@@ -144,7 +146,7 @@ describe('VerifyGateway: circuit breaker', () => {
       if (mode === 'fail') throw new AegisInternalError('boom', 500, undefined);
       return makeResult();
     });
-    const stateChanges: Array<[string, string]> = [];
+    const stateChanges: [string, string][] = [];
     const gw = new VerifyGateway(fake as unknown as Aegis, {
       breakerThreshold: 1,
       breakerCooldownMs: 1_000,
@@ -238,13 +240,13 @@ describe('VerifyGateway: half-open serialization', () => {
 
 describe('VerifyGateway: TTL jitter', () => {
   it('cached expiresAt is at most server-clamped TTL (jitter only shortens)', async () => {
-    let now = 0;
+    const now = 0;
     const fake = makeFake(async () => makeResult({ ttl: 30 }));
     const gw = new VerifyGateway(fake as unknown as Aegis, { now: () => now });
     await gw.verify('tok');
     // Run 50 fresh entries; every cached expiresAt must be <= now + 30s.
     for (let i = 0; i < 50; i += 1) {
-      await gw.verify('tok' + i);
+      await gw.verify(`tok${String(i)}`);
     }
     const m = gw.metrics();
     expect(m.cacheSize).toBeGreaterThan(0);
@@ -259,14 +261,14 @@ describe('VerifyGateway: TTL jitter', () => {
       maxTtlMs: 30_000,
     });
     for (let i = 0; i < 200; i += 1) {
-      await gw.verify('t' + i);
+      await gw.verify(`t${String(i)}`);
     }
     // After 30s, every entry must be expired (server TTL ceiling honored).
     now += 30_000;
     let stillFresh = 0;
     for (let i = 0; i < 200; i += 1) {
       const before = fake.verify.mock.calls.length;
-      await gw.verify('t' + i);
+      await gw.verify(`t${String(i)}`);
       if (fake.verify.mock.calls.length === before) stillFresh += 1;
     }
     expect(stillFresh).toBe(0);

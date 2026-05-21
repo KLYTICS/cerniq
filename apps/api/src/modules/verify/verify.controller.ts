@@ -1,11 +1,13 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
-import { VerifyKeyOnly } from '../auth/api-key.guard';
+
 import { Auth } from '../../common/decorators/auth.decorator';
-import type { AuthenticatedKey } from '../auth/api-key.service';
 import { PlanAwareThrottlerGuard } from '../../common/throttle/plan-aware-throttler.guard';
-import { VerifyService } from './verify.service';
+import { VerifyKeyOnly } from '../auth/api-key.guard';
+import type { AuthenticatedKey } from '../auth/api-key.service';
+
 import { VerifyRequestDto, VerifyResponseDto } from './verify.dto';
+import { VerifyService } from './verify.service';
 
 // OD-006: replaced flat `@Throttle({ verify: { limit: 1000, ttl: 60_000 } })`
 // with PlanAwareThrottlerGuard. The guard reads each principal's tier from

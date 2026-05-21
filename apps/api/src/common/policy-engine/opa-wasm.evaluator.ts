@@ -23,7 +23,7 @@ interface OpaWasmModule {
    * instance. opa-wasm's `loadPolicy()` is the canonical name.
    */
   loadPolicy(buffer: Uint8Array | ArrayBuffer): Promise<{
-    evaluate(input: unknown): Array<{ result: unknown }>;
+    evaluate(input: unknown): { result: unknown }[];
     setData(data: unknown): void;
   }>;
 }
@@ -46,7 +46,7 @@ export class OpaWasmEvaluator implements OpaEvaluatorLike {
       return;
     }
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       this.opa = require('@open-policy-agent/opa-wasm') as OpaWasmModule;
     } catch (err) {
       throw new Error(

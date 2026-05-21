@@ -36,8 +36,8 @@ export interface ResolvedPricing {
   source: PricingSource;
   /** Reason for falling back; populated only when `source === 'fallback'`. */
   reason?: string;
-  tiers: ReadonlyArray<PublicTier>;
-  rows: ReadonlyArray<FeatureRow>;
+  tiers: readonly PublicTier[];
+  rows: readonly FeatureRow[];
   /** ISO-8601 timestamp from the API; null when fallback. */
   generatedAt: string | null;
   /** Spec version from the API; null when fallback. */
@@ -181,7 +181,7 @@ function mapApiToPublicTier(id: PublicTierId, t: ApiTier): PublicTier {
   };
 }
 
-function buildFeatureRows(tiers: ReadonlyArray<PublicTier>): FeatureRow[] {
+function buildFeatureRows(tiers: readonly PublicTier[]): FeatureRow[] {
   return [
     { label: 'Price', cells: tiers.map((t) => t.price) },
     { label: 'Verifies', cells: tiers.map((t) => t.verifies) },

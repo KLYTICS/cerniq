@@ -15,7 +15,7 @@ interface NavLink {
   label: string;
 }
 
-const LINKS: ReadonlyArray<NavLink> = [
+const LINKS: readonly NavLink[] = [
   { href: '/', label: 'Overview' },
   { href: '/agents', label: 'Agents' },
   { href: '/policies', label: 'Policies' },

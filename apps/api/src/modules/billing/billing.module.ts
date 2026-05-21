@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
-import { AppConfigModule } from '../../config/config.module';
+
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { RedisModule } from '../../common/redis/redis.module';
+import { AppConfigModule } from '../../config/config.module';
 import { AuditModule } from '../audit/audit.module';
+
 import { BillingController } from './billing.controller';
 import { StripeService } from './stripe.service';
 import { TrialService } from './trial.service';

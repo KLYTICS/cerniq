@@ -28,8 +28,10 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { IsArray, IsString, IsUrl, MaxLength } from 'class-validator';
+
 import { Auth } from '../../common/decorators/auth.decorator';
 import type { AuthenticatedKey } from '../auth/api-key.service';
+
 import { WebhooksService } from './webhooks.service';
 
 // ── DTOs ─────────────────────────────────────────────────────────────────────

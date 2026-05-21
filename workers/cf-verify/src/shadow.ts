@@ -54,7 +54,7 @@ export function compareVerifyResponses(edge: VerifyResponse, origin: VerifyRespo
   if (edge.agentId !== origin.agentId) fields.push('agentId');
   if (edge.principalId !== origin.principalId) fields.push('principalId');
   if (edge.trustBand !== origin.trustBand) fields.push('trustBand');
-  if (!arraysEqual(edge.scopesGranted ?? [], origin.scopesGranted ?? [])) fields.push('scopesGranted');
+  if (!arraysEqual(edge.scopesGranted, origin.scopesGranted)) fields.push('scopesGranted');
   return { divergent: fields.length > 0, fields };
 }
 

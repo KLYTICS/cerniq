@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, SetMetadata, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
+
 import { ApiKeyService, type AuthenticatedKey } from './api-key.service';
 
 export const IS_PUBLIC_KEY = 'isPublic';

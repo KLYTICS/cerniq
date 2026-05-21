@@ -14,8 +14,10 @@
 //     redactedAt timestamp (idempotent).
 
 import { Injectable, NotFoundException } from '@nestjs/common';
+
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+
 import type {
   AuditRedactableField,
   RedactAuditByAgentDto,

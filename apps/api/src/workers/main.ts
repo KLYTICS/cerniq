@@ -60,11 +60,11 @@ async function bootstrap(): Promise<void> {
   // Keep the event loop alive. The BullMQ workers register their own
   // intervals via NestJS `OnModuleInit` (when the queue modules ship).
   // For now this is a heartbeat that surfaces in logs.
-  setInterval(() => log.debug('worker heartbeat'), 60_000).unref();
+  setInterval(() => { log.debug('worker heartbeat'); }, 60_000).unref();
 }
 
 bootstrap().catch((err: unknown) => {
-  // eslint-disable-next-line no-console
+   
   console.error('worker bootstrap failed:', err);
   process.exit(1);
 });

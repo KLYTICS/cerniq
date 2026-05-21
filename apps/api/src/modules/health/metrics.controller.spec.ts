@@ -6,9 +6,11 @@
  * body to the Express response.
  */
 
-import { MetricsController } from './metrics.controller';
-import { MetricsService } from '../../common/observability/metrics.service';
 import type { Response } from 'express';
+
+import type { MetricsService } from '../../common/observability/metrics.service';
+
+import { MetricsController } from './metrics.controller';
 
 // ── Stubs ─────────────────────────────────────────────────────────────────────
 
@@ -18,7 +20,7 @@ function makeMetrics(): jest.Mocked<Pick<MetricsService, 'render'>> {
       contentType: 'text/plain; version=0.0.4; charset=utf-8',
       body: '# HELP aegis_verify_total Total verifications\naegis_verify_total 42\n',
     }),
-  } as unknown as jest.Mocked<Pick<MetricsService, 'render'>>;
+  };
 }
 
 function makeRes(): jest.Mocked<Response> {

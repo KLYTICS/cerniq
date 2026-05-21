@@ -9,7 +9,7 @@
     "prebuild": "node scripts/generate-api-docs.mjs && node scripts/generate-sdk-docs.mjs",
     "build": "next build",
     "start": "next start -p 3100",
-    "lint": "next lint --max-warnings=0",
+    "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "openapi:generate": "node scripts/generate-api-docs.mjs",
     "sdk:generate": "node scripts/generate-sdk-docs.mjs",

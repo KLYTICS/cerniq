@@ -14,8 +14,10 @@
 // With Clerk, every line of code that imports `IdpAdapter` instead of
 // `Auth0Adapter` is verifiably swappable.
 
-import { Injectable, Logger } from '@nestjs/common';
 import { createHash, createPublicKey, verify as verifyAsymmetric } from 'node:crypto';
+
+import { Injectable, Logger } from '@nestjs/common';
+
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { AppConfigService } from '../../config/config.service';
@@ -85,14 +87,18 @@ export class ClerkAdapter implements IdpAdapter {
     if (!verifyAsymmetric(algoOid, data, pubKey, sig)) return null;
 
     return {
-      idpUserId: String(claims.sub ?? ''),
+      idpUserId: typeof claims.sub === 'string' ? claims.sub : '',
       // Clerk's organization id lives at `org_id` (active org) or `o.id`
       // depending on the Clerk version.
-      idpOrganizationId: String(
-        claims.org_id ?? (claims.o as Record<string, unknown> | undefined)?.id ?? '',
-      ),
+      idpOrganizationId:
+        typeof claims.org_id === 'string'
+          ? claims.org_id
+          : (() => {
+              const o = claims.o as Record<string, unknown> | undefined;
+              return typeof o?.id === 'string' ? o.id : '';
+            })(),
       idpDomain: typeof claims.org_slug === 'string' ? claims.org_slug : '',
-      email: String(claims.email ?? ''),
+      email: typeof claims.email === 'string' ? claims.email : '',
       emailVerified: Boolean(claims.email_verified),
       name: typeof claims.name === 'string' ? claims.name : null,
       // Clerk roles arrive as `org_role` (single string for active org) or

@@ -1,9 +1,14 @@
 import { createHash } from 'node:crypto';
-import { WellknownService, computeKid } from './wellknown.service';
-import { encodeBase64Url, decodeBase64Url } from '../../common/crypto/ed25519.util';
-import { PLANS, TRIAL_LIFETIME_CAP } from '../billing/plans';
-import type { AppConfigService } from '../../config/config.service';
+
 import type { PlanTier } from '@prisma/client';
+
+import { encodeBase64Url, decodeBase64Url } from '../../common/crypto/ed25519.util';
+import type { AppConfigService } from '../../config/config.service';
+import { PLANS, TRIAL_LIFETIME_CAP } from '../billing/plans';
+
+import { WellknownService, computeKid } from './wellknown.service';
+
+
 
 // 32-byte canonical "all-zeros" Ed25519 public key — fine for the hash test
 // (we're testing the kid derivation, not the curve point validity).
@@ -22,19 +27,19 @@ describe('WellknownService', () => {
   describe('onModuleInit / configuration', () => {
     it('throws a clear error when AEGIS_SIGNING_PUBLIC_KEY is missing', () => {
       const svc = new WellknownService(buildConfig({ rotatedAt: FIXED_ROTATED_AT }));
-      expect(() => svc.onModuleInit()).toThrow(/AEGIS_SIGNING_PUBLIC_KEY env var must be set/);
+      expect(() => { svc.onModuleInit(); }).toThrow(/AEGIS_SIGNING_PUBLIC_KEY env var must be set/);
     });
 
     it('throws a clear error when AEGIS_SIGNING_PUBLIC_KEY is empty', () => {
       const svc = new WellknownService(buildConfig({ pub: '', rotatedAt: FIXED_ROTATED_AT }));
-      expect(() => svc.onModuleInit()).toThrow(/AEGIS_SIGNING_PUBLIC_KEY env var must be set/);
+      expect(() => { svc.onModuleInit(); }).toThrow(/AEGIS_SIGNING_PUBLIC_KEY env var must be set/);
     });
 
     it('throws when the key decodes to the wrong length', () => {
       // 8-byte payload — definitely not 32.
       const tooShort = encodeBase64Url(new Uint8Array(8));
       const svc = new WellknownService(buildConfig({ pub: tooShort, rotatedAt: FIXED_ROTATED_AT }));
-      expect(() => svc.onModuleInit()).toThrow(/decoded to 8 bytes; expected 32/);
+      expect(() => { svc.onModuleInit(); }).toThrow(/decoded to 8 bytes; expected 32/);
     });
 
     it('flags rotatedAt as DEGRADED when AEGIS_SIGNING_KEY_ROTATED_AT is missing', () => {
@@ -106,7 +111,7 @@ describe('WellknownService', () => {
     it('jwks.json conforms to RFC 8037 Ed25519-in-JOSE', () => {
       const out = svc.getJwks();
       expect(out.keys).toHaveLength(1);
-      const jwk = out.keys[0]!;
+      const jwk = out.keys[0];
       expect(jwk).toEqual({
         kty: 'OKP',
         crv: 'Ed25519',
@@ -385,7 +390,7 @@ describe('WellknownService', () => {
       expect(tiersInResponse).toEqual(planTiersInSource.sort());
       // Every tier must produce a positive integer retention window.
       for (const tier of planTiersInSource) {
-        expect(out.tiers[tier]!.audit_retention_days).toBe(PLANS[tier].auditRetentionDays);
+        expect(out.tiers[tier].audit_retention_days).toBe(PLANS[tier].auditRetentionDays);
       }
     });
 
@@ -452,7 +457,7 @@ describe('WellknownService', () => {
       const out = svc.getPricing();
       for (const tier of Object.keys(PLANS) as PlanTier[]) {
         const plan = PLANS[tier];
-        const dto = out.tiers[tier]!;
+        const dto = out.tiers[tier];
         expect(dto.tier).toBe(tier);
         expect(dto.display_name).toBe(plan.displayName);
         expect(dto.monthly_price_cents).toBe(plan.monthlyPriceCents);
@@ -478,10 +483,10 @@ describe('WellknownService', () => {
 
     it('exposes TRIAL_LIFETIME_CAP only on FREE', () => {
       const out = svc.getPricing();
-      expect(out.tiers.FREE!.lifetime_verify_quota).toBe(TRIAL_LIFETIME_CAP);
-      expect(out.tiers.DEVELOPER!.lifetime_verify_quota).toBeNull();
-      expect(out.tiers.GROWTH!.lifetime_verify_quota).toBeNull();
-      expect(out.tiers.ENTERPRISE!.lifetime_verify_quota).toBeNull();
+      expect(out.tiers.FREE.lifetime_verify_quota).toBe(TRIAL_LIFETIME_CAP);
+      expect(out.tiers.DEVELOPER.lifetime_verify_quota).toBeNull();
+      expect(out.tiers.GROWTH.lifetime_verify_quota).toBeNull();
+      expect(out.tiers.ENTERPRISE.lifetime_verify_quota).toBeNull();
     });
 
     it('round-trips cleanly through JSON.stringify (no Infinity leaks)', () => {
@@ -491,8 +496,8 @@ describe('WellknownService', () => {
       // but we want our DTO to declare null intentionally rather than rely
       // on stringify behavior. Asserting the parsed shape proves it.
       const parsed = JSON.parse(json) as { tiers: Record<string, { monthly_verify_quota: number | null }> };
-      expect(parsed.tiers.FREE!.monthly_verify_quota).toBeNull();
-      expect(parsed.tiers.ENTERPRISE!.monthly_verify_quota).toBeNull();
+      expect(parsed.tiers.FREE.monthly_verify_quota).toBeNull();
+      expect(parsed.tiers.ENTERPRISE.monthly_verify_quota).toBeNull();
     });
   });
 });

@@ -27,12 +27,12 @@
 // finalized August 2024; algorithm name `ML-DSA-65` (a.k.a.
 // CRYSTALS-Dilithium 3 in pre-FIPS literature).
 
-import './crypto.bootstrap.js';
 import * as ed from '@noble/ed25519';
-
 // `@noble/post-quantum` v1+ exports ml-dsa as namespace.
 // Re-import shim keeps the top-of-file clean and tree-shakes well.
 import { ml_dsa65 } from '@noble/post-quantum/ml-dsa';
+
+import './crypto.bootstrap.js';
 
 export type HybridAlgorithm = 'EdDSA+ML-DSA-65';
 

@@ -18,6 +18,7 @@
  */
 
 import { Test } from '@nestjs/testing';
+
 import { WebhooksController } from './webhooks.controller';
 import { WebhooksService } from './webhooks.service';
 
@@ -28,11 +29,9 @@ const authB = { principalId: 'prn_B', keyId: 'key_B', plan: 'FREE' } as const;
 
 // ── Service stub ─────────────────────────────────────────────────────────────
 
-type ListResult = Array<{ id: string; url: string; events: string[]; active: boolean }>;
+type ListResult = { id: string; url: string; events: string[]; active: boolean }[];
 
-interface SubsStore {
-  [principalId: string]: Array<{ id: string; url: string; events: string[]; active: boolean }>;
-}
+type SubsStore = Record<string, { id: string; url: string; events: string[]; active: boolean }[]>;
 
 /**
  * In-memory WebhooksService stub that enforces the same principalId scoping
@@ -122,8 +121,8 @@ describe('WebhooksController', () => {
         ['*'],
       );
       // The subscription must be scoped to A, not leaked to B
-      expect(store['prn_A']).toHaveLength(1);
-      expect(store['prn_B']).toBeUndefined();
+      expect(store.prn_A).toHaveLength(1);
+      expect(store.prn_B).toBeUndefined();
     });
 
     it('returns a unique secret for each subscription (not reused)', async () => {
@@ -205,7 +204,7 @@ describe('WebhooksController', () => {
 
       await controller.unsubscribe(authA as never, id);
 
-      expect(store['prn_A'] ?? []).toHaveLength(0);
+      expect(store.prn_A ?? []).toHaveLength(0);
     });
 
     it('is idempotent — deleting a non-existent id does not throw', async () => {
@@ -244,8 +243,8 @@ describe('WebhooksController', () => {
       await controller.unsubscribe(authA as never, bSubId);
 
       // B's subscription must still exist — deleteMany scoped to A found nothing
-      expect(store['prn_B']).toHaveLength(1);
-      expect(store['prn_B']![0].id).toBe(bSubId);
+      expect(store.prn_B).toHaveLength(1);
+      expect(store.prn_B[0].id).toBe(bSubId);
     });
 
     it('principal A list does not return principal B subscriptions', async () => {
