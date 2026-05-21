@@ -26,8 +26,11 @@ export async function loadJwksFromFile(path: string): Promise<JwksDocument> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
-  } catch (err) {
-    throw new Error(`audit-verifier: ${path} is not valid JSON — ${(err as Error).message}`);
+  } catch (err: unknown) {
+    throw new Error(
+      `audit-verifier: ${path} is not valid JSON — ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
+    );
   }
   return validateJwks(parsed, path);
 }
@@ -60,7 +63,9 @@ export function validateJwks(value: unknown, source: string): JwksDocument {
       throw new Error(`audit-verifier: ${source} keys[${idx}].kid is missing or non-string`);
     }
     if (k.use !== undefined && k.use !== 'sig') {
-      throw new Error(`audit-verifier: ${source} keys[${idx}].use must be "sig" or absent, got "${String(k.use)}"`);
+      throw new Error(
+        `audit-verifier: ${source} keys[${idx}].use must be "sig" or absent, got ${JSON.stringify(k.use)}`,
+      );
     }
     keys.push({
       kty: 'OKP',

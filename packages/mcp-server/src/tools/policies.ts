@@ -1,4 +1,5 @@
 import type { Aegis, PolicyRecord, PolicyScope } from '@aegis/sdk';
+
 import type { ToolDefinition } from './registry.js';
 
 const DEFAULT_TTL_SECONDS = 86_400;

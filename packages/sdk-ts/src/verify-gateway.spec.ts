@@ -238,13 +238,13 @@ describe('VerifyGateway: half-open serialization', () => {
 
 describe('VerifyGateway: TTL jitter', () => {
   it('cached expiresAt is at most server-clamped TTL (jitter only shortens)', async () => {
-    let now = 0;
+    const now = 0;
     const fake = makeFake(async () => makeResult({ ttl: 30 }));
     const gw = new VerifyGateway(fake as unknown as Aegis, { now: () => now });
     await gw.verify('tok');
     // Run 50 fresh entries; every cached expiresAt must be <= now + 30s.
     for (let i = 0; i < 50; i += 1) {
-      await gw.verify('tok' + i);
+      await gw.verify('tok' + String(i));
     }
     const m = gw.metrics();
     expect(m.cacheSize).toBeGreaterThan(0);
@@ -259,14 +259,14 @@ describe('VerifyGateway: TTL jitter', () => {
       maxTtlMs: 30_000,
     });
     for (let i = 0; i < 200; i += 1) {
-      await gw.verify('t' + i);
+      await gw.verify('t' + String(i));
     }
     // After 30s, every entry must be expired (server TTL ceiling honored).
     now += 30_000;
     let stillFresh = 0;
     for (let i = 0; i < 200; i += 1) {
       const before = fake.verify.mock.calls.length;
-      await gw.verify('t' + i);
+      await gw.verify('t' + String(i));
       if (fake.verify.mock.calls.length === before) stillFresh += 1;
     }
     expect(stillFresh).toBe(0);

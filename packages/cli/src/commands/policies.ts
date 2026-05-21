@@ -1,5 +1,7 @@
 import { readFile } from 'node:fs/promises';
+
 import type { PolicyScope } from '@aegis/sdk';
+
 import { CliError, client } from '../client.js';
 import { emit, emitRecord, ok, warn } from '../output.js';
 

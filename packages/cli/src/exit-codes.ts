@@ -32,6 +32,7 @@ import {
   AegisServiceUnavailableError,
   AegisValidationError,
 } from '@aegis/sdk';
+
 import { CliError } from './client.js';
 
 export const EXIT_SUCCESS = 0;

@@ -1,6 +1,7 @@
-import * as ed from '@noble/ed25519';
-import { sha512 } from '@noble/hashes/sha512';
 import type { AgentRecord, AgentRuntime } from '@aegis/sdk';
+import * as ed from '@noble/ed25519';
+import { sha512 } from '@noble/hashes/sha2';
+
 import { client } from '../client.js';
 import { emit, emitJson, emitRecord, ok, info, warn } from '../output.js';
 

@@ -19,9 +19,10 @@
 //
 // Denial precedence (ADR-0004) is preserved bit-for-bit.
 
+import type { VerifyRequest, VerifyResponse } from '@aegis/types';
+
 import type { CachedPolicy, KvCache } from './kv-cache';
 import { decodeUnsafe, verifyEd25519, type AgentTokenClaims } from './token';
-import type { VerifyRequest, VerifyResponse } from '@aegis/types';
 
 export interface EdgeVerifyResult {
   /**

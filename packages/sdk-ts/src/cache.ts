@@ -19,7 +19,8 @@
 //   * Cache key spans the full verify context. Same token + different
 //     amount = different decision and must miss.
 
-import { sha256 } from '@noble/hashes/sha256';
+import { sha256 } from '@noble/hashes/sha2';
+
 import type { VerifyResult } from './types.js';
 
 /** Inputs that affect a verify decision and therefore the cache key. */

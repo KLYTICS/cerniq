@@ -2,14 +2,22 @@
 // the AEGIS API surface. Auth is by AEGIS API key, supplied either via
 // env (`AEGIS_API_KEY`) or via the host's MCP `initialize` metadata.
 
+/* eslint-disable @typescript-eslint/no-deprecated --
+ * `Server` is the low-level MCP API; the SDK now flags it deprecated in
+ * favour of `McpServer`. We deliberately use the low-level API because
+ * AEGIS wires the raw `CallToolRequestSchema` / `ListToolsRequestSchema`
+ * handlers (see below) — `McpServer` would require restructuring as a
+ * follow-up. Tracked in docs/SESSION_HANDOFF.md (Round 28-sync).
+ */
+import { Aegis, AegisError } from '@aegis/sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { Aegis, AegisError } from '@aegis/sdk';
-import { registerVerifyTool } from './tools/verify.js';
+
 import { registerAgentsTools } from './tools/agents.js';
-import { registerPoliciesTools } from './tools/policies.js';
 import { registerAuditTool } from './tools/audit.js';
+import { registerPoliciesTools } from './tools/policies.js';
 import { TOOL_NAMES, type ToolDefinition } from './tools/registry.js';
+import { registerVerifyTool } from './tools/verify.js';
 
 export interface AegisMcpServerOptions {
   /** AEGIS API key. If omitted, the server reads `AEGIS_API_KEY` from env. */
@@ -87,7 +95,7 @@ export function createAegisMcpServer(opts: AegisMcpServerOptions = {}): Server {
     try {
       const result = await tool.handler(req.params.arguments ?? {});
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-    } catch (err) {
+    } catch (err: unknown) {
       return { content: [{ type: 'text', text: JSON.stringify(toStructuredError(err)) }], isError: true };
     }
   });

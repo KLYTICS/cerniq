@@ -8,6 +8,7 @@
 // in production per `tools/quickstart/src/index.ts:23-26`).
 
 import { Aegis } from '@aegis/sdk';
+
 import { CliError } from '../client.js';
 import { resolveCredentials } from '../credentials.js';
 import { emitRecord, warn } from '../output.js';

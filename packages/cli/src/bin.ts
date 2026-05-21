@@ -10,6 +10,11 @@
 // DENY → 22; commander usage → 2; everything else → 1.
 
 import { Command } from 'commander';
+
+import { exitCodeFor, formatError } from './exit-codes.js';
+import { err } from './output.js';
+import { setOutputMode, type OutputMode } from './output.js';
+
 import {
   bootstrap, whoami,
   agentsCreate, agentsList, agentsGet, agentsRevoke,
@@ -19,9 +24,6 @@ import {
   mcpInstall,
   verify,
 } from './index.js';
-import { err } from './output.js';
-import { setOutputMode, type OutputMode } from './output.js';
-import { exitCodeFor, formatError } from './exit-codes.js';
 
 function applyGlobalFlags(argv: string[]): string[] {
   // Strip --output / --json before commander sees them so they're not
@@ -192,7 +194,7 @@ async function main(): Promise<void> {
   await program.parseAsync(stripped, { from: 'user' });
 }
 
-main().catch((e) => {
+main().catch((e: unknown) => {
   err(formatError(e));
   process.exit(exitCodeFor(e));
 });

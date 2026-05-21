@@ -5,7 +5,7 @@
 //      Fastify's plugin encapsulation, so the hook applies to every route
 //      registered on that instance.
 //
-//   2. `aegisFastifyPlugin` — a plain async plugin you can pass to
+//   2. `aegisFastifyPlugin` — a plain plugin you can pass to
 //      `fastify.register`. We don't depend on `fastify-plugin`; that means
 //      registering at the root scope works as expected, but if you nest the
 //      plugin inside `register(...)` you must wrap it with `fastify-plugin`
@@ -25,7 +25,9 @@ export interface FastifyGuardOptions {
   attachTo?: string;
   requiredScope?: string;
   contextFrom?: (req: FastifyRequest) => VerifyContext;
-  onDenied?: (reply: FastifyReply, reason: string, detail?: string) => Promise<unknown> | unknown;
+  // `unknown` covers both sync and async return; a bare `unknown` collapses
+  // the prior `Promise<unknown> | unknown` union (no-redundant-type-constituents).
+  onDenied?: (reply: FastifyReply, reason: string, detail?: string) => unknown;
 }
 
 function buildHandler(opts: FastifyGuardOptions) {
@@ -60,9 +62,6 @@ function buildHandler(opts: FastifyGuardOptions) {
  * route registered on `fastify`.
  */
 export function attachAegisGuard(fastify: FastifyInstance, opts: FastifyGuardOptions): void {
-  if (!opts?.verifier) {
-    throw new TypeError('attachAegisGuard: options.verifier is required');
-  }
   fastify.addHook('preHandler', buildHandler(opts));
 }
 
@@ -70,15 +69,16 @@ export function attachAegisGuard(fastify: FastifyInstance, opts: FastifyGuardOpt
  * Plain plugin for `fastify.register`. Note that Fastify's encapsulation
  * means the hook only applies inside the plugin's scope unless you wrap it
  * with `fastify-plugin`. For most users `attachAegisGuard` is simpler.
+ *
+ * The body has no `await` because `addHook` is synchronous; we return a
+ * resolved promise explicitly to satisfy `FastifyPluginAsync<…>`.
  */
-export const aegisFastifyPlugin: FastifyPluginAsync<FastifyGuardOptions> = async (
+export const aegisFastifyPlugin: FastifyPluginAsync<FastifyGuardOptions> = (
   fastify: FastifyInstance,
   opts: FastifyGuardOptions,
-) => {
-  if (!opts?.verifier) {
-    throw new TypeError('aegisFastifyPlugin: options.verifier is required');
-  }
+): Promise<void> => {
   fastify.addHook('preHandler', buildHandler(opts));
+  return Promise.resolve();
 };
 
 async function sendDenied(

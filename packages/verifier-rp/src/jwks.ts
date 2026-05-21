@@ -55,9 +55,9 @@ export class JwksClient {
     if (stale && !stale.stale) {
       return b64uDecode(stale.key.x);
     }
-    if (stale && stale.stale) {
+    if (stale?.stale) {
       // SWR: kick off background refresh, return stale immediately.
-      void this.refreshOnce().catch((err) => {
+      void this.refreshOnce().catch((err: unknown) => {
         this.opts.logger?.warn?.('jwks background refresh failed', { error: String(err) });
       });
       return b64uDecode(stale.key.x);
@@ -88,7 +88,7 @@ export class JwksClient {
           headers: { Accept: 'application/json' },
         });
         if (!res.ok) {
-          throw new JwksFetchError(`JWKS fetch failed: ${res.status} ${res.statusText}`);
+          throw new JwksFetchError(`JWKS fetch failed: ${String(res.status)} ${res.statusText}`);
         }
         const json: unknown = await res.json();
         if (!isJwksDocument(json)) {

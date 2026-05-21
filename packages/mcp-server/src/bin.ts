@@ -15,6 +15,7 @@
 // }
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+
 import { createAegisMcpServer } from './server.js';
 
 async function main(): Promise<void> {
@@ -24,7 +25,7 @@ async function main(): Promise<void> {
   // Server runs until stdin closes.
 }
 
-main().catch((err) => {
+main().catch((err: unknown) => {
   console.error('aegis-mcp fatal:', err);
   process.exit(1);
 });

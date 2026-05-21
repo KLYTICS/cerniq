@@ -37,8 +37,11 @@ export function parseAuditNdjson(ndjson: string): import('./types.js').AuditEven
     let parsed: unknown;
     try {
       parsed = JSON.parse(trimmed);
-    } catch (err) {
-      throw new Error(`audit-verifier: NDJSON line ${lineNo} is not valid JSON — ${(err as Error).message}`);
+    } catch (err: unknown) {
+      throw new Error(
+        `audit-verifier: NDJSON line ${lineNo} is not valid JSON — ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
+      );
     }
     if (!parsed || typeof parsed !== 'object') {
       throw new Error(`audit-verifier: NDJSON line ${lineNo} is not an object`);

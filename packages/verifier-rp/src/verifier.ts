@@ -55,6 +55,8 @@ export class AegisVerifier {
   private readonly revocationCache: RevocationCache;
 
   constructor(config: AegisVerifierConfig) {
+    // Runtime defensive check defends against JS callers and `as never`
+    // type-erasure; TS says these branches are unreachable.
     if (typeof config !== 'object' || config === null) {
       throw new ConfigError('AegisVerifier: config object is required');
     }
@@ -141,7 +143,9 @@ export class AegisVerifier {
       return this.fail('INVALID_SIGNATURE', 'malformed token');
     }
 
-    // 2. alg gate.
+    // 2. alg gate. (Type-narrowed: parseCompactJws returns a header whose
+    // `alg` is the string literal "EdDSA" — runtime check defends against
+    // upstream changes to the parser contract.)
     if (parsed.header.alg !== 'EdDSA') {
       return this.fail('INVALID_SIGNATURE', `unsupported alg: ${String(parsed.header.alg)}`);
     }
@@ -151,45 +155,48 @@ export class AegisVerifier {
     // 3. Time bounds.
     const nowS = nowSeconds();
     if (claims.exp <= nowS - skew) {
-      return this.failWithClaims('POLICY_EXPIRED', `exp=${claims.exp} now=${nowS}`, parsed);
+      return this.failWithClaims('POLICY_EXPIRED', `exp=${String(claims.exp)} now=${String(nowS)}`, parsed);
     }
     if (claims.iat > nowS + skew) {
       return this.failWithClaims(
         'INVALID_SIGNATURE',
-        `iat in the future: iat=${claims.iat} now=${nowS}`,
+        `iat in the future: iat=${String(claims.iat)} now=${String(nowS)}`,
         parsed,
       );
     }
 
-    // 4. Resolve the verification key.
-    let publicKey: Uint8Array | null = null;
-    try {
-      if (parsed.header.kid) {
-        publicKey = await this.jwksClient.getKey(parsed.header.kid);
-        if (!publicKey) {
-          return this.failWithClaims(
-            'INVALID_SIGNATURE',
-            `unknown kid: ${parsed.header.kid}`,
-            parsed,
-          );
-        }
-      } else {
-        publicKey = await this.config.getAgentPublicKey(claims.agentId);
-        if (!(publicKey instanceof Uint8Array) || publicKey.length !== 32) {
+    // 4. Resolve the verification key. Two paths: kid → JWKS lookup;
+    // otherwise → caller-supplied `getAgentPublicKey` callback.
+    let publicKey: Uint8Array;
+    if (parsed.header.kid) {
+      const fetched = await this.jwksClient.getKey(parsed.header.kid);
+      if (!fetched) {
+        return this.failWithClaims(
+          'INVALID_SIGNATURE',
+          `unknown kid: ${parsed.header.kid}`,
+          parsed,
+        );
+      }
+      publicKey = fetched;
+    } else {
+      try {
+        const fetched = await this.config.getAgentPublicKey(claims.agentId);
+        if (!(fetched instanceof Uint8Array) || fetched.length !== 32) {
           throw new VerifyError(
             'AGENT_KEY_LOOKUP_FAILED',
             `getAgentPublicKey returned invalid key for ${claims.agentId}`,
           );
         }
+        publicKey = fetched;
+      } catch (err) {
+        if (err instanceof VerifyError) throw err;
+        // Lookup callback may throw arbitrary errors — wrap them.
+        throw new VerifyError(
+          'AGENT_KEY_LOOKUP_FAILED',
+          `getAgentPublicKey threw for ${claims.agentId}`,
+          err,
+        );
       }
-    } catch (err) {
-      if (err instanceof VerifyError) throw err;
-      // Lookup callback may throw arbitrary errors — wrap them.
-      throw new VerifyError(
-        'AGENT_KEY_LOOKUP_FAILED',
-        `getAgentPublicKey threw for ${claims.agentId}`,
-        err,
-      );
     }
 
     // 5. Verify signature.
@@ -237,7 +244,7 @@ export class AegisVerifier {
     ) {
       return this.failWithClaims(
         'TRUST_SCORE_TOO_LOW',
-        `trustScore=${snapshot.trustScore} < required=${context.minTrustScore}`,
+        `trustScore=${String(snapshot.trustScore)} < required=${String(context.minTrustScore)}`,
         parsed,
       );
     }

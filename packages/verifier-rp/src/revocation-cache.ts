@@ -104,7 +104,7 @@ export class RevocationCache {
       };
     }
     if (!res.ok) {
-      throw new RevocationFetchError(`status fetch HTTP ${res.status} for ${agentId}`);
+      throw new RevocationFetchError(`status fetch HTTP ${String(res.status)} for ${agentId}`);
     }
     const json: unknown = await res.json();
     if (!isAgentStatusSnapshot(json, agentId)) {

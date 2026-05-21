@@ -17,9 +17,6 @@ export interface HonoGuardOptions {
 }
 
 export function aegisHonoMiddleware(options: HonoGuardOptions): MiddlewareHandler {
-  if (!options?.verifier) {
-    throw new TypeError('aegisHonoMiddleware: options.verifier is required');
-  }
   const headerName = options.headerName ?? DEFAULT_HEADER;
   const attachTo = options.attachTo ?? 'aegis';
 

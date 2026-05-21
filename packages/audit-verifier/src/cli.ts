@@ -27,8 +27,9 @@ import { argv, exit, stdout, stderr } from 'node:process';
 
 import { verifyChain } from './chain.js';
 import { loadJwksFromFile, loadJwksFromUrl } from './jwks.js';
-import { parseAuditNdjson } from './index.js';
 import type { ChainReport } from './types.js';
+
+import { parseAuditNdjson } from './index.js';
 
 interface CliArgs {
   command: 'verify';

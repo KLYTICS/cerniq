@@ -44,15 +44,21 @@ export function emitTable(rows: Record<string, unknown>[], columns?: string[]): 
     return;
   }
   const cols = columns ?? Object.keys(rows[0]!);
+  const stringify = (v: unknown): string => {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'string') return v;
+    if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') return String(v);
+    return JSON.stringify(v);
+  };
   const widths = cols.map((c) =>
-    Math.max(c.length, ...rows.map((r) => String(r[c] ?? '').length)),
+    Math.max(c.length, ...rows.map((r) => stringify(r[c]).length)),
   );
   const sep = cols.map((_, i) => '─'.repeat(widths[i]!)).join('  ');
   process.stdout.write(cols.map((c, i) => c.padEnd(widths[i]!)).join('  ') + '\n');
   process.stdout.write(sep + '\n');
   for (const r of rows) {
     process.stdout.write(
-      cols.map((c, i) => String(r[c] ?? '').padEnd(widths[i]!)).join('  ') + '\n',
+      cols.map((c, i) => stringify(r[c]).padEnd(widths[i]!)).join('  ') + '\n',
     );
   }
 }
@@ -90,7 +96,14 @@ export function emitRecord(payload: Record<string, unknown>): void {
   }
   const rows = Object.entries(payload).map(([key, value]) => ({
     field: key,
-    value: typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value ?? ''),
+    value:
+      value === null || value === undefined
+        ? ''
+        : typeof value === 'string'
+          ? value
+          : typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint'
+            ? String(value)
+            : JSON.stringify(value),
   }));
   emitTable(rows, ['field', 'value']);
 }

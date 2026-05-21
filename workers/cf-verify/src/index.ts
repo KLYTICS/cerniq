@@ -17,8 +17,9 @@
 // fallback when KV is stale and the agent is revoked.
 
 import type { VerifyRequest, VerifyResponse } from '@aegis/types';
-import { makeKvCache } from './kv-cache';
+
 import { edgeVerify } from './edge-verify';
+import { makeKvCache } from './kv-cache';
 import { shadowMode, compareVerifyResponses, divergenceHeader, recordDivergence, type AnalyticsEngineLike } from './shadow';
 
 interface Env {
@@ -130,7 +131,7 @@ async function forwardToOrigin(env: Env, body: VerifyRequest, ctx: ExecutionCont
   const url = `${env.AEGIS_ORIGIN_URL.replace(/\/+$/, '')}/v1/verify`;
   const timeoutMs = parseInt(env.AEGIS_VERIFY_TIMEOUT_MS, 10);
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), Number.isFinite(timeoutMs) ? timeoutMs : 1500);
+  const timeoutId = setTimeout(() => { controller.abort(); }, Number.isFinite(timeoutMs) ? timeoutMs : 1500);
 
   try {
     const res = await fetch(url, {
@@ -149,7 +150,7 @@ async function forwardToOrigin(env: Env, body: VerifyRequest, ctx: ExecutionCont
     });
   } catch (err) {
     ctx.waitUntil(Promise.resolve()); // suppress unused-arg warning
-    // eslint-disable-next-line no-console
+     
     console.error('cf-verify origin fallback failed:', (err as Error).message);
     return Response.json({ ...NOT_IMPLEMENTED, denialReason: 'AGENT_NOT_FOUND' as const }, { status: 503 });
   } finally {
@@ -159,13 +160,16 @@ async function forwardToOrigin(env: Env, body: VerifyRequest, ctx: ExecutionCont
 
 // Edge rate limiter — Durable Object placeholder. Real implementation in
 // Phase 3 will use the token bucket algorithm with per-key counters.
+//
+// OPERATOR-INPUT-NEEDED: choose token-bucket vs. sliding-window semantics
+// and whether to strictly enforce or shadow-enforce while we observe.
+// The empty constructor satisfies Cloudflare's `DurableObject` contract;
+// state is bound when fetch() handlers are registered in Phase 3.
 export class EdgeRateLimiter {
-  constructor(_state: DurableObjectState, _env: Env) {
-    // OPERATOR-INPUT-NEEDED: choose token-bucket vs. sliding-window semantics
-    // and whether to strictly enforce or shadow-enforce while we observe.
-  }
+  // eslint-disable-next-line @typescript-eslint/no-useless-constructor, @typescript-eslint/no-empty-function
+  constructor(_state: DurableObjectState, _env: Env) {}
 
-  // eslint-disable-next-line @typescript-eslint/require-await
+   
   async fetch(_req: Request): Promise<Response> {
     return new Response('not implemented', { status: 501 });
   }

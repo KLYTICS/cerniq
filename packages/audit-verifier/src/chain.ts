@@ -3,9 +3,8 @@
 // returns a `ChainReport`. Designed to scale: streams the input,
 // constant memory per row regardless of total chain length.
 
-import { sha256 } from '@noble/hashes/sha256';
 import * as ed from '@noble/ed25519';
-import { sha512 } from '@noble/hashes/sha512';
+import { sha256, sha512 } from '@noble/hashes/sha2';
 
 import { canonicalize, decodeBase64Url, utf8 } from './canonical.js';
 import { lookupPublicKey } from './jwks.js';

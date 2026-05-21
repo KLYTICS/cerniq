@@ -1,3 +1,5 @@
+import type { ErrorCatalogEntry } from '@aegis/types';
+
 import {
   AegisAuthenticationError,
   AegisAuthorizationError,
@@ -12,7 +14,6 @@ import {
   catalogEntryFor,
   isAegisErrorRetryable,
 } from './errors.js';
-import type { ErrorCatalogEntry } from '@aegis/types';
 
 export interface HttpClientConfig {
   apiKey?: string | undefined;
@@ -80,7 +81,15 @@ export class HttpClient {
     const url = new URL(`/v1${path.startsWith('/') ? path : `/${path}`}`, this.baseUrl);
     if (opts.query) {
       for (const [k, v] of Object.entries(opts.query)) {
-        if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
+        // Only scalar query values are supported; an unexpected object
+        // collapses to `[object Object]` and would be a silent serialization
+        // bug. Skip non-stringable values so the URL stays inspectable.
+        if (v === undefined || v === null) continue;
+        const serialized =
+          typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'
+            ? String(v)
+            : null;
+        if (serialized !== null) url.searchParams.set(k, serialized);
       }
     }
 
@@ -92,7 +101,7 @@ export class HttpClient {
     if (this.userAgent) headers['User-Agent'] = this.userAgent;
 
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), this.timeoutMs);
+    const timer = setTimeout(() => { ctrl.abort(); }, this.timeoutMs);
     try {
       const res = await this.fetchFn(url.toString(), {
         method: opts.method,

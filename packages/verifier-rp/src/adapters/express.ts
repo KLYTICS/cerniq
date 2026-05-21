@@ -30,16 +30,10 @@ export interface ExpressGuardOptions {
 }
 
 export function aegisGuard(options: ExpressGuardOptions): RequestHandler {
-  if (!options || typeof options !== 'object') {
-    throw new TypeError('aegisGuard: options object is required');
-  }
-  if (!options.verifier) {
-    throw new TypeError('aegisGuard: options.verifier is required');
-  }
   const headerName = (options.headerName ?? DEFAULT_HEADER).toLowerCase();
   const attachTo = options.attachTo ?? 'aegis';
 
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  async function handle(req: Request, res: Response): Promise<void> {
     const headerVal = req.headers[headerName];
     const token = Array.isArray(headerVal) ? headerVal[0] : headerVal;
     if (!token) {
@@ -50,20 +44,29 @@ export function aegisGuard(options: ExpressGuardOptions): RequestHandler {
     const verifyOpts: VerifyOptions = options.requiredScope
       ? { requiredScope: options.requiredScope }
       : {};
-    try {
-      const outcome = await options.verifier.verify(token, ctx, verifyOpts);
-      if (!outcome.valid) {
-        sendDenied(res, 'AEGIS_VERIFICATION_FAILED', outcome.reason, outcome.detail, options);
-        return;
-      }
-      // Attach typed outcome.
-      // type-rationale: Express's typings don't allow dynamic property names,
-      // and we offer a configurable attach name so users can avoid collisions.
-      (req as unknown as Record<string, VerifyOutcomeSuccess>)[attachTo] = outcome;
-      next();
-    } catch (err) {
-      next(err);
+    const outcome = await options.verifier.verify(token, ctx, verifyOpts);
+    if (!outcome.valid) {
+      sendDenied(res, 'AEGIS_VERIFICATION_FAILED', outcome.reason, outcome.detail, options);
+      return;
     }
+    // Attach typed outcome.
+    // type-rationale: Express's typings don't allow dynamic property names,
+    // and we offer a configurable attach name so users can avoid collisions.
+    (req as unknown as Record<string, VerifyOutcomeSuccess>)[attachTo] = outcome;
+  }
+
+  // Wrap the async handler so its rejections route through Express's `next`
+  // — keeps the public signature synchronous (`void` return), satisfying both
+  // older Express versions and `@typescript-eslint/no-misused-promises`.
+  return (req: Request, res: Response, next: NextFunction): void => {
+    handle(req, res).then(
+      () => {
+        if (!res.headersSent) next();
+      },
+      (err: unknown) => {
+        next(err);
+      },
+    );
   };
 }
 

@@ -1,4 +1,5 @@
 import type { Aegis, AuditSearchOptions } from '@aegis/sdk';
+
 import type { ToolDefinition } from './registry.js';
 
 export function registerAuditTool(

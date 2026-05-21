@@ -1,4 +1,5 @@
 import type { Aegis } from '@aegis/sdk';
+
 import type { ToolDefinition } from './registry.js';
 
 export function registerVerifyTool(aegis: Aegis, registry: Map<string, ToolDefinition>): void {
@@ -26,7 +27,7 @@ export function registerVerifyTool(aegis: Aegis, registry: Map<string, ToolDefin
       additionalProperties: false,
     },
     handler: async (args) => {
-      const token = String(args.token ?? '');
+      const token = typeof args.token === 'string' ? args.token : '';
       return await aegis.verify(token, {
         action: typeof args.action === 'string' ? args.action : undefined,
         merchantDomain: typeof args.merchant_domain === 'string' ? args.merchant_domain : undefined,

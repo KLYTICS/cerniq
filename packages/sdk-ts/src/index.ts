@@ -1,8 +1,8 @@
-import { HttpClient } from './http.js';
 import { AgentClient, type HandshakeVerified } from './agent.js';
-import { PolicyClient } from './policy.js';
 import { AuditClient } from './audit.js';
 import { signAgentToken, signHandshake } from './crypto.js';
+import { HttpClient } from './http.js';
+import { PolicyClient } from './policy.js';
 import type { AegisConfig, SignContext, VerifyResult } from './types.js';
 
 const DEFAULT_BASE_URL = 'https://api.aegislabs.io';

@@ -15,8 +15,6 @@
 // Portability: zero Node-only imports. Runs unchanged in Node 20+,
 // browsers, Bun, Deno, Cloudflare Workers, Vercel Edge.
 
-import type { Aegis } from './index.js';
-import { AegisError, AegisServiceUnavailableError } from './errors.js';
 import {
   MemoryVerifyCache,
   buildCacheKey,
@@ -24,7 +22,10 @@ import {
   type VerifyCache,
   type VerifyCacheContext,
 } from './cache.js';
+import { AegisError, AegisServiceUnavailableError } from './errors.js';
 import type { VerifyResult } from './types.js';
+
+import type { Aegis } from './index.js';
 
 export type BreakerState = 'closed' | 'open' | 'half-open';
 

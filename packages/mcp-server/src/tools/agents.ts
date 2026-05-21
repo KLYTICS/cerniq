@@ -1,4 +1,5 @@
 import type { Aegis, AgentRuntime, AgentStatus } from '@aegis/sdk';
+
 import type { ToolDefinition } from './registry.js';
 
 const VALID_RUNTIMES: readonly AgentRuntime[] = ['OPENAI', 'ANTHROPIC', 'GOOGLE', 'HUGGINGFACE', 'CUSTOM'];
