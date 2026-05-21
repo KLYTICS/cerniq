@@ -1,11 +1,16 @@
 import type { Aegis } from '@aegis/sdk';
+import type { RawHttp } from './raw-http.js';
 import type { ToolDefinition } from './registry.js';
 
-export function registerAuditTool(aegis: Aegis, registry: Map<string, ToolDefinition>): void {
+export function registerAuditTool(
+  _aegis: Aegis,
+  rawHttp: RawHttp,
+  registry: Map<string, ToolDefinition>,
+): void {
   registry.set('aegis.audit.search', {
     name: 'aegis.audit.search',
     description:
-      'Search this principal\'s audit events. Read-only; principals cannot read other principals\' ' +
+      "Search this principal's audit events. Read-only; principals cannot read other principals' " +
       'audit logs. Each event carries a hash-chain signature verifiable against the JWKS at ' +
       '/.well-known/audit-signing-key (ADR-0011).',
     inputSchema: {
@@ -21,16 +26,20 @@ export function registerAuditTool(aegis: Aegis, registry: Map<string, ToolDefini
       },
       additionalProperties: false,
     },
-    handler: async (args) => {
-      // SDK surface for audit search lands in M-021 (sdk-ts extension).
-      // Until then this tool calls the REST API directly via aegis.http.
-      const params = new URLSearchParams();
-      for (const [k, v] of Object.entries(args)) {
-        if (v !== undefined && v !== null) params.set(k.replace(/_/g, ''), String(v));
-      }
-      // @ts-expect-error - http accessor available on Aegis client per
-      // packages/sdk-ts/src/index.ts; types lag by one publish cycle.
-      return await aegis.http.get(`/v1/audit-events?${params.toString()}`);
-    },
+    // SDK surface for audit search is not yet modeled; the endpoint
+    // exists, so we go through the raw helper rather than reach into
+    // the SDK's private http field.
+    handler: async (args) =>
+      await rawHttp.json('/v1/audit-events', {
+        query: {
+          agent_id: typeof args.agent_id === 'string' ? args.agent_id : undefined,
+          action: typeof args.action === 'string' ? args.action : undefined,
+          decision: typeof args.decision === 'string' ? args.decision : undefined,
+          from: typeof args.from === 'string' ? args.from : undefined,
+          to: typeof args.to === 'string' ? args.to : undefined,
+          limit: typeof args.limit === 'number' ? String(args.limit) : undefined,
+          cursor: typeof args.cursor === 'string' ? args.cursor : undefined,
+        },
+      }),
   });
 }

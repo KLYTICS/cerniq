@@ -21,12 +21,16 @@ function buildAuth(overrides: Partial<AuthenticatedKey> = {}): AuthenticatedKey 
   return { apiKeyId: 'ak_old', principalId: 'p_alice', scope: 'FULL', ...overrides };
 }
 
-function buildReq(auth: AuthenticatedKey | undefined): Request {
-  return { auth } as unknown as Request;
+function buildReq(
+  auth: AuthenticatedKey | undefined,
+  headers: Record<string, string> = {},
+): Request {
+  return { auth, headers } as unknown as Request;
 }
 
 interface RotateMock {
   rotate: jest.Mock<Promise<RotateResult>, [string, string, number]>;
+  invalidateCache: jest.Mock<Promise<void>, [string]>;
 }
 
 function buildSvc(impl: (callingId: string, principalId: string, hours: number) => Promise<RotateResult> | RotateResult): {
@@ -35,6 +39,7 @@ function buildSvc(impl: (callingId: string, principalId: string, hours: number) 
 } {
   const svc: RotateMock = {
     rotate: jest.fn(async (callingId, principalId, hours) => impl(callingId, principalId, hours)),
+    invalidateCache: jest.fn(async (_plaintext: string) => undefined),
   };
   const controller = new ApiKeyRotationController(svc as unknown as ApiKeyService);
   return { controller, svc };
@@ -135,6 +140,32 @@ describe('ApiKeyRotationController.rotate (error propagation)', () => {
       controller.rotate(buildReq(buildAuth({ principalId: 'p_b' }))),
     ).rejects.toBeInstanceOf(AuthorizationError);
     expect(svc.rotate).toHaveBeenCalledWith('ak_old', 'p_b', 24);
+  });
+});
+
+describe('ApiKeyRotationController.rotate (cache invalidation)', () => {
+  it('invalidates the OLD plaintext in the auth cache when the calling header is present', async () => {
+    const { controller, svc } = buildSvc(async () => ({
+      newKey: { id: 'ak_new', plaintext: 'aegis_sk_AAAAAAAAAAAAAAAAAAAAAAAAAA', expiresAt: null },
+      oldKey: { id: 'ak_old', expiresAt: new Date(FIXED_NOW.getTime() + 24 * 60 * 60 * 1000) },
+    }));
+
+    const callingPlaintext = 'aegis_sk_OLDOLDOLDOLDOLDOLDOLDOLDOL';
+    await controller.rotate(buildReq(buildAuth(), { 'x-aegis-api-key': callingPlaintext }));
+
+    expect(svc.invalidateCache).toHaveBeenCalledTimes(1);
+    expect(svc.invalidateCache).toHaveBeenCalledWith(callingPlaintext);
+  });
+
+  it('skips cache invalidation silently when the calling header is missing (cache is best-effort)', async () => {
+    const { controller, svc } = buildSvc(async () => ({
+      newKey: { id: 'ak_new', plaintext: 'aegis_sk_AAAAAAAAAAAAAAAAAAAAAAAAAA', expiresAt: null },
+      oldKey: { id: 'ak_old', expiresAt: new Date(FIXED_NOW.getTime() + 24 * 60 * 60 * 1000) },
+    }));
+
+    await controller.rotate(buildReq(buildAuth()));
+
+    expect(svc.invalidateCache).not.toHaveBeenCalled();
   });
 });
 

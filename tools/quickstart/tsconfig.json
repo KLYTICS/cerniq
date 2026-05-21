@@ -4,8 +4,15 @@
     "outDir": "./dist",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "rootDir": "./src",
-    "lib": ["ES2022"]
+    "rootDir": "../..",
+    "baseUrl": ".",
+    "paths": {
+      "@aegis/sdk": ["../../packages/sdk-ts/src/index.ts"],
+      "@aegis/types": ["../../packages/types/src/index.ts"],
+      "@aegis/types/schemas": ["../../packages/types/src/schemas.ts"]
+    },
+    "lib": ["ES2022"],
+    "types": ["node"]
   },
   "include": ["src/**/*"]
 }

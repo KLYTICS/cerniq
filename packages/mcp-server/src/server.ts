@@ -9,6 +9,7 @@ import { registerVerifyTool } from './tools/verify.js';
 import { registerAgentsTools } from './tools/agents.js';
 import { registerPoliciesTools } from './tools/policies.js';
 import { registerAuditTool } from './tools/audit.js';
+import { createRawHttp } from './tools/raw-http.js';
 import { TOOL_NAMES, type ToolDefinition } from './tools/registry.js';
 
 export interface AegisMcpServerOptions {
@@ -34,10 +35,9 @@ export function createAegisMcpServer(opts: AegisMcpServerOptions = {}): Server {
   if (!apiKey) {
     throw new Error('AEGIS_API_KEY required (pass via opts.apiKey or env)');
   }
-  const aegis = new Aegis({
-    apiKey,
-    baseUrl: opts.baseUrl ?? process.env.AEGIS_BASE_URL ?? 'https://api.aegis.dev',
-  });
+  const baseUrl = opts.baseUrl ?? process.env.AEGIS_BASE_URL ?? 'https://api.aegis.dev';
+  const aegis = new Aegis({ apiKey, baseUrl });
+  const rawHttp = createRawHttp(baseUrl, apiKey);
 
   const server = new Server(
     { name: opts.name ?? 'aegis-mcp', version: '0.1.0' },
@@ -47,9 +47,9 @@ export function createAegisMcpServer(opts: AegisMcpServerOptions = {}): Server {
   // Build the tool registry.
   const tools = new Map<string, ToolDefinition>();
   registerVerifyTool(aegis, tools);
-  registerAgentsTools(aegis, tools);
-  registerPoliciesTools(aegis, tools);
-  registerAuditTool(aegis, tools);
+  registerAgentsTools(aegis, rawHttp, tools);
+  registerPoliciesTools(aegis, rawHttp, tools);
+  registerAuditTool(aegis, rawHttp, tools);
 
   const allowedTools = new Set(opts.allowedTools ?? TOOL_NAMES);
 

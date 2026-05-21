@@ -63,8 +63,9 @@ async function main(): Promise<void> {
     .action(policiesList);
   policies
     .command('revoke')
-    .argument('<id>')
-    .option('--reason <r>')
+    .argument('<policyId>')
+    .requiredOption('-a, --agent-id <id>', 'agent id (revoke endpoint is per-agent)')
+    .option('--reason <r>', 'free-form reason (not yet persisted by SDK)')
     .action(policiesRevoke);
 
   const audit = program.command('audit').description('Audit log');

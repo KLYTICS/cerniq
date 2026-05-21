@@ -1,7 +1,20 @@
-import type { Aegis } from '@aegis/sdk';
+import type { Aegis, PolicyScope } from '@aegis/sdk';
+import type { RawHttp } from './raw-http.js';
 import type { ToolDefinition } from './registry.js';
 
-export function registerPoliciesTools(aegis: Aegis, registry: Map<string, ToolDefinition>): void {
+const DEFAULT_TTL_SECONDS = 86_400;
+
+function resolveExpiresAt(args: Record<string, unknown>): Date {
+  if (typeof args.expires_at === 'string') return new Date(args.expires_at);
+  const ttl = typeof args.expires_in_seconds === 'number' ? args.expires_in_seconds : DEFAULT_TTL_SECONDS;
+  return new Date(Date.now() + ttl * 1000);
+}
+
+export function registerPoliciesTools(
+  aegis: Aegis,
+  rawHttp: RawHttp,
+  registry: Map<string, ToolDefinition>,
+): void {
   registry.set('aegis.policies.create', {
     name: 'aegis.policies.create',
     description:
@@ -33,33 +46,42 @@ export function registerPoliciesTools(aegis: Aegis, registry: Map<string, ToolDe
           },
         },
         expires_in_seconds: { type: 'number', minimum: 60, maximum: 7776000 },
+        expires_at: { type: 'string', description: 'ISO timestamp. Takes precedence over expires_in_seconds.' },
+        label: { type: 'string' },
       },
       required: ['agent_id', 'scopes'],
       additionalProperties: false,
     },
     handler: async (args) =>
-      await aegis.policies.create({
-        agentId: String(args.agent_id),
-        scopes: args.scopes as never,
-        expiresInSeconds: typeof args.expires_in_seconds === 'number' ? args.expires_in_seconds : undefined,
+      await aegis.policies.create(String(args.agent_id), {
+        scopes: args.scopes as PolicyScope[],
+        expiresAt: resolveExpiresAt(args),
+        ...(typeof args.label === 'string' ? { label: args.label } : {}),
       }),
   });
 
   registry.set('aegis.policies.get', {
     name: 'aegis.policies.get',
-    description: 'Fetch one policy by id.',
+    description: 'Fetch one policy by id (requires the owning agent id).',
     inputSchema: {
       type: 'object',
-      properties: { policy_id: { type: 'string' } },
-      required: ['policy_id'],
+      properties: {
+        agent_id: { type: 'string' },
+        policy_id: { type: 'string' },
+      },
+      required: ['agent_id', 'policy_id'],
       additionalProperties: false,
     },
-    handler: async (args) => await aegis.policies.get(String(args.policy_id)),
+    // SDK has no PolicyClient.get(); endpoint exists, so go through raw.
+    handler: async (args) =>
+      await rawHttp.json(
+        `/v1/agents/${encodeURIComponent(String(args.agent_id))}/policies/${encodeURIComponent(String(args.policy_id))}`,
+      ),
   });
 
   registry.set('aegis.policies.list', {
     name: 'aegis.policies.list',
-    description: 'List active policies for an agent or principal.',
+    description: "List policies for an agent. Pagination and status filtering are server-side.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -68,15 +90,26 @@ export function registerPoliciesTools(aegis: Aegis, registry: Map<string, ToolDe
         limit: { type: 'number', minimum: 1, maximum: 100 },
         cursor: { type: 'string' },
       },
+      required: ['agent_id'],
       additionalProperties: false,
     },
-    handler: async (args) =>
-      await aegis.policies.list({
-        agentId: typeof args.agent_id === 'string' ? args.agent_id : undefined,
-        status: typeof args.status === 'string' ? (args.status as 'ACTIVE' | 'REVOKED' | 'EXPIRED') : undefined,
-        limit: typeof args.limit === 'number' ? args.limit : undefined,
-        cursor: typeof args.cursor === 'string' ? args.cursor : undefined,
-      }),
+    handler: async (args) => {
+      const agentId = String(args.agent_id);
+      // SDK list() is unfiltered; if any filter is set, go through raw so
+      // the server-side filters are honored rather than silently dropped.
+      const hasFilter =
+        typeof args.status === 'string' || typeof args.limit === 'number' || typeof args.cursor === 'string';
+      if (!hasFilter) {
+        return await aegis.policies.list(agentId);
+      }
+      return await rawHttp.json(`/v1/agents/${encodeURIComponent(agentId)}/policies`, {
+        query: {
+          status: typeof args.status === 'string' ? args.status : undefined,
+          limit: typeof args.limit === 'number' ? String(args.limit) : undefined,
+          cursor: typeof args.cursor === 'string' ? args.cursor : undefined,
+        },
+      });
+    },
   });
 
   registry.set('aegis.policies.revoke', {
@@ -85,15 +118,23 @@ export function registerPoliciesTools(aegis: Aegis, registry: Map<string, ToolDe
     inputSchema: {
       type: 'object',
       properties: {
+        agent_id: { type: 'string' },
         policy_id: { type: 'string' },
         reason: { type: 'string' },
       },
-      required: ['policy_id'],
+      required: ['agent_id', 'policy_id'],
       additionalProperties: false,
     },
-    handler: async (args) =>
-      await aegis.policies.revoke(String(args.policy_id), {
-        reason: typeof args.reason === 'string' ? args.reason : undefined,
-      }),
+    handler: async (args) => {
+      await aegis.policies.revoke(String(args.agent_id), String(args.policy_id));
+      return {
+        agentId: String(args.agent_id),
+        policyId: String(args.policy_id),
+        revoked: true,
+        ...(typeof args.reason === 'string'
+          ? { reasonAccepted: false, note: 'SDK revoke() does not yet persist a reason.' }
+          : {}),
+      };
+    },
   });
 }

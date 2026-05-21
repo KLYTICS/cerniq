@@ -1,32 +1,60 @@
-import { client } from '../client.js';
-import { emitJson, emitTable, ok } from '../output.js';
 import { readFile } from 'node:fs/promises';
+import type { PolicyScope } from '@aegis/sdk';
+import { CliError, client } from '../client.js';
+import { emitJson, emitTable, ok, warn } from '../output.js';
 
-export async function policiesCreate(opts: { agentId: string; scopesFile: string; ttl?: number; json?: boolean }): Promise<void> {
+const DEFAULT_TTL_SECONDS = 86_400;
+
+export async function policiesCreate(
+  opts: { agentId: string; scopesFile: string; ttl?: number; json?: boolean },
+): Promise<void> {
   const raw = await readFile(opts.scopesFile, 'utf8');
-  const scopes = JSON.parse(raw);
+  const scopes = JSON.parse(raw) as PolicyScope[];
+  const ttl = opts.ttl ?? DEFAULT_TTL_SECONDS;
+  const expiresAt = new Date(Date.now() + ttl * 1000);
   const aegis = await client();
-  const policy = await aegis.policies.create({
-    agentId: opts.agentId,
-    scopes,
-    expiresInSeconds: opts.ttl,
-  });
-  ok(`policy created: ${(policy as { id: string }).id}`);
+  const policy = await aegis.policies.create(opts.agentId, { scopes, expiresAt });
+  ok(`policy created: ${policy.policyId}`);
   emitJson(policy);
 }
 
-export async function policiesList(opts: { agentId?: string; status?: string; json?: boolean }): Promise<void> {
+export async function policiesList(
+  opts: { agentId?: string; status?: string; json?: boolean },
+): Promise<void> {
+  if (!opts.agentId) {
+    throw new CliError('missing_agent_id', '--agent-id is required (SDK list is per-agent).');
+  }
+  if (opts.status) {
+    warn(`status filter is not yet plumbed through the SDK; returning all policies for ${opts.agentId}.`);
+  }
   const aegis = await client();
-  const result = (await aegis.policies.list({
-    agentId: opts.agentId,
-    status: opts.status as 'ACTIVE' | 'REVOKED' | 'EXPIRED' | undefined,
-  })) as { policies: Array<{ id: string; agentId: string; status: string; expiresAt: string }> };
-  if (opts.json) emitJson(result);
-  else emitTable(result.policies.map((p) => ({ id: p.id, agent: p.agentId, status: p.status, expires: p.expiresAt })));
+  const policies = await aegis.policies.list(opts.agentId);
+  if (opts.json) {
+    emitJson({ agentId: opts.agentId, policies });
+    return;
+  }
+  emitTable(
+    policies.map((p) => ({
+      policyId: p.policyId,
+      expiresAt: p.expiresAt,
+    })),
+  );
 }
 
-export async function policiesRevoke(id: string, opts: { reason?: string }): Promise<void> {
+export async function policiesRevoke(
+  policyId: string,
+  opts: { agentId?: string; reason?: string },
+): Promise<void> {
+  if (!opts.agentId) {
+    throw new CliError(
+      'missing_agent_id',
+      '--agent-id is required (revoke endpoint is /agents/:agentId/policies/:policyId).',
+    );
+  }
+  if (opts.reason) {
+    warn(`reason not persisted by SDK: ${opts.reason}`);
+  }
   const aegis = await client();
-  await aegis.policies.revoke(id, { reason: opts.reason });
-  ok(`policy revoked: ${id}`);
+  await aegis.policies.revoke(opts.agentId, policyId);
+  ok(`policy revoked: ${policyId}`);
 }

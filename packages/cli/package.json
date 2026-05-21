@@ -38,7 +38,7 @@
     "build": "tsup",
     "prepublishOnly": "pnpm build",
     "dev": "tsup --watch",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
   },

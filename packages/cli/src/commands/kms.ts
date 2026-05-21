@@ -1,5 +1,5 @@
-import { client } from '../client.js';
-import { emitJson, emitTable, ok, info, warn } from '../output.js';
+import { rawJson } from '../client.js';
+import { emitTable, ok, info, warn } from '../output.js';
 
 /**
  * `aegis kms list <purpose>` — shows the JWKS for a signing purpose.
@@ -13,12 +13,10 @@ import { emitJson, emitTable, ok, info, warn } from '../output.js';
  *   - on suspected compromise: immediate
  */
 export async function kmsList(opts: { purpose?: string }): Promise<void> {
-  const aegis = await client();
-  const purposeQs = opts.purpose ? `?purpose=${opts.purpose}` : '';
-  // @ts-expect-error - http accessor
-  const jwks = (await aegis.http.get(`/v1/.well-known/audit-signing-key${purposeQs}`)) as {
+  const purposeQs = opts.purpose ? `?purpose=${encodeURIComponent(opts.purpose)}` : '';
+  const jwks = await rawJson<{
     keys: Array<{ kid: string; alg: string; use: string; validFrom?: string; validUntil?: string | null }>;
-  };
+  }>(`/.well-known/audit-signing-key${purposeQs}`);
   emitTable(jwks.keys.map((k) => ({
     kid: k.kid,
     alg: k.alg,

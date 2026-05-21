@@ -1,27 +1,46 @@
-import type { Aegis } from '@aegis/sdk';
+import type { Aegis, AgentRuntime } from '@aegis/sdk';
+import type { RawHttp } from './raw-http.js';
 import type { ToolDefinition } from './registry.js';
 
-export function registerAgentsTools(aegis: Aegis, registry: Map<string, ToolDefinition>): void {
+const VALID_RUNTIMES: readonly AgentRuntime[] = ['OPENAI', 'ANTHROPIC', 'GOOGLE', 'HUGGINGFACE', 'CUSTOM'];
+
+function parseRuntime(raw: unknown): AgentRuntime {
+  if (typeof raw !== 'string') return 'CUSTOM';
+  const candidate = raw.toUpperCase() as AgentRuntime;
+  return VALID_RUNTIMES.includes(candidate) ? candidate : 'CUSTOM';
+}
+
+export function registerAgentsTools(
+  aegis: Aegis,
+  rawHttp: RawHttp,
+  registry: Map<string, ToolDefinition>,
+): void {
   registry.set('aegis.agents.create', {
     name: 'aegis.agents.create',
     description:
-      'Register a new agent with AEGIS. The caller must supply the agent\'s base64url Ed25519 public key — ' +
+      "Register a new agent with AEGIS. The caller must supply the agent's base64url Ed25519 public key — " +
       'AEGIS never receives the private key (ADR-0002).',
     inputSchema: {
       type: 'object',
       properties: {
-        name: { type: 'string', description: 'Human-readable agent name.' },
+        label: { type: 'string', description: 'Human-readable agent label.' },
         public_key: { type: 'string', description: 'base64url-encoded Ed25519 public key (32 bytes).' },
-        metadata: { type: 'object', description: 'Free-form metadata. Cannot contain secrets.' },
+        runtime: {
+          type: 'string',
+          enum: VALID_RUNTIMES as unknown as string[],
+          description: 'Agent runtime; defaults to CUSTOM if omitted.',
+        },
+        model: { type: 'string', description: 'Optional model identifier.' },
       },
-      required: ['name', 'public_key'],
+      required: ['public_key'],
       additionalProperties: false,
     },
     handler: async (args) =>
-      await aegis.agents.create({
-        name: String(args.name),
+      await aegis.agents.register({
         publicKey: String(args.public_key),
-        metadata: (args.metadata as Record<string, unknown>) ?? undefined,
+        runtime: parseRuntime(args.runtime),
+        ...(typeof args.label === 'string' ? { label: args.label } : {}),
+        ...(typeof args.model === 'string' ? { model: args.model } : {}),
       }),
   });
 
@@ -39,7 +58,7 @@ export function registerAgentsTools(aegis: Aegis, registry: Map<string, ToolDefi
 
   registry.set('aegis.agents.list', {
     name: 'aegis.agents.list',
-    description: 'List agents in the caller\'s principal. Paginated.',
+    description: "List agents in the caller's principal. Paginated.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -48,10 +67,14 @@ export function registerAgentsTools(aegis: Aegis, registry: Map<string, ToolDefi
       },
       additionalProperties: false,
     },
+    // SDK does not yet expose `agents.list()`; the endpoint exists, so we
+    // go through the raw helper rather than fabricate an SDK call.
     handler: async (args) =>
-      await aegis.agents.list({
-        limit: typeof args.limit === 'number' ? args.limit : undefined,
-        cursor: typeof args.cursor === 'string' ? args.cursor : undefined,
+      await rawHttp.json('/v1/agents', {
+        query: {
+          limit: typeof args.limit === 'number' ? String(args.limit) : undefined,
+          cursor: typeof args.cursor === 'string' ? args.cursor : undefined,
+        },
       }),
   });
 
@@ -64,14 +87,20 @@ export function registerAgentsTools(aegis: Aegis, registry: Map<string, ToolDefi
       type: 'object',
       properties: {
         agent_id: { type: 'string' },
-        reason: { type: 'string', description: 'Free-form reason; appears in audit log.' },
+        reason: { type: 'string', description: 'Free-form reason; not yet plumbed through the SDK.' },
       },
       required: ['agent_id'],
       additionalProperties: false,
     },
-    handler: async (args) =>
-      await aegis.agents.revoke(String(args.agent_id), {
-        reason: typeof args.reason === 'string' ? args.reason : undefined,
-      }),
+    handler: async (args) => {
+      await aegis.agents.revoke(String(args.agent_id));
+      return {
+        agentId: String(args.agent_id),
+        revoked: true,
+        ...(typeof args.reason === 'string'
+          ? { reasonAccepted: false, note: 'SDK revoke() does not yet persist a reason.' }
+          : {}),
+      };
+    },
   });
 }

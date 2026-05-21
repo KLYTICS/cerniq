@@ -5,6 +5,70 @@
 
 ---
 
+## 2026-05-20 (Gate hygiene — cold-worktree typecheck, CLI/MCP SDK drift, api-key-rotation spec) · sid=musing-cray · claim=aegis:gate-hygiene
+
+**Status:** ✅ `pnpm typecheck` and full repo test sweep both clean on a fresh worktree. Three latent failures fixed; no changes to architecture invariants.
+
+### What I caught and fixed
+
+| # | Surface | Symptom | Fix |
+|---|---------|---------|-----|
+| 1 | `pnpm typecheck` (root) | `tools/quickstart` and `packages/sdk-ts` couldn't resolve `@aegis/types` on a cold worktree (no `dist/`); `apps/docs` couldn't resolve `@/.source` (no fumadocs-mdx run); `scripts` couldn't resolve `PrismaClient` (no prisma:generate). | Added `typecheck:deps` root script that builds `@aegis/types` + `@aegis/sdk`, runs `prisma:generate`, and runs `fumadocs-mdx` before the recursive `typecheck`. CI workflows already did each piece individually; local `pnpm typecheck` now mirrors that. |
+| 2 | `tools/quickstart/tsconfig.json` | `@aegis/sdk` resolved through `dist/` only — failed without a SDK build. | Added a `paths` mapping pointing at `packages/sdk-ts/src/index.ts` (mirrors `tools/audit-evidence-bundle` pattern), widened `rootDir` to repo root, added `@aegis/types` mapping. |
+| 3 | `packages/cli/src/commands/{agents,policies,audit,kms}.ts` | TS CLI scaffold drifted hard from current SDK shape: called `agents.create` (real name: `register`), `agents.list` (doesn't exist on `AgentClient`), `policies.create(input)` with wrong arity, `aegis.http.get(...)` reaching through `private http`. 6 type errors. | Realigned every command to current SDK methods. Added `rawJson()` helper in `client.ts` for endpoints the SDK doesn't yet model (audit search, JWKS, agent list) — replaces all `@ts-expect-error - http accessor` private-field hacks. Updated `bin.ts` so `policies revoke` requires `--agent-id` (matches `revoke(agentId, policyId)`). |
+| 4 | `packages/mcp-server/src/tools/{agents,policies,audit}.ts` | Same drift pattern as the CLI. Tool names are part of the public MCP surface per ADR-0008 §2, so removal isn't a legitimate fix — kept names, realigned handlers. | Added `src/tools/raw-http.ts` (`createRawHttp(baseUrl, apiKey)`) and wired it through `registerXTools(aegis, rawHttp, registry)`. Tools that the SDK exposes (`register`, `revoke(id, policyId)`) go through the SDK; tools the SDK doesn't yet model (`agents.list`, `policies.get`, `audit.search`) go through the raw helper. Revoke handlers now report `reasonAccepted: false` when a `reason` arg is supplied — surfaces the SDK gap to the AI consumer instead of silently dropping it (CLAUDE.md "no silent failures"). |
+| 5 | `apps/api/src/modules/auth/api-key-rotation.controller.spec.ts` | Pre-existing on `main`: 3 of 8 tests failed with `TypeError: Cannot read properties of undefined (reading 'x-aegis-api-key')`. `buildReq` fixture omitted `headers`; controller reads `req.headers['x-aegis-api-key']` to invalidate the OLD plaintext from the auth cache after rotation. | Added `headers` slot to `buildReq`, added `invalidateCache: jest.fn(...)` to the service mock, added two new tests covering both cache-invalidation paths (header present → `invalidateCache` called with the OLD plaintext; header missing → silently skipped, cache is best-effort). 10/10 now green. |
+
+### What stayed in lane
+
+- No public contract changes. SDK surface unchanged, OpenAPI unchanged, Zod
+  schemas unchanged, denial precedence unchanged.
+- No new dependency. The `rawJson`/`createRawHttp` helpers are ~30 lines each
+  built on `fetch`.
+- No migration changes, no audit-chain changes, no verify hot-path changes.
+- Tool names in `packages/mcp-server/src/tools/registry.ts` `TOOL_NAMES`
+  preserved verbatim per ADR-0008 §2.
+
+### Test deltas
+
+- `packages/mcp-server`: 15 → 21 tests (added `agents.create` runtime-default,
+  `agents.list` raw-HTTP delegation, `policies.create` ISO-vs-seconds
+  precedence, `policies.list` SDK-vs-raw routing, `policies.revoke`
+  reason-not-persisted disclosure).
+- `packages/cli`: 0 → 3 tests (`rawJson` happy path, error mapping, trailing-
+  slash join).
+- `apps/api`: 808 → 814 tests (api-key-rotation cache-invalidation + skip).
+
+### Verification
+
+```bash
+pnpm typecheck              # 19 workspaces, all green
+pnpm -r run test            # all green; apps/api 71/71 suites, 814/814 tests
+pnpm --filter @aegis/mcp-server test   # 5/5 files, 21 tests
+pnpm --filter @aegis/cli test          # 1/1 file, 3 tests
+```
+
+### Discipline note
+
+The packages/cli + packages/mcp-server drift was a "two parallel sessions
+ship divergent surface" failure — one side shipped `aegis.agents.create`
+(aspirational) and the other shipped `agents.register` (real). With no
+parity test gating the two, the drift only surfaced when the typecheck
+gate was run on a cold worktree. **Recommendation:** add a cross-package
+parity test under `tests/cross-package/` that asserts every MCP tool
+handler typechecks against the current `@aegis/sdk` surface. Cheaper than
+manually hunting drift each release.
+
+### What's next
+
+- The `aegis-node` plugin migration (per `packages/cli/MIGRATION_TS_TO_PLUGIN.md`)
+  is still operator-pending. The TS CLI now works; the rename can happen
+  on its own schedule without blocking other work.
+- M-011 Stripe billing + M-037 audit→KMS + M-041 compliance redact e2e
+  remain the leading open enterprise-quality candidates per WORK_BOARD.
+
+---
+
 ## 2026-05-18 (Round 26 audit pass — caught 4 critical bugs before commit) · sid=gifted-payne · claim=aegis:M-014
 
 **Status:** ✅ Cold-review audit of Rounds 24-26 caught and fixed 4 critical bugs that would have broken on first `pnpm install` + first PR. Worth documenting because the same audit discipline should apply to every multi-round arc.
