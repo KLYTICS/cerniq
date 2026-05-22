@@ -1,19 +1,19 @@
-import { GENERATED_ERROR_CATALOG, getEntry, getEntryByClassName, type ErrorCatalogEntry } from '@aegis/types';
-import type { ErrorEnvelope } from '@aegis/types';
+import { GENERATED_ERROR_CATALOG, getEntry, getEntryByClassName, type ErrorCatalogEntry } from '@okoro/types';
+import type { ErrorEnvelope } from '@okoro/types';
 
-// SDK-side error hierarchy. Mirrors the API's AegisError tree but lives in
-// its own namespace so consumers can `instanceof AegisError` without
+// SDK-side error hierarchy. Mirrors the API's OkoroError tree but lives in
+// its own namespace so consumers can `instanceof OkoroError` without
 // importing server packages.
 //
 // Each subclass exposes a `static catalog: ErrorCatalogEntry` reference so
 // callers can introspect retry semantics without instantiating the class.
 // The legacy public `code` field (uppercase) is preserved for backwards
 // compatibility — `catalogCode` is the new stable lower-snake-case form
-// from `@aegis/types` ErrorCatalog.
+// from `@okoro/types` ErrorCatalog.
 
-export type { ErrorCatalogEntry } from '@aegis/types';
+export type { ErrorCatalogEntry } from '@okoro/types';
 
-export abstract class AegisError extends Error {
+export abstract class OkoroError extends Error {
   override readonly name: string;
   abstract readonly code: string;
   /** Stable lower-snake-case code from the server catalog (or undefined for transport-only errors). */
@@ -41,55 +41,55 @@ export abstract class AegisError extends Error {
     super(message);
     const target = new.target;
     if (target.catalogKey === '') {
-      throw new Error('AegisError subclass missing static catalogKey: ' + new.target.name);
+      throw new Error('OkoroError subclass missing static catalogKey: ' + new.target.name);
     }
     this.name = target.catalogKey;
     this.catalogCode = catalogCode ?? target.catalog?.code;
   }
 }
 
-export class AegisAuthenticationError extends AegisError {
-  static override readonly catalogKey = 'AegisAuthenticationError';
+export class OkoroAuthenticationError extends OkoroError {
+  static override readonly catalogKey = 'OkoroAuthenticationError';
   override readonly code = 'AUTH_REQUIRED';
   static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('auth_required');
 }
-export class AegisAuthorizationError extends AegisError {
-  static override readonly catalogKey = 'AegisAuthorizationError';
+export class OkoroAuthorizationError extends OkoroError {
+  static override readonly catalogKey = 'OkoroAuthorizationError';
   override readonly code = 'FORBIDDEN';
   static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('forbidden');
 }
-export class AegisNotFoundError extends AegisError {
-  static override readonly catalogKey = 'AegisNotFoundError';
+export class OkoroNotFoundError extends OkoroError {
+  static override readonly catalogKey = 'OkoroNotFoundError';
   override readonly code = 'NOT_FOUND';
   static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('not_found');
 }
-export class AegisValidationError extends AegisError {
-  static override readonly catalogKey = 'AegisValidationError';
+export class OkoroValidationError extends OkoroError {
+  static override readonly catalogKey = 'OkoroValidationError';
   override readonly code = 'INVALID_REQUEST';
   static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('invalid_request');
 }
-export class AegisConflictError extends AegisError {
-  static override readonly catalogKey = 'AegisConflictError';
+export class OkoroConflictError extends OkoroError {
+  static override readonly catalogKey = 'OkoroConflictError';
   override readonly code = 'CONFLICT';
   static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('conflict');
 }
-export class AegisRateLimitedError extends AegisError {
-  static override readonly catalogKey = 'AegisRateLimitedError';
+export class OkoroRateLimitedError extends OkoroError {
+  static override readonly catalogKey = 'OkoroRateLimitedError';
   override readonly code = 'RATE_LIMITED';
   static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('rate_limited');
 }
-export class AegisInternalError extends AegisError {
-  static override readonly catalogKey = 'AegisInternalError';
+export class OkoroInternalError extends OkoroError {
+  static override readonly catalogKey = 'OkoroInternalError';
   override readonly code = 'INTERNAL';
   static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('internal_error');
 }
-export class AegisServiceUnavailableError extends AegisError {
-  static override readonly catalogKey = 'AegisServiceUnavailableError';
+export class OkoroServiceUnavailableError extends OkoroError {
+  static override readonly catalogKey = 'OkoroServiceUnavailableError';
   override readonly code = 'SERVICE_UNAVAILABLE';
   static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('service_unavailable');
 }
-export class AegisNetworkError extends AegisError {
-  static override readonly catalogKey = 'AegisNetworkError';
+export class OkoroNetworkError extends OkoroError {
+  static override readonly catalogKey = 'OkoroNetworkError';
   override readonly code = 'NETWORK_ERROR';
   // Transport-layer error — no server catalog entry exists. We treat it as
   // retryable with exponential backoff at the wrapper level (see http.ts).
@@ -101,12 +101,12 @@ export class AegisNetworkError extends AegisError {
 }
 
 /**
- * Map an envelope to an AegisError. Prefers the `code` field on the
+ * Map an envelope to an OkoroError. Prefers the `code` field on the
  * envelope (stable lower-snake-case from the server catalog) when
- * present, falling back to status-code mapping for older / non-AEGIS
+ * present, falling back to status-code mapping for older / non-OKORO
  * responses.
  */
-export function fromEnvelope(env: ErrorEnvelope): AegisError {
+export function fromEnvelope(env: ErrorEnvelope): OkoroError {
   // Server envelope's `error` field carries the legacy uppercase code; the
   // new server filter also embeds `code` in `details`. Try both.
   const detailsCode = extractCatalogCode(env);
@@ -118,21 +118,21 @@ export function fromEnvelope(env: ErrorEnvelope): AegisError {
   }
   switch (env.statusCode) {
     case 400:
-      return new AegisValidationError(env.message, env.statusCode, env.requestId, env.details);
+      return new OkoroValidationError(env.message, env.statusCode, env.requestId, env.details);
     case 401:
-      return new AegisAuthenticationError(env.message, env.statusCode, env.requestId, env.details);
+      return new OkoroAuthenticationError(env.message, env.statusCode, env.requestId, env.details);
     case 403:
-      return new AegisAuthorizationError(env.message, env.statusCode, env.requestId, env.details);
+      return new OkoroAuthorizationError(env.message, env.statusCode, env.requestId, env.details);
     case 404:
-      return new AegisNotFoundError(env.message, env.statusCode, env.requestId, env.details);
+      return new OkoroNotFoundError(env.message, env.statusCode, env.requestId, env.details);
     case 409:
-      return new AegisConflictError(env.message, env.statusCode, env.requestId, env.details);
+      return new OkoroConflictError(env.message, env.statusCode, env.requestId, env.details);
     case 429:
-      return new AegisRateLimitedError(env.message, env.statusCode, env.requestId, env.details);
+      return new OkoroRateLimitedError(env.message, env.statusCode, env.requestId, env.details);
     case 503:
-      return new AegisServiceUnavailableError(env.message, env.statusCode, env.requestId, env.details);
+      return new OkoroServiceUnavailableError(env.message, env.statusCode, env.requestId, env.details);
     default:
-      return new AegisInternalError(env.message, env.statusCode, env.requestId, env.details);
+      return new OkoroInternalError(env.message, env.statusCode, env.requestId, env.details);
   }
 }
 
@@ -157,7 +157,7 @@ export function extractCatalogCode(env: ErrorEnvelope | { details?: unknown; err
   return undefined;
 }
 
-function classFromCatalogEntry(entry: ErrorCatalogEntry, env: ErrorEnvelope): AegisError {
+function classFromCatalogEntry(entry: ErrorCatalogEntry, env: ErrorEnvelope): OkoroError {
   // Pick the SDK class whose static catalog matches; fall back to status.
   const ctor = SDK_ERROR_BY_CODE[entry.code];
   if (ctor !== undefined) {
@@ -167,47 +167,47 @@ function classFromCatalogEntry(entry: ErrorCatalogEntry, env: ErrorEnvelope): Ae
   // (e.g. denial-precedence codes that the SDK surfaces as 403 forbidden).
   switch (entry.httpStatus) {
     case 400:
-      return new AegisValidationError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new OkoroValidationError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
     case 401:
-      return new AegisAuthenticationError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new OkoroAuthenticationError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
     case 402:
     case 403:
-      return new AegisAuthorizationError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new OkoroAuthorizationError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
     case 404:
-      return new AegisNotFoundError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new OkoroNotFoundError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
     case 409:
-      return new AegisConflictError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new OkoroConflictError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
     case 429:
-      return new AegisRateLimitedError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new OkoroRateLimitedError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
     case 503:
-      return new AegisServiceUnavailableError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new OkoroServiceUnavailableError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
     default:
-      return new AegisInternalError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new OkoroInternalError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
   }
 }
 
-type AegisErrorCtor = new (message: string, statusCode: number, requestId: string | undefined, details?: unknown) => AegisError;
+type OkoroErrorCtor = new (message: string, statusCode: number, requestId: string | undefined, details?: unknown) => OkoroError;
 
-const SDK_ERROR_BY_CODE: Readonly<Record<string, AegisErrorCtor>> = Object.freeze({
-  auth_required: AegisAuthenticationError,
-  forbidden: AegisAuthorizationError,
-  not_found: AegisNotFoundError,
-  invalid_request: AegisValidationError,
-  conflict: AegisConflictError,
-  rate_limited: AegisRateLimitedError,
-  internal_error: AegisInternalError,
-  service_unavailable: AegisServiceUnavailableError,
+const SDK_ERROR_BY_CODE: Readonly<Record<string, OkoroErrorCtor>> = Object.freeze({
+  auth_required: OkoroAuthenticationError,
+  forbidden: OkoroAuthorizationError,
+  not_found: OkoroNotFoundError,
+  invalid_request: OkoroValidationError,
+  conflict: OkoroConflictError,
+  rate_limited: OkoroRateLimitedError,
+  internal_error: OkoroInternalError,
+  service_unavailable: OkoroServiceUnavailableError,
 });
 
-/** True iff the given AegisError's catalog entry says it's retryable. */
-export function isAegisErrorRetryable(err: AegisError): boolean {
-  if (err instanceof AegisNetworkError) return true;
+/** True iff the given OkoroError's catalog entry says it's retryable. */
+export function isOkoroErrorRetryable(err: OkoroError): boolean {
+  if (err instanceof OkoroNetworkError) return true;
   if (err.catalogCode === undefined) return false;
   return getEntry(err.catalogCode)?.retryable === true;
 }
 
-/** Resolve the catalog entry for a thrown AegisError, if any. */
-export function catalogEntryFor(err: AegisError): ErrorCatalogEntry | undefined {
+/** Resolve the catalog entry for a thrown OkoroError, if any. */
+export function catalogEntryFor(err: OkoroError): ErrorCatalogEntry | undefined {
   if (err.catalogCode === undefined) return undefined;
   return getEntry(err.catalogCode);
 }

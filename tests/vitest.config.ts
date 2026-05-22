@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
 /**
- * Vitest config for the AEGIS e2e harness.
+ * Vitest config for the OKORO e2e harness.
  *
  * Sequential by default — these are black-box network tests, not units.
  * Parallelism on the runner side hides race conditions instead of revealing

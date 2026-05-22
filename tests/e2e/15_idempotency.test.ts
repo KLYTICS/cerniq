@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import type { Aegis } from '@aegis/sdk';
+import type { Okoro } from '@okoro/sdk';
 import { RawClient, makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, futureIso } from './_support/fixtures';
 
@@ -13,7 +13,7 @@ import { SCOPES, createAgent, futureIso } from './_support/fixtures';
  * cleanest "creates a row" endpoint with a deterministic response shape.
  */
 describe('15 · idempotency', () => {
-  let sdk: Aegis;
+  let sdk: Okoro;
   let raw: RawClient;
   const cleanup: string[] = [];
 

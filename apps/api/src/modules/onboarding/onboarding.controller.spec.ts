@@ -4,7 +4,7 @@
  * Coverage:
  *   status()          — delegates req.principalId to onboarding.getStatus
  *   markStep()        — delegates principalId + step to onboarding.markStep
- *   triggerBackfill() — admin-only gate (X-AEGIS-Admin header), delegates to backfill.run
+ *   triggerBackfill() — admin-only gate (X-OKORO-Admin header), delegates to backfill.run
  *   lastReport()      — admin-only gate, delegates to backfill.getLastReport
  */
 
@@ -34,7 +34,7 @@ function makeBackfill(): jest.Mocked<Pick<OnboardingBackfill, 'run' | 'getLastRe
 function makeReq(opts: { principalId?: string; adminHeader?: string } = {}): Request {
   return {
     principalId: opts.principalId,
-    headers: opts.adminHeader !== undefined ? { 'x-aegis-admin': opts.adminHeader } : {},
+    headers: opts.adminHeader !== undefined ? { 'x-okoro-admin': opts.adminHeader } : {},
   } as unknown as Request;
 }
 
@@ -53,12 +53,12 @@ const ADMIN_TOKEN = 'super_secret_admin';
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('OnboardingController', () => {
-  // Save and restore process.env.AEGIS_ADMIN_TOKEN
-  const originalToken = process.env.AEGIS_ADMIN_TOKEN;
-  beforeAll(() => { process.env.AEGIS_ADMIN_TOKEN = ADMIN_TOKEN; });
+  // Save and restore process.env.OKORO_ADMIN_TOKEN
+  const originalToken = process.env.OKORO_ADMIN_TOKEN;
+  beforeAll(() => { process.env.OKORO_ADMIN_TOKEN = ADMIN_TOKEN; });
   afterAll(() => {
-    if (originalToken === undefined) delete process.env.AEGIS_ADMIN_TOKEN;
-    else process.env.AEGIS_ADMIN_TOKEN = originalToken;
+    if (originalToken === undefined) delete process.env.OKORO_ADMIN_TOKEN;
+    else process.env.OKORO_ADMIN_TOKEN = originalToken;
   });
 
   describe('status()', () => {

@@ -1,4 +1,4 @@
-# AEGIS — Release Process
+# OKORO — Release Process
 
 > Operator-facing checklist for cutting a release of the public packages.
 > Owned by Round 16 / Lane E. Tooling lives in `scripts/`. Update this
@@ -8,14 +8,14 @@ This process covers the **publishable** packages:
 
 | Package | Workspace dir | Registry | License |
 |---|---|---|---|
-| `@aegis/sdk` | `packages/sdk-ts` | npm | MIT |
-| `@aegis/types` | `packages/types` | npm | MIT |
-| `@aegis/verifier-rp` | `packages/verifier-rp` | npm | MIT |
-| `aegis` (Python) | `packages/sdk-py` | PyPI | MIT |
+| `@okoro/sdk` | `packages/sdk-ts` | npm | MIT |
+| `@okoro/types` | `packages/types` | npm | MIT |
+| `@okoro/verifier-rp` | `packages/verifier-rp` | npm | MIT |
+| `okoro` (Python) | `packages/sdk-py` | PyPI | MIT |
 
-Internal packages (`@aegis/api`, `@aegis/dashboard`, `@aegis/scripts`,
-`@aegis/cli`, `@aegis/eslint-config`, `@aegis/tsconfig`,
-`@aegis/audit-verifier`, `@aegis/mcp-bridge`, `@aegis/mcp-server`) are
+Internal packages (`@okoro/api`, `@okoro/dashboard`, `@okoro/scripts`,
+`@okoro/cli`, `@okoro/eslint-config`, `@okoro/tsconfig`,
+`@okoro/audit-verifier`, `@okoro/mcp-bridge`, `@okoro/mcp-server`) are
 either `private: true` or otherwise not published from this repo.
 
 ---
@@ -30,13 +30,13 @@ All of these must be true **on the release branch** before you start:
 - [ ] `pnpm -r build` has been run; every publishable package has a fresh `dist/`.
 - [ ] No peer Claude session holds an active claim on the packages you
       are about to release. Check `~/.claude/peers/bin/claude-peers status`
-      for the `aegis` channel.
+      for the `okoro` channel.
 - [ ] `docs/SECURITY.md` denial precedence and the API version reflect
       any breaking changes. (Per CLAUDE.md invariant 6, denial precedence
       changes require an API version bump.)
-- [ ] You have an `npm` login with publish rights on the `@aegis` scope
+- [ ] You have an `npm` login with publish rights on the `@okoro` scope
       (`npm whoami` reports the right account, `npm access ls-packages`
-      lists `@aegis/sdk`).
+      lists `@okoro/sdk`).
 
 If any item is red, fix it before proceeding. The publish-dry-run will
 also catch most of the technical items, but the human items
@@ -47,7 +47,7 @@ also catch most of the technical items, but the human items
 ## 1. Generate the changelog
 
 ```bash
-pnpm --filter @aegis/scripts run gen:changelog --since <YYYY-MM-DD>
+pnpm --filter @okoro/scripts run gen:changelog --since <YYYY-MM-DD>
 ```
 
 Where `<YYYY-MM-DD>` is the date of the previous release tag (or the
@@ -66,7 +66,7 @@ Behavior:
 Always preview first:
 
 ```bash
-pnpm --filter @aegis/scripts run gen:changelog --since <date> --dry-run
+pnpm --filter @okoro/scripts run gen:changelog --since <date> --dry-run
 ```
 
 Then commit:
@@ -79,7 +79,7 @@ git commit -m "chore(release): regenerate changelogs since <date>"
 If a single package needs a manual touch-up:
 
 ```bash
-pnpm --filter @aegis/scripts run gen:changelog --package sdk-ts --since <date>
+pnpm --filter @okoro/scripts run gen:changelog --package sdk-ts --since <date>
 # edit packages/sdk-ts/CHANGELOG.md by hand, then commit
 ```
 
@@ -94,10 +94,10 @@ Versioning rules:
 - **Minor** — additive changes to the public API (new exports, new
   optional fields). Backward-compatible.
 - **Major** — breaking changes. **Lockstep across the SDK packages**:
-  if `@aegis/sdk` breaks, `@aegis/verifier-rp` and the Python SDK
+  if `@okoro/sdk` breaks, `@okoro/verifier-rp` and the Python SDK
   bump majors at the same time so cross-version compatibility doesn't
-  drift. `@aegis/types` may bump independently when only schema field
-  names change, but a breaking `@aegis/types` bump always implies a
+  drift. `@okoro/types` may bump independently when only schema field
+  names change, but a breaking `@okoro/types` bump always implies a
   major bump for both SDKs.
 
 Bump in place by editing each package's `package.json` and `CHANGELOG.md`
@@ -110,7 +110,7 @@ Commit:
 
 ```bash
 git add packages/*/package.json packages/*/CHANGELOG.md packages/sdk-py/pyproject.toml
-git commit -m "chore(release): @aegis/sdk@x.y.z, @aegis/verifier-rp@x.y.z, ..."
+git commit -m "chore(release): @okoro/sdk@x.y.z, @okoro/verifier-rp@x.y.z, ..."
 ```
 
 ---
@@ -118,17 +118,17 @@ git commit -m "chore(release): @aegis/sdk@x.y.z, @aegis/verifier-rp@x.y.z, ..."
 ## 3. Publish dry-run
 
 ```bash
-pnpm --filter @aegis/scripts run publish:dry-run:all
+pnpm --filter @okoro/scripts run publish:dry-run:all
 ```
 
-This iterates every public `@aegis/*` package and asserts:
+This iterates every public `@okoro/*` package and asserts:
 
 | Class | Check |
 |---|---|
 | Tarball must NOT contain | `node_modules/`, `.env*`, `*.spec.ts`, `*.test.ts`, `coverage/`, `*.tsbuildinfo` |
 | Tarball must NOT contain | source maps that leak absolute filesystem paths |
 | Tarball MUST contain | `README.md`, `LICENSE` (warn if absent), `package.json`, every entrypoint declared in `main`/`module`/`types`/`bin`/`exports` |
-| `package.json` requires | `name`, `version` (valid semver), `description`, `license`, `repository.url` referencing the aegis repo, `engines.node`, `keywords` (≥3) |
+| `package.json` requires | `name`, `version` (valid semver), `description`, `license`, `repository.url` referencing the okoro repo, `engines.node`, `keywords` (≥3) |
 | Dependencies must NOT be | `link:*` or `file:*` (they don't survive publish) |
 | Dependencies WARN if | `workspace:*` (pnpm rewrites these on publish; the warning reminds you to confirm) |
 
@@ -142,13 +142,13 @@ Exit codes:
 To machine-consume the report (e.g. for CI):
 
 ```bash
-pnpm --filter @aegis/scripts run publish:dry-run -- --all --json > pre-publish.json
+pnpm --filter @okoro/scripts run publish:dry-run -- --all --json > pre-publish.json
 ```
 
 Strict mode for "everything must be perfect" releases:
 
 ```bash
-pnpm --filter @aegis/scripts run publish:dry-run -- --all --strict
+pnpm --filter @okoro/scripts run publish:dry-run -- --all --strict
 ```
 
 **Do not proceed if exit code is non-zero.** Fix the offending package
@@ -163,12 +163,12 @@ Once the dry-run is green:
 
 ```bash
 # Tag the release.
-git tag -a v$(node -p "require('./packages/sdk-ts/package.json').version") -m "AEGIS SDK release"
+git tag -a v$(node -p "require('./packages/sdk-ts/package.json').version") -m "OKORO SDK release"
 
 # Publish each public package. pnpm rewrites workspace:* automatically.
-pnpm --filter @aegis/sdk publish --access public
-pnpm --filter @aegis/types publish --access public
-pnpm --filter @aegis/verifier-rp publish --access public
+pnpm --filter @okoro/sdk publish --access public
+pnpm --filter @okoro/types publish --access public
+pnpm --filter @okoro/verifier-rp publish --access public
 
 # Python SDK.
 cd packages/sdk-py
@@ -183,9 +183,9 @@ git push origin --tags
 Verify:
 
 ```bash
-npm view @aegis/sdk version       # should match
-npm view @aegis/verifier-rp version
-pip index versions aegis
+npm view @okoro/sdk version       # should match
+npm view @okoro/verifier-rp version
+pip index versions okoro
 ```
 
 ---
@@ -206,10 +206,10 @@ If a published version is broken and a fix isn't ready:
 
 ```bash
 # Mark the bad version as deprecated. Customers see this on `npm install`.
-npm deprecate @aegis/sdk@<bad-version> "Broken — use @aegis/sdk@<good-version> or later."
+npm deprecate @okoro/sdk@<bad-version> "Broken — use @okoro/sdk@<good-version> or later."
 
 # For a range:
-npm deprecate "@aegis/sdk@>=1.2.0 <1.2.4" "Broken — see GH issue #N. Upgrade to 1.2.4."
+npm deprecate "@okoro/sdk@>=1.2.0 <1.2.4" "Broken — see GH issue #N. Upgrade to 1.2.4."
 ```
 
 `npm unpublish` is **not** an option for releases older than 72 hours
@@ -220,7 +220,7 @@ For Python:
 
 ```bash
 # PyPI does not support unpublish. The workflow is "yank":
-python -m twine yank aegis==<bad-version> --reason "Broken — use <good-version>."
+python -m twine yank okoro==<bad-version> --reason "Broken — use <good-version>."
 ```
 
 ---
@@ -229,12 +229,12 @@ python -m twine yank aegis==<bad-version> --reason "Broken — use <good-version
 
 Per CLAUDE.md, parallel Claude sessions claim work via
 `~/.claude/peers/bin/claude-peers`. Before a release, claim
-`aegis:release-<date>` so other sessions don't tag/publish in parallel:
+`okoro:release-<date>` so other sessions don't tag/publish in parallel:
 
 ```bash
-~/.claude/peers/bin/claude-peers claim aegis release-2026-05 --note "publishing v0.2.0 across SDKs" --ttl 7200
+~/.claude/peers/bin/claude-peers claim okoro release-2026-05 --note "publishing v0.2.0 across SDKs" --ttl 7200
 # ... do the release ...
-~/.claude/peers/bin/claude-peers release aegis:release-2026-05
+~/.claude/peers/bin/claude-peers release okoro:release-2026-05
 ```
 
 ---

@@ -64,7 +64,7 @@ function jwksFor(kid: string, publicKey: Uint8Array): JwksDocument {
 describe('computePrevHash', () => {
   it('returns the genesis hash when both inputs are null', () => {
     const got = computePrevHash(null, null);
-    const expected = sha256(utf8('AEGIS-AUDIT-GENESIS-v1'));
+    const expected = sha256(utf8('OKORO-AUDIT-GENESIS-v1'));
     expect(Array.from(got)).toEqual(Array.from(expected));
   });
 

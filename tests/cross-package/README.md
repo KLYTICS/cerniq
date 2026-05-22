@@ -6,7 +6,7 @@ that must agree on a wire format.
 
 ## Currently here
 
-- `sdk-api-jwt-parity.spec.ts` — `@aegis/sdk` and `apps/api/JwtUtil` each
+- `sdk-api-jwt-parity.spec.ts` — `@okoro/sdk` and `apps/api/JwtUtil` each
   implement EdDSA compact-JWT independently (intentional; keeps the
   verify hot path lean per ADR-0008). This test fails the moment they
   drift on header bytes, claim ordering, or base64url encoding.

@@ -14,7 +14,7 @@
  * NOTE: We deliberately whitelist NestJS-native HttpException subclasses
  * (NotFoundException, ForbiddenException, etc.) — they are framework-issued
  * and the global filter handles them generically. The audit only enforces
- * coverage for AEGIS-owned `*Error` classes.
+ * coverage for OKORO-owned `*Error` classes.
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';

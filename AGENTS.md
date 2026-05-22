@@ -1,4 +1,4 @@
-# AEGIS — Operating directive for Codex sessions
+# OKORO — Operating directive for Codex sessions
 
 > **Read this first.** This document is the contract every Codex session in
 > this repo agrees to. It exists so parallel terminals can ship in concert
@@ -6,9 +6,9 @@
 
 ---
 
-## What AEGIS is (one paragraph)
+## What OKORO is (one paragraph)
 
-AEGIS is the neutral verification, policy enforcement, and behavioral
+OKORO is the neutral verification, policy enforcement, and behavioral
 attestation layer between AI agents and the services they act on. We hold
 **only public keys**, we sign **only what we observed**, and we are the
 **Switzerland** of agent identity — protocol-, vendor-, and model-neutral.
@@ -21,7 +21,7 @@ Full thesis: `docs/spec/01_MASTER.md`.
 These are inviolable. If you think you need to break one, stop and write a
 proposal in `docs/decisions/`, then ping the operator.
 
-1. **Private keys never enter AEGIS.** Agent private keys are generated
+1. **Private keys never enter OKORO.** Agent private keys are generated
    client-side. Our database stores public keys only. The SDK is the only
    surface that touches a private key, and only locally.
 2. **The verify hot path is portable.** All logic in `apps/api/src/modules/verify`
@@ -59,13 +59,13 @@ proposal in `docs/decisions/`, then ping the operator.
 
 1. Open `WORK_BOARD.md` at repo root.
 2. Pick a module marked `STATUS: open`.
-3. Run `~/.Codex/peers/bin/Codex-peers claim aegis <module-id> --note "<what you'll do>" --ttl 7200`.
+3. Run `~/.Codex/peers/bin/Codex-peers claim okoro <module-id> --note "<what you'll do>" --ttl 7200`.
 4. Edit `WORK_BOARD.md` — flip STATUS to `claimed by <session-id>` and date it.
 5. Stay inside the file paths listed for that module. If you need to touch
    files outside, message the holder of the conflicting claim:
    `Codex-peers msg <session-id> "need to touch X for Y reason"`.
 6. When done, append a short entry to `docs/SESSION_HANDOFF.md` and release:
-   `Codex-peers release aegis:<module-id>`.
+   `Codex-peers release okoro:<module-id>`.
 
 ---
 
@@ -91,7 +91,7 @@ proposal in `docs/decisions/`, then ping the operator.
 ## File layout cheatsheet
 
 ```
-aegis/
+okoro/
 ├── apps/
 │   ├── api/                       NestJS — identity, policy, verify, audit, BATE, webhooks
 │   │   ├── prisma/schema.prisma   Source of truth for the data model
@@ -104,8 +104,8 @@ aegis/
 │   └── dashboard/                 Next.js 16 dev portal (Phase 1 minimal)
 ├── packages/
 │   ├── types/                     Zod schemas — the API contract
-│   ├── sdk-ts/                    @aegis/sdk — public TypeScript SDK
-│   ├── sdk-py/                    aegis — Python SDK (scaffold)
+│   ├── sdk-ts/                    @okoro/sdk — public TypeScript SDK
+│   ├── sdk-py/                    okoro — Python SDK (scaffold)
 │   ├── tsconfig/                  Shared TS configs
 │   └── eslint-config/             Shared lint config (scaffold)
 ├── workers/
@@ -131,7 +131,7 @@ aegis/
   Don't soften it elsewhere.
 - **Every public service method has a unit test** (or an explicit
   `// untestable: <reason>` comment).
-- **Errors are typed**, not strings. Use `AegisError` subclasses from
+- **Errors are typed**, not strings. Use `OkoroError` subclasses from
   `apps/api/src/common/errors`.
 - **Constants live in `packages/types`**, not duplicated across services.
 - **No fabricated data**, no `Math.random` in production code paths

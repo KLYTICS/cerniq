@@ -6,8 +6,8 @@ import { emitJson, emitTable, ok } from '../output.js';
 export async function policiesCreate(opts: { agentId: string; scopesFile: string; ttl?: number; json?: boolean }): Promise<void> {
   const raw = await readFile(opts.scopesFile, 'utf8');
   const scopes = JSON.parse(raw);
-  const aegis = await client();
-  const policy = await aegis.policies.create({
+  const okoro = await client();
+  const policy = await okoro.policies.create({
     agentId: opts.agentId,
     scopes,
     expiresInSeconds: opts.ttl,
@@ -17,8 +17,8 @@ export async function policiesCreate(opts: { agentId: string; scopesFile: string
 }
 
 export async function policiesList(opts: { agentId?: string; status?: string; json?: boolean }): Promise<void> {
-  const aegis = await client();
-  const result = (await aegis.policies.list({
+  const okoro = await client();
+  const result = (await okoro.policies.list({
     agentId: opts.agentId,
     status: opts.status as 'ACTIVE' | 'REVOKED' | 'EXPIRED' | undefined,
   })) as { policies: { id: string; agentId: string; status: string; expiresAt: string }[] };
@@ -27,7 +27,7 @@ export async function policiesList(opts: { agentId?: string; status?: string; js
 }
 
 export async function policiesRevoke(id: string, opts: { reason?: string }): Promise<void> {
-  const aegis = await client();
-  await aegis.policies.revoke(id, { reason: opts.reason });
+  const okoro = await client();
+  await okoro.policies.revoke(id, { reason: opts.reason });
   ok(`policy revoked: ${id}`);
 }

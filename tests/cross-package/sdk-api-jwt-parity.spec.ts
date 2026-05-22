@@ -1,4 +1,4 @@
-// Cross-package parity test: an EdDSA JWT signed by `@aegis/sdk` MUST
+// Cross-package parity test: an EdDSA JWT signed by `@okoro/sdk` MUST
 // verify under `apps/api`'s `JwtUtil`, and vice versa.
 //
 // Why this exists: the SDK and the API each implement compact-JWT

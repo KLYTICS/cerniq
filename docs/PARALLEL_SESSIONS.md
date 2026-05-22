@@ -1,4 +1,4 @@
-# AEGIS — Concurrent Session Protocol
+# OKORO — Concurrent Session Protocol
 
 > **Reality:** several Claude sessions and contractors regularly work in this
 > repo at the same time. The audit chain in `docs/SESSION_HANDOFF.md` shows
@@ -10,7 +10,7 @@
 
 ## 1. The four-rule contract
 
-1. **Claim before you write.** Run `claude-peers claim aegis <module-id>` before
+1. **Claim before you write.** Run `claude-peers claim okoro <module-id>` before
    editing files outside the trivial-doc-fix scope. Other sessions see your
    claim via `claude-peers status`.
 2. **Stay in your paths.** Each module ticket in `WORK_BOARD.md` lists the file
@@ -47,9 +47,9 @@ and need conflict-free coordination:
 
 ```sh
 claude-peers status                        # Who's working in this repo right now
-claude-peers claim aegis <module-id> \
+claude-peers claim okoro <module-id> \
   --note "<what you'll do>" --ttl 7200     # Acquire a claim (2h TTL)
-claude-peers release aegis:<module-id>     # Release when done
+claude-peers release okoro:<module-id>     # Release when done
 claude-peers msg <session-id> "<text>"     # Talk to a peer
 claude-peers inbox                         # Read messages addressed to you
 claude-peers heartbeat                     # Refresh your TTL during long work

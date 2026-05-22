@@ -1,16 +1,16 @@
-# @aegis/docs
+# @okoro/docs
 
-Live documentation site for AEGIS. Served at `docs.aegislabs.io`.
+Live documentation site for OKORO. Served at `docs.okorolabs.io`.
 
 ## Why "live"
 
 Three things this site does that a static docs site does not:
 
 1. **Imports wire constants directly** — `<DenialPrecedence/>` reads
-   `DENIAL_REASON_PRECEDENCE` from `@aegis/types`. The docs literally cannot
+   `DENIAL_REASON_PRECEDENCE` from `@okoro/types`. The docs literally cannot
    drift from the API's denial precedence; a parity test enforces it.
 2. **SSR-fetches the running platform** — `<PricingTable/>` calls
-   `/.well-known/pricing.json` at request time via `AEGIS_API_BASE_URL`.
+   `/.well-known/pricing.json` at request time via `OKORO_API_BASE_URL`.
    When the operator changes a price in `plans.ts` and redeploys the API,
    the docs reflect it within the ISR window. No second deploy.
 3. **Reads versions at build** — `<SdkVersionBadges/>` reads
@@ -25,14 +25,14 @@ component so operators can spot infra drift from a single page inspect.
 
 - Next.js 16 + React 19 (App Router; server components by default)
 - Fumadocs 14 (UI + MDX + OpenAPI plugin)
-- Tailwind v4 with AEGIS brand tokens (`brand/02_design-tokens.json`)
+- Tailwind v4 with OKORO brand tokens (`brand/02_design-tokens.json`)
 - Pagefind for static search — no third-party vendor
 
 ## Run locally
 
 ```bash
 pnpm install
-pnpm --filter @aegis/docs dev
+pnpm --filter @okoro/docs dev
 ```
 
 Open <http://localhost:3100>.
@@ -41,12 +41,12 @@ Open <http://localhost:3100>.
 
 | Var                  | Purpose                                                                                                                                                                                       | Default              |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
-| `AEGIS_API_BASE_URL` | Source of `/.well-known/pricing.json` for `<PricingTable/>`. When unset, the component falls back to a build-time mirror and emits `data-source="fallback"` in the DOM. | unset (uses fallback) |
+| `OKORO_API_BASE_URL` | Source of `/.well-known/pricing.json` for `<PricingTable/>`. When unset, the component falls back to a build-time mirror and emits `data-source="fallback"` in the DOM. | unset (uses fallback) |
 
 ## Deploy
 
 Vercel-ready out of the box. Can also run on Railway with the standard
-Next.js build. The `AEGIS_API_BASE_URL` env must be set in production for
+Next.js build. The `OKORO_API_BASE_URL` env must be set in production for
 `data-source="api"` to become the default.
 
 ## Adding a new live component
@@ -70,9 +70,9 @@ Next.js build. The `AEGIS_API_BASE_URL` env must be set in production for
 ## Generating the OpenAPI reference
 
 ```bash
-pnpm --filter @aegis/docs openapi:generate
+pnpm --filter @okoro/docs openapi:generate
 ```
 
-Reads `docs/spec/AEGIS_API_SPEC.yaml`, writes MDX pages under
+Reads `docs/spec/OKORO_API_SPEC.yaml`, writes MDX pages under
 `content/docs/api/(generated)/`. The `(generated)/` segment is reserved
 for output and should not be edited by hand.

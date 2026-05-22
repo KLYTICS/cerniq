@@ -25,7 +25,7 @@ describe('Auth0Service.handleActionLogin', () => {
     const r = await svc.handleActionLogin({
       user_id: 'auth0|abc', organization_id: 'org_acme',
       email: 'a@b.co', email_verified: true,
-      mfa: true, roles: ['aegis:admin'],
+      mfa: true, roles: ['okoro:admin'],
       occurred_at: '2026-05-02T00:00:00Z', ip: '1.2.3.4', user_agent: 'curl',
     });
     expect(r.principal_id).toBe('p_acme');
@@ -67,13 +67,13 @@ describe('Auth0Service.exchangeToken', () => {
 
   it('returns API key with VERIFIED band when MFA satisfied', async () => {
     const { svc, audit } = build({
-      verifyResult: { idpUserId: 'u', idpOrganizationId: 'org', idpDomain: 'acme.com', email: 'a@b.co', emailVerified: true, name: 'A', roles: ['aegis:admin'], mfaSatisfied: true, rawClaims: {} },
+      verifyResult: { idpUserId: 'u', idpOrganizationId: 'org', idpDomain: 'acme.com', email: 'a@b.co', emailVerified: true, name: 'A', roles: ['okoro:admin'], mfaSatisfied: true, rawClaims: {} },
       ensureResult: { principalId: 'p_acme', created: false },
     });
     const r = await svc.exchangeToken({ access_token: 't' });
-    expect(r.api_key_id).toMatch(/^aegis_live_/);
+    expect(r.api_key_id).toMatch(/^okoro_live_/);
     expect(r.principal_id).toBe('p_acme');
-    expect(r.roles).toEqual(['aegis:admin']);
+    expect(r.roles).toEqual(['okoro:admin']);
     const args = ((audit.append as unknown as jest.Mock).mock.calls[0]?.[0] ?? {}) as { trustBandAtEvent?: string };
     expect(args.trustBandAtEvent).toBe('VERIFIED');
   });

@@ -1,5 +1,5 @@
 {
-  "name": "@aegis-examples/relying-party-verifier",
+  "name": "@okoro-examples/relying-party-verifier",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,11 +9,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aegis/sdk": "workspace:*",
+    "@okoro/sdk": "workspace:*",
     "express": "^4.21.0"
   },
   "devDependencies": {
-    "@aegis/tsconfig": "workspace:*",
+    "@okoro/tsconfig": "workspace:*",
     "@types/express": "^4.17.21",
     "@types/node": "^20.14.0",
     "tsx": "^4.19.2",

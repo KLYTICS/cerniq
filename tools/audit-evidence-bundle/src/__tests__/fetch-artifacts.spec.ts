@@ -79,7 +79,7 @@ const cli: BundleCliOptions = {
   from: '2026-01-01',
   to: '2026-04-30',
   output: '/tmp/x.tar.gz',
-  apiBase: 'https://aegis.test',
+  apiBase: 'https://okoro.test',
   apiKey: 'sk_test',
   verifyOnly: false,
   includeReadme: true,
@@ -88,7 +88,7 @@ const cli: BundleCliOptions = {
 describe('fetchAllArtifacts', () => {
   let workDir: string;
   beforeEach(async () => {
-    workDir = await mkdtemp(join(tmpdir(), 'aegis-fetch-test-'));
+    workDir = await mkdtemp(join(tmpdir(), 'okoro-fetch-test-'));
   });
   afterEach(async () => {
     await rm(workDir, { recursive: true, force: true });
@@ -108,8 +108,8 @@ describe('fetchAllArtifacts', () => {
           }),
       },
       {
-        match: (u) => u.endsWith('/aegis-configuration'),
-        respond: () => jsonResponse({ issuer: 'https://aegis.test' }),
+        match: (u) => u.endsWith('/okoro-configuration'),
+        respond: () => jsonResponse({ issuer: 'https://okoro.test' }),
       },
       {
         match: (u) => u.endsWith('/retention-policy.json'),
@@ -117,7 +117,7 @@ describe('fetchAllArtifacts', () => {
       },
       {
         match: (u) => u.endsWith('/security.txt'),
-        respond: () => new Response('Contact: security@aegis.test\n', { status: 200 }),
+        respond: () => new Response('Contact: security@okoro.test\n', { status: 200 }),
       },
     ]);
 
@@ -127,7 +127,7 @@ describe('fetchAllArtifacts', () => {
     expect(result.redactedRowCount).toBe(2);
     expect(result.retentionPolicyAvailable).toBe(false);
     expect(result.retentionPolicy).toBeNull();
-    expect(result.securityTxt).toContain('security@aegis.test');
+    expect(result.securityTxt).toContain('security@okoro.test');
 
     // SHA256 must equal the canonical hash of the body bytes.
     const expectedSha = createHash('sha256').update(NDJSON).digest('hex');
@@ -153,7 +153,7 @@ describe('fetchAllArtifacts', () => {
         respond: () => new Response('boom', { status: 503 }),
       },
       {
-        match: (u) => u.endsWith('/aegis-configuration'),
+        match: (u) => u.endsWith('/okoro-configuration'),
         respond: () => jsonResponse({}),
       },
       {
@@ -185,7 +185,7 @@ describe('fetchAllArtifacts', () => {
         respond: () => jsonResponse({ keys: [] }),
       },
       {
-        match: (u) => u.endsWith('/aegis-configuration'),
+        match: (u) => u.endsWith('/okoro-configuration'),
         respond: () => jsonResponse({}),
       },
       {

@@ -1,4 +1,4 @@
-# ADR-0009 — Auth0 bridges human identity; AEGIS owns agent identity
+# ADR-0009 — Auth0 bridges human identity; OKORO owns agent identity
 
 **Status**: accepted
 **Date**: 2026-05-02
@@ -7,7 +7,7 @@
 
 ## Context
 
-AEGIS authenticates agents. It does not authenticate humans. But every
+OKORO authenticates agents. It does not authenticate humans. But every
 production deployment needs *someone* — a human operator, an SRE, a
 compliance officer — to log into the dashboard, manage agents, rotate
 keys, audit events.
@@ -16,13 +16,13 @@ Building a human-identity stack (passwords, MFA, SSO, SCIM, password
 reset, session management, audit-of-admins) is a 6–12 month effort with
 its own SOC2 implications. Off-the-shelf is the right call.
 
-We pick **Auth0** as the default human-identity provider for AEGIS for
+We pick **Auth0** as the default human-identity provider for OKORO for
 five reasons:
 1. SOC2 Type II / ISO 27001 / HIPAA / GDPR compliance is theirs, not ours.
 2. Native enterprise SSO (SAML, OIDC, Azure AD, Okta, Google Workspace).
-3. Tenant model maps cleanly: Auth0 Organizations ↔ AEGIS Principals.
+3. Tenant model maps cleanly: Auth0 Organizations ↔ OKORO Principals.
 4. Auth0 Actions allow runtime hooks — perfect for "every human-issued
-   API key gets logged into the AEGIS audit chain."
+   API key gets logged into the OKORO audit chain."
 5. Customers already deploy it; we don't ask them to add a vendor.
 
 What this ADR is *not*: a commitment that Auth0 is the only IdP we'll
@@ -31,22 +31,22 @@ Clerk, Stytch, WorkOS, or a self-hosted Keycloak slots in later.
 
 ## Decision
 
-1. **Auth0 is the default IdP for AEGIS dashboard + admin API access.**
-   Bootstrap defaults document Auth0; an `aegis bootstrap --idp clerk`
+1. **Auth0 is the default IdP for OKORO dashboard + admin API access.**
+   Bootstrap defaults document Auth0; an `okoro bootstrap --idp clerk`
    path remains open.
-2. **Auth0 Organization ↔ AEGIS Principal binding.** Every AEGIS
+2. **Auth0 Organization ↔ OKORO Principal binding.** Every OKORO
    Principal carries `idpProvider` + `idpOrganizationId` + `idpDomain`.
    Created automatically when a human first authenticates via the IdP.
-3. **JWKS-based token verification.** AEGIS API verifies Auth0 access
+3. **JWKS-based token verification.** OKORO API verifies Auth0 access
    tokens via the org's JWKS endpoint, cached in Redis (TTL = `cacheControl`
    max-age). RS256 only — Ed25519 (EdDSA) accepted when Auth0 supports it
    as GA (currently Action-only); we hot-swap then.
-4. **Auth0 Actions for AEGIS-side enforcement.** Two Actions ship in
+4. **Auth0 Actions for OKORO-side enforcement.** Two Actions ship in
    `infra/auth0/actions/`:
-   - `aegis-audit-login.js` — logs every human login as an AEGIS
+   - `okoro-audit-login.js` — logs every human login as an OKORO
      audit event with decision=APPROVED, principal=Auth0 user.
-   - `aegis-block-non-admin-mfa-skip.js` — denies MFA-skipped logins for
-     users with `aegis:admin` role.
+   - `okoro-block-non-admin-mfa-skip.js` — denies MFA-skipped logins for
+     users with `okoro:admin` role.
 5. **Human identity is OUT of the verify hot path.** `/v1/verify` is for
    agents only. Human admin requests (`POST /v1/agents` etc.) go through
    `Auth0Guard`. Agent verify requests go through `ApiKeyGuard`. Two
@@ -62,7 +62,7 @@ Clerk, Stytch, WorkOS, or a self-hosted Keycloak slots in later.
 - Human identity is solved: SSO, SCIM, MFA, password reset all
   inherited from Auth0 within days, not months.
 - Org → Principal binding gives multi-tenancy "for free": every Auth0
-  customer org maps to one AEGIS principal, isolation guaranteed by
+  customer org maps to one OKORO principal, isolation guaranteed by
   the existing `principalId` check on every query.
 - Auth0 Actions give enterprises a runtime hook for custom policy
   (e.g., "block this human from creating agents during a compliance freeze").
@@ -72,16 +72,16 @@ Clerk, Stytch, WorkOS, or a self-hosted Keycloak slots in later.
 ### Negative
 - Hard dependency on a third-party SaaS for dashboard logins. Mitigation:
   the ApiKeyGuard path (per-org API keys) lets a customer whose Auth0
-  is down still call the AEGIS API directly via curl/SDK.
+  is down still call the OKORO API directly via curl/SDK.
 - Auth0 vendor lock-in: real, but bounded by `IdpAdapter`. Migration to
   Clerk/WorkOS/self-hosted has a defined exit path (the adapter swap).
-- Cost: Auth0 enterprise pricing is non-trivial. We pay for AEGIS-internal
+- Cost: Auth0 enterprise pricing is non-trivial. We pay for OKORO-internal
   tenant; customers pay their own. Not a customer-cost decision.
 
 ### Neutral
 - `infra/auth0/` directory holds Terraform + Action source.
 - `apps/dashboard` switches from "no auth" stub to `@auth0/nextjs-auth0`.
-- `packages/sdk-ts` gains a thin `Aegis.fromAuth0(accessToken)` helper.
+- `packages/sdk-ts` gains a thin `Okoro.fromAuth0(accessToken)` helper.
 
 ## Alternatives considered
 
@@ -121,5 +121,5 @@ ADR-9-S: ship `IdpAdapter:KEYCLOAK` after first sovereign customer asks.
 - Auth0 Organizations: https://auth0.com/docs/manage-users/organizations
 - ADR-0008 (MCP backbone) — MCP server auth uses ApiKeyGuard, not Auth0.
 - ADR-0011 (key rotation) — Auth0 client secret rotation is documented
-  in the runbook, separate from AEGIS Ed25519 keys.
+  in the runbook, separate from OKORO Ed25519 keys.
 - WORK_BOARD M-019 (auth0 module impl), M-020 (dashboard auth wiring).

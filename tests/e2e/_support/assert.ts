@@ -1,11 +1,11 @@
 /**
  * Domain-specific assertion helpers. Vitest's `expect` is fine for
- * primitives; these give us readable failures for the AEGIS-specific
+ * primitives; these give us readable failures for the OKORO-specific
  * shapes that recur across many tests.
  */
 
 import { expect } from 'vitest';
-import type { DenialReason, VerifyResult } from '@aegis/sdk';
+import type { DenialReason, VerifyResult } from '@okoro/sdk';
 
 export function assertVerifyApproved(result: VerifyResult, ctx: { agentId?: string } = {}): void {
   expect(

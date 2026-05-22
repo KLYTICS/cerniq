@@ -1,6 +1,6 @@
 ---
-title: AEGIS — Brand & Design Foundation
-audience: every Claude session, designer, contractor, and AI tool that produces an AEGIS surface
+title: OKORO — Brand & Design Foundation
+audience: every Claude session, designer, contractor, and AI tool that produces an OKORO surface
 last-reviewed: 2026-05-08
 status: source-of-truth — every design prompt in this folder references this doc
 ---
@@ -34,16 +34,16 @@ Every surface should make these visually true, not just textually claimed:
 
 1. **Neutral.** No vendor lock-in. Works with Claude, GPT, Gemini, custom LLMs;
    plugs into ACP, MCP, OAuth, Auth0; runs in any stack.
-2. **Non-custodial.** AEGIS holds public keys only. Private keys live with
-   the agent. A breach of AEGIS does not compromise an agent.
+2. **Non-custodial.** OKORO holds public keys only. Private keys live with
+   the agent. A breach of OKORO does not compromise an agent.
 3. **Verifiable.** Every decision is signed; every audit event is
    hash-chained. The relying party can prove what happened without
-   trusting AEGIS.
+   trusting OKORO.
 
 If a hero image, diagram, or copy block doesn't reinforce one of these three,
 cut it.
 
-### 1.3 What AEGIS is **not** (anti-positioning)
+### 1.3 What OKORO is **not** (anti-positioning)
 
 Surfaces must never imply any of the following — they are competitor
 ground or wrong-shape framing:
@@ -66,11 +66,11 @@ ground or wrong-shape framing:
 - **Cryptographically grounded.** When we describe a guarantee, we name
   the mechanism. "Append-only audit (Ed25519-signed hash chain)" not
   "tamper-proof logs."
-- **Confident, not boastful.** State what AEGIS does. Skip "industry-
+- **Confident, not boastful.** State what OKORO does. Skip "industry-
   leading," "best-in-class," "revolutionary."
 - **Builder-respectful.** The reader is a senior engineer or security
   lead. Don't over-explain primitives they know. Do over-explain the
-  AEGIS-specific shape (denial precedence, BATE, principal binding).
+  OKORO-specific shape (denial precedence, BATE, principal binding).
 
 ### 2.2 Tone (varies by surface)
 
@@ -79,9 +79,9 @@ ground or wrong-shape framing:
 | Marketing hero | Quietly confident, builder-flavored | "Sign every agent action. Verify in 80ms. Hold zero keys." |
 | Marketing security page | Sober, control-mapped | "Layer 7 cryptographic gate. Public-key registry. Hash-chained audit. SOC2-mapped." |
 | Dashboard | Neutral, operational | "Agent revoked at 14:02 UTC. 3 in-flight verifies returned `AGENT_REVOKED`." |
-| Docs quickstart | Direct, imperative, terse | "Install the CLI. Authenticate. Run `aegis doctor`. Verify your first call." |
-| Pitch deck | Strategic, market-aware | "ACP solved payments. AEGIS solves the verification gap Stripe explicitly left to implementers." |
-| Error message | Factual, action-pointing | "`SCOPE_NOT_GRANTED` — policy `pol_01H...` does not include scope `payments.transfer`. Add it via dashboard or `aegis policy edit`." |
+| Docs quickstart | Direct, imperative, terse | "Install the CLI. Authenticate. Run `okoro doctor`. Verify your first call." |
+| Pitch deck | Strategic, market-aware | "ACP solved payments. OKORO solves the verification gap Stripe explicitly left to implementers." |
+| Error message | Factual, action-pointing | "`SCOPE_NOT_GRANTED` — policy `pol_01H...` does not include scope `payments.transfer`. Add it via dashboard or `okoro policy edit`." |
 
 ### 2.3 Word choices
 
@@ -90,8 +90,8 @@ ground or wrong-shape framing:
 - **Avoid:** *passport* (we are not), *identity provider* (we are not),
   *AI safety* (different problem), *blockchain*, *web3*, *bulletproof*,
   *military-grade*, *unhackable*, *cutting-edge*.
-- **House style:** "AEGIS" is always all-caps in body text. SDK package is
-  lowercase `@aegis/sdk`. Endpoints are mono: `POST /v1/verify`.
+- **House style:** "OKORO" is always all-caps in body text. SDK package is
+  lowercase `@okoro/sdk`. Endpoints are mono: `POST /v1/verify`.
 
 ---
 
@@ -108,7 +108,7 @@ The brand sits at the intersection of three reference points:
    code samples and compliance badges coexist on the same page.
 3. **Vercel** (small dose) — the typographic discipline and command-palette
    energy in the dashboard, but **without** the all-black aesthetic;
-   AEGIS reads as more enterprise than indie-hacker.
+   OKORO reads as more enterprise than indie-hacker.
 
 ### 3.2 Things we deliberately *don't* take from references
 
@@ -140,19 +140,19 @@ slate-900 #0F172A   headings (light), surface (dark)
 slate-950 #020617   page background (dark)
 ```
 
-### 4.2 Brand accent — "Aegis Blue"
+### 4.2 Brand accent — "Okoro Blue"
 
 ```
-aegis-50  #ECFEFF   tint, subtle highlight backgrounds
-aegis-100 #CFFAFE   hover tint
-aegis-300 #67E8F9   accents in dark mode
-aegis-500 #06B6D4   primary brand — buttons, links, focus rings
-aegis-600 #0891B2   primary hover
-aegis-700 #0E7490   primary pressed
-aegis-900 #164E63   deep brand (illustrations)
+okoro-50  #ECFEFF   tint, subtle highlight backgrounds
+okoro-100 #CFFAFE   hover tint
+okoro-300 #67E8F9   accents in dark mode
+okoro-500 #06B6D4   primary brand — buttons, links, focus rings
+okoro-600 #0891B2   primary hover
+okoro-700 #0E7490   primary pressed
+okoro-900 #164E63   deep brand (illustrations)
 ```
 
-Aegis Blue is **only** used for: primary CTA, the AEGIS wordmark,
+Okoro Blue is **only** used for: primary CTA, the OKORO wordmark,
 focus ring, the "verified" semantic, hero accent shapes, the active
 nav indicator. It is **not** a body-text color.
 
@@ -162,7 +162,7 @@ nav indicator. It is **not** a body-text color.
 success: emerald-500 #10B981  — "verified", "active", spend within cap
 warning: amber-500   #F59E0B  — "expiring", "trust score declining"
 danger:  rose-500    #F43F5E  — "revoked", "denied", "anomaly"
-info:    aegis-500            — same as brand; use sparingly
+info:    okoro-500            — same as brand; use sparingly
 ```
 
 Do not use red for anything that isn't a denial / revocation. Reserved
@@ -173,7 +173,7 @@ visual real estate.
 The dashboard and docs ship light + dark. Marketing ships light only at
 launch (dark mode adds polish but isn't shipping-critical). Dark mode
 swaps the neutral ramp inverted; brand and semantics keep their hue but
-shift one step (e.g. aegis-500 → aegis-300 on dark surfaces) for AA
+shift one step (e.g. okoro-500 → okoro-300 on dark surfaces) for AA
 contrast.
 
 ### 4.5 Forbidden colors
@@ -306,7 +306,7 @@ border-color contrast instead.
 Approved exceptions (security/crypto-specific):
 - **Phosphor** for `Key`, `Fingerprint`, `Shield`, `Certificate` if Lucide
   alternatives feel weak
-- Custom SVGs for: AEGIS mark, denial-precedence ladder, BATE score gauge
+- Custom SVGs for: OKORO mark, denial-precedence ladder, BATE score gauge
 
 ### 7.2 Style rules
 
@@ -317,11 +317,11 @@ Approved exceptions (security/crypto-specific):
 - Always paired with a text label, except in icon-only buttons that
   have an `aria-label`
 
-### 7.3 The AEGIS mark
+### 7.3 The OKORO mark
 
 The wordmark and mark are designed in `04_BRAND_IDENTITY_PROMPTS.md`.
-Until that ships, surfaces use the wordmark "AEGIS" set in Inter 700,
-tracking-tight, with `aegis-500` color, no logomark.
+Until that ships, surfaces use the wordmark "OKORO" set in Inter 700,
+tracking-tight, with `okoro-500` color, no logomark.
 
 ---
 
@@ -345,7 +345,7 @@ tracking-tight, with `aegis-500` color, no logomark.
 - Card hover: 150ms shadow-sm → shadow-md, 1px translate-y
 - Toast: 220ms slide-in from top-right with 8px offset
 - Page transition (Next.js): 220ms opacity 0 → 1 + 4px translate-y
-- Audit log new event: 320ms fade-in row with 1px aegis-500 left border
+- Audit log new event: 320ms fade-in row with 1px okoro-500 left border
   pulse (2 cycles, then fade)
 
 ### 8.3 Forbidden
@@ -369,7 +369,7 @@ tracking-tight, with `aegis-500` color, no logomark.
 - **Screenshots.** Of the dashboard or docs, in-frame, with light
   border, never tilted, never on a colored background.
 - **Abstract geometry.** Sparse, monochromatic, used only as a hero
-  texture. Examples: a faint grid, a faded radial gradient, the AEGIS
+  texture. Examples: a faint grid, a faded radial gradient, the OKORO
   mark at 4% opacity.
 
 ### 9.2 What we don't use
@@ -385,8 +385,8 @@ tracking-tight, with `aegis-500` color, no logomark.
 ### 9.3 Diagram conventions
 
 - Stroke: 1.5px slate-700 (light) / slate-300 (dark)
-- Fill: slate-100 (light) / slate-900 (dark) for boxes; aegis-50 /
-  aegis-900 for highlighted boxes
+- Fill: slate-100 (light) / slate-900 (dark) for boxes; okoro-50 /
+  okoro-900 for highlighted boxes
 - Arrows: slate-500 with a 6px arrowhead, never curved unless showing
   a callback
 - Text in diagrams: text-sm Inter, never mono unless naming an endpoint
@@ -397,14 +397,14 @@ tracking-tight, with `aegis-500` color, no logomark.
 
 ## 10. Code samples (visual)
 
-Code samples are a first-class visual element on AEGIS surfaces. They
+Code samples are a first-class visual element on OKORO surfaces. They
 must always:
 
 - Use JetBrains Mono, 14px, line-height 24px, never below
 - Have a header strip with: language label (text-xs all-caps),
   filename or endpoint, copy button on the right
 - Use a 1-pixel slate-200 (light) / slate-800 (dark) border, no shadow
-- Highlight the AEGIS-specific lines with a left border in aegis-500
+- Highlight the OKORO-specific lines with a left border in okoro-500
   (3px, full height of the highlighted lines)
 - Never animate (no typing-effect, no syntax-color-cycling)
 - Be syntactically valid — no `// ...` ellipsis substituting for real
@@ -412,8 +412,8 @@ must always:
 
 Color theme: a custom theme based on `Slack Ochin` (light) and `One Dark
 Pro` (dark), with comments in slate-500, strings in emerald-600, keywords
-in aegis-700, and AEGIS-specific calls (`aegis.verify`, etc.) in aegis-500
-**bold-italic**. The bold-italic on AEGIS calls is the brand's typographic
+in okoro-700, and OKORO-specific calls (`okoro.verify`, etc.) in okoro-500
+**bold-italic**. The bold-italic on OKORO calls is the brand's typographic
 signature.
 
 ---
@@ -425,10 +425,10 @@ Detailed prompts live in the per-surface files; this section sets the
 
 | Component | Intent |
 |---|---|
-| Primary button | Solid `aegis-500`, white text, 36px tall (default), rounded-md, no gradient, no shadow at rest, shadow-sm on hover |
+| Primary button | Solid `okoro-500`, white text, 36px tall (default), rounded-md, no gradient, no shadow at rest, shadow-sm on hover |
 | Secondary button | 1px slate-200 border, slate-700 text, white background, same dimensions |
-| Tertiary / link button | aegis-600 text, no background, underline on hover only |
-| Input | 1px slate-200 border, rounded-sm, 36px tall, slate-900 text, slate-400 placeholder, focus ring 2px aegis-500/40 |
+| Tertiary / link button | okoro-600 text, no background, underline on hover only |
+| Input | 1px slate-200 border, rounded-sm, 36px tall, slate-900 text, slate-400 placeholder, focus ring 2px okoro-500/40 |
 | Card | white (light) / slate-900 (dark), 1px slate-200 (light) / slate-800 (dark) border, rounded-lg, 24px padding |
 | Badge | 12px text, all-caps, tracking-wider, rounded-sm, 6px×2px padding, semantic-color background at 10% opacity |
 | Status dot | 6px filled circle, semantic-colored, paired with text label |
@@ -444,7 +444,7 @@ Detailed prompts live in the per-surface files; this section sets the
 
 - WCAG 2.2 AA contrast minimum (AAA preferred for body text)
 - Every interactive element has a visible focus state — the 2px
-  aegis-500/40 ring is the canonical one
+  okoro-500/40 ring is the canonical one
 - Keyboard: every action reachable; the dashboard ships with
   command-palette (`⌘K`) and g-prefixed page jumps
 - Forms: label always visible (no placeholder-as-label), error
@@ -469,7 +469,7 @@ For any prompt that wants the full token set as JSON to hand to a tool:
       "400": "#94A3B8", "500": "#64748B", "700": "#334155",
       "900": "#0F172A", "950": "#020617"
     },
-    "aegis": {
+    "okoro": {
       "50": "#ECFEFF", "100": "#CFFAFE", "300": "#67E8F9",
       "500": "#06B6D4", "600": "#0891B2", "700": "#0E7490",
       "900": "#164E63"
@@ -513,7 +513,7 @@ two patterns. Use them verbatim:
 **Short reference (for AI tools with token budgets):**
 
 ```
-Follow the AEGIS Brand Foundation v1 (slate neutrals + aegis-500 #06B6D4
+Follow the OKORO Brand Foundation v1 (slate neutrals + okoro-500 #06B6D4
 brand, Inter + JetBrains Mono, Cloudflare/Auth0 visual lane, security-
 forward but developer-first, no gradients on text, no stock photos, no
 mascots, motion confirms not entertains).
@@ -524,9 +524,9 @@ mascots, motion confirms not entertains).
 ```
 Follow `docs/design/00_BRAND_FOUNDATION.md` in full. Critical anchors:
 §1 positioning (neutral / non-custodial / verifiable), §3 visual lane
-(Cloudflare-Auth0), §4 color system (aegis-500 = #06B6D4 single brand
+(Cloudflare-Auth0), §4 color system (okoro-500 = #06B6D4 single brand
 accent), §5 typography (Inter + JetBrains Mono only), §10 code-sample
-treatment (mandatory bold-italic on AEGIS-specific calls), §11
+treatment (mandatory bold-italic on OKORO-specific calls), §11
 component intent. Anti-positioning in §1.3 — do not violate.
 ```
 

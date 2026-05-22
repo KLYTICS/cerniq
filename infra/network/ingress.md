@@ -1,4 +1,4 @@
-# AEGIS — Network ingress
+# OKORO — Network ingress
 
 > Direction: **inbound** — public internet → Cloudflare → Railway edge → API.
 > See [`egress-policies.md`](./egress-policies.md) for outbound.
@@ -18,7 +18,7 @@
         │
         │  HTTP, internal
         ▼
-   AEGIS API (NestJS / Express, port 4000)
+   OKORO API (NestJS / Express, port 4000)
         │
         ├── Postgres   (Railway internal DNS only, not public)
         └── Redis      (Railway internal DNS only, not public)
@@ -54,8 +54,8 @@ topology and re-check after any platform change.
 
 ## Authentication at the edge
 
-- Every API request must carry `X-AEGIS-API-Key` (full) or
-  `X-AEGIS-Verify-Key` (verify-only) **except** the routes listed in
+- Every API request must carry `X-OKORO-API-Key` (full) or
+  `X-OKORO-Verify-Key` (verify-only) **except** the routes listed in
   [`../../docs/SECURITY.md`](../../docs/SECURITY.md) § 2 (health, root,
   docs, agent status, `.well-known/*`).
 - The `ApiKeyGuard` populates `req.principal` and runs before any

@@ -1,10 +1,10 @@
-import type { Aegis } from '@aegis/sdk';
+import type { Okoro } from '@okoro/sdk';
 
 import type { ToolDefinition } from './registry.js';
 
-export function registerPoliciesTools(aegis: Aegis, registry: Map<string, ToolDefinition>): void {
-  registry.set('aegis.policies.create', {
-    name: 'aegis.policies.create',
+export function registerPoliciesTools(okoro: Okoro, registry: Map<string, ToolDefinition>): void {
+  registry.set('okoro.policies.create', {
+    name: 'okoro.policies.create',
     description:
       'Issue a scoped policy for an agent. Returns a signed JWT (EdDSA) the agent presents at ' +
       '/v1/verify. Spend limits, MCC ranges, and merchant allow-lists are validated server-side.',
@@ -39,15 +39,15 @@ export function registerPoliciesTools(aegis: Aegis, registry: Map<string, ToolDe
       additionalProperties: false,
     },
     handler: async (args) =>
-      await aegis.policies.create({
+      await okoro.policies.create({
         agentId: String(args.agent_id),
         scopes: args.scopes as never,
         expiresInSeconds: typeof args.expires_in_seconds === 'number' ? args.expires_in_seconds : undefined,
       }),
   });
 
-  registry.set('aegis.policies.get', {
-    name: 'aegis.policies.get',
+  registry.set('okoro.policies.get', {
+    name: 'okoro.policies.get',
     description: 'Fetch one policy by id.',
     inputSchema: {
       type: 'object',
@@ -55,11 +55,11 @@ export function registerPoliciesTools(aegis: Aegis, registry: Map<string, ToolDe
       required: ['policy_id'],
       additionalProperties: false,
     },
-    handler: async (args) => await aegis.policies.get(String(args.policy_id)),
+    handler: async (args) => await okoro.policies.get(String(args.policy_id)),
   });
 
-  registry.set('aegis.policies.list', {
-    name: 'aegis.policies.list',
+  registry.set('okoro.policies.list', {
+    name: 'okoro.policies.list',
     description: 'List active policies for an agent or principal.',
     inputSchema: {
       type: 'object',
@@ -72,7 +72,7 @@ export function registerPoliciesTools(aegis: Aegis, registry: Map<string, ToolDe
       additionalProperties: false,
     },
     handler: async (args) =>
-      await aegis.policies.list({
+      await okoro.policies.list({
         agentId: typeof args.agent_id === 'string' ? args.agent_id : undefined,
         status: typeof args.status === 'string' ? (args.status as 'ACTIVE' | 'REVOKED' | 'EXPIRED') : undefined,
         limit: typeof args.limit === 'number' ? args.limit : undefined,
@@ -80,8 +80,8 @@ export function registerPoliciesTools(aegis: Aegis, registry: Map<string, ToolDe
       }),
   });
 
-  registry.set('aegis.policies.revoke', {
-    name: 'aegis.policies.revoke',
+  registry.set('okoro.policies.revoke', {
+    name: 'okoro.policies.revoke',
     description: 'Revoke a policy immediately. All future verifies under this policy return POLICY_REVOKED.',
     inputSchema: {
       type: 'object',
@@ -93,7 +93,7 @@ export function registerPoliciesTools(aegis: Aegis, registry: Map<string, ToolDe
       additionalProperties: false,
     },
     handler: async (args) =>
-      { await aegis.policies.revoke(String(args.policy_id), {
+      { await okoro.policies.revoke(String(args.policy_id), {
         reason: typeof args.reason === 'string' ? args.reason : undefined,
       }); },
   });

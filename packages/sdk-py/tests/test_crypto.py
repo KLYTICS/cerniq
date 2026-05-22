@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from aegis import (
+from okoro import (
     Keypair,
     b64u_decode,
     b64u_encode,

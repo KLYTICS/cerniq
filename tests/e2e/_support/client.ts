@@ -1,7 +1,7 @@
 /**
  * Thin wrapper that combines:
  *
- *   - the public @aegis/sdk client (typed convenience methods)
+ *   - the public @okoro/sdk client (typed convenience methods)
  *   - a raw fetch helper for endpoints the SDK does not yet cover
  *     (token sign for tests, audit log GET, well-known JWKS, /metrics).
  *
@@ -11,13 +11,13 @@
  * SDK (admin, internal, audit-chain validation).
  */
 
-import { Aegis } from '@aegis/sdk';
+import { Okoro } from '@okoro/sdk';
 import {
-  AEGIS_HEADER_API_KEY,
-  AEGIS_HEADER_IDEMPOTENCY,
-  AEGIS_HEADER_REQUEST_ID,
-  AEGIS_HEADER_VERIFY_KEY,
-} from '@aegis/types';
+  OKORO_HEADER_API_KEY,
+  OKORO_HEADER_IDEMPOTENCY,
+  OKORO_HEADER_REQUEST_ID,
+  OKORO_HEADER_VERIFY_KEY,
+} from '@okoro/types';
 
 export interface E2EConfig {
   baseUrl: string;
@@ -34,26 +34,26 @@ export interface RawResponse<T = unknown> {
 }
 
 export function readConfig(): E2EConfig {
-  const baseUrl = (process.env['AEGIS_E2E_URL'] ?? 'http://localhost:3000').replace(/\/+$/, '');
-  const apiKey = process.env['AEGIS_E2E_API_KEY'];
+  const baseUrl = (process.env['OKORO_E2E_URL'] ?? 'http://localhost:3000').replace(/\/+$/, '');
+  const apiKey = process.env['OKORO_E2E_API_KEY'];
   if (!apiKey) {
     // setup.ts should have skipped before this is reached, but fail loudly
     // if a test file is run in isolation without the env var.
-    throw new Error('AEGIS_E2E_API_KEY is required (set it before running vitest).');
+    throw new Error('OKORO_E2E_API_KEY is required (set it before running vitest).');
   }
   return {
     baseUrl,
     apiKey,
-    verifyKey: process.env['AEGIS_E2E_VERIFY_KEY'],
+    verifyKey: process.env['OKORO_E2E_VERIFY_KEY'],
   };
 }
 
-export function makeSdk(cfg: E2EConfig): Aegis {
+export function makeSdk(cfg: E2EConfig): Okoro {
   // Verify-only key falls back to the management key when not separately
   // provided — FULL-scope keys are accepted on the verify endpoint per
   // api-key.guard. Lets the harness exercise verify() without minting two
   // keys in the seed.
-  return new Aegis({
+  return new Okoro({
     apiKey: cfg.apiKey,
     verifyKey: cfg.verifyKey ?? cfg.apiKey,
     baseUrl: cfg.baseUrl,
@@ -76,9 +76,9 @@ export class RawClient {
   private headers(opts: { auth?: 'api' | 'verify' | 'none'; idempotencyKey?: string } = {}): HeadersInit {
     const h: Record<string, string> = { 'content-type': 'application/json' };
     const mode = opts.auth ?? 'api';
-    if (mode === 'api') h[AEGIS_HEADER_API_KEY] = this.cfg.apiKey;
-    if (mode === 'verify') h[AEGIS_HEADER_VERIFY_KEY] = this.cfg.verifyKey ?? this.cfg.apiKey;
-    if (opts.idempotencyKey) h[AEGIS_HEADER_IDEMPOTENCY] = opts.idempotencyKey;
+    if (mode === 'api') h[OKORO_HEADER_API_KEY] = this.cfg.apiKey;
+    if (mode === 'verify') h[OKORO_HEADER_VERIFY_KEY] = this.cfg.verifyKey ?? this.cfg.apiKey;
+    if (opts.idempotencyKey) h[OKORO_HEADER_IDEMPOTENCY] = opts.idempotencyKey;
     return h;
   }
 
@@ -132,6 +132,6 @@ export class RawClient {
    * failure messages.
    */
   static requestIdOf(res: RawResponse): string | undefined {
-    return res.headers.get(AEGIS_HEADER_REQUEST_ID) ?? undefined;
+    return res.headers.get(OKORO_HEADER_REQUEST_ID) ?? undefined;
   }
 }

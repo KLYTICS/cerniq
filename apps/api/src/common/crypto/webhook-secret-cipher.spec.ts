@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 
 import type { AppConfigService } from '../../config/config.service';
-import { InternalError } from '../errors/aegis-error';
+import { InternalError } from '../errors/okoro-error';
 
 import { WebhookSecretCipher } from './webhook-secret-cipher';
 
@@ -135,7 +135,7 @@ describe('WebhookSecretCipher', () => {
         expect(warn).toHaveBeenCalled();
         const msg = warn.mock.calls[0]?.[0];
         expect(typeof msg).toBe('string');
-        expect(msg).toContain('AEGIS_WEBHOOK_SECRET_DEK_B64');
+        expect(msg).toContain('OKORO_WEBHOOK_SECRET_DEK_B64');
         // Sanity: the cipher with its ephemeral key still round-trips.
         expect(cipher.decrypt(cipher.encrypt('x'))).toBe('x');
       } finally {

@@ -1,15 +1,15 @@
-// Treasury-agent simulator. Mints an AEGIS token client-side and
+// Treasury-agent simulator. Mints an OKORO token client-side and
 // posts a payment instruction to the treasury API.
 //
 // Usage:
-//   AEGIS_AGENT_PRIVATE_KEY=<b64u> \
-//   AEGIS_AGENT_ID=ag_xxx AEGIS_POLICY_ID=po_xxx \
+//   OKORO_AGENT_PRIVATE_KEY=<b64u> \
+//   OKORO_AGENT_ID=ag_xxx OKORO_POLICY_ID=po_xxx \
 //   pnpm tsx src/agent-sim.ts \
 //     --rail ach --amount 50000 --currency USD \
 //     --debtor-bic GSCRUS33 --creditor-bic CHASUS33 \
 //     --memo "vendor payment INV-1042"
 
-import { signAgentToken } from '@aegis/sdk';
+import { signAgentToken } from '@okoro/sdk';
 
 import type { PaymentInstruction, RailType, Iso4217Currency } from './iso20022-shape.js';
 
@@ -69,9 +69,9 @@ function readArgs(argv: string[]): CliArgs {
     debtorIdentifier: get('--debtor-bic') ?? 'GSCRUS33',
     creditorIdentifier: get('--creditor-bic') ?? 'CHASUS33',
     memo: get('--memo'),
-    agentId: requireFlag('--agent', 'AEGIS_AGENT_ID'),
-    policyId: requireFlag('--policy', 'AEGIS_POLICY_ID'),
-    privateKey: requireFlag('--private-key', 'AEGIS_AGENT_PRIVATE_KEY'),
+    agentId: requireFlag('--agent', 'OKORO_AGENT_ID'),
+    policyId: requireFlag('--policy', 'OKORO_POLICY_ID'),
+    privateKey: requireFlag('--private-key', 'OKORO_AGENT_PRIVATE_KEY'),
   };
 }
 
@@ -92,10 +92,10 @@ async function main(): Promise<number> {
     remittanceInfo: args.memo,
   };
 
-  // Bind the AEGIS scope check to the creditor BIC. Policies for
+  // Bind the OKORO scope check to the creditor BIC. Policies for
   // treasury agents typically allow-list specific counterparties; the
   // creditor identifier is the "domain" the policy gates against.
-  const aegisToken = await signAgentToken(args.privateKey, args.agentId, args.policyId, {
+  const okoroToken = await signAgentToken(args.privateKey, args.agentId, args.policyId, {
     action: 'banking.payment',
     amount: args.amount / 100,
     currency: args.currency,
@@ -106,7 +106,7 @@ async function main(): Promise<number> {
   const resp = await fetch(`${args.target}/api/instruct`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ aegisToken, instruction }),
+    body: JSON.stringify({ okoroToken, instruction }),
   });
   const result = (await resp.json()) as Record<string, unknown>;
 

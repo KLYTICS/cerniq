@@ -18,8 +18,8 @@ import {
   type PackageReport,
 } from './publish-dry-run.js';
 import {
-  findAegisPackages,
-  type AegisPackageManifest,
+  findOkoroPackages,
+  type OkoroPackageManifest,
 } from './lib/package-introspect.js';
 
 // ──────────────────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ interface FakeRepo {
 }
 
 function makeFakeRepo(): FakeRepo {
-  const root = mkdtempSync(path.join(tmpdir(), 'aegis-pubdry-'));
+  const root = mkdtempSync(path.join(tmpdir(), 'okoro-pubdry-'));
   writeFileSync(path.join(root, 'pnpm-workspace.yaml'), 'packages:\n  - "packages/*"\n');
   mkdirSync(path.join(root, 'packages'), { recursive: true });
   return { root, pkgDir: (n) => path.join(root, 'packages', n) };
@@ -42,18 +42,18 @@ function writePkg(
   repo: FakeRepo,
   folder: string,
   manifest: Record<string, unknown>,
-): AegisPackageManifest {
+): OkoroPackageManifest {
   const dir = repo.pkgDir(folder);
   mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(dir, 'package.json'), JSON.stringify(manifest, null, 2));
   // Touch dist files referenced by entrypoints so source-map check is happy.
-  return findAegisPackages({ repoRoot: repo.root }).find((p) => p.dir === dir)!;
+  return findOkoroPackages({ repoRoot: repo.root }).find((p) => p.dir === dir)!;
 }
 
 const goodManifest = (overrides: Record<string, unknown> = {}) => ({
-  name: '@aegis/sdk',
+  name: '@okoro/sdk',
   version: '1.2.3',
-  description: 'AEGIS SDK',
+  description: 'OKORO SDK',
   license: 'MIT',
   main: 'dist/index.cjs',
   module: 'dist/index.mjs',
@@ -65,9 +65,9 @@ const goodManifest = (overrides: Record<string, unknown> = {}) => ({
       require: './dist/index.cjs',
     },
   },
-  repository: { type: 'git', url: 'https://github.com/x/aegis.git' },
+  repository: { type: 'git', url: 'https://github.com/x/okoro.git' },
   engines: { node: '>=18' },
-  keywords: ['aegis', 'sdk', 'agent'],
+  keywords: ['okoro', 'sdk', 'agent'],
   ...overrides,
 });
 
@@ -99,8 +99,8 @@ describe('parseFlags', () => {
     expect(parseFlags([])).toEqual({ all: true, strict: false, json: false });
   });
   it('--package implies !all', () => {
-    expect(parseFlags(['--package', '@aegis/sdk'])).toMatchObject({
-      packageFilter: '@aegis/sdk',
+    expect(parseFlags(['--package', '@okoro/sdk'])).toMatchObject({
+      packageFilter: '@okoro/sdk',
       all: false,
     });
   });
@@ -162,7 +162,7 @@ describe('collectEntrypointPaths', () => {
         main: './dist/a.cjs',
         module: './dist/a.mjs',
         types: './dist/a.d.ts',
-        bin: { aegis: './bin/cli.js' },
+        bin: { okoro: './bin/cli.js' },
         exports: {
           '.': { import: './dist/a.mjs', require: './dist/a.cjs' },
           './sub': './dist/sub.mjs',
@@ -216,7 +216,7 @@ describe('findLeakedAbsolutePathsInMaps', () => {
     mkdirSync(path.join(dir, 'dist'), { recursive: true });
     writeFileSync(
       path.join(dir, 'dist', 'index.js.map'),
-      JSON.stringify({ sources: ['/Users/secret/aegis/src/index.ts'] }),
+      JSON.stringify({ sources: ['/Users/secret/okoro/src/index.ts'] }),
     );
     writeFileSync(
       path.join(dir, 'dist', 'clean.js.map'),
@@ -267,7 +267,7 @@ describe('renderHumanReport', () => {
     const out = renderHumanReport(
       [
         {
-          name: '@aegis/sdk',
+          name: '@okoro/sdk',
           version: '1.0.0',
           dir: '/x',
           checks: [
@@ -279,7 +279,7 @@ describe('renderHumanReport', () => {
       ],
       { passed: 1, warned: 0, failed: 1 },
     );
-    expect(out).toContain('@aegis/sdk@1.0.0');
+    expect(out).toContain('@okoro/sdk@1.0.0');
     expect(out).toContain('✓ [a]');
     expect(out).toContain('✗ [b]');
     expect(out).toContain('1 pass · 0 warn · 1 fail');
@@ -354,7 +354,7 @@ describe('checkPackage manifest checks', () => {
     const pkg = writePkg(
       repo,
       'sdk-ts',
-      goodManifest({ dependencies: { '@aegis/types': 'link:../types' } }),
+      goodManifest({ dependencies: { '@okoro/types': 'link:../types' } }),
     );
     const report = await checkPackage(pkg, {
       packRunner: stubRunner(cleanPackOutput),
@@ -369,7 +369,7 @@ describe('checkPackage manifest checks', () => {
     const pkg = writePkg(
       repo,
       'sdk-ts',
-      goodManifest({ dependencies: { '@aegis/types': 'workspace:*' } }),
+      goodManifest({ dependencies: { '@okoro/types': 'workspace:*' } }),
     );
     const report = await checkPackage(pkg, {
       packRunner: stubRunner(cleanPackOutput),
@@ -495,7 +495,7 @@ describe('run()', () => {
   it('exits 0 when all packages clean', async () => {
     const repo = makeFakeRepo();
     writePkg(repo, 'sdk-ts', goodManifest());
-    writePkg(repo, 'types', goodManifest({ name: '@aegis/types' }));
+    writePkg(repo, 'types', goodManifest({ name: '@okoro/types' }));
     const { exitCode, result } = await run(
       { all: true, strict: false, json: false, repoRoot: repo.root },
       { packRunner: stubRunner(cleanPackOutput), log: () => undefined },
@@ -522,7 +522,7 @@ describe('run()', () => {
         all: false,
         strict: false,
         json: false,
-        packageFilter: '@aegis/nope',
+        packageFilter: '@okoro/nope',
         repoRoot: repo.root,
       },
       { packRunner: stubRunner(cleanPackOutput), log: () => undefined },
@@ -542,7 +542,7 @@ describe('run()', () => {
       },
     );
     const parsed = JSON.parse(captured);
-    expect(parsed.reports[0].name).toBe('@aegis/sdk');
+    expect(parsed.reports[0].name).toBe('@okoro/sdk');
     expect(typeof parsed.exitCode).toBe('number');
   });
 
@@ -551,7 +551,7 @@ describe('run()', () => {
     writePkg(
       repo,
       'sdk-ts',
-      goodManifest({ dependencies: { '@aegis/types': 'workspace:*' } }),
+      goodManifest({ dependencies: { '@okoro/types': 'workspace:*' } }),
     );
     const lax = await run(
       { all: true, strict: false, json: false, repoRoot: repo.root },

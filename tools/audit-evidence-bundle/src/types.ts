@@ -1,4 +1,4 @@
-// Public types for @aegis/audit-evidence-bundle.
+// Public types for @okoro/audit-evidence-bundle.
 //
 // The bundle manifest is part of the auditor wire contract — adding fields
 // is non-breaking, but renames or removals require a major version bump
@@ -32,7 +32,7 @@ export interface FetchedArtifacts {
   /** SHA256 of the NDJSON file in lowercase hex, computed in-stream. */
   ndjsonSha256: string;
   jwks: unknown;
-  aegisConfiguration: unknown;
+  okoroConfiguration: unknown;
   /** Lane B will publish /.well-known/retention-policy.json. Until then,
    *  the bundle records `null` and the manifest notes the gap. */
   retentionPolicy: unknown | null;

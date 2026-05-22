@@ -1,15 +1,15 @@
-# Auth0 module — human identity bridge for AEGIS
+# Auth0 module — human identity bridge for OKORO
 
 This module implements ADR-0009: human (operator/admin) identity is
-delegated to Auth0; agent identity stays in AEGIS. The two never mix on
+delegated to Auth0; agent identity stays in OKORO. The two never mix on
 the same request.
 
 ## Endpoints
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| POST | `/v1/idp/auth0/action` | shared secret in `X-Auth0-Action-Secret` | Auth0 Action calls this on every login event for AEGIS-side audit + principal binding |
-| POST | `/v1/idp/auth0/exchange` | Auth0 access token in body | Dashboard swaps an Auth0 token for an AEGIS API key |
+| POST | `/v1/idp/auth0/action` | shared secret in `X-Auth0-Action-Secret` | Auth0 Action calls this on every login event for OKORO-side audit + principal binding |
+| POST | `/v1/idp/auth0/exchange` | Auth0 access token in body | Dashboard swaps an Auth0 token for an OKORO API key |
 
 ## Files
 
@@ -30,8 +30,8 @@ the same request.
 
 ## Operator decisions still pending
 
-- **OD-009**: which Auth0 custom claim namespace (current: `https://aegis.dev/`).
-- **OD-010**: whether to require MFA for `aegis:admin` role at Action
+- **OD-009**: which Auth0 custom claim namespace (current: `https://okoro.dev/`).
+- **OD-010**: whether to require MFA for `okoro:admin` role at Action
   time (current default: warn-only via `decision: 'FLAGGED'`).
 
 ## Config required at runtime
@@ -40,13 +40,13 @@ Schema additions (ADR-0009 §3) — these belong to peer's
 `config.schema.ts` work but are listed here for the runbook:
 
 ```ts
-AUTH0_ISSUER         // e.g. https://aegis.us.auth0.com/
-AUTH0_AUDIENCE       // e.g. https://api.aegis.dev
-AUTH0_ACTION_SECRET  // shared secret with the Action; rotate via aegis-cli
+AUTH0_ISSUER         // e.g. https://okoro.us.auth0.com/
+AUTH0_AUDIENCE       // e.g. https://api.okoro.dev
+AUTH0_ACTION_SECRET  // shared secret with the Action; rotate via okoro-cli
 ```
 
 ## Reference
 
 - ADR-0009: `docs/decisions/0009-auth0-bridge.md`
-- Action source (deferred): `infra/auth0/actions/aegis-audit-login.js`
+- Action source (deferred): `infra/auth0/actions/okoro-audit-login.js`
 - Migration spec (deferred): `apps/api/scripts/migrate-idp.ts.template`

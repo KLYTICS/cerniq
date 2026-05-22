@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 
 export const runtime = 'nodejs';
-export const alt = 'AEGIS — Neutral verification for autonomous agents';
+export const alt = 'OKORO — Neutral verification for autonomous agents';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -31,7 +31,7 @@ export default function Image() {
             fontWeight: 600,
           }}
         >
-          AEGIS · Documentation
+          OKORO · Documentation
         </div>
         <div
           style={{

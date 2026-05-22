@@ -11,12 +11,12 @@ export async function bootstrap(opts: { apiKey?: string; baseUrl?: string; force
   }
 
   let apiKey = opts.apiKey;
-  let baseUrl = opts.baseUrl ?? 'https://api.aegis.dev';
+  let baseUrl = opts.baseUrl ?? 'https://api.okoro.dev';
 
   if (!apiKey) {
     const r = await prompts([
-      { type: 'password', name: 'apiKey', message: 'AEGIS API key (aegis_live_… or aegis_test_…)', validate: (s) => s.length > 8 || 'too short' },
-      { type: 'text', name: 'baseUrl', message: 'AEGIS base URL', initial: baseUrl },
+      { type: 'password', name: 'apiKey', message: 'OKORO API key (okoro_live_… or okoro_test_…)', validate: (s) => s.length > 8 || 'too short' },
+      { type: 'text', name: 'baseUrl', message: 'OKORO base URL', initial: baseUrl },
     ]);
     apiKey = r.apiKey;
     baseUrl = r.baseUrl ?? baseUrl;
@@ -28,5 +28,5 @@ export async function bootstrap(opts: { apiKey?: string; baseUrl?: string; force
 
   await writeCredentials({ apiKey, baseUrl });
   ok(`Credentials written to ${credentialsPath()}`);
-  info('Run `aegis whoami` to verify.');
+  info('Run `okoro whoami` to verify.');
 }

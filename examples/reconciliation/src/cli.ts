@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 // reconciliation CLI — joins two NDJSON streams, prints a report.
 //
-//   pnpm tsx src/cli.ts --aegis <ndjson> --psp <ndjson> [options]
+//   pnpm tsx src/cli.ts --okoro <ndjson> --psp <ndjson> [options]
 
 import { readFile } from 'node:fs/promises';
 import { argv, exit, stderr, stdout } from 'node:process';
 
-import { parseAegisNdjson, parseSystemNdjson, reconcile, type ReconcileReport } from './reconcile.js';
+import { parseOkoroNdjson, parseSystemNdjson, reconcile, type ReconcileReport } from './reconcile.js';
 
 interface CliArgs {
-  aegisPath: string;
+  okoroPath: string;
   systemPath: string;
   json: boolean;
   includeMatched: boolean;
@@ -21,14 +21,14 @@ function parseArgs(input: string[]): CliArgs {
     if (idx === -1 || idx === input.length - 1) return undefined;
     return input[idx + 1];
   };
-  const aegisPath = get('--aegis');
+  const okoroPath = get('--okoro');
   const systemPath = get('--psp') ?? get('--system');
-  if (!aegisPath || !systemPath) {
-    stderr.write(`reconcile: --aegis <path> and --psp <path> (or --system) are required\n`);
+  if (!okoroPath || !systemPath) {
+    stderr.write(`reconcile: --okoro <path> and --psp <path> (or --system) are required\n`);
     exit(2);
   }
   return {
-    aegisPath,
+    okoroPath,
     systemPath,
     json: input.includes('--json'),
     includeMatched: input.includes('--include-matched'),
@@ -37,13 +37,13 @@ function parseArgs(input: string[]): CliArgs {
 
 async function main(): Promise<number> {
   const args = parseArgs(argv.slice(2));
-  const [aegisRaw, systemRaw] = await Promise.all([
-    readFile(args.aegisPath, 'utf8'),
+  const [okoroRaw, systemRaw] = await Promise.all([
+    readFile(args.okoroPath, 'utf8'),
     readFile(args.systemPath, 'utf8'),
   ]);
-  const aegis = parseAegisNdjson(aegisRaw);
+  const okoro = parseOkoroNdjson(okoroRaw);
   const system = parseSystemNdjson(systemRaw);
-  const report = reconcile(aegis, system, { includeMatched: args.includeMatched });
+  const report = reconcile(okoro, system, { includeMatched: args.includeMatched });
 
   if (args.json) {
     stdout.write(JSON.stringify(report, null, 2) + '\n');
@@ -56,9 +56,9 @@ async function main(): Promise<number> {
 
 function printHumanReport(report: ReconcileReport): void {
   const banner = report.approvedMissing + report.deniedPresent === 0 ? '✓ CLEAN' : '✗ MISMATCH';
-  stdout.write(`AEGIS reconciliation — ${banner}\n`);
+  stdout.write(`OKORO reconciliation — ${banner}\n`);
   stdout.write('─'.repeat(60) + '\n');
-  stdout.write(`aegis rows           : ${report.totalAegisRows}\n`);
+  stdout.write(`okoro rows           : ${report.totalOkoroRows}\n`);
   stdout.write(`system rows          : ${report.totalSystemRows}\n`);
   stdout.write(`matched & settled    : ${report.matchedSettled}\n`);
   stdout.write(`approved + missing   : ${report.approvedMissing}  ← network drop or system never executed\n`);
@@ -78,7 +78,7 @@ function printHumanReport(report: ReconcileReport): void {
     stdout.write(`\nrows requiring investigation (${investigations.length}):\n`);
     for (const e of investigations.slice(0, 20)) {
       stdout.write(`  • ${e.class.padEnd(20)} ${e.endToEndId}`);
-      if (e.aegis) stdout.write(`  agent=${e.aegis.agentId}`);
+      if (e.okoro) stdout.write(`  agent=${e.okoro.agentId}`);
       if (e.system) stdout.write(`  system=${e.system.systemId}`);
       stdout.write('\n');
     }

@@ -11,7 +11,7 @@ const enc = new TextEncoder();
 export class Ed25519Util {
   /**
    * Generate a fresh keypair. Used in dev/sandbox flows; real production
-   * keypairs are generated client-side and never transit the AEGIS API.
+   * keypairs are generated client-side and never transit the OKORO API.
    */
   async generateKeypair(): Promise<{ privateKey: Uint8Array; publicKey: Uint8Array }> {
     const privateKey = ed.utils.randomPrivateKey();

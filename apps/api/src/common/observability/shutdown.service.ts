@@ -1,4 +1,4 @@
-// Centralized SIGTERM coordinator for AEGIS.
+// Centralized SIGTERM coordinator for OKORO.
 //
 // Why this exists:
 // Today, a Railway redeploy fires SIGTERM at the API. NestJS 11 turns that

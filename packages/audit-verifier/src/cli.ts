@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// AEGIS audit-verifier CLI.
+// OKORO audit-verifier CLI.
 //
-//   aegis-audit-verify verify <export.ndjson> [options]
+//   okoro-audit-verify verify <export.ndjson> [options]
 //
 // Options:
 //   --jwks <url>           Fetch JWKS from URL (HTTPS).
@@ -16,11 +16,11 @@
 //   2  argument / IO error
 //
 // Examples:
-//   aegis-audit-verify verify ./export.ndjson \
-//     --jwks https://api.aegislabs.io/.well-known/audit-signing-key
+//   okoro-audit-verify verify ./export.ndjson \
+//     --jwks https://api.okorolabs.io/.well-known/audit-signing-key
 //
-//   aegis-audit-verify verify ./export.ndjson \
-//     --jwks-file ./aegis-audit-jwks.json --json > report.json
+//   okoro-audit-verify verify ./export.ndjson \
+//     --jwks-file ./okoro-audit-jwks.json --json > report.json
 
 import { readFile } from 'node:fs/promises';
 import { argv, exit, stdout, stderr } from 'node:process';
@@ -47,7 +47,7 @@ function parseArgs(input: string[]): CliArgs {
   }
   const ndjsonPath = input[1];
   if (!ndjsonPath || ndjsonPath.startsWith('--')) {
-    fail('missing NDJSON path: aegis-audit-verify verify <path>', 2);
+    fail('missing NDJSON path: okoro-audit-verify verify <path>', 2);
   }
   const get = (flag: string): string | undefined => {
     const idx = input.indexOf(flag);
@@ -106,7 +106,7 @@ async function main(): Promise<number> {
 
 function printHumanReport(report: ChainReport): void {
   const tag = report.valid ? '✓ INTACT' : '✗ BROKEN';
-  stdout.write(`AEGIS audit chain — ${tag}\n`);
+  stdout.write(`OKORO audit chain — ${tag}\n`);
   stdout.write('─'.repeat(60) + '\n');
   stdout.write(`rows verified : ${report.totalRows}\n`);
   stdout.write(`signing keys  : ${report.signingKeys.join(', ') || '(none)'}\n`);
@@ -126,13 +126,13 @@ function printHumanReport(report: ChainReport): void {
 }
 
 function fail(msg: string, code: number): never {
-  stderr.write(`aegis-audit-verify: ${msg}\n`);
+  stderr.write(`okoro-audit-verify: ${msg}\n`);
   exit(code);
 }
 
 main()
   .then((code) => exit(code))
   .catch((err: unknown) => {
-    stderr.write(`aegis-audit-verify: fatal — ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
+    stderr.write(`okoro-audit-verify: fatal — ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
     exit(2);
   });

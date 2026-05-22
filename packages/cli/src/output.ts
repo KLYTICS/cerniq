@@ -1,5 +1,5 @@
 // Output helpers — colored stderr for status, plain stdout for data so
-// CLI output is pipe-friendly (`aegis agents list | jq ...`).
+// CLI output is pipe-friendly (`okoro agents list | jq ...`).
 
 import kleur from 'kleur';
 

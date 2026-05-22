@@ -18,7 +18,7 @@ export function AgentTable({ agents }: Props) {
       <div className="data-empty">
         <p>No agents registered yet.</p>
         <pre className="hint">{`# from your terminal:
-aegis agents register --runtime anthropic --label "shopper-bot"`}</pre>
+okoro agents register --runtime anthropic --label "shopper-bot"`}</pre>
       </div>
     );
   }

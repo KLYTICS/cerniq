@@ -1,15 +1,15 @@
 # node-quickstart
 
-A 60-line walkthrough of the AEGIS agent lifecycle using `@aegis/sdk`:
+A 60-line walkthrough of the OKORO agent lifecycle using `@okoro/sdk`:
 register an agent, create a policy, sign a request token, verify it.
 
 ## Prerequisites
 
-1. AEGIS API running locally — see [`infra/dev/README.md`](../../infra/dev/README.md).
+1. OKORO API running locally — see [`infra/dev/README.md`](../../infra/dev/README.md).
 2. A management API key. The fastest path:
 
    ```sh
-   pnpm --filter @aegis/scripts seed
+   pnpm --filter @okoro/scripts seed
    # copy the `apiKey` value from the JSON stdout
    ```
 
@@ -17,8 +17,8 @@ register an agent, create a policy, sign a request token, verify it.
 
 ```sh
 pnpm install
-AEGIS_API_BASE=http://localhost:4000 \
-  AEGIS_API_KEY=aegis_sk_... \
+OKORO_API_BASE=http://localhost:4000 \
+  OKORO_API_KEY=okoro_sk_... \
   pnpm tsx src/quickstart.ts
 ```
 

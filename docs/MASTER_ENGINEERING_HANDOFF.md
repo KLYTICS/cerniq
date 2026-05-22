@@ -1,4 +1,4 @@
-# AEGIS — Master Engineering Handoff
+# OKORO — Master Engineering Handoff
 ## FAANG-Level State Analysis, GTM Mapping & Terminal Coordination Protocol
 
 > **Classification:** INTERNAL · ENGINEERING · CONFIDENTIAL  
@@ -29,7 +29,7 @@
 
 ## 1. Executive State Summary
 
-AEGIS is the neutral verification, policy enforcement, and behavioral attestation layer between AI agents and the services they act on. We hold only public keys, sign only what we observed, and are protocol-vendor-model neutral.
+OKORO is the neutral verification, policy enforcement, and behavioral attestation layer between AI agents and the services they act on. We hold only public keys, sign only what we observed, and are protocol-vendor-model neutral.
 
 **As of 2026-05-04 (10 engineering rounds complete), the codebase is:**
 
@@ -40,13 +40,13 @@ AEGIS is the neutral verification, policy enforcement, and behavioral attestatio
 | BATE Trust Scoring (Layer 3) | ✅ Core shipped, anomaly live | Scorer kernel + 5 anomaly rules + DPoP signals; weights pending OD-001 |
 | Audit Chain (Layer 4) | ✅ Shipped | Append-only hash chain, GDPR-safe redaction, KMS signing |
 | Verify Hot Path | ✅ Shipped + portable | 9-step algorithm, framework-free, portable to CF Workers |
-| TypeScript SDK (`@aegis/sdk`) | ✅ Shipped | Agents, policies, verify, sign/verify crypto |
-| Python SDK (`aegis`) | ✅ Shipped (70 tests) | AsyncAegis + sync wrapper, pydantic v2, mypy strict |
-| Relying-Party Verifier (`@aegis/verifier-rp`) | ✅ Shipped (58 tests) | Offline JWT verify, JWKS SWR cache, Express/Fastify/Hono adapters |
+| TypeScript SDK (`@okoro/sdk`) | ✅ Shipped | Agents, policies, verify, sign/verify crypto |
+| Python SDK (`okoro`) | ✅ Shipped (70 tests) | AsyncOkoro + sync wrapper, pydantic v2, mypy strict |
+| Relying-Party Verifier (`@okoro/verifier-rp`) | ✅ Shipped (58 tests) | Offline JWT verify, JWKS SWR cache, Express/Fastify/Hono adapters |
 | CF Worker Edge Verify | ✅ Shipped (shadow mode) | KV cache, full denial-precedence, shadow ↔ origin comparison |
-| Go CLI (`aegis`) | ✅ Core shipped | agents/policy/verify/events/report subcommands, `--json` mode |
-| MCP Server (`@aegis/mcp-server`) | ✅ Scaffolded | Tools wired to SDK; bin + README |
-| MCP Bridge (`@aegis/mcp-bridge`) | ✅ Scaffolded | `wrap()` one-liner for any MCP server |
+| Go CLI (`okoro`) | ✅ Core shipped | agents/policy/verify/events/report subcommands, `--json` mode |
+| MCP Server (`@okoro/mcp-server`) | ✅ Scaffolded | Tools wired to SDK; bin + README |
+| MCP Bridge (`@okoro/mcp-bridge`) | ✅ Scaffolded | `wrap()` one-liner for any MCP server |
 | E2E Test Harness | ✅ Shipped (15 suites) | Denial-precedence, replay, TOCTOU spend race, revocation |
 | KMS Adapters | ✅ Shipped | AWS KMS, GCP Cloud KMS, HashiCorp Vault Transit |
 | Auth0 IDP Bridge | ✅ Shipped | IdpAdapter interface, Auth0/Clerk/WorkOS adapters |
@@ -66,7 +66,7 @@ AEGIS is the neutral verification, policy enforcement, and behavioral attestatio
 
 OpenAI and Stripe launched the Agentic Commerce Protocol (ACP) in 2025 — a payment rail for agent transactions. **ACP solves the payment leg.** It does not solve: who is the agent, is it authorized by a real human, has its behavior been trustworthy across sessions, can a relying party independently verify the claim in <100ms. Every existing solution (Auth0, Okta, Prefactor, Entro) is either platform-tied, commerce-specific, or enterprise-only.
 
-**AEGIS fills that gap as the neutral, developer-first trust and verification layer.** We plug into the emerging agentic commerce stack ACP-compatible by design. The wedge is not theoretical — MCP is now the universal tool-call shape for every major LLM host (Claude Desktop, Cursor, Cline, OpenAI Responses API). `packages/mcp-bridge` gives any MCP server a cryptographic identity gate in one `wrap()` call. Every MCP server in the wild is a candidate AEGIS relying party. That distribution moat builds itself.
+**OKORO fills that gap as the neutral, developer-first trust and verification layer.** We plug into the emerging agentic commerce stack ACP-compatible by design. The wedge is not theoretical — MCP is now the universal tool-call shape for every major LLM host (Claude Desktop, Cursor, Cline, OpenAI Responses API). `packages/mcp-bridge` gives any MCP server a cryptographic identity gate in one `wrap()` call. Every MCP server in the wild is a candidate OKORO relying party. That distribution moat builds itself.
 
 ---
 
@@ -75,15 +75,15 @@ OpenAI and Stripe launched the Agentic Commerce Protocol (ACP) in 2025 — a pay
 > Reading order for new terminals: newest last. The commit log has 4 major commits; the SESSION_HANDOFF.md tracks 10 rounds of work from multiple parallel sessions.
 
 ### Round 1–3 (Foundation) — sid=foundation
-- Initial AEGIS scaffold: NestJS monorepo, Prisma schema v1, pnpm workspaces
+- Initial OKORO scaffold: NestJS monorepo, Prisma schema v1, pnpm workspaces
 - `packages/types`: Zod schemas as single source of truth
 - `apps/api/src/modules/{identity,policy,verify,auth,audit}`: core CRUD + hot path
 - `apps/api/src/common/crypto/{ed25519,jwt}.util.ts`: noble/ed25519, jose EdDSA
-- `packages/sdk-ts`: AegisClient, sign/verify, typed errors
+- `packages/sdk-ts`: OkoroClient, sign/verify, typed errors
 
 ### Round 4–5 (Security & Audit) — sid=a9198691
-- **Python SDK** (M-015): 24 files, 70 tests, AsyncAegis + sync, mypy --strict, pydantic v2
-- **`@aegis/verifier-rp`** (M-016): 34 files, 58 tests, property tests via fast-check, Express/Fastify/Hono adapters, replay LRU, revocation cache, offline Ed25519 — zero node:crypto (edge-ready)
+- **Python SDK** (M-015): 24 files, 70 tests, AsyncOkoro + sync, mypy --strict, pydantic v2
+- **`@okoro/verifier-rp`** (M-016): 34 files, 58 tests, property tests via fast-check, Express/Fastify/Hono adapters, replay LRU, revocation cache, offline Ed25519 — zero node:crypto (edge-ready)
 - **E2E test harness** (M-017): 15 numbered test suites (01_health → 15_idempotency), TOCTOU spend race, denial-precedence property test, k6 load script
 - **Threat Model v2** (M-018): 965 lines, 31 STRIDE threats, EdDSA reconciliation, GDPR audit-chain redactability design
 - **Architecture Audit**: 22 findings — Critical 1 / High 5 / Medium 8 / Low 6 / Info 2
@@ -106,7 +106,7 @@ OpenAI and Stripe launched the Agentic Commerce Protocol (ACP) in 2025 — a pay
 - **CF Worker m1**: `workers/cf-verify/` — edge verify skeleton with shadow-mode
 - **Industry quickstarts**: `examples/ai-platform-tool-call/` reference integration
 - **Onboarding**: `PrincipalOnboarding` model, 7-step one-way ratchet, `GET+PATCH /v1/me/onboarding`
-- **Deep-canon docs**: `FAILURE_MODES.md`, `CAPACITY_PLAN.md`, `RETENTION_POLICY.md`, `AEGIS_AS_BACKBONE.md`, `DID_METHOD.md`, `POST_QUANTUM_ROADMAP.md`, `EU_RESIDENCY.md`, `COMPLIANCE.md`
+- **Deep-canon docs**: `FAILURE_MODES.md`, `CAPACITY_PLAN.md`, `RETENTION_POLICY.md`, `OKORO_AS_BACKBONE.md`, `DID_METHOD.md`, `POST_QUANTUM_ROADMAP.md`, `EU_RESIDENCY.md`, `COMPLIANCE.md`
 - **Persona docs**: `docs/personas/{developer,security,sre,auditor}.md`
 - **Industry quickstarts doc**: `docs/INDUSTRY_QUICKSTARTS.md`
 - Schema migration: 6 migrations covering RLS, audit redactability, enterprise backbone fields, IdP federation, onboarding tracker
@@ -114,13 +114,13 @@ OpenAI and Stripe launched the Agentic Commerce Protocol (ACP) in 2025 — a pay
 - `OPERATOR_DECISIONS.md`: 16 open decisions tracked with defaults, due dates, module blocking map
 
 ### Round 8–9 (CF Worker + WASM Specs + Adoption Surface) — sid=3e2203ee + sid=a9198691
-- **CF Worker m2** (M-044): KV cache adapter (agent + policy + per-day spend), full ADR-0004 denial-precedence at edge, shadow-mode with divergence telemetry (`X-AEGIS-Edge-Divergence` header)
+- **CF Worker m2** (M-044): KV cache adapter (agent + policy + per-day spend), full ADR-0004 denial-precedence at edge, shadow-mode with divergence telemetry (`X-OKORO-Edge-Divergence` header)
 - **Edge verify spec** (M-048): 16-branch denial-precedence sweep, shadow spec
 - **WASM evaluator specs** (M-046): Cedar-WASM + OPA-WASM spec tests with fake-injected modules
 - **WorkOS + Onboarding specs** (M-047)
 - **OnboardingBackfill + admin endpoints** (M-053)
 - **`app.module.ts` wired** (M-050): all 8 new modules imported (KMS, PolicyEngine, Auth0, Clerk, WorkOS, MCP, Compliance, Onboarding)
-- **Go CLI — agents/policy/verify/events/report** (M-040c): Real wiring replacing stubs, hand-rolled HTTP client with `--json` mode, denial-precedence in canonical order, `aegis events tail/export` (streaming NDJSON, Ctrl-C clean exit)
+- **Go CLI — agents/policy/verify/events/report** (M-040c): Real wiring replacing stubs, hand-rolled HTTP client with `--json` mode, denial-precedence in canonical order, `okoro events tail/export` (streaming NDJSON, Ctrl-C clean exit)
 - **CLI release infra** (M-040b partial): `.goreleaser.yaml`, `scripts/install/install.sh`, CLI CI workflow, `CHANGELOG.md`, `docs/RELEASE_NOTES_TEMPLATE.md`, `docs/CLI_SECURITY.md`
 - **`vitest.workspace.ts`** (M-025): cross-package SDK↔API JWT parity test at root
 
@@ -144,7 +144,7 @@ Principal              — tenant (email, planTier, IDP federation, policyEngine
   └─ ApiKey            — FULL | VERIFY_ONLY scope, bcrypt-hashed
   └─ AgentIdentity     — Ed25519 pubkey, status, trustScore, trustBand
       └─ AgentPolicy   — scoped JWT (signedToken), spend limits, expiresAt
-      └─ AuditEvent    — hash chain row (prev_hash + AEGIS sig)
+      └─ AuditEvent    — hash chain row (prev_hash + OKORO sig)
       └─ BateSignal    — 14 signal types including DPoP
       └─ TrustScoreHistory
   └─ WebhookSubscription + WebhookDelivery
@@ -217,7 +217,7 @@ Step 9  → ANOMALY_FLAGGED  (hard-flag check)
 ### 4.5 Audit Chain
 
 Every `AuditEvent` carries:
-- `aegisSignature` — `sign(prev_sig || RFC8785_canonical(payload))`
+- `okoroSignature` — `sign(prev_sig || RFC8785_canonical(payload))`
 - `signingKeyId` — stamped from `AuditSignerService.getActiveKid()` (KMS-aware since Round 10)
 - `*Hash` columns — SHA-256 commitments so GDPR Art.17 erasure can null PII without breaking the chain
 - `payloadVersion: 2` — verifiers branch on this
@@ -228,38 +228,38 @@ The chain is verifiable offline by anyone with the public key. `/.well-known/aud
 
 **TypeScript** (`packages/sdk-ts`):
 ```typescript
-const aegis = new AegisClient({ apiKey: '...' });
-const { agentId, privateKey } = await aegis.agents.register({ runtime: 'ANTHROPIC', publicKey });
-const { policyId } = await aegis.policies.create({ agentId, scopes: [...], expiresAt });
+const okoro = new OkoroClient({ apiKey: '...' });
+const { agentId, privateKey } = await okoro.agents.register({ runtime: 'ANTHROPIC', publicKey });
+const { policyId } = await okoro.policies.create({ agentId, scopes: [...], expiresAt });
 const token = sign(privateKey, { action: 'commerce.purchase', amount: 450, policyId, agentId });
-const result = await aegis.verify(token, { action: 'commerce.purchase', amount: 450 });
+const result = await okoro.verify(token, { action: 'commerce.purchase', amount: 450 });
 ```
 
 **Python** (`packages/sdk-py`):
 ```python
-async with AsyncAegis(api_key="...") as aegis:
-    agent = await aegis.agents.register(runtime="anthropic", public_key=pubkey)
-    policy = await aegis.policies.create(agent_id=agent.agent_id, scopes=[...])
+async with AsyncOkoro(api_key="...") as okoro:
+    agent = await okoro.agents.register(runtime="anthropic", public_key=pubkey)
+    policy = await okoro.policies.create(agent_id=agent.agent_id, scopes=[...])
     token = sign(private_key, action="commerce.purchase", amount=450, policy_id=policy.policy_id)
-    result = await aegis.verify(token, action="commerce.purchase", amount=450)
+    result = await okoro.verify(token, action="commerce.purchase", amount=450)
 ```
 
 **Relying-party verifier** (`packages/verifier-rp`):
 ```typescript
 // Drop-in for any Express/Fastify/Hono server — offline JWT verify
-const verifier = new AegisVerifier({
+const verifier = new OkoroVerifier({
   getAgentPublicKey: async (agentId) => fetchKeyFromCache(agentId),
 });
-app.use('/api/protected', aegisMiddleware(verifier));
+app.use('/api/protected', okoroMiddleware(verifier));
 ```
 
 **Go CLI** (`packages/cli`):
 ```sh
-aegis agents register --runtime anthropic --label "my-bot" --generate-keypair
-aegis policy create --agent-id <id> --scope commerce --max-per-txn 500
-aegis verify <token> --action commerce.purchase --amount 450 --merchant-domain delta.com
-aegis events tail --agent-id <id>   # streaming, Ctrl-C clean
-aegis report --agent-id <id> --type fraud --severity HIGH
+okoro agents register --runtime anthropic --label "my-bot" --generate-keypair
+okoro policy create --agent-id <id> --scope commerce --max-per-txn 500
+okoro verify <token> --action commerce.purchase --amount 450 --merchant-domain delta.com
+okoro events tail --agent-id <id>   # streaming, Ctrl-C clean
+okoro report --agent-id <id> --type fraud --severity HIGH
 ```
 
 ---
@@ -272,8 +272,8 @@ Deliverables from `docs/spec/01_MASTER.md`:
 
 | Deliverable | Status |
 |---|---|
-| AEGIS_MASTER.md | ✅ `docs/spec/01_MASTER.md` (607 lines) |
-| OpenAPI spec | ✅ `docs/spec/AEGIS_API_SPEC.yaml` |
+| OKORO_MASTER.md | ✅ `docs/spec/01_MASTER.md` (607 lines) |
+| OpenAPI spec | ✅ `docs/spec/OKORO_API_SPEC.yaml` |
 | Agent identity data model | ✅ `apps/api/prisma/schema.prisma` |
 | Policy schema v1 | ✅ Prisma + Zod in `packages/types` |
 | BATE scoring algorithm | ✅ `docs/BATE_ALGORITHM.md` + `bate.scorer.ts` |
@@ -308,7 +308,7 @@ Target: first paying developer customer. Exit criteria: 10 agents, 1 RP integrat
 1. `/.well-known/audit-signing-key` — relying parties can't verify audit chains offline without this
 2. Stripe billing module (M-011) — needed for Free → paid tier
 3. Dashboard login + API key UI — developer onboarding path
-4. Webhook subscription endpoints — customers need `aegis.agent.revoked` events
+4. Webhook subscription endpoints — customers need `okoro.agent.revoked` events
 
 ### Phase 2 — BATE Engine (Post $500 MRR) 🟢 EARLY
 
@@ -337,9 +337,9 @@ The Model Context Protocol is now the universal tool-call wire format. Every maj
 
 **What MCP does NOT carry: verified agent identity.**
 
-`packages/mcp-bridge` gives any MCP server AEGIS verification in one line:
+`packages/mcp-bridge` gives any MCP server OKORO verification in one line:
 ```typescript
-export default aegisBridge.wrap(myMcpServer);
+export default okoroBridge.wrap(myMcpServer);
 ```
 
 This is the shortest path to adoption in the industry. An MCP server author adds one line and gets:
@@ -349,34 +349,34 @@ This is the shortest path to adoption in the industry. An MCP server author adds
 - Signed audit trail of every tool invocation
 - Instant revocation (zero TTL wait)
 
-**Distribution flywheel:** Claude Desktop has ~millions of active users. Every popular MCP server (GitHub, Stripe, Linear, Notion, etc.) that adopts `@aegis/mcp-bridge` becomes a relying party that drives developer signups. Our `@aegis/mcp-server` turns any Claude Desktop installation into a management console for AEGIS identities — `npx @aegis/mcp-server` in your Claude config is the first install trigger.
+**Distribution flywheel:** Claude Desktop has ~millions of active users. Every popular MCP server (GitHub, Stripe, Linear, Notion, etc.) that adopts `@okoro/mcp-bridge` becomes a relying party that drives developer signups. Our `@okoro/mcp-server` turns any Claude Desktop installation into a management console for OKORO identities — `npx @okoro/mcp-server` in your Claude config is the first install trigger.
 
 ### 6.2 ACP Compatibility — How We Plug Into Stripe's Rail
 
 From `docs/spec/01_MASTER.md` §3.4:
 
 ```
-ACP Flow with AEGIS:
+ACP Flow with OKORO:
 
 1. User grants agent permission (ACP step)
 2. Agent gets SPT from Stripe (ACP step)
 3. Agent calls merchant API with:
-   { spt: "stripe_spt_xxx", aegisToken: "aegis_signed_xxx" }
+   { spt: "stripe_spt_xxx", okoroToken: "okoro_signed_xxx" }
 4. Merchant calls:
    - Stripe: "Is this SPT valid for $450?"
-   - AEGIS:  "Is this agent trusted at score >500 with commerce scope?"
+   - OKORO:  "Is this agent trusted at score >500 with commerce scope?"
 5. Both confirm → transaction approved
 ```
 
-AEGIS is **additive to ACP**. Stripe handles payment authorization; we handle agent authorization. The merchant that adopts ACP without AEGIS has no way to distinguish a trustworthy agent from a compromised one. We are the missing layer Stripe explicitly left to implementers.
+OKORO is **additive to ACP**. Stripe handles payment authorization; we handle agent authorization. The merchant that adopts ACP without OKORO has no way to distinguish a trustworthy agent from a compromised one. We are the missing layer Stripe explicitly left to implementers.
 
-Concretely, our `examples/fintech-payments/` quickstart (M-040e) demonstrates this pattern end-to-end: Express checkout server, `aegis.verify()` gate before Stripe charge, denial-precedence walk-through for all 9 denial reasons.
+Concretely, our `examples/fintech-payments/` quickstart (M-040e) demonstrates this pattern end-to-end: Express checkout server, `okoro.verify()` gate before Stripe charge, denial-precedence walk-through for all 9 denial reasons.
 
 ### 6.3 The BATE Trust Score is the Credit Score for Agents
 
 The BATE engine is the highest-value, most defensible component. No competitor has built this.
 
-**Network effect:** Trust score compounds in value over time. An agent with a 900-point AEGIS score at 200 days old has demonstrated 200 days of clean behavior across real relying parties. This history cannot be transferred to a competing platform. This is the same moat as credit scores — FICO took decades to build, but once it existed, every lender required it.
+**Network effect:** Trust score compounds in value over time. An agent with a 900-point OKORO score at 200 days old has demonstrated 200 days of clean behavior across real relying parties. This history cannot be transferred to a competing platform. This is the same moat as credit scores — FICO took decades to build, but once it existed, every lender required it.
 
 **Signal flywheel:** More relying parties → more signals → better anomaly detection → more confident approvals at higher spend limits → more relying parties adopt. The flywheel starts the moment the first RP calls `/v1/verify` and reports signals back via `/v1/agents/:id/report`.
 
@@ -391,7 +391,7 @@ The BATE engine is the highest-value, most defensible component. No competitor h
 
 The append-only, signed audit chain is the compliance moat.
 
-**For developers:** SOC2 evidence is automatic. Every `aegis.verify()` call produces a tamper-evident log entry. Running `aegis audit export` produces the NDJSON SOC2 artifact. No other agent identity platform does this.
+**For developers:** SOC2 evidence is automatic. Every `okoro.verify()` call produces a tamper-evident log entry. Running `okoro audit export` produces the NDJSON SOC2 artifact. No other agent identity platform does this.
 
 **For enterprises:** GDPR Art.17 compliance is solved at the design level. Raw PII columns are nullable; `*Hash` commitment columns keep the chain intact after erasure. The redaction event itself is logged as a chain entry. This is `docs/decisions/0006-audit-redactability.md` in practice, and it means European enterprise customers can sign a DPA with confidence.
 
@@ -401,7 +401,7 @@ The append-only, signed audit chain is the compliance moat.
 
 From the master spec: "Stripe is Stripe. Auth0 is Okta. Both carry platform baggage. A Delta Air Lines or Chase Bank will not route all agent verification through OpenAI's infrastructure — their compliance teams won't allow it."
 
-AEGIS's neutrality is not a feature, it's an architectural commitment:
+OKORO's neutrality is not a feature, it's an architectural commitment:
 - **Crypto neutrality**: Ed25519 (`@noble/ed25519`), one curve, one library. No vendor-specific crypto.
 - **Platform neutrality**: The verify algorithm runs on NestJS, Cloudflare Workers, or any JS runtime — same code via `VerifyPorts` interface.
 - **Engine neutrality**: Builtin, Cedar, OPA — operator chooses. Same denial enum, same audit chain.
@@ -439,18 +439,18 @@ AEGIS's neutrality is not a feature, it's an architectural commitment:
 | 0005 | Audit chain canonicalization | RFC 8785 JCS in `audit-chain.util.ts` |
 | 0006 | Audit redactability | `*Hash` columns + nullable PII |
 | 0007 | Transactional outbox | `OutboxEvent` + `outbox.worker.ts` |
-| 0008 | MCP as control plane | `mcp.module.ts` + `@aegis/mcp-bridge` + `@aegis/mcp-server` |
+| 0008 | MCP as control plane | `mcp.module.ts` + `@okoro/mcp-bridge` + `@okoro/mcp-server` |
 | 0009 | Auth0 bridge (IDP abstraction) | `IdpAdapter` + 3 implementations |
 | 0010 | DPoP replay prevention | `dpop.util.ts` + `AGENT_DPOP_REPLAY_ATTEMPT` signal |
 | 0011 | Key rotation via KMS | `KmsModule` + `AuditSignerService` (KMS → env → ephemeral) |
 | 0012 | Pluggable policy engine | `PolicyEngine` interface + Builtin/Cedar/OPA |
-| 0013 | PQ hybrid scaffold | `pq.util.ts` ML-DSA-65 behind `AEGIS_HYBRID_PQ_ENABLED` flag |
+| 0013 | PQ hybrid scaffold | `pq.util.ts` ML-DSA-65 behind `OKORO_HYBRID_PQ_ENABLED` flag |
 
 ### 7.3 CLAUDE.md Invariant Compliance
 
 | Invariant | Status | Where |
 |---|---|---|
-| #1 Private keys never enter AEGIS | ✅ | SDK generates locally; only pubkey sent |
+| #1 Private keys never enter OKORO | ✅ | SDK generates locally; only pubkey sent |
 | #2 Verify hot path is portable | ✅ | `verify.algorithm.ts` + `VerifyPorts` |
 | #3 Audit log append-only + signed | ✅ | `audit.service.append()` only; `AuditSignerService` |
 | #4 No silent failures | ✅ | Spend Redis error → ANOMALY_FLAGGED (fail-closed) |
@@ -535,7 +535,7 @@ Coordinate with the peer who holds the `bate.service.ts` path before editing.
 
 ### G-4 🟠 HIGH — Webhook Subscription Management Endpoints
 
-**Why high:** Customers need `aegis.agent.revoked` events. Without subscribe endpoints, the WebhookDelivery worker ships events but nobody can register to receive them.
+**Why high:** Customers need `okoro.agent.revoked` events. Without subscribe endpoints, the WebhookDelivery worker ships events but nobody can register to receive them.
 
 **Current state:** `WebhookSubscription` and `WebhookDelivery` models exist. `webhook.delivery.spec.ts` ships. The **subscribe CRUD API is not implemented**.
 
@@ -543,7 +543,7 @@ Coordinate with the peer who holds the `bate.service.ts` path before editing.
 - `POST /v1/webhooks` — create subscription (url, secret, events[])
 - `GET /v1/webhooks` — list subscriptions (principal-scoped)
 - `DELETE /v1/webhooks/:id` — remove subscription
-- HMAC-SHA256 `X-AEGIS-Signature: t=<ts>,v1=<sig>` on every delivery (Stripe parity)
+- HMAC-SHA256 `X-OKORO-Signature: t=<ts>,v1=<sig>` on every delivery (Stripe parity)
 - OD-005 default: 8 retry attempts before DLQ
 
 ---
@@ -567,7 +567,7 @@ Bloomberg-density layout (per operator preference in `CLAUDE.md`): MetricStrip h
 
 **Why medium:** The `spec-sync.yml` CI workflow references this script on job 1 but the file doesn't exist. The denial-precedence job (job 3) runs without it.
 
-**What to build:** Walk `AEGIS_API_SPEC.yaml` request/response schemas and check they have a corresponding Zod schema in `packages/types/src/schemas.ts`. Fail on missing or shape-mismatched schemas.
+**What to build:** Walk `OKORO_API_SPEC.yaml` request/response schemas and check they have a corresponding Zod schema in `packages/types/src/schemas.ts`. Fail on missing or shape-mismatched schemas.
 
 ---
 
@@ -581,9 +581,9 @@ Bloomberg-density layout (per operator preference in `CLAUDE.md`): MetricStrip h
 
 ### G-8 🟡 MEDIUM — OpenAPI Denial-Reason Enum Order Fix
 
-**Why medium:** `AEGIS_API_SPEC.yaml` lines 572–581 list denial reasons alphabetically. CLAUDE.md invariant #6 mandates canonical precedence order. The CLI renders canonical; the spec must match for client code generators.
+**Why medium:** `OKORO_API_SPEC.yaml` lines 572–581 list denial reasons alphabetically. CLAUDE.md invariant #6 mandates canonical precedence order. The CLI renders canonical; the spec must match for client code generators.
 
-**Fix:** Reorder the denial enum in `AEGIS_API_SPEC.yaml` to match `AGENT_NOT_FOUND → AGENT_REVOKED → INVALID_SIGNATURE → POLICY_REVOKED → POLICY_EXPIRED → SCOPE_NOT_GRANTED → SPEND_LIMIT_EXCEEDED → TRUST_SCORE_TOO_LOW → ANOMALY_FLAGGED`.
+**Fix:** Reorder the denial enum in `OKORO_API_SPEC.yaml` to match `AGENT_NOT_FOUND → AGENT_REVOKED → INVALID_SIGNATURE → POLICY_REVOKED → POLICY_EXPIRED → SCOPE_NOT_GRANTED → SPEND_LIMIT_EXCEEDED → TRUST_SCORE_TOO_LOW → ANOMALY_FLAGGED`.
 
 ---
 
@@ -591,17 +591,17 @@ Bloomberg-density layout (per operator preference in `CLAUDE.md`): MetricStrip h
 
 **What:** `@Cron` decorators on `OnboardingBackfill` require `@nestjs/schedule` module to be imported in `app.module.ts`. Currently the cron fires via admin endpoint only.
 
-**Fix:** `pnpm add @nestjs/schedule -F @aegis/api` + add `ScheduleModule.forRoot()` to `app.module.ts` imports.
+**Fix:** `pnpm add @nestjs/schedule -F @okoro/api` + add `ScheduleModule.forRoot()` to `app.module.ts` imports.
 
 ---
 
 ### G-10 🟢 LOW — Manual OTel Spans on Critical Paths
 
 `initTracing()` covers auto-instrumentation (HTTP, PG, Redis). Manual spans needed for:
-- `aegis.verify.algorithm` — the core hot path
-- `aegis.audit.chain.append` — audit write latency
-- `aegis.kms.<provider>.<op>` — KMS latency visibility
-- `aegis.policy.engine.<id>.eval` — engine latency
+- `okoro.verify.algorithm` — the core hot path
+- `okoro.audit.chain.append` — audit write latency
+- `okoro.kms.<provider>.<op>` — KMS latency visibility
+- `okoro.policy.engine.<id>.eval` — engine latency
 
 Add `tracer.startActiveSpan(...)` calls in the relevant files. Non-blocking for first customer.
 
@@ -630,8 +630,8 @@ The remaining 10 ODs are either: (a) locked defaults that ship if silent, (b) re
 
 These are hardwired into `CLAUDE.md`. Every PR touching the relevant paths must explicitly verify these:
 
-**INVARIANT 1 — Private keys never enter AEGIS.**  
-The SDK generates keypairs client-side. `generateKeypair()` returns `{ privateKey, publicKey }`. Only `publicKey` is sent to the API. The `@aegis/sdk` crypto functions and the Go CLI's `--generate-keypair` flag both enforce this. Never add a private key field to any API endpoint.
+**INVARIANT 1 — Private keys never enter OKORO.**  
+The SDK generates keypairs client-side. `generateKeypair()` returns `{ privateKey, publicKey }`. Only `publicKey` is sent to the API. The `@okoro/sdk` crypto functions and the Go CLI's `--generate-keypair` flag both enforce this. Never add a private key field to any API endpoint.
 
 **INVARIANT 2 — The verify hot path is portable.**  
 `apps/api/src/modules/verify/algorithm/verify.algorithm.ts` and everything it imports must have zero NestJS / Prisma / ioredis / Node-specific imports. If you add an import to `verify.algorithm.ts`, the new import must also be free of those dependencies. The CI will catch it at build time for the CF Worker — `workers/cf-verify/` imports the algorithm directly.
@@ -646,7 +646,7 @@ If Redis is down during spend check → fail closed with ANOMALY_FLAGGED, not a 
 Every service method takes `principalId` as the first argument. Every Prisma query includes `where: { principalId }` or an equivalent. RLS provides a belt to the suspenders. Never expose data from one tenant to another.
 
 **INVARIANT 6 — Denial precedence is fixed and ordered.**  
-`AGENT_NOT_FOUND → AGENT_REVOKED → INVALID_SIGNATURE → POLICY_REVOKED → POLICY_EXPIRED → SCOPE_NOT_GRANTED → SPEND_LIMIT_EXCEEDED → TRUST_SCORE_TOO_LOW → ANOMALY_FLAGGED`. The `spec-sync.yml` CI job 3 validates this is byte-identical across `verify.algorithm.ts`, `packages/verifier-rp/src/types.ts`, and `AEGIS_API_SPEC.yaml`. Do not change without an ADR + API version bump.
+`AGENT_NOT_FOUND → AGENT_REVOKED → INVALID_SIGNATURE → POLICY_REVOKED → POLICY_EXPIRED → SCOPE_NOT_GRANTED → SPEND_LIMIT_EXCEEDED → TRUST_SCORE_TOO_LOW → ANOMALY_FLAGGED`. The `spec-sync.yml` CI job 3 validates this is byte-identical across `verify.algorithm.ts`, `packages/verifier-rp/src/types.ts`, and `OKORO_API_SPEC.yaml`. Do not change without an ADR + API version bump.
 
 ---
 
@@ -657,7 +657,7 @@ This codebase runs with multiple parallel Claude sessions. Coordination is via `
 ### Before you touch any file:
 
 1. **Read `WORK_BOARD.md`** — check status of every module in your intended path.
-2. **Run `claude-peers claim aegis <module-id>`** — flip STATUS to `claimed by <sid>`.
+2. **Run `claude-peers claim okoro <module-id>`** — flip STATUS to `claimed by <sid>`.
 3. **Check conflict zones** — `apps/api/src/modules/bate/bate.service.ts`, `apps/api/src/app.module.ts`, `apps/api/prisma/schema.prisma`, `docs/SECURITY.md`, `docs/ARCHITECTURE.md` are SHARED files. Coordinate before claiming.
 4. **Stay in your paths** — each module lists its owned paths. Use `claude-peers msg` to negotiate cross-boundary touches.
 5. **On completion** — append to `docs/SESSION_HANDOFF.md` (newest at top), release claim.
@@ -678,7 +678,7 @@ All claims from Rounds 6–10 released. The board is open.
 
 ## 12. The Path to Gate 1: $500 MRR Sprint
 
-Gate 1 condition: first paying developer customer, demonstrable `aegis.verify()` integration in production.
+Gate 1 condition: first paying developer customer, demonstrable `okoro.verify()` integration in production.
 
 **Sprint checklist (estimated 2–3 sessions):**
 
@@ -697,7 +697,7 @@ Gate 1 condition: first paying developer customer, demonstrable `aegis.verify()`
 - ✅ Pure portable verify algorithm (CF Workers ready)
 - ✅ Signed audit chain (SOC2 artifact ready)
 - ✅ TypeScript + Python SDKs
-- ✅ Drop-in RP verifier (`@aegis/verifier-rp`)
+- ✅ Drop-in RP verifier (`@okoro/verifier-rp`)
 - ✅ Go CLI with `--json` mode (CI-scriptable)
 - ✅ MCP server + bridge (distribution wedge)
 - ✅ KMS key rotation (enterprise-ready)
@@ -718,7 +718,7 @@ This bar is non-negotiable per `CLAUDE.md` §Quality bar:
 [ ] No `any` without a // type-rationale: prefix comment
 [ ] noUncheckedIndexedAccess respected (don't widen at apps/api level)
 [ ] Every new public service method has a unit test OR // untestable: <reason>
-[ ] Errors are AegisError subclasses from apps/api/src/common/errors/
+[ ] Errors are OkoroError subclasses from apps/api/src/common/errors/
 [ ] Constants live in packages/types/src/constants.ts, not in service files
 [ ] No Math.random() in production code paths
 [ ] Crypto code has a paired .spec.ts — NO exceptions

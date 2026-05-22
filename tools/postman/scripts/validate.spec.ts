@@ -1,7 +1,7 @@
 // Vitest spec for the Postman collection validator.
 //
 // Strategy: we exercise the validator against (a) the real, shipped
-// collection at `tools/postman/aegis.collection.json` — which must pass
+// collection at `tools/postman/okoro.collection.json` — which must pass
 // — and (b) a small set of programmatically-mutated copies that each
 // trigger one specific failure path.
 //
@@ -22,7 +22,7 @@ import {
 } from './validate.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const COLLECTION_PATH = resolve(HERE, '..', 'aegis.collection.json');
+const COLLECTION_PATH = resolve(HERE, '..', 'okoro.collection.json');
 
 interface MutableCollection {
   info: { schema: string };
@@ -44,7 +44,7 @@ function loadCollection(): MutableCollection {
 }
 
 function writeTemp(name: string, doc: unknown): string {
-  const dir = mkdtempSync(join(tmpdir(), 'aegis-postman-'));
+  const dir = mkdtempSync(join(tmpdir(), 'okoro-postman-'));
   const path = join(dir, name);
   writeFileSync(path, JSON.stringify(doc, null, 2), 'utf8');
   return path;
@@ -97,12 +97,12 @@ describe('Postman collection validator', () => {
     const req = folder?.item?.find((r) => r.name === 'List agents');
     expect(req).toBeDefined();
     req!.request!.header = [
-      { key: 'X-AEGIS-API-Key', value: 'aegis_LITERALLEAKEDabcdef123456' },
+      { key: 'X-OKORO-API-Key', value: 'okoro_LITERALLEAKEDabcdef123456' },
     ];
     const path = writeTemp('leaked-key.json', doc);
     const result = runValidate(path);
     expect(result.ok).toBe(false);
-    expect(result.errors.join('\n')).toMatch(/literal aegis api key/);
+    expect(result.errors.join('\n')).toMatch(/literal okoro api key/);
   });
 
   it('flags a literal Bearer token anywhere in the document', () => {
@@ -148,7 +148,7 @@ describe('Postman collection validator', () => {
   });
 
   it('flags an unparseable collection', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'aegis-postman-'));
+    const dir = mkdtempSync(join(tmpdir(), 'okoro-postman-'));
     const path = join(dir, 'bad.json');
     writeFileSync(path, '{ not valid json', 'utf8');
     const result = runValidate(path);

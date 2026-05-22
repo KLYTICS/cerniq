@@ -2,7 +2,7 @@
 # 15-rebrand-domain-to-okoroapp.sh — second-pass domain rebrand.
 #
 # Background: 10-rename-checkout.sh applied a case-preserving text
-# substitution that converted `aegislabs.io` (the historical apex) to
+# substitution that converted `okorolabs.io` (the historical apex) to
 # `okorolabs.io` (the mechanical default). The operator's chosen apex
 # is `okoroapp.com` (see OPERATOR_DECISIONS.md OD-024, DECIDED
 # 2026-05-21). This script executes that decision as a separate pass
@@ -19,7 +19,7 @@
 #   - OPERATOR_DECISIONS.md           (OD-024 row + cross-ref)
 #   - docs/SESSION_HANDOFF.md         (cloudflare-rename-sync-pass entry)
 #   - RENAME_IN_PROGRESS.md           (active rename notice)
-#   - scripts/rename-aegis-to-okoro/  (this kit; including this script)
+#   - scripts/rename-okoro-to-okoro/  (this kit; including this script)
 #
 # Idempotent: running twice is a no-op. Safe to call directly or via
 # run.sh between 10-rename-checkout and 40-emit-prisma-migration.
@@ -54,7 +54,7 @@ fi
 echo "[rebrand-domain] [1/2] substituting $OLD → $NEW"
 
 git ls-files \
-  | grep -Ev '^(docs/decisions/0021-|WORK_BOARD\.md$|OPERATOR_DECISIONS\.md$|docs/SESSION_HANDOFF\.md$|RENAME_IN_PROGRESS\.md$|scripts/rename-aegis-to-okoro/)' \
+  | grep -Ev '^(docs/decisions/0021-|WORK_BOARD\.md$|OPERATOR_DECISIONS\.md$|docs/SESSION_HANDOFF\.md$|RENAME_IN_PROGRESS\.md$|scripts/rename-okoro-to-okoro/)' \
   | grep -Ev '^(apps/api/prisma/migrations/|pnpm-lock\.yaml$|\.yarn/|node_modules/|dist/|build/|\.next/|\.turbo/|coverage/)' \
   | grep -Ev '\.(png|jpg|jpeg|gif|ico|webp|pdf|docx|xlsx|pptx|woff2?|ttf|otf|eot|zip|tar|gz|bz2|7z|mp3|mp4|mov|webm|class|jar|so|dylib|dll|exe|wasm)$' \
   | while IFS= read -r f; do

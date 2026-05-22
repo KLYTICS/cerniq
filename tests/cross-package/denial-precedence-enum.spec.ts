@@ -9,11 +9,11 @@
 // The enum lives on (at least) four surfaces. This test confirms they
 // agree:
 //
-//   1. @aegis/types DENIAL_REASON_PRECEDENCE       (canonical SOURCE)
+//   1. @okoro/types DENIAL_REASON_PRECEDENCE       (canonical SOURCE)
 //   2. apps/api engine.interface DenialReason      (must EXACT-match)
-//   3. docs/spec/AEGIS_API_SPEC.yaml VerifyResponse.denialReason
+//   3. docs/spec/OKORO_API_SPEC.yaml VerifyResponse.denialReason
 //                                                  (must EXACT-match)
-//   4. @aegis/verifier-rp DenialReason             (must SUPERSET; may
+//   4. @okoro/verifier-rp DenialReason             (must SUPERSET; may
 //                                                   add REPLAY_DETECTED
 //                                                   for RP observability
 //                                                   per M-016 design)
@@ -52,7 +52,7 @@ function extractUnionMembers(filePath: string, typeName: string): string[] {
 
 /** Extract the OpenAPI denialReason enum members in declared order. */
 function extractOpenApiDenialEnum(): string[] {
-  const yaml = readFileSync(join(REPO_ROOT, 'docs', 'spec', 'AEGIS_API_SPEC.yaml'), 'utf8');
+  const yaml = readFileSync(join(REPO_ROOT, 'docs', 'spec', 'OKORO_API_SPEC.yaml'), 'utf8');
   // Find the `denialReason:` block in VerifyResponse, then walk lines
   // until we leave the enum: list. A regex is sufficient — yaml
   // formatting in the spec is consistent.
@@ -122,7 +122,7 @@ describe('denial-reason enum parity (CLAUDE.md invariant 6)', () => {
     expect(apiSpecEnum[0]).toBe('PLAN_LIMIT_EXCEEDED');
   });
 
-  it('@aegis/verifier-rp DenialReason is a SUPERSET of canonical (REPLAY_DETECTED extra is allowed by design)', () => {
+  it('@okoro/verifier-rp DenialReason is a SUPERSET of canonical (REPLAY_DETECTED extra is allowed by design)', () => {
     const verifierRpMembers = extractUnionMembers(
       join(REPO_ROOT, 'packages', 'verifier-rp', 'src', 'types.ts'),
       'DenialReason',
@@ -161,7 +161,7 @@ describe('denial-reason enum parity (CLAUDE.md invariant 6)', () => {
     );
     const universe = new Set<string>([...apiSpecEnum, ...engineMembers, ...verifierRpMembers, ...CANONICAL]);
     // PLAN_LIMIT_EXCEEDED is the documented wire-level pre-gate: it appears
-    // in the OpenAPI surface (and in @aegis/types DENIAL_REASON_PRECEDENCE
+    // in the OpenAPI surface (and in @okoro/types DENIAL_REASON_PRECEDENCE
     // at position 0 — the unfiltered version) but not in the algorithm-chain
     // surfaces. REPLAY_DETECTED is the documented verifier-rp observability
     // extra (M-016 design).

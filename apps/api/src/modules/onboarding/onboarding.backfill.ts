@@ -24,7 +24,7 @@
 //
 // This module is wired in OnboardingModule's providers list and uses
 // `@nestjs/schedule` Cron decorators when available; otherwise the
-// operator triggers it via `aegis-cli onboarding backfill` (M-027).
+// operator triggers it via `okoro-cli onboarding backfill` (M-027).
 
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
@@ -43,7 +43,7 @@ try {
 }
 
 /**
- * Result of a backfill run. Operators surface this in `aegis doctor`.
+ * Result of a backfill run. Operators surface this in `okoro doctor`.
  */
 export interface BackfillReport {
   ranAt: string;
@@ -80,9 +80,9 @@ export class OnboardingBackfill implements OnModuleInit {
    * Periodic reconciler. Default cadence: every 5 minutes — fast enough
    * to keep the dashboard wizard feeling live, slow enough to not
    * thrash on principals with no recent activity. Operators tune via
-   * `AEGIS_ONBOARDING_BACKFILL_CRON` if needed.
+   * `OKORO_ONBOARDING_BACKFILL_CRON` if needed.
    */
-  @Cron(process.env.AEGIS_ONBOARDING_BACKFILL_CRON ?? '*/5 * * * *')
+  @Cron(process.env.OKORO_ONBOARDING_BACKFILL_CRON ?? '*/5 * * * *')
   async runScheduled(): Promise<void> {
     try {
       await this.run();

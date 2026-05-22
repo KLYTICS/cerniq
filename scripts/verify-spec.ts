@@ -1,10 +1,10 @@
 #!/usr/bin/env -S node --import=tsx
 /**
- * AEGIS — contract drift gate.
+ * OKORO — contract drift gate.
  *
  * Compares three declarations of the same contract:
  *
- *   docs/spec/AEGIS_API_SPEC.yaml      (publicly committed)
+ *   docs/spec/OKORO_API_SPEC.yaml      (publicly committed)
  *   packages/types/src/schemas.ts      (runtime Zod source of truth)
  *   apps/api/prisma/schema.prisma      (persistence enums)
  *
@@ -16,7 +16,7 @@
  *
  * Exit code 0 = full parity; 1 = drift. CI gates merges on this.
  *
- *   pnpm --filter @aegis/scripts verify-spec -- --strict --json
+ *   pnpm --filter @okoro/scripts verify-spec -- --strict --json
  */
 
 import { readFile } from 'node:fs/promises';
@@ -28,11 +28,11 @@ import { Command } from 'commander';
 import yaml from 'yaml';
 import { z, ZodObject, ZodEnum, type ZodTypeAny } from 'zod';
 
-import * as TypeSchemas from '@aegis/types/schemas';
+import * as TypeSchemas from '@okoro/types/schemas';
 
 const __filename = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(__filename), '..');
-const SPEC_PATH = join(REPO_ROOT, 'docs/spec/AEGIS_API_SPEC.yaml');
+const SPEC_PATH = join(REPO_ROOT, 'docs/spec/OKORO_API_SPEC.yaml');
 const PRISMA_PATH = join(REPO_ROOT, 'apps/api/prisma/schema.prisma');
 
 // ── Types ─────────────────────────────────────────────────────────
@@ -248,7 +248,7 @@ export function parsePrismaEnums(source: string): Map<string, string[]> {
  *   Prisma `PolicyStatus`    → Zod `PolicyStatusSchema`
  *   Prisma `AgentStatus`     → Zod `AgentStatusSchema`  (note: collides with
  *                              the response schema of the same Zod name)
- * Returns null if no matching ZodEnum is found in @aegis/types/schemas.
+ * Returns null if no matching ZodEnum is found in @okoro/types/schemas.
  */
 export function findZodEnum(prismaName: string): ZodEnum<[string, ...string[]]> | null {
   const exportsMap = TypeSchemas as Record<string, unknown>;

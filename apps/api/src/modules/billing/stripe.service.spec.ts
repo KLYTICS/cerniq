@@ -6,7 +6,7 @@
 
 import { Logger } from '@nestjs/common';
 
-import { ServiceUnavailableError, ValidationError } from '../../common/errors/aegis-error';
+import { ServiceUnavailableError, ValidationError } from '../../common/errors/okoro-error';
 
 import {
   StripeService,
@@ -238,8 +238,8 @@ describe('StripeService', () => {
         svc.createCheckoutSession({
           principalId: 'p1',
           planTier: 'DEVELOPER',
-          successUrl: 'https://aegis.test/ok',
-          cancelUrl: 'https://aegis.test/no',
+          successUrl: 'https://okoro.test/ok',
+          cancelUrl: 'https://okoro.test/no',
         }),
       ).rejects.toBeInstanceOf(ServiceUnavailableError);
     });
@@ -254,8 +254,8 @@ describe('StripeService', () => {
         svc.createCheckoutSession({
           principalId: 'p1',
           planTier: 'FREE',
-          successUrl: 'https://aegis.test/ok',
-          cancelUrl: 'https://aegis.test/no',
+          successUrl: 'https://okoro.test/ok',
+          cancelUrl: 'https://okoro.test/no',
         }),
       ).rejects.toBeInstanceOf(ValidationError);
     });
@@ -270,8 +270,8 @@ describe('StripeService', () => {
         svc.createCheckoutSession({
           principalId: 'p1',
           planTier: 'ENTERPRISE',
-          successUrl: 'https://aegis.test/ok',
-          cancelUrl: 'https://aegis.test/no',
+          successUrl: 'https://okoro.test/ok',
+          cancelUrl: 'https://okoro.test/no',
         }),
       ).rejects.toBeInstanceOf(ValidationError);
     });
@@ -279,15 +279,15 @@ describe('StripeService', () => {
     it('creates customer + session for DEVELOPER tier and passes metadata.principalId', async () => {
       const { svc, fakeStripe, prisma } = build({
         principals: [
-          { id: 'p1', email: 'erwin@aegis.test', planTier: 'FREE', stripeCustomerId: null, stripeSubscriptionId: null },
+          { id: 'p1', email: 'erwin@okoro.test', planTier: 'FREE', stripeCustomerId: null, stripeSubscriptionId: null },
         ],
       });
 
       const out = await svc.createCheckoutSession({
         principalId: 'p1',
         planTier: 'DEVELOPER',
-        successUrl: 'https://aegis.test/ok',
-        cancelUrl: 'https://aegis.test/no',
+        successUrl: 'https://okoro.test/ok',
+        cancelUrl: 'https://okoro.test/no',
       });
       expect(out.url).toBe('https://stripe.test/checkout/cs_test_1');
       expect(fakeStripe.customers.create).toHaveBeenCalledTimes(1);
@@ -296,7 +296,7 @@ describe('StripeService', () => {
       expect(sessionArgs.client_reference_id).toBe('p1');
       expect(sessionArgs.line_items[0].price).toBe('price_dev');
       // Customer id persisted on the principal.
-      expect(prisma.rows.get('p1')?.stripeCustomerId).toBe('cus_for_erwin@aegis.test');
+      expect(prisma.rows.get('p1')?.stripeCustomerId).toBe('cus_for_erwin@okoro.test');
     });
 
     it('reuses existing principal.stripeCustomerId', async () => {
@@ -304,7 +304,7 @@ describe('StripeService', () => {
         principals: [
           {
             id: 'p1',
-            email: 'erwin@aegis.test',
+            email: 'erwin@okoro.test',
             planTier: 'FREE',
             stripeCustomerId: 'cus_existing',
             stripeSubscriptionId: null,
@@ -315,8 +315,8 @@ describe('StripeService', () => {
       await svc.createCheckoutSession({
         principalId: 'p1',
         planTier: 'DEVELOPER',
-        successUrl: 'https://aegis.test/ok',
-        cancelUrl: 'https://aegis.test/no',
+        successUrl: 'https://okoro.test/ok',
+        cancelUrl: 'https://okoro.test/no',
       });
       expect(fakeStripe.customers.create).not.toHaveBeenCalled();
       const sessionArgs = fakeStripe.checkout.sessions.create.mock.calls[0][0];
@@ -362,7 +362,7 @@ describe('StripeService', () => {
         principals: [
           {
             id: 'p1',
-            email: 'erwin@aegis.test',
+            email: 'erwin@okoro.test',
             planTier: 'FREE',
             stripeCustomerId: null,
             stripeSubscriptionId: null,
@@ -680,12 +680,12 @@ describe('StripeService', () => {
       });
       const out = await svc.createPortalSession(
         'p1',
-        'https://app.aegislabs.io/billing/back',
+        'https://app.okorolabs.io/billing/back',
       );
       expect(out.url).toBe('https://billing.stripe.test/p/cus_existing');
       expect(fakeStripe.billingPortal.sessions.create).toHaveBeenCalledWith({
         customer: 'cus_existing',
-        return_url: 'https://app.aegislabs.io/billing/back',
+        return_url: 'https://app.okorolabs.io/billing/back',
       });
     });
 
@@ -702,7 +702,7 @@ describe('StripeService', () => {
         ],
       });
       await expect(
-        svc.createPortalSession('p1', 'https://app.aegislabs.io/back'),
+        svc.createPortalSession('p1', 'https://app.okorolabs.io/back'),
       ).rejects.toBeInstanceOf(ValidationError);
     });
 
@@ -720,7 +720,7 @@ describe('StripeService', () => {
         ],
       });
       await expect(
-        svc.createPortalSession('p1', 'https://app.aegislabs.io/back'),
+        svc.createPortalSession('p1', 'https://app.okorolabs.io/back'),
       ).rejects.toBeInstanceOf(ServiceUnavailableError);
     });
   });

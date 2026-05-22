@@ -28,7 +28,7 @@ const HEADER_B64 = b64uEncode(enc.encode(JSON.stringify({ alg: 'EdDSA', typ: 'JW
 
 /**
  * Generate a fresh Ed25519 keypair. Both halves are returned in base64url
- * (32 bytes each). Persist the private key client-side; AEGIS never receives it.
+ * (32 bytes each). Persist the private key client-side; OKORO never receives it.
  */
 export async function generateKeypair(): Promise<{ publicKey: string; privateKey: string }> {
   const priv = ed.utils.randomPrivateKey();
@@ -74,12 +74,12 @@ export async function signAgentToken(
  * Sign a handshake challenge issued by `POST /v1/agents/:id/challenge`.
  *
  * The server returns a `message` string of the form
- * `aegis-handshake-v1::{agentId}::{challenge}`. Sign those exact UTF-8 bytes
+ * `okoro-handshake-v1::{agentId}::{challenge}`. Sign those exact UTF-8 bytes
  * with the agent's Ed25519 private key and post the resulting signature back
  * to `POST /v1/agents/:id/verify-handshake` to prove proof-of-possession.
  *
- * Domain separation: the `aegis-handshake-v1::` prefix prevents this signature
- * from being meaningful in any other AEGIS sub-protocol (verify-token JWTs sign
+ * Domain separation: the `okoro-handshake-v1::` prefix prevents this signature
+ * from being meaningful in any other OKORO sub-protocol (verify-token JWTs sign
  * different bytes), so the same private key is safe to use for both flows.
  */
 export async function signHandshake(

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  AEGIS Wordmark — Stacked / Vertical Lockup
+  OKORO Wordmark — Stacked / Vertical Lockup
   —
   Mark above wordmark with the descriptor below. Use for square
   social avatars, app icons, vertical sidebars, and stamp moments
@@ -35,7 +35,7 @@
         text-anchor="middle"
         font-family="'Inter Tight', 'Inter', system-ui, sans-serif"
         font-size="32" font-weight="600" letter-spacing="5"
-        fill="#F4F6FF">AEGIS</text>
+        fill="#F4F6FF">OKORO</text>
 
   <text x="120" y="190"
         text-anchor="middle"

@@ -12,7 +12,7 @@
 // keep one regression guard ("FREE tier never fires PLAN_LIMIT_EXCEEDED").
 //
 // Hot path design:
-//   - Redis INCR on `aegis:usage:{principalId}:{monthKey}` is the fast
+//   - Redis INCR on `okoro:usage:{principalId}:{monthKey}` is the fast
 //     path. The counter auto-expires at start of next month (plus 1-day
 //     buffer to survive DST edge cases).
 //   - On Redis miss (first call of the month or after Redis eviction) we
@@ -58,8 +58,8 @@ function secondsUntilEndOfMonth(): number {
 export class UsageGuardService {
   private readonly logger = new Logger(UsageGuardService.name);
 
-  private readonly USAGE_PREFIX = 'aegis:usage';
-  private readonly PLAN_PREFIX = 'aegis:plan';
+  private readonly USAGE_PREFIX = 'okoro:usage';
+  private readonly PLAN_PREFIX = 'okoro:plan';
   /** Cache the principal's planTier for 5 minutes to avoid DB reads on every call. */
   private readonly PLAN_CACHE_TTL = 300;
 

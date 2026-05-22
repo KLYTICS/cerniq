@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Agent Role Briefs
+title: OKORO — Agent Role Briefs
 audience: every Claude session, every human contributor; mandatory at session-start
 last-reviewed: 2026-05-08
 status: source-of-truth — v1
@@ -24,7 +24,7 @@ status: source-of-truth — v1
 - Every session opens by reading this file's row for the role being
   occupied. The row is short by design — read it.
 - A claim on `WORK_BOARD.md` declares both the module and the role
-  (`claude-peers claim aegis M-XYZ --role implementer --note "..."`).
+  (`claude-peers claim okoro M-XYZ --role implementer --note "..."`).
 - A handoff in `docs/SESSION_HANDOFF.md` declares the role transition
   if any (e.g. "Implementer→Reviewer for self-review on M-XYZ").
 - The role brief defines the *minimum* expectations. Departmental
@@ -412,8 +412,8 @@ precedence questions.
   sources verbatim or not at all.
 - Publishing speculative roadmap items as fact in customer-facing
   docs.
-- Documentation that tells the reader what AEGIS *will* do; documentation
-  describes what AEGIS *does* unless explicitly bracketed.
+- Documentation that tells the reader what OKORO *will* do; documentation
+  describes what OKORO *does* unless explicitly bracketed.
 
 ---
 
@@ -426,7 +426,7 @@ pre-IPO institutional muscle.
 - `01_DEPARTMENT_CHARTERS.md` § Compliance & Risk.
 - `docs/COMPLIANCE.md`, `docs/COMPLIANCE_BUNDLE.md`.
 - `docs/EU_RESIDENCY.md`, `docs/RETENTION_POLICY.md`.
-- The status of every control claim AEGIS makes externally.
+- The status of every control claim OKORO makes externally.
 - `05_PUBLIC_COMPANY_READINESS.md` (this OS).
 
 **Tool allowlist.**
@@ -504,7 +504,7 @@ artifacts investors and the board consume.
 - An investor due-diligence partner can reach what they need from the
   data room without back-and-forth.
 - A board member asking about a metric gets a number with a source link.
-- A prospective acquirer finds AEGIS S-1-ready in 24 months.
+- A prospective acquirer finds OKORO S-1-ready in 24 months.
 
 **Escalation paths.**
 - If an investor asks for confidential customer data: route to Legal +
@@ -550,7 +550,7 @@ transitions roles re-reads the new role's context bundle.
 
 ## Multi-role sessions and segregation of duties
 
-Some humans hold multiple roles. The operator at AEGIS today plausibly
+Some humans hold multiple roles. The operator at OKORO today plausibly
 holds Architect, Reviewer, and IR roles simultaneously. This is normal
 in a small company.
 

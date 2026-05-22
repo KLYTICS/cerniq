@@ -1,4 +1,4 @@
-// `aegis mcp install` — writes an `aegis-mcp` entry into the host's MCP
+// `okoro mcp install` — writes an `okoro-mcp` entry into the host's MCP
 // config. Supports Claude Desktop and Cursor.
 
 import { existsSync } from 'node:fs';
@@ -35,11 +35,11 @@ function configPath(host: Host): string {
 
 export async function mcpInstall(opts: { host?: Host; serverName?: string; force?: boolean }): Promise<void> {
   const host = opts.host ?? 'claude-desktop';
-  const name = opts.serverName ?? 'aegis';
+  const name = opts.serverName ?? 'okoro';
   const path = configPath(host);
   const creds = await resolveCredentials();
   if (!creds) {
-    err('not logged in — run `aegis bootstrap` first.');
+    err('not logged in — run `okoro bootstrap` first.');
     process.exit(1);
   }
 
@@ -49,7 +49,7 @@ export async function mcpInstall(opts: { host?: Host; serverName?: string; force
       cfg = JSON.parse(await readFile(path, 'utf8')) as McpConfig;
     } catch {
       warn(`existing ${path} is not valid JSON; backing up and starting fresh.`);
-      await writeFile(`${path}.aegis-backup.${Date.now()}`, await readFile(path, 'utf8'));
+      await writeFile(`${path}.okoro-backup.${Date.now()}`, await readFile(path, 'utf8'));
     }
   } else {
     await mkdir(join(path, '..'), { recursive: true });
@@ -63,11 +63,11 @@ export async function mcpInstall(opts: { host?: Host; serverName?: string; force
 
   cfg.mcpServers[name] = {
     command: 'npx',
-    args: ['-y', '@aegis/mcp-server'],
-    env: { AEGIS_API_KEY: creds.apiKey, AEGIS_BASE_URL: creds.baseUrl },
+    args: ['-y', '@okoro/mcp-server'],
+    env: { OKORO_API_KEY: creds.apiKey, OKORO_BASE_URL: creds.baseUrl },
   };
 
   await writeFile(path, JSON.stringify(cfg, null, 2) + '\n', 'utf8');
-  ok(`installed @aegis/mcp-server into ${host} at ${path}`);
+  ok(`installed @okoro/mcp-server into ${host} at ${path}`);
   info(`Restart ${host} to pick up the change.`);
 }

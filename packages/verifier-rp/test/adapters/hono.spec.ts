@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { aegisHonoMiddleware } from '../../src/adapters/hono.js';
-import { AegisVerifier } from '../../src/verifier.js';
+import { okoroHonoMiddleware } from '../../src/adapters/hono.js';
+import { OkoroVerifier } from '../../src/verifier.js';
 import { generateKeypair, signTestToken } from '../_helpers/sign.js';
 
 function fakeRes(json: unknown): Response {
@@ -27,24 +27,24 @@ describe('hono adapter', () => {
         trustBand: 'VERIFIED',
       }),
     );
-    const verifier = new AegisVerifier({
+    const verifier = new OkoroVerifier({
       baseUrl: 'https://api.example.com/v1',
       getAgentPublicKey: async () => publicKey,
       fetch: fetchMock as unknown as typeof globalThis.fetch,
     });
     const app = new Hono();
-    app.use('*', aegisHonoMiddleware({ verifier }));
+    app.use('*', okoroHonoMiddleware({ verifier }));
     app.get('/p', (c) => {
       // type-rationale: variables map is dynamic at runtime.
-      const aegis = c.get('aegis' as never) as { agentId: string };
-      return c.json({ agentId: aegis.agentId });
+      const okoro = c.get('okoro' as never) as { agentId: string };
+      return c.json({ agentId: okoro.agentId });
     });
 
     const token = await signTestToken(privateKey, 'agt_a', 'pol_a', {
       action: 'commerce.purchase',
     });
     const res = await app.request('/p', {
-      headers: { 'X-AEGIS-Token': token },
+      headers: { 'X-OKORO-Token': token },
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { agentId: string };
@@ -54,13 +54,13 @@ describe('hono adapter', () => {
   it('returns 401 when token missing', async () => {
     const { publicKey } = await generateKeypair();
     const fetchMock = vi.fn(async () => fakeRes({}));
-    const verifier = new AegisVerifier({
+    const verifier = new OkoroVerifier({
       baseUrl: 'https://api.example.com/v1',
       getAgentPublicKey: async () => publicKey,
       fetch: fetchMock as unknown as typeof globalThis.fetch,
     });
     const app = new Hono();
-    app.use('*', aegisHonoMiddleware({ verifier }));
+    app.use('*', okoroHonoMiddleware({ verifier }));
     app.get('/p', (c) => c.json({ ok: true }));
     const res = await app.request('/p');
     expect(res.status).toBe(401);

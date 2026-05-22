@@ -9,9 +9,9 @@ import (
 
 	jose "github.com/go-jose/go-jose/v4"
 	"github.com/go-jose/go-jose/v4/jwt"
-	"github.com/klytics/aegis/packages/cli/internal/client"
-	"github.com/klytics/aegis/packages/cli/internal/cliutil"
-	"github.com/klytics/aegis/packages/cli/internal/ui"
+	"github.com/klytics/okoro/packages/cli/internal/client"
+	"github.com/klytics/okoro/packages/cli/internal/cliutil"
+	"github.com/klytics/okoro/packages/cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -156,7 +156,7 @@ func runPolicyCreate(cmd *cobra.Command, _ []string) error {
 	ui.Row(w, "expires at", resp.ExpiresAt.Format(time.RFC3339))
 	ui.Heading(w, "signed token (attach as Authorization: Bearer)")
 	fmt.Fprintln(w, resp.SignedToken)
-	ui.Warn(w, "the token is shown once; copy it now — AEGIS does not retain plaintext copies.")
+	ui.Warn(w, "the token is shown once; copy it now — OKORO does not retain plaintext copies.")
 	return nil
 }
 
@@ -220,7 +220,7 @@ func runPolicyRevoke(cmd *cobra.Command, args []string) error {
 // This is the same shape as `gh auth status --show-token` — useful for
 // debugging without needing the signing key. Anyone consuming the
 // inspected claims for trust decisions MUST also call /verify, which
-// is the only signature-verifying surface AEGIS publishes.
+// is the only signature-verifying surface OKORO publishes.
 func runPolicyInspect(cmd *cobra.Command, args []string) error {
 	ui.AutoDisable(cmd.OutOrStdout())
 	tok, err := jwt.ParseSigned(args[0], allowedJWTAlgs())
@@ -251,7 +251,7 @@ func runPolicyInspect(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// allowedJWTAlgs returns the closed set of signing algorithms AEGIS
+// allowedJWTAlgs returns the closed set of signing algorithms OKORO
 // emits. Per CLAUDE.md stack reality, only EdDSA (Ed25519) is in scope —
 // passing any other alg through inspect would surface a misconfigured
 // policy that wouldn't pass /verify anyway.

@@ -9,7 +9,7 @@
 //     concurrent enqueues — only one job per agent is in flight.
 //   - The worker reads the agent + recent signals, computes the score,
 //     persists `TrustScoreHistory`, invalidates Redis, and (if the band
-//     changed) emits an `aegis.agent.trust_score_changed` webhook.
+//     changed) emits an `okoro.agent.trust_score_changed` webhook.
 //   - G-3: After scoring, BateAnomalyDetector runs over the same window.
 //     Any emitted anomaly signals are persisted directly (bypasses BateService
 //     to avoid circular DI) and a follow-up recompute is enqueued so the
@@ -28,7 +28,7 @@ import { WebhooksService } from '../webhooks/webhooks.service';
 import { BateAnomalyDetector, type DetectorWindow } from './bate.anomaly';
 import { BateScorer } from './bate.scorer';
 
-export const BATE_QUEUE = 'aegis.bate';
+export const BATE_QUEUE = 'okoro.bate';
 
 interface RecomputeJobData {
   agentId: string;
@@ -246,7 +246,7 @@ export class BateRecomputeWorker implements OnModuleInit, OnModuleDestroy {
     if (newBand !== oldBand) {
       await this.webhooks.enqueue(
         {
-          type: 'aegis.agent.trust_score_changed',
+          type: 'okoro.agent.trust_score_changed',
           data: {
             agentId: data.agentId,
             score: newScore,

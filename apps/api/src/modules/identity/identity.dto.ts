@@ -142,7 +142,7 @@ export class HandshakeChallengeDto {
   @ApiProperty({
     description:
       'Domain-separator + protocol version. Bumping requires SDK coordination.',
-    example: 'aegis-handshake-v1',
+    example: 'okoro-handshake-v1',
   })
   protocolVersion!: string;
 

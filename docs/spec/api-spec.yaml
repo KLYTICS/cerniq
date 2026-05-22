@@ -1,19 +1,19 @@
 openapi: 3.1.0
 info:
-  title: AEGIS Agent Identity & Verification API
+  title: OKORO Agent Identity & Verification API
   version: 1.0.0
   description: |
-    The AEGIS API provides verified identity, scoped authorization, and behavioral
+    The OKORO API provides verified identity, scoped authorization, and behavioral
     attestation for AI agents. Neutral, platform-agnostic, ACP-compatible.
   contact:
-    email: dev@aegislabs.io
+    email: dev@okorolabs.io
   license:
     name: Proprietary
 
 servers:
-  - url: https://api.aegislabs.io/v1
+  - url: https://api.okorolabs.io/v1
     description: Production
-  - url: https://sandbox.aegislabs.io/v1
+  - url: https://sandbox.okorolabs.io/v1
     description: Sandbox
 
 tags:
@@ -39,7 +39,7 @@ paths:
       summary: Register a new agent identity
       description: |
         Creates a new agent identity record. The developer provides their Ed25519
-        public key; AEGIS never holds the private key. Returns an agentId and
+        public key; OKORO never holds the private key. Returns an agentId and
         a verification token for confirming the keypair.
       security:
         - ApiKeyAuth: []
@@ -278,11 +278,11 @@ components:
     ApiKeyAuth:
       type: apiKey
       in: header
-      name: X-AEGIS-API-Key
+      name: X-OKORO-API-Key
     PublicVerifyKey:
       type: apiKey
       in: header
-      name: X-AEGIS-Verify-Key
+      name: X-OKORO-Verify-Key
       description: Separate key for relying parties (read-only verify access)
 
   parameters:
@@ -345,7 +345,7 @@ components:
           example: "gpt-4o"
         principalId:
           type: string
-          description: Your AEGIS principal (human/org) ID
+          description: Your OKORO principal (human/org) ID
         label:
           type: string
           description: Human-readable label for this agent
@@ -439,7 +439,7 @@ components:
           type: string
         signedToken:
           type: string
-          description: JWT signed by AEGIS — attach to agent outbound requests
+          description: JWT signed by OKORO — attach to agent outbound requests
         expiresAt:
           type: string
           format: date-time
@@ -516,7 +516,7 @@ components:
       properties:
         token:
           type: string
-          description: Signed AEGIS token from the agent (JWT format)
+          description: Signed OKORO token from the agent (JWT format)
         action:
           type: string
           example: "commerce.purchase"
@@ -613,7 +613,7 @@ components:
           type: integer
         signature:
           type: string
-          description: AEGIS signature over this event (immutability proof)
+          description: OKORO signature over this event (immutability proof)
 
     AuditLogResponse:
       type: object

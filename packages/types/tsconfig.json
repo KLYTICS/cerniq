@@ -1,5 +1,5 @@
 {
-  "extends": "@aegis/tsconfig/library.json",
+  "extends": "@okoro/tsconfig/library.json",
   "compilerOptions": {
     "rootDir": "./src",
     "outDir": "./dist"

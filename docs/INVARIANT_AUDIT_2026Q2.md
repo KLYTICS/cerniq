@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Invariant audit (2026 Q2)
+title: OKORO — Invariant audit (2026 Q2)
 audited-on: 2026-05-21
 auditor: sid=busy-khorana-7281c7 (autonomous, read-only)
 scope: 3 of 8 CLAUDE.md invariants
@@ -7,7 +7,7 @@ result: PASS (3/3)
 follow-up: schedule remaining 5 invariants on next audit pass
 ---
 
-# AEGIS — Invariant audit (2026 Q2)
+# OKORO — Invariant audit (2026 Q2)
 
 This is a focused, evidence-gathering audit of three of the eight
 architecture invariants from the root `CLAUDE.md`. It complements the
@@ -24,10 +24,10 @@ expansion (M-040 … M-056, two-week sprint with ~50 modules landing).
 | - | --------- | ------ | --------------- |
 | 5 | Multi-tenant isolation by `principalId` | ✅ PASS | 140+ Prisma operations across 26 service files |
 | 4 | No silent failures / no fabricated data | ✅ PASS | verify, audit, billing, policy-engine, KMS, webhooks, edge-verify, IdP adapters |
-| 8 | Public SDKs and verifier packages runtime-portable | ✅ PASS | `@aegis/sdk`, `@aegis/verifier-rp`, `workers/cf-verify`, `@aegis/mcp-bridge` |
+| 8 | Public SDKs and verifier packages runtime-portable | ✅ PASS | `@okoro/sdk`, `@okoro/verifier-rp`, `workers/cf-verify`, `@okoro/mcp-bridge` |
 
 **Not audited this pass** (next session):
-1 (private keys never enter AEGIS), 2 (verify hot path remains portable),
+1 (private keys never enter OKORO), 2 (verify hot path remains portable),
 3 (audit events append-only and signed), 6 (denial precedence stable),
 7 (contracts generated or centrally owned).
 
@@ -133,10 +133,10 @@ Verified across the four runtime-portable packages:
 
 | Package | Crypto primitive | HTTP primitive | Portability |
 | ------- | ---------------- | -------------- | ----------- |
-| `@aegis/sdk` (sdk-ts) | `@noble/ed25519` + `@noble/hashes` (pure-JS) | `globalThis.fetch`, injected via config | Browser, edge, Node 18+ |
-| `@aegis/verifier-rp` | `@noble/ed25519` + `@noble/hashes` | `globalThis.fetch` (required config field) | Browser, CF Worker, Vercel Edge, Deno Deploy, Node 18+ |
+| `@okoro/sdk` (sdk-ts) | `@noble/ed25519` + `@noble/hashes` (pure-JS) | `globalThis.fetch`, injected via config | Browser, edge, Node 18+ |
+| `@okoro/verifier-rp` | `@noble/ed25519` + `@noble/hashes` | `globalThis.fetch` (required config field) | Browser, CF Worker, Vercel Edge, Deno Deploy, Node 18+ |
 | `workers/cf-verify` | `crypto.subtle.{importKey,verify}` (Web Crypto) | Native CF Worker | V8 isolate (Workers) |
-| `@aegis/mcp-bridge` | None (wrapper) | None (wrapper) | Runtime-agnostic |
+| `@okoro/mcp-bridge` | None (wrapper) | None (wrapper) | Runtime-agnostic |
 
 ### Gated portability patterns
 
@@ -157,7 +157,7 @@ imports outside framework adapters, ungated `Buffer` access, ungated
 
 ### M-016 commitment held
 
-`@aegis/verifier-rp`'s explicit promise (M-016) to support edge runtimes
+`@okoro/verifier-rp`'s explicit promise (M-016) to support edge runtimes
 via the Hono adapter is verified. Customers shipping the verifier in a
 Next.js edge function or Cloudflare Worker will not encounter
 "Module not found: Can't resolve 'crypto'" at build time.
@@ -169,7 +169,7 @@ this quarter. They are scheduled for the next pass:
 
 | # | Invariant | Suggested audit approach |
 | - | --------- | ------------------------ |
-| 1 | Private keys never enter AEGIS | grep API/dashboard/workers for private-key types; verify no DB column, env var, or log field carries private bytes. |
+| 1 | Private keys never enter OKORO | grep API/dashboard/workers for private-key types; verify no DB column, env var, or log field carries private bytes. |
 | 2 | `/v1/verify` hot path remains portable | Verify the worker's edge-verify and the API's verify-algorithm share the same pure decision module; no NestJS-only imports in `verify.algorithm.ts`. |
 | 3 | Audit events append-only and signed | grep `prisma.auditEvent.{update,delete}` in non-test code; should be zero. Verify the redact path nulls fields without touching hashes. |
 | 6 | Denial precedence stable | Already enforced by spec-sync gate (post-PR #32). Confirm by running the gate on a deliberate enum-reorder PR. |
@@ -179,7 +179,7 @@ this quarter. They are scheduled for the next pass:
 
 None required. This audit is informational evidence that the load-bearing
 invariants hold post-M-056 churn. If a customer or auditor asks for proof
-that AEGIS enforces tenant isolation, fails honestly, or runs in their
+that OKORO enforces tenant isolation, fails honestly, or runs in their
 edge runtime, this document is the citeable artifact.
 
 If a future change is suspected of violating any of these three invariants,

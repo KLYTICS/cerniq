@@ -1,4 +1,4 @@
-# AEGIS — Agent Gateway & Identity Stack
+# OKORO — Agent Gateway & Identity Stack
 ## KLYTICS Internal Master Document v1.0
 ### Classification: INTERNAL — CONFIDENTIAL
 
@@ -6,7 +6,7 @@
 
 ## EXECUTIVE SUMMARY
 
-**AEGIS** is a neutral, developer-first middleware layer that sits between AI agents and the services they interact with — providing verified identity, scoped authorization, behavioral attestation, and audit rails for every agent-initiated action.
+**OKORO** is a neutral, developer-first middleware layer that sits between AI agents and the services they interact with — providing verified identity, scoped authorization, behavioral attestation, and audit rails for every agent-initiated action.
 
 This is not a "passport." It is not a single authority. It is the **verification and policy enforcement choke point** that no protocol owns but every agent transaction must pass through.
 
@@ -16,7 +16,7 @@ This is not a "passport." It is not a single authority. It is the **verification
 - Has its behavior been trustworthy across sessions?
 - Can a relying party independently verify the claim in <100ms?
 
-AEGIS fills that gap. ACP-compatible by design, AEGIS plugs into the emerging agentic commerce stack as the **trust and verification layer** that Stripe explicitly left to implementers.
+OKORO fills that gap. ACP-compatible by design, OKORO plugs into the emerging agentic commerce stack as the **trust and verification layer** that Stripe explicitly left to implementers.
 
 ---
 
@@ -40,7 +40,7 @@ No player owns the **neutral cross-platform agent trust score + attestation laye
 - Commerce-specific (ACP → shopping flows)
 - Enterprise-only (SailPoint, Entro → large org tooling)
 
-AEGIS is **platform-agnostic, developer-facing, and protocol-compatible.** It works whether the agent runs on Claude, GPT-4o, Gemini, or a custom LLM.
+OKORO is **platform-agnostic, developer-facing, and protocol-compatible.** It works whether the agent runs on Claude, GPT-4o, Gemini, or a custom LLM.
 
 ### 1.3 TAM Snapshot
 
@@ -53,7 +53,7 @@ AEGIS is **platform-agnostic, developer-facing, and protocol-compatible.** It wo
 
 ## SECTION 2 — PRODUCT ARCHITECTURE
 
-### 2.1 The AEGIS Stack (4 Layers)
+### 2.1 The OKORO Stack (4 Layers)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -78,7 +78,7 @@ AEGIS is **platform-agnostic, developer-facing, and protocol-compatible.** It wo
 **Data model:**
 ```typescript
 interface AgentIdentity {
-  agentId: string;           // AEGIS-issued ULID
+  agentId: string;           // OKORO-issued ULID
   publicKey: string;         // Ed25519 public key (DID-compatible)
   principalId: string;       // Human/org owner
   principalVerification: {
@@ -98,12 +98,12 @@ interface AgentIdentity {
 ```
 
 **How it works:**
-1. Developer registers agent via AEGIS SDK or API
-2. AEGIS issues a keypair — private key stored client-side, public key registered with AEGIS
+1. Developer registers agent via OKORO SDK or API
+2. OKORO issues a keypair — private key stored client-side, public key registered with OKORO
 3. Agent signs every outbound request with its private key
-4. Relying party (Delta, Amazon, bank) calls AEGIS `/verify` endpoint to confirm identity + current trust score in <80ms
+4. Relying party (Delta, Amazon, bank) calls OKORO `/verify` endpoint to confirm identity + current trust score in <80ms
 
-**Key design choice:** AEGIS never holds the private key. We are a **verifier and scorer**, not a key custodian. This eliminates our liability if a developer's key is compromised.
+**Key design choice:** OKORO never holds the private key. We are a **verifier and scorer**, not a key custodian. This eliminates our liability if a developer's key is compromised.
 
 ### 2.3 Layer 2 — Policy Engine
 
@@ -138,7 +138,7 @@ interface PolicyScope {
 
 **Policy verification flow:**
 ```
-Agent Request → AEGIS /verify
+Agent Request → OKORO /verify
   → Decode signed token
   → Look up active policy
   → Check scope allows this action
@@ -179,7 +179,7 @@ Trust Score (0-1000) = f(
 - 250–499: WATCH — enhanced verification, lower spend limits
 - 0–249: FLAGGED — most relying parties will reject
 
-**Key insight:** This is the credit score layer for agents. It compounds in value over time. An agent with a 900-point AEGIS score has a moat against competitors who would have to rebuild that history.
+**Key insight:** This is the credit score layer for agents. It compounds in value over time. An agent with a 900-point OKORO score has a moat against competitors who would have to rebuild that history.
 
 ### 2.5 Layer 4 — Audit & Compliance Rail
 
@@ -195,7 +195,7 @@ interface AuditEvent {
   policySnapshot: PolicyScope;    // Exact policy at time of action
   decision: "approved" | "denied" | "flagged";
   decisionReason: string;
-  signature: string;               // AEGIS signs the audit record
+  signature: string;               // OKORO signs the audit record
 }
 ```
 
@@ -258,56 +258,56 @@ GET /v1/agents/:agentId/audit
 #### Webhook Events (Developer Subscriptions)
 
 ```
-aegis.agent.trust_score_changed
-aegis.agent.anomaly_detected
-aegis.agent.policy_expired
-aegis.agent.flagged_by_relying_party
+okoro.agent.trust_score_changed
+okoro.agent.anomaly_detected
+okoro.agent.policy_expired
+okoro.agent.flagged_by_relying_party
 ```
 
 ### 3.3 SDK Design
 
 ```typescript
-// npm install @aegis/sdk
+// npm install @okoro/sdk
 
-import { Aegis } from '@aegis/sdk';
+import { Okoro } from '@okoro/sdk';
 
-const aegis = new Aegis({ apiKey: process.env.AEGIS_API_KEY });
+const okoro = new Okoro({ apiKey: process.env.OKORO_API_KEY });
 
 // Agent builder: sign outbound request
-const token = await aegis.agent.sign({
+const token = await okoro.agent.sign({
   action: 'commerce.purchase',
   amount: 450,
   merchantId: 'delta-airlines'
 });
 
 // Relying party: verify inbound agent
-const result = await aegis.verify(incomingToken);
+const result = await okoro.verify(incomingToken);
 if (result.valid && result.trustScore > 500) {
   processTransaction();
 }
 
 // Dashboard: revoke agent
-await aegis.agent.revoke(agentId);
+await okoro.agent.revoke(agentId);
 ```
 
 ### 3.4 ACP Integration
 
-OpenAI/Stripe ACP uses Shared Payment Tokens (SPTs). AEGIS wraps the agent identity layer *above* SPT:
+OpenAI/Stripe ACP uses Shared Payment Tokens (SPTs). OKORO wraps the agent identity layer *above* SPT:
 
 ```
-ACP Flow with AEGIS:
+ACP Flow with OKORO:
 
 1. User grants agent permission
 2. Agent gets SPT from Stripe
 3. Agent calls Delta API with:
-   { spt: "stripe_spt_xxx", aegisToken: "aegis_signed_xxx" }
+   { spt: "stripe_spt_xxx", okoroToken: "okoro_signed_xxx" }
 4. Delta calls:
    - Stripe: "Is this SPT valid for $450?"
-   - AEGIS:  "Is this agent trusted at score >500 with commerce scope?"
+   - OKORO:  "Is this agent trusted at score >500 with commerce scope?"
 5. Both confirm → transaction approved
 ```
 
-AEGIS is **additive to ACP**, not competitive with it. This is the positioning wedge.
+OKORO is **additive to ACP**, not competitive with it. This is the positioning wedge.
 
 ---
 
@@ -382,15 +382,15 @@ Why: Enterprises already have IAM teams and budget. Indie developers have no sol
 ### 4.4 Revenue Gate Position in KLYTICS Stack
 
 Per Revenue Gate doctrine:
-- AEGIS development begins: **AFTER CERNIQ Gate 1 ($2,500 MRR)**
-- AEGIS is exempt from building moratorium during CERNIQ pilot phase
+- OKORO development begins: **AFTER CERNIQ Gate 1 ($2,500 MRR)**
+- OKORO is exempt from building moratorium during CERNIQ pilot phase
 - Exception: Architecture documentation and spec can be completed now (zero dev cost)
-- AEGIS prototype (proof of concept, no customers) can begin during CERNIQ pilot active phase
-- First AEGIS revenue target before any new product: $500 MRR
+- OKORO prototype (proof of concept, no customers) can begin during CERNIQ pilot active phase
+- First OKORO revenue target before any new product: $500 MRR
 
-**AEGIS entry into KLYTICS holding company:**
+**OKORO entry into KLYTICS holding company:**
 - Separate LLC entity (not under CERNIQ or FORGE)
-- Operating as: AEGIS Labs LLC (or AEGIS Security Inc.)
+- Operating as: OKORO Labs LLC (or OKORO Security Inc.)
 - Housed under KLYTICS parent holdco
 
 ---
@@ -403,7 +403,7 @@ Per Revenue Gate doctrine:
 |---|---|---|
 | Network effects | Trust score improves as more relying parties report signals | 18–36 months |
 | Data flywheel | More agents → richer BATE training data → better anomaly detection | 12–24 months |
-| Protocol lock-in | If ACP cites AEGIS as recommended verifier, switching cost is high | 6–18 months |
+| Protocol lock-in | If ACP cites OKORO as recommended verifier, switching cost is high | 6–18 months |
 | First-mover neutrality | We are not Google, Stripe, or OpenAI — we are the Switzerland of agent identity | Immediate |
 
 ### 5.2 Threats (Honest Assessment)
@@ -419,7 +419,7 @@ Per Revenue Gate doctrine:
 
 Stripe is Stripe. Auth0 is Okta. Both carry platform baggage. A Delta Air Lines or Chase Bank will not route all agent verification through OpenAI's infrastructure — their compliance teams won't allow it.
 
-AEGIS is infrastructure-neutral, model-neutral, and commerce-neutral. This is the moat that big tech cannot buy.
+OKORO is infrastructure-neutral, model-neutral, and commerce-neutral. This is the moat that big tech cannot buy.
 
 ---
 
@@ -431,7 +431,7 @@ AEGIS is infrastructure-neutral, model-neutral, and commerce-neutral. This is th
 The p99 target is <80ms globally. This requires Cloudflare Workers edge deployment for the hot verification path. Trust scores must be pre-computed and cached in Redis — not computed on-demand. This is the hardest infrastructure problem in Phase 1.
 
 **B2 — Key management UX**
-Developers are terrible at key management. The AEGIS SDK must make signing trivially easy. If signing an agent request adds more than 2 lines of code, adoption will suffer. Consider: magic link-style onboarding, auto-rotation policies, SDK-managed key storage.
+Developers are terrible at key management. The OKORO SDK must make signing trivially easy. If signing an agent request adds more than 2 lines of code, adoption will suffer. Consider: magic link-style onboarding, auto-rotation policies, SDK-managed key storage.
 
 **B3 — Cold start trust problem**
 A new agent has a score of 500 — "neutral." Relying parties may still reject neutral agents for high-value actions. Need a "trust accelerator" path: principal KYC verification, pre-approved agent certification for specific use cases, referral from a high-trust agent (similar to credit card authorized user logic).
@@ -442,13 +442,13 @@ When Agent A delegates to Agent B delegates to Agent C, who is responsible? Need
 ### 6.2 Go-to-Market Friction Points
 
 **F1 — Chicken-and-egg**
-Relying parties want to verify agents. Developers want their agents trusted. Neither side acts first. Solution: launch with relying party-side as open and free (no cost to check an AEGIS token), create developer demand through ecosystem positioning.
+Relying parties want to verify agents. Developers want their agents trusted. Neither side acts first. Solution: launch with relying party-side as open and free (no cost to check an OKORO token), create developer demand through ecosystem positioning.
 
 **F2 — Education overhead**
 Developers building agents today don't know they need agent identity. They'll learn when their agent gets blocked by a merchant's bot detection. We need to be in that search result ("how to make my AI agent trusted by websites") before the problem is widespread.
 
 **F3 — Standard fragmentation**
-ACP may not be the only protocol. Google, Visa, and others are building their own. AEGIS must be protocol-agnostic at the transport layer — not coupled to any single commerce or agent protocol.
+ACP may not be the only protocol. Google, Visa, and others are building their own. OKORO must be protocol-agnostic at the transport layer — not coupled to any single commerce or agent protocol.
 
 ---
 
@@ -458,13 +458,13 @@ ACP may not be the only protocol. Google, Visa, and others are building their ow
 **Duration:** 2–4 weeks
 **Owner:** Erwin
 **Deliverables:**
-- [ ] This document (AEGIS_MASTER.md)
+- [ ] This document (OKORO_MASTER.md)
 - [ ] OpenAPI spec for all v1 endpoints
 - [ ] Agent identity data model finalized
 - [ ] Policy schema v1 finalized
 - [ ] BATE scoring algorithm documented
 - [ ] SDK API surface designed (TypeScript types)
-- [ ] Legal entity research (AEGIS Labs LLC feasibility)
+- [ ] Legal entity research (OKORO Labs LLC feasibility)
 
 ### Phase 1 — MVP (Post CERNIQ Gate 1)
 **Duration:** 6–8 weeks
@@ -513,13 +513,13 @@ ACP may not be the only protocol. Google, Visa, and others are building their ow
 
 ### 8.1 Synergies
 
-**CERNIQ:** Cooperativa AI agents (auto-generating risk reports, executing FRTB calculations, querying loan portfolios) need agent identity. AEGIS becomes the identity layer for CERNIQ's future agentic features. CERNIQ pilots AEGIS as first enterprise customer.
+**CERNIQ:** Cooperativa AI agents (auto-generating risk reports, executing FRTB calculations, querying loan portfolios) need agent identity. OKORO becomes the identity layer for CERNIQ's future agentic features. CERNIQ pilots OKORO as first enterprise customer.
 
-**FORGE:** Manufacturing OS agents that query inventory, trigger purchase orders, interface with suppliers — all need verified identity. AEGIS is FORGE's security substrate.
+**FORGE:** Manufacturing OS agents that query inventory, trigger purchase orders, interface with suppliers — all need verified identity. OKORO is FORGE's security substrate.
 
-**GHOST SWARM:** Ethical hacking agents need controlled identities to simulate attacks without being flagged as real threats. AEGIS could provide "red team" agent credentials — a unique, defensible use case.
+**GHOST SWARM:** Ethical hacking agents need controlled identities to simulate attacks without being flagged as real threats. OKORO could provide "red team" agent credentials — a unique, defensible use case.
 
-**BLR-OS:** 20-agent AI label OS — each agent is an AEGIS identity. This gives AEGIS real-world internal testing before external launch.
+**BLR-OS:** 20-agent AI label OS — each agent is an OKORO identity. This gives OKORO real-world internal testing before external launch.
 
 ### 8.2 KLYTICS Entity Structure
 
@@ -527,12 +527,12 @@ ACP may not be the only protocol. Google, Visa, and others are building their ow
 KLYTICS LLC (holding)
 ├── CERNIQ (ALM/risk SaaS)
 ├── FORGE (manufacturing OS)
-├── AEGIS Labs LLC (agent identity)
+├── OKORO Labs LLC (agent identity)
 ├── BLR / Black Label Records
 └── SAKRA (streetwear)
 ```
 
-AEGIS operates as a separate legal entity for liability isolation (cryptographic security = potential target), independent fundraising path, and eventual acqui-hire/acquisition positioning.
+OKORO operates as a separate legal entity for liability isolation (cryptographic security = potential target), independent fundraising path, and eventual acqui-hire/acquisition positioning.
 
 ---
 
@@ -556,7 +556,7 @@ Target: 3/5 naming "verified identity + trust score" unprompted
 
 ### 9.2 Post-MVP Validation
 
-**North Star Metric:** Weekly Verified Transactions (WVT) — number of agent actions successfully verified through AEGIS per week
+**North Star Metric:** Weekly Verified Transactions (WVT) — number of agent actions successfully verified through OKORO per week
 
 **Leading indicators:**
 - Agents registered (week 1 target: 10)
@@ -569,7 +569,7 @@ Target: 3/5 naming "verified identity + trust score" unprompted
 
 ## SECTION 10 — ACQUISITION NARRATIVE
 
-If AEGIS reaches $500K ARR and 1M monthly verifications, it becomes an acquisition target for:
+If OKORO reaches $500K ARR and 1M monthly verifications, it becomes an acquisition target for:
 
 | Acquirer | Rationale | Likely Multiple |
 |---|---|---|
@@ -595,12 +595,12 @@ At $500K ARR, this is a $5M–$10M exit minimum. At $2M ARR with strong growth, 
 ## APPENDIX B — GLOSSARY
 
 - **ACP** — Agentic Commerce Protocol (OpenAI + Stripe open standard)
-- **BATE** — Behavioral Attestation Engine (AEGIS proprietary)
-- **DID** — Decentralized Identifier (W3C standard, AEGIS-compatible)
+- **BATE** — Behavioral Attestation Engine (OKORO proprietary)
+- **DID** — Decentralized Identifier (W3C standard, OKORO-compatible)
 - **Ed25519** — Elliptic curve signature scheme used for agent signing
 - **NHI** — Non-Human Identity (industry term for machine/agent identities)
 - **SPT** — Shared Payment Token (Stripe primitive in ACP)
-- **Trust Score** — AEGIS proprietary 0–1000 score computed by BATE
+- **Trust Score** — OKORO proprietary 0–1000 score computed by BATE
 
 ---
 

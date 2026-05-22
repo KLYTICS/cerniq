@@ -1,4 +1,4 @@
-# AEGIS — Monitoring & Observability
+# OKORO — Monitoring & Observability
 ## OTel Spans, Prometheus Metrics, Alerting Rules, and Dashboards
 
 > **Owner:** Engineering Lead  
@@ -9,7 +9,7 @@
 
 ## 1. Observability Pillars
 
-AEGIS uses the three pillars. Each serves a different diagnostic need:
+OKORO uses the three pillars. Each serves a different diagnostic need:
 
 | Pillar | Tool | What It Answers |
 |--------|------|----------------|
@@ -27,61 +27,61 @@ These are the metrics that matter most. Every on-call engineer must know them.
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `aegis_verify_total` | Counter | `outcome` (approved/denied/error), `denial_reason` | All verify calls |
-| `aegis_verify_duration_seconds` | Histogram | `outcome` | Verify latency — check p50/p95/p99 |
-| `aegis_verify_token_age_seconds` | Histogram | — | How old are tokens when presented (monitors clock skew) |
-| `aegis_verify_spend_amount` | Histogram | `currency` | Distribution of spend amounts |
+| `okoro_verify_total` | Counter | `outcome` (approved/denied/error), `denial_reason` | All verify calls |
+| `okoro_verify_duration_seconds` | Histogram | `outcome` | Verify latency — check p50/p95/p99 |
+| `okoro_verify_token_age_seconds` | Histogram | — | How old are tokens when presented (monitors clock skew) |
+| `okoro_verify_spend_amount` | Histogram | `currency` | Distribution of spend amounts |
 
 **SLO targets:**
-- `aegis_verify_duration_seconds{quantile="0.99"}` < 200ms
-- `aegis_verify_total{outcome="error"}` rate < 0.1%
-- `aegis_verify_total{outcome="approved"}` / total > 85% (healthy traffic baseline)
+- `okoro_verify_duration_seconds{quantile="0.99"}` < 200ms
+- `okoro_verify_total{outcome="error"}` rate < 0.1%
+- `okoro_verify_total{outcome="approved"}` / total > 85% (healthy traffic baseline)
 
 ### 2.2 Identity Metrics
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `aegis_agents_registered_total` | Counter | — | Cumulative agent registrations |
-| `aegis_agents_active` | Gauge | — | Active (non-revoked) agents |
-| `aegis_agents_revoked_total` | Counter | `reason` | Revocations by reason |
-| `aegis_trust_score` | Histogram | `band` | Distribution of trust scores |
-| `aegis_trust_band_transitions_total` | Counter | `from`, `to` | Band promotions/demotions |
+| `okoro_agents_registered_total` | Counter | — | Cumulative agent registrations |
+| `okoro_agents_active` | Gauge | — | Active (non-revoked) agents |
+| `okoro_agents_revoked_total` | Counter | `reason` | Revocations by reason |
+| `okoro_trust_score` | Histogram | `band` | Distribution of trust scores |
+| `okoro_trust_band_transitions_total` | Counter | `from`, `to` | Band promotions/demotions |
 
 ### 2.3 BATE Metrics
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `aegis_bate_signals_total` | Counter | `type` | Signals received by type |
-| `aegis_bate_anomaly_triggers_total` | Counter | `rule` (R-1..R-5) | Anomaly rule firings |
-| `aegis_bate_anomaly_trigger_total` | Counter | `rule` (low cardinality, values `detector.r1`..`detector.r5`) | Count of BATE behavioral anomaly detector rule triggers, partitioned by rule. Increments inside `BateService.recompute` when `BateAnomalyDetector.detect()` emits a signal. Use to detect rules with abnormal trigger rates (sudden jump = either an attacker pattern or a tuning regression). Source: `apps/api/src/common/observability/metrics.service.ts`, `apps/api/src/modules/bate/bate.worker.ts`. Suggested alert: `rate(aegis_bate_anomaly_trigger_total{rule="detector.r3"}[5m]) > 0.5` (geographic-inconsistency rule firing >0.5/sec sustained = likely tenant compromise). |
-| `aegis_bate_score_computation_seconds` | Histogram | — | BATE scoring latency |
+| `okoro_bate_signals_total` | Counter | `type` | Signals received by type |
+| `okoro_bate_anomaly_triggers_total` | Counter | `rule` (R-1..R-5) | Anomaly rule firings |
+| `okoro_bate_anomaly_trigger_total` | Counter | `rule` (low cardinality, values `detector.r1`..`detector.r5`) | Count of BATE behavioral anomaly detector rule triggers, partitioned by rule. Increments inside `BateService.recompute` when `BateAnomalyDetector.detect()` emits a signal. Use to detect rules with abnormal trigger rates (sudden jump = either an attacker pattern or a tuning regression). Source: `apps/api/src/common/observability/metrics.service.ts`, `apps/api/src/modules/bate/bate.worker.ts`. Suggested alert: `rate(okoro_bate_anomaly_trigger_total{rule="detector.r3"}[5m]) > 0.5` (geographic-inconsistency rule firing >0.5/sec sustained = likely tenant compromise). |
+| `okoro_bate_score_computation_seconds` | Histogram | — | BATE scoring latency |
 
 ### 2.4 Audit Metrics
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `aegis_audit_events_total` | Counter | `outcome`, `denial_reason` | Audit events written |
-| `aegis_audit_chain_breaks_total` | Counter | — | Chain integrity failures (should be 0 always) |
-| `aegis_audit_signing_latency_seconds` | Histogram | `signer` (kms/env/ephemeral) | KMS vs env var signing latency |
+| `okoro_audit_events_total` | Counter | `outcome`, `denial_reason` | Audit events written |
+| `okoro_audit_chain_breaks_total` | Counter | — | Chain integrity failures (should be 0 always) |
+| `okoro_audit_signing_latency_seconds` | Histogram | `signer` (kms/env/ephemeral) | KMS vs env var signing latency |
 
 ### 2.5 Infrastructure Metrics
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `aegis_db_query_duration_seconds` | Histogram | `operation` | Prisma query latency |
-| `aegis_db_pool_connections` | Gauge | `state` (active/idle) | Connection pool utilization |
-| `aegis_redis_operations_total` | Counter | `operation`, `status` | Redis command count |
-| `aegis_redis_latency_seconds` | Histogram | `operation` | Redis operation latency |
-| `aegis_http_requests_total` | Counter | `method`, `path`, `status` | HTTP request count |
-| `aegis_http_duration_seconds` | Histogram | `method`, `path` | HTTP latency by endpoint |
+| `okoro_db_query_duration_seconds` | Histogram | `operation` | Prisma query latency |
+| `okoro_db_pool_connections` | Gauge | `state` (active/idle) | Connection pool utilization |
+| `okoro_redis_operations_total` | Counter | `operation`, `status` | Redis command count |
+| `okoro_redis_latency_seconds` | Histogram | `operation` | Redis operation latency |
+| `okoro_http_requests_total` | Counter | `method`, `path`, `status` | HTTP request count |
+| `okoro_http_duration_seconds` | Histogram | `method`, `path` | HTTP latency by endpoint |
 
 ### 2.6 Business Metrics
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `aegis_principals_total` | Gauge | `tier` (free/developer/pro/enterprise) | Active principals by plan |
-| `aegis_onboarding_step_total` | Counter | `step` | Onboarding funnel progression |
-| `aegis_webhook_deliveries_total` | Counter | `status` (success/failed/retrying) | Webhook delivery health |
+| `okoro_principals_total` | Gauge | `tier` (free/developer/pro/enterprise) | Active principals by plan |
+| `okoro_onboarding_step_total` | Counter | `step` | Onboarding funnel progression |
+| `okoro_webhook_deliveries_total` | Counter | `status` (success/failed/retrying) | Webhook delivery health |
 
 ---
 
@@ -93,11 +93,11 @@ These are the metrics that matter most. Every on-call engineer must know them.
 # prometheus.yml (or Grafana Agent config)
 
 scrape_configs:
-  - job_name: 'aegis-api'
+  - job_name: 'okoro-api'
     metrics_path: '/metrics'
     bearer_token: '${METRICS_TOKEN}'
     static_configs:
-      - targets: ['api.aegislabs.io']
+      - targets: ['api.okorolabs.io']
     scrape_interval: 15s
     scrape_timeout: 10s
 ```
@@ -106,13 +106,13 @@ scrape_configs:
 
 ```bash
 # Verify metrics endpoint is working
-curl https://api.aegislabs.io/metrics \
+curl https://api.okorolabs.io/metrics \
   -H "Authorization: Bearer $METRICS_TOKEN"
 
 # Expected: Prometheus text format
-# aegis_verify_total{outcome="approved"} 12453
-# aegis_verify_total{outcome="denied",denial_reason="SPEND_LIMIT_EXCEEDED"} 234
-# aegis_verify_duration_seconds_bucket{le="0.05"} 11200
+# okoro_verify_total{outcome="approved"} 12453
+# okoro_verify_total{outcome="denied",denial_reason="SPEND_LIMIT_EXCEEDED"} 234
+# okoro_verify_duration_seconds_bucket{le="0.05"} 11200
 # ...
 ```
 
@@ -121,34 +121,34 @@ curl https://api.aegislabs.io/metrics \
 Pre-compute expensive queries for dashboards:
 
 ```yaml
-# aegis-recording-rules.yml
+# okoro-recording-rules.yml
 
 groups:
-  - name: aegis.verify
+  - name: okoro.verify
     interval: 30s
     rules:
-      - record: aegis:verify_error_rate:5m
+      - record: okoro:verify_error_rate:5m
         expr: |
-          rate(aegis_verify_total{outcome="error"}[5m])
+          rate(okoro_verify_total{outcome="error"}[5m])
           /
-          rate(aegis_verify_total[5m])
+          rate(okoro_verify_total[5m])
 
-      - record: aegis:verify_approval_rate:5m
+      - record: okoro:verify_approval_rate:5m
         expr: |
-          rate(aegis_verify_total{outcome="approved"}[5m])
+          rate(okoro_verify_total{outcome="approved"}[5m])
           /
-          rate(aegis_verify_total[5m])
+          rate(okoro_verify_total[5m])
 
-      - record: aegis:verify_p99:5m
+      - record: okoro:verify_p99:5m
         expr: |
           histogram_quantile(0.99, 
-            rate(aegis_verify_duration_seconds_bucket[5m])
+            rate(okoro_verify_duration_seconds_bucket[5m])
           )
 
-      - record: aegis:verify_p50:5m
+      - record: okoro:verify_p50:5m
         expr: |
           histogram_quantile(0.50, 
-            rate(aegis_verify_duration_seconds_bucket[5m])
+            rate(okoro_verify_duration_seconds_bucket[5m])
           )
 ```
 
@@ -159,23 +159,23 @@ groups:
 ### 4.1 P0 Alerts (Page Immediately)
 
 ```yaml
-# aegis-alerts.yml
+# okoro-alerts.yml
 
 groups:
-  - name: aegis.p0
+  - name: okoro.p0
     rules:
-      - alert: AegisApiDown
-        expr: up{job="aegis-api"} == 0
+      - alert: OkoroApiDown
+        expr: up{job="okoro-api"} == 0
         for: 1m
         labels:
           severity: critical
           runbook: RB-001
         annotations:
-          summary: "AEGIS API is down"
+          summary: "OKORO API is down"
           description: "Health endpoint not responding for 1 minute."
 
-      - alert: AegisVerifyErrorRate
-        expr: aegis:verify_error_rate:5m > 0.01
+      - alert: OkoroVerifyErrorRate
+        expr: okoro:verify_error_rate:5m > 0.01
         for: 5m
         labels:
           severity: critical
@@ -184,8 +184,8 @@ groups:
           summary: "Verify error rate > 1%"
           description: "{{ $value | humanizePercentage }} of verify calls are erroring."
 
-      - alert: AegisAuditChainBreak
-        expr: increase(aegis_audit_chain_breaks_total[5m]) > 0
+      - alert: OkoroAuditChainBreak
+        expr: increase(okoro_audit_chain_breaks_total[5m]) > 0
         labels:
           severity: critical
           runbook: RB-003
@@ -193,10 +193,10 @@ groups:
           summary: "Audit chain integrity break detected"
           description: "THIS IS A P0 SECURITY INCIDENT."
 
-      - alert: AegisRedisDown
+      - alert: OkoroRedisDown
         expr: |
-          rate(aegis_redis_operations_total{status="error"}[1m]) 
-          / rate(aegis_redis_operations_total[1m]) > 0.9
+          rate(okoro_redis_operations_total{status="error"}[1m]) 
+          / rate(okoro_redis_operations_total[1m]) > 0.9
         for: 1m
         labels:
           severity: critical
@@ -209,10 +209,10 @@ groups:
 ### 4.2 P1 Alerts (Page Within 15 Min)
 
 ```yaml
-  - name: aegis.p1
+  - name: okoro.p1
     rules:
-      - alert: AegisVerifyLatencyHigh
-        expr: aegis:verify_p99:5m > 0.5
+      - alert: OkoroVerifyLatencyHigh
+        expr: okoro:verify_p99:5m > 0.5
         for: 5m
         labels:
           severity: high
@@ -221,10 +221,10 @@ groups:
           summary: "Verify p99 latency > 500ms"
           description: "Current p99: {{ $value | humanizeDuration }}"
 
-      - alert: AegisDBConnectionPoolExhausted
+      - alert: OkoroDBConnectionPoolExhausted
         expr: |
-          aegis_db_pool_connections{state="active"}
-          / (aegis_db_pool_connections{state="active"} + aegis_db_pool_connections{state="idle"})
+          okoro_db_pool_connections{state="active"}
+          / (okoro_db_pool_connections{state="active"} + okoro_db_pool_connections{state="idle"})
           > 0.9
         for: 5m
         labels:
@@ -233,15 +233,15 @@ groups:
         annotations:
           summary: "DB connection pool > 90% utilized"
 
-      - alert: AegisWebhookBacklogHigh
-        expr: aegis_webhook_queue_depth > 1000
+      - alert: OkoroWebhookBacklogHigh
+        expr: okoro_webhook_queue_depth > 1000
         for: 10m
         labels:
           severity: high
           runbook: RB-103
 
-      - alert: AegisSuddenApprovalRateDrop
-        expr: aegis:verify_approval_rate:5m < 0.5
+      - alert: OkoroSuddenApprovalRateDrop
+        expr: okoro:verify_approval_rate:5m < 0.5
         for: 3m
         labels:
           severity: high
@@ -252,27 +252,27 @@ groups:
 ### 4.3 P2 Alerts (Non-Paging)
 
 ```yaml
-  - name: aegis.p2
+  - name: okoro.p2
     rules:
-      - alert: AegisVerifyLatencyElevated
-        expr: aegis:verify_p50:5m > 0.1
+      - alert: OkoroVerifyLatencyElevated
+        expr: okoro:verify_p50:5m > 0.1
         for: 10m
         labels:
           severity: warning
         annotations:
           summary: "Verify p50 > 100ms (elevated, not yet paging)"
 
-      - alert: AegisTrustBandDegradation
+      - alert: OkoroTrustBandDegradation
         expr: |
-          rate(aegis_trust_band_transitions_total{to="FLAGGED"}[1h])
+          rate(okoro_trust_band_transitions_total{to="FLAGGED"}[1h])
           > 10
         labels:
           severity: warning
         annotations:
           summary: "High rate of agents dropping to FLAGGED band"
 
-      - alert: AegisKeyExpiringSoon
-        expr: aegis_signing_key_expiry_seconds < 86400 * 7  # 7 days
+      - alert: OkoroKeyExpiringSoon
+        expr: okoro_signing_key_expiry_seconds < 86400 * 7  # 7 days
         labels:
           severity: warning
         annotations:
@@ -287,8 +287,8 @@ groups:
 
 ```bash
 # .env.production
-AEGIS_OTEL_ENABLED=true
-OTEL_SERVICE_NAME=aegis-api
+OKORO_OTEL_ENABLED=true
+OTEL_SERVICE_NAME=okoro-api
 OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector.your-infra.io:4318
 OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer ${OTEL_TOKEN}
 ```
@@ -324,16 +324,16 @@ Every verify span carries these attributes for filtering in APM:
 
 ```typescript
 span.setAttributes({
-  'aegis.principal_id': principalId,
-  'aegis.agent_id': agentId,
-  'aegis.outcome': outcome,
-  'aegis.denial_reason': denialReason ?? null,
-  'aegis.trust_band': trustBand,
-  'aegis.trust_score': trustScore,
-  'aegis.spend_amount': amount ?? 0,
-  'aegis.spend_currency': currency ?? null,
-  'aegis.token_age_ms': tokenAgeMs,
-  'aegis.scopes': scopes.join(','),
+  'okoro.principal_id': principalId,
+  'okoro.agent_id': agentId,
+  'okoro.outcome': outcome,
+  'okoro.denial_reason': denialReason ?? null,
+  'okoro.trust_band': trustBand,
+  'okoro.trust_score': trustScore,
+  'okoro.spend_amount': amount ?? 0,
+  'okoro.spend_currency': currency ?? null,
+  'okoro.token_age_ms': tokenAgeMs,
+  'okoro.scopes': scopes.join(','),
 });
 ```
 
@@ -345,13 +345,13 @@ const sampler = new ParentBasedSampler({
   // Sample 100% of errors (we never want to miss a failing trace)
   // Sample 10% of successful verify calls at high traffic
   root: new TraceIdRatioBased(
-    process.env.AEGIS_OTEL_SAMPLE_RATE 
-      ? parseFloat(process.env.AEGIS_OTEL_SAMPLE_RATE) 
+    process.env.OKORO_OTEL_SAMPLE_RATE 
+      ? parseFloat(process.env.OKORO_OTEL_SAMPLE_RATE) 
       : 0.1
   ),
 });
 
-// In production: AEGIS_OTEL_SAMPLE_RATE=0.05 (5% of successful traces)
+// In production: OKORO_OTEL_SAMPLE_RATE=0.05 (5% of successful traces)
 // On errors: always 100% (SDK auto-upgrades error traces)
 ```
 
@@ -370,7 +370,7 @@ All logs are Pino JSON. Every log line must include:
   "msg": "verify.completed",
   "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
   "spanId": "00f067aa0ba902b7",
-  "service": "aegis-api",
+  "service": "okoro-api",
   "version": "1.2.3",
   "principalId": "prin_abc123",
   "agentId": "agent_xyz789",
@@ -564,11 +564,11 @@ env.ANALYTICS.writeDataPoint({
 });
 ```
 
-Cloudflare dashboard → Workers → Analytics → custom dataset: `aegis_edge_verify`
+Cloudflare dashboard → Workers → Analytics → custom dataset: `okoro_edge_verify`
 
 Additional edge metrics to track:
 - Cache hit rate for agent/policy lookups (target: >80%)
-- `X-AEGIS-Edge-Divergence` header rate (shadow mode: how often edge disagrees with origin)
+- `X-OKORO-Edge-Divergence` header rate (shadow mode: how often edge disagrees with origin)
 - Edge vs origin latency comparison
 
 ---
@@ -595,22 +595,22 @@ Every alert links to the correct runbook section. Quick reference:
 
 ```bash
 # Health (unauthenticated — used by load balancers)
-curl https://api.aegislabs.io/health
+curl https://api.okorolabs.io/health
 # Expected: {"status":"ok","timestamp":"2026-05-04T12:00:00.000Z"}
 # This must NEVER require auth. Never block on DB/Redis.
 
 # Readiness (authenticated — deep health check)
-curl https://api.aegislabs.io/ready \
-  -H "X-AEGIS-Admin: $AEGIS_ADMIN_TOKEN"
+curl https://api.okorolabs.io/ready \
+  -H "X-OKORO-Admin: $OKORO_ADMIN_TOKEN"
 # Expected: {"status":"ready","db":"ok","redis":"ok","migrations":"current"}
 
 # Metrics
-curl https://api.aegislabs.io/metrics \
+curl https://api.okorolabs.io/metrics \
   -H "Authorization: Bearer $METRICS_TOKEN"
 # Expected: Prometheus text format
 
 # Version info
-curl https://api.aegislabs.io/version
+curl https://api.okorolabs.io/version
 # Expected: {"version":"1.2.3","commit":"abc123","build":"2026-05-04"}
 ```
 
@@ -632,5 +632,5 @@ Before handing off to the next on-call engineer:
 
 ---
 
-*Observability guide version: 1.0 | AEGIS Phase 1*  
+*Observability guide version: 1.0 | OKORO Phase 1*  
 *Next review: after first week of production traffic*

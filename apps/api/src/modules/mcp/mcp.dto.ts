@@ -1,6 +1,6 @@
 // MCP control-plane DTOs (ADR-0008). The MCP module manages the registry
 // of trusted MCP servers per principal. Each registration represents an
-// MCP server that calls AEGIS's verify endpoint for tool gating.
+// MCP server that calls OKORO's verify endpoint for tool gating.
 
 export type McpTransport = 'stdio' | 'sse' | 'streamable-http';
 
@@ -12,7 +12,7 @@ export interface RegisterMcpServerDto {
   transport: McpTransport;
   /** Optional URL exposing the server's tools/list manifest for discovery. */
   manifestUrl?: string;
-  /** AEGIS verifies tool calls under these action prefixes (e.g. "mcp.fs."). */
+  /** OKORO verifies tool calls under these action prefixes (e.g. "mcp.fs."). */
   actionPrefix: string;
   /** Minimum trust band required to invoke this server's tools. */
   minTrustBand?: 'PLATINUM' | 'VERIFIED' | 'WATCH';

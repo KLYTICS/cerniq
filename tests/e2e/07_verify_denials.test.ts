@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import type { Aegis } from '@aegis/sdk';
+import type { Okoro } from '@okoro/sdk';
 import { makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, signTokenFor, tamperToken, futureIso } from './_support/fixtures';
 import { assertVerifyDenied } from './_support/assert';
@@ -19,7 +19,7 @@ import { assertVerifyDenied } from './_support/assert';
  *   ANOMALY_FLAGGED
  */
 describe('07 · verify denials (all 9 reasons)', () => {
-  let sdk: Aegis;
+  let sdk: Okoro;
   const cleanup: string[] = [];
 
   beforeAll(() => {

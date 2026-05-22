@@ -1,23 +1,23 @@
-# `aegis-quickstart` — your first verify in 30 seconds
+# `okoro-quickstart` — your first verify in 30 seconds
 
 Single script. End to end. Real cryptography. Zero magic.
 
 ## What it proves
 
-By the time the script exits, you've watched AEGIS do exactly four
+By the time the script exits, you've watched OKORO do exactly four
 things in order:
 
 1. **Generate a keypair on your machine.** The private key never
-   leaves the script. You'll see the public key sent to AEGIS.
-2. **Register the agent.** AEGIS responds with an `agentId` and an
+   leaves the script. You'll see the public key sent to OKORO.
+2. **Register the agent.** OKORO responds with an `agentId` and an
    initial trust score.
 3. **Create a scoped policy.** $500 commerce cap, allow-listed
    domain, signed JWT response.
 4. **Sign and verify a token.** A per-request token signed locally;
-   AEGIS verifies it cryptographically against the registered public
+   OKORO verifies it cryptographically against the registered public
    key and decides allow / deny.
 
-If you see `✓ APPROVED`, your AEGIS deployment works. If you see
+If you see `✓ APPROVED`, your OKORO deployment works. If you see
 `✗ DENIED`, the `denialReason` tells you which gate refused.
 
 ## Run
@@ -26,14 +26,14 @@ If you see `✓ APPROVED`, your AEGIS deployment works. If you see
 cd tools/quickstart
 pnpm install
 
-# Against a local AEGIS (recommended for first run):
-AEGIS_API_BASE=http://localhost:4000 \
-AEGIS_API_KEY=aegis_sk_xxx \
+# Against a local OKORO (recommended for first run):
+OKORO_API_BASE=http://localhost:4000 \
+OKORO_API_KEY=okoro_sk_xxx \
 pnpm start
 
-# Against the hosted AEGIS:
-AEGIS_API_BASE=https://api.aegislabs.io \
-AEGIS_API_KEY=aegis_sk_xxx \
+# Against the hosted OKORO:
+OKORO_API_BASE=https://api.okorolabs.io \
+OKORO_API_KEY=okoro_sk_xxx \
 pnpm start
 ```
 
@@ -44,7 +44,7 @@ pnpm start
      publicKey  Mc4LpHN...
      privateKey YmFkLW... (truncated; never persisted)
 
-[2/6] Register the agent with AEGIS — public key only
+[2/6] Register the agent with OKORO — public key only
      agentId    ag_2nXh...
      trustScore 500
 
@@ -72,11 +72,11 @@ the human-readable progress.
 
 | Symptom                             | Likely cause                                      |
 |-------------------------------------|---------------------------------------------------|
-| `AEGIS_API_KEY env is required`     | Set the env var. See `docs/RUNBOOK.md` for issuance. |
-| `register failed: 401 Unauthorized` | Wrong key or wrong base URL. Verify `aegis_sk_` prefix. |
+| `OKORO_API_KEY env is required`     | Set the env var. See `docs/RUNBOOK.md` for issuance. |
+| `register failed: 401 Unauthorized` | Wrong key or wrong base URL. Verify `okoro_sk_` prefix. |
 | `verify denied AGENT_NOT_FOUND`     | Agent registration didn't land. Check API logs. |
 | `verify denied INVALID_SIGNATURE`   | The SDK and API are on incompatible versions. Bump both. |
-| Connection refused                  | Local AEGIS not running. `pnpm db:up && pnpm dev`. |
+| Connection refused                  | Local OKORO not running. `pnpm db:up && pnpm dev`. |
 
 ## Next steps
 

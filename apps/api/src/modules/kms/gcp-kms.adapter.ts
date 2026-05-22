@@ -1,7 +1,7 @@
 // GcpKmsAdapter — native Ed25519 sign via Google Cloud KMS.
 //
 // GCP Cloud KMS supports `EC_SIGN_ED25519` (since 2024-Q1). This is the
-// preferred KMS pattern for AEGIS: the private key NEVER leaves Google's
+// preferred KMS pattern for OKORO: the private key NEVER leaves Google's
 // HSM. Sign latency is ~10-20 ms (acceptable for audit; less acceptable
 // for the JWT issuance hot path — operators concerned about JWT latency
 // should run a regional KMS replica or fall back to the envelope pattern).
@@ -9,7 +9,7 @@
 // Resource format:
 //   projects/{project}/locations/{location}/keyRings/{kr}/cryptoKeys/{key}/cryptoKeyVersions/{version}
 //
-// One AEGIS `kid` maps to one GCP `cryptoKeyVersions/{version}`. Rotation
+// One OKORO `kid` maps to one GCP `cryptoKeyVersions/{version}`. Rotation
 // is "create new version, update active mapping, deprecate old."
 
 import { Injectable, Logger } from '@nestjs/common';

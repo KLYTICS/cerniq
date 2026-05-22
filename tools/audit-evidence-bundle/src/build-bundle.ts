@@ -1,4 +1,4 @@
-// Assembles the final `aegis-evidence-*.tar.gz` from collected artifacts.
+// Assembles the final `okoro-evidence-*.tar.gz` from collected artifacts.
 //
 // We emit a strict POSIX ustar archive (Format 0x75 0x73 0x74 0x61 0x72 in
 // the magic field) and pipe it through gzip — both formats are stable and
@@ -79,8 +79,8 @@ export function buildTarHeader(input: TarHeaderInput): Buffer {
   header.write('ustar\0', 257, 6, 'utf8');
   header.write('00', 263, 2, 'utf8');
   // uname / gname
-  header.write('aegis\0', 265, 6, 'utf8');
-  header.write('aegis\0', 297, 6, 'utf8');
+  header.write('okoro\0', 265, 6, 'utf8');
+  header.write('okoro\0', 297, 6, 'utf8');
 
   // Compute the unsigned checksum over the entire 512-byte header.
   let checksum = 0;
@@ -157,7 +157,7 @@ export async function planBundleEntries(args: {
   const manifestBytes = utf8Bytes(`${JSON.stringify(manifest, null, 2)}\n`);
   const jwksBytes = utf8Bytes(`${JSON.stringify(args.fetched.jwks, null, 2)}\n`);
   const configBytes = utf8Bytes(
-    `${JSON.stringify(args.fetched.aegisConfiguration, null, 2)}\n`,
+    `${JSON.stringify(args.fetched.okoroConfiguration, null, 2)}\n`,
   );
   const verificationBytes = utf8Bytes(
     `${JSON.stringify(args.verification, null, 2)}\n`,
@@ -178,7 +178,7 @@ export async function planBundleEntries(args: {
     sha256: sha256OfBytes(jwksBytes),
   });
   entries.push({
-    path: 'aegis-configuration.json',
+    path: 'okoro-configuration.json',
     source: { kind: 'bytes', data: configBytes },
     sha256: sha256OfBytes(configBytes),
   });

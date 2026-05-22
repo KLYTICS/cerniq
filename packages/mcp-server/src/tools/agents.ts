@@ -1,13 +1,13 @@
-import type { Aegis } from '@aegis/sdk';
+import type { Okoro } from '@okoro/sdk';
 
 import type { ToolDefinition } from './registry.js';
 
-export function registerAgentsTools(aegis: Aegis, registry: Map<string, ToolDefinition>): void {
-  registry.set('aegis.agents.create', {
-    name: 'aegis.agents.create',
+export function registerAgentsTools(okoro: Okoro, registry: Map<string, ToolDefinition>): void {
+  registry.set('okoro.agents.create', {
+    name: 'okoro.agents.create',
     description:
-      'Register a new agent with AEGIS. The caller must supply the agent\'s base64url Ed25519 public key — ' +
-      'AEGIS never receives the private key (ADR-0002).',
+      'Register a new agent with OKORO. The caller must supply the agent\'s base64url Ed25519 public key — ' +
+      'OKORO never receives the private key (ADR-0002).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -19,15 +19,15 @@ export function registerAgentsTools(aegis: Aegis, registry: Map<string, ToolDefi
       additionalProperties: false,
     },
     handler: async (args) =>
-      await aegis.agents.create({
+      await okoro.agents.create({
         name: String(args.name),
         publicKey: String(args.public_key),
         metadata: args.metadata as Record<string, unknown> | undefined,
       }),
   });
 
-  registry.set('aegis.agents.get', {
-    name: 'aegis.agents.get',
+  registry.set('okoro.agents.get', {
+    name: 'okoro.agents.get',
     description: 'Fetch one agent by id.',
     inputSchema: {
       type: 'object',
@@ -35,11 +35,11 @@ export function registerAgentsTools(aegis: Aegis, registry: Map<string, ToolDefi
       required: ['agent_id'],
       additionalProperties: false,
     },
-    handler: async (args) => await aegis.agents.get(String(args.agent_id)),
+    handler: async (args) => await okoro.agents.get(String(args.agent_id)),
   });
 
-  registry.set('aegis.agents.list', {
-    name: 'aegis.agents.list',
+  registry.set('okoro.agents.list', {
+    name: 'okoro.agents.list',
     description: 'List agents in the caller\'s principal. Paginated.',
     inputSchema: {
       type: 'object',
@@ -50,14 +50,14 @@ export function registerAgentsTools(aegis: Aegis, registry: Map<string, ToolDefi
       additionalProperties: false,
     },
     handler: async (args) =>
-      await aegis.agents.list({
+      await okoro.agents.list({
         limit: typeof args.limit === 'number' ? args.limit : undefined,
         cursor: typeof args.cursor === 'string' ? args.cursor : undefined,
       }),
   });
 
-  registry.set('aegis.agents.revoke', {
-    name: 'aegis.agents.revoke',
+  registry.set('okoro.agents.revoke', {
+    name: 'okoro.agents.revoke',
     description:
       'Revoke an agent. Subsequent verify calls return AGENT_REVOKED. Reversible only by re-creating ' +
       'the agent under a new id (ADR-0004).',
@@ -71,7 +71,7 @@ export function registerAgentsTools(aegis: Aegis, registry: Map<string, ToolDefi
       additionalProperties: false,
     },
     handler: async (args) =>
-      { await aegis.agents.revoke(String(args.agent_id), {
+      { await okoro.agents.revoke(String(args.agent_id), {
         reason: typeof args.reason === 'string' ? args.reason : undefined,
       }); },
   });

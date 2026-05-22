@@ -1,4 +1,4 @@
-// AEGIS — request size + JSON depth limits.
+// OKORO — request size + JSON depth limits.
 //
 // Default Express body parser accepts up to 100 KB JSON. For an identity
 // gateway that's both too generous (a 100 KB JWT is a guaranteed CPU DoS)

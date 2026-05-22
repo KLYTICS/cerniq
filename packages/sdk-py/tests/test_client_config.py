@@ -6,14 +6,14 @@ from typing import Any
 
 import respx
 
-from aegis import AsyncAegis
+from okoro import AsyncOkoro
 
 
 async def test_base_url_override(api_key: str) -> None:
-    custom = "https://sandbox.aegislabs.io/v1"
+    custom = "https://sandbox.okorolabs.io/v1"
     async with (
         respx.mock(base_url=custom, assert_all_called=False) as router,
-        AsyncAegis(api_key=api_key, base_url=custom) as a,
+        AsyncOkoro(api_key=api_key, base_url=custom) as a,
     ):
         router.get("/agents/agt_x/status").respond(
             200,
@@ -35,12 +35,12 @@ async def test_user_agent_default(
 ) -> None:
     async with (
         respx.mock(base_url=base_url, assert_all_called=False) as router,
-        AsyncAegis(api_key=api_key, base_url=base_url) as a,
+        AsyncOkoro(api_key=api_key, base_url=base_url) as a,
     ):
         route = router.get("/agents/agt_x").respond(200, json=sample_agent_record)
         await a.agents.get("agt_x")
         ua = route.calls.last.request.headers["User-Agent"]
-        assert ua.startswith("aegis-python/")
+        assert ua.startswith("okoro-python/")
 
 
 async def test_user_agent_override(
@@ -48,7 +48,7 @@ async def test_user_agent_override(
 ) -> None:
     async with (
         respx.mock(base_url=base_url, assert_all_called=False) as router,
-        AsyncAegis(api_key=api_key, base_url=base_url, user_agent="my-app/1.2.3") as a,
+        AsyncOkoro(api_key=api_key, base_url=base_url, user_agent="my-app/1.2.3") as a,
     ):
         route = router.get("/agents/agt_x").respond(200, json=sample_agent_record)
         await a.agents.get("agt_x")
@@ -60,7 +60,7 @@ async def test_request_id_header_is_per_request(
 ) -> None:
     async with (
         respx.mock(base_url=base_url, assert_all_called=False) as router,
-        AsyncAegis(api_key=api_key, base_url=base_url) as a,
+        AsyncOkoro(api_key=api_key, base_url=base_url) as a,
     ):
         route = router.get("/agents/agt_x").respond(200, json=sample_agent_record)
         await a.agents.get("agt_x")
@@ -74,11 +74,11 @@ async def test_request_id_header_is_per_request(
 async def test_base_url_trailing_slash_normalized(
     api_key: str, sample_agent_record: dict[str, Any]
 ) -> None:
-    base_with_slash = "https://api.aegislabs.io/v1/"
+    base_with_slash = "https://api.okorolabs.io/v1/"
     base_clean = base_with_slash.rstrip("/")
     async with (
         respx.mock(base_url=base_clean, assert_all_called=False) as router,
-        AsyncAegis(api_key=api_key, base_url=base_with_slash) as a,
+        AsyncOkoro(api_key=api_key, base_url=base_with_slash) as a,
     ):
         router.get("/agents/agt_x").respond(200, json=sample_agent_record)
         agent = await a.agents.get("agt_x")

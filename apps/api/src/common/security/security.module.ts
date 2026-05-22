@@ -1,4 +1,4 @@
-// AEGIS — security hardening module.
+// OKORO — security hardening module.
 //
 // Wraps the cors / request-limits / helmet / trust-proxy primitives into
 // a single import. Wired in main.ts via:

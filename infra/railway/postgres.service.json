@@ -1,6 +1,6 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
-  "_comment": "AEGIS Postgres service descriptor. Two paths: (a) Railway's managed Postgres plugin (simplest, single-region), or (b) Neon (recommended — branching, autoscale, point-in-time restore). This file documents the Railway-managed path; for Neon, you only need to wire DATABASE_URL into the API and worker service env vars.",
+  "_comment": "OKORO Postgres service descriptor. Two paths: (a) Railway's managed Postgres plugin (simplest, single-region), or (b) Neon (recommended — branching, autoscale, point-in-time restore). This file documents the Railway-managed path; for Neon, you only need to wire DATABASE_URL into the API and worker service env vars.",
   "_planTier": "Railway Postgres Hobby ($5/mo, 1 GB) is fine for pre-launch. Move to Neon Scale ($69/mo) before announcing GA — point-in-time restore is non-negotiable for an audit-log product.",
   "_region": "us-east — must match API + worker.",
   "_image": "Railway's managed plugin runs Postgres 16. We pin to PG16 because the Prisma migrations assume features (gen_random_uuid in pgcrypto, GENERATED ALWAYS AS IDENTITY) that are stable on 16; do not downgrade.",
@@ -14,7 +14,7 @@
   "regions": ["us-east"],
   "volumes": [
     {
-      "name": "aegis-pg-data",
+      "name": "okoro-pg-data",
       "mountPath": "/var/lib/postgresql/data",
       "_sizeNote": "Start at 10 GB. Audit events accumulate; revisit when used % > 70%."
     }
@@ -32,8 +32,8 @@
     ]
   },
   "envVars": [
-    { "key": "POSTGRES_USER", "value": "aegis", "secret": false, "_note": "Migration owner. Application connects as `aegis_app` (created by init.sql) — separate role for least privilege." },
-    { "key": "POSTGRES_DB", "value": "aegis", "secret": false },
+    { "key": "POSTGRES_USER", "value": "okoro", "secret": false, "_note": "Migration owner. Application connects as `okoro_app` (created by init.sql) — separate role for least privilege." },
+    { "key": "POSTGRES_DB", "value": "okoro", "secret": false },
     { "key": "POSTGRES_PASSWORD", "secret": true, "_provision": "Railway generates this when the plugin is created. Rotate via Railway dashboard; remember to update DATABASE_URL on the API + worker after rotation." },
     { "key": "PGDATA", "value": "/var/lib/postgresql/data/pgdata", "secret": false },
     { "key": "POSTGRES_INITDB_ARGS", "value": "--encoding=UTF8 --lc-collate=C --lc-ctype=C", "secret": false, "_note": "C collation is faster and avoids ICU drift across PG versions; we don't need locale-aware sorting on identifiers." }

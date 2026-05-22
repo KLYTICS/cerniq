@@ -1,20 +1,20 @@
 /**
- * @aegis/mcp-bridge — unit tests for wrapMcpHandler()
+ * @okoro/mcp-bridge — unit tests for wrapMcpHandler()
  *
  * Coverage:
- *  - Token extracted from `_aegis_headers` (header path)
- *  - Token extracted from `_aegis_token` params (arg path)
+ *  - Token extracted from `_okoro_headers` (header path)
+ *  - Token extracted from `_okoro_token` params (arg path)
  *  - MISSING_TOKEN → BridgeDenialError(AGENT_NOT_FOUND)
- *  - AEGIS verify() returns valid=false → BridgeDenialError with reason
+ *  - OKORO verify() returns valid=false → BridgeDenialError with reason
  *  - Trust band below minimum → BridgeDenialError(TRUST_SCORE_TOO_LOW)
- *  - Happy path → handler called, aegisVerify injected into context
+ *  - Happy path → handler called, okoroVerify injected into context
  *  - Custom onDenial callback is invoked (not the default throw)
  *  - actionPrefix + method → action string forwarded to verify()
  *  - PLAN_LIMIT_EXCEEDED propagates from verify()
  *  - FLAGGED minTrustBand accepts any band
  */
 
-import type { Aegis, VerifyResult } from '@aegis/sdk';
+import type { Okoro, VerifyResult } from '@okoro/sdk';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { BridgeConfig} from './index.js';
@@ -22,17 +22,17 @@ import { BridgeDenialError, wrapMcpHandler } from './index.js';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-/** Build a minimal mock Aegis client with a controllable verify() */
-function makeAegis(result: VerifyResult): Aegis {
+/** Build a minimal mock Okoro client with a controllable verify() */
+function makeOkoro(result: VerifyResult): Okoro {
   return {
     verify: vi.fn().mockResolvedValue(result),
-  } as unknown as Aegis;
+  } as unknown as Okoro;
 }
 
-/** Build a base BridgeConfig with mocked aegis */
+/** Build a base BridgeConfig with mocked okoro */
 function baseConfig(overrides?: Partial<BridgeConfig>): BridgeConfig {
   return {
-    aegis: makeAegis(happyResult()),
+    okoro: makeOkoro(happyResult()),
     actionPrefix: 'mcp.test.',
     ...overrides,
   };
@@ -49,13 +49,13 @@ function makeReq(
 /** Token-bearing request via header path */
 function reqWithHeaderToken(method: string, token: string) {
   return makeReq(method, {
-    _aegis_headers: { 'x-aegis-token': token },
+    _okoro_headers: { 'x-okoro-token': token },
   });
 }
 
 /** Token-bearing request via arg path */
 function reqWithArgToken(method: string, token: string) {
-  return makeReq(method, { _aegis_token: token });
+  return makeReq(method, { _okoro_token: token });
 }
 
 function happyResult(overrides?: Partial<VerifyResult>): VerifyResult {
@@ -92,27 +92,27 @@ function deniedResult(reason: VerifyResult['denialReason']): VerifyResult {
 describe('wrapMcpHandler', () => {
   // ── Token extraction ─────────────────────────────────────────────────────
 
-  it('extracts token from _aegis_headers and calls verify', async () => {
-    const aegis = makeAegis(happyResult());
-    const config = baseConfig({ aegis });
+  it('extracts token from _okoro_headers and calls verify', async () => {
+    const okoro = makeOkoro(happyResult());
+    const config = baseConfig({ okoro });
     const handler = vi.fn().mockResolvedValue({ result: 'ok' });
 
     const wrapped = wrapMcpHandler(config, handler);
     await wrapped(reqWithHeaderToken('tools/call', 'tok_header'));
 
-    expect(aegis.verify).toHaveBeenCalledWith('tok_header', expect.objectContaining({ action: 'mcp.test.tools/call' }));
+    expect(okoro.verify).toHaveBeenCalledWith('tok_header', expect.objectContaining({ action: 'mcp.test.tools/call' }));
     expect(handler).toHaveBeenCalledTimes(1);
   });
 
-  it('extracts token from _aegis_token param when header is absent', async () => {
-    const aegis = makeAegis(happyResult());
-    const config = baseConfig({ aegis });
+  it('extracts token from _okoro_token param when header is absent', async () => {
+    const okoro = makeOkoro(happyResult());
+    const config = baseConfig({ okoro });
     const handler = vi.fn().mockResolvedValue({ result: 'ok' });
 
     const wrapped = wrapMcpHandler(config, handler);
     await wrapped(reqWithArgToken('resources/read', 'tok_arg'));
 
-    expect(aegis.verify).toHaveBeenCalledWith('tok_arg', expect.anything());
+    expect(okoro.verify).toHaveBeenCalledWith('tok_arg', expect.anything());
     expect(handler).toHaveBeenCalledTimes(1);
   });
 
@@ -127,11 +127,11 @@ describe('wrapMcpHandler', () => {
   });
 
   it('does NOT call verify() when token is absent', async () => {
-    const aegis = makeAegis(happyResult());
-    const config = baseConfig({ aegis });
+    const okoro = makeOkoro(happyResult());
+    const config = baseConfig({ okoro });
     const wrapped = wrapMcpHandler(config, vi.fn());
     await expect(wrapped(makeReq('tools/call'))).rejects.toThrow(BridgeDenialError);
-    expect(aegis.verify).not.toHaveBeenCalled();
+    expect(okoro.verify).not.toHaveBeenCalled();
   });
 
   // ── Verify denial propagation ────────────────────────────────────────────
@@ -148,8 +148,8 @@ describe('wrapMcpHandler', () => {
   ] as VerifyResult['denialReason'][])(
     'propagates denial reason %s from verify()',
     async (reason) => {
-      const aegis = makeAegis(deniedResult(reason));
-      const wrapped = wrapMcpHandler(baseConfig({ aegis }), vi.fn());
+      const okoro = makeOkoro(deniedResult(reason));
+      const wrapped = wrapMcpHandler(baseConfig({ okoro }), vi.fn());
       await expect(wrapped(reqWithHeaderToken('tools/call', 'tok'))).rejects.toMatchObject({
         name: 'BridgeDenialError',
         reason,
@@ -161,8 +161,8 @@ describe('wrapMcpHandler', () => {
 
   it('denies WATCH-band agent when minTrustBand=VERIFIED', async () => {
     const result = happyResult({ trustBand: 'WATCH', trustScore: 300 });
-    const aegis = makeAegis(result);
-    const config = baseConfig({ aegis, minTrustBand: 'VERIFIED' });
+    const okoro = makeOkoro(result);
+    const config = baseConfig({ okoro, minTrustBand: 'VERIFIED' });
     const wrapped = wrapMcpHandler(config, vi.fn());
     await expect(wrapped(reqWithHeaderToken('tools/call', 'tok'))).rejects.toMatchObject({
       reason: 'TRUST_SCORE_TOO_LOW',
@@ -171,8 +171,8 @@ describe('wrapMcpHandler', () => {
 
   it('denies VERIFIED-band agent when minTrustBand=PLATINUM', async () => {
     const result = happyResult({ trustBand: 'VERIFIED', trustScore: 600 });
-    const aegis = makeAegis(result);
-    const config = baseConfig({ aegis, minTrustBand: 'PLATINUM' });
+    const okoro = makeOkoro(result);
+    const config = baseConfig({ okoro, minTrustBand: 'PLATINUM' });
     const wrapped = wrapMcpHandler(config, vi.fn());
     await expect(wrapped(reqWithHeaderToken('tools/call', 'tok'))).rejects.toMatchObject({
       reason: 'TRUST_SCORE_TOO_LOW',
@@ -181,9 +181,9 @@ describe('wrapMcpHandler', () => {
 
   it('accepts WATCH-band agent when minTrustBand=WATCH', async () => {
     const result = happyResult({ trustBand: 'WATCH', trustScore: 300 });
-    const aegis = makeAegis(result);
+    const okoro = makeOkoro(result);
     const handler = vi.fn().mockResolvedValue({ ok: true });
-    const config = baseConfig({ aegis, minTrustBand: 'WATCH' });
+    const config = baseConfig({ okoro, minTrustBand: 'WATCH' });
     const wrapped = wrapMcpHandler(config, handler);
     const res = await wrapped(reqWithHeaderToken('tools/call', 'tok'));
     expect(res).toEqual({ ok: true });
@@ -192,38 +192,38 @@ describe('wrapMcpHandler', () => {
 
   it('accepts PLATINUM-band agent when minTrustBand=VERIFIED (default)', async () => {
     const result = happyResult({ trustBand: 'PLATINUM', trustScore: 900 });
-    const aegis = makeAegis(result);
+    const okoro = makeOkoro(result);
     const handler = vi.fn().mockResolvedValue({ ok: true });
-    const wrapped = wrapMcpHandler(baseConfig({ aegis }), handler);
+    const wrapped = wrapMcpHandler(baseConfig({ okoro }), handler);
     await expect(wrapped(reqWithHeaderToken('tools/call', 'tok'))).resolves.toEqual({ ok: true });
   });
 
   it('accepts FLAGGED-band agent when minTrustBand=FLAGGED', async () => {
     const result = happyResult({ trustBand: 'FLAGGED', trustScore: 50 });
-    const aegis = makeAegis(result);
+    const okoro = makeOkoro(result);
     const handler = vi.fn().mockResolvedValue({ ok: true });
-    const config = baseConfig({ aegis, minTrustBand: 'FLAGGED' });
+    const config = baseConfig({ okoro, minTrustBand: 'FLAGGED' });
     const wrapped = wrapMcpHandler(config, handler);
     await expect(wrapped(reqWithHeaderToken('tools/call', 'tok'))).resolves.toEqual({ ok: true });
   });
 
   // ── Happy path: context injection ────────────────────────────────────────
 
-  it('injects aegisVerify into BridgeContextWithVerification', async () => {
+  it('injects okoroVerify into BridgeContextWithVerification', async () => {
     const verifyResult = happyResult();
-    const aegis = makeAegis(verifyResult);
+    const okoro = makeOkoro(verifyResult);
     let capturedCtx: unknown;
     const handler = vi.fn().mockImplementation(async (_req: unknown, ctx: unknown) => {
       capturedCtx = ctx;
       return { done: true };
     });
 
-    const wrapped = wrapMcpHandler(baseConfig({ aegis }), handler);
+    const wrapped = wrapMcpHandler(baseConfig({ okoro }), handler);
     await wrapped(reqWithHeaderToken('tools/call', 'tok'));
 
     expect(capturedCtx).toMatchObject({
       method: 'tools/call',
-      aegisVerify: verifyResult,
+      okoroVerify: verifyResult,
     });
   });
 
@@ -240,8 +240,8 @@ describe('wrapMcpHandler', () => {
     const onDenial = vi.fn().mockImplementation(() => {
       throw new Error('custom denial');
     });
-    const aegis = makeAegis(deniedResult('AGENT_REVOKED'));
-    const config = baseConfig({ aegis, onDenial });
+    const okoro = makeOkoro(deniedResult('AGENT_REVOKED'));
+    const config = baseConfig({ okoro, onDenial });
     const wrapped = wrapMcpHandler(config, vi.fn());
 
     await expect(wrapped(reqWithHeaderToken('tools/call', 'tok'))).rejects.toThrow('custom denial');
@@ -262,20 +262,20 @@ describe('wrapMcpHandler', () => {
   // ── actionPrefix + method ────────────────────────────────────────────────
 
   it('constructs action as actionPrefix + method', async () => {
-    const aegis = makeAegis(happyResult());
-    const config = baseConfig({ aegis, actionPrefix: 'mcp.myserver.' });
+    const okoro = makeOkoro(happyResult());
+    const config = baseConfig({ okoro, actionPrefix: 'mcp.myserver.' });
     const wrapped = wrapMcpHandler(config, vi.fn().mockResolvedValue({}));
 
     await wrapped(reqWithHeaderToken('tools/list', 'tok'));
 
-    expect(aegis.verify).toHaveBeenCalledWith('tok', { action: 'mcp.myserver.tools/list' });
+    expect(okoro.verify).toHaveBeenCalledWith('tok', { action: 'mcp.myserver.tools/list' });
   });
 
   // ── BridgeDenialError shape ──────────────────────────────────────────────
 
   it('BridgeDenialError carries the VerifyResult', async () => {
     const vr = deniedResult('POLICY_EXPIRED');
-    const wrapped = wrapMcpHandler(baseConfig({ aegis: makeAegis(vr) }), vi.fn());
+    const wrapped = wrapMcpHandler(baseConfig({ okoro: makeOkoro(vr) }), vi.fn());
     try {
       await wrapped(reqWithHeaderToken('tools/call', 'tok'));
       expect.fail('should have thrown');

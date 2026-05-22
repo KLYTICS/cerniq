@@ -126,7 +126,7 @@ migration; existing rows on the BullMQ side are not touched.
   `prisma.$transaction` with `pg_advisory_xact_lock` (ADR-0005 +
   audit-fix work). The chain is durable in-tx.
 - Cross-region replication of the outbox — handled by Postgres's own
-  WAL replication; no AEGIS-side work.
+  WAL replication; no OKORO-side work.
 
 ## References
 

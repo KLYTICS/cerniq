@@ -1,4 +1,4 @@
-# AEGIS — The Product Wedge
+# OKORO — The Product Wedge
 ## Why This Wins and Why Nobody Can Copy It Fast Enough
 ### Internal Strategy | May 2026
 
@@ -6,16 +6,16 @@
 
 ## THE ONE-SENTENCE WEDGE
 
-**AEGIS is the tool-call checkpoint for AI agents — the layer that every MCP server needs before it executes, and the trust score that every relying party checks before it complies.**
+**OKORO is the tool-call checkpoint for AI agents — the layer that every MCP server needs before it executes, and the trust score that every relying party checks before it complies.**
 
 ---
 
 ## SECTION 1: THE EXACT PROBLEM WE OWN
 
-### What Exists Today vs. What AEGIS Does
+### What Exists Today vs. What OKORO Does
 
 ```
-TODAY (without AEGIS):
+TODAY (without OKORO):
 
   LLM → agent → tool call → YOUR API
                               ↑
@@ -30,9 +30,9 @@ TODAY (without AEGIS):
                            - A fraud bot wearing your agent's clothes
 
 
-WITH AEGIS:
+WITH OKORO:
 
-  LLM → agent → @aegis/mcp-bridge.wrap() → tool call → YOUR API
+  LLM → agent → @okoro/mcp-bridge.wrap() → tool call → YOUR API
                        ↑
                Ed25519-signed JWT
                Policy: scopes + spend limits
@@ -58,14 +58,14 @@ WITH AEGIS:
 
 ## SECTION 2: WHY THE WEDGE HOLDS
 
-### Wedge 1 — Protocol-Level Insertion (`@aegis/mcp-bridge`)
+### Wedge 1 — Protocol-Level Insertion (`@okoro/mcp-bridge`)
 
 MCP (Model Context Protocol) is the standard tool-call protocol for LLMs in 2026. Claude, GPT-4o, Gemini, and every major agent framework routes tool calls through MCP.
 
 Our `wrap()` call:
 ```typescript
-import { wrap } from '@aegis/mcp-bridge';
-const protectedServer = wrap(myMcpServer, { aegis, actionPrefix: 'mcp.myserver.' });
+import { wrap } from '@okoro/mcp-bridge';
+const protectedServer = wrap(myMcpServer, { okoro, actionPrefix: 'mcp.myserver.' });
 ```
 
 This is 3 lines. That's it. The MCP server developer does nothing else.
@@ -75,11 +75,11 @@ This is 3 lines. That's it. The MCP server developer does nothing else.
 The insertion point is the lowest possible level before execution. You cannot go lower without modifying the LLM itself. Any competitor that wants to intercept tool calls must also wrap the MCP transport — which means they need a developer to install their package. The developer who installs ours never installs theirs.
 
 **The bilateral network effect it creates:**
-- MCP server developers install `@aegis/mcp-bridge` → they become AEGIS relying parties
-- Their users' agents must carry AEGIS tokens to call their tools → users become AEGIS clients
-- Each integration creates two new AEGIS touchpoints with no additional sales effort
+- MCP server developers install `@okoro/mcp-bridge` → they become OKORO relying parties
+- Their users' agents must carry OKORO tokens to call their tools → users become OKORO clients
+- Each integration creates two new OKORO touchpoints with no additional sales effort
 
-**Adoption curve math:** If 1,000 MCP servers install our bridge over 18 months, and each server has 100 agent users, that's 100,000 potential AEGIS users from the relying-party side alone — agents that need AEGIS tokens to access tools they already use.
+**Adoption curve math:** If 1,000 MCP servers install our bridge over 18 months, and each server has 100 agent users, that's 100,000 potential OKORO users from the relying-party side alone — agents that need OKORO tokens to access tools they already use.
 
 ### Wedge 2 — BATE Data Moat (Behavioral History)
 
@@ -99,7 +99,7 @@ A 6-month-old PLATINUM-band agent (score 800+) has demonstrated:
 
 **You cannot port this history.** If a competing trust system launches, an agent migrating to it starts at zero. The BATE score is a switching cost that compounds every day the agent transacts.
 
-**Why this matters commercially:** Relying parties that require `minTrustScore: 700` are creating an implicit distribution requirement. Every developer who wants their agent to access those relying parties must use AEGIS — not because we require it, but because the relying party does.
+**Why this matters commercially:** Relying parties that require `minTrustScore: 700` are creating an implicit distribution requirement. Every developer who wants their agent to access those relying parties must use OKORO — not because we require it, but because the relying party does.
 
 ### Wedge 3 — Standards Timing
 
@@ -110,9 +110,9 @@ The NIST AI Agent Identity Initiative creates a compliance clock. Timeline:
 - ~Q2 2028: Final NIST guidance published
 - ~Q4 2028: Enterprise compliance mandates start citing NIST guidance
 
-Companies that implement AEGIS before Q4 2027 can claim "NIST-aligned agent identity infrastructure" in procurement responses, investor due diligence, and customer security questionnaires. This is not a marketing claim — it's a checkbox in the enterprise sales motion.
+Companies that implement OKORO before Q4 2027 can claim "NIST-aligned agent identity infrastructure" in procurement responses, investor due diligence, and customer security questionnaires. This is not a marketing claim — it's a checkbox in the enterprise sales motion.
 
-**Why first-mover matters here:** Security standards create sticky vendor relationships. The company that passes SOC2 with AEGIS in their stack does not rip it out when the standards finalize — they cite their existing implementation as compliant. We need to be the reference implementation before the standards lock in.
+**Why first-mover matters here:** Security standards create sticky vendor relationships. The company that passes SOC2 with OKORO in their stack does not rip it out when the standards finalize — they cite their existing implementation as compliant. We need to be the reference implementation before the standards lock in.
 
 ### Wedge 4 — ACP as a Sales Channel (Not Competition)
 
@@ -125,17 +125,17 @@ Currently: accepts any ACP payment from any agent
     ↓
 Problem: they're getting fraudulent agent transactions
     ↓
-AEGIS pitch: "Add aegis.verify(token) before your ACP handler. 
+OKORO pitch: "Add okoro.verify(token) before your ACP handler. 
               FLAGGED-band agents get rejected. 
               VERIFIED agents get approved. 
               Every decision is auditable."
     ↓
-The merchant now requires AEGIS tokens from all agents
+The merchant now requires OKORO tokens from all agents
     ↓
-Agents that want to shop at this merchant need AEGIS
+Agents that want to shop at this merchant need OKORO
 ```
 
-Every ACP-integrated merchant is a warm AEGIS relying-party lead. Stripe launched ACP at Stripe Sessions — every developer at that conference is now in our ICP.
+Every ACP-integrated merchant is a warm OKORO relying-party lead. Stripe launched ACP at Stripe Sessions — every developer at that conference is now in our ICP.
 
 ---
 
@@ -143,7 +143,7 @@ Every ACP-integrated merchant is a warm AEGIS relying-party lead. Stripe launche
 
 ### Moat 1 — Cryptographic Infrastructure (Hard to Replicate Fast)
 
-AEGIS uses Ed25519 everywhere:
+OKORO uses Ed25519 everywhere:
 - Agent keypairs: Ed25519
 - JWT signatures: EdDSA (Ed25519)
 - Audit chain signatures: Ed25519 via `@noble/ed25519`
@@ -155,7 +155,7 @@ Event N:
   sig(N) = Ed25519( prevSig(N-1) || RFC8785_canonical(event) )
 ```
 
-This is tamper-evident by construction. Changing any past event invalidates every subsequent signature. Independent verification requires only the public key (served at `/.well-known/audit-signing-key`) — no AEGIS API call needed.
+This is tamper-evident by construction. Changing any past event invalidates every subsequent signature. Independent verification requires only the public key (served at `/.well-known/audit-signing-key`) — no OKORO API call needed.
 
 A competitor could build this, but they need months of cryptographic engineering, external security review, and production hardening. We have it running today, with KMS rotation support for AWS, GCP, and Vault.
 
@@ -182,10 +182,10 @@ Every verify call produces:
 
 For enterprise procurement, the question "how do I prove your AI agent was authorized to do what it did?" has a specific answer: the audit chain. The response is:
 1. The agent signed the request with their private key
-2. AEGIS verified the signature, the policy, and the spend limit
+2. OKORO verified the signature, the policy, and the spend limit
 3. The verification result is in AuditEvent row `aev_xxxxx`
 4. The signature on that row chains to `/.well-known/audit-signing-key`
-5. Any party can independently verify the chain without calling AEGIS
+5. Any party can independently verify the chain without calling OKORO
 
 This is the infrastructure answer to enterprise legal's "can you prove it?" question. No competitor has this today.
 
@@ -195,7 +195,7 @@ The 10-minute verify path:
 ```
 Minute 0:  Sign up (email only)
 Minute 1:  Dashboard → "Register your first agent" (agentId returned)
-Minute 3:  npm install @aegis/sdk
+Minute 3:  npm install @okoro/sdk
 Minute 5:  agent.sign(payload) → token
 Minute 7:  POST /v1/verify → { valid: true, trustScore: 500 }
 Minute 10: Working in production
@@ -212,7 +212,7 @@ The Twilio analogy is exact: when a developer gets their first SMS working in 5 
 
 ## SECTION 4: THE COMPETITIVE CLOCK
 
-How long would a well-funded competitor take to replicate the Phase 1 AEGIS stack?
+How long would a well-funded competitor take to replicate the Phase 1 OKORO stack?
 
 | Component | Replication Time | Why |
 |-----------|-----------------|-----|
@@ -247,7 +247,7 @@ And in 6 months, we have:
 ```
 Day 1:  Developer hits "agent got blocked" problem
         → searches: "AI agent identity verification"
-        → finds AEGIS docs or community post
+        → finds OKORO docs or community post
         
 Day 1:  Signs up (60 seconds, no credit card)
         → registers agent (2 minutes)
@@ -258,7 +258,7 @@ Day 7:  Developer integrates into production
         → 100-500 verifies/month (growing)
         
 Day 21: 850/1,000 verifies used
-        → AEGIS trigger: "You're at 85% of free tier"
+        → OKORO trigger: "You're at 85% of free tier"
         → Developer knows this is real usage, not evaluation
         
 Day 28: PLAN_LIMIT_EXCEEDED denial starts appearing
@@ -271,7 +271,7 @@ Day 29: $49 MRR. Zero sales humans involved.
 ### How a Sales-Assisted Deal Closes (1-2 touches)
 
 ```
-Week 1:  Team lead sees junior dev using AEGIS
+Week 1:  Team lead sees junior dev using OKORO
          → "this is how we should do all agent auth"
          
 Week 2:  Checks Growth tier ($299/month)
@@ -279,7 +279,7 @@ Week 2:  Checks Growth tier ($299/month)
          → Webhook integrations for their Datadog setup
          → 500K verifies/month covers entire team
          
-Week 2:  Email from Erwin: "I see [Company] has 4 devs on AEGIS —
+Week 2:  Email from Erwin: "I see [Company] has 4 devs on OKORO —
           here's what the team plan looks like"
          
 Week 3:  15-minute call → demo of team dashboard
@@ -299,7 +299,7 @@ Month 1: CISO receives board question: "how do we prove our AI agents
 Month 2: Security team evaluates 3 options:
           - Build in-house (estimated: 6 months, $300K)
           - Auth0 for AI Agents (Okta tie-in, enterprise pricing)
-          - AEGIS (neutral, developer-first, already in use by their team)
+          - OKORO (neutral, developer-first, already in use by their team)
          
 Month 3: Technical evaluation:
           - Can verify the audit chain independently? YES (wellknown endpoint)
@@ -373,16 +373,16 @@ app.post('/payment', async (req) => {
 });
 ```
 
-**With AEGIS (add 4 lines):**
+**With OKORO (add 4 lines):**
 ```javascript
-import { AegisClient } from '@aegis/sdk';
-const aegis = new AegisClient({ apiKey: process.env.AEGIS_VERIFY_KEY });
+import { OkoroClient } from '@okoro/sdk';
+const okoro = new OkoroClient({ apiKey: process.env.OKORO_VERIFY_KEY });
 
 app.post('/payment', async (req) => {
-  const { acpToken, aegisToken, amount, currency } = req.body;
+  const { acpToken, okoroToken, amount, currency } = req.body;
   
-  // AEGIS layer — 4 lines
-  const identity = await aegis.verify(aegisToken, {
+  // OKORO layer — 4 lines
+  const identity = await okoro.verify(okoroToken, {
     action: 'commerce.purchase',
     amount,
     currency,

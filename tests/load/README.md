@@ -1,4 +1,4 @@
-# AEGIS load tests (k6)
+# OKORO load tests (k6)
 
 Steady-state verify-throughput benchmark. Runs separately from the vitest
 suite because k6 is a standalone Go binary, not a Node test runner.
@@ -22,9 +22,9 @@ pnpm dev                              # terminal A
 pnpm tsx scripts/seed-dev.ts          # terminal B — emits ENV exports
 
 # 2. export the seeded values, then run k6
-export AEGIS_E2E_URL=http://localhost:3000
-export AEGIS_E2E_API_KEY=aegis_sk_...
-export AEGIS_E2E_REQUEST_TOKEN=eyJhbGc...   # pre-signed agent JWT
+export OKORO_E2E_URL=http://localhost:3000
+export OKORO_E2E_API_KEY=okoro_sk_...
+export OKORO_E2E_REQUEST_TOKEN=eyJhbGc...   # pre-signed agent JWT
 
 k6 run tests/load/verify.js
 ```
@@ -39,7 +39,7 @@ any are breached:
 | `http_req_failed`               | `< 1 %`         | infrastructure stability        |
 | `http_req_duration` p95         | `< 200 ms`      | API SLA target                  |
 | `http_req_duration` p99         | `< 500 ms`      | tail-latency SLO                |
-| `aegis_verify_latency_ms` p95   | `< 200 ms`      | end-to-end measured client-side |
+| `okoro_verify_latency_ms` p95   | `< 200 ms`      | end-to-end measured client-side |
 
 Pattern: 50 RPS constant arrival for 60 s. Adjust the scenario block in
 `verify.js` to push higher; remember to bump `preAllocatedVUs` and
@@ -48,7 +48,7 @@ Pattern: 50 RPS constant arrival for 60 s. Adjust the scenario block in
 ## Caveat — single jti at high RPS
 
 This script reuses a single pre-signed `REQUEST_TOKEN` across every VU
-iteration. AEGIS replay protection (test 08) means every iteration but
+iteration. OKORO replay protection (test 08) means every iteration but
 the first should return `valid:false`. That is fine for measuring raw
 throughput, but it does **not** exercise the spend-counter path. To push
 spend-counter contention, mint a pool of distinct tokens via a Node

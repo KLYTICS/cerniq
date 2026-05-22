@@ -5,7 +5,7 @@
  *
  * Why this exists
  * ───────────────
- * Releases are not commits. AEGIS sessions land work in batches, and the
+ * Releases are not commits. OKORO sessions land work in batches, and the
  * canonical record of "what shipped" is `docs/SESSION_HANDOFF.md`. This
  * script lifts that prose into Keep-A-Changelog-formatted CHANGELOG.md
  * files inside each publishable package, bucketed by which package the
@@ -29,8 +29,8 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import * as path from 'node:path';
 
 import {
-  AegisPackageManifest,
-  findAegisPackages,
+  OkoroPackageManifest,
+  findOkoroPackages,
   findRepoRoot,
   packagesTouchedByText,
   pythonPackageManifest,
@@ -63,7 +63,7 @@ export interface SessionEntry {
 }
 
 export interface PackageBucket {
-  readonly pkg: AegisPackageManifest;
+  readonly pkg: OkoroPackageManifest;
   readonly entries: readonly SessionEntry[];
 }
 
@@ -190,7 +190,7 @@ export function filterEntriesSince(
 
 export function bucketEntriesByPackage(
   entries: readonly SessionEntry[],
-  packages: readonly AegisPackageManifest[],
+  packages: readonly OkoroPackageManifest[],
 ): readonly PackageBucket[] {
   // Map name → entries (preserve order).
   const byName = new Map<string, SessionEntry[]>();
@@ -272,7 +272,7 @@ export function readGitCommits(
 
 export function bucketCommitsByPackage(
   commits: readonly GitCommit[],
-  packages: readonly AegisPackageManifest[],
+  packages: readonly OkoroPackageManifest[],
 ): readonly PackageBucket[] {
   const byName = new Map<string, SessionEntry[]>();
   for (const pkg of packages) byName.set(pkg.name, []);
@@ -403,10 +403,10 @@ export function run(flags: CliFlags, depsIn?: Partial<RunDeps>): RunResult {
   const deps: RunDeps = { ...defaultRunDeps(repoRoot), ...depsIn };
 
   // 1. Discover packages — only the ones we actually publish.
-  const allPackages = findAegisPackages({ repoRoot });
+  const allPackages = findOkoroPackages({ repoRoot });
   const sdkAllowlist = new Set(SDK_PACKAGE_NAMES);
   let packages = allPackages.filter((p) => sdkAllowlist.has(p.name));
-  // Always include sdk-py (its npm name is `aegis-py` synthetic).
+  // Always include sdk-py (its npm name is `okoro-py` synthetic).
   const py = pythonPackageManifest(allPackages);
   if (py && !packages.includes(py)) packages = [...packages, py];
 
@@ -416,7 +416,7 @@ export function run(flags: CliFlags, depsIn?: Partial<RunDeps>): RunResult {
       (p) =>
         p.name === target ||
         p.dir.endsWith(`/${flags.packageFilter}`) ||
-        (target === 'aegis-py' && p.dir.endsWith('/sdk-py')),
+        (target === 'okoro-py' && p.dir.endsWith('/sdk-py')),
     );
     if (candidates.length === 0) {
       throw new Error(

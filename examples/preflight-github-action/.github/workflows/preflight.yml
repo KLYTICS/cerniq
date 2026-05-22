@@ -1,4 +1,4 @@
-# AEGIS preflight — ship-readiness gate
+# OKORO preflight — ship-readiness gate
 #
 # Runs `make preflight` on every PR + push to main. Posts a sticky
 # comment to the PR with the result table. Fails the job on exit 2
@@ -78,7 +78,7 @@ jobs:
             .map(c => `- **${c.id}**: ${c.remediation}`)
             .join('\n');
           const out = [
-            `## AEGIS preflight — ${v}`,
+            `## OKORO preflight — ${v}`,
             '',
             `**Result**: ${data.summary.pass} pass · ${data.summary.warn} warn · ${data.summary.fail} fail · ${data.summary.skip} skip · exit ${data.exitCode}  `,
             `**Run**: \`${process.env.GITHUB_REF_NAME}\` @ \`${process.env.GITHUB_SHA?.slice(0,7)}\``,
@@ -105,7 +105,7 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          header: aegis-preflight
+          header: okoro-preflight
           path: comment.md
 
       - name: Upload preflight artifact

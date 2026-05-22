@@ -1,8 +1,8 @@
-# `@aegis/mcp-bridge`
+# `@okoro/mcp-bridge`
 
-AEGIS verification middleware for [Model Context Protocol](https://modelcontextprotocol.io)
+OKORO verification middleware for [Model Context Protocol](https://modelcontextprotocol.io)
 servers. Wraps any MCP server transport so every tool call carries a
-verified AEGIS agent identity.
+verified OKORO agent identity.
 
 ## Why
 
@@ -13,40 +13,40 @@ parties (databases, APIs, financial systems) have no way to know whether
 a request is from a trusted agent, a compromised host, or a jailbroken
 prompt.
 
-`@aegis/mcp-bridge` is the smallest possible adapter: one import, one
-`wrapMcpHandler()` call, and your MCP server enforces AEGIS-verified
+`@okoro/mcp-bridge` is the smallest possible adapter: one import, one
+`wrapMcpHandler()` call, and your MCP server enforces OKORO-verified
 identity on every tool call.
 
 ## Install
 
 ```bash
-pnpm add @aegis/mcp-bridge @aegis/sdk
+pnpm add @okoro/mcp-bridge @okoro/sdk
 ```
 
 ## Quickstart
 
 ```ts
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { wrapMcpHandler } from '@aegis/mcp-bridge';
-import { Aegis } from '@aegis/sdk';
+import { wrapMcpHandler } from '@okoro/mcp-bridge';
+import { Okoro } from '@okoro/sdk';
 
-const aegis = new Aegis({ verifyKey: process.env.AEGIS_VERIFY_KEY! });
+const okoro = new Okoro({ verifyKey: process.env.OKORO_VERIFY_KEY! });
 const server = new Server({ name: 'fs-mcp-server', version: '1.0.0' });
 
 server.setRequestHandler(readFileSchema, wrapMcpHandler({
-  aegis,
+  okoro,
   actionPrefix: 'mcp.fs.',
   minTrustBand: 'VERIFIED',
 }, async (req, ctx) => {
-  // ctx.aegisVerify carries: { agentId, principalId, trustScore, trustBand, scopesGranted }
+  // ctx.okoroVerify carries: { agentId, principalId, trustScore, trustBand, scopesGranted }
   // — use them for fine-grained access decisions inside your handler.
   return await readFile(req.params.path);
 }));
 ```
 
-The agent caller passes its AEGIS token via either:
-1. `X-AEGIS-Token` header (preferred for HTTP / SSE / WebSocket transports)
-2. `_aegis_token` field in JSON-RPC params (fallback for stdio transport)
+The agent caller passes its OKORO token via either:
+1. `X-OKORO-Token` header (preferred for HTTP / SSE / WebSocket transports)
+2. `_okoro_token` field in JSON-RPC params (fallback for stdio transport)
 
 ## Status
 
@@ -60,15 +60,15 @@ the transport-specific glue may evolve.
   (missing token, network error, denial), it throws `BridgeDenialError`.
   Callers can opt into custom denial handling via `config.onDenial`.
 - The bridge **never caches** verification results. Each tool call
-  re-verifies — at AEGIS-edge p99 of <80ms (Phase 3) this is acceptable
+  re-verifies — at OKORO-edge p99 of <80ms (Phase 3) this is acceptable
   even for chatty tools.
 
 ## See also
 
-- AEGIS docs: <https://docs.aegislabs.io>
+- OKORO docs: <https://docs.okorolabs.io>
 - MCP spec: <https://modelcontextprotocol.io>
 - Strategic rationale: `docs/standards/0001-mcp-bridge-positioning.md`
 
 ## License
 
-MIT — © KLYTICS / AEGIS Labs.
+MIT — © KLYTICS / OKORO Labs.

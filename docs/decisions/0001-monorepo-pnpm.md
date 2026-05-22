@@ -6,7 +6,7 @@
 
 ## Context
 
-AEGIS spans an HTTP API (NestJS), a developer dashboard (Next.js), a
+OKORO spans an HTTP API (NestJS), a developer dashboard (Next.js), a
 public TypeScript SDK, a future Python SDK, a future Cloudflare Worker
 for the edge verify path, and shared types/configs. These artifacts
 share a contract (`packages/types`) and we want one PR to be able to
@@ -72,7 +72,7 @@ mirroring the current `pnpm -r` scripts and update CI to call
 `turbo run`. Reversible in one commit, no source-code changes.
 
 Splitting to multi-repo: each `packages/*` and `apps/*` becomes its
-own repo with a published version of `@aegis/types`. Affects every
+own repo with a published version of `@okoro/types`. Affects every
 PR workflow; do not undertake without an SDK v1 line in the sand.
 
 ## References

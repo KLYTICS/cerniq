@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { shadowMode, compareVerifyResponses, divergenceHeader } from '../src/shadow';
-import type { VerifyResponse } from '@aegis/types';
+import type { VerifyResponse } from '@okoro/types';
 
 const baseResponse: VerifyResponse = {
   valid: true,
@@ -16,10 +16,10 @@ const baseResponse: VerifyResponse = {
 
 describe('shadowMode', () => {
   it('live wins over shadow when both flags are set', () => {
-    expect(shadowMode({ AEGIS_EDGE_VERIFY_ENABLED: 'true', AEGIS_EDGE_VERIFY_SHADOW_MODE: 'true' })).toBe('live');
+    expect(shadowMode({ OKORO_EDGE_VERIFY_ENABLED: 'true', OKORO_EDGE_VERIFY_SHADOW_MODE: 'true' })).toBe('live');
   });
   it('returns shadow when only shadow flag is set', () => {
-    expect(shadowMode({ AEGIS_EDGE_VERIFY_SHADOW_MODE: 'true' })).toBe('shadow');
+    expect(shadowMode({ OKORO_EDGE_VERIFY_SHADOW_MODE: 'true' })).toBe('shadow');
   });
   it('returns off when neither is set', () => {
     expect(shadowMode({})).toBe('off');

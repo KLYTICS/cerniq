@@ -1,15 +1,15 @@
-// MCP server that wraps a downstream API behind an AEGIS verify gate.
+// MCP server that wraps a downstream API behind an OKORO verify gate.
 //
 // The MCP tool `your_svc.action` accepts standard tool args plus an
-// `aegis_token` field. On every invocation:
-//   1. Extract aegis_token from tool args.
-//   2. aegis.verify(token, action_kind, payload).
+// `okoro_token` field. On every invocation:
+//   1. Extract okoro_token from tool args.
+//   2. okoro.verify(token, action_kind, payload).
 //   3. On allow: forward to the downstream API.
 //   4. On deny: return MCP tool error with the denialReason.
 //
-// This pairs with peer's @aegis/mcp-server (packages/mcp-server/),
-// which exposes AEGIS itself as a set of MCP tools — symmetric: an
-// agent that uses AEGIS through MCP gets verified through AEGIS via MCP.
+// This pairs with peer's @okoro/mcp-server (packages/mcp-server/),
+// which exposes OKORO itself as a set of MCP tools — symmetric: an
+// agent that uses OKORO through MCP gets verified through OKORO via MCP.
 //
 // Read examples/ai-platform-tool-call/README.md for the production
 // checklist (tool-scope mapping, token binding, audit cross-link).
@@ -20,18 +20,18 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { Aegis } from '@aegis/sdk';
+import { Okoro } from '@okoro/sdk';
 import { randomUUID } from 'node:crypto';
 
-const aegis = new Aegis({
-  baseUrl: process.env.AEGIS_API_BASE ?? 'https://api.aegislabs.io',
-  verifyKey: requireEnv('AEGIS_VERIFY_KEY'),
+const okoro = new Okoro({
+  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okorolabs.io',
+  verifyKey: requireEnv('OKORO_VERIFY_KEY'),
 });
 
 const downstream = requireEnv('DOWNSTREAM_API_BASE');
 
 const server = new Server(
-  { name: 'aegis-gated-toolset', version: '0.1.0' },
+  { name: 'okoro-gated-toolset', version: '0.1.0' },
   { capabilities: { tools: {} } }
 );
 
@@ -41,14 +41,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
       name: 'read_invoice',
-      description: 'Read one invoice from the downstream API. Requires an AEGIS token in args.',
+      description: 'Read one invoice from the downstream API. Requires an OKORO token in args.',
       inputSchema: {
         type: 'object',
         properties: {
           invoice_id: { type: 'string' },
-          aegis_token: { type: 'string', description: 'JWT signed by the agent' },
+          okoro_token: { type: 'string', description: 'JWT signed by the agent' },
         },
-        required: ['invoice_id', 'aegis_token'],
+        required: ['invoice_id', 'okoro_token'],
       },
     },
   ],
@@ -57,12 +57,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 server.setRequestHandler(CallToolRequestSchema, async (req) => {
   const { name, arguments: rawArgs } = req.params;
   const args = (rawArgs ?? {}) as Record<string, unknown>;
-  const token = String(args.aegis_token ?? '');
+  const token = String(args.okoro_token ?? '');
   if (!token) {
-    return toolError('missing aegis_token in tool arguments');
+    return toolError('missing okoro_token in tool arguments');
   }
 
-  const verdict = await aegis.verify({
+  const verdict = await okoro.verify({
     token,
     action: { kind: `tool.${name}`, payload: args },
     requestedAmount: '0',
@@ -73,16 +73,16 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
   if (!verdict.valid) {
     return toolError(
-      `denied: ${verdict.denialReason}. AEGIS audit event ${verdict.auditEventId}`
+      `denied: ${verdict.denialReason}. OKORO audit event ${verdict.auditEventId}`
     );
   }
 
-  // Forward to the downstream API. Cross-link the AEGIS audit id so
-  // the downstream's request log can be joined back to the AEGIS chain.
+  // Forward to the downstream API. Cross-link the OKORO audit id so
+  // the downstream's request log can be joined back to the OKORO chain.
   const resp = await fetch(`${downstream}/invoices/${encodeURIComponent(String(args.invoice_id))}`, {
     headers: {
-      'X-AEGIS-Audit-Event-Id': verdict.auditEventId,
-      'X-AEGIS-Agent-Id': verdict.agentId,
+      'X-OKORO-Audit-Event-Id': verdict.auditEventId,
+      'X-OKORO-Agent-Id': verdict.agentId,
     },
   });
   const body = await resp.text();
@@ -98,7 +98,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
-process.stderr.write('aegis-gated MCP server ready on stdio\n');
+process.stderr.write('okoro-gated MCP server ready on stdio\n');
 
 // helpers ---------------------------------------------------------
 

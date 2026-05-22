@@ -1,17 +1,17 @@
-# AEGIS — MCP Integration Guide
+# OKORO — MCP Integration Guide
 ## Claude Desktop, Cursor, Cline, and Any MCP Server
 
-> **The wedge.** Every MCP server in the wild is a potential AEGIS relying party. One `wrap()` call is all it takes.  
+> **The wedge.** Every MCP server in the wild is a potential OKORO relying party. One `wrap()` call is all it takes.  
 > **Updated:** 2026-05-04  
-> **Packages:** `@aegis/mcp-bridge`, `@aegis/mcp-server`
+> **Packages:** `@okoro/mcp-bridge`, `@okoro/mcp-server`
 
 ---
 
-## 1. Why MCP + AEGIS
+## 1. Why MCP + OKORO
 
 The Model Context Protocol (MCP) connects AI agents (Claude, GPT, Gemini) to tools and services. But MCP has no built-in answer to: "which AI agent made this call, and should I trust it?"
 
-AEGIS answers that question. Every `wrap()` call:
+OKORO answers that question. Every `wrap()` call:
 - Requires the calling agent to present a signed JWT (proof of identity)
 - Enforces your policy (spend limits, scope gates, trust thresholds)
 - Appends a signed audit event (cryptographic proof of what happened)
@@ -26,9 +26,9 @@ AEGIS answers that question. Every `wrap()` call:
 ### 2.1 Install
 
 ```bash
-npm install @aegis/mcp-bridge @aegis/sdk
+npm install @okoro/mcp-bridge @okoro/sdk
 # or
-pnpm add @aegis/mcp-bridge @aegis/sdk
+pnpm add @okoro/mcp-bridge @okoro/sdk
 ```
 
 ### 2.2 Wrap Your MCP Server
@@ -48,11 +48,11 @@ const transport = new StdioServerTransport();
 await server.connect(transport);
 ```
 
-After (AEGIS-protected, 3 lines changed):
+After (OKORO-protected, 3 lines changed):
 ```typescript
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { wrap } from '@aegis/mcp-bridge';
+import { wrap } from '@okoro/mcp-bridge';
 
 const server = new Server({ name: 'my-tool-server', version: '1.0.0' });
 server.setRequestHandler(CallToolRequestSchema, async (req) => {
@@ -61,7 +61,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
 // ✅ One call adds identity, policy, spend, and audit
 const protectedServer = wrap(server, {
-  apiKey: process.env.AEGIS_API_KEY,
+  apiKey: process.env.OKORO_API_KEY,
   // Optional: override defaults
   // requiredScopes: ['tool:execute'],
   // trustBandMinimum: 'VERIFIED',
@@ -76,7 +76,7 @@ await protectedServer.connect(transport);
 
 For every incoming tool call:
 
-1. **Extracts** the AEGIS JWT from `params._aegisToken` (or `headers['x-aegis-token']`)
+1. **Extracts** the OKORO JWT from `params._okoroToken` (or `headers['x-okoro-token']`)
 2. **Verifies** Ed25519 signature, expiry, scopes — offline, no network call needed
 3. **Checks** policy: spend limit, scope gates, trust band
 4. **If denied**: returns MCP error response with `denialReason`, never calls your handler
@@ -87,12 +87,12 @@ For every incoming tool call:
 
 ## 3. Claude Desktop Integration
 
-### 3.1 How Claude Sends AEGIS Tokens
+### 3.1 How Claude Sends OKORO Tokens
 
-Claude Desktop's AEGIS integration (when configured) automatically:
+Claude Desktop's OKORO integration (when configured) automatically:
 1. Loads the agent's Ed25519 key from the local keychain
 2. Signs a JWT for each tool call with 30-second TTL
-3. Includes the token in `params._aegisToken`
+3. Includes the token in `params._okoroToken`
 
 This is transparent to the agent — no special prompting required.
 
@@ -107,8 +107,8 @@ In Claude Desktop settings → Developer → MCP Servers, add:
       "command": "node",
       "args": ["/path/to/your/mcp-server/dist/index.js"],
       "env": {
-        "AEGIS_API_KEY": "ak_live_xxxx",
-        "AEGIS_AGENT_PRIVATE_KEY": "${AEGIS_PRIVATE_KEY}"
+        "OKORO_API_KEY": "ak_live_xxxx",
+        "OKORO_AGENT_PRIVATE_KEY": "${OKORO_PRIVATE_KEY}"
       }
     }
   }
@@ -117,17 +117,17 @@ In Claude Desktop settings → Developer → MCP Servers, add:
 
 ### 3.3 Register the Claude Agent
 
-Before Claude can make AEGIS-verified calls, register it as an agent:
+Before Claude can make OKORO-verified calls, register it as an agent:
 
 ```bash
 # Register the Claude Desktop agent
-aegis agents register \
+okoro agents register \
   --name "claude-desktop-main" \
-  --public-key "$(cat ~/.aegis/agent.pub)" \
+  --public-key "$(cat ~/.okoro/agent.pub)" \
   --description "Claude Desktop — primary work agent"
 
 # Attach a policy (what is this agent allowed to do?)
-aegis policy apply \
+okoro policy apply \
   --agent claude-desktop-main \
   --scope "tool:execute" \
   --scope "file:read" \
@@ -140,7 +140,7 @@ aegis policy apply \
 
 ```bash
 # Verify Claude can make an authenticated call
-aegis verify \
+okoro verify \
   --agent claude-desktop-main \
   --scope tool:execute \
   --amount 10
@@ -157,21 +157,21 @@ aegis verify \
 
 ## 4. Cursor Integration
 
-Cursor uses MCP servers for context retrieval and tool execution. Wire AEGIS the same way:
+Cursor uses MCP servers for context retrieval and tool execution. Wire OKORO the same way:
 
 ```typescript
 // cursor-mcp-server/src/index.ts
-import { wrap } from '@aegis/mcp-bridge';
+import { wrap } from '@okoro/mcp-bridge';
 import { createCursorToolServer } from './tools';
 
 const server = createCursorToolServer();
 
-// Protect with AEGIS — developers and their agents get identity + audit
+// Protect with OKORO — developers and their agents get identity + audit
 const protected = wrap(server, {
-  apiKey: process.env.AEGIS_API_KEY,
-  relyingPartyId: process.env.AEGIS_RELYING_PARTY_ID,
+  apiKey: process.env.OKORO_API_KEY,
+  relyingPartyId: process.env.OKORO_RELYING_PARTY_ID,
   onDenied: (result) => {
-    console.error(`[AEGIS] Denied: ${result.denialReason} for agent ${result.agentId}`);
+    console.error(`[OKORO] Denied: ${result.denialReason} for agent ${result.agentId}`);
   },
   onApproved: (result) => {
     // Optional: metrics, logging
@@ -182,8 +182,8 @@ const protected = wrap(server, {
 **Cursor-specific pattern:** Register each developer's Cursor instance as a separate agent for per-developer audit trails:
 
 ```bash
-aegis agents register --name "cursor-alice@company.com" --public-key ...
-aegis agents register --name "cursor-bob@company.com" --public-key ...
+okoro agents register --name "cursor-alice@company.com" --public-key ...
+okoro agents register --name "cursor-bob@company.com" --public-key ...
 ```
 
 Now every code action in Cursor is attributed to the right developer's agent.
@@ -195,12 +195,12 @@ Now every code action in Cursor is attributed to the right developer's agent.
 Cline (VS Code extension for AI-assisted coding) works identically:
 
 ```typescript
-// cline-mcp-bridge/src/aegis-wrapper.ts
-import { wrap, type WrapOptions } from '@aegis/mcp-bridge';
+// cline-mcp-bridge/src/okoro-wrapper.ts
+import { wrap, type WrapOptions } from '@okoro/mcp-bridge';
 
 export function wrapForCline(server: MCPServer): MCPServer {
   const options: WrapOptions = {
-    apiKey: process.env.AEGIS_API_KEY,
+    apiKey: process.env.OKORO_API_KEY,
     // Cline-specific: allow filesystem + terminal tools
     requiredScopes: ['fs:read', 'fs:write', 'shell:execute'],
     // Cline agents should be VERIFIED or better
@@ -220,7 +220,7 @@ export function wrapForCline(server: MCPServer): MCPServer {
 
 ## 6. Building a Protected MCP Server from Scratch
 
-For teams building new MCP servers that should be AEGIS-native:
+For teams building new MCP servers that should be OKORO-native:
 
 ```typescript
 // src/index.ts — Full example: protected file system MCP server
@@ -228,11 +228,11 @@ For teams building new MCP servers that should be AEGIS-native:
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { wrap, type AegisMcpContext } from '@aegis/mcp-bridge';
+import { wrap, type OkoroMcpContext } from '@okoro/mcp-bridge';
 import * as fs from 'node:fs/promises';
 
 const server = new Server(
-  { name: 'aegis-fs-server', version: '1.0.0' },
+  { name: 'okoro-fs-server', version: '1.0.0' },
   { capabilities: { tools: {} } }
 );
 
@@ -265,8 +265,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
   ],
 }));
 
-// Implement tools — context is injected by AEGIS wrapper
-server.setRequestHandler(CallToolRequestSchema, async (req, context: AegisMcpContext) => {
+// Implement tools — context is injected by OKORO wrapper
+server.setRequestHandler(CallToolRequestSchema, async (req, context: OkoroMcpContext) => {
   const { name, arguments: args } = req.params;
   
   // context.agentId, context.trustBand, context.trustScore are available
@@ -292,10 +292,10 @@ server.setRequestHandler(CallToolRequestSchema, async (req, context: AegisMcpCon
   throw new Error(`Unknown tool: ${name}`);
 });
 
-// Wrap with AEGIS
+// Wrap with OKORO
 const protectedServer = wrap(server, {
-  apiKey: process.env.AEGIS_API_KEY!,
-  relyingPartyId: process.env.AEGIS_RELYING_PARTY_ID,
+  apiKey: process.env.OKORO_API_KEY!,
+  relyingPartyId: process.env.OKORO_RELYING_PARTY_ID,
   // Per-tool scope requirements
   toolScopeMap: {
     read_file: ['fs:read'],
@@ -309,14 +309,14 @@ await protectedServer.connect(transport);
 
 ---
 
-## 7. AEGIS MCP Server (Manage AEGIS via MCP)
+## 7. OKORO MCP Server (Manage OKORO via MCP)
 
-AEGIS itself exposes a management API as an MCP server. This lets Claude/Cursor manage AEGIS configuration conversationally.
+OKORO itself exposes a management API as an MCP server. This lets Claude/Cursor manage OKORO configuration conversationally.
 
-### 7.1 Install the AEGIS MCP Server
+### 7.1 Install the OKORO MCP Server
 
 ```bash
-npx @aegis/mcp-server
+npx @okoro/mcp-server
 ```
 
 ### 7.2 Add to Claude Desktop
@@ -324,11 +324,11 @@ npx @aegis/mcp-server
 ```json
 {
   "mcpServers": {
-    "aegis": {
+    "okoro": {
       "command": "npx",
-      "args": ["@aegis/mcp-server"],
+      "args": ["@okoro/mcp-server"],
       "env": {
-        "AEGIS_API_KEY": "ak_live_xxxx"
+        "OKORO_API_KEY": "ak_live_xxxx"
       }
     }
   }
@@ -337,26 +337,26 @@ npx @aegis/mcp-server
 
 ### 7.3 Available Tools
 
-The AEGIS MCP server exposes these tools in the `aegis.*` namespace:
+The OKORO MCP server exposes these tools in the `okoro.*` namespace:
 
 ```
-aegis.registerAgent(name, publicKey)      → AgentIdentity
-aegis.getAgent(id)                        → AgentIdentity + trust state
-aegis.revokeAgent(id, reason)             → void
-aegis.listAgents()                        → AgentIdentity[]
-aegis.applyPolicy(agentId, policy)        → AgentPolicy
-aegis.listPolicies(agentId)               → AgentPolicy[]
-aegis.getAuditLog(agentId, limit)         → AuditEvent[]
-aegis.verifyChainIntegrity(limit)         → { breaks: number, ok: boolean }
-aegis.getTrustScore(agentId)              → { score: number, band: TrustBand, explanation: ... }
-aegis.getOnboardingStatus()               → PrincipalOnboarding
+okoro.registerAgent(name, publicKey)      → AgentIdentity
+okoro.getAgent(id)                        → AgentIdentity + trust state
+okoro.revokeAgent(id, reason)             → void
+okoro.listAgents()                        → AgentIdentity[]
+okoro.applyPolicy(agentId, policy)        → AgentPolicy
+okoro.listPolicies(agentId)               → AgentPolicy[]
+okoro.getAuditLog(agentId, limit)         → AuditEvent[]
+okoro.verifyChainIntegrity(limit)         → { breaks: number, ok: boolean }
+okoro.getTrustScore(agentId)              → { score: number, band: TrustBand, explanation: ... }
+okoro.getOnboardingStatus()               → PrincipalOnboarding
 ```
 
 Example: "Claude, register my new agent and give it permission to make payments up to $100"
 
 Claude will:
-1. Call `aegis.registerAgent(...)` to create the agent
-2. Call `aegis.applyPolicy(...)` to set the spend limit
+1. Call `okoro.registerAgent(...)` to create the agent
+2. Call `okoro.applyPolicy(...)` to set the spend limit
 3. Return the agent ID and a summary of what was configured
 
 ---
@@ -367,7 +367,7 @@ When an orchestrator agent delegates to sub-agents:
 
 ```typescript
 // Orchestrator creates a delegation token
-const delegation = await aegis.agents.delegate({
+const delegation = await okoro.agents.delegate({
   from: 'orchestrator-agent-id',
   to: 'subagent-id',
   scopes: ['payment:read'], // subset of orchestrator's scopes
@@ -382,7 +382,7 @@ const token = await signToken({
   scopes: ['payment:read'],
 });
 
-// AEGIS verify validates the full delegation chain
+// OKORO verify validates the full delegation chain
 // AgentDelegation table: max depth is enforced (CLAUDE.md Invariant)
 ```
 
@@ -396,18 +396,18 @@ When an agent is revoked, MCP servers should stop accepting its tokens within 30
 
 ```typescript
 // In your MCP server (or its host process)
-import { AegisVerifier } from '@aegis/verifier-rp';
+import { OkoroVerifier } from '@okoro/verifier-rp';
 
-const verifier = new AegisVerifier({
-  aegisUrl: 'https://api.aegislabs.io',
-  apiKey: process.env.AEGIS_API_KEY,
+const verifier = new OkoroVerifier({
+  okoroUrl: 'https://api.okorolabs.io',
+  apiKey: process.env.OKORO_API_KEY,
 });
 
 // Webhook handler — wire to your Express/Fastify/Hono server
-app.post('/webhooks/aegis', async (req, res) => {
+app.post('/webhooks/okoro', async (req, res) => {
   // HMAC verification (required)
-  const sig = req.headers['x-aegis-signature'];
-  const expected = createHmac('sha256', process.env.AEGIS_WEBHOOK_SECRET!)
+  const sig = req.headers['x-okoro-signature'];
+  const expected = createHmac('sha256', process.env.OKORO_WEBHOOK_SECRET!)
     .update((req as any).rawBody)
     .digest('hex');
   if (sig !== expected) return res.status(401).send('Invalid signature');
@@ -429,9 +429,9 @@ app.post('/webhooks/aegis', async (req, res) => {
 If webhooks aren't configured, verifier-rp polls revocation status:
 
 ```typescript
-const verifier = new AegisVerifier({
-  aegisUrl: 'https://api.aegislabs.io',
-  apiKey: process.env.AEGIS_API_KEY,
+const verifier = new OkoroVerifier({
+  okoroUrl: 'https://api.okorolabs.io',
+  apiKey: process.env.OKORO_API_KEY,
   revocationPollInterval: 30_000, // 30 seconds (default)
   // Revoked agents are cached for max 5 minutes
 });
@@ -443,10 +443,10 @@ const verifier = new AegisVerifier({
 
 ### "Token not found in request"
 
-`@aegis/mcp-bridge` looks for the token in:
-1. `params._aegisToken` (preferred for MCP tool calls)
-2. `headers['x-aegis-token']` (for HTTP transports)
-3. `params.aegisToken` (legacy format)
+`@okoro/mcp-bridge` looks for the token in:
+1. `params._okoroToken` (preferred for MCP tool calls)
+2. `headers['x-okoro-token']` (for HTTP transports)
+3. `params.okoroToken` (legacy format)
 
 If your MCP client doesn't inject the token automatically, inject it in your MCP server SDK call:
 
@@ -457,8 +457,8 @@ const result = await mcpClient.callTool({
   arguments: {
     // Your normal args
     input: 'hello',
-    // AEGIS token
-    _aegisToken: await aegis.agents.sign({ scopes: ['tool:execute'], ttlSeconds: 30 }),
+    // OKORO token
+    _okoroToken: await okoro.agents.sign({ scopes: ['tool:execute'], ttlSeconds: 30 }),
   },
 });
 ```
@@ -469,10 +469,10 @@ The agent's policy doesn't include the scope required by the tool.
 
 ```bash
 # Check what scopes the agent has
-aegis policy get --agent [AGENT_ID]
+okoro policy get --agent [AGENT_ID]
 
 # Add the missing scope
-aegis policy apply --agent [AGENT_ID] --scope tool:execute
+okoro policy apply --agent [AGENT_ID] --scope tool:execute
 ```
 
 ### "TRUST_SCORE_TOO_LOW"
@@ -481,7 +481,7 @@ Your MCP server requires `trustBandMinimum: 'VERIFIED'` but the agent is `WATCH`
 
 ```bash
 # Check agent's current trust state
-aegis agents get --id [AGENT_ID] --show-trust-breakdown
+okoro agents get --id [AGENT_ID] --show-trust-breakdown
 
 # The score will increase naturally as the agent builds behavioral history
 # See DEVELOPER_QUICKSTART.md §Trust Bands
@@ -489,4 +489,4 @@ aegis agents get --id [AGENT_ID] --show-trust-breakdown
 
 ---
 
-*MCP integration guide version: 1.0 | AEGIS Phase 1*
+*MCP integration guide version: 1.0 | OKORO Phase 1*

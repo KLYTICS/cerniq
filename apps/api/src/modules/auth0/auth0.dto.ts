@@ -1,6 +1,6 @@
 // DTOs for the Auth0 module. The Auth0 Action posts to `/v1/idp/auth0/login`
-// for AEGIS-side audit + principal binding. The dashboard posts to
-// `/v1/idp/auth0/exchange` to swap an Auth0 access token for an AEGIS
+// for OKORO-side audit + principal binding. The dashboard posts to
+// `/v1/idp/auth0/exchange` to swap an Auth0 access token for an OKORO
 // API session.
 
 export interface Auth0ActionLoginDto {
@@ -12,7 +12,7 @@ export interface Auth0ActionLoginDto {
   email_verified: boolean;
   /** Whether MFA was satisfied this session. From `amr` array. */
   mfa: boolean;
-  /** Roles AEGIS expects: `aegis:admin`, `aegis:operator`, `aegis:viewer`. */
+  /** Roles OKORO expects: `okoro:admin`, `okoro:operator`, `okoro:viewer`. */
   roles: string[];
   /** When this login completed (Auth0 server clock). */
   occurred_at: string;
@@ -35,11 +35,11 @@ export interface Auth0ExchangeDto {
 }
 
 export interface Auth0ExchangeResultDto {
-  /** The AEGIS API key the dashboard uses for subsequent requests. */
+  /** The OKORO API key the dashboard uses for subsequent requests. */
   api_key_id: string;
-  /** The AEGIS Principal this human is operating within. */
+  /** The OKORO Principal this human is operating within. */
   principal_id: string;
-  /** AEGIS roles parsed from Auth0 custom claims. */
+  /** OKORO roles parsed from Auth0 custom claims. */
   roles: string[];
   /** When the API key expires. Refresh via re-exchange. */
   expires_at: string;

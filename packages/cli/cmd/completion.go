@@ -18,10 +18,10 @@ var completionCmd = &cobra.Command{
 Pipe the output to your shell's completion directory or source it in
 your rc file:
 
-  bash:      source <(aegis completion bash)
-  zsh:       aegis completion zsh > "${fpath[1]}/_aegis"
-  fish:      aegis completion fish | source
-  powershell: aegis completion powershell | Out-String | Invoke-Expression`,
+  bash:      source <(okoro completion bash)
+  zsh:       okoro completion zsh > "${fpath[1]}/_okoro"
+  fish:      okoro completion fish | source
+  powershell: okoro completion powershell | Out-String | Invoke-Expression`,
 	DisableFlagsInUseLine: true,
 	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
 	Args:                  cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),

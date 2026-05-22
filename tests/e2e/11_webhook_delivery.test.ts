@@ -2,7 +2,7 @@ import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import { createServer, type Server } from 'node:http';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { AddressInfo } from 'node:net';
-import type { Aegis } from '@aegis/sdk';
+import type { Okoro } from '@okoro/sdk';
 import { RawClient, makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixtures';
 
@@ -13,7 +13,7 @@ interface CapturedDelivery {
 }
 
 describe('11 · webhook delivery', () => {
-  let sdk: Aegis;
+  let sdk: Okoro;
   let raw: RawClient;
   let server: Server;
   let endpoint: string;
@@ -33,7 +33,7 @@ describe('11 · webhook delivery', () => {
       req.on('end', () => {
         captured.push({
           body: chunks,
-          signature: (req.headers['x-aegis-signature'] as string | undefined) ?? null,
+          signature: (req.headers['x-okoro-signature'] as string | undefined) ?? null,
           timestamp: Date.now(),
         });
         res.statusCode = 200;
@@ -61,14 +61,14 @@ describe('11 · webhook delivery', () => {
     // remaining). Probe — if 404, skip with a soft signal.
     const subProbe = await raw.post<{ subscriptionId?: string; secret?: string }>('/v1/webhooks', {
       url: endpoint,
-      events: ['aegis.agent.revoked'],
+      events: ['okoro.agent.revoked'],
     });
     if (subProbe.status === 404) return;
     expect([200, 201]).toContain(subProbe.status);
     receivedSecret = subProbe.body.secret;
 
     // Trigger something that should fire a webhook — revoking an agent
-    // emits `aegis.agent.revoked`.
+    // emits `okoro.agent.revoked`.
     const agent = await createAgent(sdk);
     cleanup.push(agent.agentId);
     await createPolicy(sdk, agent.agentId, [SCOPES.commerce()]);

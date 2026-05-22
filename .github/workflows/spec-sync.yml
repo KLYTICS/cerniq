@@ -1,7 +1,7 @@
 name: spec-sync
 
 # Drift guard for the three sources of truth that must agree:
-#   - docs/spec/AEGIS_API_SPEC.yaml          (OpenAPI, source of truth for the wire)
+#   - docs/spec/OKORO_API_SPEC.yaml          (OpenAPI, source of truth for the wire)
 #   - packages/types/src/{schemas,constants}.ts  (Zod, source of truth at the API boundary)
 #   - apps/api/prisma/schema.prisma          (DB shape — informs response payloads)
 #
@@ -48,7 +48,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Verify Zod schemas match OpenAPI shapes
-        run: pnpm -F @aegis/types exec tsx scripts/check-openapi-zod-parity.ts
+        run: pnpm -F @okoro/types exec tsx scripts/check-openapi-zod-parity.ts
       - name: Upload diff artifact
         if: failure()
         uses: actions/upload-artifact@v4
@@ -70,9 +70,9 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -F @aegis/api prisma:generate
+      - run: pnpm -F @okoro/api prisma:generate
       - name: Compare Prisma model fields to OpenAPI schemas
-        run: pnpm -F @aegis/api exec tsx scripts/check-openapi-prisma-parity.ts
+        run: pnpm -F @okoro/api exec tsx scripts/check-openapi-prisma-parity.ts
 
   denial-precedence:
     name: Denial precedence enum (ADR-0004)
@@ -118,13 +118,13 @@ jobs:
             # `recommendedDenialReason:` (a property reference on
             # ReconcileIntentResponse). The list-item regex `^- [A-Z_]+`
             # restricts extraction to YAML enum entries so description
-            # prose with uppercase acronyms (ADR, AEGIS) cannot poison
+            # prose with uppercase acronyms (ADR, OKORO) cannot poison
             # the comparison.
             awk '
               /^    DenialReason:/ { capture=1; next }
               capture && /^    [A-Za-z]/ { capture=0 }
               capture { print }
-            ' docs/spec/AEGIS_API_SPEC.yaml 2>/dev/null \
+            ' docs/spec/OKORO_API_SPEC.yaml 2>/dev/null \
               | grep -oE "^[[:space:]]+- [A-Z_]+" \
               | grep -oE "[A-Z_]+" | sort -u || true
           }
@@ -152,7 +152,7 @@ jobs:
             exit 1
           fi
           if [ -z "$openapi" ]; then
-            echo "::error::extractor 'openapi' returned empty — likely an awk/anchor bug in extract_openapi(), not real drift. Check that components.schemas.DenialReason exists at 4-space indentation in docs/spec/AEGIS_API_SPEC.yaml."
+            echo "::error::extractor 'openapi' returned empty — likely an awk/anchor bug in extract_openapi(), not real drift. Check that components.schemas.DenialReason exists at 4-space indentation in docs/spec/OKORO_API_SPEC.yaml."
             exit 1
           fi
 

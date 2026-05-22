@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * AEGIS Doctor — ground-truth orientation in 5 seconds.
+ * OKORO Doctor — ground-truth orientation in 5 seconds.
  *
  * Why this exists:
  * Multiple parallel sessions rapidly evolve this codebase (R15/R16/R17
@@ -121,7 +121,7 @@ if (constants) {
 // ─────────────────────────────────────────────────────────────────
 header('Error catalog (R16 / R17)');
 const catalogTs = safeRead(join(REPO_ROOT, 'packages', 'types', 'src', 'error-catalog.generated.ts'));
-const catalogPy = safeRead(join(REPO_ROOT, 'packages', 'sdk-py', 'aegis', 'error_catalog.py'));
+const catalogPy = safeRead(join(REPO_ROOT, 'packages', 'sdk-py', 'okoro', 'error_catalog.py'));
 // TS source: `code: 'snake_case'`; Py source: `"code": "snake_case"`
 // (TypedDict dicts emitted by the generator). Both use the same JSON-ish
 // shape; the count comes from the className-keyed entry rows.
@@ -135,7 +135,7 @@ if (pyCount !== tsCount && tsCount > 0) exitCode = 1;
 // 5. Postman collection
 // ─────────────────────────────────────────────────────────────────
 header('Postman collection');
-const postmanRaw = safeRead(join(REPO_ROOT, 'tools', 'postman', 'aegis.collection.json'));
+const postmanRaw = safeRead(join(REPO_ROOT, 'tools', 'postman', 'okoro.collection.json'));
 if (postmanRaw) {
   try {
     const pm = JSON.parse(postmanRaw) as { item?: unknown[] };
@@ -165,7 +165,7 @@ if (postmanRaw) {
     exitCode = 1;
   }
 } else {
-  console.log(`  ${warn('aegis.collection.json missing')}`);
+  console.log(`  ${warn('okoro.collection.json missing')}`);
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -241,7 +241,7 @@ if (f03Count === 0) {
 
 // F-06 — `error.constructor.name` is a tsup-minifier landmine (collapses
 // to single chars). Fix: `static readonly catalogKey = '<ClassName>'` on
-// every AegisError subclass. Round 19 added it on 20 classes (11 server +
+// every OkoroError subclass. Round 19 added it on 20 classes (11 server +
 // 10 SDK). Coverage drift = silent retry-logic regression after minification.
 const f06Hits = safeExec(
   `grep -rEn 'static (override )?readonly catalogKey' apps/api/src packages/sdk-ts/src packages/verifier-rp/src 2>/dev/null | wc -l`,
@@ -299,7 +299,7 @@ if (FULL) {
   // ───────────────────────────────────────────────────────────────
   // 10a. Preflight — ensure the gates' preconditions exist.
   //
-  // Why: `tsc @aegis/api` requires a generated Prisma client (the
+  // Why: `tsc @okoro/api` requires a generated Prisma client (the
   // stub @prisma/client shipped by `pnpm install` exports zero models,
   // so every PrismaService.<model> reference is a TS error). And tsc
   // across workspaces requires sibling-package .d.ts files (e.g.
@@ -317,8 +317,8 @@ if (FULL) {
   // ───────────────────────────────────────────────────────────────
   header('Preflight — ensure gate preconditions');
   const preflight: Array<{ name: string; cmd: string }> = [
-    { name: 'prisma client', cmd: 'pnpm --filter @aegis/api prisma:generate' },
-    { name: '@aegis/types build', cmd: 'pnpm --filter @aegis/types build' },
+    { name: 'prisma client', cmd: 'pnpm --filter @okoro/api prisma:generate' },
+    { name: '@okoro/types build', cmd: 'pnpm --filter @okoro/types build' },
   ];
   for (const p of preflight) {
     process.stdout.write(`  ${p.name}: `);
@@ -335,14 +335,14 @@ if (FULL) {
 
   header('Full mode — running gates (≈30s)');
   const gates: Array<{ name: string; cmd: string; timeoutMs?: number }> = [
-    { name: 'tsc @aegis/api', cmd: 'pnpm --filter @aegis/api exec tsc --noEmit' },
-    { name: 'tsc @aegis/types', cmd: 'pnpm --filter @aegis/types exec tsc --noEmit' },
-    { name: 'tsc @aegis/verifier-rp', cmd: 'pnpm --filter @aegis/verifier-rp exec tsc --noEmit' },
-    { name: 'audit:errors', cmd: 'pnpm --filter @aegis/scripts run audit:errors' },
-    { name: 'cross-package parity', cmd: 'pnpm --filter @aegis/e2e run test:parity' },
+    { name: 'tsc @okoro/api', cmd: 'pnpm --filter @okoro/api exec tsc --noEmit' },
+    { name: 'tsc @okoro/types', cmd: 'pnpm --filter @okoro/types exec tsc --noEmit' },
+    { name: 'tsc @okoro/verifier-rp', cmd: 'pnpm --filter @okoro/verifier-rp exec tsc --noEmit' },
+    { name: 'audit:errors', cmd: 'pnpm --filter @okoro/scripts run audit:errors' },
+    { name: 'cross-package parity', cmd: 'pnpm --filter @okoro/e2e run test:parity' },
     // postman: vitest cold-start + dep resolution can exceed 120s on a fresh
     // worktree; bump to 180s so cold runs don't false-fail.
-    { name: 'postman validator', cmd: 'pnpm --filter @aegis/postman exec vitest run', timeoutMs: 180_000 },
+    { name: 'postman validator', cmd: 'pnpm --filter @okoro/postman exec vitest run', timeoutMs: 180_000 },
   ];
   for (const g of gates) {
     process.stdout.write(`  ${g.name}: `);
@@ -358,8 +358,8 @@ if (FULL) {
 
 console.log();
 if (exitCode === 0) {
-  console.log(`${C.green}${C.bold}AEGIS doctor: green${C.reset}${FULL ? ' (full)' : ' (fast — pass --full to gate)'}`);
+  console.log(`${C.green}${C.bold}OKORO doctor: green${C.reset}${FULL ? ' (full)' : ' (fast — pass --full to gate)'}`);
 } else {
-  console.log(`${C.red}${C.bold}AEGIS doctor: ${exitCode === 1 ? 'issues found' : 'failed'}${C.reset}`);
+  console.log(`${C.red}${C.bold}OKORO doctor: ${exitCode === 1 ? 'issues found' : 'failed'}${C.reset}`);
 }
 process.exit(exitCode);

@@ -1,8 +1,8 @@
 // Core MCP server. Constructs an MCP server instance whose tools are
-// the AEGIS API surface. Auth is by AEGIS API key, supplied either via
-// env (`AEGIS_API_KEY`) or via the host's MCP `initialize` metadata.
+// the OKORO API surface. Auth is by OKORO API key, supplied either via
+// env (`OKORO_API_KEY`) or via the host's MCP `initialize` metadata.
 
-import { Aegis } from '@aegis/sdk';
+import { Okoro } from '@okoro/sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
@@ -12,10 +12,10 @@ import { registerPoliciesTools } from './tools/policies.js';
 import { TOOL_NAMES, type ToolDefinition } from './tools/registry.js';
 import { registerVerifyTool } from './tools/verify.js';
 
-export interface AegisMcpServerOptions {
-  /** AEGIS API key. If omitted, the server reads `AEGIS_API_KEY` from env. */
+export interface OkoroMcpServerOptions {
+  /** OKORO API key. If omitted, the server reads `OKORO_API_KEY` from env. */
   apiKey?: string;
-  /** AEGIS base URL. Defaults to `https://api.aegis.dev`. */
+  /** OKORO base URL. Defaults to `https://api.okoro.dev`. */
   baseUrl?: string;
   /** Override server name in MCP `initialize`. */
   name?: string;
@@ -24,35 +24,35 @@ export interface AegisMcpServerOptions {
 }
 
 /**
- * Build an MCP server that exposes AEGIS as tools. The caller is
+ * Build an MCP server that exposes OKORO as tools. The caller is
  * responsible for connecting it to a transport (`StdioServerTransport`
- * for `npx aegis-mcp`, `SSEServerTransport` for hosted deployments).
+ * for `npx okoro-mcp`, `SSEServerTransport` for hosted deployments).
  *
- * Tool naming follows ADR-0008: `aegis.<resource>.<action>`.
+ * Tool naming follows ADR-0008: `okoro.<resource>.<action>`.
  */
-export function createAegisMcpServer(opts: AegisMcpServerOptions = {}): Server {
-  const apiKey = opts.apiKey ?? process.env.AEGIS_API_KEY;
+export function createOkoroMcpServer(opts: OkoroMcpServerOptions = {}): Server {
+  const apiKey = opts.apiKey ?? process.env.OKORO_API_KEY;
   if (!apiKey) {
-    throw new Error('AEGIS_API_KEY required (pass via opts.apiKey or env)');
+    throw new Error('OKORO_API_KEY required (pass via opts.apiKey or env)');
   }
-  const aegis = new Aegis({
+  const okoro = new Okoro({
     apiKey,
-    baseUrl: opts.baseUrl ?? process.env.AEGIS_BASE_URL ?? 'https://api.aegis.dev',
+    baseUrl: opts.baseUrl ?? process.env.OKORO_BASE_URL ?? 'https://api.okoro.dev',
   });
 
   // TODO(mcp-sdk): migrate to `McpServer` high-level API; `Server` is deprecated
   // but the migration touches transport wiring and handler shapes — separate PR.
   const server = new Server(
-    { name: opts.name ?? 'aegis-mcp', version: '0.1.0' },
+    { name: opts.name ?? 'okoro-mcp', version: '0.1.0' },
     { capabilities: { tools: {} } },
   );
 
   // Build the tool registry.
   const tools = new Map<string, ToolDefinition>();
-  registerVerifyTool(aegis, tools);
-  registerAgentsTools(aegis, tools);
-  registerPoliciesTools(aegis, tools);
-  registerAuditTool(aegis, tools);
+  registerVerifyTool(okoro, tools);
+  registerAgentsTools(okoro, tools);
+  registerPoliciesTools(okoro, tools);
+  registerAuditTool(okoro, tools);
 
   const allowedTools = new Set(opts.allowedTools ?? TOOL_NAMES);
 

@@ -14,7 +14,7 @@ import type { ReactElement } from 'react';
 import { buildLoginHref, safeRedirect } from '../../lib/safe-redirect';
 
 export const metadata: Metadata = {
-  title: 'Sign in · AEGIS',
+  title: 'Sign in · OKORO',
 };
 
 interface LoginSearchParams { redirect?: string | string[] }
@@ -31,11 +31,11 @@ export default async function LoginPage({
   const showRedirectNotice = validatedRedirect !== '/';
 
   return (
-    <section className="aegis-page">
-      <header className="aegis-page-header">
+    <section className="okoro-page">
+      <header className="okoro-page-header">
         <h1>Sign in</h1>
         <p className="muted">
-          AEGIS uses Auth0 for human identity (ADR-0009). Click through to your
+          OKORO uses Auth0 for human identity (ADR-0009). Click through to your
           organization&apos;s tenant.
         </p>
       </header>
@@ -45,13 +45,13 @@ export default async function LoginPage({
         </p>
       ) : null}
       <p>
-        <a className="aegis-button" href={loginHref}>
+        <a className="okoro-button" href={loginHref}>
           Continue with Auth0 →
         </a>
       </p>
       <p className="muted">
         First time here? Your administrator must invite your email to the
-        Auth0 organization mapped to your AEGIS principal.
+        Auth0 organization mapped to your OKORO principal.
       </p>
     </section>
   );

@@ -144,7 +144,7 @@ raw columns; hashes are immutable.
 
 - GDPR Art. 17 compliance without chain breakage.
 - Hash commitments are independent of redaction state — third-party
-  verifiers can prove integrity without trusting AEGIS.
+  verifiers can prove integrity without trusting OKORO.
 - Migration is additive: existing v1 rows can be lazily upgraded by
   computing hashes from existing raw columns; no chain re-signing.
 - Storage cost: ~140 bytes per row for the four extra hash columns.

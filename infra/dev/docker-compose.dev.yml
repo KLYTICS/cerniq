@@ -1,4 +1,4 @@
-# AEGIS — One-command dev stack.
+# OKORO — One-command dev stack.
 #
 # Complements (does NOT duplicate) the root docker-compose.yml.
 # Root provides: postgres + redis at the canonical ports for app dev.
@@ -11,10 +11,10 @@
 # Versions: pinned per CLAUDE.md "no `latest` tags" quality bar.
 # Verify-as-of: 2026-05-01.
 
-name: aegis-dev
+name: okoro-dev
 
 networks:
-  aegis-dev:
+  okoro-dev:
     driver: bridge
 
 volumes:
@@ -26,26 +26,26 @@ volumes:
 services:
   postgres:
     image: postgres:16.4-alpine
-    container_name: aegis-dev-postgres
+    container_name: okoro-dev-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: aegis
+      POSTGRES_USER: okoro
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
-      POSTGRES_DB: aegis
+      POSTGRES_DB: okoro
     ports:
       - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U aegis -d aegis']
+      test: ['CMD-SHELL', 'pg_isready -U okoro -d okoro']
       interval: 5s
       timeout: 5s
       retries: 10
-    networks: [aegis-dev]
+    networks: [okoro-dev]
 
   redis:
     image: redis:7.4-alpine
-    container_name: aegis-dev-redis
+    container_name: okoro-dev-redis
     restart: unless-stopped
     command:
       [
@@ -66,7 +66,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    networks: [aegis-dev]
+    networks: [okoro-dev]
 
   api:
     # Builds the production image so dev catches build issues — same
@@ -74,7 +74,7 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.api
-    container_name: aegis-dev-api
+    container_name: okoro-dev-api
     restart: unless-stopped
     depends_on:
       postgres:
@@ -83,10 +83,10 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgres://aegis:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/aegis
+      DATABASE_URL: postgres://okoro:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/okoro
       REDIS_URL: redis://redis:6379
-      AEGIS_SIGNING_PUBLIC_KEY: ${AEGIS_SIGNING_PUBLIC_KEY:-}
-      AEGIS_SIGNING_KEY_ROTATED_AT: ${AEGIS_SIGNING_KEY_ROTATED_AT:-2026-01-01T00:00:00Z}
+      OKORO_SIGNING_PUBLIC_KEY: ${OKORO_SIGNING_PUBLIC_KEY:-}
+      OKORO_SIGNING_KEY_ROTATED_AT: ${OKORO_SIGNING_KEY_ROTATED_AT:-2026-01-01T00:00:00Z}
       PORT: '4000'
     ports:
       - '4000:4000'
@@ -96,13 +96,13 @@ services:
       timeout: 5s
       retries: 6
       start_period: 30s
-    networks: [aegis-dev]
+    networks: [okoro-dev]
 
   worker:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.worker
-    container_name: aegis-dev-worker
+    container_name: okoro-dev-worker
     restart: unless-stopped
     depends_on:
       postgres:
@@ -111,9 +111,9 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgres://aegis:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/aegis
+      DATABASE_URL: postgres://okoro:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/okoro
       REDIS_URL: redis://redis:6379
-      AEGIS_SIGNING_PUBLIC_KEY: ${AEGIS_SIGNING_PUBLIC_KEY:-}
+      OKORO_SIGNING_PUBLIC_KEY: ${OKORO_SIGNING_PUBLIC_KEY:-}
       WORKER_METRICS_PORT: '4001'
     ports:
       - '4001:4001'
@@ -123,11 +123,11 @@ services:
       timeout: 5s
       retries: 4
       start_period: 30s
-    networks: [aegis-dev]
+    networks: [okoro-dev]
 
   prometheus:
     image: prom/prometheus:v2.55.1
-    container_name: aegis-dev-prometheus
+    container_name: okoro-dev-prometheus
     restart: unless-stopped
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -135,7 +135,7 @@ services:
       - '--web.enable-lifecycle'
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ../observability/alerts/aegis.rules.yml:/etc/prometheus/rules/aegis.rules.yml:ro
+      - ../observability/alerts/okoro.rules.yml:/etc/prometheus/rules/okoro.rules.yml:ro
       - prometheusdata:/prometheus
     ports:
       - '9090:9090'
@@ -144,11 +144,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
-    networks: [aegis-dev]
+    networks: [okoro-dev]
 
   grafana:
     image: grafana/grafana:11.3.1
-    container_name: aegis-dev-grafana
+    container_name: okoro-dev-grafana
     restart: unless-stopped
     depends_on:
       prometheus:
@@ -168,11 +168,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
-    networks: [aegis-dev]
+    networks: [okoro-dev]
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.110.0
-    container_name: aegis-dev-otel
+    container_name: okoro-dev-otel
     restart: unless-stopped
     command: ['--config=/etc/otelcol/config.yaml']
     volumes:
@@ -185,4 +185,4 @@ services:
       interval: 15s
       timeout: 5s
       retries: 4
-    networks: [aegis-dev]
+    networks: [okoro-dev]

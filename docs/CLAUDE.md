@@ -1,4 +1,4 @@
-# AEGIS Docs - Claude contract
+# OKORO Docs - Claude contract
 
 This directory owns specs, runbooks, threat models, compliance material,
 operator handoffs, design prompts, release process, architecture records, and

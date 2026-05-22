@@ -1,6 +1,6 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
-  "_comment": "AEGIS Redis service descriptor. Used for: (1) cache of agent + policy + trust-score reads, (2) BullMQ queues (BATE, webhook delivery, audit-pending DLQ), (3) atomic spend counters (INCRBY).",
+  "_comment": "OKORO Redis service descriptor. Used for: (1) cache of agent + policy + trust-score reads, (2) BullMQ queues (BATE, webhook delivery, audit-pending DLQ), (3) atomic spend counters (INCRBY).",
   "_planTier": "Railway Redis Hobby tier (256 MB) is enough until cache + queue depth crosses ~150 MB. Upsize before that — eviction under cache pressure forces extra Postgres reads on the verify hot path and blows the latency SLO.",
   "_region": "us-east — must match API + worker.",
   "image": "redis:7-alpine",
@@ -12,7 +12,7 @@
   "regions": ["us-east"],
   "volumes": [
     {
-      "name": "aegis-redis-data",
+      "name": "okoro-redis-data",
       "mountPath": "/data",
       "_sizeNote": "1 GB. AOF + RDB combined under maxmemory; the volume is for durability, not capacity."
     }

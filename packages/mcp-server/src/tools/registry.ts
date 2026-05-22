@@ -1,18 +1,18 @@
-// Tool registry — every AEGIS-as-MCP tool is registered here. The names
+// Tool registry — every OKORO-as-MCP tool is registered here. The names
 // are the public API of this package (ADR-0008 §2). They MAY NOT be
-// renamed without an ADR + minor version bump on the AEGIS API spec.
+// renamed without an ADR + minor version bump on the OKORO API spec.
 
 export const TOOL_NAMES = [
-  'aegis.verify',
-  'aegis.agents.create',
-  'aegis.agents.get',
-  'aegis.agents.list',
-  'aegis.agents.revoke',
-  'aegis.policies.create',
-  'aegis.policies.get',
-  'aegis.policies.list',
-  'aegis.policies.revoke',
-  'aegis.audit.search',
+  'okoro.verify',
+  'okoro.agents.create',
+  'okoro.agents.get',
+  'okoro.agents.list',
+  'okoro.agents.revoke',
+  'okoro.policies.create',
+  'okoro.policies.get',
+  'okoro.policies.list',
+  'okoro.policies.revoke',
+  'okoro.audit.search',
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];

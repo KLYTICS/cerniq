@@ -1,7 +1,7 @@
-# AEGIS — Production Deployment Guide
+# OKORO — Production Deployment Guide
 ## Railway Origin + Cloudflare Workers Edge + Redis + PostgreSQL
 
-> **Audience:** DevOps / SRE / Platform engineers deploying AEGIS for the first time or managing ongoing deployments.  
+> **Audience:** DevOps / SRE / Platform engineers deploying OKORO for the first time or managing ongoing deployments.  
 > **Covers:** Railway (origin API), Cloudflare Workers (edge verify), PostgreSQL 16, Redis 7, environment configuration, secrets management, zero-downtime migration, health verification.
 
 ---
@@ -41,7 +41,7 @@ Internet
 ### Required accounts
 - [Railway](https://railway.app) account (Hobby or Pro plan)
 - [Cloudflare](https://cloudflare.com) account (Workers Paid plan — $5/month, needed for KV storage)
-- Domain (e.g., `aegislabs.io`) with DNS on Cloudflare
+- Domain (e.g., `okorolabs.io`) with DNS on Cloudflare
 
 ### Required tools
 ```bash
@@ -69,7 +69,7 @@ pnpm add -g prisma
 
 ```bash
 # Create a new Railway project
-railway init aegis-production
+railway init okoro-production
 
 # Add PostgreSQL plugin
 railway add postgresql
@@ -209,18 +209,18 @@ DATABASE_URL=postgresql://user:pass@host:5432/dbname
 # Redis
 REDIS_URL=redis://:password@host:6379
 
-# AEGIS signing keys (Ed25519, base64url-encoded)
-# Generate with: npx tsx scripts/generate-aegis-keys.ts
-AEGIS_AUDIT_PRIVATE_KEY=<base64url-encoded 32-byte Ed25519 private key>
-AEGIS_AUDIT_PUBLIC_KEY=<base64url-encoded 32-byte Ed25519 public key>
-AEGIS_JWT_SIGNING_KEY=<base64url-encoded 32-byte Ed25519 private key>
-AEGIS_JWT_VERIFICATION_KEY=<base64url-encoded 32-byte Ed25519 public key>
+# OKORO signing keys (Ed25519, base64url-encoded)
+# Generate with: npx tsx scripts/generate-okoro-keys.ts
+OKORO_AUDIT_PRIVATE_KEY=<base64url-encoded 32-byte Ed25519 private key>
+OKORO_AUDIT_PUBLIC_KEY=<base64url-encoded 32-byte Ed25519 public key>
+OKORO_JWT_SIGNING_KEY=<base64url-encoded 32-byte Ed25519 private key>
+OKORO_JWT_VERIFICATION_KEY=<base64url-encoded 32-byte Ed25519 public key>
 
 # API key encryption
-AEGIS_API_KEY_BCRYPT_COST=12       # 4 in test, 12 in prod
+OKORO_API_KEY_BCRYPT_COST=12       # 4 in test, 12 in prod
 
 # Admin token (for internal admin endpoints)
-AEGIS_ADMIN_TOKEN=<random 32-byte hex>
+OKORO_ADMIN_TOKEN=<random 32-byte hex>
 
 # Application
 NODE_ENV=production
@@ -232,76 +232,76 @@ LOG_LEVEL=info                       # debug | info | warn | error
 
 ```bash
 # DPoP (RFC 9449) — require DPoP proofs on verify calls
-AEGIS_DPOP_REQUIRED=false            # default: false (v1.0 optional, v1.1 will require)
+OKORO_DPOP_REQUIRED=false            # default: false (v1.0 optional, v1.1 will require)
 
 # Post-quantum hybrid signatures
-AEGIS_HYBRID_PQ_ENABLED=false        # default: false (see OD-014)
+OKORO_HYBRID_PQ_ENABLED=false        # default: false (see OD-014)
 
 # Policy engines available to principals
-AEGIS_POLICY_ENGINES=builtin         # builtin | builtin,cedar | builtin,cedar,opa
+OKORO_POLICY_ENGINES=builtin         # builtin | builtin,cedar | builtin,cedar,opa
 
 # BATE feature flag
-AEGIS_BATE_ENABLED=true              # default: true
+OKORO_BATE_ENABLED=true              # default: true
 
 # Edge Worker feature flag (shadows origin when SHADOW, serves edge when LIVE)
-AEGIS_EDGE_VERIFY_ENABLED=false      # default: false until shadow validation passes
+OKORO_EDGE_VERIFY_ENABLED=false      # default: false until shadow validation passes
 
 # Onboarding backfill cron schedule
-AEGIS_ONBOARDING_BACKFILL_CRON="*/5 * * * *"  # default: every 5 minutes
+OKORO_ONBOARDING_BACKFILL_CRON="*/5 * * * *"  # default: every 5 minutes
 ```
 
 ### 4.3 Optional — Observability
 
 ```bash
 # OpenTelemetry
-AEGIS_OTEL_ENABLED=true
-AEGIS_OTEL_SERVICE_NAME=aegis-api
-AEGIS_OTEL_EXPORTER=otlp            # otlp | jaeger | zipkin | console
+OKORO_OTEL_ENABLED=true
+OKORO_OTEL_SERVICE_NAME=okoro-api
+OKORO_OTEL_EXPORTER=otlp            # otlp | jaeger | zipkin | console
 OTEL_EXPORTER_OTLP_ENDPOINT=https://your-collector:4318
-AEGIS_OTEL_TRACE_SAMPLE_RATE=0.1    # 10% sampling in prod
+OKORO_OTEL_TRACE_SAMPLE_RATE=0.1    # 10% sampling in prod
 
 # Prometheus metrics endpoint
-AEGIS_METRICS_ENABLED=true
-AEGIS_METRICS_PATH=/metrics         # default
-AEGIS_METRICS_AUTH_TOKEN=<token>    # optional bearer token for /metrics
+OKORO_METRICS_ENABLED=true
+OKORO_METRICS_PATH=/metrics         # default
+OKORO_METRICS_AUTH_TOKEN=<token>    # optional bearer token for /metrics
 ```
 
 ### 4.4 Optional — KMS (Enterprise)
 
 ```bash
 # Choose ONE provider: local | aws | gcp | vault
-AEGIS_KMS_PROVIDER=local            # default (uses env keys above)
+OKORO_KMS_PROVIDER=local            # default (uses env keys above)
 
 # --- AWS KMS ---
-AEGIS_KMS_PROVIDER=aws
-AEGIS_AWS_KMS_AUDIT_KID=kid-audit-v1
-AEGIS_AWS_KMS_AUDIT_WRAPPED=<base64-envelope-encrypted-privkey>
-AEGIS_AWS_KMS_AUDIT_PUB=<base64url-pubkey>
+OKORO_KMS_PROVIDER=aws
+OKORO_AWS_KMS_AUDIT_KID=kid-audit-v1
+OKORO_AWS_KMS_AUDIT_WRAPPED=<base64-envelope-encrypted-privkey>
+OKORO_AWS_KMS_AUDIT_PUB=<base64url-pubkey>
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=<key>
 AWS_SECRET_ACCESS_KEY=<secret>
 
 # --- GCP Cloud KMS ---
-AEGIS_KMS_PROVIDER=gcp
-AEGIS_GCP_KMS_KEY_VERSION_NAME=projects/p/locations/l/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1
+OKORO_KMS_PROVIDER=gcp
+OKORO_GCP_KMS_KEY_VERSION_NAME=projects/p/locations/l/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 
 # --- HashiCorp Vault ---
-AEGIS_KMS_PROVIDER=vault
+OKORO_KMS_PROVIDER=vault
 VAULT_ADDR=https://vault.internal:8200
 VAULT_TOKEN=<vault-token>
-AEGIS_VAULT_AUDIT_KEY_NAME=aegis-audit
+OKORO_VAULT_AUDIT_KEY_NAME=okoro-audit
 ```
 
 ### 4.5 Optional — Identity Providers
 
 ```bash
 # Default IdP (auth0 | clerk | workos)
-AEGIS_IDP_PROVIDER=auth0
+OKORO_IDP_PROVIDER=auth0
 
 # Auth0
 AUTH0_DOMAIN=your-tenant.auth0.com
-AUTH0_AUDIENCE=https://api.aegislabs.io/v1
+AUTH0_AUDIENCE=https://api.okorolabs.io/v1
 AUTH0_CLIENT_ID=<client-id>
 AUTH0_CLIENT_SECRET=<client-secret>
 
@@ -324,11 +324,11 @@ STRIPE_PRICE_ID_DEVELOPER=price_...
 STRIPE_PRICE_ID_GROWTH=price_...
 
 # Webhook signing secret (for outbound webhooks to customers)
-AEGIS_WEBHOOK_SIGNING_SECRET=<random 32-byte hex>
+OKORO_WEBHOOK_SIGNING_SECRET=<random 32-byte hex>
 
 # Webhook delivery config
-AEGIS_WEBHOOK_MAX_ATTEMPTS=8        # default: 8
-AEGIS_WEBHOOK_INITIAL_DELAY_MS=1000 # default: 1s, doubles each retry
+OKORO_WEBHOOK_MAX_ATTEMPTS=8        # default: 8
+OKORO_WEBHOOK_INITIAL_DELAY_MS=1000 # default: 1s, doubles each retry
 ```
 
 ---
@@ -339,7 +339,7 @@ AEGIS_WEBHOOK_INITIAL_DELAY_MS=1000 # default: 1s, doubles each retry
 
 ```bash
 # Link local repo to Railway project
-railway link aegis-production
+railway link okoro-production
 
 # Deploy the API service
 railway up \
@@ -351,7 +351,7 @@ railway logs --service api --tail
 
 # Get the service URL
 railway status
-# API URL: https://aegis-production-api.up.railway.app
+# API URL: https://okoro-production-api.up.railway.app
 ```
 
 ### 5.2 Railway Configuration (`railway.json`)
@@ -361,7 +361,7 @@ railway status
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "pnpm install --frozen-lockfile && pnpm -F @aegis/api build"
+    "buildCommand": "pnpm install --frozen-lockfile && pnpm -F @okoro/api build"
   },
   "deploy": {
     "startCommand": "node apps/api/dist/main.js",
@@ -401,28 +401,28 @@ Railway supports rolling deploys. To enable:
 
 ```bash
 # Create KV namespaces for edge cache
-wrangler kv:namespace create "AEGIS_AGENT_CACHE"
-wrangler kv:namespace create "AEGIS_POLICY_CACHE"
-wrangler kv:namespace create "AEGIS_SPEND_CACHE"
+wrangler kv:namespace create "OKORO_AGENT_CACHE"
+wrangler kv:namespace create "OKORO_POLICY_CACHE"
+wrangler kv:namespace create "OKORO_SPEND_CACHE"
 
 # Note the IDs output by each command
-# AEGIS_AGENT_CACHE: id = "abc123..."
-# AEGIS_POLICY_CACHE: id = "def456..."
-# AEGIS_SPEND_CACHE: id = "ghi789..."
+# OKORO_AGENT_CACHE: id = "abc123..."
+# OKORO_POLICY_CACHE: id = "def456..."
+# OKORO_SPEND_CACHE: id = "ghi789..."
 ```
 
 ### 6.2 Configure `wrangler.toml`
 
 ```toml
 # workers/cf-verify/wrangler.toml
-name = "aegis-verify"
+name = "okoro-verify"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 
 [env.production]
-name = "aegis-verify-production"
+name = "okoro-verify-production"
 routes = [
-  { pattern = "api.aegislabs.io/v1/verify", zone_name = "aegislabs.io" }
+  { pattern = "api.okorolabs.io/v1/verify", zone_name = "okorolabs.io" }
 ]
 
 [[kv_namespaces]]
@@ -438,8 +438,8 @@ binding = "SPEND_CACHE"
 id = "ghi789..."
 
 [vars]
-AEGIS_ORIGIN_URL = "https://aegis-production-api.up.railway.app"
-AEGIS_EDGE_VERIFY_MODE = "shadow"   # shadow | live | off
+OKORO_ORIGIN_URL = "https://okoro-production-api.up.railway.app"
+OKORO_EDGE_VERIFY_MODE = "shadow"   # shadow | live | off
                                      # Start with shadow to validate parity
 ```
 
@@ -455,11 +455,11 @@ pnpm install
 wrangler deploy --env production
 
 # Verify deployment
-curl -X POST https://api.aegislabs.io/v1/verify \
+curl -X POST https://api.okorolabs.io/v1/verify \
   -H "Content-Type: application/json" \
   -d '{"token": "test"}' \
   -v
-# Should see: X-AEGIS-Edge-Divergence: edge-forward:no-edge-decision (shadow mode)
+# Should see: X-OKORO-Edge-Divergence: edge-forward:no-edge-decision (shadow mode)
 ```
 
 ### 6.4 Shadow Mode → Live Promotion
@@ -472,7 +472,7 @@ wrangler tail --env production 2>&1 | grep "Divergence"
 
 # When divergence < 0.1% over 48h, promote to live:
 # In wrangler.toml:
-# AEGIS_EDGE_VERIFY_MODE = "live"
+# OKORO_EDGE_VERIFY_MODE = "live"
 wrangler deploy --env production
 
 # Live mode: edge serves <30ms responses; only forwards on cache miss
@@ -487,22 +487,22 @@ Never use development keys in production. Generate fresh keys:
 ```bash
 cd apps/api
 
-# Generate all AEGIS signing keys
-pnpm tsx scripts/generate-aegis-keys.ts
+# Generate all OKORO signing keys
+pnpm tsx scripts/generate-okoro-keys.ts
 
 # Output:
 # ══════════════════════════════════════════════════════
-# AEGIS Production Key Generation
+# OKORO Production Key Generation
 # Generated: 2026-05-04T14:32:00Z
 # ══════════════════════════════════════════════════════
 #
 # JWT Signing Key (Ed25519)
-# Private: 4a3bf...  ← SET AS AEGIS_JWT_SIGNING_KEY
-# Public:  9f2cd...  ← SET AS AEGIS_JWT_VERIFICATION_KEY
+# Private: 4a3bf...  ← SET AS OKORO_JWT_SIGNING_KEY
+# Public:  9f2cd...  ← SET AS OKORO_JWT_VERIFICATION_KEY
 #
 # Audit Signing Key (Ed25519)
-# Private: 7e1ad...  ← SET AS AEGIS_AUDIT_PRIVATE_KEY
-# Public:  3c8fg...  ← SET AS AEGIS_AUDIT_PUBLIC_KEY
+# Private: 7e1ad...  ← SET AS OKORO_AUDIT_PRIVATE_KEY
+# Public:  3c8fg...  ← SET AS OKORO_AUDIT_PUBLIC_KEY
 #
 # ⚠️  These keys are shown ONCE. Store in a secrets manager.
 # ⚠️  The audit key determines chain verifiability — rotate carefully.
@@ -518,7 +518,7 @@ pnpm tsx scripts/generate-aegis-keys.ts
 After deployment, run through this checklist:
 
 ```bash
-export BASE=https://api.aegislabs.io/v1
+export BASE=https://api.okorolabs.io/v1
 
 # 1. Liveness check (no auth)
 curl $BASE/../health
@@ -526,30 +526,30 @@ curl $BASE/../health
 
 # 2. Readiness check (DB + Redis ping)
 curl $BASE/../ready \
-  -H "X-AEGIS-Admin: $AEGIS_ADMIN_TOKEN"
+  -H "X-OKORO-Admin: $OKORO_ADMIN_TOKEN"
 # { "status": "ready", "db": "ok", "redis": "ok" }
 
 # 3. Metrics endpoint
 curl $BASE/../metrics \
-  -H "Authorization: Bearer $AEGIS_METRICS_AUTH_TOKEN" | head -30
+  -H "Authorization: Bearer $OKORO_METRICS_AUTH_TOKEN" | head -30
 
 # 4. Full E2E smoke test
 cd tests/e2e
-AEGIS_API_BASE=$BASE \
-AEGIS_API_KEY=sk_live_... \
+OKORO_API_BASE=$BASE \
+OKORO_API_KEY=sk_live_... \
 pnpm vitest run 01_health 02_principal 03_agent
 
 # 5. Verify audit chain integrity
 pnpm tsx scripts/audit-verify-chain.ts \
   --api-base $BASE \
-  --api-key $AEGIS_API_KEY \
+  --api-key $OKORO_API_KEY \
   --principal-id <your-principal-id> \
   --limit 100
 
 # 6. Edge Worker health
-curl -X POST https://api.aegislabs.io/v1/verify \
+curl -X POST https://api.okorolabs.io/v1/verify \
   -H "Content-Type: application/json" \
-  -H "X-AEGIS-Verify-Key: vk_live_..." \
+  -H "X-OKORO-Verify-Key: vk_live_..." \
   -d '{"token": "eyJhbGciOiJFZERTQSJ9.test.sig"}' \
 # Should return 403 with denialReason: INVALID_SIGNATURE (not a 500)
 ```
@@ -560,16 +560,16 @@ curl -X POST https://api.aegislabs.io/v1/verify \
 
 ```bash
 # 1. In Cloudflare DNS, add CNAME:
-# api.aegislabs.io → aegis-production-api.up.railway.app
+# api.okorolabs.io → okoro-production-api.up.railway.app
 
 # 2. Railway: add custom domain
-railway domain add api.aegislabs.io --service api
+railway domain add api.okorolabs.io --service api
 
 # 3. Cloudflare: SSL mode = Full (strict)
-# Cloudflare → aegislabs.io → SSL/TLS → Full (strict)
+# Cloudflare → okorolabs.io → SSL/TLS → Full (strict)
 
 # 4. Verify TLS
-curl -v https://api.aegislabs.io/health 2>&1 | grep "SSL connection"
+curl -v https://api.okorolabs.io/health 2>&1 | grep "SSL connection"
 # * SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384
 ```
 

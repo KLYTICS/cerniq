@@ -1,4 +1,4 @@
-# AEGIS — osv-scanner ignore list (merge-train unblock)
+# OKORO — osv-scanner ignore list (merge-train unblock)
 #
 # Purpose: break the chicken-and-egg deadlock observed on 2026-05-20.
 # Every open PR fails on `SCA · osv-scanner` because the transitive vulns

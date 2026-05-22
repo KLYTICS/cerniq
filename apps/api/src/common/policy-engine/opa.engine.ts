@@ -9,17 +9,17 @@
 //
 // Embedded WASM (preferred for the hot path):
 //   - Customer compiles their Rego at policy-create time:
-//       opa build -t wasm -e "data.aegis.authz.allow" policy.rego -o policy.wasm
+//       opa build -t wasm -e "data.okoro.authz.allow" policy.rego -o policy.wasm
 //   - We store the WASM bytes on `AgentPolicy.compiledArtifact`.
 //   - At verify time, instantiate a `@open-policy-agent/opa-wasm`
 //     instance per request (or pool) and evaluate against the input
 //     document.
 //
 // Sidecar HTTP (fallback for shops with a central OPA fleet):
-//   - We POST `{ input: ... }` to `OPA_SIDECAR_URL/v1/data/aegis/authz/allow`
+//   - We POST `{ input: ... }` to `OPA_SIDECAR_URL/v1/data/okoro/authz/allow`
 //   - Response: `{ result: true }` for Allow, `{ result: false }` for Deny.
 //
-// Mapping AEGIS → OPA input document:
+// Mapping OKORO → OPA input document:
 //   {
 //     "agent":         { id, status, trustScore, trustBand, principalId },
 //     "action":        "<verify-input.action>",
@@ -32,11 +32,11 @@
 //   }
 //
 // Rego conventions:
-//   - `package aegis.authz`
+//   - `package okoro.authz`
 //   - `default allow = false`
 //   - `allow { ... }` — Allow path.
 //   - `deny_reason["<DenialReason>"] { ... }` — emits a denial reason
-//     from the locked AEGIS enum (ADR-0004). When `allow == false` AND
+//     from the locked OKORO enum (ADR-0004). When `allow == false` AND
 //     a `deny_reason` rule is true, the engine surfaces that reason;
 //     otherwise it defaults to SCOPE_NOT_GRANTED.
 

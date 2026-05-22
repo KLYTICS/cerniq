@@ -13,5 +13,5 @@ import { SetMetadata } from '@nestjs/common';
  * policy create, agent revoke (already idempotent semantically),
  * webhook redeliveries, billing webhook handler.
  */
-export const IDEMPOTENT_KEY = 'aegis:idempotent';
+export const IDEMPOTENT_KEY = 'okoro:idempotent';
 export const Idempotent = (): MethodDecorator => SetMetadata(IDEMPOTENT_KEY, true);

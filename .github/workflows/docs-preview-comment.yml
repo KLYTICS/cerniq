@@ -3,13 +3,13 @@ name: docs-preview-comment
 # Posts a curated reviewer checklist to the PR for every docs-touching
 # change. Pairs with the Vercel-bot preview-URL comment (Vercel posts that
 # automatically once the project is connected); this workflow adds the
-# AEGIS-specific verification points reviewers should walk before approving.
+# OKORO-specific verification points reviewers should walk before approving.
 
 on:
   pull_request:
     paths:
       - 'apps/docs/**'
-      - 'docs/spec/AEGIS_API_SPEC.yaml'
+      - 'docs/spec/OKORO_API_SPEC.yaml'
       - 'packages/types/**'
       - '.github/workflows/docs-preview-comment.yml'
 
@@ -26,7 +26,7 @@ jobs:
         with:
           issue-number: ${{ github.event.pull_request.number }}
           comment-author: 'github-actions[bot]'
-          body-includes: '<!-- aegis-docs-preview -->'
+          body-includes: '<!-- okoro-docs-preview -->'
       - name: Create or update reviewer checklist comment
         uses: peter-evans/create-or-update-comment@v4
         with:
@@ -34,8 +34,8 @@ jobs:
           issue-number: ${{ github.event.pull_request.number }}
           edit-mode: replace
           body: |
-            <!-- aegis-docs-preview -->
-            ### AEGIS Docs · reviewer checklist
+            <!-- okoro-docs-preview -->
+            ### OKORO Docs · reviewer checklist
 
             Vercel posts a preview URL in its own comment on this PR.
             Walk this checklist against that URL before approving:
@@ -49,7 +49,7 @@ jobs:
             **Wire-constant pages — every row should match `packages/types/src/constants.ts`:**
             - [ ] `/docs/concepts/denial-precedence` shows 11 reasons in the correct order
             - [ ] `/docs/concepts/trust-bands` shows PLATINUM ≥ 750 / VERIFIED ≥ 500 / WATCH ≥ 250 / FLAGGED ≥ 0
-            - [ ] `/docs/concepts/webhooks` shows all 5 `aegis.agent.*` events
+            - [ ] `/docs/concepts/webhooks` shows all 5 `okoro.agent.*` events
 
             **Auto-generated reference — should exist post-build:**
             - [ ] `/docs/api/(generated)/` populated (OpenAPI → Fumadocs)
@@ -67,5 +67,5 @@ jobs:
 
             **Visual smoke:**
             - [ ] Search works (top-bar input; `/api/search` returns hits)
-            - [ ] OG image renders (drag the preview URL into a Slack DM or use [opengraph.xyz](https://www.opengraph.xyz/) — should show the aurora-gradient AEGIS card)
+            - [ ] OG image renders (drag the preview URL into a Slack DM or use [opengraph.xyz](https://www.opengraph.xyz/) — should show the aurora-gradient OKORO card)
             - [ ] 404 page is on-brand (visit any non-existent URL)

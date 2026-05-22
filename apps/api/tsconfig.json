@@ -12,7 +12,7 @@
     "useDefineForClassFields": false,
     "noUncheckedIndexedAccess": false,
     "paths": {
-      "@aegis/api/*": ["src/*"]
+      "@okoro/api/*": ["src/*"]
     }
   },
   "include": ["src/**/*"],

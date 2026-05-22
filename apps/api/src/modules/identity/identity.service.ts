@@ -30,10 +30,10 @@ const DEFAULT_LIST_LIMIT = 25;
 
 // Handshake protocol — ED25519 proof-of-possession for the registered key.
 // Domain separator prevents the agent's signing key from being abused via
-// challenge-response replay against other AEGIS sub-protocols (e.g. the JWT
+// challenge-response replay against other OKORO sub-protocols (e.g. the JWT
 // signing path used by /v1/verify). Bumping this string is a protocol
 // version bump and requires SDK coordination.
-const HANDSHAKE_PROTOCOL_VERSION = 'aegis-handshake-v1';
+const HANDSHAKE_PROTOCOL_VERSION = 'okoro-handshake-v1';
 const CHALLENGE_TTL_SECONDS = 300;
 const HANDSHAKE_RECORD_TTL_SECONDS = 30 * 86_400;
 const HANDSHAKE_MIN_TRUST_SCORE = 600;
@@ -169,7 +169,7 @@ export class IdentityService {
    * Issue a single-use Ed25519 challenge for proof-of-possession of the agent's
    * private key. The challenge is a 256-bit cryptographically-random nonce
    * stored in Redis with a 5-minute TTL. The caller signs
-   * `aegis-handshake-v1::{agentId}::{challenge}` (UTF-8) with the agent's
+   * `okoro-handshake-v1::{agentId}::{challenge}` (UTF-8) with the agent's
    * private key and posts the signature back to `verifyHandshake`.
    *
    * Protocol invariants (M-003 acceptance):

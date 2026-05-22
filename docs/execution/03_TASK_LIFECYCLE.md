@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Task Lifecycle (scaffolded thinking → planning → implementing)
+title: OKORO — Task Lifecycle (scaffolded thinking → planning → implementing)
 audience: every contributor; mandatory for any non-trivial task
 last-reviewed: 2026-05-08
 status: source-of-truth — v1
@@ -57,7 +57,7 @@ escalation, internal ask).
   - **Touch surface** (which files, which invariants, which ADRs)
 - If the request implies a `CLAUDE.md` invariant violation: classify
   as **needs-Architect-stage**.
-- If the request requires capabilities AEGIS doesn't ship yet:
+- If the request requires capabilities OKORO doesn't ship yet:
   classify as **needs-Product-evaluation**.
 - If the priority is unclear, default P2 and surface for triage.
 

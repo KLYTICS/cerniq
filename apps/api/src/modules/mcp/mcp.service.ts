@@ -2,7 +2,7 @@
 //
 // Each MCP server registered here gets a `relyingPartyId` row that the
 // verify path uses to slice audit events. When a tool call comes through
-// `@aegis/mcp-bridge`, the bridge identifies itself with the server id;
+// `@okoro/mcp-bridge`, the bridge identifies itself with the server id;
 // the verify endpoint stamps `relyingPartyId` on the audit event, and
 // the dashboard can surface "your MCP server X invoked Y tools."
 //
@@ -42,7 +42,7 @@ export class McpService {
         principalId,
         name: dto.name,
         domain: dto.endpoint, // RelyingParty.domain is unique; reuse endpoint as the canonical identifier.
-        apiKeyHash: `mcp:${id}`, // Placeholder — MCP servers don't need API keys (they call AEGIS via the user's principal).
+        apiKeyHash: `mcp:${id}`, // Placeholder — MCP servers don't need API keys (they call OKORO via the user's principal).
         kind: 'MCP_SERVER',
         status: 'ACTIVE',
         metadata: {

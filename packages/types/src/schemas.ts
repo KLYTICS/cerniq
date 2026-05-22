@@ -1,6 +1,6 @@
-// Zod schemas — the single source of truth for AEGIS request/response shapes.
+// Zod schemas — the single source of truth for OKORO request/response shapes.
 //
-// These mirror docs/spec/AEGIS_API_SPEC.yaml. When the OpenAPI spec changes,
+// These mirror docs/spec/OKORO_API_SPEC.yaml. When the OpenAPI spec changes,
 // update here first; both the API DTOs and the SDK derive from these.
 //
 // Why Zod over plain TS interfaces: it gives us runtime validation in the
@@ -157,7 +157,7 @@ export const HandshakeChallengeResponseSchema = z.object({
   /** base64url-encoded 256-bit nonce. Single-use, 5 min TTL. */
   challenge: z.string().min(40).max(64),
   expiresIn: z.number().int().positive(),
-  protocolVersion: z.literal('aegis-handshake-v1'),
+  protocolVersion: z.literal('okoro-handshake-v1'),
   /** UTF-8 string the SDK signs verbatim. */
   message: z.string(),
 });
@@ -165,7 +165,7 @@ export const HandshakeChallengeResponseSchema = z.object({
 export const HandshakeVerifiedResponseSchema = z.object({
   agentId: AgentIdSchema,
   verifiedAt: IsoDateTimeSchema,
-  protocolVersion: z.literal('aegis-handshake-v1'),
+  protocolVersion: z.literal('okoro-handshake-v1'),
   trustScore: z.number().int().min(0).max(1000),
   recordTtlSeconds: z.number().int().positive(),
 });
@@ -174,7 +174,7 @@ export const HandshakeStatusResponseSchema = z.object({
   agentId: AgentIdSchema,
   verified: z.boolean(),
   verifiedAt: IsoDateTimeSchema.optional(),
-  protocolVersion: z.literal('aegis-handshake-v1').optional(),
+  protocolVersion: z.literal('okoro-handshake-v1').optional(),
 });
 
 // ── Policy ───────────────────────────────────────────────────────
@@ -336,7 +336,7 @@ export type VerifyDenied = VerifyResponse & {
  * Use this in SDK consumer code to access `agentId`, `principalId`, and
  * `trustBand` as non-nullable strings without `!` assertions:
  *
- *   const result = await aegis.verify(token);
+ *   const result = await okoro.verify(token);
  *   if (isVerifyApproved(result)) {
  *     fulfilOrder(result.agentId, result.principalId);
  *   } else {

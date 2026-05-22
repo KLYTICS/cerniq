@@ -1,18 +1,18 @@
 <!--
 GENERATED FROM error-catalog.ts — do not hand-edit.
-Regenerate via: pnpm --filter @aegis/api exec tsx scripts/regenerate-error-catalog-md.ts
+Regenerate via: pnpm --filter @okoro/api exec tsx scripts/regenerate-error-catalog-md.ts
 (See scripts/audit-error-catalog.ts for the in-tree audit guard.)
 -->
 
-# AEGIS Error Catalog
+# OKORO Error Catalog
 
 This table is the canonical, customer-facing surface for every error class
-the AEGIS API can return. Stable code identifiers are guaranteed for the
+the OKORO API can return. Stable code identifiers are guaranteed for the
 duration of an API major version. New entries are additive.
 
 | Class | Code | HTTP | Retryable | Backoff | Category | Customer message |
 | --- | --- | ---: | :---: | --- | --- | --- |
-| `AuthenticationError` | `auth_required` | 401 | no | — | auth | Authentication required. Provide a valid AEGIS API key. |
+| `AuthenticationError` | `auth_required` | 401 | no | — | auth | Authentication required. Provide a valid OKORO API key. |
 | `AuthorizationError` | `forbidden` | 403 | no | — | auth | You are not permitted to perform this action. |
 | `NotFoundError` | `not_found` | 404 | no | — | validation | The requested resource was not found. |
 | `ValidationError` | `invalid_request` | 400 | no | — | validation | The request payload failed validation. |
@@ -42,6 +42,6 @@ duration of an API major version. New entries are additive.
   are returned in 200 verify responses on the hot path and are listed here
   so the catalog is the single source of truth across both transport
   paths.
-- `CircuitOpenError` extends the platform `Error` rather than `AegisError`
+- `CircuitOpenError` extends the platform `Error` rather than `OkoroError`
   on purpose — the resilience module is framework-agnostic. The HTTP
   filter consults this catalog by class name to render its envelope.

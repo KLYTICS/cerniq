@@ -27,7 +27,7 @@ Do not start the cutover until ALL of these are green:
    with a lint rule (M-005 acceptance criterion).
 2. **Origin p99 verify latency is measured for 7 days straight.** The
    Grafana dashboard at
-   `infra/observability/grafana-dashboards/aegis-verify-latency.json`
+   `infra/observability/grafana-dashboards/okoro-verify-latency.json`
    gives us this number. Without a baseline, we can't tell whether the
    edge cut over actually helped.
 3. **Cache hit rate at origin Redis is > 90 % for `agent:` and `policy:`
@@ -53,7 +53,7 @@ wrangler kv:namespace create POLICY_CACHE
 wrangler kv:namespace create POLICY_CACHE --preview
 
 # Push the public key (the worker only verifies — NEVER deploy a private key here):
-JWT_PUB=$(railway variables get --service aegis-api JWT_ED25519_PUBLIC_KEY_B64)
+JWT_PUB=$(railway variables get --service okoro-api JWT_ED25519_PUBLIC_KEY_B64)
 echo "$JWT_PUB" | wrangler secret put JWT_ED25519_PUBLIC_KEY_B64
 
 # Generate + push the origin fallback bearer token:
@@ -73,7 +73,7 @@ wrangler deploy
 After the worker shows up in `wrangler deployments list`:
 
 ```sh
-EDGE="https://aegis.<your-domain>"
+EDGE="https://okoro.<your-domain>"
 
 # 1. The worker is on a route — `cf-ray` header confirms Cloudflare handled it
 curl -sI "$EDGE/v1/verify" | grep -i "cf-ray\|server: cloudflare"
@@ -82,7 +82,7 @@ curl -sI "$EDGE/v1/verify" | grep -i "cf-ray\|server: cloudflare"
 
 # 2. Public key smoke test — worker rejects an unsigned token with 200 + denialReason
 curl -sX POST "$EDGE/v1/verify" \
-  -H "X-AEGIS-Verify-Key: $VERIFY_KEY" \
+  -H "X-OKORO-Verify-Key: $VERIFY_KEY" \
   -H "Content-Type: application/json" \
   -d '{"token":"not.a.real.jwt","action":"read"}' | jq '.denialReason'
 # Expected: "INVALID_SIGNATURE" (or "AGENT_NOT_FOUND" if the algorithm fails fast).
@@ -104,7 +104,7 @@ wrangler tail --format=pretty | head -20
 ## Rollback
 
 The verify path runs at the edge AND at origin (origin remains available
-on `api.aegis.<domain>/v1/verify`). To roll back:
+on `api.okoro.<domain>/v1/verify`). To roll back:
 
 ```sh
 # Pause routing — DNS-level. Toggling the route's "enabled" state is faster
@@ -113,7 +113,7 @@ wrangler deployments list
 wrangler rollback <previous-deployment-id>
 
 # If a worker bug is forging denials, take the route OFFLINE entirely:
-# Cloudflare dashboard → Workers Routes → toggle the AEGIS verify routes.
+# Cloudflare dashboard → Workers Routes → toggle the OKORO verify routes.
 # Origin will receive the traffic with no client changes (clients hit the
 # same hostname; the route just stops intercepting).
 ```

@@ -1,4 +1,4 @@
-# AEGIS Silent-Failure Audit — 2026Q2
+# OKORO Silent-Failure Audit — 2026Q2
 
 Auditor: error-handling review pass.
 Scope: verify hot path, spend guard, audit log, BATE, webhooks, auth, Redis, policy.
@@ -61,7 +61,7 @@ Hot summary: **5 CRITICAL silent-failure paths on the happy path of `/v1/verify`
 - User impact: customer-funded purchases blow through configured `maxPerDay` / `maxPerMonth` ceilings; revenue-policy violation invisible to the relying party; auditor cannot reconstruct why caps were not enforced.
 - Recommended fix:
   1. Add `redis.getStrict<T>()` that **throws** on driver/parse error (or expose a `tryGet` that returns a discriminated `{ ok: true, value } | { ok: false, reason }`).
-  2. In `SpendGuardService.check`, on outage: either fail-closed by returning `{ allowed: false, remainingDay: 0, remainingMonth: 0, reason: 'SPEND_BACKEND_DEGRADED' }`, or fall back to a Postgres `SUM(amount)` query against `SpendRecord` for the day/month buckets. The fallback path **must** be observable (metric `aegis_spend_fallback_total`).
+  2. In `SpendGuardService.check`, on outage: either fail-closed by returning `{ allowed: false, remainingDay: 0, remainingMonth: 0, reason: 'SPEND_BACKEND_DEGRADED' }`, or fall back to a Postgres `SUM(amount)` query against `SpendRecord` for the day/month buckets. The fallback path **must** be observable (metric `okoro_spend_fallback_total`).
   3. Document fail-closed behavior in `docs/SECURITY.md` § Spend Enforcement so operators stop seeing it as an outage to suppress.
 
 ### F-2 (CRITICAL) — `incrBy` returns `0` on outage; counters can desync silently
@@ -111,8 +111,8 @@ Hot summary: **5 CRITICAL silent-failure paths on the happy path of `/v1/verify`
 
 - File: `apps/api/src/modules/verify/verify.service.ts:85-89`
 - Swallowing line: `.catch((err) => this.logger.error(`audit.append failed: ${(err as Error).message}`));`
-- Why this violates the invariant: marginal improvement over F-4 (at least logged), but the same architectural defect. Approved verify call returns `valid: true`; downstream relying party transacts; audit chain is missing the event. Auditors performing chain-walk later cannot reconcile relying-party logs against the AEGIS chain. Audit-or-bust is a SOC2 invariant.
-- Recommended fix: same as F-4 — outbox pattern. As an interim, instrument `aegis_audit_append_failed_total{decision}` and page on it.
+- Why this violates the invariant: marginal improvement over F-4 (at least logged), but the same architectural defect. Approved verify call returns `valid: true`; downstream relying party transacts; audit chain is missing the event. Auditors performing chain-walk later cannot reconcile relying-party logs against the OKORO chain. Audit-or-bust is a SOC2 invariant.
+- Recommended fix: same as F-4 — outbox pattern. As an interim, instrument `okoro_audit_append_failed_total{decision}` and page on it.
 
 ### F-6 (MEDIUM) — BATE ingest swallows non-uniqueness errors with `warn`
 
@@ -140,7 +140,7 @@ Hot summary: **5 CRITICAL silent-failure paths on the happy path of `/v1/verify`
 - File: `apps/api/src/modules/verify/verify.service.ts:95-97`
 - Swallowing line: `void this.touchAgent(agentId).catch(() => undefined);`
 - Why: empty catch hides Postgres outages, advisory-lock failures on `verifyCount` increment, unique-key violations, etc. Dashboards lose `lastSeenAt` and `verifyCount` data with no signal to operators.
-- Recommended fix: at minimum `.catch((err) => this.logger.warn(…))`. Better: emit a counter `aegis_touch_agent_failed_total`.
+- Recommended fix: at minimum `.catch((err) => this.logger.warn(…))`. Better: emit a counter `okoro_touch_agent_failed_total`.
 
 ### F-8 (HIGH) — `WebhooksService.enqueue` swallows persistence failures
 
@@ -151,7 +151,7 @@ Hot summary: **5 CRITICAL silent-failure paths on the happy path of `/v1/verify`
 - Recommended fix:
   1. Persist a `WebhookOutbox` row in the same transaction that creates the originating event (the verify/bate write). Have an async drainer move outbox rows into `WebhookDelivery` and BullMQ. That way a failed enqueue cannot disappear an event.
   2. If keeping the current shape: at least classify the error and re-throw on persistence failure. Logger-only deletes the event.
-  3. Add metric `aegis_webhook_enqueue_failed_total{event}` and an alert.
+  3. Add metric `okoro_webhook_enqueue_failed_total{event}` and an alert.
 
 ### F-9 (MEDIUM) — Webhook `markAbandoned` from `'failed'` listener silently ignores its own failure
 
@@ -159,7 +159,7 @@ Hot summary: **5 CRITICAL silent-failure paths on the happy path of `/v1/verify`
 - Swallowing line: `void this.markAbandoned(job.data.deliveryId, err?.message ?? 'max attempts').catch(() => undefined);`
 - Why this is a problem: this is the only place where a delivery is *finalized* into the ABANDONED terminal state and a true DLQ notification could fire. If the Postgres update fails, the row is stuck in PENDING with `attemptsMade >= MAX_ATTEMPTS` forever. No alert, no operator visibility. Ironic given this is the "DLQ horizon" code path.
 - Recommended fix:
-  1. Replace empty catch with structured log + `aegis_webhook_abandon_failed_total` counter.
+  1. Replace empty catch with structured log + `okoro_webhook_abandon_failed_total` counter.
   2. Add a periodic reconcile worker that scans `WebhookDelivery WHERE attempts >= MAX_ATTEMPTS AND status = 'PENDING'` and re-issues `markAbandoned`.
   3. Optional: emit a `webhook.abandoned` internal event so operators can subscribe to their own DLQ.
 
@@ -190,7 +190,7 @@ Hot summary: **5 CRITICAL silent-failure paths on the happy path of `/v1/verify`
 
 - File: `apps/api/src/modules/verify/algorithm/verify.algorithm.ts:26,39`
 - Why: `decodeJwtUnsafe` is documented to return `null` on malformed input; `verifyJwt` is documented to return `null` on a bad signature. If the underlying `JwtUtil` throws (key parsing exception, jose internal error), the algorithm bubbles → uncaught in the Nest adapter → 500. This means a malformed-but-signed token vs a runtime JWT-library bug are distinguishable to the operator only via 4xx vs 5xx — but to the caller they look identical.
-- Recommended fix: in the Nest adapter `verify()`, wrap `verifyAlgorithm` in `try/catch`. On a *runtime* exception, return a 503 with `aegis_verify_runtime_errors_total` incremented and an audit row written with `decision='ERROR'`. Today the algorithm has no `ERROR` decision — that is a gap.
+- Recommended fix: in the Nest adapter `verify()`, wrap `verifyAlgorithm` in `try/catch`. On a *runtime* exception, return a 503 with `okoro_verify_runtime_errors_total` incremented and an audit row written with `decision='ERROR'`. Today the algorithm has no `ERROR` decision — that is a gap.
 
 ### F-13 (LOW) — Audit `signature` and `prevEventId` chain construction is *not* in a Postgres transaction
 
@@ -203,7 +203,7 @@ Hot summary: **5 CRITICAL silent-failure paths on the happy path of `/v1/verify`
 - File: `apps/api/src/modules/bate/bate.service.ts:52-56`
 - Swallowing line: `if (!agent) return;`
 - Why: if a signal references an agent that no longer exists, the function silently exits. That is sometimes correct (concurrent deletion) but also masks the case where the signal payload had a typo or stale id. No counter, no log.
-- Recommended fix: `logger.warn` with `agentId`, increment `aegis_bate_recompute_orphan_signal_total`. Lets the operator see drift.
+- Recommended fix: `logger.warn` with `agentId`, increment `okoro_bate_recompute_orphan_signal_total`. Lets the operator see drift.
 
 ### F-15 (LOW) — `recompute` early-exit when `score === currentScore` swallows a recompute failure window
 
@@ -217,7 +217,7 @@ Hot summary: **5 CRITICAL silent-failure paths on the happy path of `/v1/verify`
 - File: `apps/api/src/modules/auth/api-key.service.ts:69-71`
 - Swallowing line: `.catch((err) => this.logger.warn(`apiKey lastUsedAt update failed: ${err.message}`));`
 - Why: legitimate fire-and-forget. Worth noting that *security* teams sometimes rely on `lastUsedAt` to detect stolen credentials. If Postgres flaps, `lastUsedAt` stays frozen and a credential-leak detection rule based on staleness gets confused. Not a defect today; flagging for the rotation/leak-detection feature later.
-- Recommended fix: emit `aegis_apikey_lastused_failed_total` counter so this is visible to security monitoring.
+- Recommended fix: emit `okoro_apikey_lastused_failed_total` counter so this is visible to security monitoring.
 
 ### F-17 (MEDIUM) — `AuditService.initSigningKey` ephemeral fallback in non-production
 

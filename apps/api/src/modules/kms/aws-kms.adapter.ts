@@ -2,14 +2,14 @@
 //
 // Why envelope encryption rather than native KMS sign? As of 2026-Q2,
 // AWS KMS does not yet GA EdDSA signing — the SigningAlgorithm enum
-// supports RSASSA, ECDSA, and SM2DSA only. AEGIS is Ed25519-only per
+// supports RSASSA, ECDSA, and SM2DSA only. OKORO is Ed25519-only per
 // ADR-0002.
 //
 // Pattern (NIST SP 800-57 §6.2.2):
 //   1. Operator generates an Ed25519 keypair offline.
 //   2. KMS Encrypt(plaintext = ed25519 private key, KeyId = master DEK).
 //   3. Ciphertext stored at rest (S3, Secrets Manager, env, etc.).
-//   4. At AEGIS startup, KMS Decrypt unwraps the private key into
+//   4. At OKORO startup, KMS Decrypt unwraps the private key into
 //      process memory. Memory is zeroed on shutdown.
 //   5. Sign happens locally with `@noble/ed25519` — fast (50µs vs 5-15ms
 //      for round-trip KMS Sign).
@@ -46,7 +46,7 @@ export interface AwsKmsAdapterConfig {
   /**
    * Map of purpose → wrapped-key descriptor. The wrapped ciphertext is
    * KMS-encrypted Ed25519 private key (32 bytes plaintext) base64url'd
-   * for env transport. The kid is what AEGIS stamps on signed records.
+   * for env transport. The kid is what OKORO stamps on signed records.
    */
   keys: Partial<Record<KmsKeyPurpose, AwsWrappedKey>>;
 }

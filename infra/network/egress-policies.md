@@ -1,11 +1,11 @@
-# AEGIS — Network egress policies
+# OKORO — Network egress policies
 
-> Direction: **outbound** — AEGIS API / worker → external services.
+> Direction: **outbound** — OKORO API / worker → external services.
 > See [`ingress.md`](./ingress.md) for inbound.
 
 ## Summary
 
-AEGIS reaches a small, named set of external services in production. The
+OKORO reaches a small, named set of external services in production. The
 list is short on purpose: every new outbound destination is a new
 supply-chain risk. Webhooks are the one exception — those URLs are
 **user-controlled**, which makes them an SSRF risk by default and the
@@ -39,7 +39,7 @@ is a confused deputy that will happily make requests to:
 - `http://[::1]/...`, `http://[fc00::1]/...` — IPv6 link-local / ULA.
 - `http://api.stripe.com/...` — pretending to be a trusted destination, in case any internal logic compares URLs by string.
 
-Any one of these is enough to read AEGIS internals or pivot.
+Any one of these is enough to read OKORO internals or pivot.
 
 ### Required mitigations (defense in depth)
 
@@ -57,7 +57,7 @@ Any one of these is enough to read AEGIS internals or pivot.
    time and to private at delivery time, so we re-resolve and re-check.
 3. **Per-call timeout** — already 5 s per attempt. Keep it.
 4. **Response body cap** — already 2 KiB; do not increase.
-5. **HMAC signature** — `X-AEGIS-Signature: t=<ts>,v1=<hmac-sha256>`.
+5. **HMAC signature** — `X-OKORO-Signature: t=<ts>,v1=<hmac-sha256>`.
    This protects the receiver, not us, but completes the model.
 
 ### Disallowed IP ranges (refuse at subscribe AND at delivery)

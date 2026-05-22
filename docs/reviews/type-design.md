@@ -1,12 +1,12 @@
-# AEGIS Type Design Review
+# OKORO Type Design Review
 
 Scope: `packages/types/src/{schemas,constants,errors,index}.ts`,
-`apps/api/src/common/errors/{aegis-error,index}.ts`,
+`apps/api/src/common/errors/{okoro-error,index}.ts`,
 `apps/api/src/modules/{verify,policy}/*.dto.ts`.
 
 ---
 
-## Type: `@aegis/types` (Zod schema surface)
+## Type: `@okoro/types` (Zod schema surface)
 
 ### Invariants identified
 - All identifier strings (`agentId`, `principalId`, `policyId`) are bounded length and non-empty.
@@ -65,16 +65,16 @@ Scope: `packages/types/src/{schemas,constants,errors,index}.ts`,
 
 ---
 
-## Type: `AegisError` hierarchy
+## Type: `OkoroError` hierarchy
 
 ### Invariants identified
-- `AegisError` is `abstract` and declares `abstract readonly code: ErrorCode`, so every subclass must bind a code.
+- `OkoroError` is `abstract` and declares `abstract readonly code: ErrorCode`, so every subclass must bind a code.
 - Subclasses bind a fixed `HttpStatus` and a fixed `code`, ensuring the (status, code) pair is consistent per error type.
 - Construction always routes message + optional details through `HttpException`'s response object.
 
 ### Concerns
-- **`details` is `unknown`** at the base. Programmatic consumers cannot rely on a shape — e.g., `RateLimitedError`'s `{ retryAfterSeconds }` is documented only by reading the constructor (`aegis-error.ts:75–78`). A generic `AegisError<TDetails>` or per-subclass `details` typing would let SDK callers do `if (e instanceof RateLimitedError) { e.details.retryAfterSeconds }` safely.
-- **No `requestId` on the thrown error.** `ErrorEnvelope` requires `requestId` (`errors.ts:6–12`), but it is injected by the HTTP filter, not carried by the error. SDK consumers catching an `AegisError` cannot read it without re-parsing the response.
+- **`details` is `unknown`** at the base. Programmatic consumers cannot rely on a shape — e.g., `RateLimitedError`'s `{ retryAfterSeconds }` is documented only by reading the constructor (`okoro-error.ts:75–78`). A generic `OkoroError<TDetails>` or per-subclass `details` typing would let SDK callers do `if (e instanceof RateLimitedError) { e.details.retryAfterSeconds }` safely.
+- **No `requestId` on the thrown error.** `ErrorEnvelope` requires `requestId` (`errors.ts:6–12`), but it is injected by the HTTP filter, not carried by the error. SDK consumers catching an `OkoroError` cannot read it without re-parsing the response.
 - **`ErrorCode` is a single flat union** without sub-categorisation (transient vs. terminal, retryable vs. not). SDKs commonly want `error.isRetryable` — currently they must `instanceof RateLimitedError || instanceof ServiceUnavailableError`. A `readonly retryable: boolean` on the base, defaulted false, set true on the right subclasses, would help.
 - **No subclass for the primary domain failure: verification denial.** Denials are returned as 200 + body, not thrown — consistent with the spec — but there is no typed `VerifyDenial` result class either; SDKs will pattern-match strings on `denialReason`.
 - **`cause` is typed `unknown`** at the options interface, then cast to `Error | undefined`. Tightening the parameter to `Error | undefined` removes the cast.
@@ -93,4 +93,4 @@ Scope: `packages/types/src/{schemas,constants,errors,index}.ts`,
 
 2. **Make `VerifyResponse` a discriminated union and brand identifiers.** In `packages/types/src/schemas.ts:166–178`, split into `z.discriminatedUnion('valid', [VerifyApprovedSchema, VerifyDeniedSchema])` so `denialReason` is required when `valid: false` and forbidden when `valid: true`, and `agentId/principalId/trustBand` are non-null only on the approved branch. At `schemas.ts:17–19` add `.brand<'AgentId'>()`, `.brand<'PrincipalId'>()`, `.brand<'PolicyId'>()` so callers cannot pass a principal id where an agent id is expected. Both changes are pure type-level wins with no runtime cost.
 
-3. **Make denial precedence and error retryability first-class.** Export a `denialReasonRank(reason: DenialReason): number` from `packages/types/src/constants.ts` (alongside `DENIAL_REASON_PRECEDENCE` at line 53) and have the verify service call it instead of relying on if/else order in code. In `apps/api/src/common/errors/aegis-error.ts:17–25`, add `abstract readonly retryable: boolean` and `readonly requestId?: string` to `AegisError`, plus a typed `details` generic (`AegisError<TDetails = undefined>`) so `RateLimitedError extends AegisError<{ retryAfterSeconds: number }>`. SDK consumers then write `if (err.retryable) backoff()` instead of three `instanceof` checks.
+3. **Make denial precedence and error retryability first-class.** Export a `denialReasonRank(reason: DenialReason): number` from `packages/types/src/constants.ts` (alongside `DENIAL_REASON_PRECEDENCE` at line 53) and have the verify service call it instead of relying on if/else order in code. In `apps/api/src/common/errors/okoro-error.ts:17–25`, add `abstract readonly retryable: boolean` and `readonly requestId?: string` to `OkoroError`, plus a typed `details` generic (`OkoroError<TDetails = undefined>`) so `RateLimitedError extends OkoroError<{ retryAfterSeconds: number }>`. SDK consumers then write `if (err.retryable) backoff()` instead of three `instanceof` checks.

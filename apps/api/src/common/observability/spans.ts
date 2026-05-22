@@ -22,8 +22,8 @@
 
 import { trace, SpanStatusCode, type Span, type SpanOptions } from '@opentelemetry/api';
 
-/** AEGIS tracer name. Single tracer per service is the OTel convention. */
-const TRACER_NAME = 'aegis-api';
+/** OKORO tracer name. Single tracer per service is the OTel convention. */
+const TRACER_NAME = 'okoro-api';
 
 /** Allowed attribute key prefixes — for reviewer reference, not runtime enforcement. */
 export const SPAN_ATTRIBUTE_KEYS = [

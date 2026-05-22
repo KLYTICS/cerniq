@@ -6,7 +6,7 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { AegisApiError, registerAgent, revokeAgent } from '../../lib/api-client';
+import { OkoroApiError, registerAgent, revokeAgent } from '../../lib/api-client';
 
 export interface ActionResult<T> {
   ok: boolean;
@@ -42,7 +42,7 @@ export async function registerAgentAction(input: FormData): Promise<ActionResult
     revalidatePath('/agents');
     return { ok: true, data: { agentId: created.agentId, publicKey: created.publicKey } };
   } catch (err) {
-    if (err instanceof AegisApiError) {
+    if (err instanceof OkoroApiError) {
       return { ok: false, error: { code: err.code, message: err.message } };
     }
     return { ok: false, error: { code: 'UNKNOWN', message: 'Unexpected error registering agent.' } };
@@ -56,7 +56,7 @@ export async function revokeAgentAction(agentId: string): Promise<ActionResult<{
     revalidatePath(`/agents/${agentId}`);
     return { ok: true, data: { agentId } };
   } catch (err) {
-    if (err instanceof AegisApiError) {
+    if (err instanceof OkoroApiError) {
       return { ok: false, error: { code: err.code, message: err.message } };
     }
     return { ok: false, error: { code: 'UNKNOWN', message: 'Unexpected error revoking agent.' } };

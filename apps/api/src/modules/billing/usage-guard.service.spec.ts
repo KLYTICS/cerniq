@@ -70,8 +70,8 @@ describe('UsageGuardService', () => {
   const PRINCIPAL_ID = 'prin_test_abc123';
   const FROZEN_DATE = new Date('2026-05-15T12:00:00Z');
   const EXPECTED_MONTH_KEY = '2026-05';
-  const PLAN_KEY = `aegis:plan:${PRINCIPAL_ID}`;
-  const USAGE_KEY = `aegis:usage:${PRINCIPAL_ID}:${EXPECTED_MONTH_KEY}`;
+  const PLAN_KEY = `okoro:plan:${PRINCIPAL_ID}`;
+  const USAGE_KEY = `okoro:usage:${PRINCIPAL_ID}:${EXPECTED_MONTH_KEY}`;
 
   let prisma: MockPrisma;
   let redisHandles: ReturnType<typeof makeMockRedis>;

@@ -23,7 +23,7 @@ const SAMPLE_JWK: FakeJwk = {
 function makeAdapter() {
   const prisma = { principal: { findFirst: vi.fn(), create: vi.fn() } };
   const redis = { get: vi.fn(async () => null), set: vi.fn(async () => undefined) };
-  const config = { auth0Issuer: 'https://aegis.us.auth0.com/', auth0Audience: 'https://api.aegis.dev' };
+  const config = { auth0Issuer: 'https://okoro.us.auth0.com/', auth0Audience: 'https://api.okoro.dev' };
   return new Auth0Adapter(prisma as never, redis as never, config as never);
 }
 
@@ -59,8 +59,8 @@ describe('Auth0Adapter.verifyAccessToken', () => {
     const a = makeAdapter();
     const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: 'test-kid' })).toString('base64url');
     const payload = Buffer.from(JSON.stringify({
-      iss: 'https://aegis.us.auth0.com/',
-      aud: 'https://api.aegis.dev',
+      iss: 'https://okoro.us.auth0.com/',
+      aud: 'https://api.okoro.dev',
       exp: 1000,
     })).toString('base64url');
     expect(await a.verifyAccessToken(`${header}.${payload}.sig`)).toBeNull();
@@ -70,7 +70,7 @@ describe('Auth0Adapter.verifyAccessToken', () => {
     const a = makeAdapter();
     const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: 'test-kid' })).toString('base64url');
     const payload = Buffer.from(JSON.stringify({
-      iss: 'https://aegis.us.auth0.com/',
+      iss: 'https://okoro.us.auth0.com/',
       aud: 'https://other.example/',
       exp: Date.now() / 1000 + 3600,
     })).toString('base64url');

@@ -1,6 +1,6 @@
 import * as bcrypt from 'bcryptjs';
 
-import { AlreadyRotatedError, AuthorizationError, NotFoundError } from '../../common/errors/aegis-error';
+import { AlreadyRotatedError, AuthorizationError, NotFoundError } from '../../common/errors/okoro-error';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { AppConfigService } from '../../config/config.service';
 import type { AuditService } from '../audit/audit.service';
@@ -99,7 +99,7 @@ async function seedKey(
   rows: Map<string, ApiKeyRow>,
   overrides: Partial<ApiKeyRow> = {},
 ): Promise<ApiKeyRow> {
-  const plaintext = `aegis_sk_${'a'.repeat(26)}`;
+  const plaintext = `okoro_sk_${'a'.repeat(26)}`;
   const hash = await bcrypt.hash(plaintext, 4);
   const id = overrides.id ?? `ak_seed_${rows.size + 1}`;
   const row: ApiKeyRow = {
@@ -126,8 +126,8 @@ describe('ApiKeyService.rotate — happy path', () => {
 
     const result = await svc.rotate(old.id, 'p_alice');
 
-    expect(result.newKey.plaintext).toMatch(/^aegis_sk_[A-Za-z0-9]+$/);
-    expect(result.newKey.plaintext).toHaveLength('aegis_sk_'.length + 26);
+    expect(result.newKey.plaintext).toMatch(/^okoro_sk_[A-Za-z0-9]+$/);
+    expect(result.newKey.plaintext).toHaveLength('okoro_sk_'.length + 26);
     expect(result.newKey.id).not.toBe(old.id);
     expect(result.newKey.expiresAt).toBeNull();
 
@@ -162,11 +162,11 @@ describe('ApiKeyService.rotate — happy path', () => {
 
   it('inherits scope from the calling key (VERIFY_ONLY stays VERIFY_ONLY)', async () => {
     const { svc, rows } = buildHarness();
-    const old = await seedKey(rows, { scope: 'VERIFY_ONLY', keyPrefix: 'aegis_vk_aa' });
+    const old = await seedKey(rows, { scope: 'VERIFY_ONLY', keyPrefix: 'okoro_vk_aa' });
 
     const result = await svc.rotate(old.id, 'p_alice');
 
-    expect(result.newKey.plaintext.startsWith('aegis_vk_')).toBe(true);
+    expect(result.newKey.plaintext.startsWith('okoro_vk_')).toBe(true);
     const newRow = rows.get(result.newKey.id)!;
     expect(newRow.scope).toBe('VERIFY_ONLY');
   });
@@ -260,8 +260,8 @@ describe('ApiKeyService.rotate — audit emission', () => {
     const serialised = JSON.stringify(appendArgs);
     expect(serialised).not.toContain(result.newKey.plaintext);
     expect(serialised.toLowerCase()).not.toContain('plaintext');
-    expect(serialised).not.toContain('aegis_sk_');
-    expect(serialised).not.toContain('aegis_vk_');
+    expect(serialised).not.toContain('okoro_sk_');
+    expect(serialised).not.toContain('okoro_vk_');
   });
 
   it('audit append failure surfaces — does not silently swallow', async () => {

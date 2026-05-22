@@ -4,7 +4,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { MetricsService } from './metrics.service';
 
 /**
- * HTTP request middleware. Increments `aegis_http_requests_total` per
+ * HTTP request middleware. Increments `okoro_http_requests_total` per
  * request keyed by method + (low-cardinality) route + status class.
  *
  * "Low-cardinality" matters: we use the matched route template

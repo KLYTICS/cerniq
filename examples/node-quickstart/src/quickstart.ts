@@ -1,6 +1,6 @@
 /**
- * AEGIS quickstart — one-file walkthrough of the agent lifecycle using
- * `@aegis/sdk`. Hits a running AEGIS API at $AEGIS_API_BASE.
+ * OKORO quickstart — one-file walkthrough of the agent lifecycle using
+ * `@okoro/sdk`. Hits a running OKORO API at $OKORO_API_BASE.
  *
  * Steps:
  *   1. Set up an SDK client.
@@ -11,21 +11,21 @@
  *   6. Verify the token; print the decision.
  *
  * Required env:
- *   AEGIS_API_KEY   — full-management key (e.g. from `pnpm --filter @aegis/scripts seed`)
- *   AEGIS_VERIFY_KEY — verify-only key (optional; if unset, AEGIS_API_KEY is reused
+ *   OKORO_API_KEY   — full-management key (e.g. from `pnpm --filter @okoro/scripts seed`)
+ *   OKORO_VERIFY_KEY — verify-only key (optional; if unset, OKORO_API_KEY is reused
  *                      and the verify call rides under it — fine for dev only)
- *   AEGIS_API_BASE  — default http://localhost:4000
+ *   OKORO_API_BASE  — default http://localhost:4000
  *
  * Run:
  *   pnpm install
- *   AEGIS_API_KEY=aegis_sk_... pnpm tsx src/quickstart.ts
+ *   OKORO_API_KEY=okoro_sk_... pnpm tsx src/quickstart.ts
  */
 
-import { Aegis, generateKeypair, signAgentToken } from '@aegis/sdk';
+import { Okoro, generateKeypair, signAgentToken } from '@okoro/sdk';
 
-const API_BASE = process.env.AEGIS_API_BASE ?? 'http://localhost:4000';
-const API_KEY = process.env.AEGIS_API_KEY;
-const VERIFY_KEY = process.env.AEGIS_VERIFY_KEY ?? process.env.AEGIS_API_KEY;
+const API_BASE = process.env.OKORO_API_BASE ?? 'http://localhost:4000';
+const API_KEY = process.env.OKORO_API_KEY;
+const VERIFY_KEY = process.env.OKORO_VERIFY_KEY ?? process.env.OKORO_API_KEY;
 
 function section(title: string): void {
   console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 60 - title.length))}`);
@@ -34,13 +34,13 @@ function section(title: string): void {
 async function main(): Promise<void> {
   if (!API_KEY) {
     console.error(
-      'AEGIS_API_KEY is required. Run `pnpm --filter @aegis/scripts seed` first; copy the apiKey from its stdout.',
+      'OKORO_API_KEY is required. Run `pnpm --filter @okoro/scripts seed` first; copy the apiKey from its stdout.',
     );
     process.exit(2);
   }
 
   section('1. SDK client');
-  const aegis = new Aegis({ apiKey: API_KEY, baseUrl: API_BASE });
+  const okoro = new Okoro({ apiKey: API_KEY, baseUrl: API_BASE });
   console.log(`baseUrl: ${API_BASE}`);
 
   section('2. Keypair (client-side only)');
@@ -49,7 +49,7 @@ async function main(): Promise<void> {
   console.log(`privateKey: <kept local — ${privateKey.length} chars>`);
 
   section('3. Register agent');
-  const agent = await aegis.agents.register({
+  const agent = await okoro.agents.register({
     publicKey,
     runtime: 'CUSTOM',
     label: 'quickstart-demo',
@@ -59,7 +59,7 @@ async function main(): Promise<void> {
 
   section('4. Create policy');
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  const policy = await aegis.policies.create(agent.agentId, {
+  const policy = await okoro.policies.create(agent.agentId, {
     label: 'quickstart-policy',
     scopes: [
       {
@@ -83,9 +83,9 @@ async function main(): Promise<void> {
 
   section('6. Verify');
   // Use the verify key here — relying parties should never use the management
-  // key. In this demo we fall back to the management key if AEGIS_VERIFY_KEY
+  // key. In this demo we fall back to the management key if OKORO_VERIFY_KEY
   // is unset, but production deployments must split.
-  const verifier = new Aegis({ apiKey: VERIFY_KEY ?? API_KEY, baseUrl: API_BASE });
+  const verifier = new Okoro({ apiKey: VERIFY_KEY ?? API_KEY, baseUrl: API_BASE });
   const result = await verifier.verify(token, {
     action: 'commerce.purchase',
     amount: 49,

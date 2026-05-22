@@ -1,5 +1,5 @@
 {
-  "name": "@aegis/dashboard",
+  "name": "@okoro/dashboard",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aegis/sdk": "workspace:*",
+    "@okoro/sdk": "workspace:*",
     "next": "^16.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

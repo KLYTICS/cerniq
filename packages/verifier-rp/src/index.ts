@@ -1,6 +1,6 @@
-// Public exports for @aegis/verifier-rp.
+// Public exports for @okoro/verifier-rp.
 
-export { AegisVerifier } from './verifier.js';
+export { OkoroVerifier } from './verifier.js';
 export { JwksClient } from './jwks.js';
 export { JwksMemoryCache } from './jwks-cache.js';
 export { MemoryReplayCache } from './replay-cache.js';
@@ -24,9 +24,9 @@ export type { VerifyErrorCode } from './errors.js';
 export { b64uEncode, b64uDecode } from './_internal/b64u.js';
 
 export type {
-  AegisVerifierConfig,
-  AegisJwtClaims,
-  AegisJwtHeader,
+  OkoroVerifierConfig,
+  OkoroJwtClaims,
+  OkoroJwtHeader,
   AgentStatusSnapshot,
   AgentStatusValue,
   DenialReason,

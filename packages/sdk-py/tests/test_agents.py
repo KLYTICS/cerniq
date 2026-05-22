@@ -7,16 +7,16 @@ from typing import Any
 
 import httpx
 
-from aegis import AgentRecord, AsyncAegis, AuditLogResponse
+from okoro import AgentRecord, AsyncOkoro, AuditLogResponse
 
 
 async def test_register_sends_camel_case_body_and_returns_typed_record(
-    aegis: AsyncAegis,
+    okoro: AsyncOkoro,
     respx_mock: Any,
     sample_agent_record: dict[str, Any],
 ) -> None:
     route = respx_mock.post("/agents/register").respond(201, json=sample_agent_record)
-    agent = await aegis.agents.register(
+    agent = await okoro.agents.register(
         public_key="MCowBQYDK2VwAyEA-example-public-key-base64url-value",
         runtime="anthropic",
         principal_id="principal_acme",
@@ -38,12 +38,12 @@ async def test_register_sends_camel_case_body_and_returns_typed_record(
 
 
 async def test_register_omits_optional_fields(
-    aegis: AsyncAegis,
+    okoro: AsyncOkoro,
     respx_mock: Any,
     sample_agent_record: dict[str, Any],
 ) -> None:
     route = respx_mock.post("/agents/register").respond(201, json=sample_agent_record)
-    await aegis.agents.register(
+    await okoro.agents.register(
         public_key="MCowBQYDK2VwAyEA-example-public-key-base64url-value",
         runtime="custom",
         principal_id="principal_acme",
@@ -54,26 +54,26 @@ async def test_register_omits_optional_fields(
 
 
 async def test_get_agent(
-    aegis: AsyncAegis,
+    okoro: AsyncOkoro,
     respx_mock: Any,
     sample_agent_record: dict[str, Any],
 ) -> None:
     respx_mock.get("/agents/agt_01HZ9YZXM4QT3B7P8WKJD6R5V").respond(
         200, json=sample_agent_record
     )
-    agent = await aegis.agents.get("agt_01HZ9YZXM4QT3B7P8WKJD6R5V")
+    agent = await okoro.agents.get("agt_01HZ9YZXM4QT3B7P8WKJD6R5V")
     assert agent.agent_id == sample_agent_record["agentId"]
 
 
-async def test_revoke_agent_returns_none(aegis: AsyncAegis, respx_mock: Any) -> None:
+async def test_revoke_agent_returns_none(okoro: AsyncOkoro, respx_mock: Any) -> None:
     route = respx_mock.delete("/agents/agt_x").respond(204)
-    res = await aegis.agents.revoke("agt_x")
+    res = await okoro.agents.revoke("agt_x")
     assert res is None
     assert route.called
 
 
 async def test_status(
-    aegis: AsyncAegis,
+    okoro: AsyncOkoro,
     respx_mock: Any,
 ) -> None:
     respx_mock.get("/agents/agt_x/status").respond(
@@ -86,15 +86,15 @@ async def test_status(
             "lastSeenAt": "2026-05-01T12:00:00+00:00",
         },
     )
-    status = await aegis.agents.status("agt_x")
+    status = await okoro.agents.status("agt_x")
     assert status.agent_id == "agt_x"
     assert status.trust_band == "VERIFIED"
 
 
-async def test_audit_passes_query_params(aegis: AsyncAegis, respx_mock: Any) -> None:
+async def test_audit_passes_query_params(okoro: AsyncOkoro, respx_mock: Any) -> None:
     body = {"events": [], "nextCursor": None, "total": 0}
     route = respx_mock.get("/agents/agt_x/audit").respond(200, json=body)
-    res = await aegis.agents.audit(
+    res = await okoro.agents.audit(
         "agt_x", from_="2026-04-01T00:00:00Z", to="2026-05-01T00:00:00Z", limit=50
     )
     assert isinstance(res, AuditLogResponse)
@@ -105,9 +105,9 @@ async def test_audit_passes_query_params(aegis: AsyncAegis, respx_mock: Any) -> 
     assert "cursor" not in sent.url.params  # None-valued params dropped
 
 
-async def test_report(aegis: AsyncAegis, respx_mock: Any) -> None:
+async def test_report(okoro: AsyncOkoro, respx_mock: Any) -> None:
     route = respx_mock.post("/agents/agt_x/report").respond(202, json={"accepted": True})
-    res = await aegis.agents.report(
+    res = await okoro.agents.report(
         "agt_x",
         event_type="anomaly",
         severity="high",
@@ -124,16 +124,16 @@ async def test_report(aegis: AsyncAegis, respx_mock: Any) -> None:
 
 
 async def test_request_sets_required_headers(
-    aegis: AsyncAegis,
+    okoro: AsyncOkoro,
     respx_mock: Any,
     sample_agent_record: dict[str, Any],
     api_key: str,
 ) -> None:
     route = respx_mock.get("/agents/agt_x").respond(200, json=sample_agent_record)
-    await aegis.agents.get("agt_x")
+    await okoro.agents.get("agt_x")
 
     req: httpx.Request = route.calls.last.request
-    assert req.headers["X-AEGIS-API-Key"] == api_key
-    assert req.headers["User-Agent"].startswith("aegis-python/")
+    assert req.headers["X-OKORO-API-Key"] == api_key
+    assert req.headers["User-Agent"].startswith("okoro-python/")
     assert req.headers["X-Request-Id"]
-    assert "X-AEGIS-Verify-Key" not in req.headers
+    assert "X-OKORO-Verify-Key" not in req.headers

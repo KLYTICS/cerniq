@@ -131,9 +131,9 @@ function buildCipher(): DemoCipher {
 // ──────────────────────────────────────────────────────────────────
 
 describe('mintApiKeyPlaintext', () => {
-  it('produces aegis_sk_-prefixed plaintext with stable prefix slice', () => {
+  it('produces okoro_sk_-prefixed plaintext with stable prefix slice', () => {
     const k = mintApiKeyPlaintext();
-    expect(k.plaintext.startsWith('aegis_sk_')).toBe(true);
+    expect(k.plaintext.startsWith('okoro_sk_')).toBe(true);
     expect(k.prefix).toBe(k.plaintext.slice(0, 12));
   });
 });
@@ -243,7 +243,7 @@ describe('signAuditChain + verifySignedChain', () => {
     const signed = await signAuditChain({ events: planned, privateKey: priv, partitionBy: 'agentId' });
     // Tamper with the third event's signature byte.
     const tampered = signed.map((s, i) =>
-      i === 2 ? { ...s, aegisSignature: Buffer.from(s.aegisSignature, 'base64url').reverse().toString('base64url') } : s,
+      i === 2 ? { ...s, okoroSignature: Buffer.from(s.okoroSignature, 'base64url').reverse().toString('base64url') } : s,
     );
     const verify = await verifySignedChain(tampered, pub, 'agentId');
     expect(verify.ok).toBe(false);
@@ -312,7 +312,7 @@ describe('runSeedDemo', () => {
     expect(outcome.totalBateSignals).toBe(57);
   });
 
-  it('idempotent: re-runs delete @aegis-demo.test rows before recreating', async () => {
+  it('idempotent: re-runs delete @okoro-demo.test rows before recreating', async () => {
     const { prisma, rec } = buildPrisma();
     const cipher = buildCipher();
     await runSeedDemo(prisma, cipher, { dryRun: false, resetOnly: false });
@@ -405,8 +405,8 @@ describe('runSeedDemo', () => {
     await runSeedDemo(prisma, cipher, { dryRun: false, resetOnly: false });
     expect(rec.auditEvents.length).toBe(60);
     for (const ev of rec.auditEvents) {
-      expect(typeof ev.data.aegisSignature).toBe('string');
-      expect(String(ev.data.aegisSignature).length).toBeGreaterThan(40);
+      expect(typeof ev.data.okoroSignature).toBe('string');
+      expect(String(ev.data.okoroSignature).length).toBeGreaterThan(40);
       expect(ev.data.payloadVersion).toBe(2);
     }
   });
@@ -417,7 +417,7 @@ describe('runSeedDemo', () => {
 // ──────────────────────────────────────────────────────────────────
 
 describe('PERSONAS', () => {
-  it('uses the @aegis-demo.test suffix for every persona email', () => {
+  it('uses the @okoro-demo.test suffix for every persona email', () => {
     for (const p of PERSONAS) {
       expect(p.email.endsWith(DEMO_EMAIL_SUFFIX)).toBe(true);
     }

@@ -83,8 +83,8 @@ and breaking on every wording change.
 ### Alt C: Map each denial reason to an HTTP status code (401/403/etc.)
 Rejected because `/v1/verify` always returns 200 with a structured
 body — we treat denials as expected outcomes, not as errors. A
-relying party that gets a 200 knows AEGIS evaluated the request; a
-non-200 means AEGIS itself is broken.
+relying party that gets a 200 knows OKORO evaluated the request; a
+non-200 means OKORO itself is broken.
 
 ## How to reverse this decision
 

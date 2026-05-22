@@ -1,8 +1,8 @@
-// Package keychain stores AEGIS credentials in the host's secure
+// Package keychain stores OKORO credentials in the host's secure
 // credential store: macOS Keychain, freedesktop Secret Service (gnome-
 // keyring / kwallet), or Windows Credential Manager. On hosts where no
 // secure store is available (CI, headless servers), the implementation
-// falls back to an encrypted file at ~/.config/aegis/keychain (mode
+// falls back to an encrypted file at ~/.config/okoro/keychain (mode
 // 0600), keyed off a per-host random secret stored in the same dir.
 //
 // The `99designs/keyring` library handles all three OS backends behind
@@ -17,22 +17,22 @@ import (
 	"github.com/99designs/keyring"
 )
 
-// Service is the keychain service name. All AEGIS CLI entries are
-// scoped to this service so a single `aegis logout --all` can purge
+// Service is the keychain service name. All OKORO CLI entries are
+// scoped to this service so a single `okoro logout --all` can purge
 // every credential without touching unrelated entries.
-const Service = "io.aegislabs.cli"
+const Service = "io.okorolabs.cli"
 
 // KeyAPIKey is the keychain entry name for the primary management API
-// key (X-AEGIS-API-Key — full CRUD on agents/policies/audit).
+// key (X-OKORO-API-Key — full CRUD on agents/policies/audit).
 const KeyAPIKey = "api_key"
 
 // KeyVerifyKey is the keychain entry name for a verify-only key
-// (X-AEGIS-Verify-Key — read-only, /verify-only). Relying parties
-// often hold *only* this key. Stored separately so `aegis logout`
+// (X-OKORO-Verify-Key — read-only, /verify-only). Relying parties
+// often hold *only* this key. Stored separately so `okoro logout`
 // can purge one role without touching the other.
 const KeyVerifyKey = "verify_key"
 
-// open returns a keyring.Keyring scoped to the AEGIS service, with a
+// open returns a keyring.Keyring scoped to the OKORO service, with a
 // fallback chain that prefers OS-native stores. The fallback file
 // backend exists so CI environments (no Keychain.app, no DBus) still
 // work — the user must accept that a CI secret store is only as
@@ -43,9 +43,9 @@ func open() (keyring.Keyring, error) {
 		AllowedBackends:                []keyring.BackendType{keyring.KeychainBackend, keyring.SecretServiceBackend, keyring.WinCredBackend, keyring.FileBackend},
 		KeychainTrustApplication:       true,
 		KeychainAccessibleWhenUnlocked: true,
-		LibSecretCollectionName:        "aegis",
+		LibSecretCollectionName:        "okoro",
 		WinCredPrefix:                  Service,
-		FileDir:                        "~/.config/aegis/keychain",
+		FileDir:                        "~/.config/okoro/keychain",
 	}
 	kr, err := keyring.Open(cfg)
 	if err != nil {
@@ -68,8 +68,8 @@ func Set(key, value string) error {
 	return kr.Set(keyring.Item{
 		Key:                         key,
 		Data:                        []byte(value),
-		Label:                       "AEGIS — " + key,
-		Description:                 "Operator credential for the aegis CLI",
+		Label:                       "OKORO — " + key,
+		Description:                 "Operator credential for the okoro CLI",
 		KeychainNotTrustApplication: false,
 	})
 }
@@ -92,7 +92,7 @@ func Get(key string) (string, error) {
 }
 
 // Remove deletes a credential. A missing entry is a no-op (idempotent
-// logout) so `aegis logout` doesn't fail when the user is already out.
+// logout) so `okoro logout` doesn't fail when the user is already out.
 func Remove(key string) error {
 	kr, err := open()
 	if err != nil {

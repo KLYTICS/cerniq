@@ -1,6 +1,6 @@
-# AEGIS — Security model & threat analysis
+# OKORO — Security model & threat analysis
 
-> AEGIS is a security product. Bugs here have asymmetric downside.
+> OKORO is a security product. Bugs here have asymmetric downside.
 > Every change to this document or to crypto code requires a second pair
 > of eyes, even from a peer Claude session — message the operator first.
 
@@ -12,8 +12,8 @@
 |-------------------------------|-------------|-------------------------------|--------------------------|
 | Agent **public** keys         | Low         | Postgres, Redis cache         | None                     |
 | Agent **private** keys        | (NOT HELD)  | client-side only              | Customer-side incident   |
-| AEGIS audit signing key       | Critical    | env var, KMS in prod          | Audit chain forgery      |
-| AEGIS JWT signing key         | Critical    | env var, KMS in prod          | Forged policy tokens     |
+| OKORO audit signing key       | Critical    | env var, KMS in prod          | Audit chain forgery      |
+| OKORO JWT signing key         | Critical    | env var, KMS in prod          | Forged policy tokens     |
 | API keys (developers)         | High        | bcrypt(cost=12) in Postgres   | Account takeover         |
 | Verify-only keys              | Medium      | bcrypt in Postgres            | Read-only verify spam    |
 | Stripe webhook secret         | High        | env var                       | Billing forgery          |
@@ -36,7 +36,7 @@
             └──────────┬─────────────┘
                        ▼
             ┌────────────────────────┐
-            │  AEGIS API (Railway)    │   ← API key auth required
+            │  OKORO API (Railway)    │   ← API key auth required
             └──────────┬─────────────┘
                        ▼
        ┌───────────────┴────────────┐
@@ -46,7 +46,7 @@
 ```
 
 **Inbound**: every request crossing into the API layer **must** carry
-either `X-AEGIS-API-Key` (full) or `X-AEGIS-Verify-Key` (verify-only),
+either `X-OKORO-API-Key` (full) or `X-OKORO-Verify-Key` (verify-only),
 *except* `/health`, `/`, `/docs`, `/v1/agents/:id/status`, and
 `/.well-known/*`. Health endpoints never depend on Redis/DB and never
 expose principal data.
@@ -58,7 +58,7 @@ expose principal data.
 | Use                             | Algorithm           | Library             | Why this not that                              |
 |---------------------------------|---------------------|---------------------|------------------------------------------------|
 | Agent identity                  | Ed25519             | `@noble/ed25519`    | Fast, small keys, modern, zero malleability    |
-| AEGIS JWT signing               | EdDSA over Ed25519  | `jose`              | Same curve as identity, audited                |
+| OKORO JWT signing               | EdDSA over Ed25519  | `jose`              | Same curve as identity, audited                |
 | Audit chain signature           | Ed25519             | `@noble/ed25519`    | Reuse curve, deterministic signatures          |
 | API key hashing                 | bcrypt cost 12      | `bcryptjs`          | Industry standard, cheap to verify             |
 | Webhook signature               | HMAC-SHA256         | `node:crypto`       | Stripe-style, easy for customers to verify     |
@@ -75,7 +75,7 @@ We **deliberately do not** use:
 
 ## 4. Key handling rules
 
-1. **AEGIS private keys are never logged.** The Pino redaction list in
+1. **OKORO private keys are never logged.** The Pino redaction list in
    `app.module.ts` blocks header tokens; environment-variable private
    keys must never appear in logs by name (`audit_signing.b64` etc.).
 2. **Production keys live in Railway secrets / KMS**, not in `.env`.
@@ -169,7 +169,7 @@ See `docs/ARCHITECTURE.md` § "The audit chain". Threat model:
 | Insider tampers with a row    | Signature breaks; chain check at export catches  |
 | Insider replaces signature    | Prev-hash includes signature; chain still breaks |
 | Insider replaces whole chain  | We publish hourly chain head to a public log     |
-| AEGIS signing key compromised | KMS rotation + revocation list at /.well-known/   |
+| OKORO signing key compromised | KMS rotation + revocation list at /.well-known/   |
 
 ---
 

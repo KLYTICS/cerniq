@@ -1,11 +1,11 @@
-# goreleaser config for the AEGIS CLI.
+# goreleaser config for the OKORO CLI.
 # https://goreleaser.com/customization/
 #
 # Cross-compiles to darwin/linux/windows × amd64/arm64. Publishes:
 #   - GitHub release with archives + checksums.txt + checksums.txt.sig
 #     (cosign keyless via GitHub OIDC)
-#   - Homebrew tap at klytics/homebrew-aegis
-#   - Scoop bucket at klytics/scoop-aegis
+#   - Homebrew tap at klytics/homebrew-okoro
+#   - Scoop bucket at klytics/scoop-okoro
 #   - SBOM (cyclonedx) per archive
 #
 # Local snapshot build (no publish):
@@ -17,29 +17,29 @@
 
 version: 2
 
-project_name: aegis
+project_name: okoro
 
 before:
   hooks:
     - go mod tidy
 
 builds:
-  - id: aegis
+  - id: okoro
     main: ./packages/cli
-    binary: aegis
+    binary: okoro
     env:
       - CGO_ENABLED=0
     goos: [darwin, linux, windows]
     goarch: [amd64, arm64]
     ldflags:
       - -s -w
-      - -X github.com/klytics/aegis/packages/cli/internal/version.Version={{.Version}}
-      - -X github.com/klytics/aegis/packages/cli/internal/version.Commit={{.ShortCommit}}
-      - -X github.com/klytics/aegis/packages/cli/internal/version.BuildDate={{.Date}}
+      - -X github.com/klytics/okoro/packages/cli/internal/version.Version={{.Version}}
+      - -X github.com/klytics/okoro/packages/cli/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/klytics/okoro/packages/cli/internal/version.BuildDate={{.Date}}
 
 archives:
-  - id: aegis
-    name_template: "aegis_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - id: okoro
+    name_template: "okoro_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format: tar.gz
     format_overrides:
       - goos: windows
@@ -99,24 +99,24 @@ changelog:
 brews:
   - repository:
       owner: klytics
-      name: homebrew-aegis
-    name: aegis
-    homepage: "https://aegislabs.io"
-    description: "Operator CLI for the AEGIS agent gateway"
+      name: homebrew-okoro
+    name: okoro
+    homepage: "https://okorolabs.io"
+    description: "Operator CLI for the OKORO agent gateway"
     license: "Proprietary"
     install: |
-      bin.install "aegis"
-      generate_completions_from_executable(bin/"aegis", "completion")
+      bin.install "okoro"
+      generate_completions_from_executable(bin/"okoro", "completion")
     test: |
-      system "#{bin}/aegis", "--version"
+      system "#{bin}/okoro", "--version"
 
 scoops:
   - repository:
       owner: klytics
-      name: scoop-aegis
-    name: aegis
-    homepage: "https://aegislabs.io"
-    description: "Operator CLI for the AEGIS agent gateway"
+      name: scoop-okoro
+    name: okoro
+    homepage: "https://okorolabs.io"
+    description: "Operator CLI for the OKORO agent gateway"
     license: Proprietary
 
 release:
@@ -124,9 +124,9 @@ release:
   prerelease: auto
   name_template: "v{{.Version}}"
   header: |
-    ## AEGIS CLI {{ .Tag }}
+    ## OKORO CLI {{ .Tag }}
 
-    Install: `curl -fsSL https://get.aegis.dev/install.sh | sh`
+    Install: `curl -fsSL https://get.okoro.dev/install.sh | sh`
   footer: |
     **Verifying the release**
 
@@ -134,7 +134,7 @@ release:
     cosign verify-blob \
       --certificate checksums.txt.pem \
       --signature checksums.txt.sig \
-      --certificate-identity-regexp 'https://github.com/klytics/aegis/.+' \
+      --certificate-identity-regexp 'https://github.com/klytics/okoro/.+' \
       --certificate-oidc-issuer https://token.actions.githubusercontent.com \
       checksums.txt
     ```

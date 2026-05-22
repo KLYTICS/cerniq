@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AegisVerifier } from '../src/verifier.js';
+import { OkoroVerifier } from '../src/verifier.js';
 import { ConfigError } from '../src/errors.js';
 import { resetClock, setClock } from '../src/_internal/time.js';
 import { generateKeypair, signTestToken, tamperToken } from './_helpers/sign.js';
@@ -22,7 +22,7 @@ interface TestKeys {
 async function makeVerifier(opts: {
   keys: TestKeys;
   status?: { status: 'active' | 'suspended' | 'revoked' | 'pending_verification'; trustScore?: number };
-}): Promise<{ verifier: AegisVerifier; fetchMock: ReturnType<typeof vi.fn> }> {
+}): Promise<{ verifier: OkoroVerifier; fetchMock: ReturnType<typeof vi.fn> }> {
   const status = opts.status ?? { status: 'active' };
   const fetchMock = vi.fn(async (url: string | URL) => {
     if (String(url).includes('/agents/')) {
@@ -35,7 +35,7 @@ async function makeVerifier(opts: {
     }
     return fakeRes({ keys: [] });
   });
-  const verifier = new AegisVerifier({
+  const verifier = new OkoroVerifier({
     baseUrl: 'https://api.example.com/v1',
     getAgentPublicKey: async () => opts.keys.publicKey,
     fetch: fetchMock as unknown as typeof globalThis.fetch,
@@ -43,7 +43,7 @@ async function makeVerifier(opts: {
   return { verifier, fetchMock };
 }
 
-describe('AegisVerifier', () => {
+describe('OkoroVerifier', () => {
   let keys: TestKeys;
 
   beforeEach(async () => {
@@ -58,7 +58,7 @@ describe('AegisVerifier', () => {
   it('throws ConfigError when getAgentPublicKey is missing', () => {
     expect(
       () =>
-        new AegisVerifier({
+        new OkoroVerifier({
           baseUrl: 'x',
           getAgentPublicKey: undefined as unknown as never,
           fetch: globalThis.fetch,

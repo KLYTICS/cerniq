@@ -1,42 +1,42 @@
 @import "tailwindcss";
 @import "fumadocs-ui/style.css";
 
-/* AEGIS brand tokens — mirrored from brand/02_design-tokens.json */
+/* OKORO brand tokens — mirrored from brand/02_design-tokens.json */
 :root {
-  --aegis-obsidian: #050714;
-  --aegis-ink: #0b1020;
-  --aegis-steel: #161d33;
-  --aegis-graphite: #1f2740;
-  --aegis-mist: #2b3554;
-  --aegis-halo: #f4f6ff;
-  --aegis-fog: #a8b0cc;
-  --aegis-shadow: #6b7494;
-  --aegis-cyan: #5be0ff;
-  --aegis-violet: #8b6bff;
-  --aegis-magenta: #ff5bd0;
-  --aegis-verified: #4cffa8;
-  --aegis-denied: #ff5470;
-  --aegis-pending: #ffb86b;
+  --okoro-obsidian: #050714;
+  --okoro-ink: #0b1020;
+  --okoro-steel: #161d33;
+  --okoro-graphite: #1f2740;
+  --okoro-mist: #2b3554;
+  --okoro-halo: #f4f6ff;
+  --okoro-fog: #a8b0cc;
+  --okoro-shadow: #6b7494;
+  --okoro-cyan: #5be0ff;
+  --okoro-violet: #8b6bff;
+  --okoro-magenta: #ff5bd0;
+  --okoro-verified: #4cffa8;
+  --okoro-denied: #ff5470;
+  --okoro-pending: #ffb86b;
 
-  /* Map AEGIS palette into Fumadocs CSS variables. */
-  --color-fd-background: var(--aegis-obsidian);
-  --color-fd-foreground: var(--aegis-halo);
-  --color-fd-muted: var(--aegis-graphite);
-  --color-fd-muted-foreground: var(--aegis-fog);
-  --color-fd-border: var(--aegis-mist);
-  --color-fd-primary: var(--aegis-cyan);
-  --color-fd-accent: var(--aegis-violet);
-  --color-fd-card: var(--aegis-ink);
+  /* Map OKORO palette into Fumadocs CSS variables. */
+  --color-fd-background: var(--okoro-obsidian);
+  --color-fd-foreground: var(--okoro-halo);
+  --color-fd-muted: var(--okoro-graphite);
+  --color-fd-muted-foreground: var(--okoro-fog);
+  --color-fd-border: var(--okoro-mist);
+  --color-fd-primary: var(--okoro-cyan);
+  --color-fd-accent: var(--okoro-violet);
+  --color-fd-card: var(--okoro-ink);
 }
 
-.aegis-canvas {
+.okoro-canvas {
   background: radial-gradient(ellipse at top, #0b1020 0%, #050714 60%);
-  color: var(--aegis-halo);
+  color: var(--okoro-halo);
   font-family: "Inter", system-ui, -apple-system, sans-serif;
   min-height: 100vh;
 }
 
-.aegis-aurora {
+.okoro-aurora {
   background: linear-gradient(135deg, #5be0ff 0%, #8b6bff 50%, #ff5bd0 100%);
   -webkit-background-clip: text;
   background-clip: text;

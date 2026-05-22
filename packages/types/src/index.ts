@@ -1,7 +1,7 @@
-// Public surface of @aegis/types — re-exports schemas and inferred types so
+// Public surface of @okoro/types — re-exports schemas and inferred types so
 // consumers can import from a single entry point.
 //
-// Stability: every schema in `./schemas` is part of the public AEGIS API
+// Stability: every schema in `./schemas` is part of the public OKORO API
 // contract. Breaking changes require a coordinated SDK version bump and a
 // `BREAKING` entry in CHANGELOG.
 

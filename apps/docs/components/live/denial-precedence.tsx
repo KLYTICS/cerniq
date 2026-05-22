@@ -1,4 +1,4 @@
-import { DENIAL_REASON_PRECEDENCE } from '@aegis/types';
+import { DENIAL_REASON_PRECEDENCE } from '@okoro/types';
 
 interface ReasonCopy { http: number; meaning: string; retryable: boolean }
 
@@ -62,9 +62,9 @@ const REASON_COPY: Record<string, ReasonCopy> = {
 
 export function DenialPrecedence() {
   return (
-    <div className="my-6 overflow-hidden rounded-lg border border-[var(--aegis-mist)] bg-[var(--aegis-ink)]">
+    <div className="my-6 overflow-hidden rounded-lg border border-[var(--okoro-mist)] bg-[var(--okoro-ink)]">
       <table className="w-full text-sm">
-        <thead className="bg-[var(--aegis-steel)] text-xs uppercase tracking-wider text-[var(--aegis-fog)]">
+        <thead className="bg-[var(--okoro-steel)] text-xs uppercase tracking-wider text-[var(--okoro-fog)]">
           <tr>
             <th className="px-4 py-3 text-left">#</th>
             <th className="px-4 py-3 text-left">Reason</th>
@@ -77,16 +77,16 @@ export function DenialPrecedence() {
           {DENIAL_REASON_PRECEDENCE.map((reason, idx) => {
             const meta = REASON_COPY[reason];
             return (
-              <tr key={reason} className="border-t border-[var(--aegis-mist)]">
-                <td className="px-4 py-3 font-mono text-[var(--aegis-shadow)]">{idx + 1}</td>
-                <td className="px-4 py-3 font-mono text-[var(--aegis-cyan)]">{reason}</td>
+              <tr key={reason} className="border-t border-[var(--okoro-mist)]">
+                <td className="px-4 py-3 font-mono text-[var(--okoro-shadow)]">{idx + 1}</td>
+                <td className="px-4 py-3 font-mono text-[var(--okoro-cyan)]">{reason}</td>
                 <td className="px-4 py-3 font-mono">{meta?.http ?? '—'}</td>
-                <td className="px-4 py-3 text-[var(--aegis-fog)]">{meta?.meaning ?? 'See SECURITY.md'}</td>
+                <td className="px-4 py-3 text-[var(--okoro-fog)]">{meta?.meaning ?? 'See SECURITY.md'}</td>
                 <td className="px-4 py-3">
                   {meta?.retryable ? (
-                    <span className="text-[var(--aegis-pending)]">backoff</span>
+                    <span className="text-[var(--okoro-pending)]">backoff</span>
                   ) : (
-                    <span className="text-[var(--aegis-denied)]">no</span>
+                    <span className="text-[var(--okoro-denied)]">no</span>
                   )}
                 </td>
               </tr>
@@ -94,7 +94,7 @@ export function DenialPrecedence() {
           })}
         </tbody>
       </table>
-      <div className="border-t border-[var(--aegis-mist)] bg-[var(--aegis-graphite)] px-4 py-2 text-xs text-[var(--aegis-shadow)]">
+      <div className="border-t border-[var(--okoro-mist)] bg-[var(--okoro-graphite)] px-4 py-2 text-xs text-[var(--okoro-shadow)]">
         Live source: <code className="font-mono">packages/types/src/constants.ts → DENIAL_REASON_PRECEDENCE</code>
       </div>
     </div>

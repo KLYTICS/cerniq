@@ -30,7 +30,7 @@ async function makeKey(version = 1): Promise<{ key: VaultTransitKey; pub: Uint8A
   const pub = await ed.getPublicKeyAsync(priv);
   const key: VaultTransitKey = {
     kid: `kid-vault-test-v${version}`,
-    transitName: 'aegis-audit',
+    transitName: 'okoro-audit',
     version,
     publicKey: encodeBase64Url(pub),
     algorithm: 'EdDSA',

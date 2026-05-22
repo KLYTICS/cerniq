@@ -28,7 +28,7 @@ describe('WorkOsAdapter.verifyAccessToken', () => {
       authResponse: {
         user: { id: 'u_1', email: 'a@b.co', emailVerified: true, firstName: 'A', lastName: 'B', organizationId: 'org_1' },
         organizationId: 'org_1',
-        roles: ['aegis:admin', 'role:not-aegis-prefixed'],
+        roles: ['okoro:admin', 'role:not-okoro-prefixed'],
         mfaEnrolled: true,
         sessionId: 's_1',
         expiresAt: Math.floor(Date.now() / 1000) + 3600,
@@ -43,8 +43,8 @@ describe('WorkOsAdapter.verifyAccessToken', () => {
     expect(r.idpDomain).toBe('acme.com');
     expect(r.email).toBe('a@b.co');
     expect(r.name).toBe('A B');
-    // Only aegis:* roles propagate.
-    expect(r.roles).toEqual(['aegis:admin']);
+    // Only okoro:* roles propagate.
+    expect(r.roles).toEqual(['okoro:admin']);
     expect(r.mfaSatisfied).toBe(true);
     expect(r.rawClaims.sessionId).toBe('s_1');
   });

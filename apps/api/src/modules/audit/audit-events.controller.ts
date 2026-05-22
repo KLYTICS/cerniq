@@ -53,10 +53,10 @@ export class AuditEventsController {
     const today = new Date().toISOString().slice(0, 10);
     res.setHeader('Content-Type', 'application/x-ndjson');
     res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('X-AEGIS-Export-Format', 'ndjson-v1');
+    res.setHeader('X-OKORO-Export-Format', 'ndjson-v1');
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="aegis-audit-${auth.principalId}-${today}.ndjson"`,
+      `attachment; filename="okoro-audit-${auth.principalId}-${today}.ndjson"`,
     );
 
     for await (const row of this.audit.exportTenantStream(auth.principalId, query)) {

@@ -8,7 +8,7 @@ import { ApiProperty } from '@nestjs/swagger';
  * This is part of the I-9.5 discovery surface: stable, additive-only
  * within a major `spec_version`. Removing or renaming a key is a
  * breaking change requiring an ADR + 90-day notice (mirrors the
- * AegisConfigurationDto contract).
+ * OkoroConfigurationDto contract).
  *
  * The body is computed in-process from `getPlan(tier)` for every
  * `PlanTier` enum value. The endpoint never hits the database.
@@ -21,7 +21,7 @@ export class RetentionPolicyTierDto {
   audit_retention_days!: number;
 
   @ApiProperty({
-    description: 'How AEGIS enforces retention — redactions preserve audit chain hashes; events are never deleted.',
+    description: 'How OKORO enforces retention — redactions preserve audit chain hashes; events are never deleted.',
     example: 'redact-not-delete',
   })
   redaction_method!: 'redact-not-delete';
@@ -42,7 +42,7 @@ export class RetentionPolicyOperationalDto {
 
   @ApiProperty({
     description: 'Env var operators can set to override the worker interval (in milliseconds).',
-    example: 'AEGIS_AUDIT_RETENTION_INTERVAL_MS',
+    example: 'OKORO_AUDIT_RETENTION_INTERVAL_MS',
   })
   configurable_via_env!: string;
 }
@@ -69,7 +69,7 @@ export class RetentionPolicyDto {
   tiers!: Record<string, RetentionPolicyTierDto>;
 
   @ApiProperty({
-    description: 'Human-readable guarantees AEGIS makes about retention enforcement and chain integrity.',
+    description: 'Human-readable guarantees OKORO makes about retention enforcement and chain integrity.',
     example: [
       'Redactions preserve audit chain hashes — chain remains verifiable post-redaction.',
       'Each redaction emits a meta-event in the chain (audit-of-audit).',

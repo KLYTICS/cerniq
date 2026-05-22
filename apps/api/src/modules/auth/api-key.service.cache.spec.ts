@@ -26,7 +26,7 @@ interface FakeRow {
   expiresAt: Date | null;
 }
 
-const PLAINTEXT = 'aegis_sk_AAAAAAAAAAAAAAAAAAAAAA';
+const PLAINTEXT = 'okoro_sk_AAAAAAAAAAAAAAAAAAAAAA';
 const PRINCIPAL = 'prn_alpha';
 
 async function buildHarness(opts: { row?: FakeRow | null; existingCache?: AuthenticatedKey | null } = {}) {
@@ -147,7 +147,7 @@ describe('ApiKeyService.resolve — Redis cache layer', () => {
 
   it('rejects malformed keys before touching cache or Postgres', async () => {
     const h = await buildHarness();
-    const result = await h.svc.resolve('not-a-valid-aegis-key');
+    const result = await h.svc.resolve('not-a-valid-okoro-key');
     expect(result).toBeNull();
     expect(h.cacheGet).not.toHaveBeenCalled();
     expect(h.findMany).not.toHaveBeenCalled();

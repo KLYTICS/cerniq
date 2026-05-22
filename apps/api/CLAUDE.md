@@ -1,4 +1,4 @@
-# AEGIS API - Claude contract
+# OKORO API - Claude contract
 
 This directory owns the NestJS control plane, origin verify path, Prisma data
 model, billing enforcement, audit chain, policy evaluation, identity, Auth0,
@@ -16,7 +16,7 @@ KMS adapters, webhooks, and production observability.
 - Do not swallow errors in security, billing, policy, webhooks, KMS, or audit
   paths. If a non-blocking failure is intentional, log it with structured
   context and make sure the operational consequence is documented.
-- Use the shared error catalog and `AegisError` family. Do not invent stringly
+- Use the shared error catalog and `OkoroError` family. Do not invent stringly
   typed errors.
 - Keep config changes in the Zod schema, config service, `.env.example`, docs,
   and tests together.
@@ -75,10 +75,10 @@ before touching cross-cutting files.
 
 Choose the narrowest relevant set:
 
-- API typecheck: `pnpm --filter @aegis/api typecheck`
-- API tests: `pnpm --filter @aegis/api test -- --passWithNoTests`
-- E2E tests: `pnpm --filter @aegis/api test:e2e`
-- Prisma generate: `pnpm --filter @aegis/api prisma:generate`
+- API typecheck: `pnpm --filter @okoro/api typecheck`
+- API tests: `pnpm --filter @okoro/api test -- --passWithNoTests`
+- E2E tests: `pnpm --filter @okoro/api test:e2e`
+- Prisma generate: `pnpm --filter @okoro/api prisma:generate`
 - OpenAPI/Prisma parity: `pnpm check:openapi-prisma`
 - Migration immutability: `pnpm check:migrations`
 

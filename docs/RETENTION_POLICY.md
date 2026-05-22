@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Data retention policy
+title: OKORO — Data retention policy
 status: draft
 last-reviewed: 2026-05-02
 owner: operator (Erwin) — sid open
@@ -7,11 +7,11 @@ audience: SOC 2 Type II auditor / EU AI Act DPO / customer DPA reviewer / incide
 companion-to: docs/ARCHITECTURE.md §12 (summary), docs/COMPLIANCE.md, docs/EU_RESIDENCY.md, docs/decisions/0006-audit-redactability.md, docs/CAPACITY_PLAN.md §5.4 (storage growth driver)
 ---
 
-# AEGIS — Data retention policy
+# OKORO — Data retention policy
 
 > **Purpose.** Authoritative classification, retention period, lawful
 > basis, deletion mechanism, and owner for every persistent data
-> class AEGIS holds. ARCHITECTURE.md §12 is the architectural summary;
+> class OKORO holds. ARCHITECTURE.md §12 is the architectural summary;
 > this document is the canon a DPO, SOC 2 auditor, or Enterprise DPA
 > reviewer references.
 >
@@ -47,15 +47,15 @@ summarized in §5 below.
 
 ### 2.1 In scope
 
-Every persistent data class managed by AEGIS in any storage system —
+Every persistent data class managed by OKORO in any storage system —
 Postgres, Redis, S3 + GCS archive, Glacier + Coldline cold tier, KMS
 key material, CF KV, CF D1 (Phase 3), notarization service.
 
 ### 2.2 Out of scope
 
-- **Customer (RP) systems.** AEGIS does not retain RP-internal data;
+- **Customer (RP) systems.** OKORO does not retain RP-internal data;
   RPs are responsible for their own retention per their own DPAs.
-- **Agent private keys.** AEGIS never holds them per CLAUDE.md
+- **Agent private keys.** OKORO never holds them per CLAUDE.md
   invariant 1; SDKs handle this client-side.
 - **Plaintext PII outside the audit chain.** PII in `Principal` rows
   is governed by §4 row P1; PII inside `AuditEvent` rows is governed
@@ -68,7 +68,7 @@ key material, CF KV, CF D1 (Phase 3), notarization service.
 | EU / EEA     | GDPR (Reg. 2016/679)                   | EU AI Act applicability + EU customer principals     |
 | United States| SOC 2 Type II (AICPA), CCPA           | Customer-required attestation; CA principals         |
 | United States (financial) | FINRA 17a-4, SEC Rule 17a-4 | Persona C in `docs/spec/04_COMMERCIAL_STRATEGY.md` may demand |
-| United States (PCI scope) | PCI-DSS v4.0 §10              | RPs handling card data may require AEGIS log retention |
+| United States (PCI scope) | PCI-DSS v4.0 §10              | RPs handling card data may require OKORO log retention |
 | United Kingdom | UK GDPR + DPA 2018                  | Same as EU principle, separate legal entity          |
 | Other        | Customer-DPA-driven                    | Negotiated per Enterprise contract                    |
 
@@ -136,7 +136,7 @@ auditor-relevant fields.
 | `AgentIdentity.metadata` (RP-supplied JSON)       | P2    | RP must classify per its own DPA              |
 | `AgentPolicy.scopes`                              | P6    | Part of signed policy JWT                     |
 | `AgentPolicy.signedToken`                         | P6    |                                                |
-| `AuditEvent.aegisSignature`                       | P6    | Cryptographic chain element                    |
+| `AuditEvent.okoroSignature`                       | P6    | Cryptographic chain element                    |
 | `AuditEvent.prevHash`                             | P6    |                                                |
 | `AuditEvent.signedPayloadHash`                    | P6    | Hash of canonical payload                     |
 | `AuditEvent.actionRaw` (free-text)                | P7    | Hash signed; raw redactable                   |
@@ -153,7 +153,7 @@ auditor-relevant fields.
 | `Redis: agent:{id}:*`                             | P9    | Cache; reconstructable                        |
 | `Redis: spend:*`                                  | P8    | Operationally durable; persisted via AOF      |
 | `Redis: dpop:nonce:*`                             | P9    | TTL-bound                                     |
-| `KMS: aegis-audit-signing-key/v{N}`               | P5    | KMS-internal; per ADR-0011                    |
+| `KMS: okoro-audit-signing-key/v{N}`               | P5    | KMS-internal; per ADR-0011                    |
 
 ### 3.4 Adding a new field — checklist
 
@@ -179,7 +179,7 @@ The single most-consulted table in this document.
 | P2    | Postgres various + `AuditEvent.principalId` | TDE | 18 months hot in Postgres | 18mo → 7yr S3+GCS  | 7yr → forever  | Same as P1 + GDPR Art. 17 (erasure)   | NULL out raw column; replace `principalId` with `redacted-{hash}`; meta event in audit chain (per §5)      | Engineering                  |
 | P3    | Postgres `ApiKey`, `Session` (Argon2id-hashed) | TDE | Until revoke + 30-day grace | n/a            | n/a            | GDPR Art. 6(1)(b); SOC 2 CC6.1        | Hard delete after revoke + grace; predecessor key hashes preserved 90 days for forensics then deleted     | Engineering                  |
 | P4    | Postgres `AgentIdentity.publicKey`, JWKS files | TDE; JWKS publicly served | Until agent revoke | n/a               | n/a            | GDPR Art. 6(1)(b); CLAUDE.md inv. 1   | Hard delete on revoke; JWKS published key-id remains in `keys-superseded` for 30 days for in-flight verifies | Engineering                  |
-| P5    | KMS (AWS / GCP / Vault); never AEGIS-DB | KMS-managed | Active key window (1 yr) | Disabled key 30 days post-rotation | Cryptographic destroy after 7 years | SOC 2 CC6.6; ADR-0011               | Soft-delete in KMS for 30 days; hard destroy after 7 years (per §9)                                       | Operator (KMS-IAM-protected) |
+| P5    | KMS (AWS / GCP / Vault); never OKORO-DB | KMS-managed | Active key window (1 yr) | Disabled key 30 days post-rotation | Cryptographic destroy after 7 years | SOC 2 CC6.6; ADR-0011               | Soft-delete in KMS for 30 days; hard destroy after 7 years (per §9)                                       | Operator (KMS-IAM-protected) |
 | P6    | Postgres `AuditEvent` (signed cols), S3+GCS archive, Glacier+Coldline | TDE (Postgres); AES-256-GCM (archive); KMS keys per partition | 18 months hot | 18mo → 7 yr S3+GCS | 7 yr → forever (legal hold) or `OD-004` cold horizon | SOC 2 CC4.1; FINRA 17a-4; PCI-DSS §10 | **Never deleted** by data path; chain integrity preserved forever for legal-hold partitions; rolloff drops from hot → warm → cold | Compliance + Engineering     |
 | P7    | Postgres `AuditEvent` (raw cols) | TDE | 18 months hot | 18mo → 7 yr S3+GCS (encrypted) | (drops at warm→cold boundary unless legal hold) | GDPR Art. 17 vs. SOC 2 (resolved per §5) | NULL the raw column; meta `audit.redact` event in chain; signed payload hash remains so chain still verifies | Engineering (operator-authorized for redaction job) |
 | P8    | Postgres `SpendRecord`, `TrustScoreHistory`, `BateSignal` | TDE | 18 months hot | 18mo → archive (NDJSON) | 7 yr → cold | SOC 2 CC4.1; auditor evidence trail   | Hard delete 7 years post-creation unless under legal hold; per-tenant erasure NULLs PII columns           | Engineering                  |
@@ -208,7 +208,7 @@ Spend correctness is load-bearing for billing accuracy, not just
 audit. We retain `SpendRecord` for 7 years to match SOC 2 evidence
 horizon and customer billing dispute window. Per-tenant deletion
 NULLs the link to the deleted tenant but preserves the aggregate row
-(used for AEGIS-side billing reconciliation).
+(used for OKORO-side billing reconciliation).
 
 ### 4.3 Trust score history (P8) and ML training boundary
 
@@ -223,7 +223,7 @@ DPA addendum covers the secondary-use lawful basis (likely GDPR Art.
 
 ## 5. The audit-immutability vs. right-to-erasure resolution
 
-The **single hardest** retention question AEGIS faces. Resolution:
+The **single hardest** retention question OKORO faces. Resolution:
 **redactable signed payloads** per ADR-0006.
 
 ### 5.1 The conflict
@@ -241,7 +241,7 @@ Art. 17 demands it. Both are correct; the resolution is to separate
 
 Each `AuditEvent` row has, in parallel:
 
-- **Signed columns (P6):** `aegisSignature`, `prevHash`,
+- **Signed columns (P6):** `okoroSignature`, `prevHash`,
   `signedPayloadHash`, plus a fingerprint of every other field's
   value at append time. These are the inputs to the chain
   verification algorithm. **Immutable forever.**
@@ -435,7 +435,7 @@ Year Y partition (created 7 years ago):
 ### 8.3 Cold → forever (legal hold)
 
 Per OD-004 (operator-pending), the cold tier is the **forever** tier
-for AEGIS — we do not cryptographically destroy notarized audit
+for OKORO — we do not cryptographically destroy notarized audit
 roots. The notarization remains as the trust pin even after raw
 events are unrecoverable (which would only happen via legal-hold
 release + intentional cryptographic erasure).
@@ -463,7 +463,7 @@ Per ADR-0011 + KMS module M-023.
 
 | State          | Definition                                              | Transition trigger                       |
 |----------------|----------------------------------------------------------|------------------------------------------|
-| `provisioning` | KMS key creation in progress                            | Operator action via `aegis-cli kms rotate` |
+| `provisioning` | KMS key creation in progress                            | Operator action via `okoro-cli kms rotate` |
 | `pre-active`   | Key exists; not yet signing; in JWKS as 30-day-future tag | Provisioning complete                    |
 | `active`       | Currently signing audit + policy events                 | Rotation cron at month boundary          |
 | `superseded`   | Was active; new key took over; still verifies in JWKS   | New key promoted to active                |
@@ -497,7 +497,7 @@ event:
 | GCP KMS  | 30 days max (GCP limit) — same 7-year shadow strategy | `gcloud kms keys versions destroy` |
 | Vault Transit | configurable; we set 7-year retention with operator-gated destroy | `vault delete transit/keys/{name}` |
 
-The shadow strategy means **AEGIS holds an envelope-encrypted copy
+The shadow strategy means **OKORO holds an envelope-encrypted copy
 of every signing key** for 7 years. The envelope key is separate from
 the audit signing key (KMS master key) and rotates independently. A
 breach of one tier does not unlock the other.
@@ -579,7 +579,7 @@ forbidden** for EU principals per GDPR Schrems II considerations.
 
 ## 12. Legal hold mechanism
 
-When AEGIS receives a legal hold (subpoena, regulatory inquiry,
+When OKORO receives a legal hold (subpoena, regulatory inquiry,
 litigation hold):
 
 ### 12.1 Hold semantics
@@ -598,7 +598,7 @@ litigation hold):
 | State          | Trigger                                |
 |----------------|----------------------------------------|
 | `requested`    | Legal counsel files hold form          |
-| `active`       | Operator confirms via `aegis-cli legal-hold create --principal {id}` |
+| `active`       | Operator confirms via `okoro-cli legal-hold create --principal {id}` |
 | `release-requested` | Legal counsel files release         |
 | `released`     | Operator confirms; deletion executor resumes |
 
@@ -652,7 +652,7 @@ If a tenant requests deletion while a legal hold is active:
 
 ## Appendix A — alignment with regulatory horizons
 
-| Regulator / standard      | Required floor                | AEGIS provides                     | Comment                              |
+| Regulator / standard      | Required floor                | OKORO provides                     | Comment                              |
 |---------------------------|--------------------------------|-------------------------------------|--------------------------------------|
 | GDPR Art. 17              | Erasure on request             | Redaction + crypto-erasure on backup | Per §5–§7                            |
 | GDPR Art. 30 (records)    | Records of processing activities | Per-tenant data inventory (§10.2)   |                                      |
@@ -663,4 +663,4 @@ If a tenant requests deletion while a legal hold is active:
 | SEC 17a-4                 | 7 years (some 6)               | 7 years cold tier                    | Meets floor                          |
 | PCI-DSS v4.0 §10          | 1 year online + 3 years archive | Audit chain forever                  | Vastly exceeds                       |
 | CCPA 1798.105             | Erasure                        | Same as GDPR Art. 17                 |                                      |
-| EU AI Act (high-risk)     | Logs of decision provenance   | Per-decision audit chain             | AEGIS is the substrate for RPs to meet this |
+| EU AI Act (high-risk)     | Logs of decision provenance   | Per-decision audit chain             | OKORO is the substrate for RPs to meet this |

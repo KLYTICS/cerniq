@@ -2,7 +2,7 @@
 
 ## What
 
-Two unauthenticated, cacheable HTTP endpoints that publish AEGIS's
+Two unauthenticated, cacheable HTTP endpoints that publish OKORO's
 audit-event-signing public key:
 
 - `GET /.well-known/audit-signing-key` — plain JSON helper (`kid`,
@@ -18,9 +18,9 @@ A matching `If-None-Match` returns `304 Not Modified` with no body.
 
 ## Why
 
-SOC2 auditors and relying parties verify each `AuditEvent` in the AEGIS
+SOC2 auditors and relying parties verify each `AuditEvent` in the OKORO
 hash chain (CLAUDE.md invariant #3) by checking the Ed25519 signature
-against AEGIS's public key. They need a stable, no-auth, edge-cacheable
+against OKORO's public key. They need a stable, no-auth, edge-cacheable
 URL — the same shape Auth0 and Stripe expose for their public signing
 keys. This module is that surface.
 
@@ -54,10 +54,10 @@ convention (RFC 8615) and breaks tooling that probes the canonical path.
 
 | Env var                          | Required | Notes                                                                                              |
 | -------------------------------- | -------- | -------------------------------------------------------------------------------------------------- |
-| `AEGIS_SIGNING_PUBLIC_KEY`       | yes      | base64url-encoded raw 32-byte Ed25519 public key. Boot fails fast if missing or wrong length.     |
-| `AEGIS_SIGNING_KEY_ROTATED_AT`   | no       | ISO-8601 timestamp the current key was activated. If absent: process-start is captured at module init and the service is flagged DEGRADED (logged warning). |
+| `OKORO_SIGNING_PUBLIC_KEY`       | yes      | base64url-encoded raw 32-byte Ed25519 public key. Boot fails fast if missing or wrong length.     |
+| `OKORO_SIGNING_KEY_ROTATED_AT`   | no       | ISO-8601 timestamp the current key was activated. If absent: process-start is captured at module init and the service is flagged DEGRADED (logged warning). |
 
-Generate a key with: `pnpm --filter @aegis/scripts run keys`.
+Generate a key with: `pnpm --filter @okoro/scripts run keys`.
 
 ## kid format
 
@@ -78,17 +78,17 @@ Why these choices:
 
 ```bash
 # Plain JSON helper.
-curl -sSf https://api.aegislabs.io/.well-known/audit-signing-key | jq
+curl -sSf https://api.okorolabs.io/.well-known/audit-signing-key | jq
 
 # JWKS (note the content type).
 curl -sSf -H 'Accept: application/jwk-set+json' \
-  https://api.aegislabs.io/.well-known/jwks.json | jq
+  https://api.okorolabs.io/.well-known/jwks.json | jq
 
 # Cache-aware: capture the ETag and re-fetch.
-ETAG=$(curl -sSfI https://api.aegislabs.io/.well-known/audit-signing-key | awk -F': ' '/^etag/i {print $2}' | tr -d '\r')
+ETAG=$(curl -sSfI https://api.okorolabs.io/.well-known/audit-signing-key | awk -F': ' '/^etag/i {print $2}' | tr -d '\r')
 curl -sSf -o /dev/null -w '%{http_code}\n' \
   -H "If-None-Match: $ETAG" \
-  https://api.aegislabs.io/.well-known/audit-signing-key
+  https://api.okorolabs.io/.well-known/audit-signing-key
 # -> 304
 ```
 
@@ -103,14 +103,14 @@ import { sha512 } from '@noble/hashes/sha512';
 // noble/ed25519 v2 needs sha512 wired explicitly.
 ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
 
-// 1. Fetch the AEGIS audit-signing key.
-const res = await fetch('https://api.aegislabs.io/.well-known/audit-signing-key');
+// 1. Fetch the OKORO audit-signing key.
+const res = await fetch('https://api.okorolabs.io/.well-known/audit-signing-key');
 const { publicKey, kid } = await res.json();
 
 // 2. base64url-decode helpers.
 const b64u = (s: string) => Uint8Array.from(Buffer.from(s, 'base64url'));
 
-// 3. Reconstruct the canonical signing input. AEGIS signs
+// 3. Reconstruct the canonical signing input. OKORO signs
 //    `prev_sig_b64url || canonical_json(event_without_signature)`
 //    — see `apps/api/src/common/crypto/audit-chain.util.ts` for the
 //    canonicalisation rule (sorted keys, no whitespace).
@@ -118,7 +118,7 @@ const signingInput = `${event.prevSig ?? ''}${canonicalJson(event)}`;
 
 // 4. Verify.
 const ok = await ed.verifyAsync(b64u(event.signature), new TextEncoder().encode(signingInput), b64u(publicKey));
-if (!ok) throw new Error(`AEGIS audit signature invalid for kid=${kid}`);
+if (!ok) throw new Error(`OKORO audit signature invalid for kid=${kid}`);
 ```
 
 For JWKS-native tooling (e.g. `jose`):
@@ -126,8 +126,8 @@ For JWKS-native tooling (e.g. `jose`):
 ```ts
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 
-const jwks = createRemoteJWKSet(new URL('https://api.aegislabs.io/.well-known/jwks.json'));
-// Use `jwks` wherever a key resolver is accepted. AEGIS audit signatures
+const jwks = createRemoteJWKSet(new URL('https://api.okorolabs.io/.well-known/jwks.json'));
+// Use `jwks` wherever a key resolver is accepted. OKORO audit signatures
 // today are detached Ed25519 over canonicalised JSON, NOT compact JWS;
 // the JWKS view exists for tools that want a uniform key-discovery path.
 ```
@@ -136,7 +136,7 @@ const jwks = createRemoteJWKSet(new URL('https://api.aegislabs.io/.well-known/jw
 
 - `wellknown.service.spec.ts` — kid determinism, RFC 8037 JWK shape,
   fail-closed on missing/invalid env, DEGRADED flag on missing
-  `AEGIS_SIGNING_KEY_ROTATED_AT`.
+  `OKORO_SIGNING_KEY_ROTATED_AT`.
 - `wellknown.controller.spec.ts` — happy-path payload shapes, ETag
   matching kid, `If-None-Match` 304 (exact / wildcard / weak), shared
   kid across both endpoints.

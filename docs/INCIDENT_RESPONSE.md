@@ -1,4 +1,4 @@
-# AEGIS — Incident Response Playbook
+# OKORO — Incident Response Playbook
 ## On-Call Procedures, Escalation Paths, and Recovery Runbooks
 
 > **Owner:** Engineering Lead  
@@ -19,9 +19,9 @@ Every engineer on the on-call rotation must, **before going on call**:
 [ ] Have Railway dashboard access (production project)
 [ ] Have Cloudflare dashboard access
 [ ] Know the DATABASE_URL and REDIS_URL for production (in your secrets manager)
-[ ] Run: aegis doctor --env production  → all green
+[ ] Run: okoro doctor --env production  → all green
 [ ] Know where SECURITY_RUNBOOK.md is (key rotation procedures)
-[ ] Know the AEGIS_ADMIN_TOKEN (in your vault — never written down)
+[ ] Know the OKORO_ADMIN_TOKEN (in your vault — never written down)
 [ ] Have the Slack #incidents channel bookmarked
 ```
 
@@ -104,12 +104,12 @@ Post-mortem: [link, due [date]]
 
 ### RB-001: API Completely Down
 
-**Symptoms:** `/health` returning non-200 OR all requests timing out. PagerDuty alert: `aegis_health_down`.
+**Symptoms:** `/health` returning non-200 OR all requests timing out. PagerDuty alert: `okoro_health_down`.
 
 **Step 1 — Confirm the blast radius**
 ```bash
 # Is it DNS / Cloudflare?
-curl -I https://api.aegislabs.io/health
+curl -I https://api.okorolabs.io/health
 # vs
 curl -I https://[railway-origin-url]/health
 
@@ -213,18 +213,18 @@ WHERE ai.status = 'REVOKED'
 **Step 2 — If revoked agents are being approved → P0, circuit break immediately**
 ```bash
 # Option A: Enable maintenance mode (returns 503 on all verify calls)
-# Set env var: AEGIS_MAINTENANCE_MODE=true
-# Railway: Service → Variables → add AEGIS_MAINTENANCE_MODE=true → redeploy
+# Set env var: OKORO_MAINTENANCE_MODE=true
+# Railway: Service → Variables → add OKORO_MAINTENANCE_MODE=true → redeploy
 
 # Option B: Block specific agent
-aegis admin revoke-agent --id [AGENT_ID] --reason "emergency-p0-incident-[date]"
+okoro admin revoke-agent --id [AGENT_ID] --reason "emergency-p0-incident-[date]"
 ```
 
 **Step 3 — Root cause the wrong result**
 ```bash
 # Replay the failing verify call against staging
 # Copy the JWT from the audit log
-aegis admin debug-verify --token [JWT] --trace
+okoro admin debug-verify --token [JWT] --trace
 
 # This runs the full 9-step algorithm with verbose output:
 # Step 1: Agent lookup → [result]
@@ -258,7 +258,7 @@ grep -n "AGENT_NOT_FOUND\|AGENT_REVOKED\|INVALID_SIGNATURE" \
 ```bash
 pnpm tsx scripts/audit-verify-chain.ts \
   --api-base $BASE_URL \
-  --api-key $AEGIS_API_KEY \
+  --api-key $OKORO_API_KEY \
   --limit 1000 \
   --verbose
 
@@ -295,7 +295,7 @@ psql $DATABASE_URL -c "SELECT * FROM \"AuditEvent\" WHERE id='audit_xyz';" > tam
 **Step 4 — Notify principals affected**
 ```bash
 # Find all principals with audit events after the break point
-aegis admin audit-incident-report \
+okoro admin audit-incident-report \
   --from [TAMPERED_EVENT_ID] \
   --notify-principals
 ```
@@ -318,7 +318,7 @@ aegis admin audit-incident-report \
 
 # TL;DR:
 # 1. Generate new key pair
-# 2. Update Railway Variables: AEGIS_JWT_SIGNING_PRIVATE_KEY / AEGIS_AUDIT_SIGNING_PRIVATE_KEY
+# 2. Update Railway Variables: OKORO_JWT_SIGNING_PRIVATE_KEY / OKORO_AUDIT_SIGNING_PRIVATE_KEY
 # 3. Deploy (triggers restart)
 # 4. Old tokens signed by old key become invalid (expected)
 # 5. Update JWKS endpoint kid
@@ -365,8 +365,8 @@ psql $DATABASE_URL -c "SELECT 1;" 2>&1
 # 5. Redeploy API
 
 # Manual restore (if you have a dump):
-createdb aegis_prod_restored
-pg_restore -d aegis_prod_restored backup.dump
+createdb okoro_prod_restored
+pg_restore -d okoro_prod_restored backup.dump
 # Update DATABASE_URL to point to restored DB
 ```
 
@@ -405,20 +405,20 @@ Policy updates in that window: re-apply required
 **Step 1 — Contain**
 ```bash
 # If active breach: take API offline immediately
-# AEGIS_MAINTENANCE_MODE=true → redeploy
+# OKORO_MAINTENANCE_MODE=true → redeploy
 
 # Revoke all API keys for affected principal(s)
-aegis admin revoke-all-keys --principal [PRINCIPAL_ID] --reason "security-breach"
+okoro admin revoke-all-keys --principal [PRINCIPAL_ID] --reason "security-breach"
 
 # Rotate admin token
-openssl rand -hex 32  # → new AEGIS_ADMIN_TOKEN
+openssl rand -hex 32  # → new OKORO_ADMIN_TOKEN
 # Update Railway Variables immediately
 ```
 
 **Step 2 — Evidence preservation**
 ```bash
 # Export all audit events for affected principal
-aegis admin export-audit \
+okoro admin export-audit \
   --principal [PRINCIPAL_ID] \
   --from [SUSPECTED_START] \
   --format jsonl \
@@ -433,7 +433,7 @@ railway logs --service api --lines 10000 > railway-logs-$(date +%Y%m%d).txt
 
 **Step 3 — Root cause**
 Common vectors:
-- API key leaked in client-side code (check GitHub for `AEGIS_API_KEY`)
+- API key leaked in client-side code (check GitHub for `OKORO_API_KEY`)
 - CORS misconfiguration (check cors-allowlist.ts)
 - JWT signing key exposed in logs (check Datadog)
 - Admin token in git (check git history)
@@ -482,7 +482,7 @@ redis-cli -u $REDIS_URL SLOWLOG GET 10
 **Step 3 — Emergency mitigation**
 ```bash
 # If BATE is the bottleneck: disable trust scoring temporarily
-# AEGIS_BATE_ENABLED=false → TRUST_SCORE_TOO_LOW denials won't fire
+# OKORO_BATE_ENABLED=false → TRUST_SCORE_TOO_LOW denials won't fire
 # WARNING: this reduces security. Use for < 30 min max.
 
 # If DB is the bottleneck: add read replica, route audit queries there
@@ -495,14 +495,14 @@ redis-cli -u $REDIS_URL SLOWLOG GET 10
 **Step 1 — Check error breakdown**
 ```bash
 # What errors are failing?
-curl -s https://api.aegislabs.io/metrics \
+curl -s https://api.okorolabs.io/metrics \
   -H "Authorization: Bearer $METRICS_TOKEN" | \
-  grep "aegis_verify_total"
+  grep "okoro_verify_total"
 
 # Expected output:
-# aegis_verify_total{outcome="approved"} 9823
-# aegis_verify_total{outcome="denied",reason="SPEND_LIMIT_EXCEEDED"} 104
-# aegis_verify_total{outcome="error"} 12   ← THIS should be near 0
+# okoro_verify_total{outcome="approved"} 9823
+# okoro_verify_total{outcome="denied",reason="SPEND_LIMIT_EXCEEDED"} 104
+# okoro_verify_total{outcome="error"} 12   ← THIS should be near 0
 ```
 
 **Step 2 — Check API logs for 5xx errors**
@@ -554,7 +554,7 @@ ORDER BY COUNT(*) DESC;
 **Diagnostic checklist:**
 ```bash
 # 1. Check if their API key exists and is active
-aegis admin keys list --principal [EMAIL]
+okoro admin keys list --principal [EMAIL]
 
 # 2. Check if their principal is suspended
 psql $DATABASE_URL -c "SELECT id, status FROM \"Principal\" WHERE email='[EMAIL]';"
@@ -566,7 +566,7 @@ WHERE "principalId" = '[PRINCIPAL_ID]'
 ORDER BY "createdAt" DESC;
 
 # 4. If API key is fine but auth fails: check BCRYPT_COST env var
-# If AEGIS_API_KEY_BCRYPT_COST changed after their key was created: hashes won't match
+# If OKORO_API_KEY_BCRYPT_COST changed after their key was created: hashes won't match
 ```
 
 ---
@@ -637,23 +637,23 @@ File within 24h for P0, 72h for P1. Store in `docs/post-mortems/YYYY-MM-DD-[titl
 
 | Alert Name | Condition | Severity | Channel |
 |-----------|-----------|---------|---------|
-| `aegis_api_down` | `/health` non-200 for 1 min | P0 | PagerDuty |
-| `aegis_verify_error_rate` | Error rate > 1% for 5 min | P0 | PagerDuty |
-| `aegis_chain_break` | Audit chain integrity script fails | P0 | PagerDuty + #incidents |
-| `aegis_verify_latency_p99` | p99 > 500ms for 5 min | P1 | PagerDuty |
-| `aegis_redis_down` | Redis ping fails for 1 min | P1 | PagerDuty |
-| `aegis_db_connections` | Connection pool > 80% for 5 min | P1 | #alerts |
-| `aegis_spend_overflow` | Any SPEND_LIMIT_EXCEEDED spike >10x baseline | P1 | #alerts |
-| `aegis_webhook_backlog` | OutboxEvent pending > 1000 for 10 min | P2 | #alerts |
-| `aegis_verify_latency_p50` | p50 > 100ms for 10 min | P2 | #alerts |
+| `okoro_api_down` | `/health` non-200 for 1 min | P0 | PagerDuty |
+| `okoro_verify_error_rate` | Error rate > 1% for 5 min | P0 | PagerDuty |
+| `okoro_chain_break` | Audit chain integrity script fails | P0 | PagerDuty + #incidents |
+| `okoro_verify_latency_p99` | p99 > 500ms for 5 min | P1 | PagerDuty |
+| `okoro_redis_down` | Redis ping fails for 1 min | P1 | PagerDuty |
+| `okoro_db_connections` | Connection pool > 80% for 5 min | P1 | #alerts |
+| `okoro_spend_overflow` | Any SPEND_LIMIT_EXCEEDED spike >10x baseline | P1 | #alerts |
+| `okoro_webhook_backlog` | OutboxEvent pending > 1000 for 10 min | P2 | #alerts |
+| `okoro_verify_latency_p50` | p50 > 100ms for 10 min | P2 | #alerts |
 
 ### 7.2 Key Metrics Dashboards
 
 Maintain in Grafana/Datadog:
 
 **Dashboard 1 — Verify Health**
-- `aegis_verify_total` by outcome (approved/denied/error)
-- `aegis_verify_latency_seconds` p50/p99 over time
+- `okoro_verify_total` by outcome (approved/denied/error)
+- `okoro_verify_latency_seconds` p50/p99 over time
 - Denial reason breakdown (pie chart, last 1h)
 - Error rate % over time
 
@@ -710,5 +710,5 @@ Last drill date:    ___________
 
 ---
 
-*Playbook version: 1.0 | AEGIS Phase 1 GA*  
+*Playbook version: 1.0 | OKORO Phase 1 GA*  
 *Next review: after first real incident*

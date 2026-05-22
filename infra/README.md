@@ -1,4 +1,4 @@
-# infra/ — AEGIS infrastructure
+# infra/ — OKORO infrastructure
 
 Deploy descriptors, container builds, datastore tuning, and observability
 config. Application code lives in `apps/`; this directory is the
@@ -21,13 +21,13 @@ production wrapper around it.
                  Cloudflare (DNS only — Phase 1)
                             │
                             ▼
-                Railway "aegis-api"          (NestJS, public ingress)
+                Railway "okoro-api"          (NestJS, public ingress)
                             │
                             ├── Railway/Neon Postgres   (DATABASE_URL)
                             └── Railway/Upstash Redis   (REDIS_URL, BullMQ)
                                           ▲
                                           │
-                Railway "aegis-worker"      (BATE, webhooks, audit DLQ)
+                Railway "okoro-worker"      (BATE, webhooks, audit DLQ)
 ```
 
 Both services use the same Postgres + Redis. Splitting them onto separate
@@ -37,12 +37,12 @@ makes per-deploy rollback granular.
 ## Phase 3 target (post $5K MRR)
 
 ```
-        Cloudflare Workers — aegis-verify-edge   (verify hot path < 80ms p99)
+        Cloudflare Workers — okoro-verify-edge   (verify hot path < 80ms p99)
               │
               ├── Workers KV: TRUST_SCORE_CACHE, POLICY_CACHE
               └── Durable Objects: SPEND_COUNTER (per-API-key)
                                    │
-                                   └─ origin Railway aegis-api (management surface)
+                                   └─ origin Railway okoro-api (management surface)
 ```
 
 Phase 3 is gated on the entry checklist in `cloudflare/README.md`.
@@ -54,8 +54,8 @@ Phase 3 is gated on the entry checklist in `cloudflare/README.md`.
 ```sh
 docker compose up -d         # postgres + redis from the repo root file
 pnpm install
-pnpm --filter @aegis/api prisma:migrate
-pnpm tsx scripts/generate-aegis-keys.ts --env > .env.keys
+pnpm --filter @okoro/api prisma:migrate
+pnpm tsx scripts/generate-okoro-keys.ts --env > .env.keys
 cat .env.keys >> .env
 shred -u .env.keys 2>/dev/null || rm -P .env.keys 2>/dev/null || rm .env.keys
 pnpm dev
@@ -67,11 +67,11 @@ Follow the runbook in `railway/README.md`. Short version:
 
 ```sh
 railway login
-railway link                     # pick the AEGIS project
+railway link                     # pick the OKORO project
 # Provision Postgres + Redis plugins from the dashboard.
 # Wire env vars per the matrix in api.service.json + worker.service.json.
-railway up --service aegis-api
-railway up --service aegis-worker
+railway up --service okoro-api
+railway up --service okoro-worker
 ```
 
 ### Phase 3 edge (Cloudflare)
@@ -93,8 +93,8 @@ green.
 The fastest "is anything broken" pass after a deploy:
 
 ```sh
-API="https://api.aegis.<your-domain>"
-EDGE="https://aegis.<your-domain>"   # Phase 3 only
+API="https://api.okoro.<your-domain>"
+EDGE="https://okoro.<your-domain>"   # Phase 3 only
 
 curl -fsS -o /dev/null -w "live=%{http_code} t=%{time_total}s\n"  "$API/v1/health/live"
 curl -fsS -o /dev/null -w "ready=%{http_code} t=%{time_total}s\n" "$API/v1/health/ready"

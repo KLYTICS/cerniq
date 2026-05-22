@@ -102,11 +102,11 @@ export class ClerkAdapter implements IdpAdapter {
       emailVerified: Boolean(claims.email_verified),
       name: typeof claims.name === 'string' ? claims.name : null,
       // Clerk roles arrive as `org_role` (single string for active org) or
-      // a custom claim. We normalize: only `aegis:*` roles propagate.
-      roles: typeof claims.org_role === 'string' && claims.org_role.startsWith('aegis:')
+      // a custom claim. We normalize: only `okoro:*` roles propagate.
+      roles: typeof claims.org_role === 'string' && claims.org_role.startsWith('okoro:')
         ? [claims.org_role]
-        : Array.isArray(claims['https://aegis.dev/roles'])
-          ? (claims['https://aegis.dev/roles'] as string[]).filter((r) => r.startsWith('aegis:'))
+        : Array.isArray(claims['https://okoro.dev/roles'])
+          ? (claims['https://okoro.dev/roles'] as string[]).filter((r) => r.startsWith('okoro:'))
           : [],
       mfaSatisfied: Array.isArray(claims.amr) && (claims.amr as string[]).includes('mfa'),
       rawClaims: claims,

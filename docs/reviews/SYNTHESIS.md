@@ -64,7 +64,7 @@ are deploy blockers, all are tracked in the table below.
 | M-5  | `policy.service` `as any` cast on token payload — bypasses type system on signing surface | `modules/policy/policy.service.ts:73-79`       |
 | T-1  | `VerifyResponse` lacks discriminated union on `valid` — `valid:true + denialReason:set` is representable | `packages/types/src/schemas.ts:166-178`         |
 | T-2  | Identifiers (`agentId`, `principalId`, `policyId`) are unbranded `string` — SDK can pass one where another is required, no compile error | `packages/types/src/schemas.ts:17-19`           |
-| T-3  | `AegisError` lacks typed `details<TDetails>`, `retryable: boolean`, `requestId` — SDK consumers forced into chained `instanceof` checks | `apps/api/src/common/errors/aegis-error.ts:17-25` |
+| T-3  | `OkoroError` lacks typed `details<TDetails>`, `retryable: boolean`, `requestId` — SDK consumers forced into chained `instanceof` checks | `apps/api/src/common/errors/okoro-error.ts:17-25` |
 | T-4  | `PolicyScope` missing `validFrom <= validUntil` cross-field refinement | `packages/types/src/schemas.ts:73-81`           |
 | T-5  | `denialReasonRank()` helper missing — relying parties can't ask "is X higher precedence than Y?" without re-implementing | `packages/types/src/constants.ts:53-63`         |
 
@@ -84,7 +84,7 @@ are deploy blockers, all are tracked in the table below.
 
 | Invariant                                       | Status     | Notes                                                                                |
 | ----------------------------------------------- | ---------- | ------------------------------------------------------------------------------------ |
-| 1 · Private keys never enter AEGIS              | **PASS**   | Soft gap remains — `identity.service.ts` could add a challenge-response handshake     |
+| 1 · Private keys never enter OKORO              | **PASS**   | Soft gap remains — `identity.service.ts` could add a challenge-response handshake     |
 | 2 · Portable verify hot path                    | ⬆ MOSTLY   | H-7 fixed (TrustBand local); H-8 still open (crypto utils still `@Injectable`)        |
 | 3 · Audit log append-only and signed            | ✅ **PASS** | H-5 fork race fixed by peer (advisory lock) + 2026-05-02 audit_append_only migration adds DB-trigger guard |
 | 4 · No silent failures, no fabricated data      | ⬆ MOSTLY   | C-1, C-4, H-4, M-4 all closed; H-2 (BATE substring catch) still open                  |

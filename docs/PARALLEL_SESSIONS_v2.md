@@ -1,4 +1,4 @@
-# AEGIS — Parallel Sessions Coordination Guide v2
+# OKORO — Parallel Sessions Coordination Guide v2
 ## How to Run 10+ Engineering Terminals Without Conflicts
 ### Updated: 2026-05-05 | Phase 1 GA Closure Edition
 
@@ -29,23 +29,23 @@ The codebase is **ready for first paying users.** Every terminal below is workin
 
 ### 🔴 TERMINAL-A: Python SDK (P0)
 
-**Why P0:** The LangChain, CrewAI, and AutoGen ecosystems are Python-dominant. Every Python agent developer is locked out of AEGIS until this ships. This is the single highest-impact unshipped item for Phase 2 revenue.
+**Why P0:** The LangChain, CrewAI, and AutoGen ecosystems are Python-dominant. Every Python agent developer is locked out of OKORO until this ships. This is the single highest-impact unshipped item for Phase 2 revenue.
 
 **Claim:**
 ```bash
-claude-peers claim aegis M-PYTHON-SDK --note "Python SDK: agent.py, client.py, crypto.py" --ttl 28800
+claude-peers claim okoro M-PYTHON-SDK --note "Python SDK: agent.py, client.py, crypto.py" --ttl 28800
 ```
 
 **File scope:**
 ```
 packages/sdk-py/
-├── aegis/
+├── okoro/
 │   ├── __init__.py        # Public exports
-│   ├── agent.py           # AegisAgent: generate_keypair(), sign(payload) → JWT
-│   ├── client.py          # AegisClient: verify(token, options) → VerifyResult
+│   ├── agent.py           # OkoroAgent: generate_keypair(), sign(payload) → JWT
+│   ├── client.py          # OkoroClient: verify(token, options) → VerifyResult
 │   ├── crypto.py          # Ed25519 sign/verify via cryptography[ed25519]
 │   ├── types.py           # VerifyResult, DenialReason, PlanInfo dataclasses
-│   └── errors.py          # AegisError, VerifyDeniedError, QuotaExceededError
+│   └── errors.py          # OkoroError, VerifyDeniedError, QuotaExceededError
 ├── tests/
 │   ├── test_agent.py
 │   ├── test_client.py
@@ -56,15 +56,15 @@ packages/sdk-py/
 
 **Mirror from TypeScript:** `packages/sdk-ts/src/` is the reference. Match the API surface exactly so LangChain guides work in both languages.
 
-**Key invariant (CLAUDE.md #1):** The private key NEVER leaves the SDK. `AegisAgent.sign()` produces a JWT client-side. The private key is never in the network request.
+**Key invariant (CLAUDE.md #1):** The private key NEVER leaves the SDK. `OkoroAgent.sign()` produces a JWT client-side. The private key is never in the network request.
 
 **Minimum viable implementation:**
 ```python
 # What LangChain developers need to do in their agents:
-from aegis import AegisAgent, AegisClient
+from okoro import OkoroAgent, OkoroClient
 
-agent = AegisAgent.load(private_key_path="~/.aegis/agent.key")
-client = AegisClient(api_key=os.environ["AEGIS_VERIFY_KEY"])
+agent = OkoroAgent.load(private_key_path="~/.okoro/agent.key")
+client = OkoroClient(api_key=os.environ["OKORO_VERIFY_KEY"])
 
 # Signing (runs in agent, before tool call):
 token = agent.sign({"action": "commerce.purchase", "amount": 50.00, "currency": "USD"})
@@ -81,11 +81,11 @@ if not result.valid:
 
 ### 🔴 TERMINAL-B: MCP Bridge Full Transport (P0)
 
-**Why P0:** This is the distribution wedge. Every MCP server is a potential AEGIS relying party. Without this, the wedge isn't operational.
+**Why P0:** This is the distribution wedge. Every MCP server is a potential OKORO relying party. Without this, the wedge isn't operational.
 
 **Claim:**
 ```bash
-claude-peers claim aegis M-MCP-BRIDGE --note "Full MCP SDK 1.0 transport binding" --ttl 28800
+claude-peers claim okoro M-MCP-BRIDGE --note "Full MCP SDK 1.0 transport binding" --ttl 28800
 ```
 
 **File scope:**
@@ -94,7 +94,7 @@ packages/mcp-bridge/src/
 ├── index.ts          # wrap() — already has interface, needs transport impl
 ├── transport.ts      # MCP SDK 1.0 Server.setRequestHandler interception
 ├── types.ts          # BridgeConfig, BridgeContext, BridgeDenialError — EXISTS
-└── index.spec.ts     # Unit tests (mock MCP server + mock AEGIS client)
+└── index.spec.ts     # Unit tests (mock MCP server + mock OKORO client)
 ```
 
 **What's already done:** `BridgeConfig`, `BridgeContext`, `BridgeDenialError`, the `wrap()` function signature.
@@ -106,12 +106,12 @@ export function wrap(server: McpServer, config: BridgeConfig): McpServer {
   
   server.setRequestHandler = (schema, handler) => {
     original(schema, async (req, extra) => {
-      // 1. Extract AEGIS token from request headers/params
+      // 1. Extract OKORO token from request headers/params
       const token = extractToken(req);
       if (!token) throw new BridgeDenialError('MISSING_TOKEN', { ... });
       
-      // 2. Verify with AEGIS
-      const result = await config.aegis.verify(token, {
+      // 2. Verify with OKORO
+      const result = await config.okoro.verify(token, {
         action: config.actionPrefix + extractMethodName(req),
       });
       if (!result.valid) {
@@ -120,7 +120,7 @@ export function wrap(server: McpServer, config: BridgeConfig): McpServer {
       }
       
       // 3. Inject context and forward
-      return handler(req, { ...extra, aegis: result });
+      return handler(req, { ...extra, okoro: result });
     });
   };
   
@@ -130,7 +130,7 @@ export function wrap(server: McpServer, config: BridgeConfig): McpServer {
 
 **Reference:** Study the MCP TypeScript SDK `@modelcontextprotocol/sdk` Server class for the exact request handler interception pattern.
 
-**Acceptance criteria:** A minimal MCP server wrapped with `wrap()` rejects tool calls without valid AEGIS tokens. Test with the MCP inspector tool.
+**Acceptance criteria:** A minimal MCP server wrapped with `wrap()` rejects tool calls without valid OKORO tokens. Test with the MCP inspector tool.
 
 ---
 
@@ -140,7 +140,7 @@ export function wrap(server: McpServer, config: BridgeConfig): McpServer {
 
 **Claim:**
 ```bash
-claude-peers claim aegis M-DASHBOARD-BATE --note "BATE widget, agent list, onboarding wizard" --ttl 28800
+claude-peers claim okoro M-DASHBOARD-BATE --note "BATE widget, agent list, onboarding wizard" --ttl 28800
 ```
 
 **Priority order within this module:**
@@ -162,7 +162,7 @@ claude-peers claim aegis M-DASHBOARD-BATE --note "BATE widget, agent list, onboa
 
 **Claim:**
 ```bash
-claude-peers claim aegis M-EMAIL-LIFECYCLE --note "quota alerts, upgrade triggers, welcome" --ttl 14400
+claude-peers claim okoro M-EMAIL-LIFECYCLE --note "quota alerts, upgrade triggers, welcome" --ttl 14400
 ```
 
 **File scope:**
@@ -196,7 +196,7 @@ apps/api/src/modules/notifications/
 
 **Claim:**
 ```bash
-claude-peers claim aegis M-TEST-COVERAGE --note "webhooks isolation, stripe e2e, billing controller" --ttl 14400
+claude-peers claim okoro M-TEST-COVERAGE --note "webhooks isolation, stripe e2e, billing controller" --ttl 14400
 ```
 
 **Priority order:**
@@ -215,7 +215,7 @@ claude-peers claim aegis M-TEST-COVERAGE --note "webhooks isolation, stripe e2e,
 
 **Claim:**
 ```bash
-claude-peers claim aegis M-KMS-SCHEDULE-FIXES --note "KMS SDK installs, schedule module" --ttl 3600
+claude-peers claim okoro M-KMS-SCHEDULE-FIXES --note "KMS SDK installs, schedule module" --ttl 3600
 ```
 
 **Task 1 — KMS SDK installs:**
@@ -259,14 +259,14 @@ Add `secretHash String` column to Prisma schema, migration.
 
 **Claim:**
 ```bash
-claude-peers claim aegis M-OPENAPI-PARITY --note "check-openapi-zod-parity.ts script" --ttl 7200
+claude-peers claim okoro M-OPENAPI-PARITY --note "check-openapi-zod-parity.ts script" --ttl 7200
 ```
 
 **File to create:** `scripts/check-openapi-zod-parity.ts`
 
 What it must verify:
-1. `DenialReason` in `verify.dto.ts` matches the `denialReason` enum in `docs/spec/AEGIS_API_SPEC.yaml`
-2. Every `/v1/` path in `AEGIS_API_SPEC.yaml` has a corresponding controller route
+1. `DenialReason` in `verify.dto.ts` matches the `denialReason` enum in `docs/spec/OKORO_API_SPEC.yaml`
+2. Every `/v1/` path in `OKORO_API_SPEC.yaml` has a corresponding controller route
 3. `PlanTier` enum in Prisma schema matches `PlanTier` enum in `packages/types`
 4. New: `PLAN_LIMIT_EXCEEDED` is in the OpenAPI spec (it was added to the DTO this session — needs to be in the YAML too)
 
@@ -278,13 +278,13 @@ CI integration: the workflow already references this script. Once it exists, it 
 
 **Claim:**
 ```bash
-claude-peers claim aegis M-USAGE-MONITORING --note "quota utilization metrics + admin endpoint" --ttl 7200
+claude-peers claim okoro M-USAGE-MONITORING --note "quota utilization metrics + admin endpoint" --ttl 7200
 ```
 
 **Add to MetricsService:**
 ```typescript
 readonly planQuotaUtilizationGauge = new Gauge({
-  name: 'aegis_plan_quota_utilization_pct',
+  name: 'okoro_plan_quota_utilization_pct',
   help: 'Monthly verify quota utilization percentage (0–100) by plan tier.',
   labelNames: ['plan_tier'] as const,
 });
@@ -303,7 +303,7 @@ async adminUsage(): Promise<PrincipalUsageSummary[]> {
 **Alert YAML** (add to `docs/MONITORING_OBSERVABILITY.md` alert rules):
 ```yaml
 - alert: PlanQuotaAtRisk
-  expr: aegis_plan_quota_utilization_pct{plan_tier="FREE"} > 90
+  expr: okoro_plan_quota_utilization_pct{plan_tier="FREE"} > 90
   for: 1h
   labels:
     severity: info  # trigger email flow, not page
@@ -371,7 +371,7 @@ Current open operator decisions:
 ✅ Audit: hash chain, KMS abstraction, AuditSignerService
 ✅ KMS: AWS/GCP/Vault adapters (pending SDK installs)
 ✅ Auth0/Clerk/WorkOS IdP bridges
-✅ MCP module (AEGIS as MCP server)
+✅ MCP module (OKORO as MCP server)
 ✅ Onboarding: PrincipalOnboarding 7-step wizard
 ✅ Compliance, DR, SLO, Threat Model documentation
 ✅ Full documentation suite (17 major docs, ~300KB)
@@ -409,8 +409,8 @@ FYI: [any cross-cutting changes others should know about]
 Example:
 ```
 📋 Standup — @terminal-a
-Yesterday: Python SDK skeleton (aegis/agent.py, aegis/crypto.py)
-Today: Finishing aegis/client.py — the verify() method + error mapping
+Yesterday: Python SDK skeleton (okoro/agent.py, okoro/crypto.py)
+Today: Finishing okoro/client.py — the verify() method + error mapping
 Blocked: Unblocked. Need to confirm EdDSA JWT format matches TS SDK output.
 FYI: packages/sdk-py/tests/test_crypto.py tests Ed25519 sign/verify round-trip.
      Anyone touching @noble/ed25519 — coordinate with me on byte-compatible output.

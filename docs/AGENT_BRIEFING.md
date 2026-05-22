@@ -1,4 +1,4 @@
-# AEGIS — Agent briefing for new Claude sessions
+# OKORO — Agent briefing for new Claude sessions
 
 > **Read this in the first 60 seconds of a new session in this repo.**
 > It's the cold-pickup compression of CLAUDE.md (156 lines), the master
@@ -7,9 +7,9 @@
 
 ---
 
-## What AEGIS is (one sentence)
+## What OKORO is (one sentence)
 
-AEGIS is the neutral verification, policy enforcement, behavioral
+OKORO is the neutral verification, policy enforcement, behavioral
 attestation, and signed-audit layer between AI agents and the services
 they act on. We hold **public keys only**, sign **only what we
 observed**, and stay **vendor / model / protocol neutral**. The wedge:
@@ -24,7 +24,7 @@ observed**, and stay **vendor / model / protocol neutral**. The wedge:
 ~/.claude/peers/bin/claude-peers status
 
 # 2. Where is the repo? Anything dirty?
-cd /Users/money/Desktop/AEGIS && git status --short
+cd /Users/money/Desktop/OKORO && git status --short
 
 # 3. What was the last round? (newest at top)
 head -80 docs/SESSION_HANDOFF.md
@@ -35,7 +35,7 @@ tell you who else is editing what so you don't overwrite their
 in-flight work. Always claim your scope:
 
 ```sh
-~/.claude/peers/bin/claude-peers claim aegis "<scope-name>" \
+~/.claude/peers/bin/claude-peers claim okoro "<scope-name>" \
   --note "<one-line summary>" --ttl 14400
 ```
 
@@ -51,7 +51,7 @@ an ADR in `docs/decisions/` first.
 
 | # | Invariant | Where it's enforced |
 |---|-----------|---------------------|
-| 1 | **Private keys never enter AEGIS.** | SDK generates client-side; only `publicKey` on register. |
+| 1 | **Private keys never enter OKORO.** | SDK generates client-side; only `publicKey` on register. |
 | 2 | **Verify hot path is portable.** | `apps/api/src/modules/verify/algorithm/verify.algorithm.ts` has zero NestJS / Prisma / Node-only imports. CF Workers must run the same code. |
 | 3 | **Audit log is append-only and signed.** | `audit.service.append()` is the only write path. No UPDATE / DELETE on `AuditEvent`. Hash chain + Ed25519 sig per row. |
 | 4 | **No silent failures, no fabricated data.** | Redis-down → fail-closed `ANOMALY_FLAGGED`. No synthetic trust scores. No empty arrays masquerading as "no results". |
@@ -66,7 +66,7 @@ it once, then come back here.
 ## Repo layout (memorize this)
 
 ```
-aegis/
+okoro/
 ├── apps/
 │   ├── api/                  NestJS API — modules/ (identity, policy, verify,
 │   │   ├── prisma/           audit, bate, billing, webhooks, auth, auth0,
@@ -75,19 +75,19 @@ aegis/
 │   └── dashboard/            Next.js 16 dev portal
 ├── packages/
 │   ├── types/                Zod schemas — wire contract source of truth
-│   ├── sdk-ts/               @aegis/sdk — TS public client
-│   ├── sdk-py/               aegis — Python public client
-│   ├── verifier-rp/          @aegis/verifier-rp — drop-in offline RP verifier
-│   ├── audit-verifier/       @aegis/audit-verifier — offline audit chain verifier
-│   ├── mcp-bridge/           @aegis/mcp-bridge — wrap() any MCP server
-│   ├── mcp-server/           @aegis/mcp-server — Claude Desktop integration
-│   ├── cli/                  Go single-static-binary aegis-cli
+│   ├── sdk-ts/               @okoro/sdk — TS public client
+│   ├── sdk-py/               okoro — Python public client
+│   ├── verifier-rp/          @okoro/verifier-rp — drop-in offline RP verifier
+│   ├── audit-verifier/       @okoro/audit-verifier — offline audit chain verifier
+│   ├── mcp-bridge/           @okoro/mcp-bridge — wrap() any MCP server
+│   ├── mcp-server/           @okoro/mcp-server — Claude Desktop integration
+│   ├── cli/                  Go single-static-binary okoro-cli
 │   └── tsconfig/             shared TS configs
 ├── workers/
 │   └── cf-verify/            Cloudflare Worker — Phase 3 edge verify
 ├── examples/
 │   ├── fintech-payments/     Single-token PSP gate
-│   ├── acp-bridge/           Stripe ACP + AEGIS dual verify
+│   ├── acp-bridge/           Stripe ACP + OKORO dual verify
 │   ├── banking-rails/        ISO 20022 / treasury per-rail trust
 │   ├── ai-platform-tool-call/ MCP integration
 │   ├── relying-party-verifier/ RP pattern
@@ -124,7 +124,7 @@ aegis/
 | Local dev setup                             | `docs/RUNBOOK.md` |
 | On-call incident response                   | `docs/INCIDENT_RUNBOOK.md` |
 | Architecture deep-canon docs                | `docs/{ARCHITECTURE, SECURITY, THREAT_MODEL_v2, CAPACITY_PLAN, FAILURE_MODES, RETENTION_POLICY}.md` |
-| The OpenAPI wire spec                       | `docs/spec/AEGIS_API_SPEC.yaml` |
+| The OpenAPI wire spec                       | `docs/spec/OKORO_API_SPEC.yaml` |
 | Why a decision was made                     | `docs/decisions/0001..0013.md` (ADRs) |
 
 ---
@@ -138,7 +138,7 @@ aegis/
 | 12    | sid=c4f241c5 | Webhook secret envelope encryption, Stripe scaffold                    |
 | 12    | sid=69abf7c1 | Stripe billing controller, audit NDJSON tenant export, OTel spans, dashboard /billing + /webhooks |
 | 13    | sid=c4f241c5 | KMS module type-clean, multi-tenant E2E, bulk-encrypt webhook secrets  |
-| 13    | sid=d328b045 | `@aegis/audit-verifier` package, `examples/reconciliation`, `INCIDENT_RUNBOOK.md`, `COMPLIANCE_BUNDLE.md` |
+| 13    | sid=d328b045 | `@okoro/audit-verifier` package, `examples/reconciliation`, `INCIDENT_RUNBOOK.md`, `COMPLIANCE_BUNDLE.md` |
 | 14    | sid=d328b045 | this briefing + cross-package parity tests + partner onboarding kit    |
 
 For the long-form what-shipped-when, walk `docs/SESSION_HANDOFF.md`.
@@ -181,7 +181,7 @@ For the long-form what-shipped-when, walk `docs/SESSION_HANDOFF.md`.
 [ ] No `any` without // type-rationale: prefix
 [ ] noUncheckedIndexedAccess respected
 [ ] Every public service method has a unit test OR // untestable: <reason>
-[ ] Errors are AegisError subclasses (apps/api/src/common/errors/)
+[ ] Errors are OkoroError subclasses (apps/api/src/common/errors/)
 [ ] Constants live in packages/types/src/constants.ts
 [ ] No Math.random() in production paths (tests/seeds OK)
 [ ] Crypto code has paired .spec.ts — NO exceptions
@@ -225,14 +225,14 @@ These are **shared / claim-required** before editing:
 pnpm vitest run
 
 # Spec-sync:
-pnpm -F @aegis/types spec-sync       # OpenAPI ↔ Zod
-pnpm -F @aegis/api spec-sync         # OpenAPI ↔ Prisma
+pnpm -F @okoro/types spec-sync       # OpenAPI ↔ Zod
+pnpm -F @okoro/api spec-sync         # OpenAPI ↔ Prisma
 
 # API typecheck:
-pnpm -F @aegis/api typecheck
+pnpm -F @okoro/api typecheck
 
 # Dashboard typecheck:
-pnpm -F @aegis/dashboard typecheck
+pnpm -F @okoro/dashboard typecheck
 ```
 
 Anything red here will be red in CI. Don't push until all green

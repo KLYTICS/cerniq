@@ -1,6 +1,6 @@
 ---
 title: Cross-Cutting FAANG Review — 2026-05-05
-reviewer: aegis:cross-cutting-review (sid auditor, peer-claim)
+reviewer: okoro:cross-cutting-review (sid auditor, peer-claim)
 scope: Read-only audit across active peer write zones (round-17 trial-exhausted, terminal-orchestration, local-bringup-validation)
 posture: typecheck green (0 errors), 1 jest suite RED, 12 review findings
 ---
@@ -71,7 +71,7 @@ Actual receives `remaining: 9001` at n=999.
 **File:** `apps/api/src/common/errors/error-catalog.ts:247-251`
 **Severity:** P1 — silent regression risk in SDK builds.
 **What:** `error.constructor.name` becomes `"a"` after a default minifier pass. `apps/api` doesn't minify so this works in prod today, but `packages/sdk-ts` (tsup) may. SDK consumers that try to map server errors via the same catalog (planned per docs) will get `internal_error` for everything if minification kicks in.
-**Fix:** Add a `static readonly errorCode = 'auth_required'` discriminator on each AegisError subclass and look up by that. Or, ship a Jest test that asserts `new AuthenticationError().constructor.name === 'AuthenticationError'` so the build pipeline catches name mangling.
+**Fix:** Add a `static readonly errorCode = 'auth_required'` discriminator on each OkoroError subclass and look up by that. Or, ship a Jest test that asserts `new AuthenticationError().constructor.name === 'AuthenticationError'` so the build pipeline catches name mangling.
 
 ---
 
@@ -116,10 +116,10 @@ Already covered as a sub-point of F-01 but worth its own ID for tracking.
 ## Re-run commands
 
 ```bash
-cd ~/Desktop/AEGIS/apps/api
+cd ~/Desktop/OKORO/apps/api
 pnpm jest plans.spec.ts                                 # F-01 verifier
 pnpm jest --testPathPattern="(trial|plans|error-catalog|audit-chain|jwt|dpop)"
-cd ~/Desktop/AEGIS
+cd ~/Desktop/OKORO
 make preflight                                          # full ship gate
 ```
 
@@ -192,7 +192,7 @@ Ran `make preflight-fast`: 8 pass · 5 warn · 0 fail · 1 skip. Hard gates gree
 
 ### Things preflight verified ✅ (counter-balancing the warnings)
 
-- `tsc @aegis/api`: 0 errors
+- `tsc @okoro/api`: 0 errors
 - error catalog audit: all `throw` sites cataloged
 - migration immutability: 4 migrations clean
 - ADR-0014 cascade: 11 denial reasons (TRIAL_EXHAUSTED present at correct precedence)

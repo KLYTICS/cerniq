@@ -1,12 +1,12 @@
 ---
 title: Agents API
-description: Register, list, revoke, and inspect agent identities. Authentication via X-AEGIS-API-Key with FULL scope.
+description: Register, list, revoke, and inspect agent identities. Authentication via X-OKORO-API-Key with FULL scope.
 ---
 
 The full OpenAPI spec lives at
-[`docs/spec/AEGIS_API_SPEC.yaml`](https://github.com/klytics/aegis/blob/main/docs/spec/AEGIS_API_SPEC.yaml).
+[`docs/spec/OKORO_API_SPEC.yaml`](https://github.com/klytics/okoro/blob/main/docs/spec/OKORO_API_SPEC.yaml).
 A `fumadocs-openapi`-generated, try-it-out-capable reference is the next
-content drop on this route (`pnpm --filter @aegis/docs openapi:generate`).
+content drop on this route (`pnpm --filter @okoro/docs openapi:generate`).
 
 ## Endpoints in this slice
 
@@ -17,14 +17,14 @@ content drop on this route (`pnpm --filter @aegis/docs openapi:generate`).
 | GET    | `/v1/agents/:id`           | Inspect a single agent                    |
 | DELETE | `/v1/agents/:id`           | Revoke an agent (irreversible)            |
 
-Authentication: `X-AEGIS-API-Key` header with **FULL** scope. A
-`X-AEGIS-Verify-Key` (verify-only) is rejected by this namespace.
+Authentication: `X-OKORO-API-Key` header with **FULL** scope. A
+`X-OKORO-Verify-Key` (verify-only) is rejected by this namespace.
 
 ## Example — register
 
 ```bash
-curl -X POST https://api.aegislabs.io/v1/agents \
-  -H "X-AEGIS-API-Key: $AEGIS_API_KEY" \
+curl -X POST https://api.okorolabs.io/v1/agents \
+  -H "X-OKORO-API-Key: $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "publicKey": "MCowBQYDK2VwAyEA...",
@@ -50,7 +50,7 @@ Response (`201 Created`):
 
 ## Failure modes
 
-Every error returns the standard AEGIS error envelope:
+Every error returns the standard OKORO error envelope:
 
 ```json
 {

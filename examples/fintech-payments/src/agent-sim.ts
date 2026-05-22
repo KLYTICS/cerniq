@@ -1,17 +1,17 @@
 // Agent-side token minter for the fintech-payments quickstart.
 //
-// Mints a per-request AEGIS token client-side and prints it to stdout
+// Mints a per-request OKORO token client-side and prints it to stdout
 // so a shell harness can pipe it into the merchant API:
 //
 //   TOKEN=$(pnpm tsx src/agent-sim.ts \
 //     --agent ag_xxx --policy po_xxx --amount 49 --mcc 5411)
-//   curl -H "X-AEGIS-Token: $TOKEN" -d '{"amount":49,...}' \
+//   curl -H "X-OKORO-Token: $TOKEN" -d '{"amount":49,...}' \
 //        http://localhost:3001/api/charge
 //
 // Why this lives in the example (and not just a shell snippet): it
-// demonstrates AEGIS invariant #1 in practice — the agent's private
+// demonstrates OKORO invariant #1 in practice — the agent's private
 // key never leaves the agent. The merchant service receives only the
-// signed JWT; AEGIS only ever held the public key. This file is the
+// signed JWT; OKORO only ever held the public key. This file is the
 // shortest readable proof of that property.
 //
 // Inputs:
@@ -24,7 +24,7 @@
 //   --action <verb>        optional — defaults to commerce.purchase
 //   --ttl <seconds>        optional — token lifetime (default 60, max 60 per spec)
 //   --private-key <b64u>   optional — Ed25519 secret key (base64url, raw 32 bytes)
-//                          falls back to AEGIS_AGENT_PRIVATE_KEY env, else
+//                          falls back to OKORO_AGENT_PRIVATE_KEY env, else
 //                          generates a fresh keypair (only useful for the
 //                          AGENT_NOT_FOUND demo branch)
 //   --json                 optional — emit { token, agentId, policyId, ... }
@@ -32,7 +32,7 @@
 //
 // Exit codes: 0 success, 2 missing required arg, 3 signing error.
 
-import { signAgentToken, generateKeypair } from '@aegis/sdk';
+import { signAgentToken, generateKeypair } from '@okoro/sdk';
 
 interface CliArgs {
   agentId: string;
@@ -83,7 +83,7 @@ function readArgs(argv: string[]): CliArgs {
     merchantDomain: get('--domain') ?? 'acme-checkout.com',
     action: get('--action') ?? 'commerce.purchase',
     ttlSeconds,
-    privateKeyB64u: get('--private-key') ?? process.env.AEGIS_AGENT_PRIVATE_KEY,
+    privateKeyB64u: get('--private-key') ?? process.env.OKORO_AGENT_PRIVATE_KEY,
     json: argv.includes('--json'),
   };
 }
@@ -96,7 +96,7 @@ async function main(): Promise<number> {
   let generatedFresh = false;
   if (!privateKeyB64u) {
     // No key supplied — mint an ephemeral one. This is the
-    // AGENT_NOT_FOUND demo branch (the public key never reached AEGIS,
+    // AGENT_NOT_FOUND demo branch (the public key never reached OKORO,
     // so the verify call will deny). Useful for the denial walk; never
     // do this in real flows.
     const kp = await generateKeypair();
@@ -104,7 +104,7 @@ async function main(): Promise<number> {
     publicKeyB64u = kp.publicKey;
     generatedFresh = true;
     process.stderr.write(
-      'agent-sim: no --private-key or AEGIS_AGENT_PRIVATE_KEY — generated an ephemeral keypair (verify will deny AGENT_NOT_FOUND)\n',
+      'agent-sim: no --private-key or OKORO_AGENT_PRIVATE_KEY — generated an ephemeral keypair (verify will deny AGENT_NOT_FOUND)\n',
     );
   }
 

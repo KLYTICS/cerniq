@@ -46,7 +46,7 @@ function describeSsrfRejection(r: SsrfRejection): string {
   }
 }
 
-export const WEBHOOK_QUEUE = 'aegis.webhooks';
+export const WEBHOOK_QUEUE = 'okoro.webhooks';
 
 /** OD-005 default. Override via env once operator decides. */
 export const MAX_ATTEMPTS = 8;
@@ -205,7 +205,7 @@ export class WebhookDeliveryWorker
    * One-shot sample of `queue.getJobCounts()` → 6 gauge series. We catch
    * Redis errors so a transient outage doesn't unhandled-reject and crash
    * the process; sustained failures will surface as the gauge going stale
-   * (Prometheus `staleness` rule on `aegis_bullmq_queue_depth`).
+   * (Prometheus `staleness` rule on `okoro_bullmq_queue_depth`).
    */
   private async sampleQueueDepth(): Promise<void> {
     if (!this.queue) return;
@@ -350,10 +350,10 @@ export class WebhookDeliveryWorker
         signal: ctrl.signal,
         headers: {
           'Content-Type': 'application/json',
-          'X-AEGIS-Signature': signature,
-          'X-AEGIS-Event': delivery.event,
-          'X-AEGIS-Delivery-Id': delivery.id,
-          'User-Agent': '@aegis/webhooks 0.1',
+          'X-OKORO-Signature': signature,
+          'X-OKORO-Event': delivery.event,
+          'X-OKORO-Delivery-Id': delivery.id,
+          'User-Agent': '@okoro/webhooks 0.1',
         },
         body,
       });

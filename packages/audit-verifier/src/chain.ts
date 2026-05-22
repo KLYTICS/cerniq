@@ -24,14 +24,14 @@ import type {
 // on the API's bootstrap module).
 ed.etc.sha512Sync = (...m): Uint8Array => sha512(ed.etc.concatBytes(...m));
 
-const GENESIS_BYTES = utf8('AEGIS-AUDIT-GENESIS-v1');
+const GENESIS_BYTES = utf8('OKORO-AUDIT-GENESIS-v1');
 
 function genesisHash(): Uint8Array {
   return sha256(GENESIS_BYTES);
 }
 
 /** Recompute prev_hash using the same construction the signer used:
- *  - genesis row (both prev fields null) → sha256("AEGIS-AUDIT-GENESIS-v1")
+ *  - genesis row (both prev fields null) → sha256("OKORO-AUDIT-GENESIS-v1")
  *  - other rows → sha256(prev_signature_bytes || prev_event_id_utf8) */
 export function computePrevHash(
   prevEventId: string | null,

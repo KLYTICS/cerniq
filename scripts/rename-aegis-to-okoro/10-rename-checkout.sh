@@ -35,7 +35,7 @@ git ls-files \
       # quick binary guard
       if file --mime "$f" 2>/dev/null | grep -q 'charset=binary'; then continue; fi
       # use perl for portable in-place edit (GNU sed -i and BSD sed -i differ)
-      perl -i -pe 's/AEGIS/OKORO/g; s/Aegis/Okoro/g; s/aegis/okoro/g' "$f"
+      perl -i -pe 's/OKORO/OKORO/g; s/Okoro/Okoro/g; s/okoro/okoro/g' "$f"
     done
 
 #
@@ -47,10 +47,10 @@ git ls-files \
 echo "[rename] [2/3] path renames"
 
 # Build list, sort by depth desc, then alpha
-mapfile -t paths_to_rename < <(git ls-files | grep -i 'aegis' | awk -F/ '{print NF "\t" $0}' | sort -rn -k1,1 | cut -f2)
+mapfile -t paths_to_rename < <(git ls-files | grep -i 'okoro' | awk -F/ '{print NF "\t" $0}' | sort -rn -k1,1 | cut -f2)
 
 for old in "${paths_to_rename[@]}"; do
-  new="$(printf '%s' "$old" | perl -pe 's/AEGIS/OKORO/g; s/Aegis/Okoro/g; s/aegis/okoro/g')"
+  new="$(printf '%s' "$old" | perl -pe 's/OKORO/OKORO/g; s/Okoro/Okoro/g; s/okoro/okoro/g')"
   if [ "$old" = "$new" ]; then continue; fi
   if [ ! -e "$old" ]; then continue; fi
   mkdir -p "$(dirname "$new")"
@@ -64,17 +64,17 @@ for old in "${paths_to_rename[@]}"; do
   fi
 done
 
-# Empty parent dirs left behind (e.g., packages/sdk-py/aegis/ after files moved)
+# Empty parent dirs left behind (e.g., packages/sdk-py/okoro/ after files moved)
 find . -type d -empty -not -path './.git/*' -not -path './node_modules/*' -print -delete 2>/dev/null || true
 
 #
 # 3. SUMMARY
 #
 echo "[rename] [3/3] summary for $CURRENT_BRANCH"
-REMAINING=$(git grep -i -c 'aegis' 2>/dev/null | awk -F: '{s+=$NF} END {print s+0}')
-echo "[rename] remaining aegis matches (case-insensitive): $REMAINING"
+REMAINING=$(git grep -i -c 'okoro' 2>/dev/null | awk -F: '{s+=$NF} END {print s+0}')
+echo "[rename] remaining okoro matches (case-insensitive): $REMAINING"
 if [ "$REMAINING" -gt 0 ]; then
   echo "[rename] (expected: matches inside pnpm-lock.yaml and existing migrations only)"
   echo "[rename] sample of remaining files:"
-  git grep -l -i 'aegis' 2>/dev/null | head -20
+  git grep -l -i 'okoro' 2>/dev/null | head -20
 fi

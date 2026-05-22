@@ -38,8 +38,8 @@ function colonHex(hex: string): string {
 }
 
 async function fetchJwks(): Promise<FetchResult> {
-  const base = process.env.AEGIS_API_BASE_URL;
-  if (!base) return { source: 'fallback', reason: 'AEGIS_API_BASE_URL unset' };
+  const base = process.env.OKORO_API_BASE_URL;
+  if (!base) return { source: 'fallback', reason: 'OKORO_API_BASE_URL unset' };
   try {
     const res = await fetch(
       `${base.replace(/\/$/, '')}/.well-known/audit-signing-key`,
@@ -73,35 +73,35 @@ export async function JwksFingerprint() {
 
   return (
     <div
-      className="my-6 overflow-hidden rounded-lg border border-[var(--aegis-mist)] bg-[var(--aegis-ink)]"
+      className="my-6 overflow-hidden rounded-lg border border-[var(--okoro-mist)] bg-[var(--okoro-ink)]"
       data-source={result.source}
       data-testid="jwks-fingerprint"
     >
-      <div className="flex items-center justify-between border-b border-[var(--aegis-mist)] bg-[var(--aegis-steel)] px-4 py-3">
-        <p className="text-xs uppercase tracking-wider text-[var(--aegis-fog)]">
+      <div className="flex items-center justify-between border-b border-[var(--okoro-mist)] bg-[var(--okoro-steel)] px-4 py-3">
+        <p className="text-xs uppercase tracking-wider text-[var(--okoro-fog)]">
           Audit signing keys · RFC 7638 thumbprints (SHA-256)
         </p>
         {result.source === 'api' ? (
-          <span className="font-mono text-xs text-[var(--aegis-verified)]">
+          <span className="font-mono text-xs text-[var(--okoro-verified)]">
             live · {rows.length} {rows.length === 1 ? 'key' : 'keys'}
           </span>
         ) : (
-          <span className="font-mono text-xs text-[var(--aegis-pending)]">
+          <span className="font-mono text-xs text-[var(--okoro-pending)]">
             fallback
           </span>
         )}
       </div>
       {result.source === 'fallback' ? (
-        <div className="px-4 py-4 text-sm text-[var(--aegis-shadow)]">
+        <div className="px-4 py-4 text-sm text-[var(--okoro-shadow)]">
           Unable to fetch the live JWKS ({result.reason}). When this site is
-          deployed with <code className="font-mono">AEGIS_API_BASE_URL</code>{' '}
+          deployed with <code className="font-mono">OKORO_API_BASE_URL</code>{' '}
           set, the live signing-key thumbprints render here so auditors can
           verify they match the fingerprint in their SOC2 evidence package
-          without trusting AEGIS infrastructure.
+          without trusting OKORO infrastructure.
         </div>
       ) : (
         <table className="w-full text-sm">
-          <thead className="text-xs uppercase tracking-wider text-[var(--aegis-fog)]">
+          <thead className="text-xs uppercase tracking-wider text-[var(--okoro-fog)]">
             <tr>
               <th className="px-4 py-3 text-left">kid</th>
               <th className="px-4 py-3 text-left">use</th>
@@ -113,17 +113,17 @@ export async function JwksFingerprint() {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.kid} className="border-t border-[var(--aegis-mist)]">
-                <td className="px-4 py-3 font-mono text-[var(--aegis-cyan)]">
+              <tr key={r.kid} className="border-t border-[var(--okoro-mist)]">
+                <td className="px-4 py-3 font-mono text-[var(--okoro-cyan)]">
                   {r.kid}
                 </td>
-                <td className="px-4 py-3 font-mono text-[var(--aegis-fog)]">
+                <td className="px-4 py-3 font-mono text-[var(--okoro-fog)]">
                   {r.use}
                 </td>
-                <td className="px-4 py-3 font-mono text-[var(--aegis-fog)]">
+                <td className="px-4 py-3 font-mono text-[var(--okoro-fog)]">
                   {r.alg}
                 </td>
-                <td className="px-4 py-3 font-mono text-xs leading-snug text-[var(--aegis-halo)] break-all">
+                <td className="px-4 py-3 font-mono text-xs leading-snug text-[var(--okoro-halo)] break-all">
                   {r.thumbprint
                     ? colonHex(r.thumbprint)
                     : '—  (non-OKP key, thumbprint format differs per kty)'}
@@ -133,7 +133,7 @@ export async function JwksFingerprint() {
           </tbody>
         </table>
       )}
-      <div className="border-t border-[var(--aegis-mist)] bg-[var(--aegis-graphite)] px-4 py-2 text-xs text-[var(--aegis-shadow)]">
+      <div className="border-t border-[var(--okoro-mist)] bg-[var(--okoro-graphite)] px-4 py-2 text-xs text-[var(--okoro-shadow)]">
         Live source:{' '}
         <code className="font-mono">/.well-known/audit-signing-key</code>{' '}
         · algorithm:{' '}

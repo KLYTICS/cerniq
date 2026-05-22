@@ -1,4 +1,4 @@
-# AEGIS — Compliance Bundle
+# OKORO — Compliance Bundle
 
 > **Audience:** customer security reviewers, procurement legal,
 > compliance officers, third-party auditors.
@@ -6,7 +6,7 @@
 > **Last updated:** 2026-05-05
 > **Distribution:** ship as-is to enterprise prospects under NDA.
 
-This document maps AEGIS's product surfaces to the controls and
+This document maps OKORO's product surfaces to the controls and
 clauses that enterprise customers, regulators, and auditors actually
 ask about. Each row points to the **evidence** — the file path, ADR,
 endpoint, or runbook section that backs the claim.
@@ -22,20 +22,20 @@ endpoint, or runbook section that backs the claim.
 5. [EU AI Act](#5-eu-ai-act)
 6. [NIST CSF 2.0 cross-reference](#6-nist-csf-20-cross-reference)
 7. [How to use this document](#7-how-to-use-this-document)
-8. [What AEGIS is NOT in scope for](#8-what-aegis-is-not-in-scope-for)
+8. [What OKORO is NOT in scope for](#8-what-okoro-is-not-in-scope-for)
 
 ---
 
 ## 1. SOC 2 Trust Services Criteria
 
-AEGIS targets **SOC 2 Type II** for the Security, Availability, and
+OKORO targets **SOC 2 Type II** for the Security, Availability, and
 Confidentiality TSCs. Privacy TSC is in scope for principals
 processing PII; Processing Integrity is informational (the audit
 chain is the artifact).
 
 ### Common Criteria (CC)
 
-| Control | Title | AEGIS evidence |
+| Control | Title | OKORO evidence |
 |---------|-------|----------------|
 | CC1.1 | Demonstrates commitment to integrity and ethical values | `docs/SECURITY.md`, `docs/THREAT_MODEL_v2.md` |
 | CC2.1 | Internal communication of policies | `CLAUDE.md` (engineering invariants), `WORK_BOARD.md` (active tickets) |
@@ -59,7 +59,7 @@ chain is the artifact).
 
 ### Additional Criteria — Availability (A)
 
-| Control | Title | AEGIS evidence |
+| Control | Title | OKORO evidence |
 |---------|-------|----------------|
 | A1.1 | Capacity demand is monitored and managed | `docs/CAPACITY_PLAN.md` (Little's Law sizing, p99 SLA) |
 | A1.2 | Environmental protections | KMS HSM (inherited); region-failover plan in `docs/INCIDENT_RUNBOOK.md` § 8 |
@@ -67,14 +67,14 @@ chain is the artifact).
 
 ### Additional Criteria — Confidentiality (C)
 
-| Control | Title | AEGIS evidence |
+| Control | Title | OKORO evidence |
 |---------|-------|----------------|
-| C1.1 | Confidentially identified | Public keys only; private keys never enter AEGIS (CLAUDE.md invariant 1) |
+| C1.1 | Confidentially identified | Public keys only; private keys never enter OKORO (CLAUDE.md invariant 1) |
 | C1.2 | Confidentially protected | TLS 1.3 in transit; KMS-encrypted at rest; webhook secrets envelope-encrypted (round-12 peer's `webhook-secret-cipher.ts`) |
 
 ### Additional Criteria — Privacy (P)
 
-| Control | Title | AEGIS evidence |
+| Control | Title | OKORO evidence |
 |---------|-------|----------------|
 | P1.1 | Privacy notice | Public privacy policy (operator-supplied); `docs/RETENTION_POLICY.md` § 3 |
 | P3.1 | Personal information collected lawfully | IdP federation; consent gathered upstream by Auth0 / Clerk / WorkOS |
@@ -92,7 +92,7 @@ Technological controls and the relevant Organizational ones.
 
 ### Organizational controls (selected)
 
-| Control | Title | AEGIS evidence |
+| Control | Title | OKORO evidence |
 |---------|-------|----------------|
 | A.5.7 | Threat intelligence | BATE engine ingests fraud reports from RPs (`/v1/agents/:id/report`) |
 | A.5.10 | Acceptable use of information assets | API ToS + per-key scopes |
@@ -103,10 +103,10 @@ Technological controls and the relevant Organizational ones.
 
 ### Technological controls
 
-| Control | Title | AEGIS evidence |
+| Control | Title | OKORO evidence |
 |---------|-------|----------------|
-| A.8.1 | User endpoint devices | N/A — AEGIS is a server product |
-| A.8.2 | Privileged access rights | Admin endpoints gated by `X-AEGIS-Admin` token (separate from FULL keys) |
+| A.8.1 | User endpoint devices | N/A — OKORO is a server product |
+| A.8.2 | Privileged access rights | Admin endpoints gated by `X-OKORO-Admin` token (separate from FULL keys) |
 | A.8.3 | Information access restriction | Multi-tenant RLS + `principalId` on every query |
 | A.8.4 | Access to source code | GitHub repo; CODEOWNERS; PR review |
 | A.8.5 | Secure authentication | API keys bcrypt-hashed (`api-key.service.ts`); IdP federation |
@@ -115,14 +115,14 @@ Technological controls and the relevant Organizational ones.
 | A.8.8 | Management of technical vulnerabilities | `pnpm audit` + Dependabot + `docs/ARCHITECTURE_AUDIT.md` |
 | A.8.9 | Configuration management | All env via Zod-validated `config.schema.ts`; no runtime config drift |
 | A.8.10 | Information deletion | Redaction endpoint (ADR-0006); KMS shadow strategy (`docs/RETENTION_POLICY.md`) |
-| A.8.11 | Data masking | Pino redact list (`req.headers.x-aegis-api-key` etc.) in `app.module.ts` |
+| A.8.11 | Data masking | Pino redact list (`req.headers.x-okoro-api-key` etc.) in `app.module.ts` |
 | A.8.12 | Data leakage prevention | Same — log redaction; audit chain commits to hashes only |
 | A.8.13 | Information backup | Postgres point-in-time recovery; KMS-shadow keys retained 7y |
 | A.8.14 | Redundancy of information processing facilities | Multi-region readiness (`docs/INCIDENT_RUNBOOK.md` § 8) |
 | A.8.15 | Logging | **Audit chain — tamper-evident, signed, third-party verifiable.** `packages/audit-verifier/` is the artifact |
 | A.8.16 | Monitoring activities | Prometheus + OTel; BATE anomaly detector |
 | A.8.17 | Clock synchronization | NTP at the host layer; ISO 8601 timestamps in payloads |
-| A.8.18 | Use of privileged utility programs | `aegis` CLI scoped to ops actions; admin endpoints behind separate token |
+| A.8.18 | Use of privileged utility programs | `okoro` CLI scoped to ops actions; admin endpoints behind separate token |
 | A.8.19 | Installation of software on operational systems | Container immutability; CI deploy only |
 | A.8.20 | Networks security | TLS 1.3; CORS allowlist (`apps/api/src/common/security/cors-allowlist.ts`) |
 | A.8.21 | Security of network services | Helmet; rate limiting (`@nestjs/throttler`); request body limits |
@@ -144,15 +144,15 @@ Technological controls and the relevant Organizational ones.
 
 ## 3. GDPR
 
-The GDPR requirements that touch AEGIS directly. Customers acting
-as Data Controllers retain primary GDPR responsibility; AEGIS as
+The GDPR requirements that touch OKORO directly. Customers acting
+as Data Controllers retain primary GDPR responsibility; OKORO as
 Data Processor (per the standard DPA shipped with enterprise
 contracts) implements the controls below.
 
-| Article | Title | AEGIS evidence |
+| Article | Title | OKORO evidence |
 |---------|-------|----------------|
 | Art. 5 | Principles relating to processing | Lawfulness via API key consent; data minimization (only public keys, hashed PII); accuracy via audit chain |
-| Art. 6 | Lawfulness of processing | Customer-supplied consent; AEGIS processes per contract |
+| Art. 6 | Lawfulness of processing | Customer-supplied consent; OKORO processes per contract |
 | Art. 17 | Right to erasure ("right to be forgotten") | **ADR-0006 audit redactability.** Null PII columns, keep `*Hash` commitments + signature. Chain stays verifiable. Procedure in `docs/INCIDENT_RUNBOOK.md` § 7 |
 | Art. 25 | Data protection by design and by default | Public-keys-only architecture; principal-scoped queries by default |
 | Art. 28 | Processor obligations | DPA template (operator-supplied); subprocessor list |
@@ -170,7 +170,7 @@ Erasure nulls the raw column; the hash stays; the signature still
 verifies because it was computed over the hash, not the raw value.
 
 This is ADR-0006 in one sentence: **commit to the hash, redact the
-raw, the chain stays valid**. `@aegis/audit-verifier` honors this:
+raw, the chain stays valid**. `@okoro/audit-verifier` honors this:
 its verification walks the chain using the persisted payload (with
 hashes), so an exported NDJSON works regardless of whether the raw
 PII is still present in the DB.
@@ -179,20 +179,20 @@ PII is still present in the DB.
 
 ## 4. PCI DSS (where applicable)
 
-**AEGIS is NOT in PCI scope by default.** AEGIS does not see, store,
+**OKORO is NOT in PCI scope by default.** OKORO does not see, store,
 process, or transmit cardholder data. The integration patterns in
 `docs/INTEGRATION_PATTERNS.md` § 2-3 keep the PCI scope on the
-customer's PSP side (Stripe / Adyen / etc.), not in AEGIS.
+customer's PSP side (Stripe / Adyen / etc.), not in OKORO.
 
-The controls below apply when an AEGIS deployment is bundled with
+The controls below apply when an OKORO deployment is bundled with
 the customer's PCI environment (e.g. they ship our verifier inline
-in their checkout). In that case AEGIS is in **PCI Zone B** at most.
+in their checkout). In that case OKORO is in **PCI Zone B** at most.
 
-| Requirement | Title | AEGIS evidence |
+| Requirement | Title | OKORO evidence |
 |-------------|-------|----------------|
 | Req. 1 | Install and maintain network security controls | TLS 1.3; helmet; CORS allowlist |
 | Req. 2 | Apply secure configurations | Zod-validated config; immutable containers |
-| Req. 3 | Protect stored account data | **N/A — AEGIS does not store cardholder data.** SPTs / PSP tokens pass through; never persist |
+| Req. 3 | Protect stored account data | **N/A — OKORO does not store cardholder data.** SPTs / PSP tokens pass through; never persist |
 | Req. 4 | Protect cardholder data with strong cryptography during transmission | TLS 1.3 at every hop |
 | Req. 5 | Protect against malicious software | Image scanning in CI |
 | Req. 6 | Develop and maintain secure systems | `CLAUDE.md` quality bar; ADR process |
@@ -207,12 +207,12 @@ in their checkout). In that case AEGIS is in **PCI Zone B** at most.
 
 ## 5. EU AI Act
 
-AEGIS is **infrastructure** under the EU AI Act, not an AI system per
-se (no model deployed by AEGIS makes safety-relevant decisions on
-its own). Customers using AEGIS to gate their own AI agents inherit
-specific obligations; AEGIS provides the evidence layer.
+OKORO is **infrastructure** under the EU AI Act, not an AI system per
+se (no model deployed by OKORO makes safety-relevant decisions on
+its own). Customers using OKORO to gate their own AI agents inherit
+specific obligations; OKORO provides the evidence layer.
 
-| Article | Title | AEGIS evidence |
+| Article | Title | OKORO evidence |
 |---------|-------|----------------|
 | Art. 12 | Record-keeping | Audit chain captures every agent action; tamper-evident; verifiable for ≥ 6 years (configurable per `docs/RETENTION_POLICY.md`) |
 | Art. 13 | Transparency to deployers | The 9-reason canonical denial precedence + the BATE score per agent are observable to the customer |
@@ -220,9 +220,9 @@ specific obligations; AEGIS provides the evidence layer.
 | Art. 15 | Accuracy, robustness, cybersecurity | Threat model + 5 anomaly rules + replay defence + KMS rotation |
 | Art. 17 | Quality management system | ADR process; spec-sync CI; mandatory ADR for any invariant change |
 
-For high-risk AI applications (Annex III), AEGIS supplies the
+For high-risk AI applications (Annex III), OKORO supplies the
 evidence layer that the customer's quality management system needs.
-The customer remains the Provider / Deployer; AEGIS is the
+The customer remains the Provider / Deployer; OKORO is the
 "infrastructure for transparency" they integrate.
 
 ---
@@ -231,7 +231,7 @@ The customer remains the Provider / Deployer; AEGIS is the
 
 For US customers / federal procurement.
 
-| Function | Category | AEGIS coverage |
+| Function | Category | OKORO coverage |
 |----------|----------|----------------|
 | Identify | Asset Management (ID.AM) | Per-tenant agent / policy / API-key inventory in dashboard |
 | Identify | Risk Assessment (ID.RA) | `docs/THREAT_MODEL_v2.md` |
@@ -252,9 +252,9 @@ For US customers / federal procurement.
 **Customer security review path:**
 1. Receive the customer's questionnaire (CAIQ, SIG, custom).
 2. Map their questions to a row above. Most map directly.
-3. Send them the row's AEGIS-evidence link as the answer.
+3. Send them the row's OKORO-evidence link as the answer.
 4. For the 5–10% of questions the table doesn't cover, escalate to
-   AEGIS engineering and add a row to this doc.
+   OKORO engineering and add a row to this doc.
 
 **Procurement / legal review path:**
 1. Send this entire document under NDA.
@@ -264,27 +264,27 @@ For US customers / federal procurement.
 **Auditor review path:**
 1. Send this document.
 2. Provision a read-only DB role + a JWKS-pinned NDJSON export.
-3. Show the auditor `npx @aegis/audit-verifier verify` running
+3. Show the auditor `npx @okoro/audit-verifier verify` running
    green against their export.
 
 ---
 
-## 8. What AEGIS is NOT in scope for
+## 8. What OKORO is NOT in scope for
 
-Setting expectations explicitly so customers don't ask AEGIS to do
-things AEGIS deliberately does not:
+Setting expectations explicitly so customers don't ask OKORO to do
+things OKORO deliberately does not:
 
-- **Card processing.** AEGIS gates agent identity, not payment auth.
+- **Card processing.** OKORO gates agent identity, not payment auth.
   PCI Zone A stays with the PSP.
 - **AML / sanctions screening.** Customer's compliance stack screens
-  the transaction; AEGIS authorizes the agent making it.
+  the transaction; OKORO authorizes the agent making it.
 - **HIPAA-protected health information.** Out of scope unless the
   customer adopts the HIPAA-readiness add-on (separately scoped BAA).
-- **Anti-money laundering rules.** AEGIS is not a transaction-monitor.
-- **The customer's own SOC 2.** AEGIS provides evidence; the
+- **Anti-money laundering rules.** OKORO is not a transaction-monitor.
+- **The customer's own SOC 2.** OKORO provides evidence; the
   customer's controls are the customer's own.
 - **End-user authentication.** That's the IdP's job (Auth0 / Clerk /
-  WorkOS); AEGIS handles the *agent* layer above the user layer.
+  WorkOS); OKORO handles the *agent* layer above the user layer.
 
 ---
 

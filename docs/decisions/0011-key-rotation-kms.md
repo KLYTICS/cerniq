@@ -7,7 +7,7 @@
 
 ## Context
 
-AEGIS Phase 0 ships with two long-lived signing keys held in env vars:
+OKORO Phase 0 ships with two long-lived signing keys held in env vars:
 
 - `AUDIT_ED25519_PRIVATE_KEY_B64` — signs every audit event in the
   hash chain (retention: 7 years per OD-004).
@@ -50,7 +50,7 @@ contract for key rotation, before customer deployment so it costs nothing.
    - `getActiveKey(purpose: 'AUDIT' | 'JWT' | 'WEBHOOK'): Promise<{ kid, publicKey, sign(msg) }>`
    - `getKeyByKid(kid): Promise<{ publicKey } | null>` (verify-side lookup)
    - `listKeys(purpose): Promise<KeyMetadata[]>` (powers the JWKS endpoint)
-   The adapter never exposes raw private key material to AEGIS code; all
+   The adapter never exposes raw private key material to OKORO code; all
    signing goes through `sign(msg)` which may be a local Ed25519 op or
    a remote KMS call.
 4. **Adapters shipped, in priority order:**
@@ -64,7 +64,7 @@ contract for key rotation, before customer deployment so it costs nothing.
    - JWT signing key: every 6 months. Tokens issued under old key remain
      valid until natural expiry (max 90 days), then old key drops out
      of accepting set.
-   - Both rotations: `aegis-cli kms rotate <purpose>` (M-027).
+   - Both rotations: `okoro-cli kms rotate <purpose>` (M-027).
 6. **Rotation never breaks audit-chain verifiability.** Test in
    `apps/api/test/key-rotation.spec.ts` (M-026): sign 100 events under
    key A, rotate, sign 100 more under key B, verify all 200 from JWKS.
@@ -89,7 +89,7 @@ contract for key rotation, before customer deployment so it costs nothing.
   ready." Each takes ~1 dev-week.
 - Two-key validation period during rotation (typically 24 hours): both
   old and new keys accepted for verify, only new for sign. Window must
-  be observable — adds metric `aegis.kms.rotation.dual_active_seconds`.
+  be observable — adds metric `okoro.kms.rotation.dual_active_seconds`.
 
 ### Neutral
 - `crypto.bootstrap.ts` becomes the canonical place to fetch a signer.
@@ -110,14 +110,14 @@ goes in via the `Vault*HsmAdapter` (M-032, deferred).
 
 ### Alt C: Per-tenant signing keys
 Tempting for blast-radius isolation. Rejected for v1: every relying party
-would need to discover N JWKS endpoints. Single AEGIS-wide signing key
+would need to discover N JWKS endpoints. Single OKORO-wide signing key
 per `purpose`, with `principalId` recorded inside the signed payload, is
 the standard pattern (matches Auth0, Cognito, Okta).
 
 ## How to reverse this decision
 
 If KMS proves operationally heavier than expected, drop back to env-var
-keys for self-hosted distros. Cloud-hosted AEGIS keeps KMS. Concretely:
+keys for self-hosted distros. Cloud-hosted OKORO keeps KMS. Concretely:
 the `KmsAdapter` stays; the `InMemoryKmsAdapter` becomes the default
 again; documentation removes the cloud-KMS recommendation. No data
 migration needed.

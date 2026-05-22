@@ -18,21 +18,21 @@ const FIXED_ROTATED_AT = '2026-01-01T00:00:00.000Z';
 
 function buildConfig(overrides: Partial<{ pub: string; rotatedAt: string }> = {}): AppConfigService {
   return {
-    aegisSigningPublicKey: overrides.pub,
-    aegisSigningKeyRotatedAt: overrides.rotatedAt,
+    okoroSigningPublicKey: overrides.pub,
+    okoroSigningKeyRotatedAt: overrides.rotatedAt,
   } as unknown as AppConfigService;
 }
 
 describe('WellknownService', () => {
   describe('onModuleInit / configuration', () => {
-    it('throws a clear error when AEGIS_SIGNING_PUBLIC_KEY is missing', () => {
+    it('throws a clear error when OKORO_SIGNING_PUBLIC_KEY is missing', () => {
       const svc = new WellknownService(buildConfig({ rotatedAt: FIXED_ROTATED_AT }));
-      expect(() => { svc.onModuleInit(); }).toThrow(/AEGIS_SIGNING_PUBLIC_KEY env var must be set/);
+      expect(() => { svc.onModuleInit(); }).toThrow(/OKORO_SIGNING_PUBLIC_KEY env var must be set/);
     });
 
-    it('throws a clear error when AEGIS_SIGNING_PUBLIC_KEY is empty', () => {
+    it('throws a clear error when OKORO_SIGNING_PUBLIC_KEY is empty', () => {
       const svc = new WellknownService(buildConfig({ pub: '', rotatedAt: FIXED_ROTATED_AT }));
-      expect(() => { svc.onModuleInit(); }).toThrow(/AEGIS_SIGNING_PUBLIC_KEY env var must be set/);
+      expect(() => { svc.onModuleInit(); }).toThrow(/OKORO_SIGNING_PUBLIC_KEY env var must be set/);
     });
 
     it('throws when the key decodes to the wrong length', () => {
@@ -42,7 +42,7 @@ describe('WellknownService', () => {
       expect(() => { svc.onModuleInit(); }).toThrow(/decoded to 8 bytes; expected 32/);
     });
 
-    it('flags rotatedAt as DEGRADED when AEGIS_SIGNING_KEY_ROTATED_AT is missing', () => {
+    it('flags rotatedAt as DEGRADED when OKORO_SIGNING_KEY_ROTATED_AT is missing', () => {
       const svc = new WellknownService(buildConfig({ pub: ZERO_KEY_B64 }));
       svc.onModuleInit();
       expect(svc.isRotatedAtDegraded()).toBe(true);
@@ -101,10 +101,10 @@ describe('WellknownService', () => {
         publicKey: ZERO_KEY_B64,
         algorithm: 'EdDSA',
         curve: 'Ed25519',
-        issuer: 'https://aegislabs.io',
+        issuer: 'https://okorolabs.io',
         rotatedAt: FIXED_ROTATED_AT,
         purpose: 'audit-event-signing',
-        verificationGuide: 'https://docs.aegislabs.io/audit/verify',
+        verificationGuide: 'https://docs.okorolabs.io/audit/verify',
       });
     });
 
@@ -164,7 +164,7 @@ describe('WellknownService', () => {
       // 24h in seconds — must mirror DEFAULT_RETENTION_RUN_INTERVAL_MS in
       // compliance/audit-retention.service.ts. Drift fails this spec.
       expect(out.operational.retention_run_interval_seconds).toBe(86_400);
-      expect(out.operational.configurable_via_env).toBe('AEGIS_AUDIT_RETENTION_INTERVAL_MS');
+      expect(out.operational.configurable_via_env).toBe('OKORO_AUDIT_RETENTION_INTERVAL_MS');
     });
 
     it('includes the three contracted guarantees verbatim', () => {

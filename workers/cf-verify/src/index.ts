@@ -1,4 +1,4 @@
-// AEGIS verify hot path — Cloudflare Worker (Phase 3).
+// OKORO verify hot path — Cloudflare Worker (Phase 3).
 //
 // Status: SCAFFOLD ONLY. Do not deploy until Phase 3 is unlocked.
 //
@@ -16,7 +16,7 @@
 // propagates to the edge in <60s by KV TTL — and immediately by the origin
 // fallback when KV is stale and the agent is revoked.
 
-import type { VerifyRequest, VerifyResponse } from '@aegis/types';
+import type { VerifyRequest, VerifyResponse } from '@okoro/types';
 
 import { edgeVerify } from './edge-verify';
 import { makeKvCache } from './kv-cache';
@@ -24,13 +24,13 @@ import { shadowMode, compareVerifyResponses, divergenceHeader, recordDivergence,
 
 interface Env {
   TRUST_KV: KVNamespace;
-  AEGIS_ORIGIN_URL: string;
-  AEGIS_VERIFY_TIMEOUT_MS: string;
-  AEGIS_FALLBACK_API_KEY: string;
+  OKORO_ORIGIN_URL: string;
+  OKORO_VERIFY_TIMEOUT_MS: string;
+  OKORO_FALLBACK_API_KEY: string;
   /** Set "true" to enable the KV-cache edge verify (Phase 3 m2). Defaults off. */
-  AEGIS_EDGE_VERIFY_ENABLED?: string;
+  OKORO_EDGE_VERIFY_ENABLED?: string;
   /** Set "true" to enable shadow comparison without serving edge results. */
-  AEGIS_EDGE_VERIFY_SHADOW_MODE?: string;
+  OKORO_EDGE_VERIFY_SHADOW_MODE?: string;
   RATE_LIMITER: DurableObjectNamespace;
   /** Optional Workers Analytics Engine binding for divergence telemetry. */
   CF_VERIFY_DIVERGENCE?: AnalyticsEngineLike;
@@ -78,7 +78,7 @@ export default {
           status: 200,
           headers: {
             'Content-Type': 'application/json',
-            'X-AEGIS-Edge': result.response.valid ? 'edge-allow' : 'edge-deny',
+            'X-OKORO-Edge': result.response.valid ? 'edge-allow' : 'edge-deny',
           },
         });
       }
@@ -117,8 +117,8 @@ export default {
       }
       // Reconstruct response so we can append headers cleanly.
       const headers = new Headers(originResp.headers);
-      headers.set('X-AEGIS-Edge-Divergence', header);
-      headers.set('X-AEGIS-Edge', 'shadow');
+      headers.set('X-OKORO-Edge-Divergence', header);
+      headers.set('X-OKORO-Edge', 'shadow');
       return new Response(originResp.body, { status: originResp.status, headers });
     }
 
@@ -128,8 +128,8 @@ export default {
 };
 
 async function forwardToOrigin(env: Env, body: VerifyRequest, ctx: ExecutionContext): Promise<Response> {
-  const url = `${env.AEGIS_ORIGIN_URL.replace(/\/+$/, '')}/v1/verify`;
-  const timeoutMs = parseInt(env.AEGIS_VERIFY_TIMEOUT_MS, 10);
+  const url = `${env.OKORO_ORIGIN_URL.replace(/\/+$/, '')}/v1/verify`;
+  const timeoutMs = parseInt(env.OKORO_VERIFY_TIMEOUT_MS, 10);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => { controller.abort(); }, Number.isFinite(timeoutMs) ? timeoutMs : 1500);
 
@@ -138,15 +138,15 @@ async function forwardToOrigin(env: Env, body: VerifyRequest, ctx: ExecutionCont
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-AEGIS-Verify-Key': env.AEGIS_FALLBACK_API_KEY,
-        'X-AEGIS-Edge-Forward': '1',
+        'X-OKORO-Verify-Key': env.OKORO_FALLBACK_API_KEY,
+        'X-OKORO-Edge-Forward': '1',
       },
       body: JSON.stringify(body),
       signal: controller.signal,
     });
     return new Response(await res.text(), {
       status: res.status,
-      headers: { 'Content-Type': 'application/json', 'X-AEGIS-Edge': 'forward' },
+      headers: { 'Content-Type': 'application/json', 'X-OKORO-Edge': 'forward' },
     });
   } catch (err) {
     ctx.waitUntil(Promise.resolve()); // suppress unused-arg warning

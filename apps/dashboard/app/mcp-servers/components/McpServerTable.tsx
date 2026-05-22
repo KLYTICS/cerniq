@@ -40,7 +40,7 @@ export function McpServerTable({ servers }: { servers: McpServerSummary[] }) {
       <div className="data-empty">
         <p>No MCP servers registered.</p>
         <pre className="hint">{`# from your terminal:
-aegis mcp install --host claude-desktop`}</pre>
+okoro mcp install --host claude-desktop`}</pre>
       </div>
     );
   }

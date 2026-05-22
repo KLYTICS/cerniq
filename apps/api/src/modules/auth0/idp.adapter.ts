@@ -1,6 +1,6 @@
 // IdpAdapter — the contract committed in ADR-0009.
 //
-// AEGIS uses Auth0 by default for human (operator/admin) identity. The
+// OKORO uses Auth0 by default for human (operator/admin) identity. The
 // rest of the codebase NEVER imports Auth0 SDKs directly — it imports
 // `IdpAdapter` and gets whatever IdP the operator has configured.
 //
@@ -18,14 +18,14 @@ export type IdpProvider = 'auth0' | 'clerk' | 'workos' | 'keycloak';
 export interface IdpUser {
   /** IdP-side stable user id (Auth0: `sub`). Never used as principal id directly. */
   idpUserId: string;
-  /** IdP-side organization id. Maps 1:1 to AEGIS Principal. */
+  /** IdP-side organization id. Maps 1:1 to OKORO Principal. */
   idpOrganizationId: string;
   /** Tenant domain — used for routing, branding. */
   idpDomain: string;
   email: string;
   emailVerified: boolean;
   name: string | null;
-  /** AEGIS roles parsed from custom claims. Empty array if none assigned. */
+  /** OKORO roles parsed from custom claims. Empty array if none assigned. */
   roles: string[];
   /** MFA satisfied at this login? Auth0: from `acr` / `amr` claims. */
   mfaSatisfied: boolean;
@@ -44,8 +44,8 @@ export interface IdpAdapter {
   verifyAccessToken(token: string): Promise<IdpUser | null>;
 
   /**
-   * Upsert the AEGIS Principal for an IdP organization. Called from the
-   * Auth0 Action `aegis-audit-login.js` and from any first-time login.
+   * Upsert the OKORO Principal for an IdP organization. Called from the
+   * Auth0 Action `okoro-audit-login.js` and from any first-time login.
    * Returns `{ principalId, created }`.
    *
    * `email` is required on first creation because `Principal.email` is a

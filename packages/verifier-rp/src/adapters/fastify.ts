@@ -1,26 +1,26 @@
 // Fastify integration. Two surfaces:
 //
-//   1. `attachAegisGuard(fastify, opts)` — wires a preHandler hook on the
+//   1. `attachOkoroGuard(fastify, opts)` — wires a preHandler hook on the
 //      passed instance. Use this from your bootstrap code; it bypasses
 //      Fastify's plugin encapsulation, so the hook applies to every route
 //      registered on that instance.
 //
-//   2. `aegisFastifyPlugin` — a plain async plugin you can pass to
+//   2. `okoroFastifyPlugin` — a plain async plugin you can pass to
 //      `fastify.register`. We don't depend on `fastify-plugin`; that means
 //      registering at the root scope works as expected, but if you nest the
 //      plugin inside `register(...)` you must wrap it with `fastify-plugin`
-//      yourself to break encapsulation. For most users `attachAegisGuard`
+//      yourself to break encapsulation. For most users `attachOkoroGuard`
 //      is the simpler path and works without that footgun.
 
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 
 import type { VerifyContext, VerifyOptions, VerifyOutcomeSuccess } from '../types.js';
-import type { AegisVerifier } from '../verifier.js';
+import type { OkoroVerifier } from '../verifier.js';
 
-const DEFAULT_HEADER = 'x-aegis-token';
+const DEFAULT_HEADER = 'x-okoro-token';
 
 export interface FastifyGuardOptions {
-  verifier: AegisVerifier;
+  verifier: OkoroVerifier;
   headerName?: string;
   attachTo?: string;
   requiredScope?: string;
@@ -30,7 +30,7 @@ export interface FastifyGuardOptions {
 
 function buildHandler(opts: FastifyGuardOptions) {
   const headerName = (opts.headerName ?? DEFAULT_HEADER).toLowerCase();
-  const attachTo = opts.attachTo ?? 'aegis';
+  const attachTo = opts.attachTo ?? 'okoro';
 
   return async (req: FastifyRequest, reply: FastifyReply): Promise<void> => {
     const raw = req.headers[headerName];
@@ -55,13 +55,13 @@ function buildHandler(opts: FastifyGuardOptions) {
 }
 
 /**
- * Attach the AEGIS preHandler to a Fastify instance. Use this in your
+ * Attach the OKORO preHandler to a Fastify instance. Use this in your
  * bootstrap; it does not introduce a sub-scope so the hook applies to every
  * route registered on `fastify`.
  */
-export function attachAegisGuard(fastify: FastifyInstance, opts: FastifyGuardOptions): void {
+export function attachOkoroGuard(fastify: FastifyInstance, opts: FastifyGuardOptions): void {
   if (!opts?.verifier) {
-    throw new TypeError('attachAegisGuard: options.verifier is required');
+    throw new TypeError('attachOkoroGuard: options.verifier is required');
   }
   fastify.addHook('preHandler', buildHandler(opts));
 }
@@ -69,14 +69,14 @@ export function attachAegisGuard(fastify: FastifyInstance, opts: FastifyGuardOpt
 /**
  * Plain plugin for `fastify.register`. Note that Fastify's encapsulation
  * means the hook only applies inside the plugin's scope unless you wrap it
- * with `fastify-plugin`. For most users `attachAegisGuard` is simpler.
+ * with `fastify-plugin`. For most users `attachOkoroGuard` is simpler.
  */
-export const aegisFastifyPlugin: FastifyPluginAsync<FastifyGuardOptions> = async (
+export const okoroFastifyPlugin: FastifyPluginAsync<FastifyGuardOptions> = async (
   fastify: FastifyInstance,
   opts: FastifyGuardOptions,
 ) => {
   if (!opts?.verifier) {
-    throw new TypeError('aegisFastifyPlugin: options.verifier is required');
+    throw new TypeError('okoroFastifyPlugin: options.verifier is required');
   }
   fastify.addHook('preHandler', buildHandler(opts));
 };
@@ -93,7 +93,7 @@ async function sendDenied(
   }
   await reply
     .code(401)
-    .send({ error: 'AEGIS_VERIFICATION_FAILED', reason, ...(detail ? { detail } : {}) });
+    .send({ error: 'OKORO_VERIFICATION_FAILED', reason, ...(detail ? { detail } : {}) });
 }
 
-export const fastifyPlugin = aegisFastifyPlugin;
+export const fastifyPlugin = okoroFastifyPlugin;

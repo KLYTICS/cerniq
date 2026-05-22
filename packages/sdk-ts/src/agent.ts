@@ -6,7 +6,7 @@ export interface HandshakeChallenge {
   /** base64url-encoded 256-bit nonce. Single-use, 5 min TTL. */
   challenge: string;
   expiresIn: number;
-  protocolVersion: 'aegis-handshake-v1';
+  protocolVersion: 'okoro-handshake-v1';
   /** UTF-8 string the SDK signs verbatim. */
   message: string;
 }
@@ -14,7 +14,7 @@ export interface HandshakeChallenge {
 export interface HandshakeVerified {
   agentId: string;
   verifiedAt: string;
-  protocolVersion: 'aegis-handshake-v1';
+  protocolVersion: 'okoro-handshake-v1';
   trustScore: number;
   recordTtlSeconds: number;
 }
@@ -23,7 +23,7 @@ export interface HandshakeStatus {
   agentId: string;
   verified: boolean;
   verifiedAt?: string;
-  protocolVersion?: 'aegis-handshake-v1';
+  protocolVersion?: 'okoro-handshake-v1';
 }
 
 export class AgentClient {

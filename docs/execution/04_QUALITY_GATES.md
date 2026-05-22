@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Quality Gates
+title: OKORO — Quality Gates
 audience: every Reviewer; every contributor before requesting review
 last-reviewed: 2026-05-08
 status: source-of-truth — v1
@@ -47,7 +47,7 @@ The bar for code merging into `main`.
 
 ### 1.1 Compilation and type-safety
 
-- ✅ `pnpm typecheck` (or per-app `pnpm --filter @aegis/<package>
+- ✅ `pnpm typecheck` (or per-app `pnpm --filter @okoro/<package>
   typecheck`) passes with zero errors.
 - ✅ `noUncheckedIndexedAccess` is on at the base `tsconfig`. The API
   workspace softens it; nothing else does.
@@ -79,7 +79,7 @@ The bar for code merging into `main`.
 
 ### 1.4 Architectural invariants (`CLAUDE.md`)
 
-- ✅ Invariant 1 (private keys never enter AEGIS) — confirmed.
+- ✅ Invariant 1 (private keys never enter OKORO) — confirmed.
 - ✅ Invariant 2 (verify hot path is portable, no framework imports) —
   confirmed if the change is in `apps/api/src/modules/verify/` or
   related.
@@ -96,7 +96,7 @@ The bar for code merging into `main`.
 
 ### 1.5 Errors
 
-- ✅ Errors are typed (`AegisError` subclasses), not strings.
+- ✅ Errors are typed (`OkoroError` subclasses), not strings.
 - ✅ Error messages do not leak secrets.
 - ✅ Error responses follow the documented shape (the API contract in
   `packages/types`).
@@ -253,7 +253,7 @@ The bar for visual surfaces.
   request-lifecycle swim-lane) come from `packages/ui-brand/visuals/`,
   not redrawn locally.
 - ✅ Code samples follow `00_BRAND_FOUNDATION.md` § 10 — bold-italic
-  on AEGIS-specific calls, mono header strip, copy button, language
+  on OKORO-specific calls, mono header strip, copy button, language
   label.
 
 ### Gate 3 checklist
@@ -334,7 +334,7 @@ The bar for prose.
 
 ## Gate 5 — Compliance
 
-The bar for changes that affect what AEGIS claims externally about
+The bar for changes that affect what OKORO claims externally about
 controls.
 
 ### 5.1 Claim auditability
@@ -474,9 +474,9 @@ checking is proportional to the volume of risk.
 
 ## Calibrating the gates
 
-These gates are calibrated to AEGIS at the FAANG / public-company bar.
+These gates are calibrated to OKORO at the FAANG / public-company bar.
 Some are deliberately stricter than industry norms. The strictness is
-the point: AEGIS sells trust. The product makes a single substantive
+the point: OKORO sells trust. The product makes a single substantive
 claim — *"every agent action is verifiable"* — and that claim is only
 defensible if the company shipping it operates with the same
 discipline.

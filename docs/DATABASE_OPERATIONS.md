@@ -1,4 +1,4 @@
-# AEGIS — Database Operations Guide
+# OKORO — Database Operations Guide
 ## Migrations, Backups, RLS, Partitioning, and AuditEvent Maintenance
 
 > **Owner:** Engineering Lead  
@@ -188,7 +188,7 @@ The admin operations role bypasses RLS for maintenance operations:
 
 ```sql
 -- Admin connection bypasses RLS (uses different role)
-SET ROLE aegis_admin;
+SET ROLE okoro_admin;
 SELECT COUNT(*) FROM "AuditEvent"; -- sees all rows
 RESET ROLE; -- always reset after admin operations
 ```
@@ -213,12 +213,12 @@ Configure before first user traffic:
 pg_dump $DATABASE_URL \
   --format=custom \
   --compress=9 \
-  --file="aegis-backup-$(date +%Y%m%d-%H%M).dump"
+  --file="okoro-backup-$(date +%Y%m%d-%H%M).dump"
 
 # Schema only
 pg_dump $DATABASE_URL \
   --schema-only \
-  --file="aegis-schema-$(date +%Y%m%d).sql"
+  --file="okoro-schema-$(date +%Y%m%d).sql"
 
 # Specific table
 pg_dump $DATABASE_URL \
@@ -231,17 +231,17 @@ pg_dump $DATABASE_URL \
 
 ```bash
 # 1. Create a fresh database (DO NOT restore over production directly)
-createdb aegis_restored
+createdb okoro_restored
 
 # 2. Restore from dump
 pg_restore \
-  --dbname aegis_restored \
+  --dbname okoro_restored \
   --verbose \
   --exit-on-error \
-  aegis-backup-20260504-1200.dump
+  okoro-backup-20260504-1200.dump
 
 # 3. Verify restore
-psql aegis_restored -c "
+psql okoro_restored -c "
   SELECT 
     (SELECT COUNT(*) FROM \"Principal\") as principals,
     (SELECT COUNT(*) FROM \"AgentIdentity\") as agents,
@@ -250,7 +250,7 @@ psql aegis_restored -c "
 "
 
 # 4. Run audit chain verification on restored DB
-DATABASE_URL=postgresql://localhost/aegis_restored \
+DATABASE_URL=postgresql://localhost/okoro_restored \
   pnpm tsx scripts/audit-verify-chain.ts --limit 1000
 
 # 5. If restore is valid, switch DATABASE_URL in Railway
@@ -272,7 +272,7 @@ DATABASE_URL=postgresql://localhost/aegis_restored \
 
 ```
 # .env.production
-DATABASE_URL="postgresql://user:pass@host:5432/aegis?connection_limit=10&pool_timeout=20"
+DATABASE_URL="postgresql://user:pass@host:5432/okoro?connection_limit=10&pool_timeout=20"
 ```
 
 Configuration table:
@@ -290,15 +290,15 @@ Configuration table:
 At >100 RPS sustained, Prisma's built-in pool hits PostgreSQL's max_connections limit. Add PgBouncer:
 
 ```
-DATABASE_URL="postgresql://user:pass@pgbouncer-host:6432/aegis?pgbouncer=true"
-DIRECT_DATABASE_URL="postgresql://user:pass@postgres-host:5432/aegis"
+DATABASE_URL="postgresql://user:pass@pgbouncer-host:6432/okoro?pgbouncer=true"
+DIRECT_DATABASE_URL="postgresql://user:pass@postgres-host:5432/okoro"
 # DIRECT_DATABASE_URL is used for migrations only (pooled connections break Prisma migrate)
 ```
 
 PgBouncer configuration:
 ```ini
 [databases]
-aegis = host=postgres-host port=5432 dbname=aegis
+okoro = host=postgres-host port=5432 dbname=okoro
 
 [pgbouncer]
 pool_mode = transaction  ; Required for Prisma
@@ -315,7 +315,7 @@ reserve_pool_timeout = 3
 psql $DATABASE_URL -c "
   SELECT count(*), state 
   FROM pg_stat_activity 
-  WHERE datname = 'aegis' 
+  WHERE datname = 'okoro' 
   GROUP BY state;
 "
 
@@ -415,13 +415,13 @@ WHERE "principalId" = $1;
 # Monthly: archive events older than 90 days to S3
 pnpm tsx scripts/archive-audit-events.ts \
   --older-than 90 \
-  --destination s3://aegis-audit-archive/$(date +%Y/%m)/ \
+  --destination s3://okoro-audit-archive/$(date +%Y/%m)/ \
   --format parquet \
   --delete-after-archive  # requires explicit flag
 
 # Verify archive integrity before deleting
 pnpm tsx scripts/verify-audit-archive.ts \
-  --path s3://aegis-audit-archive/2026/02/
+  --path s3://okoro-audit-archive/2026/02/
 ```
 
 ---
@@ -557,7 +557,7 @@ Time budget: RTO = 4 hours
                Contact Railway support if instance shows as running
 
 00:15 - 00:30  Declare incident in #incidents
-               Put API in maintenance mode (AEGIS_MAINTENANCE_MODE=true)
+               Put API in maintenance mode (OKORO_MAINTENANCE_MODE=true)
                This prevents writes to a partially-broken DB
 
 00:30 - 01:00  Provision new PostgreSQL instance on Railway
@@ -582,7 +582,7 @@ Time budget: RTO = 4 hours
                - Check audit log was written
 
 03:30 - 04:00  Remove maintenance mode
-               AEGIS_MAINTENANCE_MODE=false → redeploy
+               OKORO_MAINTENANCE_MODE=false → redeploy
                Monitor error rate for 30 minutes
 
 04:00          Incident resolved
@@ -601,7 +601,7 @@ psql $RESTORED_DB_URL -c "
 
 # Data loss = current time - last_event
 # Notify principals whose verify calls fall in the data loss window
-aegis admin data-loss-report \
+okoro admin data-loss-report \
   --from $(date -d "yesterday 02:00" +%Y-%m-%dT%H:%M:%S) \
   --to $(date +%Y-%m-%dT%H:%M:%S) \
   --notify-principals
@@ -654,5 +654,5 @@ GROUP BY status;
 
 ---
 
-*Database operations guide version: 1.0 | AEGIS Phase 1*  
+*Database operations guide version: 1.0 | OKORO Phase 1*  
 *Next review: before AuditEvent hits 10M rows*

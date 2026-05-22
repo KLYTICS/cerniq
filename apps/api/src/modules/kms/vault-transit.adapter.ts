@@ -1,6 +1,6 @@
 // VaultTransitAdapter — HashiCorp Vault Transit secrets engine.
 //
-// Vault's transit/sign endpoint supports `ed25519` natively. AEGIS sends
+// Vault's transit/sign endpoint supports `ed25519` natively. OKORO sends
 // the message bytes; Vault returns a signature in `vault:v1:<b64>` format
 // which we strip + decode. The Ed25519 private key never leaves Vault.
 //
@@ -28,7 +28,7 @@ export interface VaultTransitAdapterConfig {
   /**
    * Map of purpose → registered transit keys (one active per purpose).
    * The transit key NAME is what Vault's `/v1/transit/sign/{name}` URL uses;
-   * AEGIS's `kid` is its own naming and may differ from the transit name.
+   * OKORO's `kid` is its own naming and may differ from the transit name.
    */
   keys: Partial<Record<KmsKeyPurpose, VaultTransitKey[]>>;
 }
@@ -132,7 +132,7 @@ export class VaultTransitAdapter implements KmsAdapter {
 
 /**
  * Parse Vault's `"vault:v{n}:<base64>"` envelope. Asserts the version
- * matches what AEGIS expects — a mismatched version means Vault rotated
+ * matches what OKORO expects — a mismatched version means Vault rotated
  * under us and we missed the kid update.
  */
 export function parseVaultSignature(envelope: string, expectedVersion: number): Uint8Array {

@@ -1,32 +1,32 @@
 ---
-title: MCP server + bridge (@aegis/mcp-server, @aegis/mcp-bridge)
+title: MCP server + bridge (@okoro/mcp-server, @okoro/mcp-bridge)
 description: Drop-in MCP integration. Verify every tool call before invocation. Claude Desktop, Cursor, and any MCP-aware client.
 ---
 
-AEGIS ships two MCP packages:
+OKORO ships two MCP packages:
 
 | Package               | Use it when…                                                                              |
 | --------------------- | ----------------------------------------------------------------------------------------- |
-| `@aegis/mcp-server`   | You're building a new MCP server. Get a verified-by-default tool wrapper API.            |
-| `@aegis/mcp-bridge`   | You already have an MCP server and want to wrap it without rewriting any tool handlers.  |
+| `@okoro/mcp-server`   | You're building a new MCP server. Get a verified-by-default tool wrapper API.            |
+| `@okoro/mcp-bridge`   | You already have an MCP server and want to wrap it without rewriting any tool handlers.  |
 
-## `@aegis/mcp-server`
+## `@okoro/mcp-server`
 
 ### Install
 
 ```bash
-npm install @aegis/mcp-server
+npm install @okoro/mcp-server
 ```
 
 ### Define verified tools
 
 ```ts
-import { createServer } from '@aegis/mcp-server';
+import { createServer } from '@okoro/mcp-server';
 
 const server = createServer({
-  aegis: {
-    apiKey: process.env.AEGIS_API_KEY!,
-    verifyKey: process.env.AEGIS_VERIFY_KEY!,
+  okoro: {
+    apiKey: process.env.OKORO_API_KEY!,
+    verifyKey: process.env.OKORO_VERIFY_KEY!,
   },
   tools: [
     {
@@ -53,32 +53,32 @@ server.listen({ stdio: true });
 ```json
 {
   "mcpServers": {
-    "aegis-protected-tools": {
+    "okoro-protected-tools": {
       "command": "npx",
-      "args": ["@aegis/mcp-server"],
+      "args": ["@okoro/mcp-server"],
       "env": {
-        "AEGIS_API_KEY": "ak_live_...",
-        "AEGIS_VERIFY_KEY": "vk_live_..."
+        "OKORO_API_KEY": "ak_live_...",
+        "OKORO_VERIFY_KEY": "vk_live_..."
       }
     }
   }
 }
 ```
 
-## `@aegis/mcp-bridge`
+## `@okoro/mcp-bridge`
 
 Wrap an existing MCP server with verification middleware. No tool-handler
 changes required:
 
 ```ts
-import { createMcpBridge } from '@aegis/mcp-bridge';
+import { createMcpBridge } from '@okoro/mcp-bridge';
 import { myExistingMcpServer } from './my-server';
 
 export default createMcpBridge({
   upstream: myExistingMcpServer,
-  aegis: {
-    apiKey: process.env.AEGIS_API_KEY!,
-    verifyKey: process.env.AEGIS_VERIFY_KEY!,
+  okoro: {
+    apiKey: process.env.OKORO_API_KEY!,
+    verifyKey: process.env.OKORO_VERIFY_KEY!,
   },
   toolActionMap: {
     'send-email': 'send_email',
@@ -88,7 +88,7 @@ export default createMcpBridge({
 ```
 
 The bridge intercepts every tool call, extracts the authority token from
-the request envelope (`_aegis_token`), calls `aegis.verify()`, and only
+the request envelope (`_okoro_token`), calls `okoro.verify()`, and only
 forwards to the upstream tool on `allowed: true`. Denials translate to
 structured MCP tool errors that LLMs can interpret.
 
@@ -97,9 +97,9 @@ structured MCP tool errors that LLMs can interpret.
 When either package calls `/v1/verify`, it stamps the relying-party id
 into the resulting audit row. The dashboard's MCP-server list view shows
 recent invocation counts and denial rates per server — see
-[ADR-0008](https://github.com/klytics/aegis/blob/main/docs/decisions/0008-mcp-as-control-plane.md).
+[ADR-0008](https://github.com/klytics/okoro/blob/main/docs/decisions/0008-mcp-as-control-plane.md).
 
 ## Source
 
-- [`packages/mcp-server/`](https://github.com/klytics/aegis/tree/main/packages/mcp-server)
-- [`packages/mcp-bridge/`](https://github.com/klytics/aegis/tree/main/packages/mcp-bridge)
+- [`packages/mcp-server/`](https://github.com/klytics/okoro/tree/main/packages/mcp-server)
+- [`packages/mcp-bridge/`](https://github.com/klytics/okoro/tree/main/packages/mcp-bridge)

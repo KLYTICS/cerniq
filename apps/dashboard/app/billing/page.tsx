@@ -5,7 +5,7 @@
 // Reads from `GET /v1/billing/plan` (controller in
 // apps/api/src/modules/billing). Upgrade actions POST to
 // `/v1/billing/checkout`; manage actions POST to `/v1/billing/portal`.
-// Card data never touches AEGIS — see ADR-0011.
+// Card data never touches OKORO — see ADR-0011.
 
 import type { Metadata } from 'next';
 import type { ReactElement } from 'react';
@@ -22,7 +22,7 @@ import { UpgradeButton } from './_components/UpgradeButton';
 import { UsageStrip } from './_components/UsageStrip';
 
 export const metadata: Metadata = {
-  title: 'Billing · AEGIS',
+  title: 'Billing · OKORO',
 };
 
 const NUM = new Intl.NumberFormat('en-US');
@@ -61,8 +61,8 @@ export default async function BillingPage({
 
   if (!authConfigured()) {
     return (
-      <section className="aegis-page">
-        <header className="aegis-page-header">
+      <section className="okoro-page">
+        <header className="okoro-page-header">
           <h1>Billing</h1>
           <p className="muted">
             Plan tier, monthly verify usage, and Stripe linkage.
@@ -70,7 +70,7 @@ export default async function BillingPage({
         </header>
         <div className="data-empty">
           <p>
-            Set <code>AEGIS_DASHBOARD_API_KEY</code> to populate this view.
+            Set <code>OKORO_DASHBOARD_API_KEY</code> to populate this view.
           </p>
         </div>
       </section>
@@ -80,11 +80,11 @@ export default async function BillingPage({
   const outcome = await loadPlan();
 
   return (
-    <section className="aegis-page">
-      <header className="aegis-page-header">
+    <section className="okoro-page">
+      <header className="okoro-page-header">
         <h1>Billing</h1>
         <p className="muted">
-          Plan tier, monthly verify usage, and Stripe linkage. AEGIS stores
+          Plan tier, monthly verify usage, and Stripe linkage. OKORO stores
           only customer/subscription identifiers — card data never leaves
           Stripe.
         </p>

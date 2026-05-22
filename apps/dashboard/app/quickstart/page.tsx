@@ -1,7 +1,7 @@
 // First-run workflow page. Guides a fresh principal through the canonical
-// AEGIS flow: keypair → register → handshake → policy → first verify →
+// OKORO flow: keypair → register → handshake → policy → first verify →
 // observe in audit. Every snippet is a CopyButton; the operator should
-// reach a working `aegis.verify(...)` call from a cold install in under
+// reach a working `okoro.verify(...)` call from a cold install in under
 // 90 seconds.
 
 import type { Metadata } from 'next';
@@ -9,18 +9,18 @@ import type { Metadata } from 'next';
 import { CopyButton } from '../../components/CopyButton';
 
 export const metadata: Metadata = {
-  title: 'Quickstart · AEGIS',
+  title: 'Quickstart · OKORO',
 };
 
 export default function QuickstartPage() {
-  const apiBaseUrl = process.env.AEGIS_API_BASE_URL ?? 'http://localhost:4000';
+  const apiBaseUrl = process.env.OKORO_API_BASE_URL ?? 'http://localhost:4000';
 
   return (
-    <section className="aegis-page">
-      <header className="aegis-page-header">
+    <section className="okoro-page">
+      <header className="okoro-page-header">
         <h1>Quickstart</h1>
         <p className="muted">
-          Cold install → first cryptographically-verified <code>aegis.verify()</code> in under
+          Cold install → first cryptographically-verified <code>okoro.verify()</code> in under
           90 seconds. Six steps, every code block one click to copy.
         </p>
       </header>
@@ -28,16 +28,16 @@ export default function QuickstartPage() {
       <Step
         n={1}
         title="Install the SDK"
-        body="The TS SDK ships as @aegis/sdk. Browser-safe (no node:crypto), works in Edge runtimes."
-        snippet={`pnpm add @aegis/sdk`}
+        body="The TS SDK ships as @okoro/sdk. Browser-safe (no node:crypto), works in Edge runtimes."
+        snippet={`pnpm add @okoro/sdk`}
       />
 
       <Step
         n={2}
         title="Generate a keypair locally"
-        body="Private key never leaves your machine. AEGIS only ever sees the public half."
+        body="Private key never leaves your machine. OKORO only ever sees the public half."
         snippet={[
-          `import { generateKeypair } from '@aegis/sdk';`,
+          `import { generateKeypair } from '@okoro/sdk';`,
           ``,
           `const { privateKey, publicKey } = await generateKeypair();`,
           `// Persist privateKey in OS keyring / KMS / Vault — your call.`,
@@ -47,16 +47,16 @@ export default function QuickstartPage() {
       <Step
         n={3}
         title="Register the agent"
-        body="Bind the public key to your principal. The returned agentId is the AEGIS identifier you'll sign verify-tokens against."
+        body="Bind the public key to your principal. The returned agentId is the OKORO identifier you'll sign verify-tokens against."
         snippet={[
-          `import { Aegis } from '@aegis/sdk';`,
+          `import { Okoro } from '@okoro/sdk';`,
           ``,
-          `const aegis = new Aegis({`,
-          `  apiKey: process.env.AEGIS_API_KEY,`,
+          `const okoro = new Okoro({`,
+          `  apiKey: process.env.OKORO_API_KEY,`,
           `  baseUrl: '${apiBaseUrl}',`,
           `});`,
           ``,
-          `const agent = await aegis.agents.register({`,
+          `const agent = await okoro.agents.register({`,
           `  publicKey,`,
           `  runtime: 'ANTHROPIC',`,
           `  label: 'shopper for alice@example.com',`,
@@ -70,7 +70,7 @@ export default function QuickstartPage() {
         title="Run the handshake"
         body="Prove possession of the private key. Lifts the agent's trust score to ≥600 (the cold-start acceptance threshold) and writes a 30-day proof-of-possession record. One call; the SDK does challenge → sign → verify under the hood."
         snippet={[
-          `const result = await aegis.handshake(agent.agentId, privateKey);`,
+          `const result = await okoro.handshake(agent.agentId, privateKey);`,
           `console.log(result.verifiedAt, result.trustScore);`,
           `// 2026-05-04T19:21:55Z 600`,
         ].join('\n')}
@@ -81,7 +81,7 @@ export default function QuickstartPage() {
         title="Issue a scoped policy"
         body="Time-bounded, action-scoped permission. The signed token is what you'll sign verify-requests against."
         snippet={[
-          `const policy = await aegis.policies.create(agent.agentId, {`,
+          `const policy = await okoro.policies.create(agent.agentId, {`,
           `  scopes: [{`,
           `    action: 'commerce.purchase',`,
           `    spendLimit: { amount: 200, currency: 'USD', period: 'PER_TRANSACTION' },`,
@@ -99,14 +99,14 @@ export default function QuickstartPage() {
         title="Sign a verify-token and call /v1/verify"
         body="The verify hot path is the relying-party gate. Returns approve / deny / flag with denial reason in the canonical precedence order."
         snippet={[
-          `const token = await aegis.sign(privateKey, agent.agentId, policy.policyId, {`,
+          `const token = await okoro.sign(privateKey, agent.agentId, policy.policyId, {`,
           `  action: 'commerce.purchase',`,
           `  amount: 199,`,
           `  currency: 'USD',`,
           `  merchantDomain: 'delta.com',`,
           `});`,
           ``,
-          `const decision = await aegis.verify(token, {`,
+          `const decision = await okoro.verify(token, {`,
           `  action: 'commerce.purchase',`,
           `  amount: 199,`,
           `  currency: 'USD',`,
@@ -139,7 +139,7 @@ export default function QuickstartPage() {
       <h2>One-shot bootstrap</h2>
       <p className="muted">
         For demos and CI, the entire flow above collapses into a single script. Drop into a
-        TypeScript file, set <code>AEGIS_API_KEY</code>, and run.
+        TypeScript file, set <code>OKORO_API_KEY</code>, and run.
       </p>
       <BootstrapBlock apiBaseUrl={apiBaseUrl} />
     </section>
@@ -170,19 +170,19 @@ function Step({ n, title, body, snippet }: { n: number; title: string; body: str
 function BootstrapBlock({ apiBaseUrl }: { apiBaseUrl: string }) {
   const snippet = [
     `// quickstart.ts — full first-run flow. ~30 lines.`,
-    `import { Aegis, generateKeypair } from '@aegis/sdk';`,
+    `import { Okoro, generateKeypair } from '@okoro/sdk';`,
     ``,
-    `const aegis = new Aegis({`,
-    `  apiKey: process.env.AEGIS_API_KEY!,`,
+    `const okoro = new Okoro({`,
+    `  apiKey: process.env.OKORO_API_KEY!,`,
     `  baseUrl: '${apiBaseUrl}',`,
     `});`,
     ``,
     `const { privateKey, publicKey } = await generateKeypair();`,
-    `const agent = await aegis.agents.register({ publicKey, runtime: 'ANTHROPIC' });`,
-    `const verified = await aegis.handshake(agent.agentId, privateKey);`,
+    `const agent = await okoro.agents.register({ publicKey, runtime: 'ANTHROPIC' });`,
+    `const verified = await okoro.handshake(agent.agentId, privateKey);`,
     `console.log('handshake @ ' + verified.verifiedAt + ', trust ' + verified.trustScore);`,
     ``,
-    `const policy = await aegis.policies.create(agent.agentId, {`,
+    `const policy = await okoro.policies.create(agent.agentId, {`,
     `  scopes: [{`,
     `    action: 'commerce.purchase',`,
     `    spendLimit: { amount: 200, currency: 'USD', period: 'PER_TRANSACTION' },`,
@@ -191,10 +191,10 @@ function BootstrapBlock({ apiBaseUrl }: { apiBaseUrl: string }) {
     `  expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),`,
     `});`,
     ``,
-    `const token = await aegis.sign(privateKey, agent.agentId, policy.policyId, {`,
+    `const token = await okoro.sign(privateKey, agent.agentId, policy.policyId, {`,
     `  action: 'commerce.purchase', amount: 199, currency: 'USD', merchantDomain: 'delta.com',`,
     `});`,
-    `const decision = await aegis.verify(token, {`,
+    `const decision = await okoro.verify(token, {`,
     `  action: 'commerce.purchase', amount: 199, currency: 'USD', merchantDomain: 'delta.com',`,
     `});`,
     `console.log(decision.outcome);  // 'approved'`,

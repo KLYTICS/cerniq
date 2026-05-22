@@ -82,7 +82,7 @@ function buildPrismaMock() {
       findMany: jest.fn(async ({ where, take }: { where: { agentId: string }; take?: number }) => {
         const matched = audits
           .filter((e) => e.agentId === where.agentId)
-          .map((e) => ({ ...e, claimedAgentId: null, action: 'verify', decision: 'APPROVED', denialReason: null, relyingParty: null, requestedAmount: null, currency: null, policyId: null, policySnapshot: null, trustScoreAtEvent: 500, trustBandAtEvent: 'VERIFIED', aegisSignature: 'sig' }));
+          .map((e) => ({ ...e, claimedAgentId: null, action: 'verify', decision: 'APPROVED', denialReason: null, relyingParty: null, requestedAmount: null, currency: null, policyId: null, policySnapshot: null, trustScoreAtEvent: 500, trustBandAtEvent: 'VERIFIED', okoroSignature: 'sig' }));
         return take ? matched.slice(0, take) : matched;
       }),
     },

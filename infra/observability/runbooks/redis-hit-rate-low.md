@@ -3,15 +3,15 @@
 ## Alert
 
 - **Name**: `RedisHitRateLow` (info, **disabled** pending exporter)
-- **Group**: `aegis.cache`
-- **File**: `infra/observability/alerts/aegis.rules.yml`
+- **Group**: `okoro.cache`
+- **File**: `infra/observability/alerts/okoro.rules.yml`
 
 > **Status**: ships as `expr: vector(0) > 1` — disabled until the
 > `redis_exporter` sidecar (oliver006/redis_exporter) is deployed.
 > Tracked: M-019.
 >
 > Drift note: the Grafana dashboard panel 4 references
-> `aegis_cache_hits_total` / `aegis_cache_misses_total`, which the
+> `okoro_cache_hits_total` / `okoro_cache_misses_total`, which the
 > API does **not** emit either. Both the dashboard panel and this
 > alert depend on the same M-019 fix.
 
@@ -27,7 +27,7 @@ is over-aggressive.
   round-trip — typically 5–15 ms vs Redis's < 1 ms. A hit rate below
   85% sustained will eventually surface as a `VerifyLatencyP99SLOWarning`.
 - **Cost**: Postgres read load scales linearly with the miss rate.
-  At AEGIS's traffic shape, a sustained drop from 95% → 70% hit
+  At OKORO's traffic shape, a sustained drop from 95% → 70% hit
   rate roughly 6x's Postgres read RPS.
 - **Not customer-facing in itself** — this is an info-severity alert,
   designed to catch the issue before it becomes a latency SLO breach.
@@ -45,8 +45,8 @@ is over-aggressive.
    Until then, query Redis directly:
 
    ```bash
-   railway run -s aegis-redis -- redis-cli INFO stats | rg -F 'keyspace_hits|keyspace_misses'
-   railway run -s aegis-redis -- redis-cli INFO memory | rg -F 'used_memory_human|maxmemory_human|evicted_keys'
+   railway run -s okoro-redis -- redis-cli INFO stats | rg -F 'keyspace_hits|keyspace_misses'
+   railway run -s okoro-redis -- redis-cli INFO memory | rg -F 'used_memory_human|maxmemory_human|evicted_keys'
    ```
 
 2. **Check the per-key-prefix hit rate.**
@@ -55,17 +55,17 @@ is over-aggressive.
    dominates the misses, that's the broken cohort.
 
    ```bash
-   railway run -s aegis-redis -- redis-cli --scan --pattern 'agent:*' | wc -l
-   railway run -s aegis-redis -- redis-cli --scan --pattern 'policy:*' | wc -l
-   railway run -s aegis-redis -- redis-cli --scan --pattern 'trust:*' | wc -l
+   railway run -s okoro-redis -- redis-cli --scan --pattern 'agent:*' | wc -l
+   railway run -s okoro-redis -- redis-cli --scan --pattern 'policy:*' | wc -l
+   railway run -s okoro-redis -- redis-cli --scan --pattern 'trust:*' | wc -l
    ```
 
 3. **Eviction check.** If `evicted_keys` is increasing, the cache is
    memory-bound and evicting under pressure → undersized.
 
    ```bash
-   railway run -s aegis-redis -- redis-cli CONFIG GET maxmemory
-   railway run -s aegis-redis -- redis-cli CONFIG GET maxmemory-policy
+   railway run -s okoro-redis -- redis-cli CONFIG GET maxmemory
+   railway run -s okoro-redis -- redis-cli CONFIG GET maxmemory-policy
    ```
 
    Expected: `allkeys-lru` policy (per `infra/redis/redis.conf`),
@@ -76,16 +76,16 @@ is over-aggressive.
    the deploy.
 
    ```bash
-   railway deployments -s aegis-api --json | jq '.[0:3] | .[] | {createdAt, status}'
-   railway logs -s aegis-api | rg -F 'cache.invalidate' | tail -50
+   railway deployments -s okoro-api --json | jq '.[0:3] | .[] | {createdAt, status}'
+   railway logs -s okoro-api | rg -F 'cache.invalidate' | tail -50
    ```
 
 5. **TTL inspection** for a sample key:
 
    ```bash
-   railway run -s aegis-redis -- redis-cli RANDOMKEY
+   railway run -s okoro-redis -- redis-cli RANDOMKEY
    # take the returned key, then:
-   railway run -s aegis-redis -- redis-cli TTL '<key>'
+   railway run -s okoro-redis -- redis-cli TTL '<key>'
    ```
 
    Compare to the expected TTL for that prefix from
@@ -94,11 +94,11 @@ is over-aggressive.
 ## Mitigate
 
 - **Memory-bound (eviction-driven)**: scale Redis vertically —
-  `railway service scale aegis-redis --memory 2GB` (or appropriate
+  `railway service scale okoro-redis --memory 2GB` (or appropriate
   tier). LRU eviction means warming back to a healthy hit rate
   takes ~minutes.
 - **Over-eager invalidation from a recent deploy**: rollback the
-  API: `railway rollback -s aegis-api <prev-deploy-id>`. The cache
+  API: `railway rollback -s okoro-api <prev-deploy-id>`. The cache
   itself is fine; the writes are too aggressive.
 - **TTL too short**: increase `CACHE_*_TTL_SECONDS` env vars
   (defaults in `apps/api/src/config/`). Bounce the API service to
@@ -111,7 +111,7 @@ is over-aggressive.
 ## Eradicate
 
 - For memory-bound scaling: update the default Railway memory setting
-  in `infra/railway/aegis-redis.json` and document in
+  in `infra/railway/okoro-redis.json` and document in
   `docs/ARCHITECTURE.md`.
 - For invalidation bugs: add a unit test in
   `cache.service.spec.ts` covering the case the deploy broke.
@@ -123,7 +123,7 @@ is over-aggressive.
 
 ```bash
 # Manually until exporter ships
-railway run -s aegis-redis -- redis-cli INFO stats | rg -F 'keyspace_hits|keyspace_misses'
+railway run -s okoro-redis -- redis-cli INFO stats | rg -F 'keyspace_hits|keyspace_misses'
 # Compute hits / (hits + misses); must be > 0.90 sustained over 15 min
 ```
 
@@ -139,13 +139,13 @@ clamp_min(sum(rate(redis_keyspace_hits_total[15m]) + rate(redis_keyspace_misses_
 Also verify no rising eviction count over 15 min:
 
 ```bash
-railway run -s aegis-redis -- redis-cli INFO stats | rg -F 'evicted_keys'
+railway run -s okoro-redis -- redis-cli INFO stats | rg -F 'evicted_keys'
 # Run twice 15 min apart; values should match.
 ```
 
 ## Escalate
 
-- **Not resolved by next business day** → notify `#aegis-oncall`
+- **Not resolved by next business day** → notify `#okoro-oncall`
   lead. This is info-severity; no out-of-hours page.
 - **If it escalates to a latency warning** → switch to the
   `verify-latency-slo-breach.md` runbook.
@@ -155,6 +155,6 @@ railway run -s aegis-redis -- redis-cli INFO stats | rg -F 'evicted_keys'
 ## Postmortem trigger
 
 **No** for resolved info-severity events under 30 min — log in
-`#aegis-ops`. **Yes** if the cache health degradation cascaded into a
+`#okoro-ops`. **Yes** if the cache health degradation cascaded into a
 latency SLO breach (then the postmortem is for the latency event, with
 this as the root cause).

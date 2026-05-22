@@ -28,19 +28,19 @@ function loadBadges(): Badge[] {
   const repoRoot = join(process.cwd(), '..', '..');
   return [
     {
-      name: '@aegis/sdk',
+      name: '@okoro/sdk',
       version: readJsonVersion(join(repoRoot, 'packages', 'sdk-ts', 'package.json')),
-      install: 'npm install @aegis/sdk',
+      install: 'npm install @okoro/sdk',
     },
     {
-      name: 'aegis (python)',
+      name: 'okoro (python)',
       version: readPyVersion(join(repoRoot, 'packages', 'sdk-py', 'pyproject.toml')),
-      install: 'pip install aegis',
+      install: 'pip install okoro',
     },
     {
-      name: 'aegis (cli)',
+      name: 'okoro (cli)',
       version: readJsonVersion(join(repoRoot, 'packages', 'cli', 'package.json')),
-      install: 'brew install klytics/aegis/aegis',
+      install: 'brew install klytics/okoro/okoro',
     },
   ];
 }
@@ -52,13 +52,13 @@ export function SdkVersionBadges() {
       {badges.map((b) => (
         <div
           key={b.name}
-          className="inline-flex items-center gap-3 rounded-lg border border-[var(--aegis-mist)] bg-[var(--aegis-ink)] px-4 py-2"
+          className="inline-flex items-center gap-3 rounded-lg border border-[var(--okoro-mist)] bg-[var(--okoro-ink)] px-4 py-2"
         >
-          <span className="font-mono text-xs text-[var(--aegis-fog)]">{b.name}</span>
-          <span className="rounded bg-[var(--aegis-graphite)] px-2 py-0.5 font-mono text-xs text-[var(--aegis-cyan)]">
+          <span className="font-mono text-xs text-[var(--okoro-fog)]">{b.name}</span>
+          <span className="rounded bg-[var(--okoro-graphite)] px-2 py-0.5 font-mono text-xs text-[var(--okoro-cyan)]">
             {b.version ? `v${b.version}` : 'unreleased'}
           </span>
-          <code className="font-mono text-xs text-[var(--aegis-shadow)]">{b.install}</code>
+          <code className="font-mono text-xs text-[var(--okoro-shadow)]">{b.install}</code>
         </div>
       ))}
     </div>

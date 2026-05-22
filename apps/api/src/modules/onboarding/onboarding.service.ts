@@ -4,7 +4,7 @@
 //
 // Used by:
 //   - Dashboard wizard (GET status to render checklist)
-//   - `aegis doctor` CLI (GET status to render "you haven't done X yet")
+//   - `okoro doctor` CLI (GET status to render "you haven't done X yet")
 //   - Service-internal hooks (agent.create / policy.create / verify
 //     success / kms.configure call markStep() to roll up the funnel)
 

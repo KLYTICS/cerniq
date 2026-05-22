@@ -30,8 +30,8 @@ export function HeaderNav() {
   const pathname = usePathname() ?? '/';
 
   return (
-    <header className="aegis-header">
-      <span className="aegis-logo">AEGIS</span>
+    <header className="okoro-header">
+      <span className="okoro-logo">OKORO</span>
       <nav aria-label="Primary">
         {LINKS.map((l) => {
           const active = l.href === '/' ? pathname === '/' : pathname.startsWith(l.href);
@@ -50,7 +50,7 @@ export function HeaderNav() {
           API
         </a>
       </nav>
-      <span className="aegis-header-spacer" />
+      <span className="okoro-header-spacer" />
       <button
         type="button"
         className="kbd-trigger"

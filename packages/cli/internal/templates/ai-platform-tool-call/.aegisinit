@@ -1,7 +1,0 @@
-aegis-init-template:ai-platform-tool-call
-v1
-The ai-platform-tool-call template is rendered into the user's target
-directory when they run `aegis init --industry ai-platform-tool-call`.
-The full source tree lives at examples/ai-platform-tool-call/ in the
-AEGIS repo and is synchronized into this embed root by
-`make cli-sync-templates`.

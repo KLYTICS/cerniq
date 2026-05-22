@@ -1,14 +1,14 @@
-# AEGIS Public Type Contract Audit (2026 Q2)
+# OKORO Public Type Contract Audit (2026 Q2)
 
 **Scope of audit**
 
-- `/Users/money/Desktop/AEGIS/packages/types/src/schemas.ts` (Zod source of truth)
-- `/Users/money/Desktop/AEGIS/packages/types/src/constants.ts`
-- `/Users/money/Desktop/AEGIS/packages/types/src/errors.ts`
-- `/Users/money/Desktop/AEGIS/packages/sdk-ts/src/types.ts` (hand-written SDK types)
-- `/Users/money/Desktop/AEGIS/packages/sdk-ts/src/errors.ts` (AegisError tree)
-- `/Users/money/Desktop/AEGIS/apps/api/src/modules/{identity,policy,verify}/*.dto.ts`
-- `/Users/money/Desktop/AEGIS/docs/spec/AEGIS_API_SPEC.yaml`
+- `/Users/money/Desktop/OKORO/packages/types/src/schemas.ts` (Zod source of truth)
+- `/Users/money/Desktop/OKORO/packages/types/src/constants.ts`
+- `/Users/money/Desktop/OKORO/packages/types/src/errors.ts`
+- `/Users/money/Desktop/OKORO/packages/sdk-ts/src/types.ts` (hand-written SDK types)
+- `/Users/money/Desktop/OKORO/packages/sdk-ts/src/errors.ts` (OkoroError tree)
+- `/Users/money/Desktop/OKORO/apps/api/src/modules/{identity,policy,verify}/*.dto.ts`
+- `/Users/money/Desktop/OKORO/docs/spec/OKORO_API_SPEC.yaml`
 
 Read-only; no source modified.
 
@@ -153,7 +153,7 @@ z.enum(['openai', 'anthropic', 'google', 'huggingface', 'custom'])
 **Severity: MED — and a wire-spec mismatch (CRIT for compatibility)**
 
 - Closed list including the literal `'custom'` is the worst of both worlds: customers using LangChain-only, Mistral, xAI, DeepSeek, vLLM, Ollama, Bedrock, Vertex (different from `google`) all collapse onto `'custom'` and lose telemetry granularity for BATE.
-- Spec drift: `AEGIS_API_SPEC.yaml:342` enumerates `[openai, anthropic, google, custom]` (no `huggingface`). Schema and spec disagree. SDK (`sdk-ts/src/types.ts:5`) uses **uppercase** values — three different surfaces, three different shapes.
+- Spec drift: `OKORO_API_SPEC.yaml:342` enumerates `[openai, anthropic, google, custom]` (no `huggingface`). Schema and spec disagree. SDK (`sdk-ts/src/types.ts:5`) uses **uppercase** values — three different surfaces, three different shapes.
 - The DTO enum `AgentRuntimeDto` is also uppercase (`OPENAI`, `ANTHROPIC`, …) — the API request body would fail Zod validation if the DTO ever flowed through. The two systems are wired separately and only happen to coexist.
 
 **Recommended fix:** model as a discriminated open enum:
@@ -198,29 +198,29 @@ For backward compatibility, accept `string` and parse into the discriminated for
 
 ---
 
-### 2.9 `DenialReason` — enum, but not bound to `AegisError`
+### 2.9 `DenialReason` — enum, but not bound to `OkoroError`
 
 `constants.ts:53-65`, `errors.ts`, `sdk-ts/src/errors.ts`
 
 **Severity: HIGH**
 
 - `DenialReason` is a 9-variant string union driven by `DENIAL_REASON_PRECEDENCE`.
-- The `AegisError` tree (`sdk-ts/src/errors.ts`) tags errors by HTTP `code` (`AUTH_REQUIRED`, `FORBIDDEN`, …) — completely orthogonal to `DenialReason`. There is no `AegisDeniedVerify` class, and no compile-time link between "this verify came back `valid: false`" and "the denial reason is one of the 9 documented values."
+- The `OkoroError` tree (`sdk-ts/src/errors.ts`) tags errors by HTTP `code` (`AUTH_REQUIRED`, `FORBIDDEN`, …) — completely orthogonal to `DenialReason`. There is no `OkoroDeniedVerify` class, and no compile-time link between "this verify came back `valid: false`" and "the denial reason is one of the 9 documented values."
 - A relying party doing `if (result.denialReason === 'ANOMALY_FLAGGED')` has zero protection against a typo, a stale enum, or a future renamed reason. The `precedence` order — which is part of the **public API contract** per `SECURITY.md` — is encoded only as array order, not as a partial-order type.
 
 **Recommended fix:**
 
 1. Add a sealed denial-reason class hierarchy:
    ```ts
-   abstract class AegisDenialReason {
+   abstract class OkoroDenialReason {
      abstract readonly code: DenialReason;
      abstract readonly precedence: number; // from DENIAL_REASON_PRECEDENCE index
    }
-   class AgentNotFound extends AegisDenialReason { code = 'AGENT_NOT_FOUND' as const; precedence = 0; }
+   class AgentNotFound extends OkoroDenialReason { code = 'AGENT_NOT_FOUND' as const; precedence = 0; }
    // ... one class per reason
    ```
 2. Make `VerifyResponse.denialReason` a discriminated union: `{ valid: true } | { valid: false, denialReason: DenialReason, ... }`. Today both `valid: true` and `valid: false` share the same shape, so consumers can read `agentId!` after a denial and crash.
-3. Introduce a typed `AegisDeniedVerifyError` that the SDK can throw if the caller used `client.verifyOrThrow()`.
+3. Introduce a typed `OkoroDeniedVerifyError` that the SDK can throw if the caller used `client.verifyOrThrow()`.
 
 ---
 
@@ -261,11 +261,11 @@ export const VerifyResponseSchema = z.object({
 | `VerifyResult.spendRemaining` | present (nullable) | **missing** | present | not on DTO | **HIGH** |
 | `VerifyResult.auditEventId` | present | missing | not declared | not on DTO | MED |
 | `SignContext.merchantDomain` | (TS) | `merchantDomain` | `merchantDomain` | `merchantDomain` | — |
-| Python `SignContext.merchant_domain` | snake_case | (n/a) | (n/a) | (n/a) | **HIGH** (cross-SDK case drift; documented at `packages/sdk-py/aegis/crypto.py:56`) |
+| Python `SignContext.merchant_domain` | snake_case | (n/a) | (n/a) | (n/a) | **HIGH** (cross-SDK case drift; documented at `packages/sdk-py/okoro/crypto.py:56`) |
 | `SignContext.ttlSeconds` | not in any schema | present (SDK-only) | not in spec | n/a | MED |
-| `AegisError` (SDK) | n/a | `interface AegisError extends Error { status }` | `Error` schema | n/a | MED — SDK file `types.ts` declares an interface that conflicts with the abstract class in `errors.ts` |
+| `OkoroError` (SDK) | n/a | `interface OkoroError extends Error { status }` | `Error` schema | n/a | MED — SDK file `types.ts` declares an interface that conflicts with the abstract class in `errors.ts` |
 
-The two `AegisError` declarations (`sdk-ts/src/types.ts:105` interface vs `sdk-ts/src/errors.ts:7` abstract class) is itself a real-world bug: TypeScript will pick whichever import path is used. The interface is not assignable to the abstract class. **Severity: HIGH.**
+The two `OkoroError` declarations (`sdk-ts/src/types.ts:105` interface vs `sdk-ts/src/errors.ts:7` abstract class) is itself a real-world bug: TypeScript will pick whichever import path is used. The interface is not assignable to the abstract class. **Severity: HIGH.**
 
 ---
 
@@ -295,7 +295,7 @@ The two `AegisError` declarations (`sdk-ts/src/types.ts:105` interface vs `sdk-t
 
 ## 3. Strengths Worth Preserving
 
-- **Single source of truth via `@aegis/types`.** The Zod-first approach is the right call; runtime + compile-time validation in one place is a strong foundation.
+- **Single source of truth via `@okoro/types`.** The Zod-first approach is the right call; runtime + compile-time validation in one place is a strong foundation.
 - **Constants centralization** (`TRUST_BAND_THRESHOLDS`, `DENIAL_REASON_PRECEDENCE`, `WEBHOOK_EVENT`, `REDIS_KEY` builders) is exemplary — this is exactly how to keep API/worker/dashboard agreement.
 - **Length caps are pervasive.** Most string fields have `.min(1).max(N)`. Compared to typical Node API codebases, this is unusually disciplined.
 - **`PublicKeyB64UrlSchema` regex** is correctly tightened to base64url alphabet with size bounds, and length range (40–128) accommodates both raw and SPKI encodings.
@@ -306,7 +306,7 @@ The two `AegisError` declarations (`sdk-ts/src/types.ts:105` interface vs `sdk-t
 
 ## 4. Branded-Types Proposal (highest-leverage change)
 
-**Recommendation:** introduce branded primitives across `@aegis/types`. This is the single change with the largest ratio of bugs prevented to lines of code added.
+**Recommendation:** introduce branded primitives across `@okoro/types`. This is the single change with the largest ratio of bugs prevented to lines of code added.
 
 ### 4.1 Why branded types are the highest-leverage change
 
@@ -388,7 +388,7 @@ export const VerifyResponseSchema = z.discriminatedUnion('valid', [VerifyApprove
 1. **Phase 1 (1 day):** add brands to ID primitives only. Inferred types become `string & Brand<...>` — assignable from `Schema.parse()` output but not from raw strings. Internal services that currently pass strings around will get type errors at the call site; fix by routing all entry points through `Schema.parse`.
 2. **Phase 2 (2 days):** add `TrustScore`, `TtlSeconds`, `FutureIsoDateTime` brands. Same pattern.
 3. **Phase 3 (3 days):** discriminated-union `VerifyResponse` and `SpendLimit`. This is the largest consumer-side change; do it behind a `VerifyResponseV2` while V1 is deprecated for one minor.
-4. **Phase 4 (1 day):** delete `sdk-ts/src/types.ts` hand-written copies and re-export `@aegis/types` directly. (The hand-written file is currently the source of all the casing-drift bugs.)
+4. **Phase 4 (1 day):** delete `sdk-ts/src/types.ts` hand-written copies and re-export `@okoro/types` directly. (The hand-written file is currently the source of all the casing-drift bugs.)
 5. **Phase 5 (parallel):** rewrite `apps/api/src/modules/*/*.dto.ts` as `nestjs-zod` DTOs derived from the schemas instead of class-validator. Eliminates the validation-divergence class of bug entirely.
 
 Total estimate: ~7 engineer-days for the full rollout. ~1 day for the highest-impact ID-brand-only delta.
@@ -400,8 +400,8 @@ Total estimate: ~7 engineer-days for the full rollout. ~1 day for the highest-im
 | # | Change | Severity | Effort | Notes |
 | - | --- | --- | --- | --- |
 | 1 | Brand `AgentId`, `PolicyId`, `PrincipalId` with prefix regex | CRIT | S | §4. Single biggest invariant uplift. |
-| 2 | Delete `sdk-ts/src/types.ts` hand-written copies; re-export `@aegis/types` | CRIT | S | Eliminates casing-drift bugs in §2.11 in one PR. |
-| 3 | Resolve `AegisError` interface-vs-class collision in SDK | HIGH | S | Pick the abstract class; remove the interface. |
+| 2 | Delete `sdk-ts/src/types.ts` hand-written copies; re-export `@okoro/types` | CRIT | S | Eliminates casing-drift bugs in §2.11 in one PR. |
+| 3 | Resolve `OkoroError` interface-vs-class collision in SDK | HIGH | S | Pick the abstract class; remove the interface. |
 | 4 | Brand `TrustScore`, `TtlSeconds`, `FutureIsoDateTime` | HIGH | S | §4. |
 | 5 | Discriminated-union `VerifyResponse` on `valid` | HIGH | M | Eliminates the `{ valid: true, denialReason: 'X' }` impossible state. |
 | 6 | Discriminated-union `SpendLimit` (or `.array().min(1)` of bound variants) | HIGH | M | Lift §2.3 `.refine()` into the type. |
@@ -422,4 +422,4 @@ Total estimate: ~7 engineer-days for the full rollout. ~1 day for the highest-im
 
 ## 6. Closing Note
 
-The AEGIS type contract is well-organized and centralised but trusts Zod's runtime to do the work TypeScript could share. For a security-critical identity API, lifting invariants into the type system — especially via branded primitives, discriminated unions for `VerifyResponse`, and a single source-of-truth for DTOs — is high-leverage, low-risk, and aligns the codebase with its own security model.
+The OKORO type contract is well-organized and centralised but trusts Zod's runtime to do the work TypeScript could share. For a security-critical identity API, lifting invariants into the type system — especially via branded primitives, discriminated unions for `VerifyResponse`, and a single source-of-truth for DTOs — is high-leverage, low-risk, and aligns the codebase with its own security model.

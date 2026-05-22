@@ -14,12 +14,12 @@
 //   - signature failure → DENY at edge (INVALID_SIGNATURE) WITHOUT origin
 //     fallback (this is unambiguous and we want the latency win)
 //   - scope mismatch
-//   - DPoP required but absent (when AEGIS_DPOP_REQUIRED env is set)
+//   - DPoP required but absent (when OKORO_DPOP_REQUIRED env is set)
 // we forward to origin so it can update spend windows and BATE signals.
 //
 // Denial precedence (ADR-0004) is preserved bit-for-bit.
 
-import type { VerifyRequest, VerifyResponse } from '@aegis/types';
+import type { VerifyRequest, VerifyResponse } from '@okoro/types';
 
 import type { CachedPolicy, KvCache } from './kv-cache';
 import { decodeUnsafe, verifyEd25519, type AgentTokenClaims } from './token';

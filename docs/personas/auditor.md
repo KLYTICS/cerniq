@@ -1,28 +1,28 @@
 ---
-title: AEGIS for auditors
-audience: SOC2 / FINRA / COSSEC auditors evaluating AEGIS as a control or as evidence source
+title: OKORO for auditors
+audience: SOC2 / FINRA / COSSEC auditors evaluating OKORO as a control or as evidence source
 last-reviewed: 2026-05-02
 ---
 
-# AEGIS for auditors — evidence shape, retention, isolation
+# OKORO for auditors — evidence shape, retention, isolation
 
-AEGIS produces *cryptographically attested* evidence of every
+OKORO produces *cryptographically attested* evidence of every
 agent-initiated decision. The chain is signed, hashed, append-only,
 and exportable. This page is the operator's bible for what an external
 auditor will ask for and where to find it.
 
-## What AEGIS attests
+## What OKORO attests
 
-For every agent-initiated action that passed through AEGIS:
+For every agent-initiated action that passed through OKORO:
 
 - **Who** — the agent identity (public-key-rooted, signed by the
   registering principal).
 - **What** — the action `kind` + payload hash (raw payload may be
   redacted; the *hash* is in the chain regardless).
-- **When** — server-stamped timestamp, AEGIS-signed.
+- **When** — server-stamped timestamp, OKORO-signed.
 - **Whether** — verify outcome (`valid` or `denialReason`) and
   outcome reason ordered per the canonical denial precedence.
-- **Linked** — the prior event's hash + AEGIS Ed25519 signature
+- **Linked** — the prior event's hash + OKORO Ed25519 signature
   forming the chain. Tampering with a single row breaks every
   signature after it.
 
@@ -31,7 +31,7 @@ For every agent-initiated action that passed through AEGIS:
 `OD-004` (open) — the operator-decision table holds the binding answer.
 The default that ships if silent is **7 years** (SOC2 Type II floor;
 matches financial-services audit norms cited in
-`docs/spec/04_COMMERCIAL_STRATEGY.md` Persona C). AEGIS does not
+`docs/spec/04_COMMERCIAL_STRATEGY.md` Persona C). OKORO does not
 auto-prune below the configured horizon; storage growth is in
 `docs/CAPACITY_PLAN.md` § Audit retention.
 
@@ -49,21 +49,21 @@ two-layered:
 
 ## Export shape
 
-NDJSON, one event per line, each line an AEGIS-signed JSON document
+NDJSON, one event per line, each line an OKORO-signed JSON document
 with the chain pointer to its predecessor. The export endpoint:
 
 ```
 GET /v1/audit/export?from=ISO&to=ISO
 Accept: application/x-ndjson
-X-AEGIS-API-Key: aegis_sk_...
+X-OKORO-API-Key: okoro_sk_...
 ```
 
 Streams the slice; the auditor pipes it to disk and replays the chain
 locally to verify. Verification is one line of code with the
-`@aegis/verifier-rp` package or the `aegis audit verify` plugin
+`@okoro/verifier-rp` package or the `okoro audit verify` plugin
 binary (peer-owned).
 
-The exported chain is *self-contained*: the AEGIS public key (`kid`)
+The exported chain is *self-contained*: the OKORO public key (`kid`)
 is referenced inline; the auditor pulls it from
 `/.well-known/audit-signing-key` (M-016, in flight) and replays the
 chain offline.
@@ -82,13 +82,13 @@ erasure is invoked:
 
 The auditor sees: "this row was redacted at <timestamp> for <reason>;
 the original payload hash matches the chain." That's enough to attest
-that AEGIS did not silently drop or rewrite the row.
+that OKORO did not silently drop or rewrite the row.
 
 ## Compliance mappings
 
-| Framework        | Section / clause                                         | AEGIS evidence                                  |
+| Framework        | Section / clause                                         | OKORO evidence                                  |
 | ---------------- | -------------------------------------------------------- | ------------------------------------------------ |
-| SOC2 Type II     | CC7.1 system monitoring                                  | `aegis tail audit --follow` + alert rules         |
+| SOC2 Type II     | CC7.1 system monitoring                                  | `okoro tail audit --follow` + alert rules         |
 | SOC2 Type II     | CC7.4 incident comm                                      | OD-007 status page + incident.{open,history}.json |
 | SOC2 Type II     | CC8.1 change management                                  | ADR series (`docs/decisions/`) + signed releases  |
 | FINRA 4511       | books and records retention                              | OD-004 retention horizon (7yr default)            |

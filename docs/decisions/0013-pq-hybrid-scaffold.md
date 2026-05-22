@@ -32,7 +32,7 @@ that doesn't require a fork lift." A scaffold answers that.
    `verifyHybrid(msg, sig, classicalPub, pqPub)`. Internally it
    concatenates an Ed25519 signature and an ML-DSA-65 signature with
    an explicit length prefix.
-2. **Feature flag `AEGIS_HYBRID_PQ_ENABLED` (default off).** When off,
+2. **Feature flag `OKORO_HYBRID_PQ_ENABLED` (default off).** When off,
    no hybrid signatures are produced or required; the system runs as
    pure Ed25519. When on, all newly-signed audit events are hybrid; old
    events remain pure Ed25519 (verifiable as long as old audit signing
@@ -41,7 +41,7 @@ that doesn't require a fork lift." A scaffold answers that.
    - `alg = "EdDSA"` — pure Ed25519 (today's default).
    - `alg = "EdDSA+ML-DSA-65"` — hybrid (post-flip).
    - `alg = "ML-DSA-65"` — pure PQ (Phase β, deferred).
-   These names are AEGIS-internal until IETF assigns canonical names;
+   These names are OKORO-internal until IETF assigns canonical names;
    we map at the SDK boundary when those land.
 4. **Hybrid signature format** (binary, used for audit events; JWT
    variant uses base64url of the same bytes):

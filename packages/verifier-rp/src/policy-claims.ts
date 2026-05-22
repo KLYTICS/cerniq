@@ -1,8 +1,8 @@
-// Helpers for extracting and reasoning about AEGIS policy claims encoded in
+// Helpers for extracting and reasoning about OKORO policy claims encoded in
 // agent JWTs. Pure functions — no I/O — so they're cheap to call on the hot
 // path.
 
-import type { AegisJwtClaims, TrustBand } from './types.js';
+import type { OkoroJwtClaims, TrustBand } from './types.js';
 
 export interface NormalizedPolicyClaims {
   agentId: string;
@@ -21,7 +21,7 @@ export interface NormalizedPolicyClaims {
   exp: number;
 }
 
-export function normalizeClaims(claims: AegisJwtClaims): NormalizedPolicyClaims {
+export function normalizeClaims(claims: OkoroJwtClaims): NormalizedPolicyClaims {
   return {
     agentId: claims.sub,
     policyId: claims.pid,

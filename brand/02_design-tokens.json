@@ -1,8 +1,8 @@
 {
   "$schema": "https://design-tokens.github.io/community-group/format/",
-  "name": "AEGIS Design Tokens",
+  "name": "OKORO Design Tokens",
   "version": "1.0.0",
-  "description": "Source-of-truth design tokens for the AEGIS brand. Cinematic immersive direction. Standalone-but-compatible ecosystem strategy.",
+  "description": "Source-of-truth design tokens for the OKORO brand. Cinematic immersive direction. Standalone-but-compatible ecosystem strategy.",
 
   "color": {
     "_philosophy": "Verified Light — a near-black canvas with a single beam of cyan-violet light that becomes the emotional center of every screen. Every color earns its place; nothing is decorative.",
@@ -66,7 +66,7 @@
     "fontFamily": {
       "display": { "value": "\"Geist\", \"Inter Tight\", \"Inter\", system-ui, -apple-system, sans-serif", "description": "Headlines, display, navigation. Tight, technical, modern." },
       "body":    { "value": "\"Inter\", system-ui, -apple-system, \"Segoe UI\", sans-serif", "description": "Body, UI, all running text." },
-      "serif":   { "value": "\"Instrument Serif\", \"Newsreader\", Georgia, serif", "description": "Editorial headlines. Used when AEGIS needs to feel human, not infrastructural. Italic preferred." },
+      "serif":   { "value": "\"Instrument Serif\", \"Newsreader\", Georgia, serif", "description": "Editorial headlines. Used when OKORO needs to feel human, not infrastructural. Italic preferred." },
       "mono":    { "value": "\"Geist Mono\", \"JetBrains Mono\", \"Berkeley Mono\", ui-monospace, monospace", "description": "Code, signatures, agent IDs, anything cryptographic. Mono is part of the brand." }
     },
 
@@ -141,7 +141,7 @@
   "motion": {
     "_philosophy": "One easing curve. Movement should feel inevitable, not animated.",
     "easing": {
-      "signature": { "value": "cubic-bezier(0.16, 1, 0.3, 1)", "description": "ease-out-expo. The AEGIS curve. Use for 90% of motion." },
+      "signature": { "value": "cubic-bezier(0.16, 1, 0.3, 1)", "description": "ease-out-expo. The OKORO curve. Use for 90% of motion." },
       "linear":    { "value": "linear", "description": "Only for progress bars and continuous loops." },
       "spring":    { "value": "cubic-bezier(0.34, 1.4, 0.64, 1)", "description": "Subtle overshoot for delight moments. Use rarely." }
     },

@@ -8,7 +8,7 @@ import { decodeBase64Url, encodeBase64Url } from '../../common/crypto/ed25519.ut
 import { AppConfigService } from '../../config/config.service';
 import { PLANS, TRIAL_LIFETIME_CAP, getPlan } from '../billing/plans';
 
-import type { AegisConfigurationDto } from './dto/discovery.dto';
+import type { OkoroConfigurationDto } from './dto/discovery.dto';
 import type { AuditSigningKeyDto, JwkEd25519Dto, JwksDto } from './dto/jwks.dto';
 import type { PricingDto, PricingTierDto } from './dto/pricing.dto';
 import type {
@@ -21,7 +21,7 @@ import type {
 // per request.
  
 
-/** Spec-doc schema version. Bump on breaking change to AegisConfigurationDto shape. */
+/** Spec-doc schema version. Bump on breaking change to OkoroConfigurationDto shape. */
 const DISCOVERY_SPEC_VERSION = '1.0.0';
 /** Spec-doc schema version for retention-policy.json. Independent from DISCOVERY_SPEC_VERSION. */
 const RETENTION_POLICY_SPEC_VERSION = '1.0.0';
@@ -31,8 +31,8 @@ const PRICING_SPEC_VERSION = '1.0.0';
 const PRICING_CURRENCY = 'USD';
 const PRICING_OVERAGE_UNIT = 'USD × 10⁻⁴ (i.e. ten-thousandths of a dollar)';
 const PRICING_ADR = 'ADR-0014';
-const ISSUER = 'https://aegislabs.io';
-const VERIFICATION_GUIDE = 'https://docs.aegislabs.io/audit/verify';
+const ISSUER = 'https://okorolabs.io';
+const VERIFICATION_GUIDE = 'https://docs.okorolabs.io/audit/verify';
 const ED25519_PUBKEY_LEN = 32;
 /**
  * Mirror of `DEFAULT_RETENTION_RUN_INTERVAL_MS` in
@@ -41,7 +41,7 @@ const ED25519_PUBKEY_LEN = 32;
  * spec — drift fails the build.
  */
 const RETENTION_RUN_INTERVAL_SECONDS = 86_400;
-const RETENTION_INTERVAL_ENV_VAR = 'AEGIS_AUDIT_RETENTION_INTERVAL_MS';
+const RETENTION_INTERVAL_ENV_VAR = 'OKORO_AUDIT_RETENTION_INTERVAL_MS';
 /**
  * Lifted verbatim from `audit-retention.service.ts` redaction reason
  * format (`retention_policy:plan=<TIER>:days=<N>`). Documented here as
@@ -56,14 +56,14 @@ const RETENTION_GUARANTEES: readonly string[] = Object.freeze([
 ]);
 
 /**
- * Publishes AEGIS's audit-event-signing public key.
+ * Publishes OKORO's audit-event-signing public key.
  *
  * CLAUDE.md invariants:
  * - #3 (audit chain): the published key is what relying parties use to verify
  *   the chain signature on every AuditEvent.
  * - #4 (no silent failures, no fabricated data): we throw at boot if the
  *   signing key is unset, and we mark the rotation timestamp DEGRADED if
- *   AEGIS_SIGNING_KEY_ROTATED_AT is missing rather than fabricate it
+ *   OKORO_SIGNING_KEY_ROTATED_AT is missing rather than fabricate it
  *   per-request.
  */
 @Injectable()
@@ -79,10 +79,10 @@ export class WellknownService implements OnModuleInit {
   constructor(private readonly config: AppConfigService) {}
 
   onModuleInit(): void {
-    const raw = this.config.aegisSigningPublicKey;
+    const raw = this.config.okoroSigningPublicKey;
     if (!raw || raw.length === 0) {
       throw new Error(
-        'AEGIS_SIGNING_PUBLIC_KEY env var must be set; generate with `pnpm --filter @aegis/scripts run keys`',
+        'OKORO_SIGNING_PUBLIC_KEY env var must be set; generate with `pnpm --filter @okoro/scripts run keys`',
       );
     }
 
@@ -90,12 +90,12 @@ export class WellknownService implements OnModuleInit {
     try {
       bytes = decodeBase64Url(raw);
     } catch (err) {
-      throw new Error(`AEGIS_SIGNING_PUBLIC_KEY is not valid base64url: ${(err as Error).message}`);
+      throw new Error(`OKORO_SIGNING_PUBLIC_KEY is not valid base64url: ${(err as Error).message}`);
     }
 
     if (bytes.length !== ED25519_PUBKEY_LEN) {
       throw new Error(
-        `AEGIS_SIGNING_PUBLIC_KEY decoded to ${bytes.length} bytes; expected ${ED25519_PUBKEY_LEN} (raw Ed25519).`,
+        `OKORO_SIGNING_PUBLIC_KEY decoded to ${bytes.length} bytes; expected ${ED25519_PUBKEY_LEN} (raw Ed25519).`,
       );
     }
 
@@ -103,7 +103,7 @@ export class WellknownService implements OnModuleInit {
     this.publicKeyB64Url = encodeBase64Url(bytes);
     this.kid = computeKid(bytes);
 
-    const rotatedAtEnv = this.config.aegisSigningKeyRotatedAt;
+    const rotatedAtEnv = this.config.okoroSigningKeyRotatedAt;
     if (rotatedAtEnv) {
       this.rotatedAt = rotatedAtEnv;
       this.rotatedAtIsDegradedFallback = false;
@@ -114,7 +114,7 @@ export class WellknownService implements OnModuleInit {
       this.rotatedAt = new Date().toISOString();
       this.rotatedAtIsDegradedFallback = true;
       this.logger.warn(
-        'AEGIS_SIGNING_KEY_ROTATED_AT not set — using process-start timestamp. ' +
+        'OKORO_SIGNING_KEY_ROTATED_AT not set — using process-start timestamp. ' +
           'DEGRADED: relying parties cannot pin actual rotation time.',
       );
     }
@@ -187,7 +187,7 @@ export class WellknownService implements OnModuleInit {
   /**
    * RFC 9116 — `security.txt`. Plain-text responsible-disclosure file.
    * Defaults sensibly so out-of-the-box deployments are reachable; operators
-   * can override via env (`AEGIS_SECURITY_CONTACT`, etc.) once that lands.
+   * can override via env (`OKORO_SECURITY_CONTACT`, etc.) once that lands.
    *
    * Expires 1 year from the deploy build time so we can't accidentally
    * publish stale contact info — RFC 9116 § 2.5.5 mandates `Expires`.
@@ -196,13 +196,13 @@ export class WellknownService implements OnModuleInit {
     const issuer = this.config.apiBaseUrl ?? ISSUER;
     const expires = oneYearFromNow();
     const lines = [
-      '# AEGIS — security disclosure (RFC 9116)',
-      `Contact: mailto:security@aegislabs.io`,
+      '# OKORO — security disclosure (RFC 9116)',
+      `Contact: mailto:security@okorolabs.io`,
       `Expires: ${expires}`,
       `Preferred-Languages: en`,
       `Canonical: ${trimSlash(issuer)}/.well-known/security.txt`,
-      `Policy: https://aegislabs.io/security/policy`,
-      `Acknowledgments: https://aegislabs.io/security/hall-of-fame`,
+      `Policy: https://okorolabs.io/security/policy`,
+      `Acknowledgments: https://okorolabs.io/security/hall-of-fame`,
       `# Hash of CLAUDE.md operating directive at this build:`,
       `# (informational — not part of the RFC)`,
     ];
@@ -212,21 +212,21 @@ export class WellknownService implements OnModuleInit {
   /**
    * llms.txt — emerging convention (parallel to robots.txt) for
    * AI-agent-readable site descriptions. Markdown body lists the public
-   * surfaces an agent should hit when it wants to talk to AEGIS.
+   * surfaces an agent should hit when it wants to talk to OKORO.
    *
-   * AEGIS is the agent identity layer, so this file is doubly relevant —
-   * agents that integrate with AEGIS can self-discover the wire format.
+   * OKORO is the agent identity layer, so this file is doubly relevant —
+   * agents that integrate with OKORO can self-discover the wire format.
    */
   getLlmsTxt(): string {
     const issuer = trimSlash(this.config.apiBaseUrl ?? ISSUER);
     return [
-      '# AEGIS — Agent Gateway & Identity Stack',
+      '# OKORO — Agent Gateway & Identity Stack',
       '',
       '> Cryptographic identity, scoped policy, and behavioral attestation rail',
       '> for AI agents. ACP-compatible. Platform-, vendor-, and model-neutral.',
       '',
       '## Discovery',
-      `- [Configuration (JSON)](${issuer}/.well-known/aegis-configuration)`,
+      `- [Configuration (JSON)](${issuer}/.well-known/okoro-configuration)`,
       `- [JWKS](${issuer}/.well-known/jwks.json)`,
       `- [Audit signing key](${issuer}/.well-known/audit-signing-key)`,
       `- [security.txt](${issuer}/.well-known/security.txt)`,
@@ -238,21 +238,21 @@ export class WellknownService implements OnModuleInit {
       '## Verify endpoint (the wire surface)',
       '```',
       `POST ${issuer}/v1/verify`,
-      'Headers: X-AEGIS-Verify-Key: <verify-only key>',
+      'Headers: X-OKORO-Verify-Key: <verify-only key>',
       'Body:    { token, action, amount?, currency?, merchantDomain? }',
       'Returns: { valid, agentId, trustScore, trustBand, denialReason?, auditEventId, ttl, verifiedAt }',
       '```',
       '',
       '## SDKs',
-      '- TypeScript: `npm install @aegis/sdk`',
-      '- Python:     `pip install aegis`',
-      '- Relying-party verifier (offline JWKS): `npm install @aegis/verifier-rp`',
-      '- MCP bridge (one-line wrap any MCP server): `npm install @aegis/mcp-bridge`',
-      '- MCP server (Claude Desktop / Cursor): `npx @aegis/mcp-server`',
-      '- CLI:        `brew install klytics/aegis/aegis` (Go binary)',
+      '- TypeScript: `npm install @okoro/sdk`',
+      '- Python:     `pip install okoro`',
+      '- Relying-party verifier (offline JWKS): `npm install @okoro/verifier-rp`',
+      '- MCP bridge (one-line wrap any MCP server): `npm install @okoro/mcp-bridge`',
+      '- MCP server (Claude Desktop / Cursor): `npx @okoro/mcp-server`',
+      '- CLI:        `brew install klytics/okoro/okoro` (Go binary)',
       '',
       '## Security',
-      `- Disclosure: security@aegislabs.io`,
+      `- Disclosure: security@okorolabs.io`,
       `- security.txt: ${issuer}/.well-known/security.txt`,
       '',
       '## Architecture',
@@ -264,11 +264,11 @@ export class WellknownService implements OnModuleInit {
   }
 
   /**
-   * AEGIS configuration discovery document. The single JSON URL a relying
+   * OKORO configuration discovery document. The single JSON URL a relying
    * party fetches to auto-configure their verifier — modeled on
    * `/.well-known/openid-configuration`.
    */
-  getAegisConfiguration(): AegisConfigurationDto {
+  getOkoroConfiguration(): OkoroConfigurationDto {
     const base = trimSlash(this.config.apiBaseUrl ?? ISSUER);
     const v = (path: string): string => `${base}/v1${path}`;
     const wk = (path: string): string => `${base}/.well-known/${path}`;
@@ -281,7 +281,7 @@ export class WellknownService implements OnModuleInit {
       issuer: base,
       spec_version: DISCOVERY_SPEC_VERSION,
       api_version: pkg.version ?? '0.0.0',
-      documentation: 'https://docs.aegislabs.io',
+      documentation: 'https://docs.okorolabs.io',
       openapi_spec: `${base}/docs-json`,
       jwks_uri: wk('jwks.json'),
       audit_signing_key_uri: wk('audit-signing-key'),
@@ -326,12 +326,12 @@ export class WellknownService implements OnModuleInit {
         'browser',
       ],
       sdks: {
-        typescript: '@aegis/sdk',
-        python: 'aegis',
-        verifier_rp: '@aegis/verifier-rp',
-        mcp_bridge: '@aegis/mcp-bridge',
-        mcp_server: '@aegis/mcp-server',
-        cli: 'aegis (go)',
+        typescript: '@okoro/sdk',
+        python: 'okoro',
+        verifier_rp: '@okoro/verifier-rp',
+        mcp_bridge: '@okoro/mcp-bridge',
+        mcp_server: '@okoro/mcp-server',
+        cli: 'okoro (go)',
       },
       build: {
         version: pkg.version ?? '0.0.0',

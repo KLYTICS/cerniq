@@ -15,8 +15,8 @@
 import 'server-only';
 
 import {
-  AegisApiError,
-  AegisAuthMissingError,
+  OkoroApiError,
+  OkoroAuthMissingError,
   getPlanSummary,
   type PlanSummary,
 } from './api-client';
@@ -41,20 +41,20 @@ export async function loadPlan(): Promise<PlanLoad> {
     const plan = await getPlanSummary();
     return { ok: true, plan };
   } catch (err) {
-    if (err instanceof AegisAuthMissingError) {
+    if (err instanceof OkoroAuthMissingError) {
       return {
         ok: false,
         code: err.code,
-        message: 'Set AEGIS_DASHBOARD_API_KEY to populate billing.',
+        message: 'Set OKORO_DASHBOARD_API_KEY to populate billing.',
       };
     }
-    if (err instanceof AegisApiError) {
+    if (err instanceof OkoroApiError) {
       return { ok: false, code: err.code, message: err.message };
     }
     return {
       ok: false,
       code: 'UNKNOWN',
-      message: 'Unexpected error contacting AEGIS API.',
+      message: 'Unexpected error contacting OKORO API.',
     };
   }
 }

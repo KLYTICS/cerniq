@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # =============================================================================
-# AEGIS — Daily lightweight backup verifier
+# OKORO — Daily lightweight backup verifier
 # =============================================================================
-# Runs `pgbackrest verify --stanza=aegis` and exits non-zero on any failure.
+# Runs `pgbackrest verify --stanza=okoro` and exits non-zero on any failure.
 # Designed for cron at 02:00 UTC daily (operator wires the cron entry — see
 # infra/backup/README.md § "Cron schedule").
 #
@@ -17,7 +17,7 @@
 # =============================================================================
 set -euo pipefail
 
-STANZA="aegis"
+STANZA="okoro"
 JSON=0
 LOG_TS="$(date -u +%Y%m%dT%H%M%SZ)"
 
@@ -70,9 +70,9 @@ fi
 # operator: wire alert sink — pipe non-zero exit to PagerDuty / Slack /
 # email so a silent verify failure is impossible. The simplest wiring is
 # a cron line like:
-#   0 2 * * * /opt/aegis/infra/backup/verify-backup.sh --json \
-#     | tee -a /var/log/aegis/verify-backup.log \
-#     || curl -fsS -X POST -d "$(tail -n1 /var/log/aegis/verify-backup.log)" \
+#   0 2 * * * /opt/okoro/infra/backup/verify-backup.sh --json \
+#     | tee -a /var/log/okoro/verify-backup.log \
+#     || curl -fsS -X POST -d "$(tail -n1 /var/log/okoro/verify-backup.log)" \
 #            "$ALERT_WEBHOOK_URL"
 # but the production wiring is the operator's call.
 

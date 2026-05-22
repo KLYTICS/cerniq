@@ -1,7 +1,7 @@
 # MCP control-plane module
 
 Implements ADR-0008. Manages the registry of trusted MCP servers per
-principal. Each registration tells AEGIS:
+principal. Each registration tells OKORO:
 
 - *who* runs this MCP server (`principalId`)
 - *where* it lives (`endpoint`, `transport`)
@@ -9,7 +9,7 @@ principal. Each registration tells AEGIS:
 - *how trusted* its callers must be (`minTrustBand`)
 
 Verify-time wiring (so `relyingPartyId` is stamped on audit events when
-a tool call goes through `@aegis/mcp-bridge`) is delivered by M-022 —
+a tool call goes through `@okoro/mcp-bridge`) is delivered by M-022 —
 peer holds the verify path.
 
 ## Endpoints

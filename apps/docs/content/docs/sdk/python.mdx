@@ -1,5 +1,5 @@
 ---
-title: Python SDK (aegis)
+title: Python SDK (okoro)
 description: Async-first Python SDK with sync wrapper. Pydantic v2 models, strict mypy, byte-equivalent JWT to the TypeScript SDK.
 ---
 
@@ -8,31 +8,31 @@ description: Async-first Python SDK with sync wrapper. Pydantic v2 models, stric
 ## Install
 
 ```bash
-pip install aegis
+pip install okoro
 # or
-uv pip install aegis
+uv pip install okoro
 # or
-poetry add aegis
+poetry add okoro
 ```
 
 ## Runtime requirements
 
 - **Python** ≥ 3.11
-- **HTTPS** to `api.aegislabs.io` (or your operator-controlled `AEGIS_API_BASE_URL`)
+- **HTTPS** to `api.okorolabs.io` (or your operator-controlled `OKORO_API_BASE_URL`)
 
 ## Surface at a glance
 
 ```python
 import asyncio
-from aegis import AsyncAegis, generate_keypair, sign
+from okoro import AsyncOkoro, generate_keypair, sign
 
 async def main() -> None:
-    aegis = AsyncAegis(api_key="ak_live_...")
+    okoro = AsyncOkoro(api_key="ak_live_...")
 
     public_key, private_key = generate_keypair()
-    agent = await aegis.agents.register(public_key=public_key, label="checkout-bot")
+    agent = await okoro.agents.register(public_key=public_key, label="checkout-bot")
 
-    policy = await aegis.policies.create(
+    policy = await okoro.policies.create(
         agent_id=agent.id,
         scope={"actions": ["charge"], "spend_limit_usd": 500},
         ttl_seconds=60,
@@ -46,7 +46,7 @@ async def main() -> None:
         amount=49,
     )
 
-    result = await aegis.verify(token)
+    result = await okoro.verify(token)
     if not result.allowed:
         raise SystemExit(f"denied: {result.denial_reason}")
 
@@ -55,44 +55,44 @@ asyncio.run(main())
 
 ## Async-first, sync available
 
-`AsyncAegis` is the primary client — designed for `asyncio` apps,
-FastAPI, LangChain, CrewAI, and async agent frameworks. A thin `Aegis`
+`AsyncOkoro` is the primary client — designed for `asyncio` apps,
+FastAPI, LangChain, CrewAI, and async agent frameworks. A thin `Okoro`
 synchronous wrapper is also available for scripts and notebooks:
 
 ```python
-from aegis import Aegis  # sync wrapper
+from okoro import Okoro  # sync wrapper
 
-aegis = Aegis(api_key="ak_live_...")
-result = aegis.verify(token)
+okoro = Okoro(api_key="ak_live_...")
+result = okoro.verify(token)
 ```
 
 ## Module map
 
 | Module             | What lives there                                                  |
 | ------------------ | ----------------------------------------------------------------- |
-| `aegis.agents`     | Register, list, revoke, inspect agent identities                  |
-| `aegis.policies`   | Issue, list, revoke scoped policies                               |
-| `aegis.verify`     | The verify hot path                                                |
-| `aegis.audit`      | Cursor-paginated event reader; NDJSON export                       |
-| `aegis.webhooks`   | Subscription + delivery management                                |
-| `aegis.crypto`     | `generate_keypair()`, `sign()`, helpers — local-only key material |
-| `aegis.errors`     | `AegisError`, `NotFoundError`, `RateLimitedError`, etc.           |
-| `aegis.models`     | Pydantic v2 wire-shape models (`Agent`, `Policy`, `VerifyResult`) |
+| `okoro.agents`     | Register, list, revoke, inspect agent identities                  |
+| `okoro.policies`   | Issue, list, revoke scoped policies                               |
+| `okoro.verify`     | The verify hot path                                                |
+| `okoro.audit`      | Cursor-paginated event reader; NDJSON export                       |
+| `okoro.webhooks`   | Subscription + delivery management                                |
+| `okoro.crypto`     | `generate_keypair()`, `sign()`, helpers — local-only key material |
+| `okoro.errors`     | `OkoroError`, `NotFoundError`, `RateLimitedError`, etc.           |
+| `okoro.models`     | Pydantic v2 wire-shape models (`Agent`, `Policy`, `VerifyResult`) |
 
-## Wire parity with `@aegis/sdk` (TypeScript)
+## Wire parity with `@okoro/sdk` (TypeScript)
 
 Both SDKs produce **byte-equivalent JWT** for the same `(privateKey, claims)`
 input. This is enforced by a cross-package parity test at
-[`tests/cross-package/sdk-api-jwt-parity.spec.ts`](https://github.com/klytics/aegis/tree/main/tests/cross-package/).
-A token minted by the Python SDK can be verified by `@aegis/verifier-rp` and
+[`tests/cross-package/sdk-api-jwt-parity.spec.ts`](https://github.com/klytics/okoro/tree/main/tests/cross-package/).
+A token minted by the Python SDK can be verified by `@okoro/verifier-rp` and
 vice-versa.
 
 ## Type safety
 
-Every wire shape is a Pydantic v2 model under `aegis.models`. `mypy
+Every wire shape is a Pydantic v2 model under `okoro.models`. `mypy
 --strict` runs clean in CI. IDEs that support PEP 604 unions get full
 autocomplete on `verify()` results.
 
 ## Source
 
-[`packages/sdk-py/`](https://github.com/klytics/aegis/tree/main/packages/sdk-py)
+[`packages/sdk-py/`](https://github.com/klytics/okoro/tree/main/packages/sdk-py)

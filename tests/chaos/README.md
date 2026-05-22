@@ -1,4 +1,4 @@
-# AEGIS chaos drills
+# OKORO chaos drills
 
 Manual recipes for proving the API degrades gracefully when its
 dependencies (Postgres, Redis) misbehave.
@@ -28,11 +28,11 @@ times out (cache miss + db hang).
 ```bash
 # 1. Start toxiproxy and route the API at it.
 docker run -d --name toxiproxy \
-  --network aegis_default -p 8474:8474 \
+  --network okoro_default -p 8474:8474 \
   -p 25432:25432 ghcr.io/shopify/toxiproxy:2.9.0
 
 toxiproxy-cli create -l 0.0.0.0:25432 -u postgres:5432 pg
-DATABASE_URL=postgres://aegis:aegis@localhost:25432/aegis pnpm dev
+DATABASE_URL=postgres://okoro:okoro@localhost:25432/okoro pnpm dev
 
 # 2. Inject 500 ms latency.
 toxiproxy-cli toxic add -t latency -a latency=500 pg

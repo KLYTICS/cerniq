@@ -1,11 +1,11 @@
 /* ============================================================================
-   AEGIS Design Tokens v1.0
+   OKORO Design Tokens v1.0
    ----------------------------------------------------------------------------
    Direction: Cinematic Immersive
    Philosophy: Verified Light — a near-black canvas with a single beam of
    cyan-violet light that becomes the emotional center of every screen.
 
-   Drop this file into any HTML/Tailwind/CSS-in-JS project. All AEGIS surfaces
+   Drop this file into any HTML/Tailwind/CSS-in-JS project. All OKORO surfaces
    should derive from these variables. Do not introduce off-token colors,
    spacing, or motion curves without updating this file.
    ============================================================================ */
@@ -16,160 +16,160 @@
   /* --------------------------------------------------------------------------
      COLOR — Canvas (the void)
      -------------------------------------------------------------------------- */
-  --aegis-obsidian:  #050714;  /* deepest base, page bg */
-  --aegis-ink:       #0B1020;  /* default surface */
-  --aegis-steel:     #161D33;  /* elevated surface */
-  --aegis-graphite:  #1F2740;  /* subtle inset */
-  --aegis-mist:      #2B3554;  /* borders, dividers */
+  --okoro-obsidian:  #050714;  /* deepest base, page bg */
+  --okoro-ink:       #0B1020;  /* default surface */
+  --okoro-steel:     #161D33;  /* elevated surface */
+  --okoro-graphite:  #1F2740;  /* subtle inset */
+  --okoro-mist:      #2B3554;  /* borders, dividers */
 
   /* COLOR — Text (the voice) */
-  --aegis-halo:      #F4F6FF;  /* primary text */
-  --aegis-fog:       #A8B0CC;  /* secondary text */
-  --aegis-shadow:    #6B7494;  /* tertiary, placeholder */
-  --aegis-echo:      #3F4869;  /* de-emphasized */
+  --okoro-halo:      #F4F6FF;  /* primary text */
+  --okoro-fog:       #A8B0CC;  /* secondary text */
+  --okoro-shadow:    #6B7494;  /* tertiary, placeholder */
+  --okoro-echo:      #3F4869;  /* de-emphasized */
 
   /* COLOR — Signal (the brand) */
-  --aegis-cyan:           #5BE0FF;
-  --aegis-cyan-soft:      rgba(91, 224, 255, 0.16);
-  --aegis-violet:         #8B6BFF;
-  --aegis-violet-soft:    rgba(139, 107, 255, 0.16);
-  --aegis-magenta:        #FF5BD0;  /* aurora terminal — gradient only */
+  --okoro-cyan:           #5BE0FF;
+  --okoro-cyan-soft:      rgba(91, 224, 255, 0.16);
+  --okoro-violet:         #8B6BFF;
+  --okoro-violet-soft:    rgba(139, 107, 255, 0.16);
+  --okoro-magenta:        #FF5BD0;  /* aurora terminal — gradient only */
 
   /* COLOR — Status (the verdicts) */
-  --aegis-verified:       #4CFFA8;
-  --aegis-verified-soft:  rgba(76, 255, 168, 0.14);
-  --aegis-denied:         #FF5470;
-  --aegis-denied-soft:    rgba(255, 84, 112, 0.14);
-  --aegis-pending:        #FFB86B;
-  --aegis-pending-soft:   rgba(255, 184, 107, 0.14);
+  --okoro-verified:       #4CFFA8;
+  --okoro-verified-soft:  rgba(76, 255, 168, 0.14);
+  --okoro-denied:         #FF5470;
+  --okoro-denied-soft:    rgba(255, 84, 112, 0.14);
+  --okoro-pending:        #FFB86B;
+  --okoro-pending-soft:   rgba(255, 184, 107, 0.14);
 
   /* COLOR — Gradients (the signature lights) */
-  --aegis-gradient-aurora:
+  --okoro-gradient-aurora:
     linear-gradient(135deg, #5BE0FF 0%, #8B6BFF 50%, #FF5BD0 100%);
-  --aegis-gradient-aurora-soft:
+  --okoro-gradient-aurora-soft:
     linear-gradient(135deg, rgba(91,224,255,0.18) 0%, rgba(139,107,255,0.18) 50%, rgba(255,91,208,0.12) 100%);
-  --aegis-gradient-void:
+  --okoro-gradient-void:
     radial-gradient(ellipse at top, #0B1020 0%, #050714 60%);
-  --aegis-gradient-beam:
+  --okoro-gradient-beam:
     linear-gradient(180deg, transparent 0%, rgba(91,224,255,0.6) 50%, transparent 100%);
 
   /* --------------------------------------------------------------------------
      TYPOGRAPHY
      -------------------------------------------------------------------------- */
-  --aegis-font-display: "Inter Tight", "Inter", system-ui, -apple-system, sans-serif;
-  --aegis-font-body:    "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --aegis-font-serif:   "Instrument Serif", "Newsreader", Georgia, serif;
-  --aegis-font-mono:    "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
+  --okoro-font-display: "Inter Tight", "Inter", system-ui, -apple-system, sans-serif;
+  --okoro-font-body:    "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --okoro-font-serif:   "Instrument Serif", "Newsreader", Georgia, serif;
+  --okoro-font-mono:    "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
 
-  --aegis-fs-display-xl: 112px;
-  --aegis-fs-display:    80px;
-  --aegis-fs-h1:         56px;
-  --aegis-fs-h2:         40px;
-  --aegis-fs-h3:         28px;
-  --aegis-fs-h4:         22px;
-  --aegis-fs-body-lg:    18px;
-  --aegis-fs-body:       16px;
-  --aegis-fs-body-sm:    14px;
-  --aegis-fs-caption:    12px;
-  --aegis-fs-eyebrow:    11px;
-  --aegis-fs-mono:       14px;
-  --aegis-fs-mono-sm:    12px;
+  --okoro-fs-display-xl: 112px;
+  --okoro-fs-display:    80px;
+  --okoro-fs-h1:         56px;
+  --okoro-fs-h2:         40px;
+  --okoro-fs-h3:         28px;
+  --okoro-fs-h4:         22px;
+  --okoro-fs-body-lg:    18px;
+  --okoro-fs-body:       16px;
+  --okoro-fs-body-sm:    14px;
+  --okoro-fs-caption:    12px;
+  --okoro-fs-eyebrow:    11px;
+  --okoro-fs-mono:       14px;
+  --okoro-fs-mono-sm:    12px;
 
-  --aegis-lh-tight:    1.04;
-  --aegis-lh-snug:     1.15;
-  --aegis-lh-normal:   1.5;
-  --aegis-lh-relaxed:  1.6;
+  --okoro-lh-tight:    1.04;
+  --okoro-lh-snug:     1.15;
+  --okoro-lh-normal:   1.5;
+  --okoro-lh-relaxed:  1.6;
 
-  --aegis-tracking-tight:  -0.04em;
-  --aegis-tracking-snug:   -0.025em;
-  --aegis-tracking-normal: 0;
-  --aegis-tracking-wide:   0.16em;   /* eyebrow */
+  --okoro-tracking-tight:  -0.04em;
+  --okoro-tracking-snug:   -0.025em;
+  --okoro-tracking-normal: 0;
+  --okoro-tracking-wide:   0.16em;   /* eyebrow */
 
   /* --------------------------------------------------------------------------
      SPACING — 8pt base
      -------------------------------------------------------------------------- */
-  --aegis-space-0:  0;
-  --aegis-space-1:  4px;
-  --aegis-space-2:  8px;
-  --aegis-space-3:  12px;
-  --aegis-space-4:  16px;
-  --aegis-space-5:  20px;
-  --aegis-space-6:  24px;
-  --aegis-space-8:  32px;
-  --aegis-space-10: 40px;
-  --aegis-space-12: 48px;
-  --aegis-space-16: 64px;
-  --aegis-space-20: 80px;
-  --aegis-space-24: 96px;
-  --aegis-space-32: 128px;
-  --aegis-space-40: 160px;
-  --aegis-space-48: 192px;
+  --okoro-space-0:  0;
+  --okoro-space-1:  4px;
+  --okoro-space-2:  8px;
+  --okoro-space-3:  12px;
+  --okoro-space-4:  16px;
+  --okoro-space-5:  20px;
+  --okoro-space-6:  24px;
+  --okoro-space-8:  32px;
+  --okoro-space-10: 40px;
+  --okoro-space-12: 48px;
+  --okoro-space-16: 64px;
+  --okoro-space-20: 80px;
+  --okoro-space-24: 96px;
+  --okoro-space-32: 128px;
+  --okoro-space-40: 160px;
+  --okoro-space-48: 192px;
 
   /* --------------------------------------------------------------------------
      RADII
      -------------------------------------------------------------------------- */
-  --aegis-radius-xs:     4px;
-  --aegis-radius-sm:     8px;
-  --aegis-radius-md:     12px;
-  --aegis-radius-lg:     16px;
-  --aegis-radius-xl:     24px;
-  --aegis-radius-pill:   999px;
-  --aegis-radius-circle: 50%;
+  --okoro-radius-xs:     4px;
+  --okoro-radius-sm:     8px;
+  --okoro-radius-md:     12px;
+  --okoro-radius-lg:     16px;
+  --okoro-radius-xl:     24px;
+  --okoro-radius-pill:   999px;
+  --okoro-radius-circle: 50%;
 
   /* --------------------------------------------------------------------------
      SHADOWS — separation + signature glow
      -------------------------------------------------------------------------- */
-  --aegis-elev-1: 0 1px 2px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04);
-  --aegis-elev-2: 0 4px 16px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
-  --aegis-elev-3: 0 16px 48px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06);
-  --aegis-elev-4: 0 32px 96px rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
+  --okoro-elev-1: 0 1px 2px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04);
+  --okoro-elev-2: 0 4px 16px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
+  --okoro-elev-3: 0 16px 48px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06);
+  --okoro-elev-4: 0 32px 96px rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
 
-  --aegis-glow-cyan:   0 0 0 1px rgba(91,224,255,0.3), 0 0 24px rgba(91,224,255,0.18);
-  --aegis-glow-violet: 0 0 0 1px rgba(139,107,255,0.3), 0 0 24px rgba(139,107,255,0.18);
-  --aegis-glow-aurora: 0 0 0 1px rgba(139,107,255,0.25), 0 0 40px rgba(91,224,255,0.15), 0 0 80px rgba(139,107,255,0.12);
-  --aegis-inset-stroke: inset 0 0 0 1px rgba(255,255,255,0.06);
+  --okoro-glow-cyan:   0 0 0 1px rgba(91,224,255,0.3), 0 0 24px rgba(91,224,255,0.18);
+  --okoro-glow-violet: 0 0 0 1px rgba(139,107,255,0.3), 0 0 24px rgba(139,107,255,0.18);
+  --okoro-glow-aurora: 0 0 0 1px rgba(139,107,255,0.25), 0 0 40px rgba(91,224,255,0.15), 0 0 80px rgba(139,107,255,0.12);
+  --okoro-inset-stroke: inset 0 0 0 1px rgba(255,255,255,0.06);
 
   /* --------------------------------------------------------------------------
      MOTION — one curve
      -------------------------------------------------------------------------- */
-  --aegis-ease:        cubic-bezier(0.16, 1, 0.3, 1);   /* signature */
-  --aegis-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --okoro-ease:        cubic-bezier(0.16, 1, 0.3, 1);   /* signature */
+  --okoro-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 
-  --aegis-dur-instant: 80ms;
-  --aegis-dur-fast:    160ms;
-  --aegis-dur-base:    240ms;
-  --aegis-dur-slow:    480ms;
-  --aegis-dur-cinema:  800ms;
+  --okoro-dur-instant: 80ms;
+  --okoro-dur-fast:    160ms;
+  --okoro-dur-base:    240ms;
+  --okoro-dur-slow:    480ms;
+  --okoro-dur-cinema:  800ms;
 
   /* --------------------------------------------------------------------------
      LAYOUT
      -------------------------------------------------------------------------- */
-  --aegis-container-narrow:  640px;
-  --aegis-container-default: 1120px;
-  --aegis-container-wide:    1320px;
-  --aegis-container-full:    1536px;
+  --okoro-container-narrow:  640px;
+  --okoro-container-default: 1120px;
+  --okoro-container-wide:    1320px;
+  --okoro-container-full:    1536px;
 
-  --aegis-z-base:    0;
-  --aegis-z-raised:  10;
-  --aegis-z-sticky:  100;
-  --aegis-z-header:  200;
-  --aegis-z-overlay: 800;
-  --aegis-z-modal:   900;
-  --aegis-z-toast:   1000;
-  --aegis-z-tooltip: 1100;
+  --okoro-z-base:    0;
+  --okoro-z-raised:  10;
+  --okoro-z-sticky:  100;
+  --okoro-z-header:  200;
+  --okoro-z-overlay: 800;
+  --okoro-z-modal:   900;
+  --okoro-z-toast:   1000;
+  --okoro-z-tooltip: 1100;
 }
 
 /* ============================================================================
    BASE — apply to <body>
    ============================================================================ */
-.aegis-root,
-body.aegis {
-  background: var(--aegis-obsidian);
-  background-image: var(--aegis-gradient-void);
-  color: var(--aegis-halo);
-  font-family: var(--aegis-font-body);
-  font-size: var(--aegis-fs-body);
-  line-height: var(--aegis-lh-relaxed);
+.okoro-root,
+body.okoro {
+  background: var(--okoro-obsidian);
+  background-image: var(--okoro-gradient-void);
+  color: var(--okoro-halo);
+  font-family: var(--okoro-font-body);
+  font-size: var(--okoro-fs-body);
+  line-height: var(--okoro-lh-relaxed);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -177,8 +177,8 @@ body.aegis {
 /* ============================================================================
    UTILITY — text gradient helper for the aurora
    ============================================================================ */
-.aegis-text-aurora {
-  background: var(--aegis-gradient-aurora);
+.okoro-text-aurora {
+  background: var(--okoro-gradient-aurora);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -188,11 +188,11 @@ body.aegis {
 /* ============================================================================
    FOCUS — cyan ring for keyboard users
    ============================================================================ */
-.aegis-root :focus-visible,
-body.aegis :focus-visible {
-  outline: 2px solid var(--aegis-cyan);
+.okoro-root :focus-visible,
+body.okoro :focus-visible {
+  outline: 2px solid var(--okoro-cyan);
   outline-offset: 2px;
-  border-radius: var(--aegis-radius-xs);
+  border-radius: var(--okoro-radius-xs);
 }
 
 /* ============================================================================

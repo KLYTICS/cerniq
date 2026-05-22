@@ -1,0 +1,6 @@
+okoro-init-template:fintech-payments
+v1
+The fintech-payments template is rendered into the user's target directory
+when they run `okoro init --industry fintech-payments`. The full source
+tree lives at examples/fintech-payments/ in the OKORO repo and is
+synchronized into this embed root by `make cli-sync-templates`.

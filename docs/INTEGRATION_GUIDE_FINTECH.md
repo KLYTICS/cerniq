@@ -1,13 +1,13 @@
-# AEGIS — Fintech Integration Guide
-## AI Agent Payments with Stripe + AEGIS (ACP Compatibility)
+# OKORO — Fintech Integration Guide
+## AI Agent Payments with Stripe + OKORO (ACP Compatibility)
 
 > **Updated:** 2026-05-04  
-> **Pattern:** AEGIS handles agent identity + spend gates. Stripe handles money movement.  
-> **ACP:** AEGIS is additive to OpenAI/Stripe Agentic Commerce Protocol.
+> **Pattern:** OKORO handles agent identity + spend gates. Stripe handles money movement.  
+> **ACP:** OKORO is additive to OpenAI/Stripe Agentic Commerce Protocol.
 
 ---
 
-## 1. The Problem AEGIS Solves for Fintech
+## 1. The Problem OKORO Solves for Fintech
 
 Stripe can process payments. Stripe cannot answer:
 - Is this AI agent authorized by a human to make this payment?
@@ -15,22 +15,22 @@ Stripe can process payments. Stripe cannot answer:
 - Was this payment approved by a policy signed by the agent's owner?
 - If something goes wrong, is there a tamper-evident audit trail?
 
-AEGIS handles all four. Stripe handles the money. They're complementary, not competing.
+OKORO handles all four. Stripe handles the money. They're complementary, not competing.
 
 ---
 
-## 2. Architecture: AEGIS + Stripe
+## 2. Architecture: OKORO + Stripe
 
 ```
 Human sets up:
-  AEGIS principal → agent registered → policy: "max $500/day, scope: payment:write"
+  OKORO principal → agent registered → policy: "max $500/day, scope: payment:write"
   Stripe customer → payment method on file
 
 AI agent wants to pay:
   1. Agent signs JWT: { sub: agent_id, scopes: ["payment:write"], amt: 99.00, cur: "USD" }
-  2. Your payment service calls AEGIS /v1/verify
-  3. AEGIS checks: identity ✓, policy ✓, spend limit ✓, trust band ✓
-  4. AEGIS returns: { approved: true, auditEventId: "evt_abc" }
+  2. Your payment service calls OKORO /v1/verify
+  3. OKORO checks: identity ✓, policy ✓, spend limit ✓, trust band ✓
+  4. OKORO returns: { approved: true, auditEventId: "evt_abc" }
   5. Your payment service calls Stripe with payment intent
   6. Stripe charges the card
   7. Your service appends the Stripe payment ID to the audit trail
@@ -40,27 +40,27 @@ Result: full chain of custody from agent authorization → payment execution →
 
 ---
 
-## 3. Express + Stripe + AEGIS
+## 3. Express + Stripe + OKORO
 
 ### 3.1 Payment Route
 
 ```typescript
 import express from 'express';
 import Stripe from 'stripe';
-import { createExpressMiddleware } from '@aegis/verifier-rp/express';
-import { AegisClient } from '@aegis/sdk';
+import { createExpressMiddleware } from '@okoro/verifier-rp/express';
+import { OkoroClient } from '@okoro/sdk';
 
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-const aegis = new AegisClient({
-  apiKey: process.env.AEGIS_API_KEY!,
+const okoro = new OkoroClient({
+  apiKey: process.env.OKORO_API_KEY!,
 });
 
-// AEGIS middleware: verify agent identity before ANY payment processing
+// OKORO middleware: verify agent identity before ANY payment processing
 const requirePaymentAuth = createExpressMiddleware({
-  aegisUrl: 'https://api.aegislabs.io',
-  apiKey: process.env.AEGIS_API_KEY!,
+  okoroUrl: 'https://api.okorolabs.io',
+  apiKey: process.env.OKORO_API_KEY!,
   requiredScopes: ['payment:write'],
   trustBandMinimum: 'VERIFIED', // payments require VERIFIED or better
 });
@@ -71,7 +71,7 @@ app.post('/api/payments/charge',
   requirePaymentAuth,
   async (req, res) => {
     const { amount, currency, description } = req.body;
-    const { agentId, trustBand, auditEventId } = req.aegis;
+    const { agentId, trustBand, auditEventId } = req.okoro;
     
     // At this point:
     // ✅ Agent identity verified (Ed25519 signature)
@@ -88,10 +88,10 @@ app.post('/api/payments/charge',
         confirm: true,
         payment_method: await getAgentPaymentMethod(agentId),
         metadata: {
-          // Link Stripe to AEGIS audit trail
-          aegis_agent_id: agentId,
-          aegis_audit_event_id: auditEventId,
-          aegis_trust_band: trustBand,
+          // Link Stripe to OKORO audit trail
+          okoro_agent_id: agentId,
+          okoro_audit_event_id: auditEventId,
+          okoro_trust_band: trustBand,
           description,
         },
       });
@@ -104,9 +104,9 @@ app.post('/api/payments/charge',
       });
       
     } catch (stripeError) {
-      // Payment failed — AEGIS already recorded the attempt in audit log
-      // Roll back spend counter (AEGIS provides a spend rollback API)
-      await aegis.verify.rollbackSpend(auditEventId);
+      // Payment failed — OKORO already recorded the attempt in audit log
+      // Roll back spend counter (OKORO provides a spend rollback API)
+      await okoro.verify.rollbackSpend(auditEventId);
       
       res.status(400).json({
         success: false,
@@ -132,9 +132,9 @@ async function onboardPrincipal(email: string, stripeCustomerId: string, agentId
     data: { stripeCustomerId },
   });
   
-  // Register agents in AEGIS
+  // Register agents in OKORO
   for (const agentId of agentIds) {
-    await aegis.agents.update(agentId, {
+    await okoro.agents.update(agentId, {
       metadata: { stripeCustomerId }, // link for payment routing
     });
   }
@@ -142,7 +142,7 @@ async function onboardPrincipal(email: string, stripeCustomerId: string, agentId
 
 // When agent wants to pay:
 async function getAgentPaymentMethod(agentId: string): Promise<string> {
-  const agent = await aegis.agents.get(agentId);
+  const agent = await okoro.agents.get(agentId);
   const customer = await stripe.customers.retrieve(
     agent.metadata.stripeCustomerId
   );
@@ -159,7 +159,7 @@ async function getAgentPaymentMethod(agentId: string): Promise<string> {
 
 ```typescript
 // Set up spend policy for an agent
-await aegis.policies.apply({
+await okoro.policies.apply({
   agentId: 'agent_xyz',
   scope: 'payment:write',
   spendLimit: {
@@ -174,7 +174,7 @@ await aegis.policies.apply({
 ### 4.2 Per-Transaction Limit
 
 ```typescript
-await aegis.policies.apply({
+await okoro.policies.apply({
   agentId: 'agent_xyz',
   scope: 'payment:write',
   spendLimit: {
@@ -196,7 +196,7 @@ app.post('/api/payments/charge', requirePaymentAuth, async (req, res) => {
   if (amount > 100) {
     // Large amount: require explicit human-in-the-loop approval
     const approval = await requestHumanApproval({
-      agentId: req.aegis.agentId,
+      agentId: req.okoro.agentId,
       amount,
       reason: req.body.description,
     });
@@ -211,7 +211,7 @@ app.post('/api/payments/charge', requirePaymentAuth, async (req, res) => {
     // Human approved — proceed with Stripe
   }
   
-  // < $100: AEGIS already verified, proceed directly
+  // < $100: OKORO already verified, proceed directly
   await processStripePayment(req);
 });
 ```
@@ -220,7 +220,7 @@ app.post('/api/payments/charge', requirePaymentAuth, async (req, res) => {
 
 ## 5. ACP (Agentic Commerce Protocol) Compatibility
 
-AEGIS is additive to ACP. Here's how they compose:
+OKORO is additive to ACP. Here's how they compose:
 
 ```
 ACP handles:
@@ -229,43 +229,43 @@ ACP handles:
   - Transaction processing
   - Dispute resolution
 
-AEGIS handles (before ACP):
+OKORO handles (before ACP):
   - Agent identity (who is making this request?)
   - Authorization (is this agent allowed to make payments?)
   - Spend gates (has this agent spent too much today?)
   - Audit trail (provable record of authorization)
 
 Combined flow:
-  Agent → [AEGIS verify] → [ACP payment] → Receipt
+  Agent → [OKORO verify] → [ACP payment] → Receipt
 ```
 
-### 5.1 ACP Token + AEGIS Token
+### 5.1 ACP Token + OKORO Token
 
-When an agent presents both an ACP token and an AEGIS token:
+When an agent presents both an ACP token and an OKORO token:
 
 ```typescript
 app.post('/api/acp/payment', async (req, res) => {
-  const { acpToken, aegisToken } = req.body;
+  const { acpToken, okoroToken } = req.body;
   
-  // 1. Verify AEGIS identity and policy first
-  const aegisResult = await verifier.verify(aegisToken, {
+  // 1. Verify OKORO identity and policy first
+  const okoroResult = await verifier.verify(okoroToken, {
     requiredScopes: ['payment:write'],
     trustBandMinimum: 'VERIFIED',
   });
   
-  if (!aegisResult.approved) {
+  if (!okoroResult.approved) {
     return res.status(403).json({ 
-      error: aegisResult.denialReason,
-      source: 'aegis',
+      error: okoroResult.denialReason,
+      source: 'okoro',
     });
   }
   
   // 2. Now process the ACP token (Stripe/payment rail)
   const acpResult = await acpClient.processPayment(acpToken, {
-    aegisAuditId: aegisResult.auditEventId, // link the two audit trails
+    okoroAuditId: okoroResult.auditEventId, // link the two audit trails
   });
   
-  res.json({ success: true, acpResult, aegisAuditId: aegisResult.auditEventId });
+  res.json({ success: true, acpResult, okoroAuditId: okoroResult.auditEventId });
 });
 ```
 
@@ -273,21 +273,21 @@ app.post('/api/acp/payment', async (req, res) => {
 
 ## 6. Fraud Detection Integration
 
-AEGIS BATE signals can feed your fraud detection system:
+OKORO BATE signals can feed your fraud detection system:
 
 ```typescript
-// After AEGIS verify, use the trust signal to route payments
+// After OKORO verify, use the trust signal to route payments
 app.post('/api/payments/charge', requirePaymentAuth, async (req, res) => {
-  const { trustBand, trustScore } = req.aegis;
+  const { trustBand, trustScore } = req.okoro;
   
   // Route based on BATE trust band
   if (trustBand === 'FLAGGED') {
     // High risk: block and flag for review
     await fraudReview.flag({
-      agentId: req.aegis.agentId,
+      agentId: req.okoro.agentId,
       amount: req.body.amount,
       reason: 'low_trust_band',
-      aegisAuditId: req.aegis.auditEventId,
+      okoroAuditId: req.okoro.auditEventId,
     });
     return res.status(403).json({ error: 'FRAUD_REVIEW_REQUIRED' });
   }
@@ -323,13 +323,13 @@ app.post('/webhooks/stripe', async (req, res) => {
   
   if (event.type === 'charge.failed') {
     const charge = event.data.object as Stripe.Charge;
-    const aegisAuditId = charge.metadata.aegis_audit_event_id;
+    const okoroAuditId = charge.metadata.okoro_audit_event_id;
     
-    if (aegisAuditId) {
-      // Roll back the spend counter in AEGIS
+    if (okoroAuditId) {
+      // Roll back the spend counter in OKORO
       // This allows the agent to retry (spend not consumed by failed payment)
-      await aegis.verify.rollbackSpend(aegisAuditId);
-      console.log(`Spend rolled back for audit event ${aegisAuditId}`);
+      await okoro.verify.rollbackSpend(okoroAuditId);
+      console.log(`Spend rolled back for audit event ${okoroAuditId}`);
     }
   }
   
@@ -343,9 +343,9 @@ app.post('/api/payments/refund', async (req, res) => {
   // Create Stripe refund
   const refund = await stripe.refunds.create({ payment_intent: paymentIntentId });
   
-  // Append refund to AEGIS audit trail
-  await aegis.audit.append({
-    agentId: req.aegis.agentId,
+  // Append refund to OKORO audit trail
+  await okoro.audit.append({
+    agentId: req.okoro.agentId,
     action: 'payment:refund',
     metadata: {
       stripeRefundId: refund.id,
@@ -367,7 +367,7 @@ Generate audit reports for compliance (SOC2, PCI-DSS):
 ```typescript
 // Monthly payment audit report
 async function generateComplianceReport(principalId: string, month: string) {
-  const events = await aegis.audit.export({
+  const events = await okoro.audit.export({
     principalId,
     from: `${month}-01T00:00:00Z`,
     to: `${month}-31T23:59:59Z`,
@@ -395,12 +395,12 @@ async function generateComplianceReport(principalId: string, month: string) {
 ## 9. Environment Variables
 
 ```bash
-# AEGIS
-AEGIS_API_KEY=ak_live_xxxx
-AEGIS_AGENT_ID=agent_xxxx
-AEGIS_PRIVATE_KEY=base64_ed25519_private_key
-AEGIS_RELYING_PARTY_ID=rp_xxxx         # Register your service as a RP
-AEGIS_WEBHOOK_SECRET=whsec_xxxx        # For revocation webhooks
+# OKORO
+OKORO_API_KEY=ak_live_xxxx
+OKORO_AGENT_ID=agent_xxxx
+OKORO_PRIVATE_KEY=base64_ed25519_private_key
+OKORO_RELYING_PARTY_ID=rp_xxxx         # Register your service as a RP
+OKORO_WEBHOOK_SECRET=whsec_xxxx        # For revocation webhooks
 
 # Stripe
 STRIPE_SECRET_KEY=sk_live_xxxx
@@ -414,12 +414,12 @@ DATABASE_URL=postgresql://...
 
 ## 10. Security Checklist
 
-Before going live with AEGIS + Stripe payments:
+Before going live with OKORO + Stripe payments:
 
 ```
-[ ] AEGIS_PRIVATE_KEY is stored in secrets manager, not environment variable
+[ ] OKORO_PRIVATE_KEY is stored in secrets manager, not environment variable
 [ ] Stripe webhook signature verified on every webhook event
-[ ] AEGIS webhook signature verified on every AEGIS event
+[ ] OKORO webhook signature verified on every OKORO event
 [ ] Spend limits are set on all agents (no unbounded agents)
 [ ] Trust band minimum is VERIFIED for payment:write scope
 [ ] Refund rollback webhook is wired (prevents double-counting on Stripe failure)
@@ -431,4 +431,4 @@ Before going live with AEGIS + Stripe payments:
 
 ---
 
-*Fintech integration guide version: 1.0 | AEGIS Phase 1*
+*Fintech integration guide version: 1.0 | OKORO Phase 1*

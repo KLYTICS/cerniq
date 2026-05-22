@@ -1,7 +1,7 @@
 // Audit chain integrity — CLAUDE.md invariant #3.
 //
 // 1. After N=20 verify cycles the chain extends correctly: every row has a
-//    non-empty signature, every signature verifies under the AEGIS audit
+//    non-empty signature, every signature verifies under the OKORO audit
 //    public key.
 // 2. Tampering an event payload after-the-fact (we update the `action`
 //    field directly via Prisma — bypassing the no-UPDATE convention to
@@ -69,7 +69,7 @@ describe('e2e: audit chain integrity', () => {
     });
     const res = await http
       .post('/v1/verify')
-      .set('X-AEGIS-Verify-Key', verifyKey.apiKey)
+      .set('X-OKORO-Verify-Key', verifyKey.apiKey)
       .send({ token, action: 'commerce.purchase', amount, currency: 'USD' });
     expect(res.status).toBe(201);
     expect(res.body.valid).toBe(true);
@@ -94,7 +94,7 @@ describe('e2e: audit chain integrity', () => {
     const config = app.get(AppConfigService);
     principal = await seedPrincipalAndApiKey(handle.prisma, config);
     verifyKey = await seedPrincipalAndApiKey(handle.prisma, config, {
-      email: `vk-chain-${Date.now()}@aegis.test`,
+      email: `vk-chain-${Date.now()}@okoro.test`,
       scope: 'VERIFY_ONLY',
     });
     chain = new AuditChainUtil();
@@ -123,16 +123,16 @@ describe('e2e: audit chain integrity', () => {
     let prevId: string | null = null;
     let prevSig: string | null = null;
     for (const e of events) {
-      expect(e.aegisSignature.length).toBeGreaterThan(40);
+      expect(e.okoroSignature.length).toBeGreaterThan(40);
       const payload = toPayload(e);
       const ok = await chain.verify(
         { eventId: e.id, prevEventId: prevId, prevSignatureB64Url: prevSig, payload },
-        e.aegisSignature,
+        e.okoroSignature,
         publicKeyB64,
       );
       expect(ok).toBe(true);
       prevId = e.id;
-      prevSig = e.aegisSignature;
+      prevSig = e.okoroSignature;
     }
   }, 30_000);
 
@@ -170,12 +170,12 @@ describe('e2e: audit chain integrity', () => {
       const payload = toPayload(e);
       const ok = await chain.verify(
         { eventId: e.id, prevEventId: prevId, prevSignatureB64Url: prevSig, payload },
-        e.aegisSignature,
+        e.okoroSignature,
         publicKeyB64,
       );
       if (!ok && firstBrokenAt === null) firstBrokenAt = e.id;
       prevId = e.id;
-      prevSig = e.aegisSignature;
+      prevSig = e.okoroSignature;
     }
     expect(firstBrokenAt).toBe(target.id);
   });
@@ -211,12 +211,12 @@ describe('e2e: audit chain integrity', () => {
         const payload = toPayload(e);
         const ok = await chain.verify(
           { eventId: e.id, prevEventId: prevId, prevSignatureB64Url: prevSig, payload },
-          e.aegisSignature,
+          e.okoroSignature,
           publicKeyB64,
         );
         if (!ok) return false;
         prevId = e.id;
-        prevSig = e.aegisSignature;
+        prevSig = e.okoroSignature;
       }
       return true;
     };
@@ -233,10 +233,10 @@ describe('e2e: audit chain integrity', () => {
       {
         eventId: bFirst.id,
         prevEventId: aLast.id,
-        prevSignatureB64Url: aLast.aegisSignature,
+        prevSignatureB64Url: aLast.okoroSignature,
         payload: toPayload(bFirst),
       },
-      bFirst.aegisSignature,
+      bFirst.okoroSignature,
       publicKeyB64,
     );
     expect(crossOk).toBe(false);

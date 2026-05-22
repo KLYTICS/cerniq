@@ -1,31 +1,31 @@
-# AEGIS Test Coverage Audit — 2026 Q2
+# OKORO Test Coverage Audit — 2026 Q2
 
 > Read-only review. Compares existing tests against the 6 architectural
 > invariants in `CLAUDE.md`, the 9-reason denial precedence in
 > `docs/SECURITY.md` § 6, and the v1 prototype validation suite at
-> `/Users/money/Downloads/files (7)/aegis-test.js`.
+> `/Users/money/Downloads/files (7)/okoro-test.js`.
 
 ## 0. Inventory of test surfaces
 
 | Surface | File | Notes |
 |---|---|---|
-| API unit (verify algo, framework-free) | `/Users/money/Desktop/AEGIS/apps/api/src/modules/verify/verify.algorithm.spec.ts` | 30+ cases, vitest-style, no Nest/DI. Best file in the repo. |
-| API unit (verify algo, alt port) | `/Users/money/Desktop/AEGIS/apps/api/src/modules/verify/algorithm/verify.algorithm.spec.ts` | Smaller, mirrors the same surface via an in-memory port harness. |
-| API unit (verify service / DI wiring) | `/Users/money/Desktop/AEGIS/apps/api/src/modules/verify/verify.service.spec.ts` | 7 cases — happy + 6 denials. Lacks POLICY_EXPIRED, SPEND_LIMIT_EXCEEDED, TRUST_SCORE_TOO_LOW, ANOMALY_FLAGGED, AGENT_NOT_FOUND-vs-INVALID_SIGNATURE precedence. |
-| API unit (spend guard) | `/Users/money/Desktop/AEGIS/apps/api/src/modules/verify/spend-guard.service.spec.ts` | 5 cases — per-tx, per-day, per-month, undefined caps. No cents/decimal precision, no concurrency, no month-rollover. |
-| API unit (BATE) | `/Users/money/Desktop/AEGIS/apps/api/src/modules/bate/bate.scorer.spec.ts` | Scorer math only — no integration with verify. |
-| API unit (audit chain) | `/Users/money/Desktop/AEGIS/apps/api/src/common/crypto/audit-chain.util.spec.ts` | 5 cases: canonicalize, genesis, chain extension, payload tamper, prev-sig tamper. **Missing cross-key rejection**. |
-| API unit (JWT) | `/Users/money/Desktop/AEGIS/apps/api/src/common/crypto/jwt.util.spec.ts` | 5 cases — round-trip, expired, foreign key, malformed, missing sub/pid. No `kid` test, no malformed-segment-by-segment. |
-| API unit (Ed25519) | `/Users/money/Desktop/AEGIS/apps/api/src/common/crypto/ed25519.util.spec.ts` | (Inferred — present.) |
-| API unit (well-known / kid) | `/Users/money/Desktop/AEGIS/apps/api/src/modules/wellknown/wellknown.service.spec.ts` | kid derivation, JWKS shape. No rotation lifecycle. |
-| API unit (webhook signing) | `/Users/money/Desktop/AEGIS/apps/api/src/modules/webhooks/webhook.delivery.spec.ts` | Sign + recompute. **No replay-window enforcement test** (timestamp drift). |
-| API unit (billing / plans) | `/Users/money/Desktop/AEGIS/apps/api/src/modules/billing/plans.spec.ts` | (Out of scope here.) |
+| API unit (verify algo, framework-free) | `/Users/money/Desktop/OKORO/apps/api/src/modules/verify/verify.algorithm.spec.ts` | 30+ cases, vitest-style, no Nest/DI. Best file in the repo. |
+| API unit (verify algo, alt port) | `/Users/money/Desktop/OKORO/apps/api/src/modules/verify/algorithm/verify.algorithm.spec.ts` | Smaller, mirrors the same surface via an in-memory port harness. |
+| API unit (verify service / DI wiring) | `/Users/money/Desktop/OKORO/apps/api/src/modules/verify/verify.service.spec.ts` | 7 cases — happy + 6 denials. Lacks POLICY_EXPIRED, SPEND_LIMIT_EXCEEDED, TRUST_SCORE_TOO_LOW, ANOMALY_FLAGGED, AGENT_NOT_FOUND-vs-INVALID_SIGNATURE precedence. |
+| API unit (spend guard) | `/Users/money/Desktop/OKORO/apps/api/src/modules/verify/spend-guard.service.spec.ts` | 5 cases — per-tx, per-day, per-month, undefined caps. No cents/decimal precision, no concurrency, no month-rollover. |
+| API unit (BATE) | `/Users/money/Desktop/OKORO/apps/api/src/modules/bate/bate.scorer.spec.ts` | Scorer math only — no integration with verify. |
+| API unit (audit chain) | `/Users/money/Desktop/OKORO/apps/api/src/common/crypto/audit-chain.util.spec.ts` | 5 cases: canonicalize, genesis, chain extension, payload tamper, prev-sig tamper. **Missing cross-key rejection**. |
+| API unit (JWT) | `/Users/money/Desktop/OKORO/apps/api/src/common/crypto/jwt.util.spec.ts` | 5 cases — round-trip, expired, foreign key, malformed, missing sub/pid. No `kid` test, no malformed-segment-by-segment. |
+| API unit (Ed25519) | `/Users/money/Desktop/OKORO/apps/api/src/common/crypto/ed25519.util.spec.ts` | (Inferred — present.) |
+| API unit (well-known / kid) | `/Users/money/Desktop/OKORO/apps/api/src/modules/wellknown/wellknown.service.spec.ts` | kid derivation, JWKS shape. No rotation lifecycle. |
+| API unit (webhook signing) | `/Users/money/Desktop/OKORO/apps/api/src/modules/webhooks/webhook.delivery.spec.ts` | Sign + recompute. **No replay-window enforcement test** (timestamp drift). |
+| API unit (billing / plans) | `/Users/money/Desktop/OKORO/apps/api/src/modules/billing/plans.spec.ts` | (Out of scope here.) |
 | API unit (auth / api-key) | **MISSING** — `apps/api/src/modules/auth/api-key.service.ts` has **no** `.spec.ts`. | Critical gap. |
 | API unit (identity, policy, audit services) | **MISSING** — none of `identity.service.ts`, `policy.service.ts`, `audit.service.ts` have spec files. | Multi-tenant isolation is unit-untested. |
-| NestJS e2e harness | `/Users/money/Desktop/AEGIS/apps/api/test/setup-env.ts`, `jest-e2e.config.ts` | Harness only — **zero e2e specs in `apps/api/test`**. The load test is the only file there. |
-| Root e2e (vitest) | `/Users/money/Desktop/AEGIS/tests/e2e/01_health…15_idempotency` + `property/denial_precedence.property.spec.ts` | Strong — lifts most of the v1 prototype suite. Still has soft-skips. |
-| SDK | `/Users/money/Desktop/AEGIS/packages/sdk-ts/src/crypto.spec.ts` | Generate, sign, decode — **no SDK ↔ API round-trip test in this package**. (Round-trip is implicit in `tests/e2e`, but the SDK itself doesn't ship a self-test that talks to a real API.) |
-| Scripts | `/Users/money/Desktop/AEGIS/scripts/verify-spec.spec.ts`, `generate-aegis-keys.spec.ts` | Spec coverage diff + keygen. |
+| NestJS e2e harness | `/Users/money/Desktop/OKORO/apps/api/test/setup-env.ts`, `jest-e2e.config.ts` | Harness only — **zero e2e specs in `apps/api/test`**. The load test is the only file there. |
+| Root e2e (vitest) | `/Users/money/Desktop/OKORO/tests/e2e/01_health…15_idempotency` + `property/denial_precedence.property.spec.ts` | Strong — lifts most of the v1 prototype suite. Still has soft-skips. |
+| SDK | `/Users/money/Desktop/OKORO/packages/sdk-ts/src/crypto.spec.ts` | Generate, sign, decode — **no SDK ↔ API round-trip test in this package**. (Round-trip is implicit in `tests/e2e`, but the SDK itself doesn't ship a self-test that talks to a real API.) |
+| Scripts | `/Users/money/Desktop/OKORO/scripts/verify-spec.spec.ts`, `generate-okoro-keys.spec.ts` | Spec coverage diff + keygen. |
 
 ---
 
@@ -57,7 +57,7 @@ Legend: ✓ covered, ~ partial / soft-skipped, ✗ missing.
 | 20 | Audit chain: chain extension (prev-sig included in second event) | ✓ | `audit-chain.util.spec.ts:48` |
 | 21 | Audit chain: payload tamper detected | ✓ | `audit-chain.util.spec.ts:67` |
 | 22 | Audit chain: prev-sig tamper detected | ✓ | `audit-chain.util.spec.ts:79` |
-| 23 | Audit chain: cross-key verification rejected (wrong AEGIS pubkey) | ✗ | **No test signs with key A and tries to verify with key B.** The chain library would silently accept any pub key the caller passes — operationally caught by `wellknown` config, but not unit-tested in audit-chain. |
+| 23 | Audit chain: cross-key verification rejected (wrong OKORO pubkey) | ✗ | **No test signs with key A and tries to verify with key B.** The chain library would silently accept any pub key the caller passes — operationally caught by `wellknown` config, but not unit-tested in audit-chain. |
 | 24 | Audit chain: reordering events (swap event N and N+1) | ~ | Indirectly via prev-sig tamper. No explicit "events in wrong order" test. |
 | 25 | Audit chain: e2e produces signed events on real verify calls | ~ | `tests/e2e/10_audit_chain.test.ts` — checks event count + decisions, but **does not actually re-verify Ed25519 signatures against the well-known pubkey**. (Signature presence is asserted; cryptographic validity is not.) |
 | 26 | Spend math: per-transaction cap | ✓ | `spend-guard.service.spec.ts:24` |
@@ -66,7 +66,7 @@ Legend: ✓ covered, ~ partial / soft-skipped, ✗ missing.
 | 29 | Spend math: cents / sub-unit precision (e.g. 99.99 + 0.02) | ✗ | Service stores raw `number`; no test for fractional cents, JS float drift, or Decimal-backed totals. |
 | 30 | Spend math: concurrent increments do not over-spend (TOCTOU) | ~ | `tests/e2e/09_spend_race.test.ts` — black-box "approved sum ≤ cap" assertion. **No unit test of the atomic Redis incrBy / Lua check path.** |
 | 31 | Spend math: month-rollover (UTC vs. local TZ) | ✗ | `todayKeys()` slices ISO; no test pinning `Date.now` to 2026-04-30T23:59:59Z and exercising the boundary. |
-| 32 | Multi-tenant: principal A cannot read agent of principal B | ~ | `tests/e2e/03_agent.test.ts:74` — **soft-skipped** unless `AEGIS_E2E_API_KEY_2` is set. **No unit-level service test.** |
+| 32 | Multi-tenant: principal A cannot read agent of principal B | ~ | `tests/e2e/03_agent.test.ts:74` — **soft-skipped** unless `OKORO_E2E_API_KEY_2` is set. **No unit-level service test.** |
 | 33 | Multi-tenant: principal A cannot revoke / mutate principal B's agent | ✗ | Not tested at any level. |
 | 34 | Multi-tenant: principal A cannot read principal B's audit log | ✗ | Not tested. |
 | 35 | Multi-tenant: principal A cannot create policy under principal B's agent | ✗ | Not tested. |
@@ -103,7 +103,7 @@ Legend: ✓ covered, ~ partial / soft-skipped, ✗ missing.
 | Rank | Test | Risk | Why it matters |
 |---|---|---|---|
 | **1** | Multi-tenant cross-principal write isolation (revoke / create-policy / read-audit on another principal's agent) — **9/10** | Critical | Invariant #5. A bug here is RCE-equivalent for tenants. Currently *only* the read path is tested, and that test is **soft-skipped** unless a second key is supplied. Adds a guarantee that the `principalId` filter isn't accidentally dropped from a `where:` clause. |
-| **2** | API key revocation actually rejects the revoked key — **9/10** | Critical | `api-key.service.ts` has no spec. A regression here lets any leaked key live forever. v1 `aegis-test.js` did not cover this either; it must be added. |
+| **2** | API key revocation actually rejects the revoked key — **9/10** | Critical | `api-key.service.ts` has no spec. A regression here lets any leaked key live forever. v1 `okoro-test.js` did not cover this either; it must be added. |
 | **3** | Audit chain cross-key rejection (sign with A, verify with B → false) — **9/10** | Critical | Invariant #3. Current spec proves `verify` returns true for the right key, but never asserts it returns false for a *valid-shape but wrong* key. A subtle constant-time comparison bug or mis-passed pubkey would not be caught. |
 | **4** | Audit chain e2e: re-verify Ed25519 signatures of real audit events against `/.well-known/audit-signing-key` — **8/10** | High | `tests/e2e/10_audit_chain.test.ts` checks `signature.length > 20` but does not actually run `ed25519.verify`. A malformed signature, missing `prevHash`, or mis-canonicalised payload all pass today. |
 | **5** | Spend math TOCTOU at the unit level — **8/10** | High | `tests/e2e/09_spend_race.test.ts` is black-box. The atomic Lua / `INCRBY`-then-check path inside `SpendGuardService.recordSpend` has no unit test that simulates two interleaved increments. The black-box test happens to pass when Redis isn't being adversarially scheduled. |
@@ -117,7 +117,7 @@ Legend: ✓ covered, ~ partial / soft-skipped, ✗ missing.
 
 ## 3. v1 → v2 e2e test scaffold mapping
 
-Each row = a test from `/Users/money/Downloads/files (7)/aegis-test.js`. Status columns:
+Each row = a test from `/Users/money/Downloads/files (7)/okoro-test.js`. Status columns:
 
 - **Equivalent in NestJS repo** = path[:line] of closest existing test, or "—" if none.
 - **Status** = `✓ kept` / `~ adapted` / `✗ missing` / `· obsolete by design`.
@@ -183,7 +183,7 @@ Each row = a test from `/Users/money/Downloads/files (7)/aegis-test.js`. Status 
 
 | v1 test | Equivalent | Status |
 |---|---|---|
-| `Audit log returns events with AEGIS signatures` | `tests/e2e/10_audit_chain.test.ts:44` | ~ adapted (signature *presence* checked; **cryptographic validity not re-verified** — see Top-10 #4) |
+| `Audit log returns events with OKORO signatures` | `tests/e2e/10_audit_chain.test.ts:44` | ~ adapted (signature *presence* checked; **cryptographic validity not re-verified** — see Top-10 #4) |
 | `Audit log captures denial events` | `tests/e2e/10_audit_chain.test.ts:74` | ✓ kept |
 
 ### Suite 8: Stress / Latency
@@ -206,7 +206,7 @@ Each row = a test from `/Users/money/Downloads/files (7)/aegis-test.js`. Status 
 
 Positive:
 
-- `verify.algorithm.spec.ts` (the framework-free one) is the gold standard: it tests **behavior at a public-API contract layer** with in-memory fakes, includes precedence assertions, and pins the contract array against `@aegis/types`. Refactoring the verify pipeline will not break these tests unless the contract changes.
+- `verify.algorithm.spec.ts` (the framework-free one) is the gold standard: it tests **behavior at a public-API contract layer** with in-memory fakes, includes precedence assertions, and pins the contract array against `@okoro/types`. Refactoring the verify pipeline will not break these tests unless the contract changes.
 - `audit-chain.util.spec.ts` correctly tests *behavioral invariants* (tamper detection, chain linkage) rather than internal helpers.
 - `tests/e2e/property/denial_precedence.property.spec.ts` uses fast-check to randomise condition combinations — high-leverage for a small test budget.
 
@@ -220,7 +220,7 @@ Coverage of the 6 architectural invariants in `CLAUDE.md`:
 
 | Invariant | Test surface | Status |
 |---|---|---|
-| 1 — Private keys never enter AEGIS | Negative test (server rejects a private-key body) | ✗ no explicit test that POST /agents/register with a 64-byte secret-key shape is rejected |
+| 1 — Private keys never enter OKORO | Negative test (server rejects a private-key body) | ✗ no explicit test that POST /agents/register with a 64-byte secret-key shape is rejected |
 | 2 — Verify hot path is portable (no Nest imports) | `verify.algorithm.spec.ts` uses ports, no Nest | ✓ enforced by tests + types |
 | 3 — Audit log append-only & signed | `audit-chain.util.spec.ts` | ✓ partially; no test asserts `UPDATE`/`DELETE` are blocked at the service layer |
 | 4 — No silent failures | `verify.algorithm.spec.ts:457` (`audit always written when agent known`) | ✓ tested for verify; ✗ not tested for sibling services (BATE, webhook) |

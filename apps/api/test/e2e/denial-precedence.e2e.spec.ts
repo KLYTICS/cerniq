@@ -56,7 +56,7 @@ describe('e2e: denial precedence', () => {
   }> => {
     const res = await http
       .post('/v1/verify')
-      .set('X-AEGIS-Verify-Key', verifyKey.apiKey)
+      .set('X-OKORO-Verify-Key', verifyKey.apiKey)
       .send(body);
     return {
       status: res.status,
@@ -75,7 +75,7 @@ describe('e2e: denial precedence', () => {
     const config = app.get(AppConfigService);
     principal = await seedPrincipalAndApiKey(handle.prisma, config);
     verifyKey = await seedPrincipalAndApiKey(handle.prisma, config, {
-      email: `vk-precedence-${Date.now()}@aegis.test`,
+      email: `vk-precedence-${Date.now()}@okoro.test`,
       scope: 'VERIFY_ONLY',
     });
   });
@@ -108,7 +108,7 @@ describe('e2e: denial precedence', () => {
 
     await http
       .delete(`/v1/agents/${seeded.agentId}`)
-      .set('X-AEGIS-API-Key', principal.apiKey)
+      .set('X-OKORO-API-Key', principal.apiKey)
       .expect(204);
 
     const goodToken = await signAgentToken(keys.privateKey, {
@@ -157,7 +157,7 @@ describe('e2e: denial precedence', () => {
     });
     await http
       .delete(`/v1/agents/${seeded.agentId}/policies/${policy.policyId}`)
-      .set('X-AEGIS-API-Key', principal.apiKey)
+      .set('X-OKORO-API-Key', principal.apiKey)
       .expect(204);
 
     const token = await signAgentToken(keys.privateKey, {

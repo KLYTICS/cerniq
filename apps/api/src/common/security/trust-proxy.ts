@@ -1,6 +1,6 @@
-// AEGIS — trust proxy configuration (S-5 fix).
+// OKORO — trust proxy configuration (S-5 fix).
 //
-// When AEGIS sits behind Cloudflare → Railway, the request `req.ip`
+// When OKORO sits behind Cloudflare → Railway, the request `req.ip`
 // is the Cloudflare edge IP, not the real client. The throttler buckets
 // per `req.ip`, so without `app.set('trust proxy', ...)` configured,
 // 1000 req/min from one attacker counts the same as 1000 req/min from

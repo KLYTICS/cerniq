@@ -1,7 +1,7 @@
-# AEGIS — Security incident runbook
+# OKORO — Security incident runbook
 
 > The on-call playbook. Pageable scenarios link here from
-> `infra/observability/alerts/aegis-security.rules.yml`. Each section is
+> `infra/observability/alerts/okoro-security.rules.yml`. Each section is
 > a procedure, not prose — read top-to-bottom.
 >
 > **Severity legend**: 🔴 Page now · 🟠 Engage in working hours · 🟡 Track + monitor.
@@ -30,7 +30,7 @@
 
 ## Authentication failure spike
 
-**Trigger**: `AEGIS_API_KEY_FAILURE_SPIKE` — > 5 INVALID_SIGNATURE/sec for 5 min from one principal.
+**Trigger**: `OKORO_API_KEY_FAILURE_SPIKE` — > 5 INVALID_SIGNATURE/sec for 5 min from one principal.
 
 **Hypothesize**:
 1. Stolen API key + brute-forced tokens.
@@ -78,7 +78,7 @@ pnpm why @noble/ed25519
 
 ## Token replay detected
 
-**Trigger**: `AEGIS_REPLAY_DETECTED` — > 1 ANOMALY_FLAGGED/sec for 2 min.
+**Trigger**: `OKORO_REPLAY_DETECTED` — > 1 ANOMALY_FLAGGED/sec for 2 min.
 
 **Hypothesize**: an attacker captured a valid agent token and is
 replaying it. (The replay-cache is rejecting them — defense working.)
@@ -112,8 +112,8 @@ the replays target? Is there a financial impact to refund?
 
 ## Cross-tenant attempt
 
-**Trigger**: `AEGIS_CROSS_TENANT_ATTEMPT` — non-zero rate of
-`aegis_authorization_denied_total{reason="cross_tenant"}`.
+**Trigger**: `OKORO_CROSS_TENANT_ATTEMPT` — non-zero rate of
+`okoro_authorization_denied_total{reason="cross_tenant"}`.
 
 **Treat as compromise** until proven otherwise.
 
@@ -121,7 +121,7 @@ the replays target? Is there a financial impact to refund?
 
 ```bash
 # 1. Find the calling key.
-grep "cross_tenant" /var/log/aegis-api/*.log | tail -100
+grep "cross_tenant" /var/log/okoro-api/*.log | tail -100
 
 # 2. Identify the target principal vs. the calling principal.
 # If the target principal is a high-value account, escalate.
@@ -142,7 +142,7 @@ patterns, anomalous BATE signal sources).
 
 ## Audit append failures
 
-**Trigger**: `AEGIS_AUDIT_APPEND_FAILURE_SPIKE` — > 0.1 audit failures/sec for 5 min.
+**Trigger**: `OKORO_AUDIT_APPEND_FAILURE_SPIKE` — > 0.1 audit failures/sec for 5 min.
 
 **Stop**: every failed append is a compliance gap. Pause writes to
 `AuditEvent` ASAP if root cause unclear.
@@ -156,7 +156,7 @@ psql $DATABASE_URL -c "
 "
 
 # 2. Confirm the audit signing key is loaded.
-curl -s https://api.aegislabs.io/v1/health/ready | jq .signing_key_loaded
+curl -s https://api.okorolabs.io/v1/health/ready | jq .signing_key_loaded
 
 # 3. Check for schema drift — did a recent migration not apply?
 psql $DATABASE_URL -c "SELECT * FROM \"_prisma_migrations\" ORDER BY \"finished_at\" DESC LIMIT 5;"
@@ -168,7 +168,7 @@ psql $DATABASE_URL -c "SELECT * FROM \"_prisma_migrations\" ORDER BY \"finished_
   appends.
 - Signing key missing → re-load env var + restart the API container.
   See `signing-key-not-loaded`.
-- Schema drift → run `pnpm --filter @aegis/api prisma:migrate deploy`
+- Schema drift → run `pnpm --filter @okoro/api prisma:migrate deploy`
   manually + verify the failing column.
 
 **Compliance**: file a SOC2 incident note with the gap window — every
@@ -178,7 +178,7 @@ event in the affected window is unverifiable.
 
 ## Cache write failure
 
-**Trigger**: `AEGIS_CACHE_SET_FAILURE_SPIKE` — > 1/sec for 5 min on any op.
+**Trigger**: `OKORO_CACHE_SET_FAILURE_SPIKE` — > 1/sec for 5 min on any op.
 
 🟠 Working-hours response. The verify path will start hitting Postgres
 on every call. Latency degrades but correctness holds.
@@ -202,7 +202,7 @@ redis-cli config get maxmemory-policy
 
 ## Replay cache outage
 
-**Trigger**: `AEGIS_REPLAY_CACHE_FAIL_CLOSED` — > 10 ANOMALY_FLAGGED/sec for 2 min.
+**Trigger**: `OKORO_REPLAY_CACHE_FAIL_CLOSED` — > 10 ANOMALY_FLAGGED/sec for 2 min.
 
 🔴 Critical: every verify is failing closed. Customer impact = total
 verify outage.
@@ -225,7 +225,7 @@ redis-cli ping  # if this fails, Redis is gone
 
 ## Spend guard outage
 
-**Trigger**: `AEGIS_SPEND_GUARD_UNAVAILABLE` — > 0.5/sec for 5 min.
+**Trigger**: `OKORO_SPEND_GUARD_UNAVAILABLE` — > 0.5/sec for 5 min.
 
 🔴 Customers can't transact (commerce verifies fail closed on
 `SPEND_LIMIT_EXCEEDED`).
@@ -244,7 +244,7 @@ psql $DATABASE_URL -c "SELECT count(*) FROM \"SpendRecord\" WHERE date > now() -
 
 ## Webhook DLQ filling
 
-**Trigger**: `AEGIS_WEBHOOK_DELIVERY_DLQ_FILL` — > 0.05/sec dead-lettered.
+**Trigger**: `OKORO_WEBHOOK_DELIVERY_DLQ_FILL` — > 0.05/sec dead-lettered.
 
 🟠 Working hours.
 
@@ -261,29 +261,29 @@ SELECT event, count(*)
 **Mitigate**:
 - One subscriber bad → contact the principal; they likely have a
   broken endpoint.
-- Many subscribers bad → suspect AEGIS-side: check our outbound HMAC
+- Many subscribers bad → suspect OKORO-side: check our outbound HMAC
   signature, retry timing, payload format.
 
 ---
 
 ## Signing key not loaded
 
-**Trigger**: `AEGIS_AUDIT_SIGNING_KEY_MISSING` — `aegis_signing_key_loaded{type="audit"} == 0`.
+**Trigger**: `OKORO_AUDIT_SIGNING_KEY_MISSING` — `okoro_signing_key_loaded{type="audit"} == 0`.
 
 **Triage**:
 
 ```bash
 # Confirm env var is set in the running container.
-railway run env | grep -E '^AEGIS_SIGNING_(PRIVATE|PUBLIC)_KEY='
+railway run env | grep -E '^OKORO_SIGNING_(PRIVATE|PUBLIC)_KEY='
 
 # Confirm the JWKS endpoint resolves the right kid.
-curl -s https://api.aegislabs.io/.well-known/jwks.json | jq .keys
+curl -s https://api.okorolabs.io/.well-known/jwks.json | jq .keys
 ```
 
 **Mitigate**:
 - Env var missing → set it from the secret manager + restart container.
 - Env var present but wrong format → re-mint via
-  `pnpm tsx scripts/generate-aegis-keys.ts --format both --out .local/keys`
+  `pnpm tsx scripts/generate-okoro-keys.ts --format both --out .local/keys`
   and load.
 - Loud failure expected — the API refuses to boot without a key in
   production (`config.service.ts` validation).
@@ -292,7 +292,7 @@ curl -s https://api.aegislabs.io/.well-known/jwks.json | jq .keys
 
 ## Signing key rotation
 
-**Trigger**: `AEGIS_SIGNING_KEY_NEAR_ROTATION` — key > 60 days old.
+**Trigger**: `OKORO_SIGNING_KEY_NEAR_ROTATION` — key > 60 days old.
 
 🟠 Schedule a rotation maintenance window in the next 7 days.
 
@@ -300,7 +300,7 @@ curl -s https://api.aegislabs.io/.well-known/jwks.json | jq .keys
 
 1. **Generate the next keypair** locally:
    ```bash
-   pnpm tsx scripts/generate-aegis-keys.ts --format both --out .local/next-keys
+   pnpm tsx scripts/generate-okoro-keys.ts --format both --out .local/next-keys
    ```
    The script outputs the kid in JSON. Note it.
 2. **Add the next key to the JWKS endpoint** without removing the
@@ -312,8 +312,8 @@ curl -s https://api.aegislabs.io/.well-known/jwks.json | jq .keys
 4. **Wait one TTL cycle** of the JWKS Cache-Control max-age (1 hour
    per `wellknown.controller.ts`). Verifiers refresh.
 5. **Remove the old key** from JWKS.
-6. **Update `AEGIS_SIGNING_KEY_ROTATED_AT`** env var to the rotation
-   timestamp. The `aegis_signing_key_age_seconds` metric resets.
+6. **Update `OKORO_SIGNING_KEY_ROTATED_AT`** env var to the rotation
+   timestamp. The `okoro_signing_key_age_seconds` metric resets.
 
 Document the rotation in `docs/decisions/` if it was for a non-routine
 reason (compromise, algorithm change, regulatory).
@@ -322,7 +322,7 @@ reason (compromise, algorithm change, regulatory).
 
 ## Rate limit heavy
 
-**Trigger**: `AEGIS_RATE_LIMIT_HEAVY` — > 50% 4xx for 10 min on a route.
+**Trigger**: `OKORO_RATE_LIMIT_HEAVY` — > 50% 4xx for 10 min on a route.
 
 🟡 Track. Investigate within 24 h.
 
@@ -339,12 +339,12 @@ reason (compromise, algorithm change, regulatory).
 ## Suspected key compromise
 
 **Whether or not** an alert fired, if you have grounds to believe an
-AEGIS-issued key is compromised:
+OKORO-issued key is compromised:
 
 1. **Immediately revoke**:
    ```bash
-   curl -X DELETE https://api.aegislabs.io/v1/agents/<id> \
-     -H "X-AEGIS-API-Key: <admin-key>"
+   curl -X DELETE https://api.okorolabs.io/v1/agents/<id> \
+     -H "X-OKORO-API-Key: <admin-key>"
    ```
    Verifiers see the agent as REVOKED within 60s (cache TTL).
 2. **Bust the cache** to drop that 60s window:
@@ -411,7 +411,7 @@ audit rows:
    (`action`, `relyingParty`, `requestedAmount`, `policySnapshot`),
    sets `redactedAt` + `redactionReason`, leaves the hashes + signature
    intact. The chain remains verifiable.
-5. Emit an `aegis.compliance.audit_amendment` event for the bookkeeping
+5. Emit an `okoro.compliance.audit_amendment` event for the bookkeeping
    trail.
 6. Respond to the requester within 30 days per Art. 12(3).
 

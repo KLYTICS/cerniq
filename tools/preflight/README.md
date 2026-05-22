@@ -1,4 +1,4 @@
-# `tools/preflight/` — AEGIS ship-readiness orchestrator
+# `tools/preflight/` — OKORO ship-readiness orchestrator
 
 > Single executable. **One go/no-go gate** before deploy. Encodes
 > `docs/TERMINAL_ORCHESTRATION.md` §5 (FAANG checklist) and round-15's
@@ -38,9 +38,9 @@ Exit codes:
 | # | id | category | fast? | what passes | remediation |
 |---|---|---|---|---|---|
 | 1 | `stack-signature` | info | ✓ | repo headcount: ts files, specs, modules, prisma models, error catalog entries | n/a |
-| 2 | `peer-claims` | info | ✓ | `claude-peers list --repo aegis` snapshot | n/a |
-| 3 | `tsc-api` | gating | ✓ | `pnpm -F @aegis/api exec tsc --noEmit` → 0 | fix the type errors it reports |
-| 4 | `lint-api` | gating | ✓ | `pnpm -F @aegis/api lint` → 0 warnings | `pnpm -F @aegis/api lint --fix` for auto-fixable |
+| 2 | `peer-claims` | info | ✓ | `claude-peers list --repo okoro` snapshot | n/a |
+| 3 | `tsc-api` | gating | ✓ | `pnpm -F @okoro/api exec tsc --noEmit` → 0 | fix the type errors it reports |
+| 4 | `lint-api` | gating | ✓ | `pnpm -F @okoro/api lint` → 0 warnings | `pnpm -F @okoro/api lint --fix` for auto-fixable |
 | 5 | `migration-immutability` | gating | ✓ | no committed Prisma migration was modified | restore from git, add a new migration |
 | 6 | `error-catalog-audit` | gating | ✓ | every `throw new <X>Error(` in apps/api is registered in `error-catalog.ts` | register the class in the catalog |
 | 7 | `cross-package-parity` | gating | — | all 4 specs in `tests/cross-package/` green | `pnpm vitest run tests/cross-package` |
@@ -77,12 +77,12 @@ tsx preflight.ts --fast --skip=peer-claims
 ### Pretty (default, when stdout is a TTY)
 
 ```
-AEGIS Preflight — 2026-05-05T14:32:07Z
+OKORO Preflight — 2026-05-05T14:32:07Z
 ──────────────────────────────────────────────────────────────────────
 [ 1/12] ✅ stack signature        190 ts · 50 specs · 18 modules · 14 models · 21 errors
 [ 2/12] ✅ active peer claims     2 active (bba1b6c1, c4f241c5)
-[ 3/12] ✅ tsc @aegis/api         0 errors                                0.8s
-[ 4/12] ✅ lint @aegis/api        0 warnings                              2.1s
+[ 3/12] ✅ tsc @okoro/api         0 errors                                0.8s
+[ 4/12] ✅ lint @okoro/api        0 warnings                              2.1s
 [ 5/12] ✅ migration immutability 28 migrations clean                     0.3s
 [ 6/12] ✅ error catalog audit    140 files / 76 throws / 0 uncataloged   0.6s
 [ 7/12] ✅ cross-package parity   4 files passed                          5.2s
@@ -110,7 +110,7 @@ Total:  9.7s · exit 1
   "checks": [
     {
       "id": "tsc-api",
-      "label": "tsc @aegis/api",
+      "label": "tsc @okoro/api",
       "category": "gating",
       "status": "pass",
       "elapsedMs": 812,
@@ -171,7 +171,7 @@ Categories:
 
 ## Why this exists
 
-AEGIS has 15+ individual quality scripts: `tsc`, `lint`, `audit:errors`,
+OKORO has 15+ individual quality scripts: `tsc`, `lint`, `audit:errors`,
 `benchmark-verify`, `db-index-audit`, `check:migrations`,
 `check:openapi-zod`, `check:openapi-prisma`, vitest in
 `tests/cross-package`, etc. Operators need **one command** that says
@@ -182,13 +182,13 @@ instead of code-enforced.
 
 This is the pattern every shipping shop has. Stripe calls it `prod gate`.
 GitHub calls it `branch protection checks`. Vercel calls it `predeploy`.
-At AEGIS scale, it's `tools/preflight/preflight.ts`.
+At OKORO scale, it's `tools/preflight/preflight.ts`.
 
 ---
 
 ## Companion docs
 
 - `docs/TERMINAL_ORCHESTRATION.md` — what to claim, what to ship, in what order.
-- `docs/AEGIS_MASTER_STATE_2026_05.md` PART VII — terminal handoff guide.
+- `docs/OKORO_MASTER_STATE_2026_05.md` PART VII — terminal handoff guide.
 - `docs/SPRINT_PROTOCOL.md` §6 — the FAANG quality bar this preflight encodes.
 - `docs/PRODUCTION_CHECKLIST.md` — the broader pre-launch list (this preflight is the executable subset).

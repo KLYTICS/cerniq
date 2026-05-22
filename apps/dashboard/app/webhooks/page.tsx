@@ -5,8 +5,8 @@
 import type { Metadata } from 'next';
 
 import {
-  AegisApiError,
-  AegisAuthMissingError,
+  OkoroApiError,
+  OkoroAuthMissingError,
   listWebhooks,
   type WebhookSubscriptionRow,
 } from '../../lib/api-client';
@@ -17,7 +17,7 @@ import { SubscribeForm } from './components/SubscribeForm';
 import { UnsubscribeButton } from './components/UnsubscribeButton';
 
 export const metadata: Metadata = {
-  title: 'Webhooks · AEGIS',
+  title: 'Webhooks · OKORO',
 };
 
 interface Outcome {
@@ -29,13 +29,13 @@ async function safeListWebhooks(): Promise<Outcome> {
   try {
     return { rows: await listWebhooks() };
   } catch (err) {
-    if (err instanceof AegisAuthMissingError) {
-      return { error: { code: err.code, message: 'Set AEGIS_DASHBOARD_API_KEY to populate this view.' } };
+    if (err instanceof OkoroAuthMissingError) {
+      return { error: { code: err.code, message: 'Set OKORO_DASHBOARD_API_KEY to populate this view.' } };
     }
-    if (err instanceof AegisApiError) {
+    if (err instanceof OkoroApiError) {
       return { error: { code: err.code, message: err.message } };
     }
-    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting AEGIS API.' } };
+    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting OKORO API.' } };
   }
 }
 
@@ -43,17 +43,17 @@ export default async function WebhooksPage() {
   const outcome = await safeListWebhooks();
 
   return (
-    <section className="aegis-page">
-      <header className="aegis-page-header">
-        <div className="aegis-page-header-row">
+    <section className="okoro-page">
+      <header className="okoro-page-header">
+        <div className="okoro-page-header-row">
           <div>
             <h1>Webhooks</h1>
             <p className="muted">
-              HTTPS callback URLs that receive AEGIS events (
-              <code>aegis.agent.trust_score_changed</code>,{' '}
-              <code>aegis.agent.revoked</code>, <code>aegis.policy.expired</code>,{' '}
-              <code>aegis.anomaly.detected</code>). Each delivery is signed with
-              HMAC-SHA256 — verify <code>X-Aegis-Signature</code> on every inbound
+              HTTPS callback URLs that receive OKORO events (
+              <code>okoro.agent.trust_score_changed</code>,{' '}
+              <code>okoro.agent.revoked</code>, <code>okoro.policy.expired</code>,{' '}
+              <code>okoro.anomaly.detected</code>). Each delivery is signed with
+              HMAC-SHA256 — verify <code>X-Okoro-Signature</code> on every inbound
               request.
             </p>
           </div>
@@ -64,7 +64,7 @@ export default async function WebhooksPage() {
       {!authConfigured() ? (
         <div className="data-empty">
           <p>
-            Set <code>AEGIS_DASHBOARD_API_KEY</code> to populate this view.
+            Set <code>OKORO_DASHBOARD_API_KEY</code> to populate this view.
           </p>
         </div>
       ) : outcome.error ? (
@@ -103,8 +103,8 @@ function Body({ rows }: { rows: WebhookSubscriptionRow[] }) {
         <div className="data-empty">
           <p>No webhook subscriptions registered.</p>
           <span className="hint">
-            Subscribe a URL above. AEGIS sends an HMAC-signed POST on every matching event;
-            verify the <code>X-Aegis-Signature</code> header against the secret returned at
+            Subscribe a URL above. OKORO sends an HMAC-signed POST on every matching event;
+            verify the <code>X-Okoro-Signature</code> header against the secret returned at
             subscription time.
           </span>
         </div>

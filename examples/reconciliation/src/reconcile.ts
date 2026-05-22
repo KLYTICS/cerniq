@@ -1,19 +1,19 @@
-// Reconciliation engine — joins AEGIS audit events to a downstream
-// system's records on the shared `endToEndId` (a.k.a. AEGIS jti,
+// Reconciliation engine — joins OKORO audit events to a downstream
+// system's records on the shared `endToEndId` (a.k.a. OKORO jti,
 // a.k.a. Stripe idempotency-key, a.k.a. ISO 20022 EndToEndId).
 //
 // The four mismatch classes from docs/INTEGRATION_PATTERNS.md §10:
 //
-//   matched_settled    — AEGIS approved + system has a settled record
+//   matched_settled    — OKORO approved + system has a settled record
 //                        (the happy path; the bulk of the report)
-//   approved_missing   — AEGIS approved but the system has NO record
+//   approved_missing   — OKORO approved but the system has NO record
 //                        of the action (network drop between gates;
 //                        always investigate)
-//   denied_present     — AEGIS denied but the system has a record
+//   denied_present     — OKORO denied but the system has a record
 //                        anyway (bug in the merchant glue OR an
-//                        attacker bypassing the AEGIS gate; always
+//                        attacker bypassing the OKORO gate; always
 //                        investigate)
-//   reversed           — AEGIS approved + system settled + system
+//   reversed           — OKORO approved + system settled + system
 //                        later reversed (chargeback / R-code / refund;
 //                        feeds back into BATE as fraud_confirmed or
 //                        false_positive depending on the reversal cause)
@@ -21,8 +21,8 @@
 // The engine is pure — takes the two streams, returns a structured
 // report. No I/O, no side-effects, no time-of-day dependency.
 
-export interface AegisAuditRow {
-  /** Shared key — the AEGIS jti / endToEndId / idempotency-key. */
+export interface OkoroAuditRow {
+  /** Shared key — the OKORO jti / endToEndId / idempotency-key. */
   endToEndId: string;
   eventId: string;
   decision: 'APPROVED' | 'DENIED' | 'FLAGGED';
@@ -33,7 +33,7 @@ export interface AegisAuditRow {
 }
 
 export interface UnderlyingSystemRow {
-  /** The same shared key as the AEGIS row. */
+  /** The same shared key as the OKORO row. */
   endToEndId: string;
   /** System-side identifier (Stripe ch_xxx, bank trace number, etc.). */
   systemId: string;
@@ -54,7 +54,7 @@ export type MismatchClass =
 export interface ReconcileEntry {
   endToEndId: string;
   class: MismatchClass;
-  aegis: AegisAuditRow | null;
+  okoro: OkoroAuditRow | null;
   system: UnderlyingSystemRow | null;
   /** When class='reversed', whether to fire fraud_confirmed (chargeback/r03/r05)
    *  or false_positive (refund) feedback. */
@@ -62,7 +62,7 @@ export interface ReconcileEntry {
 }
 
 export interface ReconcileReport {
-  totalAegisRows: number;
+  totalOkoroRows: number;
   totalSystemRows: number;
   matchedSettled: number;
   approvedMissing: number;
@@ -86,25 +86,25 @@ export interface ReconcileOptions {
 }
 
 /** Reconcile two streams. Both arrays are walked once each; runtime
- *  is O(N+M) using a Map for the AEGIS-side index. */
+ *  is O(N+M) using a Map for the OKORO-side index. */
 export function reconcile(
-  aegis: AegisAuditRow[],
+  okoro: OkoroAuditRow[],
   system: UnderlyingSystemRow[],
   opts: ReconcileOptions = {},
 ): ReconcileReport {
   const includeMatched = opts.includeMatched ?? false;
-  const aegisById = new Map<string, AegisAuditRow>();
-  for (const row of aegis) {
-    if (aegisById.has(row.endToEndId)) {
-      // Duplicate AEGIS rows for the same endToEndId would mean a replay
+  const okoroById = new Map<string, OkoroAuditRow>();
+  for (const row of okoro) {
+    if (okoroById.has(row.endToEndId)) {
+      // Duplicate OKORO rows for the same endToEndId would mean a replay
       // got past the gate; treat the second as `denied_present` later.
       // Keep the first APPROVED/FLAGGED if any; otherwise keep first.
-      const existing = aegisById.get(row.endToEndId)!;
+      const existing = okoroById.get(row.endToEndId)!;
       if (existing.decision === 'DENIED' && row.decision !== 'DENIED') {
-        aegisById.set(row.endToEndId, row);
+        okoroById.set(row.endToEndId, row);
       }
     } else {
-      aegisById.set(row.endToEndId, row);
+      okoroById.set(row.endToEndId, row);
     }
   }
 
@@ -118,26 +118,26 @@ export function reconcile(
   const seenSystem = new Set<string>();
   for (const sysRow of system) {
     seenSystem.add(sysRow.endToEndId);
-    const aegisRow = aegisById.get(sysRow.endToEndId) ?? null;
+    const okoroRow = okoroById.get(sysRow.endToEndId) ?? null;
 
-    // System has a record but AEGIS has none — definite bypass; treat
-    // as denied_present with aegis=null so it surfaces in the report.
-    if (!aegisRow) {
+    // System has a record but OKORO has none — definite bypass; treat
+    // as denied_present with okoro=null so it surfaces in the report.
+    if (!okoroRow) {
       deniedPresentEntries.push({
         endToEndId: sysRow.endToEndId,
         class: 'denied_present',
-        aegis: null,
+        okoro: null,
         system: sysRow,
       });
       continue;
     }
 
-    if (aegisRow.decision === 'DENIED') {
-      // AEGIS said no, system charged anyway.
+    if (okoroRow.decision === 'DENIED') {
+      // OKORO said no, system charged anyway.
       deniedPresentEntries.push({
         endToEndId: sysRow.endToEndId,
         class: 'denied_present',
-        aegis: aegisRow,
+        okoro: okoroRow,
         system: sysRow,
       });
       continue;
@@ -147,7 +147,7 @@ export function reconcile(
       reversedEntries.push({
         endToEndId: sysRow.endToEndId,
         class: 'reversed',
-        aegis: aegisRow,
+        okoro: okoroRow,
         system: sysRow,
         bateFeedback: classifyReversal(sysRow.reversalCause),
       });
@@ -162,7 +162,7 @@ export function reconcile(
         matchedSettledEntries.push({
           endToEndId: sysRow.endToEndId,
           class: 'matched_settled',
-          aegis: aegisRow,
+          okoro: okoroRow,
           system: sysRow,
         });
       }
@@ -172,20 +172,20 @@ export function reconcile(
     // totalSystemRows but not flagged.
   }
 
-  // Approved-missing: AEGIS approved but system never reported it.
-  for (const aegisRow of aegis) {
-    if (aegisRow.decision === 'DENIED') continue;
-    if (seenSystem.has(aegisRow.endToEndId)) continue;
+  // Approved-missing: OKORO approved but system never reported it.
+  for (const okoroRow of okoro) {
+    if (okoroRow.decision === 'DENIED') continue;
+    if (seenSystem.has(okoroRow.endToEndId)) continue;
     approvedMissingEntries.push({
-      endToEndId: aegisRow.endToEndId,
+      endToEndId: okoroRow.endToEndId,
       class: 'approved_missing',
-      aegis: aegisRow,
+      okoro: okoroRow,
       system: null,
     });
   }
 
   return {
-    totalAegisRows: aegis.length,
+    totalOkoroRows: okoro.length,
     totalSystemRows: system.length,
     matchedSettled: matchedSettledCount,
     approvedMissing: approvedMissingEntries.length,
@@ -221,8 +221,8 @@ function classifyReversal(cause: UnderlyingSystemRow['reversalCause']): 'fraud_c
 
 /** Parse NDJSON into rows. Permissive — drops blank lines, throws with
  *  line number on malformed JSON. */
-export function parseAegisNdjson(ndjson: string): AegisAuditRow[] {
-  return parseNdjson<AegisAuditRow>(ndjson, 'aegis');
+export function parseOkoroNdjson(ndjson: string): OkoroAuditRow[] {
+  return parseNdjson<OkoroAuditRow>(ndjson, 'okoro');
 }
 
 export function parseSystemNdjson(ndjson: string): UnderlyingSystemRow[] {

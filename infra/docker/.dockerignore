@@ -1,4 +1,4 @@
-# AEGIS — Docker build context filter
+# OKORO — Docker build context filter
 # ---------------------------------------------------------------------------
 # This file is consulted by `docker build` from the repo root. Anything
 # matched here never enters the build context, which keeps:
@@ -72,8 +72,8 @@ docker-compose*.yml
 infra/docker/
 
 # --- Local DB / Redis volumes (in case someone bind-mounts them) ----------
-**/aegis_pg_data
-**/aegis_redis_data
+**/okoro_pg_data
+**/okoro_redis_data
 **/postgres-data
 **/redis-data
 

@@ -8,11 +8,11 @@
 // One Rego file per AGENT_POLICY → one compiled WASM blob stored on
 // `AgentPolicy.compiledArtifact`. The blob is the output of:
 //
-//   opa build -t wasm -e "data.aegis.authz" policy.rego -o policy.wasm
+//   opa build -t wasm -e "data.okoro.authz" policy.rego -o policy.wasm
 //
-// At verify time we instantiate the WASM module with the AEGIS input
+// At verify time we instantiate the WASM module with the OKORO input
 // document (built by `OpaPolicyEngine.buildDocument`) and read both
-// `data.aegis.authz.allow` (boolean) and `data.aegis.authz.deny_reasons`
+// `data.okoro.authz.allow` (boolean) and `data.okoro.authz.deny_reasons`
 // (array of strings) from the result.
 
 import type { OpaEvaluatorLike } from './opa.engine.js';

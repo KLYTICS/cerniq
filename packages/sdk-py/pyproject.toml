@@ -3,15 +3,15 @@ requires = ["hatchling>=1.24"]
 build-backend = "hatchling.build"
 
 [project]
-name = "aegis"
+name = "okoro"
 version = "0.1.0"
-description = "AEGIS — neutral identity & verification layer for AI agents (Python SDK)."
+description = "OKORO — neutral identity & verification layer for AI agents (Python SDK)."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
-authors = [{ name = "KLYTICS LLC", email = "dev@aegislabs.io" }]
+authors = [{ name = "KLYTICS LLC", email = "dev@okorolabs.io" }]
 keywords = [
-    "aegis",
+    "okoro",
     "agent",
     "identity",
     "verification",
@@ -50,17 +50,17 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://aegislabs.io"
-Documentation = "https://docs.aegislabs.io"
-Repository = "https://github.com/klytics/aegis"
-Issues = "https://github.com/klytics/aegis/issues"
+Homepage = "https://okorolabs.io"
+Documentation = "https://docs.okorolabs.io"
+Repository = "https://github.com/klytics/okoro"
+Issues = "https://github.com/klytics/okoro/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["aegis"]
+packages = ["okoro"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "/aegis",
+    "/okoro",
     "/tests",
     "/README.md",
     "/LICENSE",
@@ -94,7 +94,7 @@ ignore = [
 "tests/*" = ["B011", "S101"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["aegis"]
+known-first-party = ["okoro"]
 
 # ───────── Mypy ─────────
 [tool.mypy]
@@ -125,7 +125,7 @@ asyncio_mode = "auto"
 addopts = "-ra --strict-markers"
 
 [tool.coverage.run]
-source = ["aegis"]
+source = ["okoro"]
 branch = true
 
 [tool.coverage.report]

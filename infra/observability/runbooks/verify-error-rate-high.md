@@ -4,8 +4,8 @@
 
 - **Names**: `VerifyErrorRateHigh` (warning), `HTTP5xxRateHigh`
   (critical, platform-level companion)
-- **Group**: `aegis.verify.slo` (denial rate), `aegis.platform` (5xx)
-- **File**: `infra/observability/alerts/aegis.rules.yml`
+- **Group**: `okoro.verify.slo` (denial rate), `okoro.platform` (5xx)
+- **File**: `infra/observability/alerts/okoro.rules.yml`
 
 ## Symptom
 
@@ -20,11 +20,11 @@ These share a runbook because the diagnosis branches the same way:
 ## Impact
 
 - **Customer trust**: a relying party getting unexpected denials cannot
-  process its own users. They will surface this as "AEGIS is broken"
+  process its own users. They will surface this as "OKORO is broken"
   whether or not the cause is on our side.
 - **Error budget**: denial spikes from the non-revocation set burn the
-  success-rate budget the same as 5xx (see `aegis.recording` group in
-  `aegis.rules.yml` — only AGENT_REVOKED / POLICY_REVOKED /
+  success-rate budget the same as 5xx (see `okoro.recording` group in
+  `okoro.rules.yml` — only AGENT_REVOKED / POLICY_REVOKED /
   POLICY_EXPIRED are excluded).
 - **Audit chain**: 5xx during verify means the audit row may not have
   appended → potential SOC2 evidence gap. Cross-check with the
@@ -34,12 +34,12 @@ These share a runbook because the diagnosis branches the same way:
 
 1. **Confirm and classify.** Open the verify SLO dashboard panel 2
    ("Denial reasons"). Note: the dashboard panel currently uses an
-   incorrect metric name (`aegis_verify_denials_total`) — see drift
-   note in `aegis.rules.yml`. Use this query directly until panel 2
+   incorrect metric name (`okoro_verify_denials_total`) — see drift
+   note in `okoro.rules.yml`. Use this query directly until panel 2
    is fixed (M-020):
 
    ```promql
-   sum by (denial_reason) (rate(aegis_verify_total{decision="denied"}[5m]))
+   sum by (denial_reason) (rate(okoro_verify_total{decision="denied"}[5m]))
    ```
 
    Whichever `denial_reason` dominates determines the branch.
@@ -50,7 +50,7 @@ These share a runbook because the diagnosis branches the same way:
    - **`INVALID_SIGNATURE` spike** — relying-party SDK regression
      or clock drift. Check whether it's one principal or many:
      ```promql
-     sum by (denial_reason) (rate(aegis_verify_total{decision="denied",denial_reason="INVALID_SIGNATURE"}[5m]))
+     sum by (denial_reason) (rate(okoro_verify_total{decision="denied",denial_reason="INVALID_SIGNATURE"}[5m]))
      ```
      If a single principal dominates, that customer rolled out a bad
      SDK build. Reach them directly.
@@ -65,20 +65,20 @@ These share a runbook because the diagnosis branches the same way:
      cap, possibly intentional (incident on their side) or a runaway
      agent. Cross-reference with `SpendRecord` table:
      ```bash
-     railway run -s aegis-api -- psql "$DATABASE_URL" -c "SELECT \"principalId\", COUNT(*) FROM \"SpendRecord\" WHERE \"createdAt\" > NOW() - INTERVAL '15 minutes' GROUP BY 1 ORDER BY 2 DESC LIMIT 5;"
+     railway run -s okoro-api -- psql "$DATABASE_URL" -c "SELECT \"principalId\", COUNT(*) FROM \"SpendRecord\" WHERE \"createdAt\" > NOW() - INTERVAL '15 minutes' GROUP BY 1 ORDER BY 2 DESC LIMIT 5;"
      ```
 
 3. **For 5xx (HTTP5xxRateHigh):**
 
    ```promql
-   sum by (route) (rate(aegis_http_requests_total{status_class="5xx"}[5m]))
+   sum by (route) (rate(okoro_http_requests_total{status_class="5xx"}[5m]))
    ```
 
    Then pull stack traces:
 
    ```bash
-   railway logs -s aegis-api | rg -F '"level":50' | tail -30   # Pino fatal+error
-   railway logs -s aegis-api | rg -F 'PrismaClientKnownRequestError|UnhandledPromiseRejection' | tail -30
+   railway logs -s okoro-api | rg -F '"level":50' | tail -30   # Pino fatal+error
+   railway logs -s okoro-api | rg -F 'PrismaClientKnownRequestError|UnhandledPromiseRejection' | tail -30
    ```
 
    If errors include `PrismaClientInitializationError`, Postgres is
@@ -87,12 +87,12 @@ These share a runbook because the diagnosis branches the same way:
 4. **Recent deploys + recent migrations.**
 
    ```bash
-   railway deployments -s aegis-api --json | jq '.[0:3]'
-   railway run -s aegis-api -- pnpm --filter @aegis/api prisma migrate status
+   railway deployments -s okoro-api --json | jq '.[0:3]'
+   railway run -s okoro-api -- pnpm --filter @okoro/api prisma migrate status
    ```
 
 5. **OTel trace search.** Filter:
-   `service.name="aegis-api" status.code="ERROR"` — the most common
+   `service.name="okoro-api" status.code="ERROR"` — the most common
    error span will name the failing dependency (Prisma, Redis,
    webhook delivery).
 
@@ -100,10 +100,10 @@ These share a runbook because the diagnosis branches the same way:
 
 - **Single-principal denial spike** (one customer's INVALID_SIGNATURE
   or SCOPE_NOT_GRANTED): contact the customer; this is a
-  customer-side bug. AEGIS is correctly denying.
+  customer-side bug. OKORO is correctly denying.
 - **Multi-principal denial spike**: that's us. If a deploy landed
   within the window, rollback:
-  `railway rollback -s aegis-api <prev-deploy-id>`.
+  `railway rollback -s okoro-api <prev-deploy-id>`.
 - **5xx from Postgres unreachable**: failover via Railway dashboard;
   if the API's `DATABASE_URL` is stale, restart the service.
 - **5xx from a single route** (e.g. `POST /v1/audit/...`): consider
@@ -122,7 +122,7 @@ These share a runbook because the diagnosis branches the same way:
 - For policy-config errors: improve the `POST /v1/policies` validation
   to refuse the misshape that caused the spike.
 - For 5xx from uncaught exceptions: the catch site should be wrapped
-  in `AegisError` (`apps/api/src/common/errors/`); add a unit test
+  in `OkoroError` (`apps/api/src/common/errors/`); add a unit test
   reproducing the failure mode.
 - For Postgres reachability: file a Railway incident link in the
   postmortem and confirm the connection-pool retry budget
@@ -133,9 +133,9 @@ These share a runbook because the diagnosis branches the same way:
 For denial-rate alerts:
 
 ```promql
-sum(rate(aegis_verify_total{decision="denied",denial_reason!~"AGENT_REVOKED|POLICY_REVOKED|POLICY_EXPIRED"}[5m]))
+sum(rate(okoro_verify_total{decision="denied",denial_reason!~"AGENT_REVOKED|POLICY_REVOKED|POLICY_EXPIRED"}[5m]))
 /
-clamp_min(sum(rate(aegis_verify_total[5m])), 0.001)
+clamp_min(sum(rate(okoro_verify_total[5m])), 0.001)
 ```
 
 Must return < 0.02 sustained over 15 min (well under the 0.05
@@ -144,9 +144,9 @@ threshold).
 For 5xx alerts:
 
 ```promql
-sum(rate(aegis_http_requests_total{status_class="5xx"}[5m]))
+sum(rate(okoro_http_requests_total{status_class="5xx"}[5m]))
 /
-clamp_min(sum(rate(aegis_http_requests_total[5m])), 0.001)
+clamp_min(sum(rate(okoro_http_requests_total[5m])), 0.001)
 ```
 
 Must return < 0.005 sustained over 15 min.
@@ -155,7 +155,7 @@ Must return < 0.005 sustained over 15 min.
 
 - **Not resolved in 15 min (5xx critical)** → page second-on-call.
 - **Not resolved in 30 min (denial warning)** → notify
-  `#aegis-oncall` lead.
+  `#okoro-oncall` lead.
 - **Customer-reported impact** → page status-page owner; post within
   5 min of customer report.
 - **Suspected security incident** (e.g. INVALID_SIGNATURE spike from
@@ -169,4 +169,4 @@ Must return < 0.005 sustained over 15 min.
 indicates we threw, which is always worth understanding). **Yes** for
 any denial-rate alert that lasted > 30 min or was customer-reported.
 **No** for self-resolving warning-only events under 30 min, but post
-the cause in `#aegis-ops`.
+the cause in `#okoro-ops`.

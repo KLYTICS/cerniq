@@ -1,4 +1,4 @@
-// Public surface of @aegis/audit-verifier.
+// Public surface of @okoro/audit-verifier.
 //
 // Stability guarantee:
 //   - The exported types in `./types` are part of the wire contract.

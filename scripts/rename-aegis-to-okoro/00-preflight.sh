@@ -6,9 +6,9 @@ cd "$(git rev-parse --show-toplevel)"
 
 echo "[preflight] Checking repo state..."
 
-# 1. Is this the AEGIS repo?
-if [ ! -f CLAUDE.md ] || ! head -10 CLAUDE.md | grep -q -E '^# (AEGIS|OKORO)'; then
-  echo "ERROR: this does not look like the AEGIS repo (no CLAUDE.md, or no recognizable heading)." >&2
+# 1. Is this the OKORO repo?
+if [ ! -f CLAUDE.md ] || ! head -10 CLAUDE.md | grep -q -E '^# (OKORO|OKORO)'; then
+  echo "ERROR: this does not look like the OKORO repo (no CLAUDE.md, or no recognizable heading)." >&2
   exit 1
 fi
 
@@ -53,8 +53,8 @@ if ! git config user.email >/dev/null; then
 fi
 
 # 7. Optional Excel lock warning
-if [ -f "docs/finance/.~lock.AEGIS_Financial_Model_v1.xlsx#" ]; then
-  echo "WARNING: docs/finance/AEGIS_Financial_Model_v1.xlsx has an Excel lock."
+if [ -f "docs/finance/.~lock.OKORO_Financial_Model_v1.xlsx#" ]; then
+  echo "WARNING: docs/finance/OKORO_Financial_Model_v1.xlsx has an Excel lock."
   echo "         Close Excel before continuing if you want the file renamed."
 fi
 

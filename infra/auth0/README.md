@@ -1,29 +1,29 @@
-# Auth0 Actions for AEGIS
+# Auth0 Actions for OKORO
 
 Two Actions ship here. Both run in the Auth0 Actions sandbox and have
-their own secrets, completely separate from AEGIS's API keys.
+their own secrets, completely separate from OKORO's API keys.
 
-## `aegis-audit-login.js`
+## `okoro-audit-login.js`
 
 **Trigger**: `post-login`.
 
-Posts the login event to AEGIS at
-`POST /v1/idp/auth0/action` so AEGIS audits every human login as a
+Posts the login event to OKORO at
+`POST /v1/idp/auth0/action` so OKORO audits every human login as a
 hash-chain event (ADR-0009 §4).
 
 **Required secrets**:
-- `AEGIS_API_BASE` — e.g. `https://api.aegis.dev`
-- `AEGIS_ACTION_SECRET` — shared HMAC secret with the AEGIS API
+- `OKORO_API_BASE` — e.g. `https://api.okoro.dev`
+- `OKORO_ACTION_SECRET` — shared HMAC secret with the OKORO API
   (`AUTH0_ACTION_SECRET` env on the API side)
 
 **Failure semantics**: action errors do NOT block login. The dashboard's
 token-exchange call (also audited) catches dropped events on next login.
 
-## `aegis-block-non-admin-mfa-skip.js`
+## `okoro-block-non-admin-mfa-skip.js`
 
 **Trigger**: `post-login`.
 
-Denies logins where a user with the `aegis:admin` role hasn't satisfied
+Denies logins where a user with the `okoro:admin` role hasn't satisfied
 MFA. Belt-and-suspenders to Auth0's tenant-level MFA settings.
 
 ## Deployment

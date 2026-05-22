@@ -52,7 +52,7 @@ describe('preflight CLI', () => {
     it('exits 0 and prints help text', () => {
       const r = run(['--help']);
       expect(r.status).toBe(0);
-      expect(r.stdout).toContain('AEGIS preflight');
+      expect(r.stdout).toContain('OKORO preflight');
       expect(r.stdout).toContain('--fast');
       expect(r.stdout).toContain('--json');
       expect(r.stdout).toContain('--only');

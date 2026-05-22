@@ -17,8 +17,8 @@ import {
   type SessionEntry,
 } from './generate-changelog.js';
 import {
-  findAegisPackages,
-  AegisPackageManifest,
+  findOkoroPackages,
+  OkoroPackageManifest,
 } from './lib/package-introspect.js';
 
 // ──────────────────────────────────────────────────────────────────────
@@ -31,7 +31,7 @@ interface FakeRepo {
 }
 
 function makeFakeRepo(): FakeRepo {
-  const root = mkdtempSync(path.join(tmpdir(), 'aegis-changelog-'));
+  const root = mkdtempSync(path.join(tmpdir(), 'okoro-changelog-'));
   writeFileSync(path.join(root, 'pnpm-workspace.yaml'), 'packages:\n  - "packages/*"\n');
   mkdirSync(path.join(root, 'packages'), { recursive: true });
   mkdirSync(path.join(root, 'docs'), { recursive: true });
@@ -50,30 +50,30 @@ function makeFakeRepo(): FakeRepo {
   };
 
   mkPkg('sdk-ts', {
-    name: '@aegis/sdk',
+    name: '@okoro/sdk',
     version: '0.1.0',
-    description: 'AEGIS SDK',
+    description: 'OKORO SDK',
     license: 'MIT',
     main: 'dist/index.cjs',
-    repository: { type: 'git', url: 'https://github.com/x/aegis.git' },
+    repository: { type: 'git', url: 'https://github.com/x/okoro.git' },
     engines: { node: '>=18' },
-    keywords: ['aegis', 'sdk', 'agent'],
+    keywords: ['okoro', 'sdk', 'agent'],
   });
   mkPkg('types', {
-    name: '@aegis/types',
+    name: '@okoro/types',
     version: '0.1.0',
-    description: 'AEGIS types',
+    description: 'OKORO types',
     license: 'MIT',
   });
   mkPkg('verifier-rp', {
-    name: '@aegis/verifier-rp',
+    name: '@okoro/verifier-rp',
     version: '0.1.0',
     description: 'verifier',
     license: 'MIT',
   });
   mkPkg('sdk-py', {
     // sdk-py has no real npm package.json; mock one for discovery.
-    name: 'aegis-py',
+    name: 'okoro-py',
     version: '0.1.0',
     description: 'python sdk',
     license: 'MIT',
@@ -123,7 +123,7 @@ describe('parseSessionHandoff', () => {
 
   it('extracts heading + bullets', () => {
     const text = `\
-# AEGIS — Session handoff log
+# OKORO — Session handoff log
 
 ## 2026-05-05 (Round 15) · claim=foo
 
@@ -180,7 +180,7 @@ describe('filterEntriesSince', () => {
 describe('bucketEntriesByPackage', () => {
   it('matches entries by path token', () => {
     const repo = makeFakeRepo();
-    const packages = findAegisPackages({ repoRoot: repo.root });
+    const packages = findOkoroPackages({ repoRoot: repo.root });
     const entries: SessionEntry[] = [
       {
         date: '2026-05-05',
@@ -203,18 +203,18 @@ describe('bucketEntriesByPackage', () => {
     ];
     const buckets = bucketEntriesByPackage(entries, packages);
     const names = buckets.map((b) => b.pkg.name);
-    expect(names).toContain('@aegis/sdk');
-    expect(names).toContain('@aegis/types');
+    expect(names).toContain('@okoro/sdk');
+    expect(names).toContain('@okoro/types');
     // verifier-rp had no matches → no bucket
-    expect(names).not.toContain('@aegis/verifier-rp');
-    const sdkBucket = buckets.find((b) => b.pkg.name === '@aegis/sdk');
+    expect(names).not.toContain('@okoro/verifier-rp');
+    const sdkBucket = buckets.find((b) => b.pkg.name === '@okoro/sdk');
     expect(sdkBucket?.entries).toHaveLength(1);
     expect(sdkBucket?.entries[0]?.heading).toBe('sdk shipped');
   });
 
   it('returns [] when no entries touch any package', () => {
     const repo = makeFakeRepo();
-    const packages = findAegisPackages({ repoRoot: repo.root });
+    const packages = findOkoroPackages({ repoRoot: repo.root });
     const entries: SessionEntry[] = [
       { date: '2026-05-05', heading: 'docs only', body: 'docs/foo.md', bullets: [] },
     ];
@@ -228,8 +228,8 @@ describe('bucketEntriesByPackage', () => {
 
 describe('renderChangelog', () => {
   const repo = makeFakeRepo();
-  const packages = findAegisPackages({ repoRoot: repo.root });
-  const sdk = packages.find((p) => p.name === '@aegis/sdk') as AegisPackageManifest;
+  const packages = findOkoroPackages({ repoRoot: repo.root });
+  const sdk = packages.find((p) => p.name === '@okoro/sdk') as OkoroPackageManifest;
 
   it('emits Keep-A-Changelog header + dated sections', () => {
     const out = renderChangelog({
@@ -288,9 +288,9 @@ describe('readGitCommits + bucketCommitsByPackage', () => {
     ]);
 
     const repo = makeFakeRepo();
-    const packages = findAegisPackages({ repoRoot: repo.root });
+    const packages = findOkoroPackages({ repoRoot: repo.root });
     const buckets = bucketCommitsByPackage(commits, packages);
-    expect(buckets.find((b) => b.pkg.name === '@aegis/sdk')?.entries).toHaveLength(1);
+    expect(buckets.find((b) => b.pkg.name === '@okoro/sdk')?.entries).toHaveLength(1);
   });
 
   it('returns [] when git fails (no repo)', () => {
@@ -360,7 +360,7 @@ describe('run()', () => {
       { gitRunner: fakeGit, log: () => undefined },
     );
     expect(result.usedFallback).toBe(true);
-    expect(result.buckets.find((b) => b.pkg.name === '@aegis/sdk')).toBeDefined();
+    expect(result.buckets.find((b) => b.pkg.name === '@okoro/sdk')).toBeDefined();
   });
 
   it('--dry-run does not write files', () => {
@@ -390,7 +390,7 @@ describe('run()', () => {
       { log: () => undefined },
     );
     expect(result.buckets).toHaveLength(1);
-    expect(result.buckets[0]?.pkg.name).toBe('@aegis/sdk');
+    expect(result.buckets[0]?.pkg.name).toBe('@okoro/sdk');
   });
 
   it('--package with unknown alias throws', () => {

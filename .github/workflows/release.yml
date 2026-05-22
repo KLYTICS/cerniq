@@ -1,4 +1,4 @@
-# Changesets-driven release for public packages (@aegis/sdk, @aegis/types).
+# Changesets-driven release for public packages (@okoro/sdk, @okoro/types).
 # Runs on merge to main; opens a "Version Packages" PR with the version
 # bumps + changelog entries. Merging that PR publishes to npm.
 #
@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   release:
-    if: github.repository == 'klytics/aegis'
+    if: github.repository == 'klytics/okoro'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -43,7 +43,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Build SDK + types
-        run: pnpm --filter '@aegis/types' --filter '@aegis/sdk' build
+        run: pnpm --filter '@okoro/types' --filter '@okoro/sdk' build
 
       - name: Create release PR or publish
         id: changesets

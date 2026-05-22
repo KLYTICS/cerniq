@@ -1,4 +1,4 @@
-// StripeService — checkout + webhook handler for AEGIS billing (G-3).
+// StripeService — checkout + webhook handler for OKORO billing (G-3).
 //
 // Design notes:
 //
@@ -31,10 +31,10 @@ import { forwardRef, Inject, Injectable, Logger, Optional } from '@nestjs/common
 import type { PlanTier } from '@prisma/client';
 
 import {
-  AegisError,
+  OkoroError,
   ServiceUnavailableError,
   ValidationError,
-} from '../../common/errors/aegis-error';
+} from '../../common/errors/okoro-error';
 import { MetricsService } from '../../common/observability/metrics.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
@@ -139,7 +139,7 @@ export class StripeService {
   private stripeClient: StripeSdk | null = null;
 
   /** SETNX idempotency key for Stripe events. 7-day TTL. */
-  private readonly EVENT_IDEMPOTENCY_PREFIX = 'aegis:stripe:event';
+  private readonly EVENT_IDEMPOTENCY_PREFIX = 'okoro:stripe:event';
   private readonly EVENT_IDEMPOTENCY_TTL_S = 7 * 86_400;
 
   /**
@@ -953,4 +953,4 @@ export class StripeService {
 
 // Re-export the error type so callers can `instanceof` against the public
 // surface without importing the deep path.
-export { AegisError };
+export { OkoroError };

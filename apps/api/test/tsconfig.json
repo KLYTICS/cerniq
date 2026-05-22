@@ -12,7 +12,7 @@
     "rootDir": "./",
     "baseUrl": "../",
     "paths": {
-      "@aegis/api/*": ["src/*"]
+      "@okoro/api/*": ["src/*"]
     }
   },
   "include": ["./**/*.ts"],

@@ -7,8 +7,8 @@ from typing import Any
 
 import pytest
 
-from aegis import (
-    AsyncAegis,
+from okoro import (
+    AsyncOkoro,
     DenialReason,
     TrustBand,
     VerifyResult,
@@ -16,13 +16,13 @@ from aegis import (
 
 
 async def test_verify_happy_path(
-    aegis: AsyncAegis,
+    okoro: AsyncOkoro,
     respx_mock: Any,
     sample_verify_response: dict[str, Any],
     verify_key: str,
 ) -> None:
     route = respx_mock.post("/verify").respond(200, json=sample_verify_response)
-    res = await aegis.verify(
+    res = await okoro.verify(
         "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.example.signature",
         action="commerce.purchase",
         amount=347.0,
@@ -37,8 +37,8 @@ async def test_verify_happy_path(
     assert res.spend_remaining.this_month == 49_653.0
 
     req = route.calls.last.request
-    assert req.headers["X-AEGIS-Verify-Key"] == verify_key
-    assert "X-AEGIS-API-Key" not in req.headers
+    assert req.headers["X-OKORO-Verify-Key"] == verify_key
+    assert "X-OKORO-API-Key" not in req.headers
     body = json.loads(req.content.decode())
     assert body["token"].startswith("eyJ")
     assert body["action"] == "commerce.purchase"
@@ -61,7 +61,7 @@ async def test_verify_happy_path(
     ],
 )
 async def test_verify_returns_each_denial_reason(
-    aegis: AsyncAegis, respx_mock: Any, denial_reason: DenialReason
+    okoro: AsyncOkoro, respx_mock: Any, denial_reason: DenialReason
 ) -> None:
     body = {
         "valid": False,
@@ -77,7 +77,7 @@ async def test_verify_returns_each_denial_reason(
         "auditEventId": None,
     }
     respx_mock.post("/verify").respond(200, json=body)
-    res = await aegis.verify("eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.x.y")
+    res = await okoro.verify("eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.x.y")
     assert res.valid is False
     assert res.denial_reason == denial_reason
     assert res.trust_band is None
@@ -86,8 +86,8 @@ async def test_verify_returns_each_denial_reason(
 
 async def test_verify_requires_verify_key(api_key: str, base_url: str) -> None:
     """If only api_key is set, verify() must complain — not silently send the management key."""
-    from aegis import AegisError
+    from okoro import OkoroError
 
-    async with AsyncAegis(api_key=api_key, base_url=base_url) as a:
-        with pytest.raises(AegisError):
+    async with AsyncOkoro(api_key=api_key, base_url=base_url) as a:
+        with pytest.raises(OkoroError):
             await a.verify("eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.x.y")

@@ -12,7 +12,7 @@
 //   6. /ready overall=ok when Stripe disabled (isEnabled=false).
 //   7. /ready captures latencyMs as a positive number.
 //   8. /ready never leaks sensitive error text — assert error strings
-//      do not contain `aegis_`, `whsec_`, or `sk_`.
+//      do not contain `okoro_`, `whsec_`, or `sk_`.
 //   9. /version returns { version, gitSha, builtAt } shape.
 
 import type { AuditSignerService } from '../../common/crypto/audit-signer.service';
@@ -188,7 +188,7 @@ describe('HealthController', () => {
       // strips none of these as a safety property: NO secret-shaped text
       // appears in error fields. We construct errors without the canary
       // patterns and assert the output also lacks them.
-      const sensitivePatterns = ['aegis_', 'whsec_', 'sk_'];
+      const sensitivePatterns = ['okoro_', 'whsec_', 'sk_'];
       const ctrl = build({
         dbThrows: new Error('postgres connection refused at db.host:5432'),
         kmsThrows: new Error('kms RPC failed: deadline exceeded'),

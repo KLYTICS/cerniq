@@ -1,8 +1,8 @@
 {
-  "name": "@aegis/e2e",
+  "name": "@okoro/e2e",
   "version": "0.1.0",
   "private": true,
-  "description": "AEGIS — black-box end-to-end test harness. Drives the live API over HTTP using @aegis/sdk + @aegis/types.",
+  "description": "OKORO — black-box end-to-end test harness. Drives the live API over HTTP using @okoro/sdk + @okoro/types.",
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
@@ -13,13 +13,13 @@
     "load": "k6 run load/verify.js"
   },
   "dependencies": {
-    "@aegis/sdk": "link:../packages/sdk-ts",
-    "@aegis/types": "link:../packages/types",
+    "@okoro/sdk": "link:../packages/sdk-ts",
+    "@okoro/types": "link:../packages/types",
     "@noble/ed25519": "^2.1.0",
     "@noble/hashes": "^1.5.0"
   },
   "devDependencies": {
-    "@aegis/tsconfig": "link:../packages/tsconfig",
+    "@okoro/tsconfig": "link:../packages/tsconfig",
     "@types/node": "^20.14.0",
     "fast-check": "^3.23.1",
     "typescript": "^5.6.3",

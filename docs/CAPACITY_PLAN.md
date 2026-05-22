@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Capacity plan
+title: OKORO — Capacity plan
 status: draft
 last-reviewed: 2026-05-02
 owner: operator (Erwin) — sid open
@@ -7,10 +7,10 @@ audience: SRE / platform engineering / SOC 2 Type II auditor / partner-integrati
 companion-to: docs/ARCHITECTURE.md §11 (summary), docs/SLO.md (targets), docs/FAILURE_MODES.md (degradation), docs/RETENTION_POLICY.md (storage growth driver)
 ---
 
-# AEGIS — Capacity plan
+# OKORO — Capacity plan
 
 > **Purpose.** Quantitative model for sizing every load-bearing
-> component of AEGIS so the SLOs in `docs/SLO.md` are demonstrably
+> component of OKORO so the SLOs in `docs/SLO.md` are demonstrably
 > achievable from first principles. ARCHITECTURE.md §11 is the
 > three-paragraph summary; this document is the canon a partner
 > capacity reviewer or SRE-on-call references when a number needs
@@ -44,7 +44,7 @@ measurement before Phase 1 GA.
 
 ## 2. Workload model
 
-AEGIS has three workload classes with fundamentally different cost
+OKORO has three workload classes with fundamentally different cost
 shapes. Conflating them produces the wrong sizing call.
 
 ### 2.1 Workload classes
@@ -101,7 +101,7 @@ with 6× headroom, which is intentional — Phase 3 lift to CF Workers
 is meant to land **before** the 6× headroom erodes (i.e. when
 sustained crosses ~150 rps in production).
 
-### 2.4 Per-RP workload mix (per `AEGIS_AS_BACKBONE.md`)
+### 2.4 Per-RP workload mix (per `OKORO_AS_BACKBONE.md`)
 
 | RP                       | Verify rps GA | Verify rps +12mo | Audit/day GA | Notes                                         |
 |--------------------------|---------------|-------------------|--------------|-----------------------------------------------|
@@ -296,7 +296,7 @@ prisma module init.
 | Background cron (partition mgmt, BATE recompute) | n/a (off hours) | Move to maintenance window                 |
 
 `pg_stat_statements` enabled in prod with retention of 7 days, scraped
-nightly into `s3://aegis-perf/pg-stat/<date>.csv` for trend tracking.
+nightly into `s3://okoro-perf/pg-stat/<date>.csv` for trend tracking.
 
 ### 5.4 AuditEvent partition strategy
 
@@ -412,7 +412,7 @@ Phase 1 = single-node primary + standby replica (Railway managed).
 Cluster mode is **deferred** because:
 - Multi-key ops on `spend:` (read + INCRBY + write back on Postgres
   reconciliation) are simpler when keys land on one node.
-- AEGIS workload at +12mo (1.5 K rps reads + 50 rps writes) fits
+- OKORO workload at +12mo (1.5 K rps reads + 50 rps writes) fits
   comfortably on a single 32-GiB node.
 - BullMQ + cluster has historical sharp edges (delayed jobs across
   shards).
@@ -692,7 +692,7 @@ Lives at `apps/api/test/load/` (per WORK_BOARD M-005 acceptance).
 
 ### 13.3 Capacity-test environment
 
-A dedicated Railway environment (`aegis-capacity`) sized **at the
+A dedicated Railway environment (`okoro-capacity`) sized **at the
 production budgets in this document**. Re-provisioned monthly to
 reflect any sizing changes ratified in the §15 review.
 
@@ -700,7 +700,7 @@ reflect any sizing changes ratified in the §15 review.
 
 ## 14. Capacity reservations for sister-project rollouts
 
-Per `AEGIS_AS_BACKBONE.md` §3 and §7 roll-out order, each sister
+Per `OKORO_AS_BACKBONE.md` §3 and §7 roll-out order, each sister
 project triggers a step-function in workload. Pre-allocated:
 
 | Project | Trigger event                  | Capacity bump                                       |
@@ -714,7 +714,7 @@ project triggers a step-function in workload. Pre-allocated:
 
 Each "trigger" maps to a §12 scaling action that **must be completed
 before the project flips its enforcement gate**. Per-project
-adoption owner confirms via `claude-peers msg` to the AEGIS owner.
+adoption owner confirms via `claude-peers msg` to the OKORO owner.
 
 ---
 
@@ -749,7 +749,7 @@ numbers in this document with measurements**, removing
 | Webhook DLQ                    | `OPERATOR_DECISIONS.md` OD-005                                |
 | Pricing-tier capacity          | `OPERATOR_DECISIONS.md` OD-003                                |
 | Audit retention horizon        | `OPERATOR_DECISIONS.md` OD-004                                |
-| Multi-project capacity bumps   | `docs/AEGIS_AS_BACKBONE.md` §3 + §7                           |
+| Multi-project capacity bumps   | `docs/OKORO_AS_BACKBONE.md` §3 + §7                           |
 
 ---
 
@@ -759,9 +759,9 @@ These are the `<!-- assumption: ... -->` markers extracted into one
 place for the §15 quarterly review.
 
 1. <!-- assumption: §2.2 RP traffic mix is operator's best estimate; FORGE/CerniQ/Apex/Bimba teams should confirm verify rps targets per their own SLO docs. -->
-2. <!-- assumption: §4.1 NestJS per-pod concurrency 25 is empirically defensible from prior projects but not yet measured on AEGIS itself. Replace after k6 in apps/api/test/load/. -->
+2. <!-- assumption: §4.1 NestJS per-pod concurrency 25 is empirically defensible from prior projects but not yet measured on OKORO itself. Replace after k6 in apps/api/test/load/. -->
 3. <!-- assumption: §6.4 Railway Redis 8 GiB plan exists at the cited price; confirm against Railway pricing page at quarterly review. -->
 4. <!-- assumption: §8.3 D1 storage budget at Phase 3 assumes generous CF pricing; risk that 5-region 24h overflow exceeds D1 economics. Re-evaluate in Phase 3 design phase. -->
-5. <!-- assumption: §9.2 GCP KMS EdDSA sign rate 6 000 rps per key version is the documented figure; AWS RSA fallback rate 5 500 rps is per-region shared which makes hot-key fanout the real bottleneck — sized assuming AEGIS is one of several KMS consumers in the AWS account. -->
+5. <!-- assumption: §9.2 GCP KMS EdDSA sign rate 6 000 rps per key version is the documented figure; AWS RSA fallback rate 5 500 rps is per-region shared which makes hot-key fanout the real bottleneck — sized assuming OKORO is one of several KMS consumers in the AWS account. -->
 6. <!-- assumption: §11.3 Glacier + Coldline pricing $0.004/GB-mo combines AWS and GCP; check parity at Phase 3 procurement. -->
 7. <!-- assumption: §10.1 Workers KV global replication has < 1 min staleness — Cloudflare publishes ~60 s p99 globally; verify before Phase 3 commits to KV-as-source for verify cache. -->

@@ -44,10 +44,10 @@ describe('CedarWasmEvaluator', () => {
     ).rejects.toThrow(/artifact\.policies/);
   });
 
-  it('extracts aegis_deny_reason annotation as obligation', async () => {
+  it('extracts okoro_deny_reason annotation as obligation', async () => {
     const cedar = fakeCedar({
       decision: 'Deny',
-      diagnostics: { reason: 'matched policy_x with aegis_deny_reason("SPEND_LIMIT_EXCEEDED")' },
+      diagnostics: { reason: 'matched policy_x with okoro_deny_reason("SPEND_LIMIT_EXCEEDED")' },
     });
     const evaluator = new CedarWasmEvaluator(cedar);
     const r = await evaluator.isAuthorized({
@@ -55,10 +55,10 @@ describe('CedarWasmEvaluator', () => {
       artifact: { policies: 'permit(...);', entities: [] },
     });
     expect(r.decision).toBe('Deny');
-    expect(r.obligations).toEqual([{ kind: 'aegis.deny_reason', data: { reason: 'SPEND_LIMIT_EXCEEDED' } }]);
+    expect(r.obligations).toEqual([{ kind: 'okoro.deny_reason', data: { reason: 'SPEND_LIMIT_EXCEEDED' } }]);
   });
 
-  it('returns no obligations when diagnostics have no aegis_deny_reason', async () => {
+  it('returns no obligations when diagnostics have no okoro_deny_reason', async () => {
     const cedar = fakeCedar({ decision: 'Deny', diagnostics: { reason: 'no policy matched' } });
     const evaluator = new CedarWasmEvaluator(cedar);
     const r = await evaluator.isAuthorized({

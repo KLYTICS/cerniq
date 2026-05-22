@@ -5,27 +5,27 @@
 //   - the seat table (tier, tenant, externalId, agentId, policyId)
 //   - the per-tier policy template (scope, spend cap, domains)
 //
-// AEGIS owns:
+// OKORO owns:
 //   - the cryptographic agent identity
 //   - the signed policy JWT
 //   - the audit chain
 //
 // On POST /scim/v2/Agents the SaaS:
 //   1. Validates the SCIM body.
-//   2. aegis.agents.register() — creates the cryptographic identity.
-//   3. aegis.policies.create() — mints a tier-shaped scoped policy.
+//   2. okoro.agents.register() — creates the cryptographic identity.
+//   3. okoro.policies.create() — mints a tier-shaped scoped policy.
 //   4. Persists a seat row joining (tenant, externalId, agentId, policyId).
 //   5. Returns the SCIM-shaped 201 Created.
 //
-// On DELETE the SaaS revokes both the AEGIS agent (immediate) and the
+// On DELETE the SaaS revokes both the OKORO agent (immediate) and the
 // policy (idempotent — agent revocation kills any signed token anyway).
 
 import express, { type Request, type Response } from 'express';
-import { Aegis } from '@aegis/sdk';
+import { Okoro } from '@okoro/sdk';
 
-const aegis = new Aegis({
-  baseUrl: process.env.AEGIS_API_BASE ?? 'https://api.aegislabs.io',
-  apiKey: requireEnv('AEGIS_API_KEY'),
+const okoro = new Okoro({
+  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okorolabs.io',
+  apiKey: requireEnv('OKORO_API_KEY'),
 });
 
 const tenantId = requireEnv('SAAS_TENANT_ID');
@@ -55,18 +55,18 @@ app.post('/scim/v2/Agents', async (req: Request, res: Response) => {
   const existing = seats.get(key);
   if (existing) return res.status(200).json(scimRender(existing));
 
-  const tier: SeatTier = (body.urn?.['urn:aegis:saas:1.0:Agent']?.tier ?? 'free') as SeatTier;
+  const tier: SeatTier = (body.urn?.['urn:okoro:saas:1.0:Agent']?.tier ?? 'free') as SeatTier;
   const tpl = POLICY_TEMPLATES[tier];
   if (!tpl) {
     return res.status(400).json(scimError('invalidValue', `unknown tier ${tier}`));
   }
 
-  const agent = await aegis.agents.register({
+  const agent = await okoro.agents.register({
     publicKey: body.publicKey,
     runtime: 'CUSTOM',
     metadata: { tenantId, externalId: body.externalId, displayName: body.displayName },
   });
-  const policy = await aegis.policies.create({
+  const policy = await okoro.policies.create({
     agentId: agent.id,
     scope: tpl.scope,
     maxPerDay: tpl.maxPerDay,
@@ -97,8 +97,8 @@ app.get('/scim/v2/Agents/:id', (req, res) => {
 app.delete('/scim/v2/Agents/:id', async (req, res) => {
   for (const [key, seat] of seats.entries()) {
     if (seat.id !== req.params.id) continue;
-    await aegis.agents.revoke(seat.agentId).catch(() => undefined);
-    await aegis.policies.revoke(seat.policyId).catch(() => undefined);
+    await okoro.agents.revoke(seat.agentId).catch(() => undefined);
+    await okoro.policies.revoke(seat.policyId).catch(() => undefined);
     seats.delete(key);
     return res.status(204).end();
   }
@@ -108,7 +108,7 @@ app.delete('/scim/v2/Agents/:id', async (req, res) => {
 app.get('/scim/v2/ServiceProviderConfig', (_req, res) => {
   res.json({
     schemas: ['urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig'],
-    documentationUri: 'https://docs.aegislabs.io/integrations/scim',
+    documentationUri: 'https://docs.okorolabs.io/integrations/scim',
     patch: { supported: false },
     bulk: { supported: false, maxOperations: 0, maxPayloadSize: 0 },
     filter: { supported: true, maxResults: 200 },
@@ -151,16 +151,16 @@ interface ScimCreateBody {
   externalId: string;
   displayName: string;
   publicKey: string;
-  urn?: { 'urn:aegis:saas:1.0:Agent'?: { tier?: SeatTier } };
+  urn?: { 'urn:okoro:saas:1.0:Agent'?: { tier?: SeatTier } };
 }
 
 function scimRender(seat: SeatRow): Record<string, unknown> {
   return {
-    schemas: ['urn:ietf:params:scim:schemas:core:2.0:Agent', 'urn:aegis:saas:1.0:Agent'],
+    schemas: ['urn:ietf:params:scim:schemas:core:2.0:Agent', 'urn:okoro:saas:1.0:Agent'],
     id: seat.id,
     externalId: seat.externalId,
     displayName: seat.displayName,
-    'urn:aegis:saas:1.0:Agent': {
+    'urn:okoro:saas:1.0:Agent': {
       tier: seat.tier,
       agentId: seat.agentId,
       policyId: seat.policyId,

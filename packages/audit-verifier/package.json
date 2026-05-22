@@ -1,17 +1,17 @@
 {
-  "name": "@aegis/audit-verifier",
+  "name": "@okoro/audit-verifier",
   "version": "0.1.0",
-  "description": "Offline verifier for AEGIS audit chains. Anyone with the public JWKS can independently verify the tamper-evidence of an AEGIS audit log export.",
+  "description": "Offline verifier for OKORO audit chains. Anyone with the public JWKS can independently verify the tamper-evidence of an OKORO audit log export.",
   "license": "MIT",
-  "author": "AEGIS Labs <hello@aegislabs.io>",
-  "homepage": "https://aegislabs.io",
+  "author": "OKORO Labs <hello@okorolabs.io>",
+  "homepage": "https://okorolabs.io",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/klytics/aegis.git",
+    "url": "git+https://github.com/klytics/okoro.git",
     "directory": "packages/audit-verifier"
   },
   "bugs": {
-    "url": "https://github.com/klytics/aegis/issues"
+    "url": "https://github.com/klytics/okoro/issues"
   },
   "publishConfig": {
     "access": "public"
@@ -28,7 +28,7 @@
     }
   },
   "bin": {
-    "aegis-audit-verify": "./dist/cli.mjs"
+    "okoro-audit-verify": "./dist/cli.mjs"
   },
   "files": ["dist", "README.md", "LICENSE"],
   "sideEffects": false,
@@ -47,7 +47,7 @@
     "@noble/hashes": "^1.5.0"
   },
   "devDependencies": {
-    "@aegis/tsconfig": "workspace:*",
+    "@okoro/tsconfig": "workspace:*",
     "@types/node": "^20.14.0",
     "tsup": "^8.3.5",
     "typescript": "^5.6.3",
@@ -57,7 +57,7 @@
     "node": ">=20.11.0"
   },
   "keywords": [
-    "aegis",
+    "okoro",
     "audit",
     "tamper-evident",
     "ed25519",

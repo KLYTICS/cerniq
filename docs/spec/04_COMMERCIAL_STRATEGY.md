@@ -1,4 +1,4 @@
-# AEGIS — Commercial Strategy & Buying Journey
+# OKORO — Commercial Strategy & Buying Journey
 ## Document 04 — Sales Motion, Buyer Personas, ICP, Revenue Operations
 ### KLYTICS Internal | Version 1.0 | May 2026
 
@@ -8,7 +8,7 @@
 
 ### The Three Buying Motions
 
-AEGIS operates across three distinct buying motions simultaneously. Confusing them is the #1 GTM mistake for developer tools. Each requires a different trigger, different buyer, different close cycle.
+OKORO operates across three distinct buying motions simultaneously. Confusing them is the #1 GTM mistake for developer tools. Each requires a different trigger, different buyer, different close cycle.
 
 ```
 MOTION 1: SELF-SERVE PLG          MOTION 2: SALES-ASSISTED          MOTION 3: ENTERPRISE
@@ -22,7 +22,7 @@ Touch: Zero human contact          Touch: 1–2 async emails            Touch: D
 ACV: $348–$1,788                  ACV: $1,788–$6,000                 ACV: $18,000–$120,000
 ```
 
-**Key principle:** The PLG motion *feeds* the sales-assisted motion. A developer who loves AEGIS brings it to their team. The team expansion triggers the sales-assisted deal. Multiple team deals at one company trigger enterprise procurement. This is the Twilio → AT&T pattern: start with one developer's SMS, end with a corporate contract.
+**Key principle:** The PLG motion *feeds* the sales-assisted motion. A developer who loves OKORO brings it to their team. The team expansion triggers the sales-assisted deal. Multiple team deals at one company trigger enterprise procurement. This is the Twilio → AT&T pattern: start with one developer's SMS, end with a corporate contract.
 
 ---
 
@@ -35,7 +35,7 @@ ACV: $348–$1,788                  ACV: $1,788–$6,000                 ACV: $1
 **Situation:** Their agent is hitting bot detection walls, getting flagged by merchant systems, or a customer asked "how do I know your agent isn't a bot?"
 **Budget authority:** Personal credit card or startup card. No approval needed under $50/mo.
 **Decision timeline:** Evaluates → signs up → integrates in same session if the docs are good.
-**What they need from AEGIS:**
+**What they need from OKORO:**
 - Work in 3 lines of code
 - Clear quickstart (not a 30-page enterprise guide)
 - Actually solves the "agent got blocked" problem today
@@ -56,11 +56,11 @@ ACV: $348–$1,788                  ACV: $1,788–$6,000                 ACV: $1
 **Who:** Senior engineer or engineering manager at a 10–100 person startup that's shipping agent features into their product.
 **Situation:** Their team has 3–5 developers each implementing agent auth differently. They need consistency, audit logs for customers, and something defensible to show investors.
 **Budget authority:** $500–$2,000/month with team budget, no procurement. Maybe a quick Slack check with CTO.
-**Decision timeline:** 1–2 weeks. Sees the free tier working, checks AEGIS docs for enterprise features, reads the SOC2 posture page, decides.
-**What they need from AEGIS:**
+**Decision timeline:** 1–2 weeks. Sees the free tier working, checks OKORO docs for enterprise features, reads the SOC2 posture page, decides.
+**What they need from OKORO:**
 - Multi-agent management (team dashboard, not per-developer silos)
 - BATE score visibility (can report to customers: "your agent has a 780 trust score")
-- Webhook integration (pipe AEGIS events into their Datadog or PagerDuty)
+- Webhook integration (pipe OKORO events into their Datadog or PagerDuty)
 - Some compliance documentation (for investor due diligence)
 **What they hate:**
 - "Contact sales" for features they can evaluate themselves
@@ -68,7 +68,7 @@ ACV: $348–$1,788                  ACV: $1,788–$6,000                 ACV: $1
 - Poor documentation for advanced features
 
 **Messaging that works:** "One verified identity layer for all your agents, with the audit trail your customers will ask for."
-**Sales trigger email subject:** "Your team's AEGIS usage — a few questions"
+**Sales trigger email subject:** "Your team's OKORO usage — a few questions"
 
 ---
 
@@ -78,7 +78,7 @@ ACV: $348–$1,788                  ACV: $1,788–$6,000                 ACV: $1
 **Situation:** Legal team flagged agent identity as a liability gap. Board asked about AI governance. Or (increasingly) their customers are asking for vendor AI security attestations.
 **Budget authority:** Signs off on $50K+ contracts. Goes through procurement. Needs legal review of DPA.
 **Decision timeline:** 3–6 months minimum. Includes: discovery call, technical deep-dive, security review, legal review, pilot, board approval.
-**What they need from AEGIS:**
+**What they need from OKORO:**
 - SOC2 Type II report (or Type I with roadmap to II)
 - Data Processing Agreement (DPA) for GDPR/CCPA
 - Penetration test report
@@ -104,10 +104,10 @@ ACV: $348–$1,788                  ACV: $1,788–$6,000                 ACV: $1
 **Budget authority:** Revenue share / integration deal — not a subscription buyer.
 **What they need:**
 - Native SDK integration that feels like first-party
-- Co-marketing opportunity ("Secure your LangChain agents with AEGIS")
+- Co-marketing opportunity ("Secure your LangChain agents with OKORO")
 - Revenue share or partner tier
 - API stability guarantees
-**Value to AEGIS:** Each platform partner is a distribution channel for thousands of developers. One LangChain integration = 10,000 potential AEGIS users.
+**Value to OKORO:** Each platform partner is a distribution channel for thousands of developers. One LangChain integration = 10,000 potential OKORO users.
 
 ---
 
@@ -119,7 +119,7 @@ ACV: $348–$1,788                  ACV: $1,788–$6,000                 ACV: $1
 **Timing:** Day 3 after signup if no payment and <10K verifications used.
 **Touch:** Automated email (Founder-signed, plain text).
 
-Subject: Your AEGIS setup — quick question
+Subject: Your OKORO setup — quick question
 
 ```
 Hey [Name],
@@ -133,7 +133,7 @@ Also: if you're building something interesting with agents, I'm always happy
 to hop on a 15-minute call. Not a sales call — genuinely curious what you're 
 building.
 
-— Erwin, AEGIS
+— Erwin, OKORO
 ```
 
 **Conversion goal:** Reply (any reply) → understand use case → identify expansion potential.
@@ -176,12 +176,12 @@ extend free tier for builders working on cool stuff.
 **Trigger:** 3+ team members registered, or Growth tier inquiry.
 **Touch:** Personal email from Erwin (not automated).
 
-Subject: [Company] on AEGIS — want to share something
+Subject: [Company] on OKORO — want to share something
 
 ```
 Hey [Name],
 
-I noticed [Company] has 4 developers registered on AEGIS this week — looks 
+I noticed [Company] has 4 developers registered on OKORO this week — looks 
 like you're all building agent features in parallel.
 
 A few things that might help as you scale:
@@ -208,13 +208,13 @@ Happy to do a 20-minute walkthrough if useful. No sales deck, just screen share.
 
 ### Play 3 — The Enterprise Land-and-Expand
 
-**Entry point:** Almost always comes through the PLG channel. A developer in a large org registers, uses AEGIS, mentions it internally. Security team hears about it and either (a) asks to "get something more official" or (b) blocks it and then the developer advocates for an official deployment.
+**Entry point:** Almost always comes through the PLG channel. A developer in a large org registers, uses OKORO, mentions it internally. Security team hears about it and either (a) asks to "get something more official" or (b) blocks it and then the developer advocates for an official deployment.
 
 **Discovery call structure (45 minutes):**
 - 0–5 min: Context (what are they building, what's the agent stack)
 - 5–15 min: Current state ("how are you handling agent identity today?")
 - 15–25 min: The gap (where does their current approach break down)
-- 25–35 min: AEGIS positioned against gap (not a demo — a conversation)
+- 25–35 min: OKORO positioned against gap (not a demo — a conversation)
 - 35–40 min: Compliance requirements (what do they need to check before buying)
 - 40–45 min: Next steps (technical deep-dive? security review? pilot scope?)
 
@@ -254,25 +254,25 @@ Example: Mid-size fintech, 5M verifications/month, FINRA compliance
 
 ## PART IV — THE CERNIQ BRIDGE
 
-This is the highest-leverage enterprise sales path AEGIS has.
+This is the highest-leverage enterprise sales path OKORO has.
 
 **The play:** CERNIQ already has relationships with Puerto Rico cooperativas (COSSEC-regulated). These institutions will deploy AI agents for routine financial operations — FRTB compliance checks, loan portfolio queries, member service automation.
 
-Every one of these agent actions — a cooperativa's AI agent querying NCUA data, generating a risk report, filing a regulatory return — needs exactly what AEGIS provides: identity attestation, audit trail, revocation capability, and behavioral trust scoring.
+Every one of these agent actions — a cooperativa's AI agent querying NCUA data, generating a risk report, filing a regulatory return — needs exactly what OKORO provides: identity attestation, audit trail, revocation capability, and behavioral trust scoring.
 
 **The bridge sequence:**
 1. CERNIQ reaches pilot stage with cooperativa (Gate 0 active)
 2. During pilot, demonstrate the agent-enhanced reporting feature (CERNIQ roadmap item)
 3. The cooperativa asks: "How do we know this agent is authorized to access our data?"
-4. AEGIS is the answer — positioned as a separate but compatible service
-5. CERNIQ pilot customer becomes AEGIS beta enterprise customer
+4. OKORO is the answer — positioned as a separate but compatible service
+5. CERNIQ pilot customer becomes OKORO beta enterprise customer
 6. COSSEC compliance module built using this customer's requirements
 7. That customer becomes the reference for every other cooperativa pitch
 
 **Revenue bridge math:**
 - 91 PR cooperativas
-- If 15 adopt CERNIQ + AEGIS: $5,550/month × 15 = $83,250 MRR from this segment alone
-- This is AEGIS's Puerto Rico-specific enterprise moat that no mainland competitor can replicate
+- If 15 adopt CERNIQ + OKORO: $5,550/month × 15 = $83,250 MRR from this segment alone
+- This is OKORO's Puerto Rico-specific enterprise moat that no mainland competitor can replicate
 
 ---
 
@@ -320,17 +320,17 @@ Phase 1 CRM is a Notion database, not Salesforce. Salesforce is for companies wi
 
 ```
 Stripe Products:
-├── AEGIS Free (metered, $0 base, $0 per verify)
-├── AEGIS Developer ($29/month flat)
+├── OKORO Free (metered, $0 base, $0 per verify)
+├── OKORO Developer ($29/month flat)
 │   └── Overage: $0.0002/verify above 500K
-├── AEGIS Growth ($149/month flat)
+├── OKORO Growth ($149/month flat)
 │   └── Overage: $0.0001/verify above 5M
-└── AEGIS Enterprise (custom, Stripe invoicing)
+└── OKORO Enterprise (custom, Stripe invoicing)
     └── Metered: $500/1M verifications block
 
 Stripe Meters:
-├── aegis_verifications (per verify call)
-└── aegis_agents (per registered agent, for future seat-based pricing)
+├── okoro_verifications (per verify call)
+└── okoro_agents (per registered agent, for future seat-based pricing)
 
 Usage reporting:
 - Every verify call → increment Redis counter
@@ -345,27 +345,27 @@ Usage reporting:
 ### Tier 1 Partners (Revenue-Generating)
 
 **Stripe:**
-Position: AEGIS as the recommended identity layer above ACP. Goal: get listed in Stripe's "ACP implementation guides" as the identity provider partner. Revenue: referral traffic + co-marketing.
+Position: OKORO as the recommended identity layer above ACP. Goal: get listed in Stripe's "ACP implementation guides" as the identity provider partner. Revenue: referral traffic + co-marketing.
 
 **Cloudflare:**
-Position: AEGIS uses CF Workers for edge verification. Goal: Cloudflare Workers Marketplace listing. Revenue: CF refers enterprise developers who need agent security.
+Position: OKORO uses CF Workers for edge verification. Goal: Cloudflare Workers Marketplace listing. Revenue: CF refers enterprise developers who need agent security.
 
 **Railway:**
-AEGIS deploys on Railway. Goal: featured template in Railway marketplace. Revenue: Railway developers discover AEGIS naturally.
+OKORO deploys on Railway. Goal: featured template in Railway marketplace. Revenue: Railway developers discover OKORO naturally.
 
 ### Tier 2 Partners (Distribution)
 
 **LangChain:** Integration library → co-authored documentation → Discord presence
 **AutoGen (Microsoft):** SDK integration → GitHub presence in their ecosystem
 **CrewAI:** Integration + tutorial post on their blog
-**n8n:** Native AEGIS node for n8n workflow automation
+**n8n:** Native OKORO node for n8n workflow automation
 
 ### Tier 3 Partners (Future)
 
-**Visa Agentic Commerce:** Visa named Anthropic, OpenAI, and Perplexity as agentic commerce partners — AEGIS positions as the identity verification layer that makes Visa's agentic commerce program more trustworthy. Long-term: Visa certifies AEGIS as a trusted identity provider for agent-initiated card transactions.
+**Visa Agentic Commerce:** Visa named Anthropic, OpenAI, and Perplexity as agentic commerce partners — OKORO positions as the identity verification layer that makes Visa's agentic commerce program more trustworthy. Long-term: Visa certifies OKORO as a trusted identity provider for agent-initiated card transactions.
 
 **AWS Marketplace:** When enterprise revenue exceeds $500K ARR, list on AWS Marketplace for enterprise procurement simplification (many enterprise buyers have existing AWS commit).
 
 ---
 
-*Document 04 of 05 | AEGIS KLYTICS Internal Suite*
+*Document 04 of 05 | OKORO KLYTICS Internal Suite*

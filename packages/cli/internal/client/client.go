@@ -1,8 +1,8 @@
-// Package client is the HTTP client the CLI uses to talk to the AEGIS
+// Package client is the HTTP client the CLI uses to talk to the OKORO
 // API. It mirrors the public TS SDK's surface (packages/sdk-ts) so a
 // developer who has read either is at home with the other.
 //
-// Long-term plan: regenerate this client from docs/spec/AEGIS_API_SPEC.yaml
+// Long-term plan: regenerate this client from docs/spec/OKORO_API_SPEC.yaml
 // via oapi-codegen. For now the surface area is hand-rolled to keep
 // the CLI compilable without a code-gen step in CI. The hand-rolled
 // shapes are deliberately narrow — only the fields the CLI uses today.
@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/klytics/aegis/packages/cli/internal/version"
+	"github.com/klytics/okoro/packages/cli/internal/version"
 )
 
 // Client is the HTTP transport. Construct via New(...) — the zero value
@@ -36,7 +36,7 @@ type Client struct {
 // (verify key, alternate http client) that not every CLI command needs.
 type Option func(*Client)
 
-// WithVerifyKey sets the X-AEGIS-Verify-Key the client sends to /verify.
+// WithVerifyKey sets the X-OKORO-Verify-Key the client sends to /verify.
 // When unset, /verify uses the management API key (which the spec also
 // accepts). Relying parties typically have *only* a verify key — the
 // CLI honors that pattern.
@@ -70,13 +70,13 @@ func New(baseURL, apiKey string, opts ...Option) (*Client, error) {
 type authMode int
 
 const (
-	authAPIKey authMode = iota // X-AEGIS-API-Key (management endpoints)
-	authVerify                 // X-AEGIS-Verify-Key, falls back to api key
+	authAPIKey authMode = iota // X-OKORO-API-Key (management endpoints)
+	authVerify                 // X-OKORO-Verify-Key, falls back to api key
 	authNone                   // public endpoint (e.g. /agents/{id}/status)
 )
 
 // Health pings /health. It returns nil on 200, an error otherwise.
-// Used by `aegis doctor` and as the keepalive in `aegis listen`.
+// Used by `okoro doctor` and as the keepalive in `okoro listen`.
 func (c *Client) Health(ctx context.Context) error {
 	req, err := c.req(ctx, http.MethodGet, "/health", nil)
 	if err != nil {
@@ -94,7 +94,7 @@ func (c *Client) Health(ctx context.Context) error {
 }
 
 // Me returns the principal associated with the current API key. Used
-// by `aegis whoami` and as the post-login round-trip that confirms the
+// by `okoro whoami` and as the post-login round-trip that confirms the
 // credential actually works before persisting it.
 func (c *Client) Me(ctx context.Context) (*Principal, error) {
 	req, err := c.req(ctx, http.MethodGet, "/v1/me", nil)
@@ -108,7 +108,7 @@ func (c *Client) Me(ctx context.Context) (*Principal, error) {
 	return &out, nil
 }
 
-// req builds an *http.Request with the standard AEGIS headers attached.
+// req builds an *http.Request with the standard OKORO headers attached.
 // Body is JSON-encoded if non-nil.
 func (c *Client) req(ctx context.Context, method, path string, body any) (*http.Request, error) {
 	return c.reqWithAuth(ctx, method, path, body, authAPIKey)
@@ -137,13 +137,13 @@ func (c *Client) reqWithAuth(ctx context.Context, method, path string, body any,
 	switch mode {
 	case authAPIKey:
 		if c.apiKey != "" {
-			req.Header.Set("X-AEGIS-API-Key", c.apiKey)
+			req.Header.Set("X-OKORO-API-Key", c.apiKey)
 		}
 	case authVerify:
 		if c.verifyKey != "" {
-			req.Header.Set("X-AEGIS-Verify-Key", c.verifyKey)
+			req.Header.Set("X-OKORO-Verify-Key", c.verifyKey)
 		} else if c.apiKey != "" {
-			req.Header.Set("X-AEGIS-API-Key", c.apiKey)
+			req.Header.Set("X-OKORO-API-Key", c.apiKey)
 		}
 	case authNone:
 		// public endpoint — no header attached
@@ -176,7 +176,7 @@ func (c *Client) do(req *http.Request, out any) error {
 	return nil
 }
 
-// parseAPIError extracts the AEGIS error envelope `{ error: { code,
+// parseAPIError extracts the OKORO error envelope `{ error: { code,
 // message, ... } }`. If the body doesn't match, it falls back to the
 // raw status text so the user always sees something useful.
 func parseAPIError(status int, body []byte) error {
@@ -217,13 +217,13 @@ type APIError struct {
 
 func (e *APIError) Error() string {
 	if e.Message != "" {
-		return fmt.Sprintf("aegis api %d %s: %s", e.Status, e.Code, e.Message)
+		return fmt.Sprintf("okoro api %d %s: %s", e.Status, e.Code, e.Message)
 	}
-	return fmt.Sprintf("aegis api %d %s", e.Status, e.Code)
+	return fmt.Sprintf("okoro api %d %s", e.Status, e.Code)
 }
 
 // IsUnauthorized returns true for 401/403 — a stable predicate for
-// callers that want to surface a "run `aegis login` again" hint.
+// callers that want to surface a "run `okoro login` again" hint.
 func (e *APIError) IsUnauthorized() bool {
 	return e.Status == http.StatusUnauthorized || e.Status == http.StatusForbidden
 }
@@ -231,4 +231,4 @@ func (e *APIError) IsUnauthorized() bool {
 // Sentinel error for "no credential configured" — distinct from a 401
 // because it never even attempted the API call. Used by login.go to
 // distinguish first-run from token-expired.
-var ErrNotAuthenticated = errors.New("not authenticated — run `aegis login`")
+var ErrNotAuthenticated = errors.New("not authenticated — run `okoro login`")

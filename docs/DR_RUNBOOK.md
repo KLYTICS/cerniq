@@ -1,8 +1,8 @@
-# AEGIS — Disaster Recovery Runbook
+# OKORO — Disaster Recovery Runbook
 
 > Companion to [`RUNBOOK.md`](./RUNBOOK.md) (everyday ops) and
 > [`SECURITY.md`](./SECURITY.md) (threat catalog). This document is the
-> **disaster** lane: how AEGIS recovers when the everyday lane is broken.
+> **disaster** lane: how OKORO recovers when the everyday lane is broken.
 >
 > **Update trigger**: any production incident, any tabletop exercise, any
 > change to RTO/RPO, or any new disaster category. Postmortems land in
@@ -16,7 +16,7 @@ Five disaster categories are in scope:
 
 1. **Region outage** — Railway, Cloudflare, or Postgres host region down.
 2. **Database corruption** — application bug, bad migration, or storage corruption.
-3. **Key compromise** — AEGIS audit-signing private key leaked or suspected leaked.
+3. **Key compromise** — OKORO audit-signing private key leaked or suspected leaked.
 4. **Ransomware on Railway** — operational hosting compromised, attacker has live access.
 5. **Supply-chain breach** — malicious code in a dependency reaches production.
 
@@ -100,7 +100,7 @@ lands in [`./decisions/`](./decisions/) when it yields architectural change.
   - Audit chain verification reveals a signature that matches the key but came from an unexpected source IP / time.
 - **Immediate response**:
   - Treat as P0 — page on-call within 5 min, two-person attendance.
-  - Mint a NEW keypair off-band ([`../infra/kms/rotate-aegis-keys.sh --execute`](../infra/kms/rotate-aegis-keys.sh)).
+  - Mint a NEW keypair off-band ([`../infra/kms/rotate-okoro-keys.sh --execute`](../infra/kms/rotate-okoro-keys.sh)).
   - Status page: planned key rotation announcement (do NOT publicise compromise yet).
 - **Recovery steps**:
   - Run the rotation runbook ([`../infra/kms/rotation-runbook.md`](../infra/kms/rotation-runbook.md)) end-to-end — but **collapse the 7-day pre-announcement window** to immediate.
@@ -144,7 +144,7 @@ lands in [`./decisions/`](./decisions/) when it yields architectural change.
     `pnpm-lock.yaml`; emergency deploy.
   - Status page: maintenance window.
 - **Recovery steps**:
-  - Audit the time window from "compromised version went live" to "rollback deployed". Anything signed by AEGIS during that window is suspect.
+  - Audit the time window from "compromised version went live" to "rollback deployed". Anything signed by OKORO during that window is suspect.
   - If the compromised dep had access to the audit-signing key (i.e. running inside the API process), escalate to playbook 3 (key compromise).
   - File CVE / coordinated disclosure if the issue is novel.
 - **Comms protocol**: status page; CVE disclosure if applicable; SOC2 incident note.
@@ -165,7 +165,7 @@ into [`./decisions/`](./decisions/) afterwards covering:
 - The fix list (track each as a follow-up issue).
 - Whether any RTO/RPO target was met.
 
-The first tabletop is scheduled for 60 days after AEGIS production go-live (operator decision: exact date TBD).
+The first tabletop is scheduled for 60 days after OKORO production go-live (operator decision: exact date TBD).
 
 ---
 

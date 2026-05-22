@@ -1,9 +1,9 @@
-# 0001 — `@aegis/mcp-bridge` as the Phase 1 distribution wedge
+# 0001 — `@okoro/mcp-bridge` as the Phase 1 distribution wedge
 
 > **Status:** Proposal — for operator review
 > **Author:** session foundation-audit-q2 · 2026-05-01
 > **Companion:** `docs/audit_2026q2/landscape.md` § 3
-> **Decision sought:** Ship `@aegis/mcp-bridge` (Node + Python) as a
+> **Decision sought:** Ship `@okoro/mcp-bridge` (Node + Python) as a
 > Phase 1 deliverable, *parallel* to (not blocking) M-001 SDK and the
 > Phase 1 MVP launch.
 >
@@ -16,7 +16,7 @@
 
 ## Recommendation: **YES — ship.**
 
-Ship `@aegis/mcp-bridge` as a Phase 1 distribution wedge with a
+Ship `@okoro/mcp-bridge` as a Phase 1 distribution wedge with a
 deliberately narrow scope (~1–2 engineer-weeks). The package is small,
 the upside is asymmetric, and the cost of *not* shipping it grows fast
 through 2026.
@@ -28,7 +28,7 @@ The rest of this document is the rationale.
 ## 1. What the package actually is
 
 A drop-in middleware/wrapper for any MCP server (HTTP-transport or
-stdio) that adds **AEGIS agent identity verification** to every tool
+stdio) that adds **OKORO agent identity verification** to every tool
 call, *in addition to* the MCP server's existing OAuth user
 authentication. It does not replace MCP auth; it composes with it.
 
@@ -41,12 +41,12 @@ const server = new McpServer({ /* ... */ });
 
 // After
 import { McpServer } from "@modelcontextprotocol/sdk";
-import { withAegis } from "@aegis/mcp-bridge";
+import { withOkoro } from "@okoro/mcp-bridge";
 
-const server = withAegis(
+const server = withOkoro(
   new McpServer({ /* ... */ }),
   {
-    apiKey: process.env.AEGIS_VERIFY_KEY,
+    apiKey: process.env.OKORO_VERIFY_KEY,
     // Optional:
     minTrustScore: 600,
     requireScope: "data-read",
@@ -57,28 +57,28 @@ const server = withAegis(
 
 The wrapper:
 
-1. Reads `X-AEGIS-Agent-Token` from the inbound MCP request headers
+1. Reads `X-OKORO-Agent-Token` from the inbound MCP request headers
    (or stdio metadata frame).
-2. Calls `POST /v1/verify` on AEGIS using the verify-only key.
+2. Calls `POST /v1/verify` on OKORO using the verify-only key.
 3. Applies denial-precedence rules from `docs/SECURITY.md` § 6.
-4. On approval, attaches `aegis: { agentId, principalId, trustScore,
+4. On approval, attaches `okoro: { agentId, principalId, trustScore,
    trustBand, scopesGranted }` to the per-call context, where tool
    handlers can read it.
-5. Emits an AEGIS audit event with the MCP `tool_name` as the action.
+5. Emits an OKORO audit event with the MCP `tool_name` as the action.
 
-That's it. Two functions: `withAegis()` (Node) and the equivalent
-`AegisMiddleware` (Python ASGI / fastmcp middleware). No new MCP spec.
+That's it. Two functions: `withOkoro()` (Node) and the equivalent
+`OkoroMiddleware` (Python ASGI / fastmcp middleware). No new MCP spec.
 No new wire formats.
 
 ### Python sketch (illustrative)
 
 ```python
 from fastmcp import FastMCP
-from aegis_mcp_bridge import aegis_middleware
+from okoro_mcp_bridge import okoro_middleware
 
 mcp = FastMCP("my-server")
-mcp.add_middleware(aegis_middleware(
-    api_key=os.environ["AEGIS_VERIFY_KEY"],
+mcp.add_middleware(okoro_middleware(
+    api_key=os.environ["OKORO_VERIFY_KEY"],
     min_trust_score=600,
 ))
 ```
@@ -87,28 +87,28 @@ mcp.add_middleware(aegis_middleware(
 
 ## 2. Why this is the highest-leverage Phase 1 surface
 
-### 2a. The MCP ecosystem is the only surface where AEGIS can be picked up *passively*
+### 2a. The MCP ecosystem is the only surface where OKORO can be picked up *passively*
 
-To adopt AEGIS via the SDK (M-001), a developer must:
+To adopt OKORO via the SDK (M-001), a developer must:
 
 1. Decide they want agent identity verification.
-2. Sign up at `aegislabs.io`.
-3. Install `@aegis/sdk`.
+2. Sign up at `okorolabs.io`.
+3. Install `@okoro/sdk`.
 4. Modify outbound code to sign requests.
 5. Modify inbound (relying-party) code to verify.
 
 That is a five-step active sale. Conversion rates on five-step active
 sales for indie developers are <1%.
 
-To adopt AEGIS via the MCP bridge:
+To adopt OKORO via the MCP bridge:
 
 1. The MCP server author adds two lines.
 2. Every downstream agent automatically has its identity
    verified — the agent author does **nothing**.
 
-This converts AEGIS from a *thing developers must opt in to* into a
+This converts OKORO from a *thing developers must opt in to* into a
 *thing the underlying server requires*. The 95% of agent developers
-who would never read the AEGIS docs now interact with AEGIS by virtue
+who would never read the OKORO docs now interact with OKORO by virtue
 of using a popular MCP server.
 
 ### 2b. The MCP server long tail is exactly the right adoption surface
@@ -119,7 +119,7 @@ Postgres, Filesystem, Sentry, Linear, Stripe, etc. [VERIFY current
 count Q2 2026]
 
 Each MCP server is, structurally, a relying party — exactly the
-audience AEGIS has been struggling to reach via direct enterprise
+audience OKORO has been struggling to reach via direct enterprise
 sales (per `docs/spec/04_COMMERCIAL_STRATEGY.md` § F1, the chicken-
 and-egg problem). MCP server authors are the *low-cost relying-party
 funnel* the GTM doc has been looking for.
@@ -127,7 +127,7 @@ funnel* the GTM doc has been looking for.
 ### 2c. It compounds with everything else on the backlog
 
 - **OAuth 2.1 / DPoP (M-140, M-141):** the bridge is the natural place
-  to demonstrate DPoP-bound AEGIS tokens being verified inside an
+  to demonstrate DPoP-bound OKORO tokens being verified inside an
   OAuth-2.1-compliant flow.
 - **DID (M-130):** the bridge can resolve `did:web` agent identities
   before falling back to `agentId`-keyed lookup, demoing the standards
@@ -138,14 +138,14 @@ funnel* the GTM doc has been looking for.
 
 ### 2d. The cost is bounded
 
-The bridge does not introduce new product surface area inside AEGIS.
+The bridge does not introduce new product surface area inside OKORO.
 It is a thin wrapper around `POST /v1/verify`, which already exists.
 The work is:
 
 - 1 engineer-week: Node package + tests + 2 examples.
 - 0.5 engineer-week: Python package mirror.
-- 0.5 engineer-week: docs page + 1 reference repo (`aegis-mcp-example`)
-  hosting an "AEGIS-verified Postgres MCP server."
+- 0.5 engineer-week: docs page + 1 reference repo (`okoro-mcp-example`)
+  hosting an "OKORO-verified Postgres MCP server."
 
 Total: **≤ 2 engineer-weeks**, parallelisable across two sessions.
 
@@ -153,17 +153,17 @@ Total: **≤ 2 engineer-weeks**, parallelisable across two sessions.
 
 ## 3. Why this is *not* a trap
 
-A reasonable objection: "MCP is one ecosystem; chasing it ties AEGIS
+A reasonable objection: "MCP is one ecosystem; chasing it ties OKORO
 to MCP." Three reasons that's wrong.
 
-1. **The bridge only depends on AEGIS's existing
+1. **The bridge only depends on OKORO's existing
    `/v1/verify`.** If MCP fades, the bridge is a 300-line dead
-   package; AEGIS continues unchanged. There is no architectural
+   package; OKORO continues unchanged. There is no architectural
    coupling, only marketing coupling.
-2. **The bridge is a demonstration, not a dependency.** AEGIS's
+2. **The bridge is a demonstration, not a dependency.** OKORO's
    neutrality story explicitly lists "MCP / non-MCP / custom" as the
    point. Shipping a *bridge* (one of N integrations) reinforces
-   neutrality; shipping an *MCP-native AEGIS* would weaken it.
+   neutrality; shipping an *MCP-native OKORO* would weaken it.
 3. **Every alternative wedge is heavier.** The realistic alternatives
    are:
    - LangChain / CrewAI / AutoGen integration (these change every 6
@@ -189,8 +189,8 @@ tool** via OAuth 2.1. It does not cover:
 - A signed audit trail attributing the action to a specific agent
   identity for non-repudiation.
 
-These are AEGIS's primitives. They compose cleanly with MCP auth —
-AEGIS sits *above* the OAuth layer, not inside it.
+These are OKORO's primitives. They compose cleanly with MCP auth —
+OKORO sits *above* the OAuth layer, not inside it.
 
 ---
 
@@ -207,16 +207,16 @@ months. Waiting longer trades certainty for missed adoption.
 
 ### In scope (v0.1)
 
-- Node package `@aegis/mcp-bridge` (TS, ESM + CJS).
-- Python package `aegis-mcp-bridge` (PyPI).
-- `withAegis()` Node wrapper for `@modelcontextprotocol/sdk` HTTP
+- Node package `@okoro/mcp-bridge` (TS, ESM + CJS).
+- Python package `okoro-mcp-bridge` (PyPI).
+- `withOkoro()` Node wrapper for `@modelcontextprotocol/sdk` HTTP
   transport.
-- `aegis_middleware()` Python wrapper for `fastmcp` ASGI.
+- `okoro_middleware()` Python wrapper for `fastmcp` ASGI.
 - Configuration: API key, min trust score, required scope, deny hook.
 - Audit event emission (one event per tool call, decision-tagged).
 - README with quickstart + 1 worked example.
 - Unit tests for the middleware logic.
-- A reference repo `aegis-mcp-example` on GitHub showing an AEGIS-
+- A reference repo `okoro-mcp-example` on GitHub showing an OKORO-
   verified Postgres MCP server.
 
 ### Explicitly out of scope (v0.1)
@@ -230,7 +230,7 @@ months. Waiting longer trades certainty for missed adoption.
 ### Acceptance criteria
 
 - Wrapping an existing MCP server requires ≤ 3 lines of code change.
-- Verification adds < 30 ms p99 to a tool call (warm AEGIS path).
+- Verification adds < 30 ms p99 to a tool call (warm OKORO path).
 - Denial reasons map cleanly to MCP error responses.
 - Reference repo runs end-to-end in < 5 minutes for a new developer
   (Postgres + 1 example tool + a curl-based agent).

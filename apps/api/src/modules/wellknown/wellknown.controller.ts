@@ -12,7 +12,7 @@ import type { Response } from 'express';
 
 import { Public } from '../auth/api-key.guard';
 
-import { AegisConfigurationDto } from './dto/discovery.dto';
+import { OkoroConfigurationDto } from './dto/discovery.dto';
 import { AuditSigningKeyDto, JwksDto } from './dto/jwks.dto';
 import { PricingDto } from './dto/pricing.dto';
 import { RetentionPolicyDto } from './dto/retention-policy.dto';
@@ -40,7 +40,7 @@ export class WellknownController {
   @Get('audit-signing-key')
   @Header('Cache-Control', CACHE_CONTROL)
   @ApiOperation({
-    summary: 'Public AEGIS audit-event signing key (plain JSON helper).',
+    summary: 'Public OKORO audit-event signing key (plain JSON helper).',
     description:
       'No auth. Cacheable. Relying parties / SOC2 auditors fetch this to verify the Ed25519 signature on every AuditEvent.',
   })
@@ -62,7 +62,7 @@ export class WellknownController {
   @Get('jwks.json')
   @Header('Cache-Control', CACHE_CONTROL)
   @ApiOperation({
-    summary: 'JWKS view of the AEGIS audit-event signing key (RFC 8037).',
+    summary: 'JWKS view of the OKORO audit-event signing key (RFC 8037).',
     description:
       'No auth. Cacheable. For tools that consume `application/jwk-set+json` (e.g. the `jose` library).',
   })
@@ -84,21 +84,21 @@ export class WellknownController {
    * Discovery document — the OIDC-style configuration surface.
    * Lets a relying party fetch a single URL and auto-configure their
    * verifier without further documentation. Stable; additive evolution
-   * only (see AegisConfigurationDto).
+   * only (see OkoroConfigurationDto).
    */
   @Public()
-  @Get('aegis-configuration')
+  @Get('okoro-configuration')
   @Header('Cache-Control', CACHE_CONTROL)
   @ApiOperation({
-    summary: 'AEGIS configuration discovery document (JSON).',
+    summary: 'OKORO configuration discovery document (JSON).',
     description:
       'Single fetch yields every URL, the JWKS, the canonical denial-reason ' +
       'enum, the trust band ladder, supported runtimes, rate limits, build ' +
       'identity, and SDK package names. Modeled on /.well-known/openid-configuration.',
   })
-  configuration(@Res({ passthrough: true }) res: Response): AegisConfigurationDto {
+  configuration(@Res({ passthrough: true }) res: Response): OkoroConfigurationDto {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    return this.wellknown.getAegisConfiguration();
+    return this.wellknown.getOkoroConfiguration();
   }
 
   /**
@@ -130,7 +130,7 @@ export class WellknownController {
     summary: 'AI-agent-readable site description (Markdown).',
     description:
       'llms.txt — emerging convention. Lists every public surface an AI ' +
-      'agent should hit when it wants to talk to AEGIS.',
+      'agent should hit when it wants to talk to OKORO.',
   })
   llmsTxt(@Res({ passthrough: true }) res: Response): string {
     res.setHeader('Content-Type', 'text/markdown; charset=utf-8');

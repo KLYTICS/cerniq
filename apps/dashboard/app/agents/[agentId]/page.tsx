@@ -8,7 +8,7 @@ import { CopyButton, Copyable } from '../../../components/CopyButton';
 import { HandshakePanel } from '../../../components/HandshakePanel';
 import { StatusDot } from '../../../components/StatusDot';
 import {
-  AegisApiError,
+  OkoroApiError,
   getAgent,
   getHandshakeStatus,
   listAudit,
@@ -21,7 +21,7 @@ import {
 import { relativeTime, statusTone, trustBandTone } from '../../../lib/format';
 
 export const metadata: Metadata = {
-  title: 'Agent · AEGIS',
+  title: 'Agent · OKORO',
 };
 
 interface PageProps {
@@ -43,10 +43,10 @@ async function loadDetail(agentId: string): Promise<DetailBundle | { notFound: t
   try {
     agent = await getAgent(agentId);
   } catch (err) {
-    if (err instanceof AegisApiError && (err.code === 'AGENT_NOT_FOUND' || err.status === 404)) {
+    if (err instanceof OkoroApiError && (err.code === 'AGENT_NOT_FOUND' || err.status === 404)) {
       return { notFound: true };
     }
-    if (err instanceof AegisApiError) return { error: `${err.code}: ${err.message}` };
+    if (err instanceof OkoroApiError) return { error: `${err.code}: ${err.message}` };
     return { error: 'Unexpected error loading agent.' };
   }
 
@@ -68,19 +68,19 @@ async function loadDetail(agentId: string): Promise<DetailBundle | { notFound: t
   };
   if (policiesSettled.status === 'rejected') {
     bundle.policyError =
-      policiesSettled.reason instanceof AegisApiError
+      policiesSettled.reason instanceof OkoroApiError
         ? `${policiesSettled.reason.code}: ${policiesSettled.reason.message}`
         : 'Failed to load policies.';
   }
   if (auditSettled.status === 'rejected') {
     bundle.auditError =
-      auditSettled.reason instanceof AegisApiError
+      auditSettled.reason instanceof OkoroApiError
         ? `${auditSettled.reason.code}: ${auditSettled.reason.message}`
         : 'Failed to load audit.';
   }
   if (handshakeSettled.status === 'rejected') {
     bundle.handshakeError =
-      handshakeSettled.reason instanceof AegisApiError
+      handshakeSettled.reason instanceof OkoroApiError
         ? `${handshakeSettled.reason.code}: ${handshakeSettled.reason.message}`
         : 'Failed to load handshake status.';
   }
@@ -94,8 +94,8 @@ export default async function AgentDetailPage({ params }: PageProps) {
   if ('notFound' in detail) notFound();
   if ('error' in detail) {
     return (
-      <section className="aegis-page">
-        <header className="aegis-page-header">
+      <section className="okoro-page">
+        <header className="okoro-page-header">
           <h1>Agent</h1>
           <p className="muted">{agentId}</p>
         </header>
@@ -107,12 +107,12 @@ export default async function AgentDetailPage({ params }: PageProps) {
   }
 
   const { agent, policies, audit, handshake, policyError, auditError } = detail;
-  const apiBaseUrl = process.env.AEGIS_API_BASE_URL ?? 'http://localhost:4000';
+  const apiBaseUrl = process.env.OKORO_API_BASE_URL ?? 'http://localhost:4000';
 
   return (
-    <section className="aegis-page">
-      <header className="aegis-page-header">
-        <div className="aegis-page-header-row">
+    <section className="okoro-page">
+      <header className="okoro-page-header">
+        <div className="okoro-page-header-row">
           <div>
             <h1 className="mono">
               <Copyable value={agent.agentId} label="agent id">
@@ -124,7 +124,7 @@ export default async function AgentDetailPage({ params }: PageProps) {
               {agent.model ? ` · ${agent.model}` : ''}
             </p>
           </div>
-          <a href="/agents" className="aegis-button-ghost">
+          <a href="/agents" className="okoro-button-ghost">
             ← all agents
           </a>
         </div>

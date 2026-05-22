@@ -1,14 +1,14 @@
-# AEGIS — Alert philosophy + how to add a rule
+# OKORO — Alert philosophy + how to add a rule
 
 This directory holds the Prometheus rule file that defines every alert
-that pages or notifies the AEGIS on-call rotation. There is exactly one
-rule file (`aegis.rules.yml`); split it later when it crosses ~30 alerts.
+that pages or notifies the OKORO on-call rotation. There is exactly one
+rule file (`okoro.rules.yml`); split it later when it crosses ~30 alerts.
 
 ## Philosophy — what gets an alert
 
 We page on **symptoms users can feel**, not on causes.
 
-A rule belongs in `aegis.rules.yml` only if a "yes" answer to all four
+A rule belongs in `okoro.rules.yml` only if a "yes" answer to all four
 of the questions below holds:
 
 1. **Does it map to a real failure mode a customer or auditor would
@@ -35,8 +35,8 @@ weekly metric review — not an alert.
 | Severity | Routing | First-touch SLA | Examples |
 |---|---|---|---|
 | `critical` | PagerDuty page → on-call phone | 5 min | SLO breach, audit chain break, error budget fast-burn |
-| `warning` | PagerDuty notify (no page) → Slack `#aegis-oncall` | 30 min | SLO warning thresholds, DLQ spikes, cache hit rate (when exporter ships) |
-| `info` | Slack `#aegis-ops` only | business hours | Cache utilisation, queue depth trends, baseline drift |
+| `warning` | PagerDuty notify (no page) → Slack `#okoro-oncall` | 30 min | SLO warning thresholds, DLQ spikes, cache hit rate (when exporter ships) |
+| `info` | Slack `#okoro-ops` only | business hours | Cache utilisation, queue depth trends, baseline drift |
 
 The PagerDuty escalation contact is **OD-007 (TBD operator decision)** —
 runbooks reference it as `${ESCALATION_CONTACT}`.
@@ -46,7 +46,7 @@ runbooks reference it as `${ESCALATION_CONTACT}`.
 Every alert must carry:
 
 - `severity`: `critical` | `warning` | `info`
-- `team`: `aegis-oncall` (used by Alertmanager to route to the right
+- `team`: `okoro-oncall` (used by Alertmanager to route to the right
   PagerDuty service — there's only one team today; the label exists so
   it can fan out cleanly later).
 - `surface`: `verify` | `audit` | `bate` | `webhooks` | `cache` | `platform`
@@ -73,13 +73,13 @@ Optional:
 - `runbook` — repo-relative path, e.g.
   `infra/observability/runbooks/verify-latency-slo-breach.md`.
 - `runbook_url` — absolute URL, e.g.
-  `https://docs.aegislabs.io/runbooks/verify-latency-slo-breach`.
+  `https://docs.okorolabs.io/runbooks/verify-latency-slo-breach`.
   Convention: filename without `.md` suffix.
 
 ## Recording rules
 
-Pre-aggregated SLI series live in the `aegis.recording` group at the
-top of `aegis.rules.yml`. Burn-rate alerts read those series directly
+Pre-aggregated SLI series live in the `okoro.recording` group at the
+top of `okoro.rules.yml`. Burn-rate alerts read those series directly
 instead of re-deriving the same query — change the SLI definition in
 one place, not three. If you find yourself copy-pasting a 5-line PromQL
 expression into a third alert, promote it to a recording rule first.
@@ -97,10 +97,10 @@ expression into a third alert, promote it to a recording rule first.
    If it doesn't, either add the emitter first or ship the alert as
    `expr: vector(0) > 1` with a `# tracked: <module>` comment.
 3. **Add the alert.** Place it in the matching group
-   (`aegis.<surface>`). Use an existing alert as your template.
+   (`okoro.<surface>`). Use an existing alert as your template.
    Follow the label + annotation contract above.
 4. **Test the PromQL.** Either:
-   - Local: `promtool check rules infra/observability/alerts/aegis.rules.yml`
+   - Local: `promtool check rules infra/observability/alerts/okoro.rules.yml`
    - Hosted: paste the `expr` into the Prometheus expression browser
      and confirm it evaluates without parse errors and returns the
      expected ballpark value during normal traffic.
@@ -108,10 +108,10 @@ expression into a third alert, promote it to a recording rule first.
 ## Anti-patterns we have already seen and rejected
 
 - **Mirroring dashboard PromQL verbatim.** The Grafana dashboard at
-  `infra/observability/grafana-dashboards/aegis-verify-latency.json`
-  references several metric names (`aegis_verify_denials_total`,
-  `aegis_bullmq_waiting_jobs`, `aegis_cache_hits_total`,
-  `aegis_bate_recompute_lag_seconds_bucket`) that the API does **not**
+  `infra/observability/grafana-dashboards/okoro-verify-latency.json`
+  references several metric names (`okoro_verify_denials_total`,
+  `okoro_bullmq_waiting_jobs`, `okoro_cache_hits_total`,
+  `okoro_bate_recompute_lag_seconds_bucket`) that the API does **not**
   emit. The dashboard is wrong; the code in `metrics.service.ts` wins.
   Fixing the dashboard is M-020.
 - **Threshold on raw counters.** `rate()` first, every time.

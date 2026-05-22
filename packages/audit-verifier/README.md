@@ -1,24 +1,24 @@
-# `@aegis/audit-verifier`
+# `@okoro/audit-verifier`
 
-Standalone, distributable, **offline** verifier for AEGIS audit chains.
+Standalone, distributable, **offline** verifier for OKORO audit chains.
 
 Anyone — relying party, customer, regulator, SOC2 auditor — can install this
-package and independently verify the tamper-evidence of an AEGIS audit log
-export, without trusting AEGIS's API at runtime. The only thing required is
-the AEGIS audit-signing JWKS (publicly available at
-`https://api.aegislabs.io/.well-known/audit-signing-key`).
+package and independently verify the tamper-evidence of an OKORO audit log
+export, without trusting OKORO's API at runtime. The only thing required is
+the OKORO audit-signing JWKS (publicly available at
+`https://api.okorolabs.io/.well-known/audit-signing-key`).
 
-This is the **zero-trust verification** half of the audit-chain story. AEGIS
+This is the **zero-trust verification** half of the audit-chain story. OKORO
 publishes the algorithm and the public keys; you run the verifier. If the
-chain is intact, the cryptography proves AEGIS did not tamper with the log.
+chain is intact, the cryptography proves OKORO did not tamper with the log.
 If the chain is broken, the report tells you exactly which row broke and
 how.
 
 ## Why this exists
 
-> "We have a signed audit chain" is a *claim*. `@aegis/audit-verifier` makes
+> "We have a signed audit chain" is a *claim*. `@okoro/audit-verifier` makes
 > the claim **executable**. A regulator with this package + the public JWKS
-> + a downloaded NDJSON export needs nothing else from AEGIS to do their job.
+> + a downloaded NDJSON export needs nothing else from OKORO to do their job.
 
 This pattern matches FICO's: FICO publishes the score algorithm and the
 inputs, and lenders can independently reconstruct the score. We publish the
@@ -28,16 +28,16 @@ independently verify the chain.
 ## Install
 
 ```sh
-npm install -g @aegis/audit-verifier
+npm install -g @okoro/audit-verifier
 # or run without installing:
-npx @aegis/audit-verifier verify ./export.ndjson \
-  --jwks https://api.aegislabs.io/.well-known/audit-signing-key
+npx @okoro/audit-verifier verify ./export.ndjson \
+  --jwks https://api.okorolabs.io/.well-known/audit-signing-key
 ```
 
 ## CLI
 
 ```
-aegis-audit-verify verify <export.ndjson> [options]
+okoro-audit-verify verify <export.ndjson> [options]
 
 Options:
   --jwks <url>           Fetch JWKS from a URL (HTTPS recommended).
@@ -55,29 +55,29 @@ Exit codes:
 ### Online (typical)
 
 ```sh
-aegis-audit-verify verify ./export.ndjson \
-  --jwks https://api.aegislabs.io/.well-known/audit-signing-key
+okoro-audit-verify verify ./export.ndjson \
+  --jwks https://api.okorolabs.io/.well-known/audit-signing-key
 ```
 
 ### Airgapped (regulated environments)
 
 ```sh
 # step 1 — download the JWKS from a network-connected machine
-curl -fsSL https://api.aegislabs.io/.well-known/audit-signing-key \
-     -o aegis-audit-jwks.json
+curl -fsSL https://api.okorolabs.io/.well-known/audit-signing-key \
+     -o okoro-audit-jwks.json
 
 # step 2 — hand-carry the JWKS + the NDJSON export into the sealed environment
 
 # step 3 — verify offline, no network access
-aegis-audit-verify verify ./export.ndjson --jwks-file ./aegis-audit-jwks.json
+okoro-audit-verify verify ./export.ndjson --jwks-file ./okoro-audit-jwks.json
 ```
 
 ## Library API
 
 ```ts
-import { verifyChain, parseAuditNdjson, loadJwksFromUrl } from '@aegis/audit-verifier';
+import { verifyChain, parseAuditNdjson, loadJwksFromUrl } from '@okoro/audit-verifier';
 
-const jwks = await loadJwksFromUrl('https://api.aegislabs.io/.well-known/audit-signing-key');
+const jwks = await loadJwksFromUrl('https://api.okorolabs.io/.well-known/audit-signing-key');
 const ndjson = await fs.readFile('./export.ndjson', 'utf8');
 const rows = parseAuditNdjson(ndjson);
 
@@ -102,7 +102,7 @@ For every row in chronological order:
    the row's Ed25519 signature against the JWKS public key for its kid.
 
 The genesis row (first in chain) uses
-`prev_hash = sha256("AEGIS-AUDIT-GENESIS-v1")`.
+`prev_hash = sha256("OKORO-AUDIT-GENESIS-v1")`.
 
 ## Report shape
 
@@ -129,7 +129,7 @@ interface ChainReport {
   answered by your own reconciliation pipeline (see
   [`examples/reconciliation/`](../../examples/reconciliation/)).
 - **No revocation lookup.** Chain rows are append-only; revocation is
-  a live-state concern handled by `@aegis/verifier-rp`.
+  a live-state concern handled by `@okoro/verifier-rp`.
 - **No PII decryption.** The chain payload uses commitment hashes
   (`actionHash`, `relyingPartyHash`, etc.). Raw values live in
   redactable DB columns. The verifier doesn't need them — by design,
@@ -148,7 +148,7 @@ to fit on a USB stick.
 
 ## Compliance statement
 
-`@aegis/audit-verifier` is the artifact that backs the following
+`@okoro/audit-verifier` is the artifact that backs the following
 compliance assertions in `docs/COMPLIANCE_BUNDLE.md`:
 
 | Control                            | How this package satisfies it             |

@@ -4,22 +4,22 @@ import { TOOL_NAMES } from '../../src/tools/registry';
 describe('TOOL_NAMES', () => {
   it('contains exactly the 10 tools committed in ADR-0008', () => {
     expect([...TOOL_NAMES].sort()).toEqual([
-      'aegis.agents.create',
-      'aegis.agents.get',
-      'aegis.agents.list',
-      'aegis.agents.revoke',
-      'aegis.audit.search',
-      'aegis.policies.create',
-      'aegis.policies.get',
-      'aegis.policies.list',
-      'aegis.policies.revoke',
-      'aegis.verify',
+      'okoro.agents.create',
+      'okoro.agents.get',
+      'okoro.agents.list',
+      'okoro.agents.revoke',
+      'okoro.audit.search',
+      'okoro.policies.create',
+      'okoro.policies.get',
+      'okoro.policies.list',
+      'okoro.policies.revoke',
+      'okoro.verify',
     ]);
   });
 
-  it('all names are aegis.* namespaced', () => {
+  it('all names are okoro.* namespaced', () => {
     for (const name of TOOL_NAMES) {
-      expect(name.startsWith('aegis.')).toBe(true);
+      expect(name.startsWith('okoro.')).toBe(true);
     }
   });
 

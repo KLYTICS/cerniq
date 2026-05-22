@@ -1,4 +1,4 @@
-// AuditSignerService — single signing surface for the AEGIS audit chain.
+// AuditSignerService — single signing surface for the OKORO audit chain.
 // Closes M-037 ("audit signing routed through `KmsAdapter`").
 //
 // Resolution order at init():

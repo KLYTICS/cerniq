@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { registerAgentsTools } from '../../src/tools/agents';
 import type { ToolDefinition } from '../../src/tools/registry';
 
-function buildAegis() {
+function buildOkoro() {
   return {
     agents: {
       create: vi.fn(async (args) => ({ id: 'agt_1', ...args })),
@@ -13,37 +13,37 @@ function buildAegis() {
   };
 }
 
-describe('aegis.agents.* tools', () => {
+describe('okoro.agents.* tools', () => {
   it('registers four tools', () => {
     const reg = new Map<string, ToolDefinition>();
-    registerAgentsTools(buildAegis() as never, reg);
+    registerAgentsTools(buildOkoro() as never, reg);
     expect(reg.size).toBe(4);
-    for (const name of ['aegis.agents.create', 'aegis.agents.get', 'aegis.agents.list', 'aegis.agents.revoke']) {
+    for (const name of ['okoro.agents.create', 'okoro.agents.get', 'okoro.agents.list', 'okoro.agents.revoke']) {
       expect(reg.has(name)).toBe(true);
     }
   });
 
-  it('aegis.agents.create maps name + public_key + metadata', async () => {
-    const aegis = buildAegis();
+  it('okoro.agents.create maps name + public_key + metadata', async () => {
+    const okoro = buildOkoro();
     const reg = new Map<string, ToolDefinition>();
-    registerAgentsTools(aegis as never, reg);
-    await reg.get('aegis.agents.create')!.handler({ name: 'agent-x', public_key: 'AAAA', metadata: { ver: 1 } });
-    expect(aegis.agents.create).toHaveBeenCalledWith({ name: 'agent-x', publicKey: 'AAAA', metadata: { ver: 1 } });
+    registerAgentsTools(okoro as never, reg);
+    await reg.get('okoro.agents.create')!.handler({ name: 'agent-x', public_key: 'AAAA', metadata: { ver: 1 } });
+    expect(okoro.agents.create).toHaveBeenCalledWith({ name: 'agent-x', publicKey: 'AAAA', metadata: { ver: 1 } });
   });
 
-  it('aegis.agents.list passes pagination', async () => {
-    const aegis = buildAegis();
+  it('okoro.agents.list passes pagination', async () => {
+    const okoro = buildOkoro();
     const reg = new Map<string, ToolDefinition>();
-    registerAgentsTools(aegis as never, reg);
-    await reg.get('aegis.agents.list')!.handler({ limit: 25, cursor: 'cur_abc' });
-    expect(aegis.agents.list).toHaveBeenCalledWith({ limit: 25, cursor: 'cur_abc' });
+    registerAgentsTools(okoro as never, reg);
+    await reg.get('okoro.agents.list')!.handler({ limit: 25, cursor: 'cur_abc' });
+    expect(okoro.agents.list).toHaveBeenCalledWith({ limit: 25, cursor: 'cur_abc' });
   });
 
-  it('aegis.agents.revoke maps reason', async () => {
-    const aegis = buildAegis();
+  it('okoro.agents.revoke maps reason', async () => {
+    const okoro = buildOkoro();
     const reg = new Map<string, ToolDefinition>();
-    registerAgentsTools(aegis as never, reg);
-    await reg.get('aegis.agents.revoke')!.handler({ agent_id: 'agt_1', reason: 'compromised' });
-    expect(aegis.agents.revoke).toHaveBeenCalledWith('agt_1', { reason: 'compromised' });
+    registerAgentsTools(okoro as never, reg);
+    await reg.get('okoro.agents.revoke')!.handler({ agent_id: 'agt_1', reason: 'compromised' });
+    expect(okoro.agents.revoke).toHaveBeenCalledWith('agt_1', { reason: 'compromised' });
   });
 });

@@ -25,7 +25,7 @@ import { ERROR_CATALOG } from '../../apps/api/src/common/errors/error-catalog';
 import { GENERATED_ERROR_CATALOG } from '../../packages/types/src/error-catalog.generated';
 
 const REPO_ROOT = join(__dirname, '..', '..');
-const PY_FILE = join(REPO_ROOT, 'packages', 'sdk-py', 'aegis', 'error_catalog.py');
+const PY_FILE = join(REPO_ROOT, 'packages', 'sdk-py', 'okoro', 'error_catalog.py');
 
 interface PyEntry {
   code: string;

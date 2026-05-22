@@ -14,7 +14,7 @@ export class PolicyController {
   constructor(private readonly policy: PolicyService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a scoped permission policy and receive an AEGIS-signed token.' })
+  @ApiOperation({ summary: 'Create a scoped permission policy and receive an OKORO-signed token.' })
   create(
     @Auth() auth: AuthenticatedKey,
     @Param('agentId') agentId: string,

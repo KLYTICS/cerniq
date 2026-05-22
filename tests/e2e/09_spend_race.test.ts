@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import type { Aegis } from '@aegis/sdk';
+import type { Okoro } from '@okoro/sdk';
 import { makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixtures';
 
@@ -15,7 +15,7 @@ import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixt
  * will hold the line.
  */
 describe('09 · spend race (TOCTOU)', () => {
-  let sdk: Aegis;
+  let sdk: Okoro;
   const cleanup: string[] = [];
 
   beforeAll(() => {

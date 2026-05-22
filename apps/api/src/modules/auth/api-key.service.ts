@@ -3,7 +3,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 
-import { AlreadyRotatedError, NotFoundError, AuthorizationError } from '../../common/errors/aegis-error';
+import { AlreadyRotatedError, NotFoundError, AuthorizationError } from '../../common/errors/okoro-error';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { AppConfigService } from '../../config/config.service';
@@ -65,14 +65,14 @@ export class ApiKeyService {
    * Generate a fresh API key for a principal. Returns the plaintext exactly
    * once; only the bcrypt hash is persisted.
    *
-   * Format: `aegis_sk_<26 char base58-ish>` (verify keys: `aegis_vk_…`).
+   * Format: `okoro_sk_<26 char base58-ish>` (verify keys: `okoro_vk_…`).
    */
   async issue(principalId: string, label: string | null, scope: AuthenticatedKey['scope'] = 'FULL'): Promise<{
     apiKeyId: string;
     plaintextKey: string;
     keyPrefix: string;
   }> {
-    const prefix = scope === 'VERIFY_ONLY' ? 'aegis_vk_' : 'aegis_sk_';
+    const prefix = scope === 'VERIFY_ONLY' ? 'okoro_vk_' : 'okoro_sk_';
     const random = randomBytes(24).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 26);
     const plaintext = `${prefix}${random}`;
     const keyPrefix = plaintext.slice(0, 12); // For dashboard display only.
@@ -104,7 +104,7 @@ export class ApiKeyService {
    * instead of the more confusing `invalid_api_key`.
    */
   async resolve(plaintext: string): Promise<AuthenticatedKey | null> {
-    if (!plaintext || (!plaintext.startsWith('aegis_sk_') && !plaintext.startsWith('aegis_vk_'))) {
+    if (!plaintext || (!plaintext.startsWith('okoro_sk_') && !plaintext.startsWith('okoro_vk_'))) {
       return null;
     }
 
@@ -189,7 +189,7 @@ export class ApiKeyService {
    * runs at most once per failed auth attempt.
    */
   async isExpired(plaintext: string): Promise<boolean> {
-    if (!plaintext || (!plaintext.startsWith('aegis_sk_') && !plaintext.startsWith('aegis_vk_'))) {
+    if (!plaintext || (!plaintext.startsWith('okoro_sk_') && !plaintext.startsWith('okoro_vk_'))) {
       return false;
     }
     const keyPrefix = plaintext.slice(0, 12);
@@ -274,7 +274,7 @@ export class ApiKeyService {
 
     // Step 2: mint plaintext (NOT Math.random — crypto.randomBytes).
     const scope: AuthenticatedKey['scope'] = calling.scope;
-    const prefix = scope === 'VERIFY_ONLY' ? 'aegis_vk_' : 'aegis_sk_';
+    const prefix = scope === 'VERIFY_ONLY' ? 'okoro_vk_' : 'okoro_sk_';
     const random = randomBytes(24).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 26);
     const plaintext = `${prefix}${random}`;
     const keyPrefix = plaintext.slice(0, 12);

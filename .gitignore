@@ -48,7 +48,7 @@ tmp/
 
 # Dev seed artifacts (scripts/seed-dev.ts) — both copies of the agent
 # private key. NEVER commit; rotate via `pnpm seed:dev -- --reset`.
-.aegis-dev-key.txt
+.okoro-dev-key.txt
 .local/keys/
 
 # Local test result artifacts — bring-up captures, k6 output, e2e traces.

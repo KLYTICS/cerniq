@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-// Import from source path, not package alias — @aegis/types points to dist/
+// Import from source path, not package alias — @okoro/types points to dist/
 // which is not built at parity-test time. Matches the pattern used by
 // existing parity specs (e.g. denial-reason-parity.spec.ts).
 import { WEBHOOK_EVENT } from '../../packages/types/src/constants';
 
-// Cross-package parity gate for @aegis/docs <WebhookEventCatalog/>.
+// Cross-package parity gate for @okoro/docs <WebhookEventCatalog/>.
 //
 // Why: relying parties subscribe to event names verbatim. If docs ever
 // shows an event that doesn't exist (or hides one that does), integrators
@@ -24,11 +24,11 @@ const COMPONENT_PATH = join(
   'webhook-event-catalog.tsx',
 );
 
-describe('docs ↔ @aegis/types webhook event parity', () => {
+describe('docs ↔ @okoro/types webhook event parity', () => {
   const source = readFileSync(COMPONENT_PATH, 'utf8');
 
-  it('imports WEBHOOK_EVENT from @aegis/types', () => {
-    expect(source).toMatch(/from\s+['"]@aegis\/types['"]/);
+  it('imports WEBHOOK_EVENT from @okoro/types', () => {
+    expect(source).toMatch(/from\s+['"]@okoro\/types['"]/);
     expect(source).toContain('WEBHOOK_EVENT');
   });
 

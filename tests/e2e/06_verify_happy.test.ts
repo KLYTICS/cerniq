@@ -1,11 +1,11 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import type { Aegis } from '@aegis/sdk';
+import type { Okoro } from '@okoro/sdk';
 import { makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixtures';
 import { assertVerifyApproved } from './_support/assert';
 
 describe('06 · verify happy path', () => {
-  let sdk: Aegis;
+  let sdk: Okoro;
   const cleanup: string[] = [];
 
   beforeAll(() => {

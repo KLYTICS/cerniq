@@ -4,7 +4,7 @@
 // Why a Nest module rather than a top-of-file import in `app.module.ts`:
 // the WASM modules are heavy (Cedar ~3 MB, OPA ~1 MB) and we lazy-load
 // them only when an operator opts into Cedar/OPA. The `enabled` set
-// comes from `AEGIS_POLICY_ENGINES` env (`builtin,cedar,opa` default
+// comes from `OKORO_POLICY_ENGINES` env (`builtin,cedar,opa` default
 // `builtin`). Modules registered here are wired in `app.module.ts`'s
 // `imports`.
 

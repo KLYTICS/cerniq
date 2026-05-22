@@ -138,7 +138,7 @@ export default tseslint.config(
   },
   {
     // mcp-server and cli — both call SDK methods that don't currently exist on
-    // the @aegis/sdk AgentClient surface (e.g. `aegis.agents.create`, `.list`).
+    // the @okoro/sdk AgentClient surface (e.g. `okoro.agents.create`, `.list`).
     // The unsafe-* + no-deprecated errors are cascades from this API drift.
     // TODO(api-drift): align SDK + cli + mcp-server, then remove this block.
     files: ['packages/mcp-server/src/**/*.ts', 'packages/cli/src/**/*.ts'],

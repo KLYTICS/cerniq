@@ -4,30 +4,30 @@
 import type { Context, MiddlewareHandler } from 'hono';
 
 import type { VerifyContext, VerifyOptions } from '../types.js';
-import type { AegisVerifier } from '../verifier.js';
+import type { OkoroVerifier } from '../verifier.js';
 
-const DEFAULT_HEADER = 'X-AEGIS-Token';
+const DEFAULT_HEADER = 'X-OKORO-Token';
 
 export interface HonoGuardOptions {
-  verifier: AegisVerifier;
+  verifier: OkoroVerifier;
   headerName?: string;
   attachTo?: string;
   requiredScope?: string;
   contextFrom?: (c: Context) => VerifyContext;
 }
 
-export function aegisHonoMiddleware(options: HonoGuardOptions): MiddlewareHandler {
+export function okoroHonoMiddleware(options: HonoGuardOptions): MiddlewareHandler {
   if (!options?.verifier) {
-    throw new TypeError('aegisHonoMiddleware: options.verifier is required');
+    throw new TypeError('okoroHonoMiddleware: options.verifier is required');
   }
   const headerName = options.headerName ?? DEFAULT_HEADER;
-  const attachTo = options.attachTo ?? 'aegis';
+  const attachTo = options.attachTo ?? 'okoro';
 
   return async (c, next) => {
     const token = c.req.header(headerName);
     if (!token) {
       return c.json(
-        { error: 'AEGIS_VERIFICATION_FAILED', reason: 'INVALID_SIGNATURE', detail: 'missing token' },
+        { error: 'OKORO_VERIFICATION_FAILED', reason: 'INVALID_SIGNATURE', detail: 'missing token' },
         401,
       );
     }
@@ -38,7 +38,7 @@ export function aegisHonoMiddleware(options: HonoGuardOptions): MiddlewareHandle
     const outcome = await options.verifier.verify(token, ctx, verifyOpts);
     if (!outcome.valid) {
       const body: Record<string, unknown> = {
-        error: 'AEGIS_VERIFICATION_FAILED',
+        error: 'OKORO_VERIFICATION_FAILED',
         reason: outcome.reason,
       };
       if (outcome.detail) body.detail = outcome.detail;
@@ -50,4 +50,4 @@ export function aegisHonoMiddleware(options: HonoGuardOptions): MiddlewareHandle
   };
 }
 
-export const honoMiddleware = aegisHonoMiddleware;
+export const honoMiddleware = okoroHonoMiddleware;

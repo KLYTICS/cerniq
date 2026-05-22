@@ -1,4 +1,4 @@
-# AEGIS — Scaling Playbook
+# OKORO — Scaling Playbook
 ## Traffic Surge Handling, Connection Pools, Redis Tuning, CF Workers Rollout
 
 > **Owner:** Engineering Lead  
@@ -11,7 +11,7 @@
 
 ## 1. Scaling Overview
 
-AEGIS has a clear architectural scaling path. Each phase requires specific work:
+OKORO has a clear architectural scaling path. Each phase requires specific work:
 
 ```
 Phase 1 (now):    500 RPS    → Railway origin, 2 replicas, PG + Redis
@@ -56,7 +56,7 @@ Add replicas when CPU > 70% sustained or you need HA:
 # Each replica is independent — Railway load balances automatically
 
 # Verify both replicas are healthy
-curl -s https://api.aegislabs.io/health | jq .status
+curl -s https://api.okorolabs.io/health | jq .status
 # Check from multiple IPs to hit different replicas
 ```
 
@@ -95,7 +95,7 @@ Before scaling, confirm DB is actually the bottleneck:
 psql $DATABASE_URL -c "
   SELECT count(*) as active_connections, state
   FROM pg_stat_activity 
-  WHERE datname = 'aegis'
+  WHERE datname = 'okoro'
   GROUP BY state;
 "
 # If active_connections near max_connections (100 default): need pooling
@@ -138,8 +138,8 @@ At > 100 sustained RPS, PostgreSQL's max_connections (100 by default) becomes th
 # PgBouncer config (see DATABASE_OPERATIONS.md §5.2)
 
 # After PgBouncer:
-DATABASE_URL="postgresql://user:pass@pgbouncer:6432/aegis?pgbouncer=true"
-DIRECT_DATABASE_URL="postgresql://user:pass@postgres:5432/aegis"
+DATABASE_URL="postgresql://user:pass@pgbouncer:6432/okoro?pgbouncer=true"
+DIRECT_DATABASE_URL="postgresql://user:pass@postgres:5432/okoro"
 
 # Prisma requires DIRECT_DATABASE_URL for migrations
 # Regular DATABASE_URL goes through PgBouncer
@@ -179,11 +179,11 @@ Key categories and TTLs:
 
 | Key Pattern | Purpose | TTL | Size Estimate |
 |-------------|---------|-----|---------------|
-| `aegis:jti:{jti}` | Replay prevention | 30s (token TTL) | 50 bytes × active_rps |
-| `aegis:spend:{agentId}:{date}` | Daily spend counter | 24h | 100 bytes × agents |
-| `aegis:revoke:{agentId}` | Revocation cache | 5min (CDN-like) | 50 bytes × revoked_agents |
-| `aegis:rl:{ip}:{window}` | Rate limiting | 1 min | 50 bytes × unique_ips |
-| `aegis:bate:signals:{agentId}` | BATE signal buffer | 1h | 1KB × active_agents |
+| `okoro:jti:{jti}` | Replay prevention | 30s (token TTL) | 50 bytes × active_rps |
+| `okoro:spend:{agentId}:{date}` | Daily spend counter | 24h | 100 bytes × agents |
+| `okoro:revoke:{agentId}` | Revocation cache | 5min (CDN-like) | 50 bytes × revoked_agents |
+| `okoro:rl:{ip}:{window}` | Rate limiting | 1 min | 50 bytes × unique_ips |
+| `okoro:bate:signals:{agentId}` | BATE signal buffer | 1h | 1KB × active_agents |
 
 Memory calculation for 10K agents at 100 RPS:
 - JTI cache: 100 req/s × 30s TTL × 50 bytes = ~150KB
@@ -213,7 +213,7 @@ redis-cli -u $REDIS_URL INFO memory | grep -E "used_memory_human|maxmemory_human
 
 ### 4.3 Redis Failure Modes
 
-AEGIS is designed to fail closed on Redis unavailability:
+OKORO is designed to fail closed on Redis unavailability:
 
 | Redis Down | Behavior | User Impact |
 |-----------|---------|------------|
@@ -234,7 +234,7 @@ REDIS_URL=redis://default:password@your-upstash-endpoint:6379
 
 # OR Railway Redis Pro with Redis Sentinel
 # Requires updating connection string format for sentinel
-REDIS_SENTINEL_URL=redis+sentinel://sentinel1:26379,sentinel2:26379/aegis
+REDIS_SENTINEL_URL=redis+sentinel://sentinel1:26379,sentinel2:26379/okoro
 ```
 
 ---
@@ -261,15 +261,15 @@ Before moving traffic to edge, run in shadow mode:
 ```bash
 # wrangler.toml: enable shadow mode
 [vars]
-AEGIS_EDGE_MODE = "shadow"
+OKORO_EDGE_MODE = "shadow"
 # In shadow mode: edge evaluates but origin makes the authoritative decision
-# X-AEGIS-Edge-Divergence header shows when edge and origin disagree
+# X-OKORO-Edge-Divergence header shows when edge and origin disagree
 
 # Deploy shadow mode worker
 wrangler deploy --env production
 
 # Monitor divergence rate:
-curl https://api.aegislabs.io/metrics | grep edge_divergence
+curl https://api.okorolabs.io/metrics | grep edge_divergence
 # Target: <0.1% divergence before promoting to live
 ```
 
@@ -280,12 +280,12 @@ curl https://api.aegislabs.io/metrics | grep edge_divergence
 pnpm tsx scripts/warm-edge-kv.ts \
   --agents all \
   --policies active \
-  --namespace AEGIS_AGENTS
+  --namespace OKORO_AGENTS
 
 # This pushes to Cloudflare KV:
-# KV: aegis:agent:{agentId} → { publicKey, status, trustBand, policyIds }
-# KV: aegis:policy:{policyId} → { type, scopes, limits }
-# KV: aegis:spend:{agentId}:{date} → current counter (synced from Redis)
+# KV: okoro:agent:{agentId} → { publicKey, status, trustBand, policyIds }
+# KV: okoro:policy:{policyId} → { type, scopes, limits }
+# KV: okoro:spend:{agentId}:{date} → current counter (synced from Redis)
 ```
 
 ### 5.4 Traffic Promotion Steps
@@ -312,7 +312,7 @@ Strategy:
 
 ```typescript
 // workers/cf-verify/src/edge-verify.ts — spend handling
-const edgeSpend = await env.AEGIS_SPEND.get(spendKey);
+const edgeSpend = await env.OKORO_SPEND.get(spendKey);
 const current = parseInt(edgeSpend ?? '0', 10);
 
 if (current > limit * 1.2) {
@@ -347,7 +347,7 @@ if (current > limit * 0.8) {
 
 ```bash
 # Step 1: Quantify the surge
-curl -s "https://api.aegislabs.io/metrics" | grep "aegis_http_requests_total"
+curl -s "https://api.okorolabs.io/metrics" | grep "okoro_http_requests_total"
 # Baseline is ~N req/min. If 10x: real surge.
 
 # Step 2: Is it legitimate or abuse?
@@ -367,11 +367,11 @@ psql $DATABASE_URL -c "
 # Railway dashboard → API service → Scale replicas to 4-6
 
 # Step 4: Check DB — is it keeping up?
-psql $DATABASE_URL -c "SELECT count(*), state FROM pg_stat_activity WHERE datname='aegis' GROUP BY state;"
+psql $DATABASE_URL -c "SELECT count(*), state FROM pg_stat_activity WHERE datname='okoro' GROUP BY state;"
 # If active connections > 80% of pool: scale DB too
 
 # Step 5: If abuse — rate limit the offending principal
-aegis admin rate-limit \
+okoro admin rate-limit \
   --principal [PRINCIPAL_ID] \
   --limit 1req/s \
   --duration 1h \
@@ -396,7 +396,7 @@ As a last resort, when infrastructure is fully saturated:
 
 ```typescript
 // In verify.controller.ts: emergency load shedding
-if (await redisService.get('aegis:load_shed') === 'active') {
+if (await redisService.get('okoro:load_shed') === 'active') {
   // Shed 50% of FREE tier traffic
   if (principal.tier === 'free' && Math.random() < 0.5) {
     throw new ServiceUnavailableException({
@@ -410,9 +410,9 @@ if (await redisService.get('aegis:load_shed') === 'active') {
 
 Enable load shedding:
 ```bash
-redis-cli -u $REDIS_URL SET aegis:load_shed active EX 3600
+redis-cli -u $REDIS_URL SET okoro:load_shed active EX 3600
 # Disable:
-redis-cli -u $REDIS_URL DEL aegis:load_shed
+redis-cli -u $REDIS_URL DEL okoro:load_shed
 ```
 
 ---
@@ -456,7 +456,7 @@ Run before every major scaling event:
 ```bash
 # Phase 1 baseline (run on staging, target production capacity)
 k6 run tests/load/verify.js \
-  -e BASE_URL=https://staging.api.aegislabs.io/v1 \
+  -e BASE_URL=https://staging.api.okorolabs.io/v1 \
   -e API_KEY=$STAGING_KEY \
   --out json=load-test-results.json
 
@@ -494,5 +494,5 @@ Phase 3 Cloudflare Workers pricing: $0.50/million requests beyond free tier. At 
 
 ---
 
-*Scaling playbook version: 1.0 | AEGIS Phase 1*  
+*Scaling playbook version: 1.0 | OKORO Phase 1*  
 *Next review: when hitting 50% of Phase 1 capacity targets*

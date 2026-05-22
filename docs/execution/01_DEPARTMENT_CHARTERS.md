@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Department Charters
+title: OKORO — Department Charters
 audience: every contributor; mandatory reading for the row of your assigned department
 last-reviewed: 2026-05-08
 status: source-of-truth — v1
@@ -7,7 +7,7 @@ status: source-of-truth — v1
 
 # 01 — Department Charters
 
-> Every department at AEGIS is small or notional today. The charter is
+> Every department at OKORO is small or notional today. The charter is
 > sized to the company we are building, not to today's headcount. A
 > department of one is still a department; the contributor in that role
 > represents the entire function and writes its artifacts at the bar
@@ -72,7 +72,7 @@ Each charter has the same shape:
   API workspace.
 - No `any` without `// type-rationale: <reason>`.
 - Cryptographic code has a paired `.spec.ts`. No exceptions.
-- Errors are typed (`AegisError` subclasses), not strings.
+- Errors are typed (`OkoroError` subclasses), not strings.
 - No `Math.random` in production code paths (allowed in tests/seeds only).
 - Lighthouse ≥95 (≥98 for docs) on every public-web surface.
 - A typecheck-zero round (a sprint round with zero typecheck errors
@@ -103,7 +103,7 @@ Each charter has the same shape:
 - Daily: `WORK_BOARD.md` claim/release activity + `SESSION_HANDOFF.md`
   entries.
 - Weekly: round summary in `SESSION_HANDOFF.md` (a "round" is the
-  AEGIS sprint unit; see Round 23 entry for the canonical shape).
+  OKORO sprint unit; see Round 23 entry for the canonical shape).
 - Per-shipped-feature: ADR if architectural; release notes; postmortem
   within 14 days.
 - Monthly: an engineering metrics roll-up (typecheck-zero streak, lead
@@ -174,7 +174,7 @@ problem.
 
 ## 3. Design
 
-**Mission.** Make every AEGIS surface — marketing, dashboard, docs,
+**Mission.** Make every OKORO surface — marketing, dashboard, docs,
 identity, deck — read as enterprise infrastructure of the highest tier
 without sacrificing developer-first ergonomics.
 
@@ -243,7 +243,7 @@ without sacrificing developer-first ergonomics.
 
 ## 4. Security
 
-**Mission.** Ensure every claim AEGIS makes about cryptographic
+**Mission.** Ensure every claim OKORO makes about cryptographic
 guarantees is true, and ensure every threat that could falsify those
 claims is mitigated or accepted with eyes open.
 
@@ -326,19 +326,19 @@ claims is mitigated or accepted with eyes open.
 
 ## 5. Compliance & Risk
 
-**Mission.** Map AEGIS controls to the standards customers and regulators
+**Mission.** Map OKORO controls to the standards customers and regulators
 require, keep the evidence trail current, and pre-build the institutional
 muscle for SOC2 → ISO 27001 → SOX.
 
 **In scope.**
 - `docs/COMPLIANCE.md`, `docs/COMPLIANCE_BUNDLE.md`, `docs/EU_RESIDENCY.md`,
   `docs/RETENTION_POLICY.md`.
-- Mapping AEGIS controls to: SOC2 Trust Services Criteria, ISO 27001
+- Mapping OKORO controls to: SOC2 Trust Services Criteria, ISO 27001
   Annex A, NIST CSF, EU AI Act, GDPR / DPA, financial-services-specific
   frameworks (FRTB-style audit, FINRA, COSSEC) where customers require.
 - Vendor risk management (sub-processors and their SOC2 status).
 - Data Processing Agreements and standard contractual clauses.
-- Disclosure controls — what claims AEGIS makes externally and how
+- Disclosure controls — what claims OKORO makes externally and how
   they are sourced.
 - Change management discipline (every prod change → ticket → review →
   audit event).
@@ -542,7 +542,7 @@ deployment that creates measurable value," and keep them there.
 
 ## 8. Finance & Operations
 
-**Mission.** Ensure AEGIS knows its numbers, spends them well, and
+**Mission.** Ensure OKORO knows its numbers, spends them well, and
 reports them in a form a public company would recognize.
 
 **In scope.**
@@ -552,7 +552,7 @@ reports them in a form a public company would recognize.
 - Vendor management (cloud, observability, SaaS subscriptions).
 - Budget and spend approvals.
 - Cost-of-goods modeling (per-verify cost economics — critical to
-  AEGIS's pricing thesis).
+  OKORO's pricing thesis).
 - Financial reporting cadence (monthly, quarterly).
 - Pre-Series A and pre-IPO institutional muscle: revenue-recognition
   policies, capitalization table hygiene, audit-trail for every
@@ -604,7 +604,7 @@ reports them in a form a public company would recognize.
 
 ## 9. Legal
 
-**Mission.** Make sure AEGIS can do business everywhere it sells, owns
+**Mission.** Make sure OKORO can do business everywhere it sells, owns
 what it builds, and is contractually defensible in every commitment.
 
 **In scope.**
@@ -615,7 +615,7 @@ what it builds, and is contractually defensible in every commitment.
 - Terms of Service, Privacy Policy, Acceptable Use.
 - Open-source license review (the SDK is MIT — confirm; dependencies
   audited).
-- Trademark filings (AEGIS, the logomark when delivered).
+- Trademark filings (OKORO, the logomark when delivered).
 - Regulatory engagement (EU AI Act, US sectoral regulators where
   applicable).
 - M&A document hygiene (no deal-breakers in standard agreements).
@@ -640,7 +640,7 @@ what it builds, and is contractually defensible in every commitment.
   is logged in a contract-exception register.
 - Every contract amendment is filed within 7 days of execution.
 - Open-source dependencies have a license that is compatible with
-  AEGIS distribution (the SDK is MIT; copyleft is forbidden in
+  OKORO distribution (the SDK is MIT; copyleft is forbidden in
   packages we distribute).
 - IP assignments from contractors are signed before contractor commits
   to the repo. No exceptions; this is a S-1 diligence killer if it
@@ -797,9 +797,9 @@ strategic partnerships, and (eventually) M&A and IPO readiness.
 
 ## 12. Standards / Office of the CTO
 
-**Mission.** Position AEGIS as a contributor to and shaper of the
+**Mission.** Position OKORO as a contributor to and shaper of the
 emerging open standards for agent identity, verification, and
-attestation. Make sure AEGIS does not become locked out of standards
+attestation. Make sure OKORO does not become locked out of standards
 the rest of the market converges on.
 
 **In scope.**
@@ -831,14 +831,14 @@ the rest of the market converges on.
 **Quality bar.**
 - Every submission to a standards body is reviewed by Security and
   Legal before submission.
-- Open-source contributions never reveal proprietary AEGIS
+- Open-source contributions never reveal proprietary OKORO
   implementation details that Compliance has flagged as confidential.
 - Position papers cite their sources; no claims unsupported by
   references.
 
 **Owned documents.**
 - `docs/standards/*.md`.
-- `docs/AEGIS_AS_BACKBONE.md` (co-owned with Product).
+- `docs/OKORO_AS_BACKBONE.md` (co-owned with Product).
 - `docs/decisions/` ADRs that touch protocol choices (e.g. ADR-0008
   MCP-as-control-plane, ADR-0009 Auth0 bridge, ADR-0013 PQ hybrid).
 - Position papers (when published).
@@ -873,6 +873,6 @@ the rest of the market converges on.
 | IR | Every department | Investors, Board, Operator |
 | Standards | Engineering, Product, Security | GTM, IR, Engineering |
 
-This matrix is the social graph of AEGIS execution. Print it. Tape it
+This matrix is the social graph of OKORO execution. Print it. Tape it
 to the wall. When confused about who consults whom on a piece of work,
 this is the answer.

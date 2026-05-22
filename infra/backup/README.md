@@ -1,6 +1,6 @@
-# AEGIS — Backups (operator-facing)
+# OKORO — Backups (operator-facing)
 
-> Stanza: `aegis`. Engine: pgBackRest. Repo: S3-compatible object store
+> Stanza: `okoro`. Engine: pgBackRest. Repo: S3-compatible object store
 > (Cloudflare R2 / Backblaze B2 / AWS S3 — operator's pick).
 
 This is the operator-facing index. Implementation files in this directory:
@@ -21,7 +21,7 @@ duplicate it.
 **Engine state**: Postgres 16 cluster (the data directory at `/var/lib/postgresql/data`). The schema is owned by Prisma migrations — see `apps/api/prisma/schema.prisma` for the source of truth. The tables that matter most for SOC2 evidence:
 
 - `Principal` — the tenant identity tree.
-- `AgentIdentity` — the public-key registry. (Private keys are NOT held by AEGIS — see `CLAUDE.md` invariant #1. We do not back up anything we never had.)
+- `AgentIdentity` — the public-key registry. (Private keys are NOT held by OKORO — see `CLAUDE.md` invariant #1. We do not back up anything we never had.)
 - `AuditEvent` — append-only signed audit chain. Cannot be reconstructed; **this is the irreplaceable table**.
 - `Policy`, `WebhookSubscription`, `WebhookDelivery`, `BateSignal` — operational state.
 
@@ -46,7 +46,7 @@ must provision:
 
 The `repo1-cipher-pass` adds a second encryption layer at the application
 level: even if the bucket leaks, an attacker without the cipher pass has
-nothing usable. Rotate this passphrase on the same cadence as the AEGIS
+nothing usable. Rotate this passphrase on the same cadence as the OKORO
 audit signing key — see [`../kms/rotation-runbook.md`](../kms/rotation-runbook.md).
 
 ---
@@ -56,7 +56,7 @@ audit signing key — see [`../kms/rotation-runbook.md`](../kms/rotation-runbook
 | Target | Value     | Why                                                                                                         |
 |--------|-----------|-------------------------------------------------------------------------------------------------------------|
 | RTO    | 30 min    | Matches incident-response SLA. Drives `delta=y`, `start-fast=y`, `process-max=4` in `pgbackrest.conf`.       |
-| RPO    | 5 min     | AEGIS audit log is SOC2 evidence; >5 min of unrecoverable audit events would void the "complete records" claim under CC7.2. Drives `archive-async=y` + a 1 GiB push queue. |
+| RPO    | 5 min     | OKORO audit log is SOC2 evidence; >5 min of unrecoverable audit events would void the "complete records" claim under CC7.2. Drives `archive-async=y` + a 1 GiB push queue. |
 
 The per-disaster recovery flow is in [`../../docs/DR_RUNBOOK.md`](../../docs/DR_RUNBOOK.md).
 
@@ -92,7 +92,7 @@ The per-disaster recovery flow is in [`../../docs/DR_RUNBOOK.md`](../../docs/DR_
    `DATABASE_URL` to point at the recovered instance, or use this
    instance to dump+reload into the production cluster.
 5. **Audit chain verification**: the drill calls
-   `pnpm --filter @aegis/api audit:verify-chain --since <target>`. The
+   `pnpm --filter @okoro/api audit:verify-chain --since <target>`. The
    `audit-chain.util.ts` foundation exists at
    [`../../apps/api/src/common/crypto/audit-chain.util.ts`](../../apps/api/src/common/crypto/audit-chain.util.ts);
    the CLI wrapper is tracked as M-006-ext in
@@ -119,7 +119,7 @@ Exit codes from `restore-drill.sh`:
 ## How to verify
 
 `verify-backup.sh` runs daily and is the lightweight gate. It calls
-`pgbackrest verify --stanza=aegis` and exits non-zero on any error. It
+`pgbackrest verify --stanza=okoro` and exits non-zero on any error. It
 does **not** restore data — it checksums what is in the repo against the
 manifest. Wire its non-zero exit to your alert sink (PagerDuty, Slack,
 email — operator's call).
@@ -133,10 +133,10 @@ crontab; cron contents are environment-specific). Recommended:
 
 ```
 # Lightweight daily verifier — wakes everyone up if it fails.
-0 2 * * *    /opt/aegis/infra/backup/verify-backup.sh --json >> /var/log/aegis/verify-backup.log 2>&1
+0 2 * * *    /opt/okoro/infra/backup/verify-backup.sh --json >> /var/log/okoro/verify-backup.log 2>&1
 
 # Heavyweight weekly drill — exercises restore end-to-end.
-0 3 * * 0    /opt/aegis/infra/backup/restore-drill.sh --execute --json >> /var/log/aegis/restore-drill.log 2>&1
+0 3 * * 0    /opt/okoro/infra/backup/restore-drill.sh --execute --json >> /var/log/okoro/restore-drill.log 2>&1
 ```
 
 A failed run of either should page the on-call engineer. The drill log

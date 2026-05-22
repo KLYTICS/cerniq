@@ -1,10 +1,10 @@
-# Contributing to @aegis/docs
+# Contributing to @okoro/docs
 
 ## Local setup
 
 ```bash
 pnpm install
-pnpm --filter @aegis/docs dev
+pnpm --filter @okoro/docs dev
 ```
 
 Opens at <http://localhost:3100>. Hot reload works for both MDX and React.
@@ -33,7 +33,7 @@ should render from its source of truth, not a transcribed copy.
 
 1. Create `components/live/<name>.tsx`. Mark `import 'server-only';` if it
    touches the filesystem, an env variable, or makes a network call.
-2. Import the wire constant directly from `@aegis/types`. Never copy the
+2. Import the wire constant directly from `@okoro/types`. Never copy the
    value as a string literal.
 3. Emit a `data-source="api" | "fallback"` attribute or an in-page source
    caption — operators use these to spot drift from a single page inspect.
@@ -46,7 +46,7 @@ should render from its source of truth, not a transcribed copy.
 
 | Path                                          | Source of truth                         | Regenerator                          |
 | --------------------------------------------- | --------------------------------------- | ------------------------------------ |
-| `content/docs/api/(generated)/`               | `docs/spec/AEGIS_API_SPEC.yaml`         | `scripts/generate-api-docs.mjs`     |
+| `content/docs/api/(generated)/`               | `docs/spec/OKORO_API_SPEC.yaml`         | `scripts/generate-api-docs.mjs`     |
 | `content/docs/sdk/(generated)/typescript/`    | `packages/sdk-ts/src/**`                | `scripts/generate-sdk-docs.mjs`     |
 
 Both run on every `pnpm dev` and `pnpm build` via the `predev` and
@@ -71,7 +71,7 @@ below 0.85 or a11y below 0.95 cannot merge until fixed.
 
 All colors and tokens trace back to `brand/02_design-tokens.json` and are
 mirrored into `app/global.css`. The Fumadocs UI preset is composed onto
-AEGIS variables via the `--color-fd-*` CSS variables — do not introduce
+OKORO variables via the `--color-fd-*` CSS variables — do not introduce
 off-grid hex colors or one-off spacing.
 
 ## Deploy
@@ -90,7 +90,7 @@ The `/docs/sdk` section has one MDX page per public package. To add one:
 2. Add it to `content/docs/sdk/meta.json` `pages` array.
 3. If the package is TypeScript and you want auto-generated reference,
    extend `typedoc.json` with an additional entry point and re-run
-   `pnpm --filter @aegis/docs sdk:generate`.
+   `pnpm --filter @okoro/docs sdk:generate`.
 
 ## Adding a new persona
 

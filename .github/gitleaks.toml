@@ -1,8 +1,8 @@
-# gitleaks config for AEGIS.
+# gitleaks config for OKORO.
 # Built on the default ruleset; only document the *additions* and
 # *exceptions* below so the audit trail is clear.
 
-title = "aegis-gitleaks"
+title = "okoro-gitleaks"
 # inherit defaults
 [extend]
 useDefault = true
@@ -31,7 +31,7 @@ regexes = [
     '''agt_01[A-Z0-9]{24}''',         # example agentId in docs
     '''pol_01[A-Z0-9]{24}''',         # example policyId in docs
     '''stripe_spt_xxx''',             # spec example
-    '''aegis_signed_xxx''',           # spec example
+    '''okoro_signed_xxx''',           # spec example
 ]
 
 # ─────────────────────────────────────────────────────────────
@@ -39,16 +39,16 @@ regexes = [
 # ─────────────────────────────────────────────────────────────
 
 [[rules]]
-id = "aegis-api-key"
-description = "AEGIS API key — full management"
-regex = '''aegis_(live|test)_[A-Za-z0-9]{32,}'''
-keywords = ["aegis_live_", "aegis_test_"]
+id = "okoro-api-key"
+description = "OKORO API key — full management"
+regex = '''okoro_(live|test)_[A-Za-z0-9]{32,}'''
+keywords = ["okoro_live_", "okoro_test_"]
 
 [[rules]]
-id = "aegis-verify-key"
-description = "AEGIS verify-only API key"
-regex = '''aegisv_(live|test)_[A-Za-z0-9]{32,}'''
-keywords = ["aegisv_live_", "aegisv_test_"]
+id = "okoro-verify-key"
+description = "OKORO verify-only API key"
+regex = '''okorov_(live|test)_[A-Za-z0-9]{32,}'''
+keywords = ["okorov_live_", "okorov_test_"]
 
 [[rules]]
 id = "ed25519-private-seed"

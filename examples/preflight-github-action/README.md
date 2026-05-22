@@ -1,4 +1,4 @@
-# `examples/preflight-github-action/` — wire AEGIS preflight to GitHub Actions
+# `examples/preflight-github-action/` — wire OKORO preflight to GitHub Actions
 
 > Drop-in CI integration for the `tools/preflight/` ship-readiness gate.
 > Runs on every PR + push, posts a sticky comment with the JSON output,
@@ -35,7 +35,7 @@
 ## Install
 
 ```bash
-# From the AEGIS repo root
+# From the OKORO repo root
 mkdir -p .github/workflows
 cp examples/preflight-github-action/.github/workflows/preflight.yml \
    .github/workflows/preflight.yml

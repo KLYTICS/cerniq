@@ -1,4 +1,4 @@
-// Public types for @aegis/audit-verifier. The shape is intentionally
+// Public types for @okoro/audit-verifier. The shape is intentionally
 // stable at the wire boundary — adding fields is non-breaking, but
 // renames or removals require a major version bump because external
 // auditors will pin to a specific version of this package as part of
@@ -27,7 +27,7 @@ export interface AuditChainPayload {
   v: 2;
 }
 
-/** A single row from an AEGIS audit export. The shape AEGIS exposes
+/** A single row from an OKORO audit export. The shape OKORO exposes
  *  on `/v1/audit-events/export` (NDJSON one row per line). */
 export interface AuditEventRow {
   /** Unique event id (cuid). */
@@ -36,7 +36,7 @@ export interface AuditEventRow {
   prevEventId: string | null;
   /** Predecessor signature (base64url); null for the genesis row. */
   prevSignature: string | null;
-  /** Kid of the AEGIS signing key that produced this row's signature. */
+  /** Kid of the OKORO signing key that produced this row's signature. */
   signingKeyId: string;
   /** This row's Ed25519 signature, base64url. */
   signature: string;

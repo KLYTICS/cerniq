@@ -2,15 +2,15 @@
 // jest test runner (see jest.config.ts).
 
 import {
-  AegisAuthenticationError,
-  AegisAuthorizationError,
-  AegisConflictError,
-  AegisInternalError,
-  AegisNetworkError,
-  AegisNotFoundError,
-  AegisRateLimitedError,
-  AegisServiceUnavailableError,
-  AegisValidationError,
+  OkoroAuthenticationError,
+  OkoroAuthorizationError,
+  OkoroConflictError,
+  OkoroInternalError,
+  OkoroNetworkError,
+  OkoroNotFoundError,
+  OkoroRateLimitedError,
+  OkoroServiceUnavailableError,
+  OkoroValidationError,
 } from './errors.js';
 import {
   HttpClient,
@@ -22,21 +22,21 @@ import {
 
 const NEVER_SLEEP: RetryOptions['sleep'] = async () => undefined;
 
-describe('AegisError.catalogKey (F-06 minification safety)', () => {
+describe('OkoroError.catalogKey (F-06 minification safety)', () => {
   // tsup minifies the SDK on production builds. Without a static catalogKey
   // discriminator, `new.target.name` collapses to "a"/"b"/... and
   // `err.name` becomes useless to consumers. These assertions are the
   // build-pipeline guard.
   const cases: [new (...args: never[]) => unknown, string][] = [
-    [AegisAuthenticationError, 'AegisAuthenticationError'],
-    [AegisAuthorizationError, 'AegisAuthorizationError'],
-    [AegisNotFoundError, 'AegisNotFoundError'],
-    [AegisValidationError, 'AegisValidationError'],
-    [AegisConflictError, 'AegisConflictError'],
-    [AegisRateLimitedError, 'AegisRateLimitedError'],
-    [AegisInternalError, 'AegisInternalError'],
-    [AegisServiceUnavailableError, 'AegisServiceUnavailableError'],
-    [AegisNetworkError, 'AegisNetworkError'],
+    [OkoroAuthenticationError, 'OkoroAuthenticationError'],
+    [OkoroAuthorizationError, 'OkoroAuthorizationError'],
+    [OkoroNotFoundError, 'OkoroNotFoundError'],
+    [OkoroValidationError, 'OkoroValidationError'],
+    [OkoroConflictError, 'OkoroConflictError'],
+    [OkoroRateLimitedError, 'OkoroRateLimitedError'],
+    [OkoroInternalError, 'OkoroInternalError'],
+    [OkoroServiceUnavailableError, 'OkoroServiceUnavailableError'],
+    [OkoroNetworkError, 'OkoroNetworkError'],
   ];
 
   test.each(cases)('%p declares catalogKey matching its un-minified name', (cls, expected) => {
@@ -44,12 +44,12 @@ describe('AegisError.catalogKey (F-06 minification safety)', () => {
   });
 
   test('instance.name reflects catalogKey, not the (mangled) constructor.name', () => {
-    const err = new AegisAuthenticationError('x', 401, 'r1', undefined);
+    const err = new OkoroAuthenticationError('x', 401, 'r1', undefined);
     Object.defineProperty(err.constructor, 'name', { value: 'a' });
     // err.name was set from the static catalogKey at construction time.
-    expect(err.name).toBe('AegisAuthenticationError');
+    expect(err.name).toBe('OkoroAuthenticationError');
     // And the static survives mangling on the constructor reference itself.
-    expect((err.constructor as unknown as { catalogKey: string }).catalogKey).toBe('AegisAuthenticationError');
+    expect((err.constructor as unknown as { catalogKey: string }).catalogKey).toBe('OkoroAuthenticationError');
   });
 });
 
@@ -146,8 +146,8 @@ describe('withRetry (public API)', () => {
     expect(sleep).not.toHaveBeenCalled();
   });
 
-  test('does not retry non-retryable AegisErrors', async () => {
-    const err = new AegisAuthorizationError('nope', 403, 'r1', undefined);
+  test('does not retry non-retryable OkoroErrors', async () => {
+    const err = new OkoroAuthorizationError('nope', 403, 'r1', undefined);
     const fn = jest.fn(async () => {
       throw err;
     });
@@ -157,13 +157,13 @@ describe('withRetry (public API)', () => {
 
   test('retries retryable errors up to maxAttempts then throws', async () => {
     const fn = jest.fn(async () => {
-      throw new AegisInternalError('boom', 500, 'r1', undefined);
+      throw new OkoroInternalError('boom', 500, 'r1', undefined);
     });
     const sleep = jest.fn(async () => undefined);
     const onRetry = jest.fn();
     await expect(
       withRetry(fn, { maxAttempts: 3, sleep, onRetry }),
-    ).rejects.toBeInstanceOf(AegisInternalError);
+    ).rejects.toBeInstanceOf(OkoroInternalError);
     expect(fn).toHaveBeenCalledTimes(3);
     expect(sleep).toHaveBeenCalledTimes(2);
     expect(onRetry).toHaveBeenCalledTimes(2);
@@ -173,7 +173,7 @@ describe('withRetry (public API)', () => {
     let calls = 0;
     const fn = async () => {
       calls += 1;
-      if (calls < 2) throw new AegisInternalError('flap', 500, 'r1', undefined);
+      if (calls < 2) throw new OkoroInternalError('flap', 500, 'r1', undefined);
       return 42;
     };
     const result = await withRetry(fn, { sleep: NEVER_SLEEP });
@@ -189,7 +189,7 @@ describe('withRetry (public API)', () => {
     let calls = 0;
     const fn = async (): Promise<string> => {
       calls += 1;
-      if (calls < 2) throw new AegisRateLimitedError('slow', 429, 'r1', undefined);
+      if (calls < 2) throw new OkoroRateLimitedError('slow', 429, 'r1', undefined);
       return 'done';
     };
     const result = await withRetry(fn, {
@@ -200,7 +200,7 @@ describe('withRetry (public API)', () => {
     expect(sleeps).toEqual([2_000]);
   });
 
-  test('non-AegisErrors are not retried', async () => {
+  test('non-OkoroErrors are not retried', async () => {
     const err = new RangeError('not ours');
     const fn = jest.fn(async () => {
       throw err;
@@ -213,7 +213,7 @@ describe('withRetry (public API)', () => {
     let calls = 0;
     const fn = async (): Promise<number> => {
       calls += 1;
-      if (calls < 3) throw new AegisNetworkError('net');
+      if (calls < 3) throw new OkoroNetworkError('net');
       return 7;
     };
     const sleep = jest.fn(async () => undefined);
@@ -223,7 +223,7 @@ describe('withRetry (public API)', () => {
   });
 
   test('skips retry when maxAttempts is 1', async () => {
-    const err = new AegisInternalError('once', 500, 'r1', undefined);
+    const err = new OkoroInternalError('once', 500, 'r1', undefined);
     const fn = jest.fn(async () => {
       throw err;
     });
@@ -243,7 +243,7 @@ describe('HttpClient.requestWithRetry', () => {
     };
     return new HttpClient({
       apiKey: 'sk_test',
-      baseUrl: 'https://api.aegislabs.io',
+      baseUrl: 'https://api.okorolabs.io',
       timeoutMs: 1_000,
       fetch: fetchFn,
     });
@@ -261,7 +261,7 @@ describe('HttpClient.requestWithRetry', () => {
     expect(result.ok).toBe(true);
   });
 
-  test('retries on 500 and surfaces final AegisInternalError', async () => {
+  test('retries on 500 and surfaces final OkoroInternalError', async () => {
     const client = mkClient([
       () =>
         new Response(JSON.stringify({ message: 'boom' }), {
@@ -271,7 +271,7 @@ describe('HttpClient.requestWithRetry', () => {
     ]);
     await expect(
       client.requestWithRetry('/agents', { method: 'GET' }, { maxAttempts: 2, sleep: NEVER_SLEEP }),
-    ).rejects.toBeInstanceOf(AegisInternalError);
+    ).rejects.toBeInstanceOf(OkoroInternalError);
   });
 
   test('does not retry 400 ValidationError', async () => {
@@ -287,7 +287,7 @@ describe('HttpClient.requestWithRetry', () => {
     ]);
     await expect(
       client.requestWithRetry('/agents', { method: 'GET' }, { maxAttempts: 5, sleep: NEVER_SLEEP }),
-    ).rejects.toBeInstanceOf(AegisValidationError);
+    ).rejects.toBeInstanceOf(OkoroValidationError);
     expect(calls).toBe(1);
   });
 });

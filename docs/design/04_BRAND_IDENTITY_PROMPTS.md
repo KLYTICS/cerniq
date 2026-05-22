@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Brand Identity Design Prompts
+title: OKORO — Brand Identity Design Prompts
 audience: image-gen tools, identity designers, in-repo prompts for SVG generation
 last-reviewed: 2026-05-08
 prerequisites: read `docs/design/00_BRAND_FOUNDATION.md` first
@@ -16,9 +16,9 @@ tools where prompts matter:
    production assets.
 2. **Identity designer (human)** — the only acceptable shipping path
    for the final mark. AI-generated logos read as AI-generated, and
-   AEGIS cannot afford that on a security product.
+   OKORO cannot afford that on a security product.
 3. **In-repo SVG generation** — for the wordmark variants, favicon,
-   and the supporting visual system (the AEGIS mark as ASCII-style
+   and the supporting visual system (the OKORO mark as ASCII-style
    pattern, layer-stack diagrams, etc.).
 
 ## What the identity must do
@@ -30,18 +30,18 @@ tools where prompts matter:
 3. Look correct at **16px favicon, 64px nav, and 256px deck slide**.
 4. Be **monochrome-first** — must work in pure slate-900 / slate-50
    before any color is applied.
-5. Avoid every visual cliché AEGIS lives next to: shield, lock,
+5. Avoid every visual cliché OKORO lives next to: shield, lock,
    keyhole, fingerprint, eye, blockchain links, neural-net nodes.
    These are over-mined and under-thought.
 
 ## What we already have, and what we don't
 
 Until the identity ships:
-- The **wordmark "AEGIS"** is set in Inter 700, tracking-tight,
-  `aegis-500` color. This is the placeholder.
+- The **wordmark "OKORO"** is set in Inter 700, tracking-tight,
+  `okoro-500` color. This is the placeholder.
 - There is **no logomark yet**. Surfaces use the wordmark only.
 - The **favicon** is a 32×32 SVG of the wordmark "A" cropped to a
-  rounded square in `aegis-500`. Placeholder.
+  rounded square in `okoro-500`. Placeholder.
 
 The identity work below replaces all three.
 
@@ -57,7 +57,7 @@ for vector tracing. **Do not ship a raster output as a logo.**
 
 ```
 A flat vector logomark for an enterprise security infrastructure brand
-called AEGIS. The mark expresses cryptographic neutrality — a balanced
+called OKORO. The mark expresses cryptographic neutrality — a balanced
 geometric form constructed from two interlocking primitives that
 together form a third, distinct shape. Inspired by the visual logic
 of HashiCorp marks and the Möbius-strip discipline of OpenAI's logo,
@@ -85,7 +85,7 @@ Cloudflare's discrete cloud, but distinct from both. Vector clean.
 ### A.3 Mark exploration — the "switzerland mark"
 
 ```
-A flat vector logomark for AEGIS, a neutral verification layer for
+A flat vector logomark for OKORO, a neutral verification layer for
 AI agents. The mark expresses neutrality through perfect bilateral
 symmetry — left and right halves identical, neither side dominant.
 Constructed from straight lines and 90-degree angles only. Reads as
@@ -129,7 +129,7 @@ stack motif, the data-flow illustrations.
 ### B.1 The 4-layer stack motif (canonical brand visual)
 
 ```
-Design a vector illustration of the AEGIS 4-layer stack as a brand
+Design a vector illustration of the OKORO 4-layer stack as a brand
 motif. This is the most recurrent visual element across marketing,
 docs, and the deck — it must be polished beyond any other diagram.
 
@@ -143,8 +143,8 @@ Composition:
 - The right edge of each slab has a small mono endpoint label
   ("/v1/agents", "/v1/policies", "/v1/agents/:id/score", "/v1/audit"),
   Inter mono 11px, slate-500
-- A single vertical aegis-500 line (2px) runs through all 4 slabs at
-  x=120px from left, with a 6px filled aegis-500 dot at the midpoint
+- A single vertical okoro-500 line (2px) runs through all 4 slabs at
+  x=120px from left, with a 6px filled okoro-500 dot at the midpoint
   of each slab — this represents "the verify hot path" connecting all
   layers
 - Below the stack, a single horizontal label in mono "<80ms p99" —
@@ -152,37 +152,37 @@ Composition:
 
 Deliverables:
 - SVG (light variant)
-- SVG (dark variant — invert neutrals, keep aegis-500)
+- SVG (dark variant — invert neutrals, keep okoro-500)
 - PNG @1x, @2x, @3x for each variant
 - A version with no labels for use as a hero texture
 - A simplified favicon-sized version (32×32) showing only the 4
-  slabs in slate-700 with the aegis-500 verify line
+  slabs in slate-700 with the okoro-500 verify line
 ```
 
 ### B.2 Request lifecycle diagram
 
 ```
-Design a horizontal swim-lane diagram of an AEGIS verify request.
+Design a horizontal swim-lane diagram of an OKORO verify request.
 This is the centerpiece of /how-it-works on the marketing site
 (see docs/design/01_MARKETING_SITE_PROMPTS.md § A.3 / B.3).
 
 Composition:
 - 5 horizontal swim lanes, each 64px tall, labeled left:
-  Agent, AEGIS Edge, AEGIS Origin, Relying Party, Audit Sink
+  Agent, OKORO Edge, OKORO Origin, Relying Party, Audit Sink
 - Lane backgrounds alternate slate-50 and white
 - 8 sequential steps shown as arrows + small annotations across the
   lanes:
   1. Agent: sign(request)
-  2. → AEGIS Edge: receive
-  3. AEGIS Edge: validate signature, fetch policy from cache
-  4. (cache miss) → AEGIS Origin: fetch policy + BATE
-  5. → AEGIS Edge: evaluate denial precedence
+  2. → OKORO Edge: receive
+  3. OKORO Edge: validate signature, fetch policy from cache
+  4. (cache miss) → OKORO Origin: fetch policy + BATE
+  5. → OKORO Edge: evaluate denial precedence
   6. → Relying Party: signed verdict
   7. → Audit Sink: append signed event
   8. (chain) → Audit Sink: link to prev event
 - Time annotations between steps in mono ("12ms", "30ms", etc.)
 - The "Edge verify" step has a callout below: "<80ms p99" in mono
-  with an aegis-500 underline
+  with an okoro-500 underline
 - All lines slate-700 1.5px stroke, arrows 6px, no curves except where
   showing a callback (step 8)
 
@@ -206,7 +206,7 @@ Composition:
 - Row backgrounds escalate in subtle red intensity: top (most-
   restrictive) is slate-50, bottom is rose-50 — but very subtle, not
   alarming
-- A vertical aegis-500 line (2px) on the left of the ladder labeled
+- A vertical okoro-500 line (2px) on the left of the ladder labeled
   "Top wins — most-restrictive reason returned"
 - Below the ladder, a small note: "Order is fixed. Public API
   contract. Minor version bump required to change."
@@ -241,13 +241,13 @@ and the supporting visual system are best shipped by a senior identity
 designer, not assembled from AI outputs.
 
 ```
-PROJECT: AEGIS Brand Identity v1
+PROJECT: OKORO Brand Identity v1
 ENGAGEMENT: ~6-8 weeks, mark + wordmark + system
 DELIVERABLE FORMAT: Master Figma file + SVG + PNG (favicon, social,
 print) + a 12-page brand-guide PDF
 
 CONTEXT:
-AEGIS is the neutral verification, policy enforcement, and behavioral
+OKORO is the neutral verification, policy enforcement, and behavioral
 attestation layer between AI agents and the services they act on.
 We are the "Switzerland of agent identity" — protocol-, vendor-, and
 model-neutral. We hold only public keys. We sign only what we observed.
@@ -269,11 +269,11 @@ THE IDENTITY MUST DO:
 
 DELIVERABLES:
 1. Logomark (the symbol alone) — vector master, with construction grid
-2. Wordmark "AEGIS" — custom-drawn, not pulled from a typeface;
+2. Wordmark "OKORO" — custom-drawn, not pulled from a typeface;
    tracking, x-height, terminals all considered
 3. Combination mark (logomark + wordmark, multiple lockups)
 4. Color application — using the Brand Foundation §4 palette only.
-   Aegis-500 is the brand's only accent; mark must work without it
+   Okoro-500 is the brand's only accent; mark must work without it
    first, and then with it as a single-color application.
 5. Clearspace, minimum-size rules, exclusion zones
 6. Favicon (16, 32, 192, 512), apple-touch-icon, safari-pinned-tab,
@@ -287,7 +287,7 @@ DELIVERABLES:
 
 OUT OF SCOPE for v1:
 - Animated mark (post-launch consideration)
-- Sub-brand identities (e.g. AEGIS for Fintech) — not designed yet
+- Sub-brand identities (e.g. OKORO for Fintech) — not designed yet
 - Iconography library — Lucide covers v1; a custom icon set may follow
 
 REFERENCES (study, do not copy):
@@ -306,7 +306,7 @@ ANTI-REFERENCES:
   eyes)
 
 CONSTRAINTS ON THE WORDMARK:
-- All-caps "AEGIS" is preferred — reads more institutional.
+- All-caps "OKORO" is preferred — reads more institutional.
   Lowercase variant must also be drawn for documentation contexts.
 - The wordmark must not depend on the logomark to be legible — they
   must work independently.
@@ -361,12 +361,12 @@ Read first:
 
 Tasks:
 1. Create packages/ui-brand as a workspace package.
-2. Add Wordmark.tsx — renders "AEGIS" in Inter 700 tracking-tight
-   aegis-500. Props: size ('sm'|'md'|'lg'), monochrome (boolean),
+2. Add Wordmark.tsx — renders "OKORO" in Inter 700 tracking-tight
+   okoro-500. Props: size ('sm'|'md'|'lg'), monochrome (boolean),
    inverted (boolean for dark surfaces).
 3. Add Mark.tsx — renders the placeholder logomark, which until the
    identity ships is the 4-layer stack visualization (4 small
-   horizontal slabs with the aegis-500 vertical verify line). When the
+   horizontal slabs with the okoro-500 vertical verify line). When the
    real mark arrives, this file is the only place to update.
 4. Add Logo.tsx — combination mark (Mark + Wordmark) with the standard
    lockup.
@@ -402,12 +402,12 @@ Tasks:
 1. Add scripts/generate-og.ts in apps/marketing and apps/docs.
 2. The template:
    - 1200×630 canvas, slate-50 bg with the §B.1 grid texture
-   - Top-left: AEGIS wordmark in aegis-500 (40px tall)
+   - Top-left: OKORO wordmark in okoro-500 (40px tall)
    - Center: page title in Inter 700 60px tracking-tight slate-900,
      wrapped to max 2 lines, max 800px wide
    - Below title: page description in Inter 400 24px slate-600, max
      2 lines
-   - Bottom row: a small 4-layer-stack mark on the left, "aegis.dev"
+   - Bottom row: a small 4-layer-stack mark on the left, "okoro.dev"
      in mono on the right
 3. The script reads each MDX/page's frontmatter (title, description)
    and renders an OG image to public/og/<slug>.png at build time.
@@ -426,20 +426,20 @@ Update SESSION_HANDOFF.md.
 
 ```
 Goal: a single 1280×640 PNG used as the GitHub repo social card for
-each AEGIS public repo.
+each OKORO public repo.
 
 Tasks:
 1. Add scripts/generate-github-social.ts at the repo root.
 2. The card:
    - slate-950 bg
-   - Center-left: AEGIS wordmark in aegis-300 (lighter ramp for dark
+   - Center-left: OKORO wordmark in okoro-300 (lighter ramp for dark
      surface), 56px tall
    - Below wordmark: repo name in Inter mono 32px slate-200
    - Below repo name: the repo's tagline (from package.json description)
      in Inter 400 24px slate-400, max 2 lines
-   - Center-right: the 4-layer stack mark in slate-700 with aegis-300
+   - Center-right: the 4-layer stack mark in slate-700 with okoro-300
      verify line, 240px tall
-   - Bottom-left: "github.com/aegis" in Inter mono 16px slate-500
+   - Bottom-left: "github.com/okoro" in Inter mono 16px slate-500
 3. Run the script for every public package and write to .github/social/.
 4. Add a Makefile target `make social` that re-runs the script.
 

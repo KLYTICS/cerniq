@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// `aegis` — operator CLI entry point.
+// `okoro` — operator CLI entry point.
 
 import { Command } from 'commander';
 
@@ -17,13 +17,13 @@ import {
 
 async function main(): Promise<void> {
   const program = new Command();
-  program.name('aegis').version('0.1.0').description('AEGIS operator CLI');
+  program.name('okoro').version('0.1.0').description('OKORO operator CLI');
 
   program
     .command('bootstrap')
-    .description('Configure AEGIS credentials at ~/.aegis/credentials.json')
-    .option('--api-key <key>', 'AEGIS API key')
-    .option('--base-url <url>', 'AEGIS API base URL', 'https://api.aegis.dev')
+    .description('Configure OKORO credentials at ~/.okoro/credentials.json')
+    .option('--api-key <key>', 'OKORO API key')
+    .option('--base-url <url>', 'OKORO API base URL', 'https://api.okoro.dev')
     .option('--force', 'overwrite existing credentials')
     .action(bootstrap);
 
@@ -100,9 +100,9 @@ async function main(): Promise<void> {
   const mcp = program.command('mcp').description('Manage MCP host integration');
   mcp
     .command('install')
-    .description('Add an aegis-mcp entry to your MCP host config')
+    .description('Add an okoro-mcp entry to your MCP host config')
     .option('--host <host>', 'claude-desktop | cursor', 'claude-desktop')
-    .option('--server-name <name>', 'name to register the server under', 'aegis')
+    .option('--server-name <name>', 'name to register the server under', 'okoro')
     .option('--force', 'overwrite an existing entry')
     .action(mcpInstall);
 

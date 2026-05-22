@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fc from 'fast-check';
-import type { Aegis, DenialReason } from '@aegis/sdk';
-import { DENIAL_REASON_PRECEDENCE } from '@aegis/types';
+import type { Okoro, DenialReason } from '@okoro/sdk';
+import { DENIAL_REASON_PRECEDENCE } from '@okoro/types';
 import { makeSdk, readConfig } from '../_support/client';
 import { SCOPES, createAgent, createPolicy, futureIso, signTokenFor, tamperToken } from '../_support/fixtures';
 
@@ -38,7 +38,7 @@ function expectedReasonFor(c: Conditions): DenialReason | null {
 }
 
 describe('property · denial precedence', () => {
-  let sdk: Aegis;
+  let sdk: Okoro;
   const created: string[] = [];
 
   beforeAll(() => {

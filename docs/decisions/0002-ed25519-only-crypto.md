@@ -5,15 +5,15 @@
 
 ## Context
 
-AEGIS performs three cryptographic operations:
+OKORO performs three cryptographic operations:
 
 1. **Agent identity signatures** — every outbound agent request is
    signed with the agent's private key; `/v1/verify` validates against
    the registered public key.
-2. **AEGIS-issued policy JWTs** — when a developer creates a policy,
-   AEGIS returns a signed JWT that the agent attaches to outbound
+2. **OKORO-issued policy JWTs** — when a developer creates a policy,
+   OKORO returns a signed JWT that the agent attaches to outbound
    tokens.
-3. **Audit chain signatures** — every audit event is signed by AEGIS
+3. **Audit chain signatures** — every audit event is signed by OKORO
    so third parties can verify the chain offline.
 
 We need one curve for all three so the public-key surface is uniform
@@ -61,7 +61,7 @@ Key encoding everywhere: **base64url** (RFC 4648 § 5), no padding.
 
 ### Neutral
 - The `kid` derivation (`first 16 chars of base64url(sha256(publicKey))`)
-  is locked — see `scripts/generate-aegis-keys.ts:deriveKid`. Changing
+  is locked — see `scripts/generate-okoro-keys.ts:deriveKid`. Changing
   the derivation is a breaking change for relying parties caching by kid.
 
 ## Alternatives considered
@@ -94,4 +94,4 @@ break.
 - RFC 8032 (Ed25519): https://datatracker.ietf.org/doc/html/rfc8032
 - `apps/api/src/common/crypto/ed25519.util.ts`
 - `apps/api/src/common/crypto/jwt.util.ts`
-- `scripts/generate-aegis-keys.ts`
+- `scripts/generate-okoro-keys.ts`

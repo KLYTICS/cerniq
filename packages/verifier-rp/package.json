@@ -1,17 +1,17 @@
 {
-  "name": "@aegis/verifier-rp",
+  "name": "@okoro/verifier-rp",
   "version": "0.1.0",
-  "description": "AEGIS — relying-party offline verifier. Drop-in middleware for Express, Fastify, Hono, and edge runtimes.",
+  "description": "OKORO — relying-party offline verifier. Drop-in middleware for Express, Fastify, Hono, and edge runtimes.",
   "license": "MIT",
-  "author": "AEGIS Labs <hello@aegislabs.io>",
-  "homepage": "https://aegislabs.io/verifier-rp",
+  "author": "OKORO Labs <hello@okorolabs.io>",
+  "homepage": "https://okorolabs.io/verifier-rp",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/klytics/aegis.git",
+    "url": "git+https://github.com/klytics/okoro.git",
     "directory": "packages/verifier-rp"
   },
   "bugs": {
-    "url": "https://github.com/klytics/aegis/issues"
+    "url": "https://github.com/klytics/okoro/issues"
   },
   "type": "module",
   "main": "dist/index.cjs",
@@ -81,7 +81,7 @@
     "node": ">=18"
   },
   "keywords": [
-    "aegis",
+    "okoro",
     "agent",
     "verifier",
     "relying-party",

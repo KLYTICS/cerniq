@@ -1,4 +1,4 @@
-// JWKS client — fetches the AEGIS JWKS once, caches by kid with TTL +
+// JWKS client — fetches the OKORO JWKS once, caches by kid with TTL +
 // stale-while-revalidate. Used to verify policy tokens (issuer-signed) where
 // the JWS header carries a `kid`.
 

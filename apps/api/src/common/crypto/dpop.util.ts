@@ -1,10 +1,10 @@
 // DPoP (RFC 9449) — Demonstrating Proof of Possession at the application
-// layer. Per ADR-0010, AEGIS adopts DPoP with a single-curve constraint:
+// layer. Per ADR-0010, OKORO adopts DPoP with a single-curve constraint:
 // the proof keypair is Ed25519, matching ADR-0002.
 //
 // What a DPoP proof looks like (compact JWT, three base64url segments):
 //   header  = {"typ":"dpop+jwt","alg":"EdDSA","jwk":{"kty":"OKP","crv":"Ed25519","x":"<b64u>"}}
-//   payload = {"htm":"POST","htu":"https://aegis.example/v1/verify","iat":<unix>,
+//   payload = {"htm":"POST","htu":"https://okoro.example/v1/verify","iat":<unix>,
 //              "jti":"<ulid>","ath":"<b64u(sha256(access_token))>"}
 //   signature over header.payload signed by the private key whose public
 //                                 half is in `header.jwk.x`.

@@ -19,7 +19,7 @@ import { Auth0Service } from './auth0.service';
  *                                    Authenticated by shared secret in
  *                                    `X-Auth0-Action-Secret` header.
  *   POST /v1/idp/auth0/exchange    — dashboard hands an Auth0 token,
- *                                    receives an AEGIS API key.
+ *                                    receives an OKORO API key.
  *
  * Per ADR-0009, both are decoupled from the agent-verify hot path and
  * live behind their own URL prefix. They are NEVER reached on the

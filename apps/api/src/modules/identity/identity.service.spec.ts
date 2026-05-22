@@ -253,11 +253,11 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
 
     const res = await h.svc.issueChallenge(h.principalId, h.agentId);
 
-    expect(res.protocolVersion).toBe('aegis-handshake-v1');
+    expect(res.protocolVersion).toBe('okoro-handshake-v1');
     expect(res.expiresIn).toBe(300);
     // 32 raw bytes encoded as base64url ⇒ 43 chars (no padding).
     expect(res.challenge).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(res.message).toBe(`aegis-handshake-v1::${h.agentId}::${res.challenge}`);
+    expect(res.message).toBe(`okoro-handshake-v1::${h.agentId}::${res.challenge}`);
     expect(h.store.get(`agent:challenge:${h.agentId}`)).toBe(JSON.stringify(res.challenge));
     // TTL must be applied — fail-closed semantics depend on it.
     expect(h.setCalls[0]?.[2]).toBe(300);
@@ -291,7 +291,7 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
 
     const verified = await h.svc.verifyHandshake(h.principalId, h.agentId, sig);
 
-    expect(verified.protocolVersion).toBe('aegis-handshake-v1');
+    expect(verified.protocolVersion).toBe('okoro-handshake-v1');
     expect(verified.agentId).toBe(h.agentId);
     expect(verified.trustScore).toBe(600);
     expect(verified.recordTtlSeconds).toBe(30 * 86_400);
@@ -345,7 +345,7 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
     await h.svc.issueChallenge(h.principalId, h.agentId);
     // Attacker signs a self-chosen message rather than the stored nonce.
     const sigForOtherMessage = await kp.signMessage(
-      `aegis-handshake-v1::${h.agentId}::AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA`,
+      `okoro-handshake-v1::${h.agentId}::AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA`,
     );
 
     await expect(
@@ -419,7 +419,7 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
     const status = await h.svc.getHandshakeStatus(h.principalId, h.agentId);
     expect(status.verified).toBe(true);
     expect(status.verifiedAt).toBe(verified.verifiedAt);
-    expect(status.protocolVersion).toBe('aegis-handshake-v1');
+    expect(status.protocolVersion).toBe('okoro-handshake-v1');
   });
 
   it('getHandshakeStatus is principal-scoped (cross-principal reads throw AGENT_NOT_FOUND)', async () => {

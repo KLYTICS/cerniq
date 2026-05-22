@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# doctor.sh — diagnose the AEGIS development environment.
+# doctor.sh — diagnose the OKORO development environment.
 #
 # Distinct from `make preflight` (branch shippability) and `make health`
 # (running-stack health). `doctor` answers "is THIS machine ready to run
-# AEGIS locally?" — the question a new contributor asks on first clone.
+# OKORO locally?" — the question a new contributor asks on first clone.
 #
 # Invoked by: `make doctor` (top-level Makefile).
 # Standalone usage:  ./scripts/doctor.sh
@@ -150,14 +150,14 @@ check_node_modules() {
 
 # 7. Ed25519 key generator works
 check_key_gen() {
-  if [ ! -f "$REPO_ROOT/scripts/generate-aegis-keys.ts" ]; then
-    skip "keys" "generate-aegis-keys.ts not found"
+  if [ ! -f "$REPO_ROOT/scripts/generate-okoro-keys.ts" ]; then
+    skip "keys" "generate-okoro-keys.ts not found"
     return
   fi
   # Don't actually generate; just verify tsx + the script file exist.
   if [ -d "$REPO_ROOT/node_modules" ] && \
      [ -d "$REPO_ROOT/node_modules/.pnpm/node_modules" ]; then
-    ok "keys" "generator script present (run 'pnpm tsx scripts/generate-aegis-keys.ts' to populate)"
+    ok "keys" "generator script present (run 'pnpm tsx scripts/generate-okoro-keys.ts' to populate)"
   else
     skip "keys" "deps not installed yet — re-run after 'pnpm install'"
   fi
@@ -204,7 +204,7 @@ check_make_targets() {
 # Run all checks
 # ---------------------------------------------------------------------------
 
-printf "%bAEGIS doctor%b — environment diagnostic · %s\n" "$C_BOLD" "$C_RESET" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+printf "%bOKORO doctor%b — environment diagnostic · %s\n" "$C_BOLD" "$C_RESET" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 printf "%b%s%b\n" "$C_DIM" "──────────────────────────────────────────────────────────────────" "$C_RESET"
 
 check_node

@@ -84,29 +84,29 @@ function buildHarness() {
 }
 
 describe('ApiKeyService.issue', () => {
-  it('returns plaintext exactly once with `aegis_sk_` prefix for FULL scope', async () => {
+  it('returns plaintext exactly once with `okoro_sk_` prefix for FULL scope', async () => {
     const { svc } = buildHarness();
     const result = await svc.issue('p_1', 'CI key', 'FULL');
 
-    expect(result.plaintextKey.startsWith('aegis_sk_')).toBe(true);
-    expect(result.plaintextKey.startsWith('aegis_vk_')).toBe(false);
+    expect(result.plaintextKey.startsWith('okoro_sk_')).toBe(true);
+    expect(result.plaintextKey.startsWith('okoro_vk_')).toBe(false);
     expect(typeof result.apiKeyId).toBe('string');
     expect(result.apiKeyId.length).toBeGreaterThan(0);
   });
 
-  it('uses `aegis_vk_` prefix for VERIFY_ONLY scope', async () => {
+  it('uses `okoro_vk_` prefix for VERIFY_ONLY scope', async () => {
     const { svc } = buildHarness();
     const result = await svc.issue('p_1', 'Verifier key', 'VERIFY_ONLY');
 
-    expect(result.plaintextKey.startsWith('aegis_vk_')).toBe(true);
-    expect(result.plaintextKey.startsWith('aegis_sk_')).toBe(false);
+    expect(result.plaintextKey.startsWith('okoro_vk_')).toBe(true);
+    expect(result.plaintextKey.startsWith('okoro_sk_')).toBe(false);
   });
 
   it('defaults to FULL scope when omitted', async () => {
     const { svc } = buildHarness();
     const result = await svc.issue('p_1', null);
 
-    expect(result.plaintextKey.startsWith('aegis_sk_')).toBe(true);
+    expect(result.plaintextKey.startsWith('okoro_sk_')).toBe(true);
   });
 
   it('persists a bcrypt hash, never the plaintext', async () => {
@@ -126,7 +126,7 @@ describe('ApiKeyService.issue', () => {
 
     expect(result.keyPrefix).toEqual(result.plaintextKey.slice(0, 12));
     expect(result.keyPrefix).toHaveLength(12);
-    expect(result.keyPrefix.startsWith('aegis_sk_')).toBe(true);
+    expect(result.keyPrefix.startsWith('okoro_sk_')).toBe(true);
   });
 
   it('honours the bcrypt cost from config', async () => {
@@ -162,12 +162,12 @@ describe('ApiKeyService.resolve', () => {
   it('returns null for an unknown plaintext with valid prefix', async () => {
     const { svc } = buildHarness();
     await svc.issue('p_owner', null, 'FULL');
-    const fake = `aegis_sk_${'x'.repeat(26)}`;
+    const fake = `okoro_sk_${'x'.repeat(26)}`;
     const resolved = await svc.resolve(fake);
     expect(resolved).toBeNull();
   });
 
-  it('returns null when the plaintext is malformed (no aegis prefix)', async () => {
+  it('returns null when the plaintext is malformed (no okoro prefix)', async () => {
     const { svc } = buildHarness();
     expect(await svc.resolve('garbage')).toBeNull();
     expect(await svc.resolve('')).toBeNull();
@@ -216,7 +216,7 @@ describe('ApiKeyService.resolve', () => {
   it('does not bump lastUsedAt for an unknown key', async () => {
     const { svc, prisma } = buildHarness();
     await svc.issue('p_owner', null, 'FULL');
-    await svc.resolve(`aegis_sk_${'z'.repeat(26)}`);
+    await svc.resolve(`okoro_sk_${'z'.repeat(26)}`);
 
     await new Promise((r) => setImmediate(r));
     expect((prisma.apiKey.update as unknown as jest.Mock)).not.toHaveBeenCalled();

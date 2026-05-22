@@ -5,7 +5,7 @@
 // call (POLICY_EXPIRED denial), so an unswept expired policy is already
 // safe — the sweep keeps the data model truthful for dashboards, CSV
 // exports, and SOC2 evidence. It also fires the
-// `aegis.policy.expired` webhook so customers can plumb expiry into
+// `okoro.policy.expired` webhook so customers can plumb expiry into
 // their own ticketing.
 //
 // Design:
@@ -30,7 +30,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { AppConfigService } from '../../config/config.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
 
-export const POLICY_EXPIRY_QUEUE = 'aegis.policy.expiry';
+export const POLICY_EXPIRY_QUEUE = 'okoro.policy.expiry';
 export const POLICY_EXPIRY_REPEAT_KEY = 'policy:expiry:tick';
 export const POLICY_EXPIRY_INTERVAL_MS = 5 * 60_000; // 5 min — see ADR-0007 §"Cadence"
 
@@ -141,7 +141,7 @@ export class PolicyExpiryWorker implements OnModuleInit, OnModuleDestroy {
       try {
         await this.webhooks.enqueue(
           {
-            type: 'aegis.policy.expired',
+            type: 'okoro.policy.expired',
             data: {
               policyId: row.id,
               agentId: row.agentId,

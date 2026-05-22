@@ -1,4 +1,4 @@
-# AEGIS — Threat Model v2 (auditor-grade)
+# OKORO — Threat Model v2 (auditor-grade)
 
 > **Status:** draft for external review (SOC 2 Type II, EU AI Act
 > conformity, partner-integration security review).
@@ -17,7 +17,7 @@
 
 ### 1.1 In scope
 
-The threat model covers the full AEGIS control surface and all data
+The threat model covers the full OKORO control surface and all data
 plane components that participate in a verify decision:
 
 | Surface                       | Component / module                                        |
@@ -35,23 +35,23 @@ plane components that participate in a verify decision:
 
 ### 1.2 Out of scope
 
-We deliberately exclude four classes of risk that AEGIS does **not**
+We deliberately exclude four classes of risk that OKORO does **not**
 mitigate by design (see `docs/SECURITY.md` §10 for the existing list):
 
 1. **Agent runtime safety** — prompt injection, jailbreaks, and any
    reasoning-level attack that occurs inside the LLM before the agent
-   asks AEGIS to sign. AEGIS sees only the resulting signed token and
+   asks OKORO to sign. OKORO sees only the resulting signed token and
    rejects on scope/spend regardless of why the agent produced it
    (CLAUDE.md §6 architectural mitigation T6).
 2. **Merchant payment processor** — once a relying party's verify call
    returns `valid: true`, the downstream Stripe/Adyen/etc.
-   authorization flow is the merchant's problem. AEGIS does not move
+   authorization flow is the merchant's problem. OKORO does not move
    money.
 3. **Developer private-key storage** — agent private keys are
-   generated and stored client-side. AEGIS provides best-practice
+   generated and stored client-side. OKORO provides best-practice
    guidance in the SDK and in `docs/SECURITY.md` §10 but cannot enforce
    it. Compromise of the developer's host yields agent signing
-   capability; AEGIS detects the resulting anomaly via BATE but does
+   capability; OKORO detects the resulting anomaly via BATE but does
    not prevent the underlying key theft.
 4. **Customer relying-party infrastructure** — if a relying party's
    verify-key leaks, that leaks read-only verify capability under their
@@ -80,12 +80,12 @@ a future operational change, this section must be revisited.
 
 ## 2. The four-party trust model
 
-AEGIS is a **four-party** protocol — not three. The Principal (the
+OKORO is a **four-party** protocol — not three. The Principal (the
 developer/organization), the Agent (a process holding an Ed25519
-keypair), AEGIS itself, and the Relying Party each hold distinct
+keypair), OKORO itself, and the Relying Party each hold distinct
 secrets and play distinct verification roles. The mistake in the v1
-prototype (`/Users/money/Downloads/files (7)/aegis-server.js`) was
-collapsing this into a two-party model where AEGIS held a single HMAC
+prototype (`/Users/money/Downloads/files (7)/okoro-server.js`) was
+collapsing this into a two-party model where OKORO held a single HMAC
 secret and re-signed everything for everyone — see §11 for the post-
 mortem.
 
@@ -99,16 +99,16 @@ mortem.
                     │  Holds: API key (plaintext  │
                     │   shown once at issuance)   │
                     │                             │
-                    │  AEGIS stores: argon2id     │
+                    │  OKORO stores: argon2id     │
                     │   hash + 16-char prefix     │
                     └──────────────┬──────────────┘
                                    │
                                    │  POST /v1/agents/register
-                                   │  X-AEGIS-API-Key
+                                   │  X-OKORO-API-Key
                                    │  body: { publicKey, runtime, ... }
                                    ▼
    ┌────────────────────────┐                   ┌──────────────────────────┐
-   │  AGENT                  │                   │  AEGIS                    │
+   │  AGENT                  │                   │  OKORO                    │
    │  (long-running process) │                   │                           │
    │                         │                   │  Holds:                   │
    │  Holds:                 │                   │   • SVC_KEY  (Ed25519)    │
@@ -117,9 +117,9 @@ mortem.
    │   • policy JWT          │   POST /policies  │     for audit chain       │
    │     (signed by SVC_KEY) │ ◀───────────────  │   • per-subscription      │
    │                         │                   │     HMAC-SHA256 secrets   │
-   │  AEGIS stores:          │   GET .well-known │     for webhooks          │
+   │  OKORO stores:          │   GET .well-known │     for webhooks          │
    │   • Ed25519 PUB only    │ ───jwks.json───▶  │                           │
-   │   • status, principalId │                   │  AEGIS stores:            │
+   │   • status, principalId │                   │  OKORO stores:            │
    │                         │                   │   • agent PUBLIC keys     │
    └────────────┬────────────┘                   │   • policies              │
                 │                                │   • audit chain (signed)  │
@@ -131,12 +131,12 @@ mortem.
    │  RELYING PARTY                       │                 │
    │  (Delta, Chase, Shopify, ...)        │                 │
    │                                      │                 │
-   │  Holds (default): NO key with AEGIS  │  GET /.well-known/jwks.json
+   │  Holds (default): NO key with OKORO  │  GET /.well-known/jwks.json
    │   • verifies REQ_TOKEN locally using │ ◀───────────────┘
    │     cached JWKS (offline path)       │
    │                                      │
    │  Holds (optional): Verify-only key   │  POST /v1/verify (online)
-   │   • argon2id hashed at AEGIS         │ ────────────────▶
+   │   • argon2id hashed at OKORO         │ ────────────────▶
    │   • read-only, rate-limited          │
    └──────────────────────────────────────┘
 ```
@@ -145,13 +145,13 @@ mortem.
 
 | Party         | Material                                     | Lifetime        | Where stored                       | Rotation                          |
 |---------------|----------------------------------------------|-----------------|------------------------------------|-----------------------------------|
-| Principal     | API key (`aegis_sk_…`)                       | indefinite      | client-side; argon2id hash @ AEGIS | on demand or compromise           |
-| Agent         | Ed25519 keypair (32B priv / 32B pub)         | indefinite      | client-side (priv); pub @ AEGIS    | by re-registration (revoke + new) |
-| Agent         | Policy JWT (signed by AEGIS SVC_KEY)         | ≤ 365 days      | held by agent, re-presented        | new policy on expiry/revoke       |
-| AEGIS         | Service signing key (SVC_KEY, Ed25519)       | 90 days         | KMS / Railway secrets              | every 90 days, JWKS overlap       |
-| AEGIS         | Audit-chain key (AUDIT_KEY, Ed25519)         | 365 days        | KMS / Railway secrets              | every 365 days, transition event  |
-| AEGIS         | Webhook HMAC secret (per subscription)       | per subscriber  | Postgres (encrypted at rest)       | on operator demand, 24h grace     |
-| Relying party | (optional) verify-only API key               | indefinite      | client-side; argon2id hash @ AEGIS | on demand                         |
+| Principal     | API key (`okoro_sk_…`)                       | indefinite      | client-side; argon2id hash @ OKORO | on demand or compromise           |
+| Agent         | Ed25519 keypair (32B priv / 32B pub)         | indefinite      | client-side (priv); pub @ OKORO    | by re-registration (revoke + new) |
+| Agent         | Policy JWT (signed by OKORO SVC_KEY)         | ≤ 365 days      | held by agent, re-presented        | new policy on expiry/revoke       |
+| OKORO         | Service signing key (SVC_KEY, Ed25519)       | 90 days         | KMS / Railway secrets              | every 90 days, JWKS overlap       |
+| OKORO         | Audit-chain key (AUDIT_KEY, Ed25519)         | 365 days        | KMS / Railway secrets              | every 365 days, transition event  |
+| OKORO         | Webhook HMAC secret (per subscription)       | per subscriber  | Postgres (encrypted at rest)       | on operator demand, 24h grace     |
+| Relying party | (optional) verify-only API key               | indefinite      | client-side; argon2id hash @ OKORO | on demand                         |
 
 > **v1 reconciliation note.** `docs/THREAT_MODEL.md` §"Cryptographic
 > choices" L42 lists `bcrypt cost 12` for API keys. We recommend
@@ -164,9 +164,9 @@ mortem.
 
 | Token          | Issuer        | Verifier       | Signed by                      | Lifetime       | Carrier                                    |
 |----------------|---------------|----------------|--------------------------------|----------------|--------------------------------------------|
-| Policy token   | AEGIS         | Agent (held)   | AEGIS SVC_KEY (EdDSA)          | ≤ 365 days     | `PolicyCreateResponse.signedToken`         |
-| Request token  | Agent         | Relying party  | Agent's Ed25519 private        | 30–60 s        | `VerifyRequest.token` / `X-AEGIS-Token`    |
-| Audit record   | AEGIS         | Auditor (any)  | AEGIS AUDIT_KEY (EdDSA)        | indefinite     | `AuditEventSchema.signature`               |
+| Policy token   | OKORO         | Agent (held)   | OKORO SVC_KEY (EdDSA)          | ≤ 365 days     | `PolicyCreateResponse.signedToken`         |
+| Request token  | Agent         | Relying party  | Agent's Ed25519 private        | 30–60 s        | `VerifyRequest.token` / `X-OKORO-Token`    |
+| Audit record   | OKORO         | Auditor (any)  | OKORO AUDIT_KEY (EdDSA)        | indefinite     | `AuditEventSchema.signature`               |
 
 Why three keys, not one (the v1 mistake):
 
@@ -188,7 +188,7 @@ Why three keys, not one (the v1 mistake):
 
 The agent's private key signing the request token is the only signature
 that proves *the actual agent process* approved the action. Without
-it, AEGIS would only attest that *some agent* with this `agentId`
+it, OKORO would only attest that *some agent* with this `agentId`
 exists — not that the live process intended this specific request.
 The v1 prototype lost this property entirely (see §11.1).
 
@@ -207,12 +207,12 @@ in `WORK_BOARD.md`.
 | ID    | Threat                                   | Vector example                                                                                              | Mitigation                                                                                                                                                                       | Residual risk                                                  | Status        |
 |-------|------------------------------------------|-------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|---------------|
 | S-01  | Fake principal sign-up                   | Attacker registers `evil@bigbank.com` to impersonate a real org and run authorized-looking agents.          | Email verification gate before issuance of first API key (`identity.service.ts` flag); KYC required for paid tiers; KYC unlocks BATE bonuses (`bate.scorer.ts` +150 weight).     | Domain squatting, weak email verification (no DKIM/SPF check). | M-002 partial |
-| S-02  | Fake agent registration under valid principal | Attacker steals dev API key, registers a malicious agent under victim's principal, drains policy budgets.   | Per-key rate limits (`@nestjs/throttler` 120/min on management); audit emits `aegis.agent.registered` webhook → operator alert; BATE flags new agent under high-velocity principal. | API-key theft is upstream of AEGIS.                             | M-002 + M-008 |
+| S-02  | Fake agent registration under valid principal | Attacker steals dev API key, registers a malicious agent under victim's principal, drains policy budgets.   | Per-key rate limits (`@nestjs/throttler` 120/min on management); audit emits `okoro.agent.registered` webhook → operator alert; BATE flags new agent under high-velocity principal. | API-key theft is upstream of OKORO.                             | M-002 + M-008 |
 | S-03  | Forged request token (no agent priv)     | Attacker without agent's Ed25519 priv tries to construct a JWT and submit to /verify.                       | EdDSA verification against agent's stored public key (`verify.algorithm.ts` step 2); denial = `INVALID_SIGNATURE` (`SECURITY.md` §6 #3).                                          | Quantum forgery (Phase 4 PQ migration in v1 §"PQ posture").    | M-005 ready   |
-| S-04  | Forged policy token                      | Attacker fabricates a policy JWT to claim broader scope than AEGIS issued.                                  | EdDSA verify against AEGIS SVC_KEY published in JWKS (§6); reject `kid` not in current+previous; `jose.jwtVerify` strict alg check (`alg: ['EdDSA']`).                            | SVC_KEY compromise → recovery via §5 rotation + revocation.    | M-004 ready   |
+| S-04  | Forged policy token                      | Attacker fabricates a policy JWT to claim broader scope than OKORO issued.                                  | EdDSA verify against OKORO SVC_KEY published in JWKS (§6); reject `kid` not in current+previous; `jose.jwtVerify` strict alg check (`alg: ['EdDSA']`).                            | SVC_KEY compromise → recovery via §5 rotation + revocation.    | M-004 ready   |
 | S-05  | Fake relying-party fraud report          | Competitor RP submits `RELYING_PARTY_FRAUD_REPORT` to crash a target agent's BATE score.                    | `RelyingParty.reportWeight = 0.0` for unverified sources (`bate.scorer.ts`); DNS-TXT challenge to lift to verified; daily delta cap `-500` (`BATE_ALGORITHM.md` §4).              | Verified RP turning malicious — operator review trigger.       | partial (UX TODO) |
-| S-06  | Spoofed webhook callback                 | Attacker posts to merchant's webhook URL pretending to be AEGIS to plant fake events.                       | Webhook body signed `HMAC-SHA256(secret, body)` (`AEGIS_HEADER_SIGNATURE`); secret rotated per subscription; sample verifier in SDK and verifier-rp.                              | Customer fails to verify the signature (documentation risk).   | M-008 partial |
-| S-07  | DNS / domain hijack of `api.aegislabs.io` | Attacker takes over apex DNS, routes verify traffic to malicious origin.                                    | DNSSEC on `aegislabs.io`; CAA records pinned to Let's Encrypt + DigiCert; HSTS preload; CT-log monitoring (Cert Spotter alert).                                                  | Registrar compromise — covered by registrar 2FA + lock.        | RUNBOOK §infra |
+| S-06  | Spoofed webhook callback                 | Attacker posts to merchant's webhook URL pretending to be OKORO to plant fake events.                       | Webhook body signed `HMAC-SHA256(secret, body)` (`OKORO_HEADER_SIGNATURE`); secret rotated per subscription; sample verifier in SDK and verifier-rp.                              | Customer fails to verify the signature (documentation risk).   | M-008 partial |
+| S-07  | DNS / domain hijack of `api.okorolabs.io` | Attacker takes over apex DNS, routes verify traffic to malicious origin.                                    | DNSSEC on `okorolabs.io`; CAA records pinned to Let's Encrypt + DigiCert; HSTS preload; CT-log monitoring (Cert Spotter alert).                                                  | Registrar compromise — covered by registrar 2FA + lock.        | RUNBOOK §infra |
 
 ### 3.2 Tampering
 
@@ -230,7 +230,7 @@ in `WORK_BOARD.md`.
 | ID    | Threat                                   | Vector example                                                                                              | Mitigation                                                                                                                                                                                              | Residual risk                                                  | Status      |
 |-------|------------------------------------------|-------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|-------------|
 | R-01  | Agent denies signing a request           | Customer says "we never signed this $10k charge."                                                            | Request token contains agent's EdDSA signature over claims; audit `AuditEvent.signature` includes the original token's `jti` and signature digest; verifier-rp keeps token in dispute log for `ttl + 24h`. | Agent priv key was leaked (out of scope; surfaces in BATE).    | M-005 + M-006 |
-| R-02  | AEGIS denies issuing a policy            | Principal disputes a policy that AEGIS records as theirs.                                                   | Policy token signed by SVC_KEY; SVC_KEY pubs in dated JWKS history (`/.well-known/jwks.json` + `/.well-known/jwks-archive.json` Phase 2); auditor can verify any issued token against the era's pubkey. | SVC_KEY archive lost — DR plan §5.5.                            | M-004       |
+| R-02  | OKORO denies issuing a policy            | Principal disputes a policy that OKORO records as theirs.                                                   | Policy token signed by SVC_KEY; SVC_KEY pubs in dated JWKS history (`/.well-known/jwks.json` + `/.well-known/jwks-archive.json` Phase 2); auditor can verify any issued token against the era's pubkey. | SVC_KEY archive lost — DR plan §5.5.                            | M-004       |
 | R-03  | Audit gap (verify succeeds, audit fails) | Verify writes spend, then DB writeback to audit fails; operator denies the request ever happened.            | Audit append in same Postgres tx as spend reconcile (when path is online); Redis-only fast path → BullMQ "audit pending" with DLQ; verify response includes `auditEventId` so RP can detect a gap.       | Concurrent Postgres + Redis + BullMQ failure (very rare).      | M-006       |
 | R-04  | Webhook delivery missing                 | "We never got the revoke event" — customer claims unawareness of agent revoke.                              | BullMQ retries with exponential backoff (5 attempts over 24h); each delivery in `WebhookDelivery` row; HMAC body signature → customer can replay from dashboard; non-delivery alarm at 5% rate.          | Customer endpoint is permanently down — surfaced in dashboard. | M-008       |
 
@@ -241,8 +241,8 @@ in `WORK_BOARD.md`.
 | I-01  | Cross-principal data leak in API         | Principal A queries `GET /agents/agt_belongs_to_B` and gets a 200.                                          | Every service method takes `principalId` as first arg and includes `where: { principalId }` (CLAUDE.md invariant 5; SECURITY.md §5); end-to-end test in `tests/e2e/isolation.spec.ts`.       | Future Postgres RLS as defense-in-depth (planned).                           | covered + tests in flight       |
 | I-02  | JWKS public-key disclosure               | "JWKS is exposed without auth."                                                                             | **Intentional**: JWKS is public infrastructure (`docs/SECURITY.md` §4.3 "Key rotation"). Only public Ed25519 keys are returned. Caching via CDN; no rate limit on this path.                | None (public by design).                                                     | n/a (informational)             |
 | I-03  | Redis snooping (snapshot leak)           | Railway support copies a Redis dump; attacker reads spend totals + jti cache.                               | Redis is in-memory only (no `appendonly`); IAM separates infra-team and app-team access; spend totals are not PII; `jti:{…}` keys carry no payload, just `"1"`.                              | Snapshot retains principal/agent IDs (low PII).                              | covered                         |
-| I-04  | Log injection of secrets                 | Pino captures `req.headers.authorization` or token body in error log.                                       | `app.module.ts` Pino redaction for `req.headers["x-aegis-api-key"]`, `req.headers["x-aegis-verify-key"]`, `authorization`, `req.body.token`; nightly grep CI step for raw `aegis_sk_` prefix. | Custom log line added without redaction — guarded by lint rule (M-018 follow-up). | covered (extend lint)           |
-| I-05  | Audit-log read by wrong principal        | Principal A reads audit events for principal B's agent.                                                     | `audit.controller.ts` filters by `req.principal.id`; explicit cross-principal reads (e.g. RP report viewer) are signed and emit `aegis.audit.cross_principal_read` webhook for the affected principal.   | Operator/back-office reads — logged in audit-of-audit (Phase 2).             | M-006                           |
+| I-04  | Log injection of secrets                 | Pino captures `req.headers.authorization` or token body in error log.                                       | `app.module.ts` Pino redaction for `req.headers["x-okoro-api-key"]`, `req.headers["x-okoro-verify-key"]`, `authorization`, `req.body.token`; nightly grep CI step for raw `okoro_sk_` prefix. | Custom log line added without redaction — guarded by lint rule (M-018 follow-up). | covered (extend lint)           |
+| I-05  | Audit-log read by wrong principal        | Principal A reads audit events for principal B's agent.                                                     | `audit.controller.ts` filters by `req.principal.id`; explicit cross-principal reads (e.g. RP report viewer) are signed and emit `okoro.audit.cross_principal_read` webhook for the affected principal.   | Operator/back-office reads — logged in audit-of-audit (Phase 2).             | M-006                           |
 | I-06  | Trust-score reverse engineering          | Adversary submits crafted signals to learn BATE weights and probe near-band edges.                          | Score deltas carry small jitter (`BATE_ALGORITHM.md` §9); per-source caps (`-500/day` for fraud reports); reports require verified RP for full weight.                                       | Sufficiently patient adversary — band-level reproducibility is intentional.  | covered                         |
 | I-07  | Stripe webhook secret leak               | Env-var leak via misconfigured CI logs.                                                                     | Pino redaction list includes `STRIPE_WEBHOOK_SECRET`; gitleaks pre-commit + CI; Railway secret scoped to `apps/api` only.                                                                   | Build cache poisoning — out of CI scope for this audit.                      | covered                         |
 
@@ -250,7 +250,7 @@ in `WORK_BOARD.md`.
 
 | ID    | Threat                                   | Vector example                                                                                              | Mitigation                                                                                                                                                                                                       | Residual risk                                                            | Status              |
 |-------|------------------------------------------|-------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------|---------------------|
-| D-01  | `/v1/verify` flood from leaked verify-key | Attacker hammers `/verify` with valid creds.                                                                | `@nestjs/throttler` per-key 1000 rpm (`docs/SECURITY.md` §7); per-IP CF Phase-3 hard cap 10000 rpm; offline JWKS path means well-behaved customers don't even hit AEGIS.                                          | Distributed key-stuffing — caught by aggregate `failed_verify_spike` alert. | M-009               |
+| D-01  | `/v1/verify` flood from leaked verify-key | Attacker hammers `/verify` with valid creds.                                                                | `@nestjs/throttler` per-key 1000 rpm (`docs/SECURITY.md` §7); per-IP CF Phase-3 hard cap 10000 rpm; offline JWKS path means well-behaved customers don't even hit OKORO.                                          | Distributed key-stuffing — caught by aggregate `failed_verify_spike` alert. | M-009               |
 | D-02  | Register-spam under leaked API key       | Attacker creates 1M agents to exhaust principal quota / DB.                                                 | Plan-tier hard cap on `agents per principal`; per-key rate limit on `POST /agents/register` (60 rpm, vs. 120 default for management); Postgres composite index on `(principalId, status)` keeps queries cheap.   | Legitimate fanout to many agents — operator can lift cap on request.    | M-002 + M-014 plan tiers |
 | D-03  | Redis exhaustion via spend keys          | Attacker creates many policy IDs → many `spend:{policyId}:day:...` keys.                                    | Spend keys are per-policy; policy creation rate-limited (10 rpm per principal); spend keys TTL to midnight UTC, max ~365 keys/policy/year; Redis `maxmemory-policy=allkeys-lru` with `maxmemory` ceiling.        | Operator must size Redis to plan-tier ceilings (capacity §A-04 in arch audit).| RUNBOOK §scaling    |
 | D-04  | Slow-loris / TLS-handshake exhaustion    | Attacker opens many half-open TLS connections.                                                              | Cloudflare front (Phase 3) absorbs; Railway proxy enforces 30s read timeout, 60s total timeout; Fastify-style backpressure on body size 1MB max.                                                                 | None of significance once CF in front.                                    | scaffolded          |
@@ -261,10 +261,10 @@ in `WORK_BOARD.md`.
 
 | ID    | Threat                                   | Vector example                                                                                              | Mitigation                                                                                                                                                                                                | Residual risk                                                                | Status      |
 |-------|------------------------------------------|-------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------|-------------|
-| E-01  | Principal A steals principal B's agent keys | A insider exfils agent priv via shared infra (e.g. Vercel project switch).                                  | AEGIS does not hold private keys (CLAUDE.md invariant 1); all isolation upstream is the customer's responsibility; AEGIS detects misuse via BATE signals (`VELOCITY_ANOMALY`, `GEOGRAPHIC_INCONSISTENCY`).| Customer-side incident — out of scope per §1.2.                              | n/a (customer) |
-| E-02  | Scope expansion via crafted token        | Agent crafts a request token claiming a scope the policy does not grant.                                    | Server-authoritative scope check: AEGIS loads the policy from DB by `pid`, compares request `act`/`amt` against `policy.scopes`, ignores any client-provided scope hints (`verify.algorithm.ts` step 5). | None — client claims are advisory only.                                      | M-005 ready |
-| E-03  | Replay across relying parties            | RP1 captures a request token with `mid: rpId-1` and replays at RP2.                                         | Token includes `mid` (merchant id) and `dom` (domain) when relevant; verifier-rp checks `dom` matches its own; AEGIS-side `jti` cache makes second use return `INVALID_SIGNATURE`.                         | RPs that don't pin `dom` — covered in verifier-rp docs.                       | M-016       |
-| E-04  | Replay within an RP                      | RP captures a token, replays it 30s later (still within `exp`).                                             | Per-RP `jti` LRU cache (verifier-rp library); AEGIS-side Redis `jti` set on online verify path (§7).                                                                                                       | TTL-window replay if RP fails to deploy verifier-rp — caught at AEGIS for online path. | M-016       |
+| E-01  | Principal A steals principal B's agent keys | A insider exfils agent priv via shared infra (e.g. Vercel project switch).                                  | OKORO does not hold private keys (CLAUDE.md invariant 1); all isolation upstream is the customer's responsibility; OKORO detects misuse via BATE signals (`VELOCITY_ANOMALY`, `GEOGRAPHIC_INCONSISTENCY`).| Customer-side incident — out of scope per §1.2.                              | n/a (customer) |
+| E-02  | Scope expansion via crafted token        | Agent crafts a request token claiming a scope the policy does not grant.                                    | Server-authoritative scope check: OKORO loads the policy from DB by `pid`, compares request `act`/`amt` against `policy.scopes`, ignores any client-provided scope hints (`verify.algorithm.ts` step 5). | None — client claims are advisory only.                                      | M-005 ready |
+| E-03  | Replay across relying parties            | RP1 captures a request token with `mid: rpId-1` and replays at RP2.                                         | Token includes `mid` (merchant id) and `dom` (domain) when relevant; verifier-rp checks `dom` matches its own; OKORO-side `jti` cache makes second use return `INVALID_SIGNATURE`.                         | RPs that don't pin `dom` — covered in verifier-rp docs.                       | M-016       |
+| E-04  | Replay within an RP                      | RP captures a token, replays it 30s later (still within `exp`).                                             | Per-RP `jti` LRU cache (verifier-rp library); OKORO-side Redis `jti` set on online verify path (§7).                                                                                                       | TTL-window replay if RP fails to deploy verifier-rp — caught at OKORO for online path. | M-016       |
 | E-05  | Verify-only key escalating to write      | Attacker possessing only a verify-only key tries to call `POST /agents/register`.                           | `ApiKeyGuard` checks `key.type === 'full'` for write paths; verify-only keys are flagged in `ApiKey.role` and only the `verify`/`status` controllers accept them (`api-key.guard.ts`).                    | Misconfigured guard on a future endpoint — guarded by integration test.       | M-002       |
 | E-06  | Webhook secret reuse across subscriptions | Attacker who reads one webhook secret tries it against all subscriptions.                                   | One secret per subscription (`WebhookSubscription.signingSecret`); secrets are CSPRNG-generated and never reused.                                                                                          | DB compromise reveals all secrets — same impact as principal isolation breach.| M-008       |
 
@@ -273,14 +273,14 @@ in `WORK_BOARD.md`.
 ## 4. Cryptographic stack — reconciled
 
 This section reconciles the v1 file's `RSA-4096 / SHA-256` choice for
-audit signing against the rest of the AEGIS stack. **v2 normalizes on
+audit signing against the rest of the OKORO stack. **v2 normalizes on
 EdDSA / Ed25519 for all asymmetric operations.**
 
 ### 4.1 Algorithm by operation
 
 | Operation                    | Algorithm           | Library              | Key                | Rotation       | DR / recovery                                                          |
 |------------------------------|---------------------|----------------------|--------------------|----------------|------------------------------------------------------------------------|
-| Agent identity signature     | EdDSA / Ed25519     | `@noble/ed25519`     | per-agent          | re-register    | Customer-side; AEGIS retains pub for verify continuity                 |
+| Agent identity signature     | EdDSA / Ed25519     | `@noble/ed25519`     | per-agent          | re-register    | Customer-side; OKORO retains pub for verify continuity                 |
 | Policy token signature       | EdDSA / Ed25519     | `jose`               | SVC_KEY            | 90 days        | KMS-backed; previous key in JWKS for ≥ 90 days post-rotation            |
 | Audit chain signature        | EdDSA / Ed25519     | `@noble/ed25519`     | AUDIT_KEY          | 365 days       | KMS-backed; transition event signed by both old + new on rotation       |
 | API-key hash                 | argon2id (target)   | `argon2`             | n/a                | n/a            | bcrypt verify path during migration; rehash on next successful verify  |
@@ -297,7 +297,7 @@ verifiable in any language." The v2 recommendation is to switch to
 **EdDSA over Ed25519** for the audit chain, with three primary reasons
 and a fourth that pushes it from "preference" to "design correctness."
 
-1. **Library uniformity.** AEGIS already has `@noble/ed25519` audited and
+1. **Library uniformity.** OKORO already has `@noble/ed25519` audited and
    unit-tested in the verify hot path (`apps/api/src/common/crypto/`).
    Adding RSA introduces a second crypto dependency surface (`node:crypto`
    RSA), a second key format, a second JWS algorithm string in `jose`,
@@ -315,7 +315,7 @@ and a fourth that pushes it from "preference" to "design correctness."
    storage cost and in audit-export bandwidth.
 4. **The tamper-detection story does not depend on the signature.**
    The audit chain's tamper-evidence comes from `prev_hash` (the chain
-   itself); the signature only proves *AEGIS at the time produced this
+   itself); the signature only proves *OKORO at the time produced this
    record*. Industry-standard is the chain construction (RFC 6962-style
    transparency log, Sigstore Rekor), not RSA. We get "verifiable in
    any language" because Ed25519 is a mandatory primitive in JOSE
@@ -377,7 +377,7 @@ key sort, no whitespace, fixed numeric form, UTF-8 NFC. Implemented in
 
 A reference implementation in three languages:
 - TypeScript: `audit-chain.util.ts`
-- Python: `packages/sdk-py/aegis/audit.py` (read-only verifier)
+- Python: `packages/sdk-py/okoro/audit.py` (read-only verifier)
 - Go: published as a gist alongside the public key for partner integrations
 
 ### 4.4 Algorithms we deliberately do not use
@@ -417,7 +417,7 @@ HS256, hand-rolled), this v2 also rejects:
 
 - Rotation generates a fresh keypair; old key is **archived in JWKS
   history**, never deleted.
-- On rotation, AEGIS appends a special audit event:
+- On rotation, OKORO appends a special audit event:
   ```json
   {
     "eventId": "evt_keyrot_2026-Q4",
@@ -449,7 +449,7 @@ HS256, hand-rolled), this v2 also rejects:
 
 ### 5.4 Agent keys — operationally, by re-registration
 
-- AEGIS does not rotate agent keys (it doesn't hold them). The
+- OKORO does not rotate agent keys (it doesn't hold them). The
   documented operational flow:
   1. Customer generates a new keypair locally (SDK
      `generateKeypair()`).
@@ -469,7 +469,7 @@ HS256, hand-rolled), this v2 also rejects:
 
 ### 5.5 Disaster recovery
 
-- **All AEGIS-held private keys are KMS-resident in production.** AWS
+- **All OKORO-held private keys are KMS-resident in production.** AWS
   KMS (HSM-backed, FIPS 140-2 L3) or Railway Vault — operator decision
   per `OPERATOR_DECISIONS.md` (peer-locked path, do not edit here).
 - **Backup**: KMS exports an encrypted bundle weekly to S3 + GCS in a
@@ -498,7 +498,7 @@ HS256, hand-rolled), this v2 also rejects:
 `apps/api/src/modules/wellknown/`; this section documents the shape,
 the module owner is responsible for the implementation):
 
-- **Public**, no `X-AEGIS-API-Key` required.
+- **Public**, no `X-OKORO-API-Key` required.
 - **No CORS restriction** (browsers verifying client-side need it).
 - **Cache headers**: `Cache-Control: public, max-age=300,
   stale-while-revalidate=86400`.
@@ -562,7 +562,7 @@ does not leak through:
 - The agent SDK refuses to set `ttlSeconds` outside this range
   (`packages/sdk-ts/src/crypto.ts` L51 — currently defaults to 60s,
   add upper-bound clamp in M-018-followup).
-- AEGIS verify path rejects any token where `exp - iat > 60` → maps to
+- OKORO verify path rejects any token where `exp - iat > 60` → maps to
   `INVALID_SIGNATURE` (we don't leak that the token was in-window
   but too long-lived; that's policy info).
 
@@ -576,7 +576,7 @@ does not leak through:
 - This is the primary defense for **offline verifiers** (RPs that
   don't call `/v1/verify`).
 
-### 7.3 Layer 3 — AEGIS-side `jti` set (online verify path)
+### 7.3 Layer 3 — OKORO-side `jti` set (online verify path)
 
 - Implemented in `verify.algorithm.ts` step 3:
   ```
@@ -597,10 +597,10 @@ does not leak through:
 | Mode                             | Layers active   | Coverage                                                                  |
 |----------------------------------|-----------------|---------------------------------------------------------------------------|
 | Offline RP (JWKS-only)           | 1 + 2           | Replay protected within the RP; cross-RP replay needs token's `dom` claim |
-| Online RP (calls `/v1/verify`)   | 1 + 2 + 3       | Globally protected; AEGIS sees replays across RPs                         |
-| Online RP, AEGIS Redis down      | 1 + 2           | Layer 3 fails closed (`SERVICE_UNAVAILABLE`); RP retries or falls back to offline |
+| Online RP (calls `/v1/verify`)   | 1 + 2 + 3       | Globally protected; OKORO sees replays across RPs                         |
+| Online RP, OKORO Redis down      | 1 + 2           | Layer 3 fails closed (`SERVICE_UNAVAILABLE`); RP retries or falls back to offline |
 
-The three-layer design means an AEGIS-Redis outage does **not**
+The three-layer design means an OKORO-Redis outage does **not**
 silently disable replay protection — it returns 503 instead of a false
 "valid" (cf. v1 prototype's silent failure mode, §11.3).
 
@@ -610,7 +610,7 @@ silently disable replay protection — it returns 503 instead of a false
 
 ### 8.1 The v1 bug
 
-`/Users/money/Downloads/files (7)/aegis-server.js` lines 505–527 read
+`/Users/money/Downloads/files (7)/okoro-server.js` lines 505–527 read
 the day/month spend totals via `SELECT SUM`, compared them to the
 limit, then `INSERT`ed the new spend record. Two concurrent verifies
 for the same agent could both pass the check (each seeing the pre-
@@ -664,7 +664,7 @@ a fail-safe direction.
   share this path).
 - A nightly cron at 02:00 UTC compares `SUM(SpendRecord)` per policy
   against the day/month Redis counters. Discrepancy > 5% emits
-  `bate.signal.audit_mismatch` to the `#aegis-ops` channel and
+  `bate.signal.audit_mismatch` to the `#okoro-ops` channel and
   flags the agent's BATE for human review.
 - Postgres is the source of truth across reboots — Redis spend
   counters are recomputed from `SpendRecord` aggregates on Redis
@@ -708,12 +708,12 @@ have.
 
 ### 9.2 Hourly Merkle root publication (Phase 2)
 
-- Every hour at `:00`, AEGIS computes a Merkle root over all events
+- Every hour at `:00`, OKORO computes a Merkle root over all events
   written in that hour (`apps/api/src/modules/audit/merkle.worker.ts`,
   M-006-followup).
 - The hour's root is published to a transparency log (Sigstore Rekor
   via the in-toto attestation predicate), pinning the existence and
-  ordering of every event AEGIS claims to have logged.
+  ordering of every event OKORO claims to have logged.
 - Auditors can request a Merkle proof for any event → independently
   verify against the published root.
 - This pins us against a "restore from old backup" attack: an
@@ -761,11 +761,11 @@ The test gates merge to main. CLAUDE.md crypto-rule
 
 ### 10.2 Page targets
 
-- **Primary**: PagerDuty service `aegis-prod-onsite`.
-- **Mirror**: Slack `#aegis-ops` (webhook from PagerDuty).
-- **Customer-facing**: `status.aegislabs.io` updated by ops runbook
+- **Primary**: PagerDuty service `okoro-prod-onsite`.
+- **Mirror**: Slack `#okoro-ops` (webhook from PagerDuty).
+- **Customer-facing**: `status.okorolabs.io` updated by ops runbook
   on incidents that affect customer SLOs.
-- **Email**: `security@aegislabs.io` for vulnerability reports
+- **Email**: `security@okorolabs.io` for vulnerability reports
   (`SECURITY.md` L7).
 
 ### 10.3 Runbooks
@@ -786,21 +786,21 @@ do not duplicate runbook content here. The cross-reference table:
 
 ## 11. Postmortem of the v1 prototype
 
-`/Users/money/Downloads/files (7)/aegis-server.js` is the original
+`/Users/money/Downloads/files (7)/okoro-server.js` is the original
 prototype that this entire codebase replaces. v2 inherits its API
 shape but re-architects every security-critical control. Documenting
 the original sins ensures we don't regress.
 
 ### 11.1 HMAC for everything
 
-L120: `const AEGIS_SIGNING_SECRET = new TextEncoder().encode('aegis-audit-secret-replace-in-prod')`.
+L120: `const OKORO_SIGNING_SECRET = new TextEncoder().encode('okoro-audit-secret-replace-in-prod')`.
 
 A single hardcoded HMAC secret was used for **policy tokens**
 (L153, `alg: 'HS256'`), **request tokens** (L173, also `'HS256'`), and
 **audit records** (L183, also `'HS256'`). The agent's Ed25519 keypair
-was never used to sign anything; AEGIS re-signed the token with its
+was never used to sign anything; OKORO re-signed the token with its
 own secret. That collapses the four-party trust model into a one-party
-"AEGIS knows everything" model — and means that anyone with the secret
+"OKORO knows everything" model — and means that anyone with the secret
 (every developer in the project, the Git history, the bundled binary)
 could forge any token of any kind.
 
@@ -856,7 +856,7 @@ The list in `docs/THREAT_MODEL.md` L67–78 stays. v2 adds:
       + previous SVC_KEY and current AUDIT_KEY.
 - [ ] **JWKS archive endpoint live** at `/.well-known/jwks-archive.json`
       with all historical AUDIT_KEYs back to genesis.
-- [ ] **verifier-rp package on npm** (`@aegis/verifier-rp`), Sigstore-
+- [ ] **verifier-rp package on npm** (`@okoro/verifier-rp`), Sigstore-
       signed release artifacts, fast-check property tests in CI.
 - [ ] **fast-check property tests** for: token canonicalization,
       audit-chain prev-hash linkage under random shuffle, EdDSA verify
@@ -899,7 +899,7 @@ specific gate in §12.
 2. **JWKS cache TTL exact value.** Recommended `max-age=300,
    stale-while-revalidate=86400`. Trade-off: lower max-age means
    faster propagation of emergency rotation; higher swr means better
-   resilience to AEGIS being down. The 5-minute figure is the longest
+   resilience to OKORO being down. The 5-minute figure is the longest
    we'd accept a compromised key remaining trusted.
 
 3. **AUDIT_KEY rotation cadence.** Recommended 365 days. SOC 2 commonly
@@ -933,18 +933,18 @@ specific gate in §12.
 
 ## Appendix A — Cross-references
 
-- CLAUDE.md (architecture invariants) — `/Users/money/Desktop/AEGIS/CLAUDE.md` L19–52.
+- CLAUDE.md (architecture invariants) — `/Users/money/Desktop/OKORO/CLAUDE.md` L19–52.
 - `docs/SECURITY.md` (denial precedence, key handling) — L26–104, L108–129.
 - `docs/THREAT_MODEL.md` (v1, this doc supersedes) — L1–79.
 - `docs/ARCHITECTURE.md` (system architecture) — L67–84 (verify portability), L168–183 (audit chain).
-- `docs/spec/AEGIS_API_SPEC.yaml` (contract) — `/v1/verify`, `/v1/agents/register`.
+- `docs/spec/OKORO_API_SPEC.yaml` (contract) — `/v1/verify`, `/v1/agents/register`.
 - `docs/spec/03_TECHNICAL_SPEC.md` (master tech spec).
 - `docs/BATE_ALGORITHM.md` (trust scoring) — L59–91 (signal weights), L95–115 (cold start).
 - `packages/types/src/constants.ts` — `DENIAL_REASON_PRECEDENCE` L53–63, `REDIS_KEY` L30–39, TTL bounds L22–23.
 - `packages/types/src/schemas.ts` — wire shapes.
 - `packages/types/src/errors.ts` — error envelope, `ERROR_CODE` L14–24.
 - `packages/sdk-ts/src/crypto.ts` — JWT signing ground truth, L26 (header), L44–70 (sign).
-- v1 prototype (post-mortemed) — `/Users/money/Downloads/files (7)/aegis-server.js`.
+- v1 prototype (post-mortemed) — `/Users/money/Downloads/files (7)/okoro-server.js`.
 
 ## Appendix B — Module-to-mitigation index
 

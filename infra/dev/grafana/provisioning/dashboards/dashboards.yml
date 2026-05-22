@@ -1,9 +1,9 @@
 apiVersion: 1
 
 providers:
-  - name: aegis
+  - name: okoro
     orgId: 1
-    folder: 'AEGIS'
+    folder: 'OKORO'
     type: file
     disableDeletion: true
     editable: true

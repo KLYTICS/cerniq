@@ -3,9 +3,9 @@
   "changelog": "@changesets/cli/changelog",
   "commit": false,
   "fixed": [],
-  "linked": [["@aegis/sdk", "@aegis/types"]],
+  "linked": [["@okoro/sdk", "@okoro/types"]],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@aegis/api", "@aegis/dashboard", "@aegis/cf-verify", "@aegis/eslint-config", "@aegis/tsconfig"]
+  "ignore": ["@okoro/api", "@okoro/dashboard", "@okoro/cf-verify", "@okoro/eslint-config", "@okoro/tsconfig"]
 }

@@ -7,7 +7,7 @@
 //
 // Why a Server Action and not a direct `fetch('/v1/billing/checkout')`:
 // the dashboard's API key lives in a server env var; a client fetch
-// against the AEGIS API would either need to proxy through a route
+// against the OKORO API would either need to proxy through a route
 // handler or expose the key. The Server Action is the proxy.
 
 import { useState, useTransition, type ReactElement } from 'react';
@@ -54,7 +54,7 @@ export function UpgradeButton({ currentTier }: Props): ReactElement {
     return (
       <button
         type="button"
-        className="aegis-button"
+        className="okoro-button"
         aria-label="Upgrade plan"
         onClick={() => { setOpen(true); }}
       >
@@ -91,7 +91,7 @@ export function UpgradeButton({ currentTier }: Props): ReactElement {
       </select>
       <button
         type="button"
-        className="aegis-button"
+        className="okoro-button"
         aria-label="Continue to Stripe Checkout"
         disabled={pending}
         onClick={go}
@@ -100,7 +100,7 @@ export function UpgradeButton({ currentTier }: Props): ReactElement {
       </button>
       <button
         type="button"
-        className="aegis-button-ghost"
+        className="okoro-button-ghost"
         aria-label="Cancel upgrade"
         disabled={pending}
         onClick={() => {

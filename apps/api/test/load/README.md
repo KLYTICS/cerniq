@@ -19,9 +19,9 @@ Install k6 (`brew install k6`), seed a fixture, then run:
 # 1. Boot the stack
 docker compose up -d
 pnpm install
-pnpm --filter @aegis/api prisma:migrate
+pnpm --filter @okoro/api prisma:migrate
 pnpm tsx apps/api/scripts/seed-dev.ts --emit-token > .env.fixture
-source .env.fixture                          # exports AEGIS_FIXTURE_TOKEN + AEGIS_VERIFY_KEY
+source .env.fixture                          # exports OKORO_FIXTURE_TOKEN + OKORO_VERIFY_KEY
 pnpm dev                                     # in another shell
 
 # 2. Run the test
@@ -31,9 +31,9 @@ k6 run apps/api/test/load/verify.k6.js
 ## Running against staging
 
 ```sh
-AEGIS_BASE_URL=https://api.staging.aegislabs.io \
-  AEGIS_VERIFY_KEY=$STAGING_VERIFY_KEY \
-  AEGIS_FIXTURE_TOKEN=$STAGING_FIXTURE_TOKEN \
+OKORO_BASE_URL=https://api.staging.okorolabs.io \
+  OKORO_VERIFY_KEY=$STAGING_VERIFY_KEY \
+  OKORO_FIXTURE_TOKEN=$STAGING_FIXTURE_TOKEN \
   k6 run apps/api/test/load/verify.k6.js
 ```
 
@@ -43,9 +43,9 @@ Same as staging but with the edge URL and a tighter budget:
 
 ```sh
 P99_BUDGET_MS=80 \
-  AEGIS_BASE_URL=https://aegis.aegislabs.io \
-  AEGIS_VERIFY_KEY=$EDGE_VERIFY_KEY \
-  AEGIS_FIXTURE_TOKEN=$STAGING_FIXTURE_TOKEN \
+  OKORO_BASE_URL=https://okoro.okorolabs.io \
+  OKORO_VERIFY_KEY=$EDGE_VERIFY_KEY \
+  OKORO_FIXTURE_TOKEN=$STAGING_FIXTURE_TOKEN \
   k6 run apps/api/test/load/verify.k6.js
 ```
 

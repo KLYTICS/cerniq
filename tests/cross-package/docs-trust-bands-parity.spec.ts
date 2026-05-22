@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-// Import from source path, not package alias — @aegis/types points to dist/
+// Import from source path, not package alias — @okoro/types points to dist/
 // which is not built at parity-test time. Matches the pattern used by
 // existing parity specs (e.g. denial-reason-parity.spec.ts).
 import { TRUST_BAND_THRESHOLDS } from '../../packages/types/src/constants';
 
-// Cross-package parity gate for @aegis/docs <TrustBandLegend/>.
+// Cross-package parity gate for @okoro/docs <TrustBandLegend/>.
 //
 // Why: the band thresholds are wire-facing — policies reference them via
 // scope.minimumTrustBand, and relying parties may inspect agents' bands
@@ -24,11 +24,11 @@ const COMPONENT_PATH = join(
   'trust-band-legend.tsx',
 );
 
-describe('docs ↔ @aegis/types trust band parity', () => {
+describe('docs ↔ @okoro/types trust band parity', () => {
   const source = readFileSync(COMPONENT_PATH, 'utf8');
 
-  it('imports TRUST_BAND_THRESHOLDS from @aegis/types', () => {
-    expect(source).toMatch(/from\s+['"]@aegis\/types['"]/);
+  it('imports TRUST_BAND_THRESHOLDS from @okoro/types', () => {
+    expect(source).toMatch(/from\s+['"]@okoro\/types['"]/);
     expect(source).toContain('TRUST_BAND_THRESHOLDS');
   });
 

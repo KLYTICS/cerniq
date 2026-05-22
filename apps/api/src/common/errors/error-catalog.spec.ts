@@ -5,7 +5,7 @@
 import { CircuitOpenError } from '../resilience/circuit-breaker.js';
 
 import {
-  AegisError,
+  OkoroError,
   AlreadyRotatedError,
   AuthenticationError,
   AuthorizationError,
@@ -17,7 +17,7 @@ import {
   ServiceUnavailableError,
   TrialExhaustedError,
   ValidationError,
-} from './aegis-error.js';
+} from './okoro-error.js';
 import {
   ERROR_CATALOG,
   getCatalogEntry,
@@ -64,7 +64,7 @@ describe('ERROR_CATALOG', () => {
       /stack trace/i,
       /\bundefined\b/,
       /\bnull\b/,
-      /aegis_[a-z0-9]+/i,
+      /okoro_[a-z0-9]+/i,
       /whsec_[a-z0-9]+/i,
       /sk_[a-z0-9]+/i,
       /at\s+\S+\s+\(/, // JS stack frame "at fn (file:line)"
@@ -81,7 +81,7 @@ describe('ERROR_CATALOG', () => {
 });
 
 describe('getCatalogEntry', () => {
-  it('returns the right entry for a known AegisError subclass', () => {
+  it('returns the right entry for a known OkoroError subclass', () => {
     const err = new NotFoundError('Agent');
     const entry = getCatalogEntry(err);
     expect(entry).not.toBeNull();
@@ -89,7 +89,7 @@ describe('getCatalogEntry', () => {
     expect(entry?.httpStatus).toBe(404);
   });
 
-  it('resolves every existing AegisError subclass that is constructible here', () => {
+  it('resolves every existing OkoroError subclass that is constructible here', () => {
     const cases: [Error, string][] = [
       [new AuthenticationError(), 'auth_required'],
       [new AuthorizationError(), 'forbidden'],
@@ -109,7 +109,7 @@ describe('getCatalogEntry', () => {
     }
   });
 
-  it('returns null for non-Aegis JS errors', () => {
+  it('returns null for non-Okoro JS errors', () => {
     expect(getCatalogEntry(new TypeError('nope'))).toBeNull();
     expect(getCatalogEntry(new RangeError('nope'))).toBeNull();
   });
@@ -123,7 +123,7 @@ describe('getCatalogEntry', () => {
 });
 
 describe('catalogKey discriminator (F-06 minification safety)', () => {
-  // Each AegisError subclass must declare a static `catalogKey` whose
+  // Each OkoroError subclass must declare a static `catalogKey` whose
   // string value matches the un-minified class name. This is what survives
   // a tsup production build of the SDK after class names are mangled to
   // single letters.
@@ -157,7 +157,7 @@ describe('catalogKey discriminator (F-06 minification safety)', () => {
   });
 
   it('CircuitOpenError still resolves via constructor.name fallback', () => {
-    // CircuitOpenError doesn't extend AegisError, but it has its own
+    // CircuitOpenError doesn't extend OkoroError, but it has its own
     // static catalogKey too, so it survives minification as well.
     const err = new CircuitOpenError('demo');
     const entry = getCatalogEntry(err);
@@ -168,16 +168,16 @@ describe('catalogKey discriminator (F-06 minification safety)', () => {
     expect(getCatalogEntry(err)?.code).toBe('upstream_unavailable');
   });
 
-  it('hard-fails any AegisError subclass that forgets to override catalogKey', () => {
+  it('hard-fails any OkoroError subclass that forgets to override catalogKey', () => {
     // Reproduce a developer omitting the static override. The base
     // catalogKey defaults to '' and the constructor must throw.
-    class BrokenError extends AegisError {
+    class BrokenError extends OkoroError {
       readonly code = 'INTERNAL' as const;
       constructor() {
         super(500, 'broken');
       }
     }
-    expect(() => new BrokenError()).toThrow(/AegisError subclass missing static catalogKey: BrokenError/);
+    expect(() => new BrokenError()).toThrow(/OkoroError subclass missing static catalogKey: BrokenError/);
   });
 });
 
@@ -221,10 +221,10 @@ describe('toClientPayload', () => {
   });
 
   it('falls back to internal_error for uncataloged errors and never leaks internals', () => {
-    const payload = toClientPayload(new TypeError('aegis_secret_key=foo'));
+    const payload = toClientPayload(new TypeError('okoro_secret_key=foo'));
     expect(payload.code).toBe('internal_error');
     expect(payload.retryable).toBe(true);
-    expect(payload.message).not.toContain('aegis_secret_key');
+    expect(payload.message).not.toContain('okoro_secret_key');
     expect(payload.message).not.toContain('TypeError');
   });
 

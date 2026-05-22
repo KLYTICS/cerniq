@@ -1,4 +1,4 @@
-# AEGIS — Immutability Invariants
+# OKORO — Immutability Invariants
 
 > The properties below are inviolable. They are the contract every component,
 > deployment, and operator decision must respect. Each row lists the
@@ -11,12 +11,12 @@
 
 **Why:** SOC2 / FINRA / EU AI Act all require a tamper-evident audit trail.
 A relying party (or auditor) with the public key must be able to verify the
-entire chain offline — without contacting AEGIS, without trusting our DB.
+entire chain offline — without contacting OKORO, without trusting our DB.
 
 **Mechanism:**
 - `audit.service.append()` is the **only** writer. No `UPDATE` or `DELETE`
   against `AuditEvent` exists in the codebase or in any operational runbook.
-- Each row carries `aegisSignature = sign(prevSig || RFC8785_canonical(payload))`
+- Each row carries `okoroSignature = sign(prevSig || RFC8785_canonical(payload))`
   signed with the active KMS key (Ed25519, kid stamped on every row).
 - GDPR Art-17 redaction is supported via `*Hash` commitment columns
   (ADR-0006): nulling the raw value preserves the signature.
@@ -63,17 +63,17 @@ Any other mutation requires operator sign-off.
 
 ---
 
-## I-3 — Private keys never enter AEGIS
+## I-3 — Private keys never enter OKORO
 
-**Why:** AEGIS is a verification rail, not a key custodian. Holding agent
-private keys would invert the trust model: a compromise of AEGIS would
+**Why:** OKORO is a verification rail, not a key custodian. Holding agent
+private keys would invert the trust model: a compromise of OKORO would
 compromise every agent that trusted it.
 
 **Mechanism:**
-- The SDK (`@aegis/sdk`) generates keypairs **client-side**. Only the public
+- The SDK (`@okoro/sdk`) generates keypairs **client-side**. Only the public
   key is sent to `POST /v1/agents/register`.
 - The Go CLI's `--generate-keypair` flag enforces the same.
-- AEGIS-held signing keys (audit chain, JWT issuance) are wrapped via the
+- OKORO-held signing keys (audit chain, JWT issuance) are wrapped via the
   KMS adapter (AWS / GCP / Vault). Plaintext keys exist only in process
   memory after KMS decrypt.
 
@@ -95,7 +95,7 @@ only if the algorithm has zero NestJS / Prisma / Node-specific imports.
   from `packages/types`, `apps/api/src/common/crypto/*` pure utilities, and
   `verify.ports.ts` (the framework-free port interface).
 - The Nest service (`verify.service.ts`) is the adapter: it implements the
-  ports against Prisma + Redis + AEGIS services. The Cloudflare Worker
+  ports against Prisma + Redis + OKORO services. The Cloudflare Worker
   (`workers/cf-verify/src/index.ts`) implements the same ports against KV +
   fetch + WebCrypto.
 - OTel manual spans wrap the SERVICE call to the algorithm — the algorithm
@@ -111,7 +111,7 @@ only if the algorithm has zero NestJS / Prisma / Node-specific imports.
 
 ## I-5 — No silent failures, no fabricated data
 
-**Why:** AEGIS is the trust rail. A silent stub or "empty array means no
+**Why:** OKORO is the trust rail. A silent stub or "empty array means no
 results" answer is worse than a loud error — it lets a relying party
 proceed against a fabrication.
 
@@ -127,9 +127,9 @@ proceed against a fabrication.
 **Enforcement:**
 - Linter rule (project ESLint): `no-empty-catch` is `error`. Catches must
   either re-throw, log + degrade explicitly, or convert to a typed
-  `AegisError`.
+  `OkoroError`.
 - Error hierarchy: every exception in the API descends from
-  `AegisError`; the global filter maps the `code` field. String errors
+  `OkoroError`; the global filter maps the `code` field. String errors
   are reviewer-rejected.
 - CLAUDE.md invariant **#4**.
 
@@ -182,7 +182,7 @@ ANOMALY_FLAGGED
 **Enforcement:**
 - CI workflow `spec-sync.yml` job 3: byte-identical denial enum across
   `verify.algorithm.ts`, `packages/verifier-rp/src/types.ts`,
-  `packages/types/src/constants.ts`, and `docs/spec/AEGIS_API_SPEC.yaml`.
+  `packages/types/src/constants.ts`, and `docs/spec/OKORO_API_SPEC.yaml`.
 - ADR-0004 locks the order. Changes require an API version bump + ADR
   amendment + 90-day customer notice.
 - CLAUDE.md invariant **#6**.
@@ -196,9 +196,9 @@ non-idempotent handler double-charges, double-revokes, or double-emits an
 audit row.
 
 **Mechanism:**
-- Inbound (Stripe → AEGIS): `StripeService.handleWebhookEvent` SETNXes the
+- Inbound (Stripe → OKORO): `StripeService.handleWebhookEvent` SETNXes the
   Stripe `event.id` in Redis with a 7-day TTL. Replays return early.
-- Outbound (AEGIS → relying party): `WebhookDelivery.idempotencyKey` is
+- Outbound (OKORO → relying party): `WebhookDelivery.idempotencyKey` is
   the de-duplication anchor; the delivery worker checks before re-firing.
 - HMAC-SHA256 signatures on outbound events use a constant-time compare —
   the verifier rejects forged duplicates regardless of timing.
@@ -212,14 +212,14 @@ audit row.
 
 ## I-9.5 — Discovery surface is stable and additive
 
-**Why:** `/.well-known/aegis-configuration` is the OIDC-style discovery doc
+**Why:** `/.well-known/okoro-configuration` is the OIDC-style discovery doc
 that every relying party auto-configures from. If we silently drop or
 rename a field, every integration that read it on cold-start breaks at
 the next refresh — and we don't see the customer impact until they file
 a ticket weeks later.
 
 **Mechanism:**
-- The doc shape is the `AegisConfigurationDto` class in
+- The doc shape is the `OkoroConfigurationDto` class in
   `apps/api/src/modules/wellknown/dto/discovery.dto.ts`.
 - `spec_version` is bumped on every breaking change. Within a major
   version, evolution is additive only: new fields are added, existing
@@ -234,7 +234,7 @@ a ticket weeks later.
 - Spec: `wellknown.controller.spec.ts` exercises every documented
   field. A `delete out.foo` somewhere upstream fails the spec.
 - Spec-sync CI (job 3): denial enum byte-identical across
-  `verify.algorithm.ts`, `verifier-rp/types.ts`, `AEGIS_API_SPEC.yaml`,
+  `verify.algorithm.ts`, `verifier-rp/types.ts`, `OKORO_API_SPEC.yaml`,
   AND the discovery doc.
 - Reviewer convention: any PR that mutates `discovery.dto.ts` requires
   an ADR.
@@ -246,7 +246,7 @@ versioned under their own additive-only `spec_version`:
 
 | Path | DTO | Spec version |
 |------|-----|--------------|
-| `/.well-known/aegis-configuration` | `AegisConfigurationDto` | `1.0.0` |
+| `/.well-known/okoro-configuration` | `OkoroConfigurationDto` | `1.0.0` |
 | `/.well-known/audit-signing-key` | `AuditSigningKeyDto` | (key payload) |
 | `/.well-known/jwks.json` | `JwksDto` | RFC 8037 |
 | `/.well-known/security.txt` | (RFC 9116) | (renewed `Expires`) |
@@ -258,7 +258,7 @@ versioned under their own additive-only `spec_version`:
 retention windows. The service `onModuleInit` refuses to boot if a
 `PlanTier` lacks a positive `auditRetentionDays` (CLAUDE.md invariant
 #4: no fabricated data). The discovery doc advertises this URI as
-`retention_policy_uri` so a single fetch of `aegis-configuration` is
+`retention_policy_uri` so a single fetch of `okoro-configuration` is
 enough to discover the entire compliance surface.
 
 ---
@@ -274,7 +274,7 @@ Boot-time validation is the only acceptable posture.
   constructor and throws on parse failure. The process exits before the
   HTTP listener starts.
 - Production refuses to boot with `in-memory` KMS provider, ephemeral
-  audit signing keys, or missing `AEGIS_WEBHOOK_SECRET_DEK_B64`.
+  audit signing keys, or missing `OKORO_WEBHOOK_SECRET_DEK_B64`.
 - `.env.example` is the contract — single source of truth for the schema.
 
 **Enforcement:**

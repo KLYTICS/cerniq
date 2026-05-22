@@ -3,8 +3,8 @@
 // numbers only; no fabricated values when the API is unreachable.
 
 import {
-  AegisApiError,
-  AegisAuthMissingError,
+  OkoroApiError,
+  OkoroAuthMissingError,
   listAgents,
   type AgentRow,
 } from '../lib/api-client';
@@ -26,11 +26,11 @@ async function loadOverview(): Promise<Overview | { error: OverviewError }> {
     const r = await listAgents({ limit: 50 });
     return { agents: r.agents, total: r.total };
   } catch (err) {
-    if (err instanceof AegisAuthMissingError) {
-      return { error: { code: err.code, message: 'Set AEGIS_DASHBOARD_API_KEY to populate this view.' } };
+    if (err instanceof OkoroAuthMissingError) {
+      return { error: { code: err.code, message: 'Set OKORO_DASHBOARD_API_KEY to populate this view.' } };
     }
-    if (err instanceof AegisApiError) return { error: { code: err.code, message: err.message } };
-    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting AEGIS API.' } };
+    if (err instanceof OkoroApiError) return { error: { code: err.code, message: err.message } };
+    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting OKORO API.' } };
   }
 }
 
@@ -38,19 +38,19 @@ export default async function HomePage() {
   const overview = await loadOverview();
 
   return (
-    <section className="aegis-overview">
-      <h1>AEGIS — Agent Gateway &amp; Identity Stack</h1>
+    <section className="okoro-overview">
+      <h1>OKORO — Agent Gateway &amp; Identity Stack</h1>
       <p className="lede">
         Verified cryptographic identity, scoped authorization, and behavioral attestation for
-        every AI agent. AEGIS holds public keys only; private keys never leave the SDK.
+        every AI agent. OKORO holds public keys only; private keys never leave the SDK.
       </p>
 
       {!authConfigured() ? (
         <div className="data-empty">
           <p>
-            This dashboard reads live data from the AEGIS API. Set{' '}
-            <code>AEGIS_DASHBOARD_API_KEY</code> and{' '}
-            <code>AEGIS_DASHBOARD_PRINCIPAL_ID</code> in your environment to populate the
+            This dashboard reads live data from the OKORO API. Set{' '}
+            <code>OKORO_DASHBOARD_API_KEY</code> and{' '}
+            <code>OKORO_DASHBOARD_PRINCIPAL_ID</code> in your environment to populate the
             metrics below.
           </p>
         </div>
@@ -102,16 +102,16 @@ function OverviewBody({ agents, total }: { agents: AgentRow[]; total: number }) 
   return (
     <>
       {total === 0 ? (
-        <div className="aegis-panel" role="status">
-          <h2 className="aegis-panel-title">Welcome — let's register your first agent</h2>
+        <div className="okoro-panel" role="status">
+          <h2 className="okoro-panel-title">Welcome — let's register your first agent</h2>
           <p className="muted">
-            From a cold install, the path to a working <code>aegis.verify()</code> is six copy-paste
+            From a cold install, the path to a working <code>okoro.verify()</code> is six copy-paste
             steps. The Quickstart walks through keypair → register → handshake → policy → first
             verify, with copy-buttons on every snippet.
           </p>
           <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
-            <a href="/quickstart" className="aegis-button">open quickstart →</a>
-            <a href="/agents?action=register" className="aegis-button-ghost">register an agent</a>
+            <a href="/quickstart" className="okoro-button">open quickstart →</a>
+            <a href="/agents?action=register" className="okoro-button-ghost">register an agent</a>
           </div>
         </div>
       ) : null}

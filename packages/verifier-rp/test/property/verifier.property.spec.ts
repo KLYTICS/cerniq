@@ -1,7 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, it, vi } from 'vitest';
 
-import { AegisVerifier } from '../../src/verifier.js';
+import { OkoroVerifier } from '../../src/verifier.js';
 import { generateKeypair, signTestToken, tamperToken } from '../_helpers/sign.js';
 
 function fakeRes(json: unknown): Response {
@@ -13,7 +13,7 @@ function fakeRes(json: unknown): Response {
   } as unknown as Response;
 }
 
-function makeVerifier(publicKey: Uint8Array): AegisVerifier {
+function makeVerifier(publicKey: Uint8Array): OkoroVerifier {
   const fetchMock = vi.fn(async () =>
     fakeRes({
       agentId: 'agt_property',
@@ -22,7 +22,7 @@ function makeVerifier(publicKey: Uint8Array): AegisVerifier {
       trustBand: 'VERIFIED',
     }),
   );
-  return new AegisVerifier({
+  return new OkoroVerifier({
     baseUrl: 'https://api.example.com/v1',
     getAgentPublicKey: async () => publicKey,
     fetch: fetchMock as unknown as typeof globalThis.fetch,

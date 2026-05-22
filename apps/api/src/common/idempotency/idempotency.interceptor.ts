@@ -10,7 +10,7 @@
 // principal A and principal B can use the same idempotency key without
 // collision.
 
-import { AEGIS_HEADER_IDEMPOTENCY } from '@aegis/types';
+import { OKORO_HEADER_IDEMPOTENCY } from '@okoro/types';
 import {
   type CallHandler,
   type ExecutionContext,
@@ -47,7 +47,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
 
     const req = ctx.switchToHttp().getRequest<RequestWithAuth>();
     const res = ctx.switchToHttp().getResponse<Response>();
-    const headerName = AEGIS_HEADER_IDEMPOTENCY.toLowerCase();
+    const headerName = OKORO_HEADER_IDEMPOTENCY.toLowerCase();
     const key = req.headers[headerName];
     const idempotencyKey = Array.isArray(key) ? key[0] : key;
     if (!idempotencyKey) return next.handle();

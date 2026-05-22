@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import type { Aegis } from '@aegis/sdk';
+import type { Okoro } from '@okoro/sdk';
 import { makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixtures';
 
@@ -19,7 +19,7 @@ import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixt
  * for the same jti — that's the bug worth catching.
  */
 describe('08 · replay protection', () => {
-  let sdk: Aegis;
+  let sdk: Okoro;
   const cleanup: string[] = [];
 
   beforeAll(() => {

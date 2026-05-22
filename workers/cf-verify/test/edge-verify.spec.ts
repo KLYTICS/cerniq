@@ -12,7 +12,7 @@ import * as ed from '@noble/ed25519';
 import { sha512 } from '@noble/hashes/sha2';
 import { edgeVerify } from '../src/edge-verify';
 import type { CachedAgent, CachedPolicy, KvCache } from '../src/kv-cache';
-import type { VerifyRequest } from '@aegis/types';
+import type { VerifyRequest } from '@okoro/types';
 
 ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
 

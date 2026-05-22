@@ -9,7 +9,7 @@ import { AppConfigService } from '../../config/config.service';
 
 import { WorkOsAdapter, type WorkOsClientLike } from './workos.adapter';
 
-const WORKOS_CLIENT = 'AEGIS_WORKOS_CLIENT';
+const WORKOS_CLIENT = 'OKORO_WORKOS_CLIENT';
 
 const workosClientProvider: Provider = {
   provide: WORKOS_CLIENT,

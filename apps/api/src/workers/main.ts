@@ -1,4 +1,4 @@
-// AEGIS BullMQ worker entrypoint.
+// OKORO BullMQ worker entrypoint.
 //
 // Audit a42f05bc deploy-readiness blocker B3 fix: `infra/docker/Dockerfile.worker`
 // and `infra/railway/worker.service.json` both `CMD ["dist/workers/main.js"]`
@@ -38,7 +38,7 @@ async function bootstrap(): Promise<void> {
   app.enableShutdownHooks();
 
   const log = app.get(Logger);
-  log.log('AEGIS worker process started');
+  log.log('OKORO worker process started');
 
   // Graceful shutdown — Railway sends SIGTERM 30s before forcibly killing.
   // BullMQ workers acknowledge in-flight jobs back to the queue when

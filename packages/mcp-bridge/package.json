@@ -1,23 +1,23 @@
 {
-  "name": "@aegis/mcp-bridge",
+  "name": "@okoro/mcp-bridge",
   "version": "0.1.0",
-  "description": "AEGIS verification middleware for any MCP (Model Context Protocol) server. Wraps an MCP transport so every tool call carries a verified AEGIS agent identity.",
+  "description": "OKORO verification middleware for any MCP (Model Context Protocol) server. Wraps an MCP transport so every tool call carries a verified OKORO agent identity.",
   "license": "MIT",
-  "author": "AEGIS Labs <hello@aegislabs.io>",
-  "homepage": "https://aegislabs.io/mcp",
+  "author": "OKORO Labs <hello@okorolabs.io>",
+  "homepage": "https://okorolabs.io/mcp",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/klytics/aegis.git",
+    "url": "git+https://github.com/klytics/okoro.git",
     "directory": "packages/mcp-bridge"
   },
   "bugs": {
-    "url": "https://github.com/klytics/aegis/issues"
+    "url": "https://github.com/klytics/okoro/issues"
   },
   "engines": {
     "node": ">=20.11.0"
   },
   "keywords": [
-    "aegis",
+    "okoro",
     "mcp",
     "model-context-protocol",
     "agent-identity",
@@ -47,12 +47,12 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@aegis/sdk": "workspace:*",
-    "@aegis/types": "workspace:*",
+    "@okoro/sdk": "workspace:*",
+    "@okoro/types": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "devDependencies": {
-    "@aegis/tsconfig": "workspace:*",
+    "@okoro/tsconfig": "workspace:*",
     "tsup": "^8.3.5",
     "typescript": "^5.6.3",
     "vitest": "^2.1.8"

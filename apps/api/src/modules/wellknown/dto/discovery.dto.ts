@@ -1,20 +1,20 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 /**
- * AEGIS configuration discovery doc — the OIDC-style discovery
+ * OKORO configuration discovery doc — the OIDC-style discovery
  * surface for agent-identity infrastructure. Lets a relying party
  * auto-configure their verifier from a single URL:
  *
- *     fetch('https://api.aegislabs.io/.well-known/aegis-configuration')
+ *     fetch('https://api.okorolabs.io/.well-known/okoro-configuration')
  *       .then(r => r.json())
  *
  * Stable, additive, versioned. Removing a field is a breaking change
  * and requires bumping `version` + 90-day customer notice.
  */
-export class AegisConfigurationDto {
+export class OkoroConfigurationDto {
   @ApiProperty({
-    description: 'The canonical issuer URL. Used by relying parties as `iss` for AEGIS-issued JWTs.',
-    example: 'https://api.aegislabs.io',
+    description: 'The canonical issuer URL. Used by relying parties as `iss` for OKORO-issued JWTs.',
+    example: 'https://api.okorolabs.io',
   })
   issuer!: string;
 
@@ -25,32 +25,32 @@ export class AegisConfigurationDto {
   spec_version!: string;
 
   @ApiProperty({
-    description: 'AEGIS API version exposed at the issuer.',
+    description: 'OKORO API version exposed at the issuer.',
     example: '0.1.0',
   })
   api_version!: string;
 
   @ApiProperty({
     description: 'Human documentation entry point.',
-    example: 'https://docs.aegislabs.io',
+    example: 'https://docs.okorolabs.io',
   })
   documentation!: string;
 
   @ApiProperty({
     description: 'Machine-readable OpenAPI 3 spec (JSON).',
-    example: 'https://api.aegislabs.io/docs-json',
+    example: 'https://api.okorolabs.io/docs-json',
   })
   openapi_spec!: string;
 
   @ApiProperty({
     description: 'Machine-readable JWKS for verifying audit chain signatures.',
-    example: 'https://api.aegislabs.io/.well-known/jwks.json',
+    example: 'https://api.okorolabs.io/.well-known/jwks.json',
   })
   jwks_uri!: string;
 
   @ApiProperty({
     description: 'Plain JSON helper view of the active audit signing key.',
-    example: 'https://api.aegislabs.io/.well-known/audit-signing-key',
+    example: 'https://api.okorolabs.io/.well-known/audit-signing-key',
   })
   audit_signing_key_uri!: string;
 
@@ -73,13 +73,13 @@ export class AegisConfigurationDto {
   };
 
   @ApiProperty({
-    description: 'Signature algorithms AEGIS uses for audit signing and policy issuance.',
+    description: 'Signature algorithms OKORO uses for audit signing and policy issuance.',
     example: ['EdDSA'],
   })
   supported_algorithms!: string[];
 
   @ApiProperty({
-    description: 'Elliptic curves supported. AEGIS is Ed25519-only per ADR-0002.',
+    description: 'Elliptic curves supported. OKORO is Ed25519-only per ADR-0002.',
     example: ['Ed25519'],
   })
   supported_curves!: string[];
@@ -116,7 +116,7 @@ export class AegisConfigurationDto {
   };
 
   @ApiProperty({
-    description: 'Runtimes the @aegis/sdk and @aegis/verifier-rp packages support.',
+    description: 'Runtimes the @okoro/sdk and @okoro/verifier-rp packages support.',
     example: ['nodejs', 'cloudflare-workers', 'vercel-edge', 'deno', 'bun', 'browser'],
   })
   supported_runtimes!: string[];
@@ -151,27 +151,27 @@ export class AegisConfigurationDto {
 
   @ApiProperty({
     description: 'Plain-text security disclosure file (RFC 9116).',
-    example: 'https://api.aegislabs.io/.well-known/security.txt',
+    example: 'https://api.okorolabs.io/.well-known/security.txt',
   })
   security_txt!: string;
 
   @ApiProperty({
     description: 'AI-agent-readable site description (emerging llms.txt convention).',
-    example: 'https://api.aegislabs.io/.well-known/llms.txt',
+    example: 'https://api.okorolabs.io/.well-known/llms.txt',
   })
   llms_txt!: string;
 
   @ApiProperty({
     description:
       'Per-tier audit retention windows + redaction guarantees. Body is auto-derived from billing/plans.ts.',
-    example: 'https://api.aegislabs.io/.well-known/retention-policy.json',
+    example: 'https://api.okorolabs.io/.well-known/retention-policy.json',
   })
   retention_policy_uri!: string;
 
   @ApiProperty({
     description:
       'Per-tier pricing table (ADR-0014). Body is auto-derived from billing/plans.ts.',
-    example: 'https://api.aegislabs.io/.well-known/pricing.json',
+    example: 'https://api.okorolabs.io/.well-known/pricing.json',
   })
   pricing_uri!: string;
 }

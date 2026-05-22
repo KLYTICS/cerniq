@@ -2,17 +2,17 @@ import { AgentClient, type HandshakeVerified } from './agent.js';
 import { signAgentToken, signHandshake } from './crypto.js';
 import { HttpClient } from './http.js';
 import { PolicyClient } from './policy.js';
-import type { AegisConfig, SignContext, VerifyResult } from './types.js';
+import type { OkoroConfig, SignContext, VerifyResult } from './types.js';
 
-const DEFAULT_BASE_URL = 'https://api.aegislabs.io';
+const DEFAULT_BASE_URL = 'https://api.okorolabs.io';
 const DEFAULT_TIMEOUT_MS = 5_000;
 
-export class Aegis {
+export class Okoro {
   readonly agents: AgentClient;
   readonly policies: PolicyClient;
   private readonly http: HttpClient;
 
-  constructor(config: AegisConfig = {}) {
+  constructor(config: OkoroConfig = {}) {
     this.http = new HttpClient({
       apiKey: config.apiKey,
       verifyKey: config.verifyKey,
@@ -74,18 +74,18 @@ export class Aegis {
 
 export { generateKeypair, signAgentToken, signHandshake, decodeUnsafe } from './crypto.js';
 export {
-  AegisError,
-  AegisAuthenticationError,
-  AegisAuthorizationError,
-  AegisNotFoundError,
-  AegisValidationError,
-  AegisConflictError,
-  AegisRateLimitedError,
-  AegisInternalError,
-  AegisServiceUnavailableError,
-  AegisNetworkError,
+  OkoroError,
+  OkoroAuthenticationError,
+  OkoroAuthorizationError,
+  OkoroNotFoundError,
+  OkoroValidationError,
+  OkoroConflictError,
+  OkoroRateLimitedError,
+  OkoroInternalError,
+  OkoroServiceUnavailableError,
+  OkoroNetworkError,
   fromEnvelope,
-  isAegisErrorRetryable,
+  isOkoroErrorRetryable,
   catalogEntryFor,
 } from './errors.js';
 export { withRetry, parseRetryAfter } from './http.js';

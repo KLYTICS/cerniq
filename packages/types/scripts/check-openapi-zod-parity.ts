@@ -1,12 +1,12 @@
 #!/usr/bin/env -S node --import=tsx
-// AEGIS — OpenAPI ↔ Zod parity gate (workspace-scoped to @aegis/types).
+// OKORO — OpenAPI ↔ Zod parity gate (workspace-scoped to @okoro/types).
 //
 // CI entry point: spec-sync.yml job-1 invokes this exact path:
-//   pnpm -F @aegis/types exec tsx scripts/check-openapi-zod-parity.ts
+//   pnpm -F @okoro/types exec tsx scripts/check-openapi-zod-parity.ts
 //
 // Why a workspace-scoped script (separate from the broader root
-// scripts/verify-spec.ts): @aegis/types must be self-validating against
-// the OpenAPI spec without dragging Prisma or @aegis/api into its
+// scripts/verify-spec.ts): @okoro/types must be self-validating against
+// the OpenAPI spec without dragging Prisma or @okoro/api into its
 // dependency graph. The wire contract lives here; this script is the
 // gate that says "this package and the OpenAPI document still agree".
 //
@@ -42,7 +42,7 @@ import { DENIAL_REASON_PRECEDENCE } from '../src/constants.js';
 const __filename = fileURLToPath(import.meta.url);
 const PACKAGE_ROOT = resolve(dirname(__filename), '..');
 const REPO_ROOT = resolve(PACKAGE_ROOT, '..', '..');
-const SPEC_PATH = join(REPO_ROOT, 'docs', 'spec', 'AEGIS_API_SPEC.yaml');
+const SPEC_PATH = join(REPO_ROOT, 'docs', 'spec', 'OKORO_API_SPEC.yaml');
 const REPORT_PATH = join(REPO_ROOT, 'spec-sync.json');
 
 const REF_PREFIX = '#/components/schemas/';

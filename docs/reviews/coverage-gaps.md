@@ -1,4 +1,4 @@
-# AEGIS Phase 1 Coverage Gaps — Enterprise Review
+# OKORO Phase 1 Coverage Gaps — Enterprise Review
 
 **Date**: 2026-05-01  
 **Review scope**: Apps (api, dashboard), packages (types, sdk-ts, sdk-py), workers (cf-verify)  
@@ -70,7 +70,7 @@
 ### `packages/types/src/constants.ts`
 
 All constants used:
-- `AEGIS_HEADER_*` — injected in Pino redaction + SDK auth.
+- `OKORO_HEADER_*` — injected in Pino redaction + SDK auth.
 - `TRUST_BAND_THRESHOLDS` — used in bate scorer.
 - `REDIS_KEY` — used in verify + bate modules.
 - `WEBHOOK_EVENT` — used in bate service.

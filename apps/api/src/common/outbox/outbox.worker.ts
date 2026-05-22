@@ -66,7 +66,7 @@ const DEFAULT_CONFIG: OutboxWorkerConfig = {
   lockTtlMs: DEFAULT_LOCK_TTL_MS,
   tickIntervalMs: DEFAULT_TICK_INTERVAL_MS,
   maxAttempts: DEFAULT_MAX_ATTEMPTS,
-  workerId: process.env.HOSTNAME ?? 'aegis-api',
+  workerId: process.env.HOSTNAME ?? 'okoro-api',
 };
 
 @Injectable()

@@ -16,7 +16,7 @@ import { OnboardingService } from './onboarding.service';
  *     onboarding rollup. Sub-millisecond. Wired by the consuming module.
  *  2. **Periodic backfill** — `OnboardingBackfill.run()` is a single-pass
  *     SQL reconciler that catches dropped events. Idempotent; safe to
- *     trigger from a scheduler, admin endpoint, or `aegis-cli onboarding
+ *     trigger from a scheduler, admin endpoint, or `okoro-cli onboarding
  *     backfill`.
  *
  * Operators run BOTH: hooks give live feedback for the dashboard wizard;

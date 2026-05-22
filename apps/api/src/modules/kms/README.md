@@ -1,6 +1,6 @@
 # KMS module
 
-Implements ADR-0011: every cryptographically signed record in AEGIS
+Implements ADR-0011: every cryptographically signed record in OKORO
 (audit events, policy JWTs, webhook bodies) flows through a `KmsAdapter`.
 Adapters never expose private key material — all signing happens
 through `sign(msg)`.
@@ -16,7 +16,7 @@ through `sign(msg)`.
 
 ## Selection
 
-`AEGIS_KMS_PROVIDER` env: `in-memory` (default) | `aws` | `gcp` | `vault`.
+`OKORO_KMS_PROVIDER` env: `in-memory` (default) | `aws` | `gcp` | `vault`.
 
 The cloud-adapter wiring (which SDK client to construct, which keys to
 register) is intentionally NOT in `kms.module.ts` — it lives in

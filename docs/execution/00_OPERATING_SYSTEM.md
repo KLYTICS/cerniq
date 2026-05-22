@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Master Operating System
+title: OKORO — Master Operating System
 audience: every contributor
 last-reviewed: 2026-05-08
 status: source-of-truth — v1
@@ -7,7 +7,7 @@ status: source-of-truth — v1
 
 # 00 — Master Operating System
 
-> The thesis: AEGIS executes today as if every artifact will be read by
+> The thesis: OKORO executes today as if every artifact will be read by
 > a Series A diligence partner, an S-1 reviewer, and a forensic auditor
 > in the same week. Not because we are about to be reviewed. Because the
 > companies that survive that review are the ones that built the muscle
@@ -17,7 +17,7 @@ status: source-of-truth — v1
 
 ## 1. The thesis in one paragraph
 
-AEGIS is a verification, policy enforcement, and behavioral attestation
+OKORO is a verification, policy enforcement, and behavioral attestation
 infrastructure for AI agents (read `docs/spec/01_MASTER.md`). The
 product makes a single substantive claim — *"every agent action is
 verifiable by a third party because the audit chain is signed and the
@@ -33,7 +33,7 @@ that makes that bar achievable without slowing down.
 ## 2. The non-negotiables (the public-company contract)
 
 These are inherited from `CLAUDE.md` and extended with the institutional
-disciplines that make AEGIS a credible enterprise vendor and, in 24-36
+disciplines that make OKORO a credible enterprise vendor and, in 24-36
 months, a public company candidate.
 
 ### 2.1 Architectural invariants (from CLAUDE.md)
@@ -41,7 +41,7 @@ months, a public company candidate.
 Reproduced here for emphasis. Violating any of these is a stop-the-line
 event, regardless of who is asking and how urgent the request.
 
-1. **Private keys never enter AEGIS.** Public-key registry only.
+1. **Private keys never enter OKORO.** Public-key registry only.
 2. **Verify hot path is portable.** No framework imports in the verify
    path; the path must Cloudflare-Workers cleanly.
 3. **Audit log is append-only and signed.** Hash-chained, no UPDATE,
@@ -84,7 +84,7 @@ company.
 
 ## 3. The 4 axes
 
-Every unit of work at AEGIS resolves to a 4-tuple. The axes are
+Every unit of work at OKORO resolves to a 4-tuple. The axes are
 orthogonal — a person can change roles without changing departments,
 move a task across stages without changing roles, etc.
 
@@ -185,7 +185,7 @@ an island. The integration model:
 
 ## 5. The Claude session as a first-class operator
 
-AEGIS is built by parallel sessions. Some are humans at keyboards. Many
+OKORO is built by parallel sessions. Some are humans at keyboards. Many
 are Claude sessions, claimed via `claude-peers` per `WORK_BOARD.md`.
 This OS treats both as first-class operators. The same charters apply,
 the same gates apply, the same audit trail applies.
@@ -237,7 +237,7 @@ The audit trail enforces it.
 
 ## 7. What doesn't change at IPO scale
 
-Some things public companies do that do not apply to AEGIS today and
+Some things public companies do that do not apply to OKORO today and
 should not be retrofitted prematurely:
 
 - **Quarterly guidance** — pre-revenue, pre-Series-A, premature.

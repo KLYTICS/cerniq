@@ -5,7 +5,7 @@
 // in SAML / OIDC federation to corporate IdPs (Okta, Microsoft Entra,
 // Google Workspace, ADFS, OneLogin, JumpCloud). WorkOS issues its own
 // short-lived sealed sessions (`workos_session_<base64>`) that the
-// dashboard hands to AEGIS for verification.
+// dashboard hands to OKORO for verification.
 //
 // Why ship this NOW: ADR-0009 §6 commits to `IdpAdapter` swappability.
 // Two adapters (Auth0 + Clerk) prove the contract holds for the same
@@ -14,10 +14,10 @@
 // stronger validation. After this, adding Okta-direct / Entra-direct /
 // Keycloak is a 1-day exercise.
 //
-// Trust model: AEGIS trusts WorkOS to authenticate the human, then maps
-// WorkOS Organizations → AEGIS Principals via `idpProvider='workos'` +
+// Trust model: OKORO trusts WorkOS to authenticate the human, then maps
+// WorkOS Organizations → OKORO Principals via `idpProvider='workos'` +
 // `idpOrganizationId=<workos_org_id>`. WorkOS Roles are propagated as
-// `aegis:*` claims via the WorkOS Directory Sync custom-claims feature.
+// `okoro:*` claims via the WorkOS Directory Sync custom-claims feature.
 
 import { createHash } from 'node:crypto';
 
@@ -72,7 +72,7 @@ export class WorkOsAdapter implements IdpAdapter {
   }
 
   async verifyAccessToken(token: string): Promise<IdpUser | null> {
-    // WorkOS access tokens are "sealed sessions" — opaque to AEGIS.
+    // WorkOS access tokens are "sealed sessions" — opaque to OKORO.
     // Verification == calling WorkOS's introspection. Cache aggressively
     // (per session) so we don't spam WorkOS on every verify.
     const cacheKey = `idp:workos:session:${createHash('sha256').update(token).digest('hex').slice(0, 24)}`;
@@ -99,8 +99,8 @@ export class WorkOsAdapter implements IdpAdapter {
       emailVerified: session.user.emailVerified,
       name: [session.user.firstName, session.user.lastName].filter(Boolean).join(' ') || null,
       // WorkOS roles propagate verbatim from the corporate IdP. We filter
-      // to `aegis:*` so customer-side IdP role names don't leak in.
-      roles: (session.roles ?? []).filter((r) => typeof r === 'string' && r.startsWith('aegis:')),
+      // to `okoro:*` so customer-side IdP role names don't leak in.
+      roles: (session.roles ?? []).filter((r) => typeof r === 'string' && r.startsWith('okoro:')),
       mfaSatisfied: Boolean(session.mfaEnrolled),
       rawClaims: {
         sessionId: session.sessionId,

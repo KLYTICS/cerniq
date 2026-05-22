@@ -10,7 +10,7 @@
  *
  * Outputs:
  *   - packages/types/src/error-catalog.generated.ts
- *   - packages/sdk-py/aegis/error_catalog.py
+ *   - packages/sdk-py/okoro/error_catalog.py
  *
  * Both files start with a `// @generated` (or `# @generated`) banner. Do
  * not hand-edit. Re-run via `pnpm tsx scripts/generate-error-catalog.ts`.
@@ -38,7 +38,7 @@ const REPO_ROOT = resolve(__dirname, '..');
 
 const CATALOG_SOURCE = '../apps/api/src/common/errors/error-catalog.ts';
 const TS_OUT = resolve(REPO_ROOT, 'packages/types/src/error-catalog.generated.ts');
-const PY_OUT = resolve(REPO_ROOT, 'packages/sdk-py/aegis/error_catalog.py');
+const PY_OUT = resolve(REPO_ROOT, 'packages/sdk-py/okoro/error_catalog.py');
 
 async function loadCatalog(): Promise<Readonly<Record<string, ErrorCatalogEntry>>> {
   const mod = (await import(CATALOG_SOURCE)) as {

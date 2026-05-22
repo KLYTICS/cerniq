@@ -1,4 +1,4 @@
-# AEGIS — Beta Onboarding Runbook
+# OKORO — Beta Onboarding Runbook
 ## Operator Guide for First 100 Users
 
 > **Owner:** Erwin Kiess-Alfonso (Operator) + Growth Lead  
@@ -43,7 +43,7 @@ Beta cohort priority order (do not deviate):
 
 ### 2.2 Waitlist Form Fields
 
-Collect at signup (aegislabs.io/beta):
+Collect at signup (okorolabs.io/beta):
 
 ```
 1. Email (required)
@@ -51,7 +51,7 @@ Collect at signup (aegislabs.io/beta):
 3. What are you building? (free text, required — AI agent / autonomous workflow / other)
 4. Monthly API calls estimate (1-1K / 1K-100K / 100K+)
 5. Primary stack (TypeScript / Python / Other)
-6. How did you hear about AEGIS? (referral source)
+6. How did you hear about OKORO? (referral source)
 7. "Do you handle financial transactions or sensitive user data?" (Yes/No — fast-tracks Tier A)
 ```
 
@@ -65,7 +65,7 @@ When a batch is ready:
 
 ```bash
 # 1. Generate a signed invitation token (CLI)
-aegis admin invite-batch \
+okoro admin invite-batch \
   --emails ./beta-cohort-1.csv \
   --tier developer \
   --expires-days 14 \
@@ -78,11 +78,11 @@ aegis admin invite-batch \
 Invitation email template (plain text preferred for deliverability):
 
 ```
-Subject: Your AEGIS beta access is ready
+Subject: Your OKORO beta access is ready
 
 Hey [First Name],
 
-You're in. AEGIS beta is live — here's your personal access link:
+You're in. OKORO beta is live — here's your personal access link:
 
   [INVITE_URL]
 
@@ -93,13 +93,13 @@ What you can do today:
   → Attach a policy (spend limits, scope gates)
   → Start verifying actions in your workflow
 
-Start here: https://docs.aegislabs.io/quickstart
+Start here: https://docs.okorolabs.io/quickstart
 
 If you're building something cool and want a dedicated Slack channel
 with direct engineering access, reply to this email.
 
 — Erwin
-Founder, AEGIS
+Founder, OKORO
 ```
 
 ### 3.2 Onboarding Activation Email Sequence
@@ -108,11 +108,11 @@ Use Loops or equivalent. Fire these automatically via webhook on Principal creat
 
 | Day | Trigger | Subject | Content |
 |-----|---------|---------|---------|
-| 0 | Account created | "Your AEGIS account is ready" | Dashboard link + quickstart link |
+| 0 | Account created | "Your OKORO account is ready" | Dashboard link + quickstart link |
 | 1 | No first agent | "Register your first agent in 2 minutes" | CLI one-liner to register |
 | 3 | No first verify | "Haven't verified yet? Here's a working example" | curl snippet that works out of the box |
 | 7 | Has verified ≥1 | "You're live — here's what to watch" | Trust bands, BATE signals, audit log |
-| 7 | Has NOT verified | "Quick check-in from AEGIS" | Ask what's blocking (reply to email) |
+| 7 | Has NOT verified | "Quick check-in from OKORO" | Ask what's blocking (reply to email) |
 | 14 | Any | "30 seconds of feedback?" | NPS survey link |
 
 ---
@@ -173,7 +173,7 @@ If `hasFirstVerify` < 40% at Day 7, trigger manual outreach to all stuck users.
 
 ```
 [ ] Create their Principal account manually (don't make them wait for invite)
-[ ] Pre-register a test agent: aegis agents register --name "design-partner-test"
+[ ] Pre-register a test agent: okoro agents register --name "design-partner-test"
 [ ] Prepare a working verify curl snippet using their domain
 [ ] Read their GitHub/product page — know what they're building before the call
 [ ] Prepare a Slack channel: #partner-[company-name]
@@ -195,12 +195,12 @@ If `hasFirstVerify` < 40% at Day 7, trigger manual outreach to all stuck users.
                 5. Show audit log — prove the chain is signed
                 6. Run audit-verify-chain.ts — show tamper detection
 
-20:00 - 35:00  Their integration. Help them wire AEGIS into their actual codebase.
-                For LangChain: use AegisCallbackHandler
+20:00 - 35:00  Their integration. Help them wire OKORO into their actual codebase.
+                For LangChain: use OkoroCallbackHandler
                 For Express: use verifyRequest() middleware
                 For MCP: use mcp-bridge wrap()
 
-35:00 - 50:00  Policy design workshop. Map their actual use cases to AEGIS scopes.
+35:00 - 50:00  Policy design workshop. Map their actual use cases to OKORO scopes.
                 "What actions should an agent NEVER take without a limit?"
                 "What's the worst-case scenario if an agent goes rogue?"
                 Document their scope names for the SDK.
@@ -248,18 +248,18 @@ The dashboard shows `PrincipalOnboarding` state as a checklist. Each incomplete 
 New users should run this first:
 
 ```bash
-$ aegis doctor
+$ okoro doctor
 
 ✅ CLI version: 0.4.0 (latest)
-✅ API reachable: https://api.aegislabs.io/health → 200 OK (47ms)
-✅ Auth: principal abc123 (erwin@aegislabs.io)
+✅ API reachable: https://api.okorolabs.io/health → 200 OK (47ms)
+✅ Auth: principal abc123 (erwin@okorolabs.io)
 ✅ Default agent: agent_xyz (ACTIVE, VERIFIED band, score 823)
 ⚠️  No webhook configured: revocation events won't be received
 ⚠️  Production keys: using env var (recommend KMS for production)
 ❌ No policies attached to default agent
-   → Run: aegis policy apply --agent agent_xyz --scope payment:write --limit 1000
+   → Run: okoro policy apply --agent agent_xyz --scope payment:write --limit 1000
 
-Run "aegis doctor --fix" to auto-remediate warnings.
+Run "okoro doctor --fix" to auto-remediate warnings.
 ```
 
 ---
@@ -311,14 +311,14 @@ Post digest to `#growth` Slack channel. Include:
 At Day 14, send NPS email (Loops automation):
 
 ```
-Subject: Quick question from the AEGIS founder
+Subject: Quick question from the OKORO founder
 
 Hi [Name],
 
-AEGIS has been running your agents for 2 weeks now. 
+OKORO has been running your agents for 2 weeks now. 
 
 One question: On a scale of 0-10, how likely are you to recommend 
-AEGIS to a friend or colleague building AI agents?
+OKORO to a friend or colleague building AI agents?
 
 [0] [1] [2] [3] [4] [5] [6] [7] [8] [9] [10]
 
@@ -328,7 +328,7 @@ AEGIS to a friend or colleague building AI agents?
 ```
 
 Detractors (0-6): Personal email from Erwin within 24h. "What would it take to get to a 9?"
-Promoters (9-10): "Would you be willing to write 2 sentences about AEGIS for our site?"
+Promoters (9-10): "Would you be willing to write 2 sentences about OKORO for our site?"
 
 ---
 
@@ -346,7 +346,7 @@ Promoters (9-10): "Would you be willing to write 2 sentences about AEGIS for our
 
 ### 8.1 User-Facing Status
 
-Keep `aegisstatus.io` (or Instatus page) updated. Post to it for any P0/P1 incident.
+Keep `okorostatus.io` (or Instatus page) updated. Post to it for any P0/P1 incident.
 
 ### 8.2 Escalation Path
 
@@ -367,7 +367,7 @@ Gate criteria before upgrading any user to a paid plan:
 
 ```
 [ ] Stripe billing fully wired (G-2 gap — see WORK_BOARD.md)
-[ ] Pricing page live at aegislabs.io/pricing
+[ ] Pricing page live at okorolabs.io/pricing
 [ ] Plan limits enforced at verify level (FREE: 10K/month, PRO: 1M/month)
 [ ] Invoice generation tested end-to-end
 [ ] Churn webhook handled (downgrade to FREE on failed payment)
@@ -396,15 +396,15 @@ These are not finalized — see OD-003 (OPERATOR_DECISIONS.md).
 **Fix:**
 ```bash
 # 1. Confirm which key the agent has
-aegis agents get --id agent_xyz --show-public-key
+okoro agents get --id agent_xyz --show-public-key
 
 # 2. Confirm what key your SDK is using
 # In TypeScript:
-const agent = await aegis.agents.get('agent_xyz');
+const agent = await okoro.agents.get('agent_xyz');
 console.log(agent.publicKey); // should match
 
 # 3. If mismatch, re-register the agent
-aegis agents rotate-key --id agent_xyz
+okoro agents rotate-key --id agent_xyz
 ```
 
 ### "My SPEND_LIMIT_EXCEEDED denial fires too soon"
@@ -414,7 +414,7 @@ aegis agents rotate-key --id agent_xyz
 **Fix:**
 ```bash
 # Check the policy
-aegis policy get --agent agent_xyz
+okoro policy get --agent agent_xyz
 
 # If limit is "1000 USD per day" but you're spending 100 per call:
 # 10 calls = $1,000 → hits limit on call 10. That's correct.
@@ -440,10 +440,10 @@ aegis policy get --agent agent_xyz
 **Fix:**
 ```bash
 # Confirm agent belongs to your principal
-aegis agents list | grep agent_xyz
+okoro agents list | grep agent_xyz
 
 # Confirm your API key is for the right principal
-aegis auth whoami
+okoro auth whoami
 
 # If they don't match, you're using the wrong API key.
 ```
@@ -455,15 +455,15 @@ aegis auth whoami
 **Fix:**
 ```bash
 # 1. Check webhook config
-aegis webhooks list
+okoro webhooks list
 
 # 2. If using localhost for development, use ngrok:
 ngrok http 3000
-aegis webhooks create --url https://xxxx.ngrok.io/webhooks/aegis --events agent.revoked
+okoro webhooks create --url https://xxxx.ngrok.io/webhooks/okoro --events agent.revoked
 
 # 3. Verify HMAC signature in your handler:
-const sig = req.headers['x-aegis-signature'];
-const expected = createHmac('sha256', process.env.AEGIS_WEBHOOK_SECRET)
+const sig = req.headers['x-okoro-signature'];
+const expected = createHmac('sha256', process.env.OKORO_WEBHOOK_SECRET)
   .update(req.rawBody).digest('hex');
 if (sig !== expected) throw new Error('Invalid signature');
 ```
@@ -483,7 +483,7 @@ A beta user "graduates" to production when:
 [ ] On paid plan OR explicitly confirmed free tier is sufficient
 ```
 
-At graduation: send "You're officially a production AEGIS user" email + Discord badge.
+At graduation: send "You're officially a production OKORO user" email + Discord badge.
 
 ---
 
@@ -502,6 +502,6 @@ At graduation: send "You're officially a production AEGIS user" email + Discord 
 
 ---
 
-*Runbook version: 1.0 | AEGIS Phase 1 Beta*  
+*Runbook version: 1.0 | OKORO Phase 1 Beta*  
 *Last updated: 2026-05-04*  
 *Next review: after first 50 users onboarded*

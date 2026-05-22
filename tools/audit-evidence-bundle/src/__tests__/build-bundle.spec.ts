@@ -37,10 +37,10 @@ function makeFetched(ndjsonPath: string, ndjsonSha256: string): FetchedArtifacts
     redactedRowCount: 1,
     ndjsonSha256,
     jwks: { keys: [{ kty: 'OKP', crv: 'Ed25519', kid: 'k1', x: 'AAAA', use: 'sig' }] },
-    aegisConfiguration: { issuer: 'https://aegis.test' },
+    okoroConfiguration: { issuer: 'https://okoro.test' },
     retentionPolicy: null,
     retentionPolicyAvailable: false,
-    securityTxt: 'Contact: security@aegis.test\n',
+    securityTxt: 'Contact: security@okoro.test\n',
   };
 }
 
@@ -50,7 +50,7 @@ const cli: BundleCliOptions = {
   from: '2026-01-01',
   to: '2026-04-30',
   output: '/tmp/should-be-overridden.tar.gz',
-  apiBase: 'https://aegis.test',
+  apiBase: 'https://okoro.test',
   apiKey: 'sk_test_redacted',
   verifyOnly: false,
   includeReadme: true,
@@ -64,7 +64,7 @@ const verification: ChainVerificationFileShape = {
   firstFailureAt: null,
   firstFailureReason: null,
   durationMs: 1,
-  verifierPackage: '@aegis/audit-verifier',
+  verifierPackage: '@okoro/audit-verifier',
   verifierVersion: '0.1.0',
 };
 
@@ -108,7 +108,7 @@ describe('planBundleEntries', () => {
   let ndjsonSha: string;
 
   beforeEach(async () => {
-    workDir = await mkdtemp(join(tmpdir(), 'aegis-bundle-test-'));
+    workDir = await mkdtemp(join(tmpdir(), 'okoro-bundle-test-'));
     ndjsonPath = join(workDir, 'audit-events.ndjson');
     const ndjsonContent =
       '{"eventId":"e1","payload":{"actionHash":null}}\n' +
@@ -125,7 +125,7 @@ describe('planBundleEntries', () => {
   it('emits the expected entry order and embeds the manifest counts', async () => {
     const fetched = makeFetched(ndjsonPath, ndjsonSha);
     const { entries, manifest, sha256sumsContent } = await planBundleEntries({
-      bundleRoot: 'aegis-evidence-test',
+      bundleRoot: 'okoro-evidence-test',
       fetched,
       verification,
       cli,
@@ -137,7 +137,7 @@ describe('planBundleEntries', () => {
     expect(paths).toEqual([
       'audit-events.ndjson',
       'jwks.json',
-      'aegis-configuration.json',
+      'okoro-configuration.json',
       'security.txt',
       'manifest.json',
       'chain-verification.json',
@@ -176,14 +176,14 @@ describe('planBundleEntries', () => {
   it('writes a tarball that the system `tar` can extract intact', async () => {
     const fetched = makeFetched(ndjsonPath, ndjsonSha);
     const { entries } = await planBundleEntries({
-      bundleRoot: 'aegis-evidence-test',
+      bundleRoot: 'okoro-evidence-test',
       fetched,
       verification,
       cli,
       readme: 'AUDITOR README',
     });
     const out = join(workDir, 'bundle.tar.gz');
-    await writeBundle({ outputPath: out, bundleRoot: 'aegis-evidence-test', entries });
+    await writeBundle({ outputPath: out, bundleRoot: 'okoro-evidence-test', entries });
     const s = await stat(out);
     expect(s.size).toBeGreaterThan(0);
 
@@ -192,7 +192,7 @@ describe('planBundleEntries', () => {
     await mkdir(extractDir, { recursive: true });
     await execFileP('tar', ['-xzf', out, '-C', extractDir]);
 
-    const root = join(extractDir, 'aegis-evidence-test');
+    const root = join(extractDir, 'okoro-evidence-test');
     const ndjson = await readFile(join(root, 'audit-events.ndjson'), 'utf8');
     expect(ndjson).toContain('"eventId":"e1"');
     expect(ndjson).toContain('"eventId":"e3"');

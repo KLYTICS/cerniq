@@ -1,4 +1,4 @@
-// Fetches everything an external auditor needs from a live AEGIS deployment.
+// Fetches everything an external auditor needs from a live OKORO deployment.
 //
 // Design notes:
 //   - NDJSON is streamed straight to disk through a SHA256 hasher. We never
@@ -51,7 +51,7 @@ async function fetchJson(
       headers: {
         'Accept': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'User-Agent': 'aegis-audit-evidence-bundle/0.1.0',
+        'User-Agent': 'okoro-audit-evidence-bundle/0.1.0',
       },
       signal: controller.signal,
     });
@@ -77,7 +77,7 @@ async function fetchText(
       headers: {
         'Accept': 'text/plain, */*;q=0.5',
         'Authorization': `Bearer ${apiKey}`,
-        'User-Agent': 'aegis-audit-evidence-bundle/0.1.0',
+        'User-Agent': 'okoro-audit-evidence-bundle/0.1.0',
       },
       signal: controller.signal,
     });
@@ -106,7 +106,7 @@ async function fetchOptionalJson(
       headers: {
         'Accept': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'User-Agent': 'aegis-audit-evidence-bundle/0.1.0',
+        'User-Agent': 'okoro-audit-evidence-bundle/0.1.0',
       },
     });
     if (res.status === 404 || res.status === 410) {
@@ -148,7 +148,7 @@ export async function streamNdjsonExport(
       headers: {
         'Accept': 'application/x-ndjson',
         'Authorization': `Bearer ${apiKey}`,
-        'User-Agent': 'aegis-audit-evidence-bundle/0.1.0',
+        'User-Agent': 'okoro-audit-evidence-bundle/0.1.0',
       },
       signal: controller.signal,
     });
@@ -219,7 +219,7 @@ export async function streamNdjsonExport(
 }
 
 export async function createWorkDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'aegis-evidence-'));
+  const dir = await mkdtemp(join(tmpdir(), 'okoro-evidence-'));
   await mkdir(dir, { recursive: true });
   return dir;
 }
@@ -236,7 +236,7 @@ export async function fetchAllArtifacts(
 
   // The audit export is per-agent (`/v1/agents/:agentId/audit/export.ndjson`),
   // not per-principal. We fall back to {principalId} if no agent was passed,
-  // which is the AEGIS convention for "all agents owned by this principal"
+  // which is the OKORO convention for "all agents owned by this principal"
   // when (and only when) the operator has wired that route. Document the
   // limitation in the auditor README so it's not a silent assumption.
   const agentSegment = encodeURIComponent(opts.agentId ?? opts.principalId);
@@ -248,9 +248,9 @@ export async function fetchAllArtifacts(
   const ndjson = await streamNdjsonExport(exportUrl, opts.apiKey, adapter, dir);
 
   // Run the four well-known fetches concurrently — small payloads, independent.
-  const [jwks, aegisConfiguration, retention, securityTxt] = await Promise.all([
+  const [jwks, okoroConfiguration, retention, securityTxt] = await Promise.all([
     fetchJson(`${base}/.well-known/audit-signing-key`, opts.apiKey, adapter),
-    fetchJson(`${base}/.well-known/aegis-configuration`, opts.apiKey, adapter),
+    fetchJson(`${base}/.well-known/okoro-configuration`, opts.apiKey, adapter),
     fetchOptionalJson(`${base}/.well-known/retention-policy.json`, opts.apiKey, adapter),
     fetchText(`${base}/.well-known/security.txt`, opts.apiKey, adapter),
   ]);
@@ -261,7 +261,7 @@ export async function fetchAllArtifacts(
     redactedRowCount: ndjson.redactedCount,
     ndjsonSha256: ndjson.sha256,
     jwks,
-    aegisConfiguration,
+    okoroConfiguration,
     retentionPolicy: retention.body,
     retentionPolicyAvailable: retention.available,
     securityTxt,

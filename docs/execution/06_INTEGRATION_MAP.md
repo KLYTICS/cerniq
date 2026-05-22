@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Integration Map
+title: OKORO — Integration Map
 audience: every contributor confused about which doc governs what
 last-reviewed: 2026-05-08
 status: source-of-truth — v1
@@ -70,7 +70,7 @@ day-to-day artifacts (it governs how they get produced).
 
 ## 2. Per-surface ownership matrix
 
-Every product surface AEGIS ships maps to a department owner, an
+Every product surface OKORO ships maps to a department owner, an
 agent role typically performing the work, and the canonical doc(s)
 that govern it.
 
@@ -86,7 +86,7 @@ that govern it.
 | `apps/docs` | Engineering + Documenter + Design | Documenter → Designer → Implementer | docs/design/03_DOCS_SITE_PROMPTS.md, brand foundation |
 | `packages/sdk-ts` | Engineering + Standards | Architect → Implementer → Reviewer → Security | CLAUDE.md, ARCHITECTURE.md, OpenAPI spec |
 | `packages/sdk-py` | Engineering + Standards | Same as sdk-ts | Same as sdk-ts |
-| `packages/types` | Engineering | Architect → Implementer → Reviewer | spec/AEGIS_API_SPEC.yaml |
+| `packages/types` | Engineering | Architect → Implementer → Reviewer | spec/OKORO_API_SPEC.yaml |
 | `packages/ui-brand` | Design + Engineering | Designer → Implementer → Reviewer | docs/design/04_BRAND_IDENTITY_PROMPTS.md |
 | `workers/cf-verify` | Engineering + Security | Architect → Implementer → Reviewer → Security | CLAUDE.md inv-2 (portable verify path) |
 | Threat model | Security | Architect → Security | THREAT_MODEL_v2.md |
@@ -169,8 +169,8 @@ The chain reads left-to-right in time. Each transition is recorded
 
 | I want to… | Look here |
 |---|---|
-| Understand AEGIS architectural invariants | `CLAUDE.md` |
-| Understand AEGIS visual identity | `docs/design/00_BRAND_FOUNDATION.md` |
+| Understand OKORO architectural invariants | `CLAUDE.md` |
+| Understand OKORO visual identity | `docs/design/00_BRAND_FOUNDATION.md` |
 | Find a claimable module | `WORK_BOARD.md` |
 | Understand how to claim a module | `docs/SPRINT_PROTOCOL.md` |
 | Know which department owns a piece of work | `docs/execution/01_DEPARTMENT_CHARTERS.md` |
@@ -300,7 +300,7 @@ WORK_BOARD.md module added
 apps/api/prisma/schema.prisma changes
   → packages/types may need regen
   → apps/dashboard, apps/marketing data loaders may need updates
-  → docs/spec/AEGIS_API_SPEC.yaml may need updates
+  → docs/spec/OKORO_API_SPEC.yaml may need updates
   → migration file in apps/api/prisma/migrations/
 
 apps/api/src/modules/billing/plans.ts changes

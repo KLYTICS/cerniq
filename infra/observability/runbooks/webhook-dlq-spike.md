@@ -4,8 +4,8 @@
 
 - **Names**: `WebhookDLQSpike` (warning), `WebhookDeliveryFailureRate`
   (warning)
-- **Group**: `aegis.webhooks`
-- **File**: `infra/observability/alerts/aegis.rules.yml`
+- **Group**: `okoro.webhooks`
+- **File**: `infra/observability/alerts/okoro.rules.yml`
 
 ## Symptom
 
@@ -19,7 +19,7 @@ Either:
 ## Impact
 
 - **Customer integrations**: each abandoned delivery is a customer
-  who didn't get notified. They may rely on `aegis.agent.trust_score_changed`
+  who didn't get notified. They may rely on `okoro.agent.trust_score_changed`
   to take security action; missed deliveries delay their response.
 - **SLO**: webhook end-to-end delivery SLO is 99.9% delivered or
   DLQ'd within 24 h (`docs/SLO.md` § 1). The DLQ row exists for
@@ -33,23 +33,23 @@ Either:
 
    ```promql
    # DLQ alert (status=abandoned)
-   sum(rate(aegis_webhook_delivery_total{status="abandoned"}[5m]))
+   sum(rate(okoro_webhook_delivery_total{status="abandoned"}[5m]))
 
    # Failure-rate alert (status=failed, attempts not yet abandoned)
-   sum(rate(aegis_webhook_delivery_total{status="failed"}[5m]))
+   sum(rate(okoro_webhook_delivery_total{status="failed"}[5m]))
    /
-   clamp_min(sum(rate(aegis_webhook_delivery_total[5m])), 0.001)
+   clamp_min(sum(rate(okoro_webhook_delivery_total[5m])), 0.001)
    ```
 
 2. **Per-event-type breakdown.** A schema regression usually shows up
    in one event:
 
    ```promql
-   sum by (event, status) (rate(aegis_webhook_delivery_total[5m]))
+   sum by (event, status) (rate(okoro_webhook_delivery_total[5m]))
    ```
 
    If a single `event` value dominates the failures (e.g.
-   `aegis.agent.trust_score_changed`), suspect a recent payload
+   `okoro.agent.trust_score_changed`), suspect a recent payload
    change for that event type.
 
 3. **Per-customer-endpoint breakdown.** Query Postgres directly —
@@ -87,33 +87,33 @@ Either:
 5. **Check recent deploys + payload changes.**
 
    ```bash
-   railway deployments -s aegis-api --json | jq '.[0:3] | .[] | {createdAt, status}'
-   railway logs -s aegis-worker | rg -F 'webhook.delivery' | tail -50
+   railway deployments -s okoro-api --json | jq '.[0:3] | .[] | {createdAt, status}'
+   railway logs -s okoro-worker | rg -F 'webhook.delivery' | tail -50
    ```
 
 6. **Signature verification.** If the signing scheme changed and
-   customers verify (Stripe-style `X-AEGIS-Signature: t=<ts>,v1=<hmac>`),
+   customers verify (Stripe-style `X-OKORO-Signature: t=<ts>,v1=<hmac>`),
    they will reject as 4xx.
 
    ```bash
-   railway run -s aegis-api -- node -e 'console.log((process.env.WEBHOOK_SIGNING_SECRET || "").length)'
+   railway run -s okoro-api -- node -e 'console.log((process.env.WEBHOOK_SIGNING_SECRET || "").length)'
    ```
 
 ## Mitigate
 
 - **Single customer endpoint failing**: contact the customer; mark
-  the deliveries as expected DLQ (no AEGIS-side action). Confirm via
+  the deliveries as expected DLQ (no OKORO-side action). Confirm via
   step 3 that no other customers are affected.
 - **Many customers failing on one event type** (schema regression):
-  rollback `railway rollback -s aegis-api <prev-deploy-id>` AND
-  `railway rollback -s aegis-worker <prev-deploy-id>` — both
+  rollback `railway rollback -s okoro-api <prev-deploy-id>` AND
+  `railway rollback -s okoro-worker <prev-deploy-id>` — both
   services may need to roll. New attempts will pick up the old
   payload format.
 - **Many customers failing on signature**: confirm the
   `WEBHOOK_SIGNING_SECRET` env var hasn't rotated mid-flight. If it
   did, rotate it back (or roll the consumers forward).
 - **Worker overwhelmed** (failed because the worker timed out): scale
-  worker replicas — `railway service scale aegis-worker --replicas <n+1>`.
+  worker replicas — `railway service scale okoro-worker --replicas <n+1>`.
 - **Re-drive the DLQ** after mitigation: webhook deliveries that hit
   ABANDONED stay in `WebhookDelivery` with status. Re-enqueue them via
   the admin tool (when shipped — `scripts/redrive-webhooks.ts`,
@@ -139,18 +139,18 @@ Either:
   ticket; they need to fix their endpoint or remove it. Document in
   the customer's account record.
 - **Worker scaling**: bump default replica count in
-  `infra/railway/aegis-worker.json`.
+  `infra/railway/okoro-worker.json`.
 
 ## Verify recovery
 
 ```promql
 # DLQ rate must drop to ~0
-sum(rate(aegis_webhook_delivery_total{status="abandoned"}[5m])) < 0.1
+sum(rate(okoro_webhook_delivery_total{status="abandoned"}[5m])) < 0.1
 
 # Failure rate must drop below 5%
-sum(rate(aegis_webhook_delivery_total{status="failed"}[5m]))
+sum(rate(okoro_webhook_delivery_total{status="failed"}[5m]))
 /
-clamp_min(sum(rate(aegis_webhook_delivery_total[5m])), 0.001)
+clamp_min(sum(rate(okoro_webhook_delivery_total[5m])), 0.001)
 < 0.05
 ```
 
@@ -167,7 +167,7 @@ WHERE "updatedAt" > NOW() - INTERVAL '15 minutes'
 
 ## Escalate
 
-- **Not resolved in 30 min** → notify `#aegis-oncall` lead.
+- **Not resolved in 30 min** → notify `#okoro-oncall` lead.
 - **Multiple customers reporting impact** → page status-page owner;
   post acknowledgment within 5 min.
 - **Suspected payload-format compromise** (someone shipped data we

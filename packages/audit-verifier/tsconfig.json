@@ -1,5 +1,5 @@
 {
-  "extends": "@aegis/tsconfig/base.json",
+  "extends": "@okoro/tsconfig/base.json",
   "compilerOptions": {
     "outDir": "./dist",
     "module": "ESNext",

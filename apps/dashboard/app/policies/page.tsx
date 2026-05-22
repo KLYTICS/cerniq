@@ -6,8 +6,8 @@
 import type { Metadata } from 'next';
 
 import {
-  AegisApiError,
-  AegisAuthMissingError,
+  OkoroApiError,
+  OkoroAuthMissingError,
   listAgents,
   listPolicies,
   type AgentRow,
@@ -17,7 +17,7 @@ import { authConfigured } from '../../lib/auth';
 import { relativeTime, shortId, statusTone } from '../../lib/format';
 
 export const metadata: Metadata = {
-  title: 'Policies · AEGIS',
+  title: 'Policies · OKORO',
 };
 
 const MAX_AGENT_FANOUT = 50;
@@ -40,11 +40,11 @@ async function fetchAggregatedPolicies(): Promise<AggregatedResult | { error: { 
   try {
     agentList = await listAgents({ limit: MAX_AGENT_FANOUT });
   } catch (err) {
-    if (err instanceof AegisAuthMissingError) {
-      return { error: { code: err.code, message: 'Set AEGIS_DASHBOARD_API_KEY to populate this view.' } };
+    if (err instanceof OkoroAuthMissingError) {
+      return { error: { code: err.code, message: 'Set OKORO_DASHBOARD_API_KEY to populate this view.' } };
     }
-    if (err instanceof AegisApiError) return { error: { code: err.code, message: err.message } };
-    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting AEGIS API.' } };
+    if (err instanceof OkoroApiError) return { error: { code: err.code, message: err.message } };
+    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting OKORO API.' } };
   }
 
   const aggregated: AggregatedPolicy[] = [];
@@ -85,18 +85,18 @@ export default async function PoliciesPage() {
   const data = await fetchAggregatedPolicies();
 
   return (
-    <section className="aegis-page">
-      <header className="aegis-page-header">
+    <section className="okoro-page">
+      <header className="okoro-page-header">
         <h1>Policies</h1>
         <p className="muted">
-          Scoped, time-bounded permissions. Each row is an AEGIS-signed JWT issued to a specific
+          Scoped, time-bounded permissions. Each row is an OKORO-signed JWT issued to a specific
           agent. Revoking propagates to the verify hot path within seconds.
         </p>
       </header>
 
       {!authConfigured() ? (
         <div className="data-empty">
-          <p>Set <code>AEGIS_DASHBOARD_API_KEY</code> to populate this view.</p>
+          <p>Set <code>OKORO_DASHBOARD_API_KEY</code> to populate this view.</p>
         </div>
       ) : 'error' in data ? (
         <div className="data-empty error" role="alert">
@@ -146,7 +146,7 @@ export default async function PoliciesPage() {
             <div className="data-empty">
               <p>No policies issued.</p>
               <pre className="hint">{`# from your terminal:
-aegis policy create --agent agt_… --scope commerce.purchase --max 100USD --ttl 24h`}</pre>
+okoro policy create --agent agt_… --scope commerce.purchase --max 100USD --ttl 24h`}</pre>
             </div>
           ) : (
             <div className="table-scroll">

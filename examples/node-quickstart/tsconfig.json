@@ -1,5 +1,5 @@
 {
-  "extends": "@aegis/tsconfig/node.json",
+  "extends": "@okoro/tsconfig/node.json",
   "include": ["src/**/*"],
   "compilerOptions": {
     "outDir": "dist"

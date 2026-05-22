@@ -111,7 +111,7 @@ async function signRow(
 
 // ── The parity test ──────────────────────────────────────────────────
 
-describe('audit-chain parity — API signer ↔ @aegis/audit-verifier', () => {
+describe('audit-chain parity — API signer ↔ @okoro/audit-verifier', () => {
   it('verifier accepts an API-signed 5-row chain', async () => {
     const { priv, pubB64Url } = await generateKeypair();
     const rows: AuditEventRow[] = [];

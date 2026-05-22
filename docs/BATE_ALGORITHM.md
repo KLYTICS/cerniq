@@ -1,4 +1,4 @@
-# AEGIS — Behavioral Attestation Engine (BATE)
+# OKORO — Behavioral Attestation Engine (BATE)
 
 > Internal whitepaper. Defines the trust score model that every BATE
 > implementation (rule-based v1, ML v2) must agree on at the interface.
@@ -106,7 +106,7 @@ new agents can climb fast without history:
 >    or `openai` start at 575 (provider has done some screening).
 > 3. **Sponsorship**: An existing PLATINUM agent in the same principal
 >    can vouch (start at 600).
-> 4. **Aegis Verified Developer**: Operator-curated allow-list for
+> 4. **Okoro Verified Developer**: Operator-curated allow-list for
 >    early customers; +100 baseline.
 >
 > Until decided, default behavior: every new agent starts at 500. KYC
@@ -161,7 +161,7 @@ that emit signals (which then flow into the scoring formula above).
 
 ## 8. Score change webhooks
 
-Whenever a score crosses a band boundary, emit `aegis.agent.trust_score_changed`:
+Whenever a score crosses a band boundary, emit `okoro.agent.trust_score_changed`:
 
 ```json
 {

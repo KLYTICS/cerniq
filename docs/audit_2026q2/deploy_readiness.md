@@ -1,10 +1,10 @@
-# AEGIS — Deploy Readiness Audit (2026-Q2)
+# OKORO — Deploy Readiness Audit (2026-Q2)
 
 **Auditor**: Claude (Opus 4.7, 1M ctx) — read-only audit pass
 **Date**: 2026-05-01
 **Scope**: Railway (origin API + worker), Cloudflare Workers (Phase 3
 edge verify), Vercel (potential dashboard target)
-**Method**: Static read of repo at `/Users/money/Desktop/AEGIS`. No
+**Method**: Static read of repo at `/Users/money/Desktop/OKORO`. No
 source mutations, no commands run that change state.
 
 ---
@@ -13,8 +13,8 @@ source mutations, no commands run that change state.
 
 | Platform                          | Rating               | First deploy can succeed today? |
 | --------------------------------- | -------------------- | ------------------------------- |
-| **Railway — `aegis-api`**         | YELLOW (close)       | No — see blockers B1, B2, B3    |
-| **Railway — `aegis-worker`**      | RED                  | No — see blocker B4 (entrypoint missing) |
+| **Railway — `okoro-api`**         | YELLOW (close)       | No — see blockers B1, B2, B3    |
+| **Railway — `okoro-worker`**      | RED                  | No — see blocker B4 (entrypoint missing) |
 | **Cloudflare Workers — cf-verify**| GREEN-as-locked      | Intentionally bricked. No action required for Phase 1. |
 | **Vercel — dashboard**            | YELLOW (works, suboptimal) | Yes, with caveats — see V1, V2  |
 
@@ -29,7 +29,7 @@ either pinned + reproducible or a known-not-yet-needed gate.
 
 | Item                                   | Status | Evidence |
 | -------------------------------------- | ------ | -------- |
-| `pnpm-lock.yaml` present                | YES    | `/Users/money/Desktop/AEGIS/pnpm-lock.yaml` (374 KB, lockfileVersion 9.0). Earlier sessions referenced its absence; it is now committed. |
+| `pnpm-lock.yaml` present                | YES    | `/Users/money/Desktop/OKORO/pnpm-lock.yaml` (374 KB, lockfileVersion 9.0). Earlier sessions referenced its absence; it is now committed. |
 | Lockfile-aware install in CI           | YES    | `.github/workflows/ci.yml` runs `pnpm install --frozen-lockfile`. |
 | Lockfile-aware install in Docker       | YES    | Both `infra/docker/Dockerfile.api` and `Dockerfile.worker` use `--frozen-lockfile`. |
 | Lockfile-aware install in Railway      | YES    | `railway.json` and `infra/railway/api.service.json` both use `--frozen-lockfile`. |
@@ -45,7 +45,7 @@ either pinned + reproducible or a known-not-yet-needed gate.
 
 ## 2. Railway readiness
 
-### 2.1 `aegis-api` service
+### 2.1 `okoro-api` service
 
 `railway.json` (root) and `infra/railway/api.service.json` are slightly
 out of sync — both are committed:
@@ -53,12 +53,12 @@ out of sync — both are committed:
 | Field             | `railway.json` (root)                                              | `api.service.json`                                                                 |
 | ----------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
 | `buildCommand`    | `pnpm install --frozen-lockfile && prisma:generate && build`        | identical                                                                          |
-| `startCommand`    | `pnpm --filter @aegis/api start:prod`                               | `prisma:deploy && start:prod`                                                       |
+| `startCommand`    | `pnpm --filter @okoro/api start:prod`                               | `prisma:deploy && start:prod`                                                       |
 | `healthcheckPath` | `/v1/health/ready`                                                  | `/v1/health/ready`                                                                  |
 | `healthcheckTimeout` | 30                                                              | 30                                                                                  |
 | `restartPolicyMaxRetries` | 5                                                          | 5                                                                                   |
 
-A second descriptor `infra/railway/aegis-api.json` exists as a "legacy"
+A second descriptor `infra/railway/okoro-api.json` exists as a "legacy"
 file with `healthcheckPath: /health` (no v1 prefix) — this would 404 in
 production. The README marks it as deprecated; **delete it before
 operators link Railway to it by mistake**.
@@ -100,8 +100,8 @@ env vars with provisioning notes. Cross-referenced against
 | `JWT_ED25519_PUBLIC_KEY_B64`       | yes    | yes        |       |
 | `AUDIT_ED25519_PRIVATE_KEY_B64`    | yes    | yes        |       |
 | `AUDIT_ED25519_PUBLIC_KEY_B64`     | yes    | yes        |       |
-| `AEGIS_SIGNING_PUBLIC_KEY`         | yes    | **no**     | **Missing from `infra/railway/api.service.json`.** `wellknown.service.ts` throws at boot if absent (`onModuleInit`) — so the API will crash at startup in prod unless this is set. |
-| `AEGIS_SIGNING_KEY_ROTATED_AT`     | yes    | **no**     | Optional but documented in schema; missing from service descriptor. |
+| `OKORO_SIGNING_PUBLIC_KEY`         | yes    | **no**     | **Missing from `infra/railway/api.service.json`.** `wellknown.service.ts` throws at boot if absent (`onModuleInit`) — so the API will crash at startup in prod unless this is set. |
+| `OKORO_SIGNING_KEY_ROTATED_AT`     | yes    | **no**     | Optional but documented in schema; missing from service descriptor. |
 | `API_KEY_BCRYPT_COST`              | yes    | yes        |       |
 | `THROTTLE_*`                       | yes    | yes        |       |
 | `ENABLE_BATE`/`WEBHOOKS`/`SWAGGER` | yes    | yes        |       |
@@ -111,7 +111,7 @@ env vars with provisioning notes. Cross-referenced against
 | `OTEL_*`                           | **no** | yes        | OTel env vars are listed for Railway but are not in `config.schema.ts`. Whether they're enforced depends on the (not-yet-imported) OTel bootstrap module. |
 | `CORS_ORIGINS`                     | yes    | **no**     | Schema has it (default `*`); service descriptor doesn't. In prod this should NOT be `*` for an auth-bearing API. |
 
-### 2.2 `aegis-worker` service
+### 2.2 `okoro-worker` service
 
 `infra/railway/worker.service.json` declares `startCommand: node apps/api/dist/workers/main.js`.
 
@@ -132,7 +132,7 @@ immediately with a missing-module error. The API service does not
 require this — BullMQ inside the API process will still spin up, but
 it's a separate-process worker that's missing.
 
-### 2.3 `aegis-pg` and `aegis-redis`
+### 2.3 `okoro-pg` and `okoro-redis`
 
 Descriptors are sound. Postgres uses `postgres:16-alpine` (matches
 schema/CI). Redis uses `redis:7-alpine`. Init script
@@ -152,12 +152,12 @@ listed in handoff notes. RPO/RTO for Postgres is documented (5 min /
 - `compatibility_flags = ["nodejs_compat"]` — needed for `@noble/ed25519` and audit-chain util.
 - `[[kv_namespaces]] id = "REPLACE_ME_AT_DEPLOY"` — placeholder by design (per Phase-3 deploy steps in `workers/cf-verify/README.md`).
 - `[[durable_objects.bindings]] RATE_LIMITER` and migration `tag = "v1"` referencing `EdgeRateLimiter` — class is exported as a stub in `src/index.ts` (returns 501) but a Durable Object with no implementation will still be **provisioned** on `wrangler deploy`. This is acceptable Phase 3 prep.
-- `[vars] AEGIS_ORIGIN_URL = "https://api.aegislabs.io"` — placeholder hostname.
+- `[vars] OKORO_ORIGIN_URL = "https://api.okorolabs.io"` — placeholder hostname.
 
 `package.json`:
 
 ```json
-"deploy": "echo 'Phase 3 only — gated behind $5K AEGIS MRR. Edit me when ready.' && exit 1",
+"deploy": "echo 'Phase 3 only — gated behind $5K OKORO MRR. Edit me when ready.' && exit 1",
 ```
 
 The deploy gate is **explicit and discoverable**: any operator who
@@ -217,7 +217,7 @@ const config: NextConfig = {
   for Docker).
 - **V6 — Auth integration**: dashboard has no auth wired. For Phase 1
   internal-only use, this is fine; before any GA, an auth provider
-  (Clerk via Marketplace, or a custom JWT against AEGIS's own API
+  (Clerk via Marketplace, or a custom JWT against OKORO's own API
   keys) needs to land.
 - **V7 — Cache Components / PPR**: Next 16 ships with Cache
   Components. The dashboard does not opt in (no `use cache`,
@@ -227,7 +227,7 @@ const config: NextConfig = {
 **Best-practice deltas (low priority for first deploy)**:
 - Add `vercel.ts` at `apps/dashboard/vercel.ts` (or repo root,
   scoped) to pin framework + Node version.
-- Decide whether dashboard talks to AEGIS API directly from RSC
+- Decide whether dashboard talks to OKORO API directly from RSC
   (Node runtime, can hold a service-account API key) or only via
   client-side fetches (browser-bearing user JWT).
 
@@ -296,23 +296,23 @@ Confirmed and persisting:
 | -------------------------------- | --------------------------------------------------------------------- |
 | `AUDIT_ED25519_PRIVATE_KEY_B64`  | `audit.service.ts` (writes signed audit events) ; `config.schema.ts`  |
 | `AUDIT_ED25519_PUBLIC_KEY_B64`   | `audit.service.ts` ; `config.schema.ts` ; `infra/railway/api.service.json` ; `.env.example` |
-| `AEGIS_SIGNING_PUBLIC_KEY`       | `wellknown.service.ts` (publishes JWKS + audit-signing-key) ; `config.schema.ts` ; `scripts/generate-aegis-keys.ts` |
+| `OKORO_SIGNING_PUBLIC_KEY`       | `wellknown.service.ts` (publishes JWKS + audit-signing-key) ; `config.schema.ts` ; `scripts/generate-okoro-keys.ts` |
 
 Both names are validated and consumed by separate modules. **In
 production this means the operator must set BOTH** (and they must
 contain the same key material) or one of two surfaces is broken:
 
 - If only `AUDIT_ED25519_*` is set → audit events sign and append, but `/.well-known/audit-signing-key` boot-fails (`wellknown` throws at `onModuleInit`).
-- If only `AEGIS_SIGNING_PUBLIC_KEY` is set → wellknown responds, but `audit.service.initSigningKey()` throws "must be set in production".
+- If only `OKORO_SIGNING_PUBLIC_KEY` is set → wellknown responds, but `audit.service.initSigningKey()` throws "must be set in production".
 
-The legacy descriptor `infra/railway/aegis-api.json` further muddies
+The legacy descriptor `infra/railway/okoro-api.json` further muddies
 the water by listing `AUDIT_SIGNING_PRIVATE_KEY_B64` /
 `AUDIT_SIGNING_PUBLIC_KEY_B64` (the old RSA names, also kept in
 `config.schema.ts` as `AUDIT_SIGNING_KEY_B64` "deprecated, kept for one
 release").
 
 **Recommendation (per `SESSION_HANDOFF` open conflict #3)**: pick one
-canonical name (`AEGIS_SIGNING_PUBLIC_KEY` per the wellknown module)
+canonical name (`OKORO_SIGNING_PUBLIC_KEY` per the wellknown module)
 and have `audit.service.ts` read from it. Until that consolidation
 lands, the runbook MUST instruct operators to set the public-key
 value under both names.
@@ -332,7 +332,7 @@ value under both names.
 
 `AUDIT_SIGNING_KEY_B64` is still in `config.schema.ts` as "deprecated,
 to be removed in v0.2". It is still listed in
-`infra/railway/aegis-api.json` (legacy descriptor). It does not appear
+`infra/railway/okoro-api.json` (legacy descriptor). It does not appear
 to be read anywhere active — keep an eye on this when deleting the
 legacy descriptor.
 
@@ -368,8 +368,8 @@ first-deploy footgun.
 
 ```bash
 # Generate the baseline migration locally
-DATABASE_URL=postgresql://aegis:aegis@localhost:5432/aegis \
-  pnpm --filter @aegis/api prisma migrate dev --name init
+DATABASE_URL=postgresql://okoro:okoro@localhost:5432/okoro \
+  pnpm --filter @okoro/api prisma migrate dev --name init
 git add apps/api/prisma/migrations
 git commit -m "feat(api): baseline prisma migration"
 ```
@@ -390,11 +390,11 @@ dropped and re-created from migrations.
 | --------------------------------- | ------------------------------------------------------------------------------- |
 | `DATABASE_URL`                    | Railway Postgres plugin OR Neon connection string (operator pastes into Railway dashboard). |
 | `REDIS_URL`                       | Railway Redis plugin OR Upstash.                                                |
-| `JWT_ED25519_PRIVATE_KEY_B64`     | Generated via `pnpm tsx scripts/generate-aegis-keys.ts --env`, piped into Railway, source file shredded. Documented in `infra/railway/README.md` § 2. |
+| `JWT_ED25519_PRIVATE_KEY_B64`     | Generated via `pnpm tsx scripts/generate-okoro-keys.ts --env`, piped into Railway, source file shredded. Documented in `infra/railway/README.md` § 2. |
 | `JWT_ED25519_PUBLIC_KEY_B64`      | Same script.                                                                    |
 | `AUDIT_ED25519_PRIVATE_KEY_B64`   | Same script. Same key copied to API + worker services so the audit chain stays unbroken. |
 | `AUDIT_ED25519_PUBLIC_KEY_B64`    | Same script.                                                                    |
-| `AEGIS_SIGNING_PUBLIC_KEY`        | **Needs to be the same value as `AUDIT_ED25519_PUBLIC_KEY_B64`** until the naming collision is fixed. |
+| `OKORO_SIGNING_PUBLIC_KEY`        | **Needs to be the same value as `AUDIT_ED25519_PUBLIC_KEY_B64`** until the naming collision is fixed. |
 | `STRIPE_SECRET_KEY`               | Stripe dashboard → live secret key.                                             |
 | `STRIPE_WEBHOOK_SECRET`           | Stripe dashboard → endpoint signing secret.                                     |
 | `SENTRY_DSN`                      | Sentry project settings (separate projects for API vs worker per descriptor).   |
@@ -407,10 +407,10 @@ the operator should plan for either:
 
 - Railway's planned secrets-manager integration (when GA), or
 - An external KMS (AWS KMS, HashiCorp Vault) with
-  `AEGIS_KMS_KEY_ID`-style indirection — not currently in schema.
+  `OKORO_KMS_KEY_ID`-style indirection — not currently in schema.
 
 The Husky pre-commit hook (`.husky/pre-commit`) does grep for
-`aegis_sk_*`, `.pem`, `.env` etc. before staging — defensive layer
+`okoro_sk_*`, `.pem`, `.env` etc. before staging — defensive layer
 against accidental commit.
 
 **Rating**: YELLOW. Process is documented; KMS path is roadmap-only.
@@ -423,7 +423,7 @@ against accidental commit.
 | ------------------------ | --------------------- | ------------------------------------------------------------------------------------- |
 | `railway.json` (root)    | `/v1/health/ready`    | matches `HealthController` (`@Controller('health') + @Get('ready')`) under `setGlobalPrefix('v1')`. ✅ |
 | `infra/railway/api.service.json` | `/v1/health/ready` | matches. ✅                                                                            |
-| `infra/railway/aegis-api.json` (legacy) | `/health` | **MISMATCH** — would 404 in prod. Delete this file.                                    |
+| `infra/railway/okoro-api.json` (legacy) | `/health` | **MISMATCH** — would 404 in prod. Delete this file.                                    |
 | `infra/docker/healthcheck.sh` | `/v1/health/ready` (configurable via `HEALTHCHECK_PATH`) | matches. ✅ |
 | `infra/railway/README.md` § 5 | `/v1/health/live`, `/v1/health/ready` | both routes exist on the controller. ✅ |
 | `workers/cf-verify/src/index.ts` | `/health` (edge worker self-check) | served at edge, distinct from origin. ✅ |
@@ -475,7 +475,7 @@ with URL prefix exclusion. The only `setGlobalPrefix` exclusions are
 - Node 22.11.0 (drift from 20.11.0 elsewhere).
 - Changesets-driven publish to npm with `NPM_CONFIG_PROVENANCE=true`
   — Sigstore provenance enabled. ✅
-- Only handles `@aegis/sdk` and `@aegis/types`. Internal apps deploy
+- Only handles `@okoro/sdk` and `@okoro/types`. Internal apps deploy
   via Railway / Vercel as documented. ✅
 
 **Rating**: YELLOW (placeholder pins + minor version drift).
@@ -490,10 +490,10 @@ In approximate priority order:
    does not exist. Required for `prisma migrate deploy` to do anything.
 2. **`apps/api/src/workers/main.ts`** — the BullMQ worker bootstrap
    referenced by `Dockerfile.worker` and `infra/railway/worker.service.json`. Without this, the worker service crash-loops on first start.
-3. **Resolution of `AUDIT_ED25519_PUBLIC_KEY_B64` vs `AEGIS_SIGNING_PUBLIC_KEY` collision** — pick one; rewire the loser. Until then, operators must set both.
-4. **`AEGIS_SIGNING_PUBLIC_KEY` added to `infra/railway/api.service.json`** envVars list — currently missing; without it the API throws at boot.
+3. **Resolution of `AUDIT_ED25519_PUBLIC_KEY_B64` vs `OKORO_SIGNING_PUBLIC_KEY` collision** — pick one; rewire the loser. Until then, operators must set both.
+4. **`OKORO_SIGNING_PUBLIC_KEY` added to `infra/railway/api.service.json`** envVars list — currently missing; without it the API throws at boot.
 5. **Full SHA pins on every third-party action** in `.github/workflows/security.yml` (and the lighter pins in `release.yml`).
-6. **Deletion of `infra/railway/aegis-api.json`** — legacy descriptor with wrong `healthcheckPath`.
+6. **Deletion of `infra/railway/okoro-api.json`** — legacy descriptor with wrong `healthcheckPath`.
 7. **Decision on `DATABASE_DIRECT_URL`** — either add `directUrl` to `schema.prisma` and the Zod schema, or remove the env var from descriptors so it doesn't mislead operators.
 8. **`vercel.ts`** for the dashboard — only if Vercel is the chosen target. Lock framework + Node + Root Directory.
 9. **OTel SDK bootstrap module** — if `OTEL_*` env vars are documented in service descriptors, something must consume them. Either ship the bootstrap or remove the vars until the module lands.
@@ -508,10 +508,10 @@ Ordered by what stops the deploy first:
 | # | Blocker                                                                           | Fix surface                          |
 | - | --------------------------------------------------------------------------------- | ------------------------------------ |
 | **B1** | No Prisma migrations exist. `migrate deploy` runs but applies nothing; queries fail. | Generate baseline migration; commit. |
-| **B2** | `AEGIS_SIGNING_PUBLIC_KEY` not in Railway descriptor; `wellknown.service` throws at boot. | Add to `infra/railway/api.service.json` and Railway dashboard. |
+| **B2** | `OKORO_SIGNING_PUBLIC_KEY` not in Railway descriptor; `wellknown.service` throws at boot. | Add to `infra/railway/api.service.json` and Railway dashboard. |
 | **B3** | API boot also throws (in production) if `AUDIT_ED25519_*` not set. The descriptor includes them, so this is operator-set. | Set in Railway dashboard before first deploy. |
 | **B4** | Worker service has no entrypoint (`apps/api/src/workers/main.ts` missing). | Either ship the bootstrap or skip the worker service for the first deploy and run BullMQ in-process inside the API. |
-| **B5** | `infra/railway/aegis-api.json` has wrong healthcheck path (`/health`). If an operator links that descriptor, deploy goes unhealthy. | Delete the file. |
+| **B5** | `infra/railway/okoro-api.json` has wrong healthcheck path (`/health`). If an operator links that descriptor, deploy goes unhealthy. | Delete the file. |
 | **B6** | Audit signing key naming collision means operator must set the same key under two names; easy to mis-set. | Document explicitly OR consolidate names. |
 
 Non-blockers but strongly-suggested-before-first-deploy:
@@ -529,9 +529,9 @@ Non-blockers but strongly-suggested-before-first-deploy:
 2. Decide audit-key consolidation (B6). Patch `audit.service.ts` or
    `wellknown.service.ts` to read from the canonical name. Update
    `.env.example` and railway descriptors.
-3. Add `AEGIS_SIGNING_PUBLIC_KEY` to `api.service.json` envVars (B2)
+3. Add `OKORO_SIGNING_PUBLIC_KEY` to `api.service.json` envVars (B2)
    if collision is left in place.
-4. Delete `infra/railway/aegis-api.json` (B5).
+4. Delete `infra/railway/okoro-api.json` (B5).
 5. Decide worker-deploy strategy (B4):
    - **Option A** (faster to ship): comment out the worker service
      in the Railway plan; run BullMQ inside the API process.
@@ -540,13 +540,13 @@ Non-blockers but strongly-suggested-before-first-deploy:
 6. SHA-pin third-party actions in `security.yml`.
 
 ### Stage 2 — Infra provisioning (Railway)
-1. Provision `aegis-pg` (Postgres 16 plugin OR Neon).
-2. Provision `aegis-redis` (Redis 7 plugin OR Upstash).
-3. Generate prod keypairs via `scripts/generate-aegis-keys.ts --env`.
-4. Set env vars on `aegis-api` per `infra/railway/api.service.json`,
-   plus `AEGIS_SIGNING_PUBLIC_KEY` (= `AUDIT_ED25519_PUBLIC_KEY_B64`
+1. Provision `okoro-pg` (Postgres 16 plugin OR Neon).
+2. Provision `okoro-redis` (Redis 7 plugin OR Upstash).
+3. Generate prod keypairs via `scripts/generate-okoro-keys.ts --env`.
+4. Set env vars on `okoro-api` per `infra/railway/api.service.json`,
+   plus `OKORO_SIGNING_PUBLIC_KEY` (= `AUDIT_ED25519_PUBLIC_KEY_B64`
    value until collision resolved).
-5. `railway up --service aegis-api` — first deploy runs `prisma
+5. `railway up --service okoro-api` — first deploy runs `prisma
    migrate deploy` against the empty Postgres, creating the schema.
 
 ### Stage 3 — Health gates
@@ -557,7 +557,7 @@ Non-blockers but strongly-suggested-before-first-deploy:
    relevant if billing flow is in scope for first deploy).
 
 ### Stage 4 — Worker (if Option B chosen)
-1. `railway up --service aegis-worker`.
+1. `railway up --service okoro-worker`.
 2. Watch logs for "queue.*ready / worker.*started".
 3. Trigger a BATE signal ingestion; confirm score recompute.
 
@@ -578,8 +578,8 @@ Non-blockers but strongly-suggested-before-first-deploy:
 
 | Platform                          | Rating               | Top-1 reason                                                                    |
 | --------------------------------- | -------------------- | ------------------------------------------------------------------------------- |
-| **Railway — `aegis-api`**         | YELLOW (close)       | No Prisma migrations + `AEGIS_SIGNING_PUBLIC_KEY` not in descriptor.             |
-| **Railway — `aegis-worker`**      | RED                  | Entry point `dist/workers/main.js` does not exist; container crash-loops.       |
+| **Railway — `okoro-api`**         | YELLOW (close)       | No Prisma migrations + `OKORO_SIGNING_PUBLIC_KEY` not in descriptor.             |
+| **Railway — `okoro-worker`**      | RED                  | Entry point `dist/workers/main.js` does not exist; container crash-loops.       |
 | **Railway — Postgres / Redis**    | GREEN                | Standard managed plugins; init script + tuning notes documented.                 |
 | **Cloudflare — cf-verify**        | GREEN-as-locked      | Deploy is sealed; README documents unlock path. No Phase-1 action needed.        |
 | **Vercel — dashboard**            | YELLOW               | Works out of the box; missing platform config (`vercel.ts`) and auth.            |
@@ -592,42 +592,42 @@ Non-blockers but strongly-suggested-before-first-deploy:
 
 ## Appendix A — files referenced
 
-- `/Users/money/Desktop/AEGIS/README.md`
-- `/Users/money/Desktop/AEGIS/CLAUDE.md`
-- `/Users/money/Desktop/AEGIS/docs/RUNBOOK.md`
-- `/Users/money/Desktop/AEGIS/docs/ARCHITECTURE.md`
-- `/Users/money/Desktop/AEGIS/docs/SESSION_HANDOFF.md`
-- `/Users/money/Desktop/AEGIS/OPERATOR_DECISIONS.md`
-- `/Users/money/Desktop/AEGIS/package.json`
-- `/Users/money/Desktop/AEGIS/pnpm-workspace.yaml`
-- `/Users/money/Desktop/AEGIS/pnpm-lock.yaml`
-- `/Users/money/Desktop/AEGIS/railway.json`
-- `/Users/money/Desktop/AEGIS/.env.example`
-- `/Users/money/Desktop/AEGIS/.dockerignore`
-- `/Users/money/Desktop/AEGIS/apps/api/package.json`
-- `/Users/money/Desktop/AEGIS/apps/api/src/main.ts`
-- `/Users/money/Desktop/AEGIS/apps/api/src/config/config.schema.ts`
-- `/Users/money/Desktop/AEGIS/apps/api/src/config/config.service.ts`
-- `/Users/money/Desktop/AEGIS/apps/api/src/modules/health/health.controller.ts`
-- `/Users/money/Desktop/AEGIS/apps/api/src/modules/wellknown/wellknown.service.ts`
-- `/Users/money/Desktop/AEGIS/apps/api/src/modules/audit/audit.service.ts`
-- `/Users/money/Desktop/AEGIS/apps/api/prisma/schema.prisma`
-- `/Users/money/Desktop/AEGIS/apps/api/prisma/migrations/` (empty)
-- `/Users/money/Desktop/AEGIS/apps/dashboard/package.json`
-- `/Users/money/Desktop/AEGIS/apps/dashboard/next.config.ts`
-- `/Users/money/Desktop/AEGIS/workers/cf-verify/package.json`
-- `/Users/money/Desktop/AEGIS/workers/cf-verify/wrangler.toml`
-- `/Users/money/Desktop/AEGIS/workers/cf-verify/src/index.ts`
-- `/Users/money/Desktop/AEGIS/workers/cf-verify/README.md`
-- `/Users/money/Desktop/AEGIS/infra/docker/Dockerfile.api`
-- `/Users/money/Desktop/AEGIS/infra/docker/Dockerfile.worker`
-- `/Users/money/Desktop/AEGIS/infra/docker/healthcheck.sh`
-- `/Users/money/Desktop/AEGIS/infra/railway/api.service.json`
-- `/Users/money/Desktop/AEGIS/infra/railway/worker.service.json`
-- `/Users/money/Desktop/AEGIS/infra/railway/postgres.service.json`
-- `/Users/money/Desktop/AEGIS/infra/railway/redis.service.json`
-- `/Users/money/Desktop/AEGIS/infra/railway/aegis-api.json` (legacy — recommend deletion)
-- `/Users/money/Desktop/AEGIS/infra/railway/README.md`
-- `/Users/money/Desktop/AEGIS/.github/workflows/ci.yml`
-- `/Users/money/Desktop/AEGIS/.github/workflows/security.yml`
-- `/Users/money/Desktop/AEGIS/.github/workflows/release.yml`
+- `/Users/money/Desktop/OKORO/README.md`
+- `/Users/money/Desktop/OKORO/CLAUDE.md`
+- `/Users/money/Desktop/OKORO/docs/RUNBOOK.md`
+- `/Users/money/Desktop/OKORO/docs/ARCHITECTURE.md`
+- `/Users/money/Desktop/OKORO/docs/SESSION_HANDOFF.md`
+- `/Users/money/Desktop/OKORO/OPERATOR_DECISIONS.md`
+- `/Users/money/Desktop/OKORO/package.json`
+- `/Users/money/Desktop/OKORO/pnpm-workspace.yaml`
+- `/Users/money/Desktop/OKORO/pnpm-lock.yaml`
+- `/Users/money/Desktop/OKORO/railway.json`
+- `/Users/money/Desktop/OKORO/.env.example`
+- `/Users/money/Desktop/OKORO/.dockerignore`
+- `/Users/money/Desktop/OKORO/apps/api/package.json`
+- `/Users/money/Desktop/OKORO/apps/api/src/main.ts`
+- `/Users/money/Desktop/OKORO/apps/api/src/config/config.schema.ts`
+- `/Users/money/Desktop/OKORO/apps/api/src/config/config.service.ts`
+- `/Users/money/Desktop/OKORO/apps/api/src/modules/health/health.controller.ts`
+- `/Users/money/Desktop/OKORO/apps/api/src/modules/wellknown/wellknown.service.ts`
+- `/Users/money/Desktop/OKORO/apps/api/src/modules/audit/audit.service.ts`
+- `/Users/money/Desktop/OKORO/apps/api/prisma/schema.prisma`
+- `/Users/money/Desktop/OKORO/apps/api/prisma/migrations/` (empty)
+- `/Users/money/Desktop/OKORO/apps/dashboard/package.json`
+- `/Users/money/Desktop/OKORO/apps/dashboard/next.config.ts`
+- `/Users/money/Desktop/OKORO/workers/cf-verify/package.json`
+- `/Users/money/Desktop/OKORO/workers/cf-verify/wrangler.toml`
+- `/Users/money/Desktop/OKORO/workers/cf-verify/src/index.ts`
+- `/Users/money/Desktop/OKORO/workers/cf-verify/README.md`
+- `/Users/money/Desktop/OKORO/infra/docker/Dockerfile.api`
+- `/Users/money/Desktop/OKORO/infra/docker/Dockerfile.worker`
+- `/Users/money/Desktop/OKORO/infra/docker/healthcheck.sh`
+- `/Users/money/Desktop/OKORO/infra/railway/api.service.json`
+- `/Users/money/Desktop/OKORO/infra/railway/worker.service.json`
+- `/Users/money/Desktop/OKORO/infra/railway/postgres.service.json`
+- `/Users/money/Desktop/OKORO/infra/railway/redis.service.json`
+- `/Users/money/Desktop/OKORO/infra/railway/okoro-api.json` (legacy — recommend deletion)
+- `/Users/money/Desktop/OKORO/infra/railway/README.md`
+- `/Users/money/Desktop/OKORO/.github/workflows/ci.yml`
+- `/Users/money/Desktop/OKORO/.github/workflows/security.yml`
+- `/Users/money/Desktop/OKORO/.github/workflows/release.yml`

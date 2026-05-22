@@ -15,16 +15,16 @@ export const configSchema = z.object({
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
 
-  // Reserved for legacy RSA flow — superseded by AEGIS_SIGNING_*. Will be removed in v0.2.
+  // Reserved for legacy RSA flow — superseded by OKORO_SIGNING_*. Will be removed in v0.2.
   AUDIT_SIGNING_KEY_B64: z.string().optional(),
 
   // ----- Canonical signing-key envs (audit + .well-known) -----
   // Both audit.service.ts (signs the chain) and wellknown.service.ts
   // (publishes the verification key at /.well-known/jwks.json) read these.
   // Stored as base64url-encoded raw 32-byte Ed25519 keys.
-  AEGIS_SIGNING_PRIVATE_KEY: z.string().min(40).optional(),
-  AEGIS_SIGNING_PUBLIC_KEY: z.string().min(40).optional(),
-  AEGIS_SIGNING_KEY_ROTATED_AT: z.string().datetime().optional(),
+  OKORO_SIGNING_PRIVATE_KEY: z.string().min(40).optional(),
+  OKORO_SIGNING_PUBLIC_KEY: z.string().min(40).optional(),
+  OKORO_SIGNING_KEY_ROTATED_AT: z.string().datetime().optional(),
 
   // ----- Auth0 bridge (ADR-0009) -----
   // The peer auth0 module reads these. Issuer matches Auth0's `iss` claim
@@ -38,7 +38,7 @@ export const configSchema = z.object({
   // The audit module previously read these; the wellknown module always
   // read the canonical pair above. Keeping them as accepted-but-warned
   // inputs lets in-flight Railway descriptors keep booting until operators
-  // rename. ConfigService.aegisSigningPrivateKey() falls back to these and
+  // rename. ConfigService.okoroSigningPrivateKey() falls back to these and
   // logs a deprecation warning at boot.
   AUDIT_ED25519_PRIVATE_KEY_B64: z.string().optional(),
   AUDIT_ED25519_PUBLIC_KEY_B64: z.string().optional(),
@@ -85,7 +85,7 @@ export const configSchema = z.object({
   // Production: REQUIRED — `WebhookSecretCipher` fails-loud at boot.
   // Dev/test: OPTIONAL — cipher generates an ephemeral DEK and logs a WARN
   // with the b64 so the developer can pin it across restarts.
-  AEGIS_WEBHOOK_SECRET_DEK_B64: z
+  OKORO_WEBHOOK_SECRET_DEK_B64: z
     .string()
     .optional()
     .refine(
@@ -97,7 +97,7 @@ export const configSchema = z.object({
           return false;
         }
       },
-      { message: 'AEGIS_WEBHOOK_SECRET_DEK_B64 must decode to 32 bytes (AES-256 key).' },
+      { message: 'OKORO_WEBHOOK_SECRET_DEK_B64 must decode to 32 bytes (AES-256 key).' },
     ),
 
   // ----- WorkOS adapter (idp-workos.module) -----

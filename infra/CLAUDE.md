@@ -1,4 +1,4 @@
-# AEGIS Infra - Claude contract
+# OKORO Infra - Claude contract
 
 This directory owns deployment, network, Auth0, backup, KMS, Cloudflare,
 Railway, Redis/Postgres, and observability infrastructure documentation and

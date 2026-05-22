@@ -2,7 +2,7 @@
 /**
  * publish-dry-run.ts — pre-flight gate for `npm publish`.
  *
- * Runs `npm pack --dry-run --json` for every public `@aegis/*` package
+ * Runs `npm pack --dry-run --json` for every public `@okoro/*` package
  * and asserts:
  *   - the tarball excludes test/dev/secret artefacts
  *   - the tarball includes README, LICENSE, and the entrypoints declared
@@ -24,8 +24,8 @@ import * as path from 'node:path';
 import { promisify } from 'node:util';
 
 import {
-  AegisPackageManifest,
-  findAegisPackages,
+  OkoroPackageManifest,
+  findOkoroPackages,
   findRepoRoot,
   isValidSemver,
 } from './lib/package-introspect.js';
@@ -89,13 +89,13 @@ export interface CliFlags {
 // ──────────────────────────────────────────────────────────────────────
 
 const USAGE = `\
-publish-dry-run — verify every public @aegis/* package is publish-clean.
+publish-dry-run — verify every public @okoro/* package is publish-clean.
 
 Usage:
   pnpm publish:dry-run [--all] [--package <name>] [--strict] [--json]
 
 Flags:
-  --all              Run against every public @aegis/* package (default)
+  --all              Run against every public @okoro/* package (default)
   --package <name>   Restrict to one package by name
   --strict           Treat warnings as failures
   --json             Emit machine-readable JSON to stdout
@@ -315,7 +315,7 @@ export interface CheckPackageDeps {
 }
 
 export async function checkPackage(
-  pkg: AegisPackageManifest,
+  pkg: OkoroPackageManifest,
   deps: CheckPackageDeps,
 ): Promise<PackageReport> {
   const checks: Check[] = [];
@@ -368,7 +368,7 @@ export async function checkPackage(
     const r = (repo as { url?: unknown }).url;
     if (typeof r === 'string') repoUrl = r;
   }
-  if (/aegis/i.test(repoUrl)) {
+  if (/okoro/i.test(repoUrl)) {
     checks.push({
       id: 'manifest.repository',
       level: 'pass',
@@ -378,7 +378,7 @@ export async function checkPackage(
     checks.push({
       id: 'manifest.repository',
       level: 'fail',
-      message: `repository.url missing or doesn't reference an aegis repo (got: ${repoUrl || '<unset>'})`,
+      message: `repository.url missing or doesn't reference an okoro repo (got: ${repoUrl || '<unset>'})`,
     });
   }
 
@@ -706,7 +706,7 @@ export async function run(
     log: depsIn.log ?? ((s) => process.stdout.write(s.endsWith('\n') ? s : `${s}\n`)),
   };
 
-  let packages = findAegisPackages({ repoRoot, publishableOnly: true });
+  let packages = findOkoroPackages({ repoRoot, publishableOnly: true });
   if (flags.packageFilter) {
     packages = packages.filter((p) => p.name === flags.packageFilter);
     if (packages.length === 0) {

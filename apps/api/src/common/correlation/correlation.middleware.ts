@@ -4,7 +4,7 @@
 // patch `principalId` / `apiKeyId` into the same context once it resolves
 // the API key.
 
-import { AEGIS_HEADER_REQUEST_ID } from '@aegis/types';
+import { OKORO_HEADER_REQUEST_ID } from '@okoro/types';
 import { Injectable, type NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 import { ulid } from 'ulid';
@@ -12,7 +12,7 @@ import { ulid } from 'ulid';
 
 import { CorrelationContext, type CorrelationState } from './correlation.context';
 
-const HEADER_LOWER = AEGIS_HEADER_REQUEST_ID.toLowerCase();
+const HEADER_LOWER = OKORO_HEADER_REQUEST_ID.toLowerCase();
 const TX_PREFIX = 'tx_';
 const ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/i;
 
@@ -64,7 +64,7 @@ export class CorrelationMiddleware implements NestMiddleware {
       ...(userAgent ? { userAgent } : {}),
     };
 
-    res.setHeader(AEGIS_HEADER_REQUEST_ID, txId);
+    res.setHeader(OKORO_HEADER_REQUEST_ID, txId);
 
     CorrelationContext.run(state, () => { next(); });
   }

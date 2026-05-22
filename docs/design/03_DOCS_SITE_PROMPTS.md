@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Docs Site Design Prompts
+title: OKORO — Docs Site Design Prompts
 audience: design AI tools, contract designers, in-repo Cursor sessions
 last-reviewed: 2026-05-08
 prerequisites: read `docs/design/00_BRAND_FOUNDATION.md` first
@@ -8,17 +8,17 @@ prerequisites: read `docs/design/00_BRAND_FOUNDATION.md` first
 # 03 — Docs Site Prompts
 
 The docs site is where developers turn intent into code. Stripe and
-Cloudflare set the bar; AEGIS aims for that bar from day one.
+Cloudflare set the bar; OKORO aims for that bar from day one.
 
-The docs subdomain (`docs.aegis.dev`) is a separate surface from
+The docs subdomain (`docs.okoro.dev`) is a separate surface from
 marketing — different IA, different layout, different focus on
-density and search. It must, however, share the AEGIS Brand Foundation
+density and search. It must, however, share the OKORO Brand Foundation
 exactly so the developer experience reads as one product.
 
 ## Information architecture
 
 ```
-docs.aegis.dev/
+docs.okoro.dev/
 ├── /                          Landing — quickstart, popular pages, search front-and-center
 ├── /quickstart                10-minute path from zero to first verified call
 ├── /concepts/
@@ -28,10 +28,10 @@ docs.aegis.dev/
 │   ├── /audit                 The chain, canonicalization, integrity verification
 │   └── /denials               The 10 reasons in fixed order, with examples for each
 ├── /sdks/
-│   ├── /typescript            @aegis/sdk reference + cookbook
-│   ├── /python                aegis (PyPI) reference + cookbook
-│   ├── /go                    @aegis/go (post-launch)
-│   └── /rust                  @aegis/rust (post-launch)
+│   ├── /typescript            @okoro/sdk reference + cookbook
+│   ├── /python                okoro (PyPI) reference + cookbook
+│   ├── /go                    @okoro/go (post-launch)
+│   └── /rust                  @okoro/rust (post-launch)
 ├── /api/
 │   ├── /authentication        API key types, scopes, rotation
 │   ├── /agents                CRUD + signing key management
@@ -73,7 +73,7 @@ docs.aegis.dev/
   pages are partially generated from the OpenAPI spec.
 - **Search:** Algolia DocSearch (free for OSS docs).
 - **Code blocks:** Shiki for syntax highlighting. Custom transformer
-  applies the AEGIS bold-italic on `aegis.\w+` and SDK-specific tokens.
+  applies the OKORO bold-italic on `okoro.\w+` and SDK-specific tokens.
 - **API reference:** generated from `apps/api`'s OpenAPI export at build
   time. The `/api/*` pages are MDX wrappers around generated tables, not
   hand-written prose.
@@ -85,10 +85,10 @@ docs.aegis.dev/
 ### A.1 Docs landing page
 
 ```
-Build the docs.aegis.dev landing page. Stack: Next.js App Router +
+Build the docs.okoro.dev landing page. Stack: Next.js App Router +
 Tailwind + shadcn/ui (or Nextra if the tool supports it).
 
-Follow the AEGIS Brand Foundation v1 (slate neutrals + aegis-500 #06B6D4
+Follow the OKORO Brand Foundation v1 (slate neutrals + okoro-500 #06B6D4
 brand, Inter + JetBrains Mono, Cloudflare/Auth0 visual lane, security-
 forward but developer-first, no gradients on text). Light mode default
 on docs (matches Stripe/Cloudflare convention); dark-mode toggle in
@@ -100,7 +100,7 @@ Layout:
   icon
 - Below header: a single-column hero, 480px tall, centered content,
   max-width 720px:
-  - Eyebrow "AEGIS docs" (text-xs all-caps slate-500)
+  - Eyebrow "OKORO docs" (text-xs all-caps slate-500)
   - h1 "Verify your first agent in 10 minutes." (text-5xl tracking-tight)
   - Lede (text-lg slate-600): "Quickstart, full SDK + API references,
     and the integration patterns we recommend for production. Start
@@ -142,7 +142,7 @@ Build the canonical docs content page layout. Three columns on desktop
 Left col (240px, sticky-on-scroll, scroll-overflow-y):
 - Section header (e.g. "Concepts") — text-xs all-caps slate-500
 - Tree of pages with active highlighting; nested 2 levels max
-- Active item: aegis-500 left border 2px, slate-900 text, slate-50 bg
+- Active item: okoro-500 left border 2px, slate-900 text, slate-50 bg
   (light mode)
 - Hover: slate-700 text, slate-100 bg
 
@@ -156,11 +156,11 @@ Center col (max-width 720px, flex-grow):
   · p (text-base slate-700, 24px line-height, max-width 64ch)
   · ul/ol (slate-700, 8px gap between items)
   · code (inline) — JetBrains Mono 14px, slate-100 bg, 4px x-padding,
-    aegis-700 text
+    okoro-700 text
   · pre (code blocks) — see Brand Foundation §10 treatment, with
     language label header strip + copy button + the bold-italic on
-    AEGIS-specific calls
-  · blockquote — left aegis-500 4px border, 16px padding, slate-50 bg
+    OKORO-specific calls
+  · blockquote — left okoro-500 4px border, 16px padding, slate-50 bg
   · table — full width, slate-200 borders, header row text-xs all-caps
   · img — rounded-md, 1px slate-200 border
   · custom components: <Callout type="info|warn|danger">, <Steps>,
@@ -173,7 +173,7 @@ Center col (max-width 720px, flex-grow):
 
 Right col (240px, sticky):
 - "On this page" — auto-generated TOC of h2 + h3 headings
-- Active heading highlighted in aegis-500
+- Active heading highlighted in okoro-500
 - Below TOC: "Last updated 3 days ago", "View on GitHub" link
 
 Mobile (<1024px): single column, left nav becomes a Sheet that slides
@@ -208,7 +208,7 @@ The page is two-pane on desktop ≥1280px:
 Structure (for example, /api/verify):
 
 1. Endpoint header strip:
-   - Method badge (POST in aegis-500 bg) + path "/v1/verify" in mono
+   - Method badge (POST in okoro-500 bg) + path "/v1/verify" in mono
    - Right side: small "Try it" button that opens an in-page console
      (see below)
 2. h1 "Verify an agent action"
@@ -255,18 +255,18 @@ Layout: single column, max-width 720px, centered.
 
 Structure:
 1. h1 "Quickstart" with a "10 minutes" pill badge next to it
-2. Lede: "By the end of this guide, you'll have an AEGIS agent
+2. Lede: "By the end of this guide, you'll have an OKORO agent
    identity, a policy, and a successful verify call."
 3. <Callout type="info"> Prerequisites: macOS or Linux, Node 20+ or
-   Python 3.11+, a free AEGIS account.
+   Python 3.11+, a free OKORO account.
 4. <Tabs labels={['TypeScript','Python','curl']}>
    ...content varies per language tab; preserve the choice across the
    whole page.
 5. <Steps>
-   1. Install the CLI — `curl -fsSL https://get.aegis.dev/install.sh | sh`
+   1. Install the CLI — `curl -fsSL https://get.okoro.dev/install.sh | sh`
       Below: a callout "Why a CLI?" with a one-paragraph rationale.
-   2. Authenticate — `aegis login --device-code`
-   3. Run aegis doctor — full expected output as a code block, with
+   2. Authenticate — `okoro login --device-code`
+   3. Run okoro doctor — full expected output as a code block, with
       annotations explaining what each line means.
    4. Register your first agent — code sample showing the SDK or curl
       call, plus the response.
@@ -275,12 +275,12 @@ Structure:
    6. Sign and verify — code sample showing client-side signing and
       the verify call.
 6. <Callout type="success">  "You did it. Your first audit event is
-   visible at https://app.aegis.dev/audit."
+   visible at https://app.okoro.dev/audit."
 7. "Next steps" — 4 link cards: Concepts/Identity, Concepts/Policies,
    Guides/First-relying-party, API/Verify
 
 Every code block uses the Brand Foundation §10 treatment, with the
-AEGIS-specific calls in bold-italic.
+OKORO-specific calls in bold-italic.
 
 Output the page MDX + any custom components needed.
 ```
@@ -292,9 +292,9 @@ Output the page MDX + any custom components needed.
 ### B.1 Docs site — three core templates
 
 ```
-Design the AEGIS docs.aegis.dev site in Figma. Light mode default with
+Design the OKORO docs.okoro.dev site in Figma. Light mode default with
 a designed dark-mode variant. Audience: developers; this is the most
-DX-critical surface in the entire AEGIS system.
+DX-critical surface in the entire OKORO system.
 
 References (visual lane):
 - Stripe docs (search-first, code-rich, sober)
@@ -321,15 +321,15 @@ Beyond templates, design these specific screens:
   exists in v2 but not v1
 - Mobile sheet nav (left nav as bottom sheet)
 - Code-sample component in 4 states: default, copy-clicked (with
-  tooltip "Copied!"), language-tab switching, AEGIS-call highlight
-  hover (tooltip explains "This is an AEGIS-specific SDK call")
+  tooltip "Copied!"), language-tab switching, OKORO-call highlight
+  hover (tooltip explains "This is an OKORO-specific SDK call")
 
 Component library:
 - All custom MDX components above
 - Code-sample component with language label, filename, copy button,
-  line numbers (toggleable), AEGIS-call highlight, light + dark
+  line numbers (toggleable), OKORO-call highlight, light + dark
 - Method badge (GET, POST, PUT, DELETE) with semantic-aligned colors:
-  · GET: aegis-500
+  · GET: okoro-500
   · POST: emerald-500
   · PUT/PATCH: amber-500
   · DELETE: rose-500
@@ -344,10 +344,10 @@ variables.
 ## C. Designer brief (long-form)
 
 ```
-PROJECT: AEGIS Docs Site v1 (docs.aegis.dev)
-CONTEXT: AEGIS is a verification + attestation infrastructure for AI
+PROJECT: OKORO Docs Site v1 (docs.okoro.dev)
+CONTEXT: OKORO is a verification + attestation infrastructure for AI
 agents. The docs site is the single most DX-critical surface — it
-converts "I read about AEGIS" into "I shipped a verified call." We
+converts "I read about OKORO" into "I shipped a verified call." We
 benchmark against Stripe and Cloudflare.
 
 DELIVERABLES (v1 launch):
@@ -387,7 +387,7 @@ ANTI-REFERENCES:
 KEY VISUAL ANCHORS:
 1. Search box dominates the landing — bigger than any CTA.
 2. Code samples are the visual hero of every content page — the bold-
-   italic on AEGIS-specific calls is the brand's typographic signature.
+   italic on OKORO-specific calls is the brand's typographic signature.
 3. The denial-precedence ladder reappears in /reference/denial-
    precedence and is the docs' security-narrative centerpiece.
 
@@ -407,7 +407,7 @@ PROCESS:
 - Week 4: empty/error states, polish, DEV-mode handoff.
 
 SUCCESS METRIC:
-A developer who has never used AEGIS lands on /quickstart, gets to
+A developer who has never used OKORO lands on /quickstart, gets to
 a successful verify in <12 minutes, and rates the experience 9+/10
 in our 5-question post-quickstart survey.
 
@@ -425,20 +425,20 @@ PRIMARY POINT OF CONTACT: [fill in]
 Goal: scaffold the docs site at apps/docs using Nextra v3 on Next.js 16.
 
 Read first:
-- /Users/money/Desktop/AEGIS/CLAUDE.md
-- /Users/money/Desktop/AEGIS/docs/design/00_BRAND_FOUNDATION.md
-- /Users/money/Desktop/AEGIS/docs/design/03_DOCS_SITE_PROMPTS.md
+- /Users/money/Desktop/OKORO/CLAUDE.md
+- /Users/money/Desktop/OKORO/docs/design/00_BRAND_FOUNDATION.md
+- /Users/money/Desktop/OKORO/docs/design/03_DOCS_SITE_PROMPTS.md
 
 Tasks:
-1. Create apps/docs/ as a pnpm workspace package, name "@aegis/docs".
+1. Create apps/docs/ as a pnpm workspace package, name "@okoro/docs".
 2. Install Nextra v3 with the docs theme. Match Next 16 + React 19
    versions from apps/dashboard.
-3. Override the Nextra theme: replace its primary color with aegis-500
+3. Override the Nextra theme: replace its primary color with okoro-500
    via theme.config.tsx; replace its fonts with Inter + JetBrains Mono;
    adjust the sidebar typography to match the Brand Foundation §5.
-4. Set up Shiki with a custom transformer that wraps `aegis.\w+`,
+4. Set up Shiki with a custom transformer that wraps `okoro.\w+`,
    `agent.sign`, `agent.verify`, and the package import lines
-   (`from "@aegis/sdk"`) in <span class="aegis-call"> for the bold-
+   (`from "@okoro/sdk"`) in <span class="okoro-call"> for the bold-
    italic treatment. Add the CSS in app globals.
 5. Add Algolia DocSearch placeholders (env vars only — actual
    indexing is post-launch).
@@ -454,12 +454,12 @@ Tasks:
    denial-precedence — it is a public API contract.
 8. Build the API reference auto-generation:
    - Add scripts/build-api-ref.ts that reads
-     apps/api/openapi.json (run `pnpm --filter @aegis/api openapi:export`
+     apps/api/openapi.json (run `pnpm --filter @okoro/api openapi:export`
      first if missing) and emits MDX files under
      apps/docs/content/api/ — one per endpoint.
    - Each emitted MDX uses ApiEndpoint, ApiTable, and a Tabs block
      with TypeScript / Python / curl examples.
-9. Run `pnpm --filter @aegis/docs dev` on port 3002 (3000 = dashboard,
+9. Run `pnpm --filter @okoro/docs dev` on port 3002 (3000 = dashboard,
    3001 = marketing).
 10. Update WORK_BOARD.md and docs/SESSION_HANDOFF.md.
 
@@ -486,7 +486,7 @@ Tasks:
 1. The console renders a form built from the endpoint's request schema
    (passed in as a prop, derived from OpenAPI at build time).
 2. As the user edits the form, the right-side code sample updates in
-   3 languages (TypeScript using @aegis/sdk, Python using the aegis
+   3 languages (TypeScript using @okoro/sdk, Python using the okoro
    PyPI package, curl).
 3. The Run button calls the endpoint with the user's session API key
    if they're logged in to docs (we'll integrate with a future docs
@@ -522,7 +522,7 @@ Tasks:
 3. The modal styling must match the Brand Foundation, not Algolia's
    default. Override via the @docsearch/react custom-theming hooks.
 4. Results display: section name (text-xs all-caps), title, snippet
-   with matched query highlighted in aegis-500.
+   with matched query highlighted in okoro-500.
 5. Recent searches and starred pages are stored in localStorage.
 6. Empty state: "No results — try a less specific query, or open
    /sitemap to browse all pages." with a link.

@@ -1,8 +1,8 @@
-# AEGIS — LangChain / CrewAI / AutoGen Integration Guide
+# OKORO — LangChain / CrewAI / AutoGen Integration Guide
 ## Wrapping AI Agent Frameworks with Identity, Policy, and Audit
 
 > **Updated:** 2026-05-04  
-> **Packages:** `@aegis/sdk` (TypeScript), `aegis` (Python)  
+> **Packages:** `@okoro/sdk` (TypeScript), `okoro` (Python)  
 > **Frameworks:** LangChain JS/Python, CrewAI, AutoGen, LlamaIndex
 
 ---
@@ -15,7 +15,7 @@ LangChain agents are powerful but anonymous. When a LangChain agent makes a tool
 - How much has it spent today?
 - What did it do, provably?
 
-AEGIS answers all four questions with a single integration point: the `AegisCallbackHandler`.
+OKORO answers all four questions with a single integration point: the `OkoroCallbackHandler`.
 
 ---
 
@@ -24,9 +24,9 @@ AEGIS answers all four questions with a single integration point: the `AegisCall
 ### 2.1 Install
 
 ```bash
-npm install @aegis/sdk @langchain/core
+npm install @okoro/sdk @langchain/core
 # or
-pnpm add @aegis/sdk @langchain/core
+pnpm add @okoro/sdk @langchain/core
 ```
 
 ### 2.2 Basic Integration
@@ -34,19 +34,19 @@ pnpm add @aegis/sdk @langchain/core
 ```typescript
 import { ChatOpenAI } from '@langchain/openai';
 import { AgentExecutor, createToolCallingAgent } from 'langchain/agents';
-import { AegisCallbackHandler, AegisClient } from '@aegis/sdk';
+import { OkoroCallbackHandler, OkoroClient } from '@okoro/sdk';
 
-// Initialize AEGIS client
-const aegis = new AegisClient({
-  apiKey: process.env.AEGIS_API_KEY!,
-  agentId: process.env.AEGIS_AGENT_ID!,
-  privateKey: process.env.AEGIS_PRIVATE_KEY!, // Ed25519 private key
+// Initialize OKORO client
+const okoro = new OkoroClient({
+  apiKey: process.env.OKORO_API_KEY!,
+  agentId: process.env.OKORO_AGENT_ID!,
+  privateKey: process.env.OKORO_PRIVATE_KEY!, // Ed25519 private key
 });
 
-// Create the AEGIS callback handler
-// This intercepts every tool call and wraps it with AEGIS verification
-const aegisHandler = new AegisCallbackHandler({
-  client: aegis,
+// Create the OKORO callback handler
+// This intercepts every tool call and wraps it with OKORO verification
+const okoroHandler = new OkoroCallbackHandler({
+  client: okoro,
   // Scopes required for this agent's tool calls
   defaultScopes: ['tool:execute'],
   // Spend tracking: include amount + currency in tool metadata when possible
@@ -67,7 +67,7 @@ const agent = createToolCallingAgent({ llm: model, tools, prompt });
 const executor = new AgentExecutor({
   agent,
   tools,
-  callbacks: [aegisHandler], // ← wire it here
+  callbacks: [okoroHandler], // ← wire it here
 });
 
 // Run
@@ -76,7 +76,7 @@ const result = await executor.invoke({
 });
 
 // Every tool call during this run:
-// 1. Presents a signed AEGIS JWT
+// 1. Presents a signed OKORO JWT
 // 2. Is checked against policy (spend limit, scope)
 // 3. Gets an audit event written (signed, in the hash chain)
 // 4. Respects revocation (if agent is revoked mid-run, calls start failing)
@@ -87,8 +87,8 @@ const result = await executor.invoke({
 Different tools can require different scopes:
 
 ```typescript
-const aegisHandler = new AegisCallbackHandler({
-  client: aegis,
+const okoroHandler = new OkoroCallbackHandler({
+  client: okoro,
   // Per-tool scope requirements
   toolScopeMap: {
     'transfer_funds': ['payment:write'],
@@ -105,16 +105,16 @@ const aegisHandler = new AegisCallbackHandler({
 
 ### 2.4 Handling Denials Gracefully
 
-When AEGIS denies a tool call, the handler raises a structured error:
+When OKORO denies a tool call, the handler raises a structured error:
 
 ```typescript
-import { AegisDenialError } from '@aegis/sdk';
+import { OkoroDenialError } from '@okoro/sdk';
 
 try {
   await executor.invoke({ input: 'Transfer $10,000' });
 } catch (err) {
-  if (err instanceof AegisDenialError) {
-    console.error(`AEGIS blocked this action: ${err.denialReason}`);
+  if (err instanceof OkoroDenialError) {
+    console.error(`OKORO blocked this action: ${err.denialReason}`);
     // err.denialReason: 'SPEND_LIMIT_EXCEEDED' | 'SCOPE_NOT_GRANTED' | ...
     // err.agentId: which agent was blocked
     // err.auditEventId: reference to the audit log entry
@@ -129,9 +129,9 @@ try {
 }
 ```
 
-### 2.5 Streaming with AEGIS
+### 2.5 Streaming with OKORO
 
-AEGIS verification is synchronous and fast (~50ms). It doesn't interfere with LangChain streaming:
+OKORO verification is synchronous and fast (~50ms). It doesn't interfere with LangChain streaming:
 
 ```typescript
 const stream = await executor.stream({ input: 'Process my order' });
@@ -143,7 +143,7 @@ for await (const chunk of stream) {
 }
 
 // Tool calls within the stream are verified synchronously
-// If a denial occurs mid-stream: stream terminates with AegisDenialError
+// If a denial occurs mid-stream: stream terminates with OkoroDenialError
 ```
 
 ---
@@ -153,9 +153,9 @@ for await (const chunk of stream) {
 ### 3.1 Install
 
 ```bash
-pip install aegis-sdk langchain langchain-openai
+pip install okoro-sdk langchain langchain-openai
 # or
-uv add aegis-sdk langchain langchain-openai
+uv add okoro-sdk langchain langchain-openai
 ```
 
 ### 3.2 Basic Integration
@@ -164,21 +164,21 @@ uv add aegis-sdk langchain langchain-openai
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain import hub
-from aegis import AsyncAegis, AegisCallbackHandler
+from okoro import AsyncOkoro, OkoroCallbackHandler
 
 import asyncio, os
 
 async def main():
-    # Initialize AEGIS
-    aegis = AsyncAegis(
-        api_key=os.environ["AEGIS_API_KEY"],
-        agent_id=os.environ["AEGIS_AGENT_ID"],
-        private_key=os.environ["AEGIS_PRIVATE_KEY"],
+    # Initialize OKORO
+    okoro = AsyncOkoro(
+        api_key=os.environ["OKORO_API_KEY"],
+        agent_id=os.environ["OKORO_AGENT_ID"],
+        private_key=os.environ["OKORO_PRIVATE_KEY"],
     )
     
-    # AEGIS callback handler for LangChain
-    aegis_handler = AegisCallbackHandler(
-        client=aegis,
+    # OKORO callback handler for LangChain
+    okoro_handler = OkoroCallbackHandler(
+        client=okoro,
         default_scopes=["tool:execute"],
     )
     
@@ -191,7 +191,7 @@ async def main():
     executor = AgentExecutor(
         agent=agent,
         tools=tools,
-        callbacks=[aegis_handler],  # wire here
+        callbacks=[okoro_handler],  # wire here
     )
     
     result = await executor.ainvoke({"input": "What's my account balance?"})
@@ -206,22 +206,22 @@ For stateful multi-step agent graphs:
 
 ```python
 from langgraph.graph import StateGraph, END
-from aegis import AsyncAegis, verify_tool_call
+from okoro import AsyncOkoro, verify_tool_call
 
-aegis = AsyncAegis(api_key=..., agent_id=..., private_key=...)
+okoro = AsyncOkoro(api_key=..., agent_id=..., private_key=...)
 
 # Decorator approach: protect individual tool functions
-@verify_tool_call(client=aegis, scopes=["data:read"], spend=None)
+@verify_tool_call(client=okoro, scopes=["data:read"], spend=None)
 async def query_database(query: str) -> dict:
-    """Runs a database query. Protected by AEGIS."""
+    """Runs a database query. Protected by OKORO."""
     return await db.execute(query)
 
-@verify_tool_call(client=aegis, scopes=["payment:write"], spend_field="amount")
+@verify_tool_call(client=okoro, scopes=["payment:write"], spend_field="amount")
 async def process_payment(amount: float, recipient: str) -> dict:
-    """Processes a payment. Protected by AEGIS with spend tracking."""
+    """Processes a payment. Protected by OKORO with spend tracking."""
     return await payment_service.transfer(amount, recipient)
 
-# These functions now require valid AEGIS tokens when called
+# These functions now require valid OKORO tokens when called
 # Use them in your LangGraph nodes as normal
 ```
 
@@ -234,27 +234,27 @@ async def process_payment(amount: float, recipient: str) -> dict:
 ```python
 from crewai import Agent, Task, Crew, Process
 from crewai.tools import tool
-from aegis import AsyncAegis, AegisTool
+from okoro import AsyncOkoro, OkoroTool
 
-aegis = AsyncAegis(
-    api_key=os.environ["AEGIS_API_KEY"],
-    agent_id=os.environ["AEGIS_AGENT_ID"],
-    private_key=os.environ["AEGIS_PRIVATE_KEY"],
+okoro = AsyncOkoro(
+    api_key=os.environ["OKORO_API_KEY"],
+    agent_id=os.environ["OKORO_AGENT_ID"],
+    private_key=os.environ["OKORO_PRIVATE_KEY"],
 )
 
-# Method 1: Use AegisTool wrapper
-class DatabaseTool(AegisTool):
+# Method 1: Use OkoroTool wrapper
+class DatabaseTool(OkoroTool):
     name: str = "query_database"
     description: str = "Execute a database query"
-    aegis_scopes: list = ["data:read"]
+    okoro_scopes: list = ["data:read"]
     
     def _run(self, query: str) -> str:
-        # AEGIS verifies identity before this method is called
+        # OKORO verifies identity before this method is called
         return database.query(query)
 
 # Method 2: Decorator
 @tool("transfer_funds")
-@aegis.protect(scopes=["payment:write"], spend_field="amount_usd")
+@okoro.protect(scopes=["payment:write"], spend_field="amount_usd")
 def transfer_funds(amount_usd: float, recipient_id: str) -> str:
     """Transfer funds to a recipient. Requires payment:write scope."""
     return payment_service.transfer(amount_usd, recipient_id)
@@ -267,40 +267,40 @@ researcher = Agent(
     verbose=True,
 )
 
-# AEGIS verification happens automatically when the agent uses the tool
+# OKORO verification happens automatically when the agent uses the tool
 crew = Crew(agents=[researcher], tasks=[...], process=Process.sequential)
 result = crew.kickoff()
 ```
 
 ### 4.2 Per-Agent Policies in CrewAI
 
-Map each CrewAI agent to a separate AEGIS agent for fine-grained policies:
+Map each CrewAI agent to a separate OKORO agent for fine-grained policies:
 
 ```python
-from aegis import AsyncAegis
+from okoro import AsyncOkoro
 
 # Orchestrator agent: higher trust, broader scopes
-orchestrator_aegis = AsyncAegis(
-    api_key=os.environ["AEGIS_API_KEY"],
+orchestrator_okoro = AsyncOkoro(
+    api_key=os.environ["OKORO_API_KEY"],
     agent_id=os.environ["ORCHESTRATOR_AGENT_ID"],
     private_key=os.environ["ORCHESTRATOR_PRIVATE_KEY"],
 )
 
 # Subagent: limited scopes, lower spend limit
-subagent_aegis = AsyncAegis(
-    api_key=os.environ["AEGIS_API_KEY"],
+subagent_okoro = AsyncOkoro(
+    api_key=os.environ["OKORO_API_KEY"],
     agent_id=os.environ["SUBAGENT_ID"],
     private_key=os.environ["SUBAGENT_PRIVATE_KEY"],
 )
 
 orchestrator = Agent(
     role="Orchestrator",
-    tools=[AegisTool(client=orchestrator_aegis, scopes=["*"])],
+    tools=[OkoroTool(client=orchestrator_okoro, scopes=["*"])],
 )
 
 subagent = Agent(
     role="Data Collector",
-    tools=[AegisTool(client=subagent_aegis, scopes=["data:read"])],
+    tools=[OkoroTool(client=subagent_okoro, scopes=["data:read"])],
 )
 ```
 
@@ -310,19 +310,19 @@ subagent = Agent(
 
 ```python
 import autogen
-from aegis import AsyncAegis, AegisUserProxyAgent
+from okoro import AsyncOkoro, OkoroUserProxyAgent
 
-aegis = AsyncAegis(
-    api_key=os.environ["AEGIS_API_KEY"],
-    agent_id=os.environ["AEGIS_AGENT_ID"],
-    private_key=os.environ["AEGIS_PRIVATE_KEY"],
+okoro = AsyncOkoro(
+    api_key=os.environ["OKORO_API_KEY"],
+    agent_id=os.environ["OKORO_AGENT_ID"],
+    private_key=os.environ["OKORO_PRIVATE_KEY"],
 )
 
-# AegisUserProxyAgent wraps autogen.UserProxyAgent
-# Intercepts all function calls and verifies with AEGIS
-user_proxy = AegisUserProxyAgent(
+# OkoroUserProxyAgent wraps autogen.UserProxyAgent
+# Intercepts all function calls and verifies with OKORO
+user_proxy = OkoroUserProxyAgent(
     name="UserProxy",
-    aegis_client=aegis,
+    okoro_client=okoro,
     default_scopes=["tool:execute", "code:execute"],
     human_input_mode="NEVER",
     code_execution_config={"work_dir": "coding"},
@@ -333,7 +333,7 @@ assistant = autogen.AssistantAgent(
     llm_config={"model": "gpt-4o"},
 )
 
-# Run conversation — all function calls are AEGIS-verified
+# Run conversation — all function calls are OKORO-verified
 user_proxy.initiate_chat(
     assistant,
     message="Analyze this dataset and generate a report",
@@ -347,13 +347,13 @@ user_proxy.initiate_chat(
 For regulated industries, the full audit trail of every LangChain action is critical:
 
 ```python
-from aegis import AsyncAegis
+from okoro import AsyncOkoro
 
-aegis = AsyncAegis(api_key=..., agent_id=..., private_key=...)
+okoro = AsyncOkoro(api_key=..., agent_id=..., private_key=...)
 
 # After your agent run, export the audit trail
 async def export_run_audit(run_id: str, agent_id: str):
-    events = await aegis.audit.list(
+    events = await okoro.audit.list(
         agent_id=agent_id,
         since_run_id=run_id,
         include_chain_proof=True,  # cryptographic proof of integrity
@@ -375,15 +375,15 @@ async def export_run_audit(run_id: str, agent_id: str):
 ## 7. Pattern: Spend-Aware Agent Loops
 
 ```python
-from aegis import AsyncAegis, SpendExceededError
+from okoro import AsyncOkoro, SpendExceededError
 
-aegis = AsyncAegis(api_key=..., agent_id=..., private_key=...)
+okoro = AsyncOkoro(api_key=..., agent_id=..., private_key=...)
 
 async def safe_agent_loop(tasks: list, daily_budget_usd: float):
     """Run agent tasks with a hard spend cap."""
     
     # Configure daily budget via policy
-    await aegis.policies.apply(
+    await okoro.policies.apply(
         scope="payment:write",
         spend_limit=daily_budget_usd,
         currency="USD",
@@ -414,7 +414,7 @@ async def safe_agent_loop(tasks: list, daily_budget_usd: float):
 ## 8. Complete Example: Financial Research Agent
 
 ```python
-# Full production example: research agent with AEGIS protection
+# Full production example: research agent with OKORO protection
 
 import os
 import asyncio
@@ -422,18 +422,18 @@ from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.tools import tool
 from langchain import hub
-from aegis import AsyncAegis, AegisCallbackHandler
+from okoro import AsyncOkoro, OkoroCallbackHandler
 
-aegis = AsyncAegis(
-    api_key=os.environ["AEGIS_API_KEY"],
-    agent_id=os.environ["AEGIS_AGENT_ID"],
-    private_key=os.environ["AEGIS_PRIVATE_KEY"],
+okoro = AsyncOkoro(
+    api_key=os.environ["OKORO_API_KEY"],
+    agent_id=os.environ["OKORO_AGENT_ID"],
+    private_key=os.environ["OKORO_PRIVATE_KEY"],
 )
 
 @tool
 def fetch_market_data(ticker: str) -> dict:
     """Fetch current market data for a stock ticker."""
-    # aegis verifies: scope=data:read, no spend tracking needed
+    # okoro verifies: scope=data:read, no spend tracking needed
     return market_api.get(ticker)
 
 @tool
@@ -445,12 +445,12 @@ def execute_trade(ticker: str, quantity: int, price: float) -> dict:
         quantity: Number of shares  
         price: Target price
     """
-    # aegis verifies: scope=trading:execute, spend=quantity*price USD
+    # okoro verifies: scope=trading:execute, spend=quantity*price USD
     return trading_api.order(ticker, quantity, price)
 
 async def run():
-    handler = AegisCallbackHandler(
-        client=aegis,
+    handler = OkoroCallbackHandler(
+        client=okoro,
         toolScopeMap={
             "fetch_market_data": ["data:read"],
             "execute_trade": ["trading:execute"],
@@ -493,14 +493,14 @@ asyncio.run(run())
 
 ```bash
 # Required for all LangChain integrations
-AEGIS_API_KEY=ak_live_xxxx          # Your AEGIS API key
-AEGIS_AGENT_ID=agent_xxxx           # Agent identifier
-AEGIS_PRIVATE_KEY=base64_ed25519    # Agent's Ed25519 private key (keep secret!)
+OKORO_API_KEY=ak_live_xxxx          # Your OKORO API key
+OKORO_AGENT_ID=agent_xxxx           # Agent identifier
+OKORO_PRIVATE_KEY=base64_ed25519    # Agent's Ed25519 private key (keep secret!)
 
 # Optional
-AEGIS_BASE_URL=https://api.aegislabs.io   # Default
-AEGIS_TOKEN_TTL=30                        # JWT TTL in seconds (default: 30)
-AEGIS_AUDIT_ENABLED=true                  # Disable for local dev (default: true)
+OKORO_BASE_URL=https://api.okorolabs.io   # Default
+OKORO_TOKEN_TTL=30                        # JWT TTL in seconds (default: 30)
+OKORO_AUDIT_ENABLED=true                  # Disable for local dev (default: true)
 ```
 
 ---
@@ -513,12 +513,12 @@ AEGIS_AUDIT_ENABLED=true                  # Disable for local dev (default: true
 
 ```python
 # Increase TTL for long operations (max 300s recommended)
-aegis = AsyncAegis(
+okoro = AsyncOkoro(
     ...,
     token_ttl=120,  # 2 minutes
 )
 # Or generate a fresh token per batch:
-aegis.refresh_token()  # generates new token, resets TTL
+okoro.refresh_token()  # generates new token, resets TTL
 ```
 
 ### "SPEND_LIMIT_EXCEEDED after N calls"
@@ -526,7 +526,7 @@ aegis.refresh_token()  # generates new token, resets TTL
 Expected behavior if `spend_limit` is configured. To increase:
 
 ```bash
-aegis policy apply --agent $AGENT_ID --spend-limit 10000 --currency USD --window day
+okoro policy apply --agent $AGENT_ID --spend-limit 10000 --currency USD --window day
 ```
 
 ### "Callback handler not being called"
@@ -548,4 +548,4 @@ executor = AgentExecutor(
 
 ---
 
-*LangChain integration guide version: 1.0 | AEGIS Phase 1*
+*LangChain integration guide version: 1.0 | OKORO Phase 1*

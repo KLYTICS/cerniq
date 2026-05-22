@@ -54,8 +54,8 @@ export class Auth0Adapter implements IdpAdapter {
     if (!header.alg || !ALLOWED_ALGS.has(header.alg) || !header.kid) return null;
 
     // Issuer + audience check — these come from operator config.
-    const expectedIss = this.config.auth0Issuer; // e.g. https://aegis.us.auth0.com/
-    const expectedAud = this.config.auth0Audience; // e.g. https://api.aegis.dev
+    const expectedIss = this.config.auth0Issuer; // e.g. https://okoro.us.auth0.com/
+    const expectedAud = this.config.auth0Audience; // e.g. https://api.okoro.dev
     if (claims.iss !== expectedIss) return null;
     if (Array.isArray(claims.aud) ? !claims.aud.includes(expectedAud) : claims.aud !== expectedAud) return null;
     if (typeof claims.exp !== 'number' || claims.exp * 1000 < Date.now()) return null;
@@ -82,13 +82,13 @@ export class Auth0Adapter implements IdpAdapter {
             ? claims.organization
             : '',
       idpDomain:
-        typeof claims['https://aegis.dev/domain'] === 'string'
-          ? claims['https://aegis.dev/domain']
+        typeof claims['https://okoro.dev/domain'] === 'string'
+          ? claims['https://okoro.dev/domain']
           : '',
       email: typeof claims.email === 'string' ? claims.email : '',
       emailVerified: Boolean(claims.email_verified),
       name: typeof claims.name === 'string' ? claims.name : null,
-      roles: Array.isArray(claims['https://aegis.dev/roles']) ? (claims['https://aegis.dev/roles'] as string[]) : [],
+      roles: Array.isArray(claims['https://okoro.dev/roles']) ? (claims['https://okoro.dev/roles'] as string[]) : [],
       mfaSatisfied: Array.isArray(claims.amr) && (claims.amr as string[]).includes('mfa'),
       rawClaims: claims,
     };

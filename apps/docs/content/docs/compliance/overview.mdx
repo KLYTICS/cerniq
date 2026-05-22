@@ -5,7 +5,7 @@ description: SOC2 evidence package, GDPR controls, EU residency, DPA template, a
 
 <StatusBadge />
 
-This page indexes the AEGIS controls and evidence artifacts external
+This page indexes the OKORO controls and evidence artifacts external
 auditors and compliance counsel will request. Personas:
 [auditor](/docs/personas/auditor) for the long-form, this page for the
 artifact index.
@@ -14,10 +14,10 @@ artifact index.
 
 | Control     | Artifact                                                                                                        |
 | ----------- | --------------------------------------------------------------------------------------------------------------- |
-| CC6.1       | Tenant isolation tests — [`tests/cross-package/principal-isolation.spec.ts`](https://github.com/klytics/aegis/blob/main/tests/cross-package/) |
-| CC6.6       | KMS-backed signing — [`docs/decisions/0011-key-rotation-kms.md`](https://github.com/klytics/aegis/blob/main/docs/decisions/0011-key-rotation-kms.md) |
+| CC6.1       | Tenant isolation tests — [`tests/cross-package/principal-isolation.spec.ts`](https://github.com/klytics/okoro/blob/main/tests/cross-package/) |
+| CC6.6       | KMS-backed signing — [`docs/decisions/0011-key-rotation-kms.md`](https://github.com/klytics/okoro/blob/main/docs/decisions/0011-key-rotation-kms.md) |
 | CC7.2       | BATE anomaly detector — [trust bands](/docs/concepts/trust-bands)                                               |
-| CC7.4       | Status page — `status.aegislabs.io` + incident response                                                         |
+| CC7.4       | Status page — `status.okorolabs.io` + incident response                                                         |
 | CC8.1       | Append-only Prisma migrations + `spec-sync.yml` drift CI                                                       |
 
 ## GDPR — controller-facing
@@ -27,7 +27,7 @@ artifact index.
 | Art. 15 access    | [`/v1/audit/export.ndjson`](/docs/api/audit)                   |
 | Art. 17 erasure   | [`/v1/compliance/audit/redact-event`](/docs/api/audit)         |
 | Art. 20 portability | NDJSON export (same as Art. 15)                              |
-| Art. 28 sub-processors | [`docs/COMPLIANCE.md`](https://github.com/klytics/aegis/blob/main/docs/COMPLIANCE.md) |
+| Art. 28 sub-processors | [`docs/COMPLIANCE.md`](https://github.com/klytics/okoro/blob/main/docs/COMPLIANCE.md) |
 
 ## Audit signing keys — live thumbprints
 
@@ -39,15 +39,15 @@ fingerprint in their evidence package:
 
 ## Audit-chain verification — third-party
 
-Auditors can verify the AEGIS audit chain offline without any AEGIS-side
+Auditors can verify the OKORO audit chain offline without any OKORO-side
 trust:
 
 ```ts
-import { AegisVerifier } from '@aegis/verifier-rp';
+import { OkoroVerifier } from '@okoro/verifier-rp';
 import { readFileSync } from 'node:fs';
 
-const verifier = new AegisVerifier({
-  jwksUri: 'https://api.aegislabs.io/.well-known/audit-signing-key',
+const verifier = new OkoroVerifier({
+  jwksUri: 'https://api.okorolabs.io/.well-known/audit-signing-key',
 });
 
 const ndjson = readFileSync('./audit-export.ndjson', 'utf-8');
@@ -58,7 +58,7 @@ const result = await verifier.verifyAuditExport(ndjson);
 The verifier checks:
 1. Every row's `signature` is valid against the JWKS-published public key (matched by `signingKeyId`).
 2. Every row's `prevHash` matches the SHA-256 of the previous row's signed bytes.
-3. The first row matches the genesis row pinned in the AEGIS documentation.
+3. The first row matches the genesis row pinned in the OKORO documentation.
 
 A `false` result identifies the first broken row, so an investigation has a
 starting point.
@@ -67,7 +67,7 @@ starting point.
 
 Single-region EU posture available — API, database, and KMS pinned to
 `eu-west-1` or operator-specified region. See
-[`docs/EU_RESIDENCY.md`](https://github.com/klytics/aegis/blob/main/docs/EU_RESIDENCY.md).
+[`docs/EU_RESIDENCY.md`](https://github.com/klytics/okoro/blob/main/docs/EU_RESIDENCY.md).
 
 ## Retention
 
@@ -77,5 +77,5 @@ Operator-configurable per environment.
 ## DPA template
 
 A Data Protection Addendum template aligned with GDPR Art. 28 lives at
-[`docs/COMPLIANCE.md`](https://github.com/klytics/aegis/blob/main/docs/COMPLIANCE.md).
+[`docs/COMPLIANCE.md`](https://github.com/klytics/okoro/blob/main/docs/COMPLIANCE.md).
 Sub-processor list and notice-of-change clauses included.

@@ -1,7 +1,7 @@
-# AEGIS — Engineer Onboarding Guide
+# OKORO — Engineer Onboarding Guide
 ## Your First Day, Week, and Month
 
-> **Welcome to AEGIS.** You're joining a team building the identity and verification layer for AI agents — the trust infrastructure that makes autonomous AI safe in production. This doc gets you from zero to shipping in 30 days.
+> **Welcome to OKORO.** You're joining a team building the identity and verification layer for AI agents — the trust infrastructure that makes autonomous AI safe in production. This doc gets you from zero to shipping in 30 days.
 
 ---
 
@@ -10,7 +10,7 @@
 Get these from Erwin or the engineering lead:
 
 ```
-[ ] GitHub access (aegislabs/aegis repo)
+[ ] GitHub access (okorolabs/okoro repo)
 [ ] Railway access (production + staging)
 [ ] Cloudflare access (zone + Workers)
 [ ] Slack invite (#engineering, #incidents, #feedback-inbox)
@@ -26,7 +26,7 @@ Get these from Erwin or the engineering lead:
 
 ### 1.1 Read These First (in order)
 
-This is not optional. AEGIS has strong architecture invariants — knowing them before touching code saves everyone time.
+This is not optional. OKORO has strong architecture invariants — knowing them before touching code saves everyone time.
 
 ```
 1. CLAUDE.md                    ← the contract every session agrees to
@@ -42,8 +42,8 @@ Time: ~2-3 hours. Yes, all of it. The invariants in CLAUDE.md are non-negotiable
 
 ```bash
 # Clone
-git clone git@github.com:aegislabs/aegis.git
-cd aegis
+git clone git@github.com:okorolabs/okoro.git
+cd okoro
 
 # Install (pnpm workspaces — do not use npm or yarn)
 pnpm install
@@ -127,13 +127,13 @@ apps/api/src/common/
   crypto/           ← Ed25519 sign/verify utilities — DO NOT CHANGE without security review
   prisma/           ← PrismaService wrapper
   redis/            ← RedisService wrapper
-  errors/           ← AegisError subclasses (typed errors, not strings)
+  errors/           ← OkoroError subclasses (typed errors, not strings)
   guards/           ← ApiKeyGuard, AdminGuard — ALL endpoints go through these
 
 packages/
   types/            ← Zod schemas — the API contract. All constants live here.
-  sdk-ts/           ← @aegis/sdk — the public TypeScript SDK
-  verifier-rp/      ← @aegis/verifier-rp — offline JWT verifier for relying parties
+  sdk-ts/           ← @okoro/sdk — the public TypeScript SDK
+  verifier-rp/      ← @okoro/verifier-rp — offline JWT verifier for relying parties
 ```
 
 ### 2.3 Understand the Data Model
@@ -166,13 +166,13 @@ Key design decisions:
 
 ### 3.1 Claim a Module
 
-AEGIS uses a claim protocol for parallel sessions. Before touching code:
+OKORO uses a claim protocol for parallel sessions. Before touching code:
 
 ```bash
 # 1. Open WORK_BOARD.md — find a module marked STATUS: open
 # 2. Pick one appropriate to your skill level (Week 1: pick something small)
 # 3. Claim it:
-claude-peers claim aegis <module-id> --note "implementing X" --ttl 7200
+claude-peers claim okoro <module-id> --note "implementing X" --ttl 7200
 
 # 4. Edit WORK_BOARD.md: flip STATUS to "claimed by <your-session-id>"
 # 5. Work only in the file paths listed for that module
@@ -193,7 +193,7 @@ Every PR must:
 2. Include tests (unit + integration for services, unit only for pure utils)
 3. Pass CI: pnpm lint && pnpm typecheck && pnpm test:ci
 4. Not introduce `any` without a `// type-rationale:` comment
-5. Crypto changes require a security review tag: @aegis/security
+5. Crypto changes require a security review tag: @okoro/security
 6. verify.algorithm.ts changes require the engineering lead's sign-off
 ```
 
@@ -216,7 +216,7 @@ PR template:
 ## Checklist
 - [ ] No `any` without comment
 - [ ] Constants in packages/types, not hardcoded
-- [ ] Error types use AegisError subclasses
+- [ ] Error types use OkoroError subclasses
 - [ ] Updated SESSION_HANDOFF.md at end of session
 ```
 
@@ -225,7 +225,7 @@ PR template:
 Non-negotiable:
 - **No `any`** unless justified with `// type-rationale:` comment.
 - **Every public service method has a unit test** or `// untestable: <reason>`.
-- **Errors are typed** — use `AegisError` subclasses from `apps/api/src/common/errors`.
+- **Errors are typed** — use `OkoroError` subclasses from `apps/api/src/common/errors`.
 - **Constants in `packages/types`** — not duplicated.
 - **No fabricated data** — if a call fails, surface the error. Never return stubs.
 - **Crypto code requires a paired `.spec.ts`** — no exceptions.
@@ -270,9 +270,9 @@ Re-run the script — you should see a chain break detected.
 ### 4.3 Understand the SDK Surface
 
 Read `packages/sdk-ts/src/` completely. The SDK is the public API. Any breaking change here requires a semver major bump. The SDK exports:
-- `AegisClient` — principal management (agents, policies, audit)
-- `AegisVerifier` (from `verifier-rp`) — offline JWT verification at relying party
-- `AegisCallbackHandler` — LangChain integration
+- `OkoroClient` — principal management (agents, policies, audit)
+- `OkoroVerifier` (from `verifier-rp`) — offline JWT verification at relying party
+- `OkoroCallbackHandler` — LangChain integration
 - `verifyRequest()` — Express/Fastify middleware
 
 Understanding the SDK surface helps you understand what external developers depend on.
@@ -295,22 +295,22 @@ Try these hands-on exercises:
 
 ```bash
 # Exercise 1: Full happy path from CLI
-aegis agents register --name "my-test-agent" --ttl 3600
-aegis policy apply --agent my-test-agent --scope payment:read --limit 500
-aegis verify --agent my-test-agent --scope payment:read --amount 100
-aegis audit tail --agent my-test-agent
+okoro agents register --name "my-test-agent" --ttl 3600
+okoro policy apply --agent my-test-agent --scope payment:read --limit 500
+okoro verify --agent my-test-agent --scope payment:read --amount 100
+okoro audit tail --agent my-test-agent
 
 # Exercise 2: Trigger every denial reason
 # (follow DEVELOPER_QUICKSTART.md §All 9 Denial Reasons)
 
 # Exercise 3: Simulate key rotation
-pnpm tsx scripts/generate-aegis-keys.ts
+pnpm tsx scripts/generate-okoro-keys.ts
 # Update local .env with new keys
 # Restart API
 # Run audit chain verification — chain must still verify
 
 # Exercise 4: Read your own BATE score
-aegis agents get --id my-test-agent --show-trust-breakdown
+okoro agents get --id my-test-agent --show-trust-breakdown
 # Understand each contributor
 
 # Exercise 5: Test tamper detection (Exercise 4.2 above)
@@ -375,7 +375,7 @@ export async function verifyAlgorithm(input: VerifyInput, ports: VerifyPorts) { 
 const MAX_SPEND = 10000;
 
 // ✅ Right: imported from packages/types
-import { DEFAULT_SPEND_LIMIT } from '@aegis/types';
+import { DEFAULT_SPEND_LIMIT } from '@okoro/types';
 
 // ❌ Wrong: fabricated data on error
 if (!agent) return { approved: false, trustScore: 0 }; // NEVER fabricate
@@ -418,14 +418,14 @@ pnpm typecheck                        # tsc --noEmit across all packages
 pnpm format                           # Prettier
 
 # Scripts
-pnpm tsx scripts/generate-aegis-keys.ts         # generate Ed25519 key pairs
+pnpm tsx scripts/generate-okoro-keys.ts         # generate Ed25519 key pairs
 pnpm tsx scripts/audit-verify-chain.ts --help   # audit chain verification
 
 # CLI (install globally first)
-pnpm build --filter=@aegis/cli
+pnpm build --filter=@okoro/cli
 pnpm global add ./packages/cli
-aegis --version
-aegis doctor
+okoro --version
+okoro doctor
 ```
 
 ---
@@ -447,5 +447,5 @@ aegis doctor
 
 ---
 
-*Onboarding guide version: 1.0 | AEGIS Phase 1*  
+*Onboarding guide version: 1.0 | OKORO Phase 1*  
 *Next review: after first 3 engineers onboarded*

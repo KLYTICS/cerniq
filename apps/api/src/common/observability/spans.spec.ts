@@ -29,7 +29,7 @@ describe('withSpan', () => {
   });
 
   it('runs fn and ends the span on success', async () => {
-    const result = await withSpan('aegis.test.ok', async () => 'value', {
+    const result = await withSpan('okoro.test.ok', async () => 'value', {
       'agent.id': 'agt_1',
       'policy.id': 'pol_2',
     });
@@ -42,7 +42,7 @@ describe('withSpan', () => {
   });
 
   it('skips undefined attribute values without setting them on the span', async () => {
-    await withSpan('aegis.test.ok', async () => undefined, {
+    await withSpan('okoro.test.ok', async () => undefined, {
       'agent.id': 'agt_1',
       'policy.id': undefined,
     });
@@ -54,7 +54,7 @@ describe('withSpan', () => {
     const boom = new Error('boom');
     boom.name = 'CustomError';
     await expect(
-      withSpan('aegis.test.fail', async () => {
+      withSpan('okoro.test.fail', async () => {
         throw boom;
       }),
     ).rejects.toBe(boom);

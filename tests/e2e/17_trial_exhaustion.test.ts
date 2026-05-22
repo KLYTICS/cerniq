@@ -8,12 +8,12 @@
  * Postgres, or lower the cap (no env override is wired today). We drive
  * scenarios off operator-provisioned keys:
  *
- *   AEGIS_E2E_FREE_API_KEY            management key (`aegis_sk_…`) bound to
+ *   OKORO_E2E_FREE_API_KEY            management key (`okoro_sk_…`) bound to
  *                                     a FREE-tier principal with a fresh
  *                                     trial counter.
- *   AEGIS_E2E_FREE_EXHAUSTED_API_KEY  key bound to a FREE principal whose
+ *   OKORO_E2E_FREE_EXHAUSTED_API_KEY  key bound to a FREE principal whose
  *                                     `trialExhaustedAt` was DB-prepopulated.
- *   AEGIS_E2E_TRIAL_CAP_OVERRIDE      small integer cap (matches the env
+ *   OKORO_E2E_TRIAL_CAP_OVERRIDE      small integer cap (matches the env
  *                                     the API would read if the override
  *                                     ever lands; soft-skip otherwise).
  *
@@ -21,12 +21,12 @@
  * The seed-key structural test always runs and asserts the Round-19
  * regression-catcher: a paid principal MUST NOT see TRIAL_EXHAUSTED.
  *
- * SDK call exercised: `await aegis.verify(token, ctx)`.
+ * SDK call exercised: `await okoro.verify(token, ctx)`.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { Aegis } from '@aegis/sdk';
-import { Aegis as AegisCtor } from '@aegis/sdk';
+import type { Okoro } from '@okoro/sdk';
+import { Okoro as OkoroCtor } from '@okoro/sdk';
 
 import { makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixtures';
@@ -34,7 +34,7 @@ import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixt
 // Local denial assertion. We don't use `_support/assert.ts`'s
 // `assertVerifyDenied` because its parameter type is the SDK's `DenialReason`
 // union, which (as of Round 19) does not yet include `TRIAL_EXHAUSTED` /
-// `PLAN_LIMIT_EXCEEDED`. Canonical list lives in `@aegis/types`. Swap back
+// `PLAN_LIMIT_EXCEEDED`. Canonical list lives in `@okoro/types`. Swap back
 // once the SDK union is regenerated.
 function assertDenialIs(
   result: { valid: boolean; denialReason: string | null },
@@ -44,9 +44,9 @@ function assertDenialIs(
   expect(result.denialReason, `expected ${expected}, got ${String(result.denialReason)}`).toBe(expected);
 }
 
-const FREE_KEY = process.env['AEGIS_E2E_FREE_API_KEY'];
-const FREE_EXHAUSTED_KEY = process.env['AEGIS_E2E_FREE_EXHAUSTED_API_KEY'];
-const CAP_OVERRIDE_RAW = process.env['AEGIS_E2E_TRIAL_CAP_OVERRIDE'];
+const FREE_KEY = process.env['OKORO_E2E_FREE_API_KEY'];
+const FREE_EXHAUSTED_KEY = process.env['OKORO_E2E_FREE_EXHAUSTED_API_KEY'];
+const CAP_OVERRIDE_RAW = process.env['OKORO_E2E_TRIAL_CAP_OVERRIDE'];
 const CAP_OVERRIDE = CAP_OVERRIDE_RAW ? Number.parseInt(CAP_OVERRIDE_RAW, 10) : NaN;
 
 function skipBanner(why: string, fix: string): void {
@@ -55,7 +55,7 @@ function skipBanner(why: string, fix: string): void {
 }
 
 describe('17 · trial exhaustion (ADR-0014)', () => {
-  let sdk: Aegis;
+  let sdk: Okoro;
   const cleanup: string[] = [];
 
   beforeAll(() => {
@@ -100,25 +100,25 @@ describe('17 · trial exhaustion (ADR-0014)', () => {
     ).not.toBe('TRIAL_EXHAUSTED');
   });
 
-  // Scenario 1 — cap probe. Requires both AEGIS_E2E_FREE_API_KEY and a
-  // small AEGIS_E2E_TRIAL_CAP_OVERRIDE; production cap 10_000 is too slow.
+  // Scenario 1 — cap probe. Requires both OKORO_E2E_FREE_API_KEY and a
+  // small OKORO_E2E_TRIAL_CAP_OVERRIDE; production cap 10_000 is too slow.
   it('FREE principal: verifies up to cap succeed, cap+1 returns TRIAL_EXHAUSTED', async () => {
     if (!FREE_KEY) {
       skipBanner(
-        'AEGIS_E2E_FREE_API_KEY not set',
+        'OKORO_E2E_FREE_API_KEY not set',
         'provision a FREE-tier verify key, fresh trial counter, and re-run',
       );
       return;
     }
     if (!Number.isInteger(CAP_OVERRIDE) || CAP_OVERRIDE < 1 || CAP_OVERRIDE > 50) {
       skipBanner(
-        `AEGIS_E2E_TRIAL_CAP_OVERRIDE not in [1,50] (got ${CAP_OVERRIDE_RAW ?? 'unset'})`,
-        'set AEGIS_E2E_TRIAL_CAP_OVERRIDE=5 + matching API env, then re-run',
+        `OKORO_E2E_TRIAL_CAP_OVERRIDE not in [1,50] (got ${CAP_OVERRIDE_RAW ?? 'unset'})`,
+        'set OKORO_E2E_TRIAL_CAP_OVERRIDE=5 + matching API env, then re-run',
       );
       return;
     }
 
-    const free = new AegisCtor({ apiKey: FREE_KEY, baseUrl: readConfig().baseUrl });
+    const free = new OkoroCtor({ apiKey: FREE_KEY, baseUrl: readConfig().baseUrl });
     const ctx = { action: 'commerce.purchase' as const, amount: 1, currency: 'USD' as const };
 
     let freeAgent: Awaited<ReturnType<typeof createAgent>>;
@@ -130,7 +130,7 @@ describe('17 · trial exhaustion (ADR-0014)', () => {
     } catch (err) {
       skipBanner(
         `FREE-tier setup failed: ${(err as Error).message}`,
-        'AEGIS_E2E_FREE_API_KEY must be a management key on a FREE principal',
+        'OKORO_E2E_FREE_API_KEY must be a management key on a FREE principal',
       );
       return;
     }
@@ -155,12 +155,12 @@ describe('17 · trial exhaustion (ADR-0014)', () => {
   it('already-exhausted FREE principal short-circuits without Redis hit', async () => {
     if (!FREE_EXHAUSTED_KEY) {
       skipBanner(
-        'AEGIS_E2E_FREE_EXHAUSTED_API_KEY not set',
+        'OKORO_E2E_FREE_EXHAUSTED_API_KEY not set',
         'pre-populate a FREE principal with trialExhaustedAt=now() in Postgres and pass its key',
       );
       return;
     }
-    const exhausted = new AegisCtor({ apiKey: FREE_EXHAUSTED_KEY, baseUrl: readConfig().baseUrl });
+    const exhausted = new OkoroCtor({ apiKey: FREE_EXHAUSTED_KEY, baseUrl: readConfig().baseUrl });
     const ctx = { action: 'commerce.purchase' as const, amount: 1, currency: 'USD' as const };
 
     // Trial gate fires before agent/policy lookup, so token contents are

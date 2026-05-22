@@ -12,16 +12,16 @@ else:
     UTC = timezone.utc
 from typing import Any
 
-from aegis import AsyncAegis, PolicyRecord, PolicyScope
+from okoro import AsyncOkoro, PolicyRecord, PolicyScope
 
 
 async def test_create_policy_with_dict_scopes(
-    aegis: AsyncAegis,
+    okoro: AsyncOkoro,
     respx_mock: Any,
     sample_policy_record: dict[str, Any],
 ) -> None:
     route = respx_mock.post("/agents/agt_x/policies").respond(201, json=sample_policy_record)
-    policy = await aegis.policies.create(
+    policy = await okoro.policies.create(
         "agt_x",
         scopes=[
             {
@@ -46,7 +46,7 @@ async def test_create_policy_with_dict_scopes(
 
 
 async def test_create_policy_with_pydantic_scopes(
-    aegis: AsyncAegis,
+    okoro: AsyncOkoro,
     respx_mock: Any,
     sample_policy_record: dict[str, Any],
 ) -> None:
@@ -57,7 +57,7 @@ async def test_create_policy_with_pydantic_scopes(
             "dataScopes": ["read:email"],
         }
     )
-    policy = await aegis.policies.create(
+    policy = await okoro.policies.create(
         "agt_x",
         scopes=[scope],
         expires_at=datetime(2026, 6, 1, tzinfo=UTC),
@@ -65,7 +65,7 @@ async def test_create_policy_with_pydantic_scopes(
     assert policy.policy_id == sample_policy_record["policyId"]
 
 
-async def test_list_policies(aegis: AsyncAegis, respx_mock: Any) -> None:
+async def test_list_policies(okoro: AsyncOkoro, respx_mock: Any) -> None:
     server = [
         {
             "policyId": "pol_a",
@@ -87,14 +87,14 @@ async def test_list_policies(aegis: AsyncAegis, respx_mock: Any) -> None:
         },
     ]
     respx_mock.get("/agents/agt_x/policies").respond(200, json=server)
-    policies = await aegis.policies.list("agt_x")
+    policies = await okoro.policies.list("agt_x")
     assert len(policies) == 2
     assert policies[0].policy_id == "pol_a"
     assert policies[1].status == "expired"
 
 
-async def test_revoke_policy(aegis: AsyncAegis, respx_mock: Any) -> None:
+async def test_revoke_policy(okoro: AsyncOkoro, respx_mock: Any) -> None:
     route = respx_mock.delete("/agents/agt_x/policies/pol_a").respond(204)
-    res = await aegis.policies.revoke("agt_x", "pol_a")
+    res = await okoro.policies.revoke("agt_x", "pol_a")
     assert res is None
     assert route.called

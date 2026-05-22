@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import type { Aegis } from '@aegis/sdk';
+import type { Okoro } from '@okoro/sdk';
 import { RawClient, makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixtures';
 
@@ -9,11 +9,11 @@ import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixt
  * The verify controller is decorated with @Throttle({ verify: { limit: 1000,
  * ttl: 60_000 } }) by default — way too high to trip in a test budget.
  * To make this test meaningful in CI you must run the API with a tighter
- * limit (e.g. AEGIS_THROTTLE_VERIFY_LIMIT=20). If we don't see a 429
+ * limit (e.g. OKORO_THROTTLE_VERIFY_LIMIT=20). If we don't see a 429
  * after a hard burst, we soft-skip.
  */
 describe('14 · rate limit', () => {
-  let sdk: Aegis;
+  let sdk: Okoro;
   let raw: RawClient;
   const cleanup: string[] = [];
 

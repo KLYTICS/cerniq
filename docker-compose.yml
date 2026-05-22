@@ -1,31 +1,31 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: aegis-postgres
+    container_name: okoro-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: aegis
-      POSTGRES_PASSWORD: aegis
-      POSTGRES_DB: aegis
+      POSTGRES_USER: okoro
+      POSTGRES_PASSWORD: okoro
+      POSTGRES_DB: okoro
     ports:
       - '5432:5432'
     volumes:
-      - aegis_pg_data:/var/lib/postgresql/data
+      - okoro_pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U aegis -d aegis']
+      test: ['CMD-SHELL', 'pg_isready -U okoro -d okoro']
       interval: 5s
       timeout: 5s
       retries: 10
 
   redis:
     image: redis:7-alpine
-    container_name: aegis-redis
+    container_name: okoro-redis
     restart: unless-stopped
     command: ['redis-server', '--appendonly', 'yes', '--maxmemory-policy', 'allkeys-lru']
     ports:
       - '6379:6379'
     volumes:
-      - aegis_redis_data:/data
+      - okoro_redis_data:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -33,5 +33,5 @@ services:
       retries: 10
 
 volumes:
-  aegis_pg_data:
-  aegis_redis_data:
+  okoro_pg_data:
+  okoro_redis_data:

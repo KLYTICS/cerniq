@@ -1,4 +1,4 @@
-# AEGIS — Technical Implementation Deep Specification
+# OKORO — Technical Implementation Deep Specification
 ## Document 03 — Architecture, Data Models, Service Design, Security
 ### KLYTICS Internal | Version 1.0 | May 2026
 
@@ -12,11 +12,11 @@
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         DEVELOPER PLANE                              │
 │                                                                       │
-│  Dashboard (Next.js)    Docs Site (Mintlify)    SDK (@aegis/sdk)    │
+│  Dashboard (Next.js)    Docs Site (Mintlify)    SDK (@okoro/sdk)    │
 │       │                       │                       │              │
 │       └───────────────────────┴───────────────────────┘              │
 │                               │                                       │
-│                      AEGIS API Gateway                                │
+│                      OKORO API Gateway                                │
 │                    (Railway / Cloudflare)                             │
 └───────────────────────────────┬─────────────────────────────────────┘
                                 │
@@ -65,7 +65,7 @@ EDGE LAYER (Phase 3 — Cloudflare Workers):
 ### 1.2 Directory Structure (NestJS Monorepo)
 
 ```
-aegis/
+okoro/
 ├── apps/
 │   ├── api/                    # NestJS core API
 │   │   ├── src/
@@ -132,7 +132,7 @@ aegis/
 │       ├── components/
 │       └── lib/
 ├── packages/
-│   ├── sdk-ts/                 # @aegis/sdk (TypeScript)
+│   ├── sdk-ts/                 # @okoro/sdk (TypeScript)
 │   │   ├── src/
 │   │   │   ├── index.ts
 │   │   │   ├── client.ts
@@ -141,8 +141,8 @@ aegis/
 │   │   │   ├── policy.ts
 │   │   │   └── types.ts
 │   │   └── package.json
-│   └── sdk-py/                 # aegis-sdk (Python)
-│       ├── aegis/
+│   └── sdk-py/                 # okoro-sdk (Python)
+│       ├── okoro/
 │       │   ├── __init__.py
 │       │   ├── client.py
 │       │   ├── agent.py
@@ -163,7 +163,7 @@ aegis/
 ## SECTION 2 — COMPLETE PRISMA SCHEMA
 
 ```prisma
-// schema.prisma — AEGIS v1.0
+// schema.prisma — OKORO v1.0
 
 generator client {
   provider = "prisma-client-js"
@@ -203,7 +203,7 @@ model Principal {
 model ApiKey {
   id          String    @id @default(cuid())
   keyHash     String    @unique // bcrypt hash — never store plaintext
-  keyPrefix   String    // First 8 chars for identification: "aegis_sk_xxxx"
+  keyPrefix   String    // First 8 chars for identification: "okoro_sk_xxxx"
   label       String?
   principalId String
   principal   Principal @relation(fields: [principalId], references: [id], onDelete: Cascade)
@@ -370,7 +370,7 @@ model AuditEvent {
   trustBandAtEvent  TrustBand
   
   // Integrity
-  aegisSignature    String        @db.Text // AEGIS signs this record
+  okoroSignature    String        @db.Text // OKORO signs this record
   
   timestamp         DateTime      @default(now())
 
@@ -487,7 +487,7 @@ model WebhookSubscription {
   
   url         String
   secret      String      // HMAC secret for signature verification
-  events      String[]    // ["aegis.agent.trust_score_changed", ...]
+  events      String[]    // ["okoro.agent.trust_score_changed", ...]
   
   active      Boolean     @default(true)
   createdAt   DateTime    @default(now())
@@ -973,22 +973,22 @@ export class SpendGuardService {
 ## SECTION 4 — SDK DESIGN (TypeScript)
 
 ```typescript
-// @aegis/sdk — index.ts
+// @okoro/sdk — index.ts
 
-export class Aegis {
-  private readonly config: AegisConfig;
-  private readonly http: AegisHttpClient;
+export class Okoro {
+  private readonly config: OkoroConfig;
+  private readonly http: OkoroHttpClient;
 
   public readonly agent: AgentClient;
   public readonly policy: PolicyClient;
 
-  constructor(config: AegisConfig) {
+  constructor(config: OkoroConfig) {
     this.config = {
       apiKey: config.apiKey,
-      baseUrl: config.baseUrl ?? 'https://api.aegislabs.io/v1',
+      baseUrl: config.baseUrl ?? 'https://api.okorolabs.io/v1',
       timeout: config.timeout ?? 5000,
     };
-    this.http = new AegisHttpClient(this.config);
+    this.http = new OkoroHttpClient(this.config);
     this.agent = new AgentClient(this.http);
     this.policy = new PolicyClient(this.http);
   }
@@ -1000,7 +1000,7 @@ export class Aegis {
 }
 
 export class AgentClient {
-  constructor(private readonly http: AegisHttpClient) {}
+  constructor(private readonly http: OkoroHttpClient) {}
 
   // Sign an outbound request — the developer calls this before each agent action
   async sign(
@@ -1041,12 +1041,12 @@ export class AgentClient {
 //
 // Developer-side (agent builder):
 //
-// import { Aegis } from '@aegis/sdk';
+// import { Okoro } from '@okoro/sdk';
 //
-// const aegis = new Aegis({ apiKey: process.env.AEGIS_API_KEY });
+// const okoro = new Okoro({ apiKey: process.env.OKORO_API_KEY });
 //
 // // One-time setup: register agent and create policy
-// const agent = await aegis.agent.register({
+// const agent = await okoro.agent.register({
 //   publicKey: myEd25519PublicKey,
 //   runtime: 'anthropic',
 //   model: 'claude-sonnet-4-5',
@@ -1054,7 +1054,7 @@ export class AgentClient {
 //   principalId: 'principal_abc123',
 // });
 //
-// const policy = await aegis.policy.create(agent.agentId, {
+// const policy = await okoro.policy.create(agent.agentId, {
 //   label: 'Buy flights under $500',
 //   scopes: [{
 //     category: 'commerce',
@@ -1065,7 +1065,7 @@ export class AgentClient {
 // });
 //
 // // Before each agent action: sign the request
-// const token = await aegis.agent.sign(myPrivateKey, policy.signedToken, {
+// const token = await okoro.agent.sign(myPrivateKey, policy.signedToken, {
 //   action: 'commerce.purchase',
 //   amount: 347.00,
 //   currency: 'USD',
@@ -1074,15 +1074,15 @@ export class AgentClient {
 //
 // // Send token with agent request to Delta
 // const response = await fetch('https://api.delta.com/book', {
-//   headers: { 'X-AEGIS-Token': token },
+//   headers: { 'X-OKORO-Token': token },
 //   body: JSON.stringify({ flight: 'DL401', ... }),
 // });
 //
 // ── RELYING PARTY USAGE (Delta's server):
 //
-// const aegis = new Aegis({ apiKey: process.env.AEGIS_VERIFY_KEY });
+// const okoro = new Okoro({ apiKey: process.env.OKORO_VERIFY_KEY });
 //
-// const result = await aegis.verify(req.headers['x-aegis-token'], {
+// const result = await okoro.verify(req.headers['x-okoro-token'], {
 //   action: 'commerce.purchase',
 //   amount: 347.00,
 //   merchantDomain: 'delta.com',
@@ -1109,12 +1109,12 @@ export class AgentClient {
 | Threat | Description | Mitigation |
 |---|---|---|
 | Token theft | Attacker steals signed token and replays | JWT `exp` of 60s max; single-use `jti` claim on high-value actions |
-| Key compromise | Developer's private key stolen | Immediate revocation API; AEGIS never holds private key |
+| Key compromise | Developer's private key stolen | Immediate revocation API; OKORO never holds private key |
 | BATE poisoning | Attacker floods fake signals to inflate score | Report weight by verified relying party only; rate limiting on reports |
 | DDoS on verify | Flood /verify endpoint | Cloudflare WAF + rate limiting per API key; edge caching |
 | Prompt injection | Agent is jailbroken into signing bad requests | Policy hard limits enforced server-side; client-side signing is advisory |
 | Principal spoofing | Attacker registers as a legitimate company | Email verification + optional KYC for BATE bonus |
-| Insider threat | AEGIS employee reads audit logs | Audit records AEGIS-signed and tamper-evident; access logged |
+| Insider threat | OKORO employee reads audit logs | Audit records OKORO-signed and tamper-evident; access logged |
 | Supply chain | SDK dependency compromised | pinned deps, Sigstore signing of npm packages |
 
 ### 5.2 Cryptographic Details
@@ -1137,13 +1137,13 @@ Payload: {
 }
 ```
 
-**Audit record signing:** AEGIS signs each AuditEvent with an AEGIS-held Ed25519 keypair (separate from the policy-signing keypair so a policy-key compromise does not invalidate the audit chain). Decision rationale and post-quantum migration plan live in `docs/THREAT_MODEL_v2.md` § 4.2 and `docs/POST_QUANTUM_ROADMAP.md`. This allows third parties to verify audit records without AEGIS involvement. Public key published at `https://api.aegislabs.io/.well-known/jwks.json` (and the convenience endpoint `https://api.aegislabs.io/.well-known/audit-signing-key`).
+**Audit record signing:** OKORO signs each AuditEvent with an OKORO-held Ed25519 keypair (separate from the policy-signing keypair so a policy-key compromise does not invalidate the audit chain). Decision rationale and post-quantum migration plan live in `docs/THREAT_MODEL_v2.md` § 4.2 and `docs/POST_QUANTUM_ROADMAP.md`. This allows third parties to verify audit records without OKORO involvement. Public key published at `https://api.okorolabs.io/.well-known/jwks.json` (and the convenience endpoint `https://api.okorolabs.io/.well-known/audit-signing-key`).
 
-**API key format:** `aegis_sk_[32 random bytes base58]`. Stored as bcrypt hash (cost 12). Only the `aegis_sk_` prefix + first 4 chars stored as `keyPrefix` for identification in dashboards.
+**API key format:** `okoro_sk_[32 random bytes base58]`. Stored as bcrypt hash (cost 12). Only the `okoro_sk_` prefix + first 4 chars stored as `keyPrefix` for identification in dashboards.
 
 ### 5.3 Compliance Mapping
 
-| Standard | AEGIS Coverage | Gap |
+| Standard | OKORO Coverage | Gap |
 |---|---|---|
 | NIST AI Agent Identity (2026 draft) | Agent identity, authorization, auditing | Prompt injection controls (agent-side) |
 | SOC2 Type II | Audit trail, access controls, availability | Requires 6-month evidence window |
@@ -1153,4 +1153,4 @@ Payload: {
 
 ---
 
-*Document 03 of 05 | AEGIS KLYTICS Internal Suite*
+*Document 03 of 05 | OKORO KLYTICS Internal Suite*

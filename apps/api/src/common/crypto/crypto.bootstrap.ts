@@ -57,7 +57,7 @@ bootstrapCrypto();
 // ───────────────────────────────────────────────────────────────────────────
 
 /**
- * The signing-key purposes AEGIS understands. New purposes must be added
+ * The signing-key purposes OKORO understands. New purposes must be added
  * here AND in `docs/decisions/0011-key-rotation-kms.md`.
  *
  *   AUDIT     — signs audit-event chain entries (Ed25519 today).

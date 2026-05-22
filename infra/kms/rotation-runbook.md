@@ -1,10 +1,10 @@
-# AEGIS — Audit-signing key rotation runbook
+# OKORO — Audit-signing key rotation runbook
 
 > Cadence: **quarterly** (calendar quarters; Q1=Mar, Q2=Jun, Q3=Sep, Q4=Dec, week 1).
-> Scope: the AEGIS Ed25519 audit-signing key — the keypair whose public
+> Scope: the OKORO Ed25519 audit-signing key — the keypair whose public
 > half is published at [`/.well-known/audit-signing-key`](../../apps/api/src/modules/wellknown/) and whose private half signs every entry on the audit chain (`apps/api/src/common/crypto/audit-chain.util.ts`).
-> Driver script: [`rotate-aegis-keys.sh`](./rotate-aegis-keys.sh).
-> Generator: [`../../scripts/generate-aegis-keys.ts`](../../scripts/generate-aegis-keys.ts).
+> Driver script: [`rotate-okoro-keys.sh`](./rotate-okoro-keys.sh).
+> Generator: [`../../scripts/generate-okoro-keys.ts`](../../scripts/generate-okoro-keys.ts).
 > Threats this addresses: T8 + T9 in [`../../docs/THREAT_MODEL.md`](../../docs/THREAT_MODEL.md), and "key compromise" in [`../../docs/DR_RUNBOOK.md`](../../docs/DR_RUNBOOK.md).
 
 ---
@@ -32,7 +32,7 @@ Tick every box before starting. **If any box is blank, stop.**
 
 ## Step 1 — Pre-rotation announcement (T - 7 days)
 
-Post to status page: "AEGIS audit-signing key will rotate on YYYY-MM-DD.
+Post to status page: "OKORO audit-signing key will rotate on YYYY-MM-DD.
 Verifiers caching by `kid` will see a new entry in
 `/.well-known/audit-signing-key` and should refresh their JWKS. Old entries
 remain valid for 90 days post-cutover."
@@ -43,22 +43,22 @@ Email auditors and SOC2 evidence consumers known to pin keys.
 
 ```bash
 DATE="$(date -u +%Y%m%d)"
-pnpm --filter @aegis/scripts run keys -- \
+pnpm --filter @okoro/scripts run keys -- \
   --out "./.local/keys/rotation-${DATE}" \
   --format both
 ```
 
 Outputs:
 
-- `./.local/keys/rotation-<DATE>/aegis-signing.env` (mode 0600 — contains the **next** private key).
-- `./.local/keys/rotation-<DATE>/aegis-signing.jwk.json` (mode 0644 — public key + `kid`).
+- `./.local/keys/rotation-<DATE>/okoro-signing.env` (mode 0600 — contains the **next** private key).
+- `./.local/keys/rotation-<DATE>/okoro-signing.jwk.json` (mode 0644 — public key + `kid`).
 
 Record the new `kid` (from the JSON line stdout of the script) in the
 ceremony log. The `kid` is also embedded in the JWK file.
 
 > The generator never uses `Math.random` — it goes straight to
 > `crypto.getRandomValues` via `@noble/ed25519` (see
-> [`scripts/generate-aegis-keys.ts`](../../scripts/generate-aegis-keys.ts)).
+> [`scripts/generate-okoro-keys.ts`](../../scripts/generate-okoro-keys.ts)).
 
 ## Step 3 — Stage the rotation (dual-publish)
 
@@ -69,7 +69,7 @@ work cleanly the wellknown service needs a small change to publish a
 JWKS array of `[next, current]`.
 
 > **TODO operator + foundation**: extend `wellknown.service.ts` to read
-> `AEGIS_SIGNING_PUBLIC_KEY_NEXT` (optional) and emit two JWK entries on
+> `OKORO_SIGNING_PUBLIC_KEY_NEXT` (optional) and emit two JWK entries on
 > `/.well-known/jwks.json` when both are present. Until that lands, the
 > dual-publish window is **not** automatic; auditors who refresh during
 > the ~10 min window between step 4 and key promotion may see only the
@@ -80,8 +80,8 @@ Set the staged variables on Railway (the driver script prints these for
 operator confirmation; it does not run them):
 
 ```
-railway variables set AEGIS_SIGNING_PUBLIC_KEY_NEXT="<new-pub-b64url>" --service api
-railway variables set AEGIS_SIGNING_KID_NEXT="<new-kid>"               --service api
+railway variables set OKORO_SIGNING_PUBLIC_KEY_NEXT="<new-pub-b64url>" --service api
+railway variables set OKORO_SIGNING_KID_NEXT="<new-kid>"               --service api
 ```
 
 Restart the API. Confirm `/.well-known/jwks.json` returns both keys.
@@ -93,20 +93,20 @@ verification (it is now the "previous" key).
 
 ```
 # new becomes current
-railway variables set AEGIS_SIGNING_PRIVATE_KEY="<new-priv-b64url>"     --service api
-railway variables set AEGIS_SIGNING_PUBLIC_KEY="<new-pub-b64url>"       --service api
-railway variables set AEGIS_SIGNING_KID="<new-kid>"                     --service api
+railway variables set OKORO_SIGNING_PRIVATE_KEY="<new-priv-b64url>"     --service api
+railway variables set OKORO_SIGNING_PUBLIC_KEY="<new-pub-b64url>"       --service api
+railway variables set OKORO_SIGNING_KID="<new-kid>"                     --service api
 
 # old preserved for verification
-railway variables set AEGIS_SIGNING_KEY_PREVIOUS_PUBLIC_KEY="<old-pub-b64url>" --service api
-railway variables set AEGIS_SIGNING_KEY_PREVIOUS_KID="<old-kid>"               --service api
+railway variables set OKORO_SIGNING_KEY_PREVIOUS_PUBLIC_KEY="<old-pub-b64url>" --service api
+railway variables set OKORO_SIGNING_KEY_PREVIOUS_KID="<old-kid>"               --service api
 
 # clean up the staging variables
-railway variables delete AEGIS_SIGNING_PUBLIC_KEY_NEXT --service api
-railway variables delete AEGIS_SIGNING_KID_NEXT       --service api
+railway variables delete OKORO_SIGNING_PUBLIC_KEY_NEXT --service api
+railway variables delete OKORO_SIGNING_KID_NEXT       --service api
 
 # record the rotation moment for /.well-known/jwks.json metadata
-railway variables set AEGIS_SIGNING_KEY_ROTATED_AT="$(date -u +%FT%TZ)" --service api
+railway variables set OKORO_SIGNING_KEY_ROTATED_AT="$(date -u +%FT%TZ)" --service api
 ```
 
 Restart the API. Confirm:
@@ -115,12 +115,12 @@ Restart the API. Confirm:
   `psql -c 'SELECT "signatureKid" FROM "AuditEvent" ORDER BY "timestamp" DESC LIMIT 5;'`).
 - `/.well-known/jwks.json` returns `[current=new, previous=old]`.
 - Audit chain verification passes for at least 100 events on either side
-  of the cutover (`pnpm --filter @aegis/api audit:verify-chain --since <T-1h>`
+  of the cutover (`pnpm --filter @okoro/api audit:verify-chain --since <T-1h>`
   once the CLI ships per `M-006-ext`).
 
 ## Step 5 — Backfill window (90 days)
 
-Keep `AEGIS_SIGNING_KEY_PREVIOUS_PUBLIC_KEY` set for **90 days**. SOC2
+Keep `OKORO_SIGNING_KEY_PREVIOUS_PUBLIC_KEY` set for **90 days**. SOC2
 auditors verifying historical records resolve old `kid` values against
 this published JWKS entry.
 
@@ -133,12 +133,12 @@ times a comfortable safety margin for once-a-quarter audit consumers.
 Remove the previous key from the JWKS:
 
 ```
-railway variables delete AEGIS_SIGNING_KEY_PREVIOUS_PUBLIC_KEY --service api
-railway variables delete AEGIS_SIGNING_KEY_PREVIOUS_KID        --service api
+railway variables delete OKORO_SIGNING_KEY_PREVIOUS_PUBLIC_KEY --service api
+railway variables delete OKORO_SIGNING_KEY_PREVIOUS_KID        --service api
 ```
 
 Restart the API. Confirm the JWKS returns only the current key. Shred
-`./.local/keys/rotation-<DATE>/aegis-signing.env` from any operator
+`./.local/keys/rotation-<DATE>/okoro-signing.env` from any operator
 workstation that still has it (`shred -u` on linux,
 `rm -P` on macOS, then empty trash). The Railway-stored secret is the
 canonical source from this point on; no copy on disk.
@@ -174,14 +174,14 @@ ceremony** and roll back:
 
 ```
 # revert primary back to the old key
-railway variables set AEGIS_SIGNING_PRIVATE_KEY="<old-priv-b64url>" --service api
-railway variables set AEGIS_SIGNING_PUBLIC_KEY="<old-pub-b64url>"   --service api
-railway variables set AEGIS_SIGNING_KID="<old-kid>"                 --service api
+railway variables set OKORO_SIGNING_PRIVATE_KEY="<old-priv-b64url>" --service api
+railway variables set OKORO_SIGNING_PUBLIC_KEY="<old-pub-b64url>"   --service api
+railway variables set OKORO_SIGNING_KID="<old-kid>"                 --service api
 
 # the new key, briefly active, becomes the previous (so historical
 # events signed by it during the window remain verifiable)
-railway variables set AEGIS_SIGNING_KEY_PREVIOUS_PUBLIC_KEY="<new-pub-b64url>" --service api
-railway variables set AEGIS_SIGNING_KEY_PREVIOUS_KID="<new-kid>"               --service api
+railway variables set OKORO_SIGNING_KEY_PREVIOUS_PUBLIC_KEY="<new-pub-b64url>" --service api
+railway variables set OKORO_SIGNING_KEY_PREVIOUS_KID="<new-kid>"               --service api
 ```
 
 Then file an incident postmortem and an ADR in `docs/decisions/` if
@@ -199,8 +199,8 @@ CC8.1 — change management).
 ## Open TODOs flagged by this runbook
 
 1. `wellknown.service.ts` does not yet emit a multi-key JWKS array.
-   Spec: when `AEGIS_SIGNING_PUBLIC_KEY_NEXT` (or
-   `AEGIS_SIGNING_KEY_PREVIOUS_PUBLIC_KEY`) is set, the JWKS response
+   Spec: when `OKORO_SIGNING_PUBLIC_KEY_NEXT` (or
+   `OKORO_SIGNING_KEY_PREVIOUS_PUBLIC_KEY`) is set, the JWKS response
    includes `keys: [current, next?, previous?]` — order does not matter
    to clients (they resolve by `kid`), but `current` should be index 0
    for legibility.
@@ -208,6 +208,6 @@ CC8.1 — change management).
    [`../../docs/SESSION_HANDOFF.md`](../../docs/SESSION_HANDOFF.md)).
    Step 7 falls back to a placeholder count until that ships.
 3. Two-person concurrence on `--execute` is not yet enforced by
-   `rotate-aegis-keys.sh` — currently a single operator confirmation.
+   `rotate-okoro-keys.sh` — currently a single operator confirmation.
    Operator decision: keep the human-control as policy, or extend the
    script to require a second sign-off file.

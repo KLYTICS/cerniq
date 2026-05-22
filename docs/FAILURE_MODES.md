@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Failure modes (FMEA)
+title: OKORO — Failure modes (FMEA)
 status: draft
 last-reviewed: 2026-05-02
 owner: operator (Erwin) — sid open
@@ -7,10 +7,10 @@ audience: SRE / on-call / incident commander / SOC 2 Type II auditor / DR rehear
 companion-to: docs/ARCHITECTURE.md §10 (summary), docs/DR_RUNBOOK.md, docs/SECURITY_RUNBOOK.md, docs/CAPACITY_PLAN.md (degradation thresholds)
 ---
 
-# AEGIS — Failure modes (FMEA)
+# OKORO — Failure modes (FMEA)
 
 > **Purpose.** Component-by-component failure mode and effects
-> analysis (FMEA) for every load-bearing piece of AEGIS, with
+> analysis (FMEA) for every load-bearing piece of OKORO, with
 > mitigation, detection, and recovery clearly specified per failure
 > mode. ARCHITECTURE.md §10 is the architectural summary; this
 > document is the canon for SRE and incident commanders.
@@ -46,7 +46,7 @@ component is failing:
 
 | Invariant                          | Source                               | Failure mode that tests it       |
 |------------------------------------|--------------------------------------|----------------------------------|
-| Private keys never enter AEGIS     | CLAUDE.md inv. 1                     | Compromised app-server memory dump |
+| Private keys never enter OKORO     | CLAUDE.md inv. 1                     | Compromised app-server memory dump |
 | Verify hot path stays portable     | CLAUDE.md inv. 2                     | Phase 3 CF Worker substitution    |
 | Audit log is append-only + signed  | CLAUDE.md inv. 3                     | DB partition swap, replication lag, outbox stall |
 | No silent failures, no fabricated data | CLAUDE.md inv. 4                | Cache error → DB fallback (logged), spend Redis error → 503, never synthetic trust |
@@ -131,9 +131,9 @@ class because failures here can produce signed-but-false decisions.
 | ID | Failure mode | S | L | D | RPN | Mitigation | Detection | Recovery | Runbook |
 |----|--------------|---|---|---|-----|------------|-----------|----------|---------|
 | C-01 | Ed25519 verify produces wrong result on valid input (library bug) | 5 | 1 | 5 | 25 | Pin `@noble/ed25519` to known-good version; cross-check against `jose` (different impl) at startup with a fixed test vector | Startup self-check; quarterly cross-impl regression in CI | Roll back to last known-good build; pause verify path (return 503) | DR_RUNBOOK §"Crypto integrity failure" |
-| C-02 | Random number generator weakness (e.g. predictable agent keypair) | 5 | 1 | 5 | 25 | Private keys generated client-side per CLAUDE.md inv. 1; AEGIS never generates agent keys; AEGIS-side jti via `crypto.randomUUID()` (Node native CSPRNG) | Code review only | Agent re-issuance after key rotation campaign | SECURITY_RUNBOOK §"Suspected key compromise" |
+| C-02 | Random number generator weakness (e.g. predictable agent keypair) | 5 | 1 | 5 | 25 | Private keys generated client-side per CLAUDE.md inv. 1; OKORO never generates agent keys; OKORO-side jti via `crypto.randomUUID()` (Node native CSPRNG) | Code review only | Agent re-issuance after key rotation campaign | SECURITY_RUNBOOK §"Suspected key compromise" |
 | C-03 | JWT parser accepts unsigned token (`alg: none` smuggling) | 5 | 1 | 1 | 5 | `jose` configured to reject `none`; explicit allowed alg `EdDSA`; covered by test in `jwt.util.spec.ts` | Test failure on regression | Roll back; emergency patch; force re-issue all live policies | SECURITY_RUNBOOK |
-| C-04 | Time skew between AEGIS server and RP clock causes false POLICY_EXPIRED | 3 | 4 | 2 | 24 | NTP-disciplined clocks; ±60 s clock-skew tolerance documented in API spec; `iat`/`nbf` rejected if more than 60 s in future | `verify_total{denial_reason="POLICY_EXPIRED"}` rate spike | Increase tolerance to 120 s emergency; investigate NTP drift | RUNBOOK §"Clock skew" |
+| C-04 | Time skew between OKORO server and RP clock causes false POLICY_EXPIRED | 3 | 4 | 2 | 24 | NTP-disciplined clocks; ±60 s clock-skew tolerance documented in API spec; `iat`/`nbf` rejected if more than 60 s in future | `verify_total{denial_reason="POLICY_EXPIRED"}` rate spike | Increase tolerance to 120 s emergency; investigate NTP drift | RUNBOOK §"Clock skew" |
 | C-05 | Audit-chain hash collision (theoretical: SHA-256 broken) | 5 | 1 | 5 | 25 | Hash agility: `audit-chain.util.ts` reads `algSuite` from event meta; ADR-0006 § "Algorithm rotation" | n/a (cryptanalytic discovery is the trigger) | Bump alg suite, re-anchor chain (forward-only, prev_hash carries the new alg) | DR_RUNBOOK §"Cryptographic emergency" |
 | C-06 | Audit chain break (one event's `prev_hash` does not match prior event's signature) | 5 | 2 | 1 | 10 | Chain integrity check on every audit GET; nightly cron `audit-chain-verify.sh` reports break point | Page on first break detected | **Forensic preservation first**: snapshot Postgres + outbox + S3 before any write; then determine cause (tampering vs. corruption vs. replay) | DR_RUNBOOK §"Audit chain break" |
 | C-07 | Signature verifies as valid for tampered payload (canonicalization bug) | 5 | 2 | 4 | 40 | RFC 8785 JCS implementation tested against published vectors; `audit-chain.util.spec.ts` includes adversarial inputs | Quarterly fuzz test in CI | Roll back canonicalizer; re-sign affected events with corrected canonicalization (writes redaction-style meta event acknowledging supersession per ADR-0006) | SECURITY_RUNBOOK |
@@ -160,12 +160,12 @@ audit-append degrades to outbox; policy issuance pauses.
 
 | ID | Failure mode | S | L | D | RPN | Mitigation | Detection | Recovery | Runbook |
 |----|--------------|---|---|---|-----|------------|-----------|----------|---------|
-| K-01 | KMS provider regional outage (AWS/GCP/Vault unreachable) | 4 | 3 | 1 | 12 | Cross-region KMS replication for sign keys; fallback adapter in `kms.module.ts` per env config | `kms_sign_error_rate` page > 0.1% over 1 min | Switch `AEGIS_KMS_PROVIDER` env on the impacted region; rolling restart | DR_RUNBOOK §"KMS provider outage" |
+| K-01 | KMS provider regional outage (AWS/GCP/Vault unreachable) | 4 | 3 | 1 | 12 | Cross-region KMS replication for sign keys; fallback adapter in `kms.module.ts` per env config | `kms_sign_error_rate` page > 0.1% over 1 min | Switch `OKORO_KMS_PROVIDER` env on the impacted region; rolling restart | DR_RUNBOOK §"KMS provider outage" |
 | K-02 | KMS key rotation race (audit signer rotates mid-event) | 4 | 2 | 3 | 24 | 30-day overlap window per ADR-0011; signing-key version persisted on `AuditEvent.signingKeyId` so verifiers know which JWKS entry; verify accepts both during overlap | Cross-impl test catches; nightly chain-verify with both keys exercises overlap | n/a — overlap is by design | RUNBOOK §"Key rotation" |
 | K-03 | KMS sign latency p99 spike (provider degradation) | 2 | 4 | 2 | 16 | KMS sign budget 30 ms; circuit breaker after 100 ms p99 sustained 60 s; degrade to **outbox-only** audit append (writes plaintext payload + queue for sign on recovery) | `kms_sign_seconds` p99 page | Outbox drain after KMS recovery (per ADR-0007) | RUNBOOK §"KMS slow path" |
 | K-04 | Vault Transit version drift (signature points at retired key version) | 3 | 2 | 2 | 12 | `vault-transit.adapter.ts` parses envelope version on every sign result; mismatch raises `KmsVersionDrift` | Adapter test exercises drift path | Re-sign affected events with current version; chain integrity preserved (signatures over different versions verify against their respective JWKS entries) | RUNBOOK §"KMS version drift" |
-| K-05 | KMS rejects sign because IAM policy revoked (operator misconfig) | 4 | 2 | 1 | 8 | Startup self-check signs a sentinel value; fails fast on broken IAM | Startup health-check failure → pod refuses to enter ready | Restore IAM policy; `aegis-cli kms verify` from operator | RUNBOOK §"KMS IAM" |
-| K-06 | KMS provider audit log gap (cannot prove sign happened) | 3 | 2 | 4 | 24 | Mirror of every sign request to local outbox row with `kmsRequestId`; audit chain can be cross-verified against KMS-side log | Reconciliation cron compares outbox `kmsRequestId` against KMS provider audit log nightly | Manual reconciliation via aegis-cli; document gap in compliance evidence | RUNBOOK §"KMS reconciliation" |
+| K-05 | KMS rejects sign because IAM policy revoked (operator misconfig) | 4 | 2 | 1 | 8 | Startup self-check signs a sentinel value; fails fast on broken IAM | Startup health-check failure → pod refuses to enter ready | Restore IAM policy; `okoro-cli kms verify` from operator | RUNBOOK §"KMS IAM" |
+| K-06 | KMS provider audit log gap (cannot prove sign happened) | 3 | 2 | 4 | 24 | Mirror of every sign request to local outbox row with `kmsRequestId`; audit chain can be cross-verified against KMS-side log | Reconciliation cron compares outbox `kmsRequestId` against KMS provider audit log nightly | Manual reconciliation via okoro-cli; document gap in compliance evidence | RUNBOOK §"KMS reconciliation" |
 
 ### 5.2 Provider-specific notes
 
@@ -192,8 +192,8 @@ Failure here cascades broadly.
 | D-01 | Postgres primary down (region or instance) | 4 | 2 | 1 | 8 | Railway managed failover (RTO 30 min); audit append falls through to outbox per ADR-0007; verify cache hits continue | Railway alert + readiness probe failure | Wait for Railway failover; if persists > 15 min escalate to manual restore | DR_RUNBOOK §"Postgres primary down" |
 | D-02 | Replica lag exceeds SLO (audit GET serves stale) | 2 | 4 | 2 | 16 | Lag SLO 5 s; reads requiring fresh data force `READ_REPLICA_OK=false`; audit GET tolerates 5 s | `pg_replication_slot.lag_bytes` page > 100 MB | Pause replica reads; investigate replication slot; restart replica if needed | RUNBOOK §"Replica lag" |
 | D-03 | Connection pool exhausted (PgBouncer waiters > 5) | 3 | 3 | 1 | 9 | Pool sized at 65 frontend (CAPACITY_PLAN §5.1); 5 s `query_wait_timeout` → app 503; **do not autoscale API on this metric** (would worsen) | `pgbouncer_pools_cl_waiting` page > 5 sustained 60 s | Reduce app concurrency, kill long-running queries (`pg_terminate_backend`), increase backend pool with operator approval | RUNBOOK §"PG pool exhausted" |
-| D-04 | Audit table partition not created in time | 4 | 2 | 2 | 16 | Partition cron runs 24h ahead at 02:00 UTC on the 1st; alert if next month's partition is missing 12h before boundary | Monitoring `aegis_audit_partition_exists{month=N+1}` → 0 | Manual partition creation (`infra/postgres/partition-cron.sql` ad-hoc); investigate cron failure | RUNBOOK §"Partition cron" |
-| D-05 | Audit append-only trigger bypassed (UPDATE/DELETE on AuditEvent) | 5 | 1 | 2 | 10 | Trigger in migration `20260502000100_audit_append_only`; only `aegis_schema_owner` role can disable per ADR-0006 | Trigger failure logged; alert on any successful UPDATE/DELETE on AuditEvent | **Do not roll forward**: snapshot + investigate; redaction job uses dedicated grant per ADR-0006 § "Operator authorization" | SECURITY_RUNBOOK §"Audit tamper attempt" |
+| D-04 | Audit table partition not created in time | 4 | 2 | 2 | 16 | Partition cron runs 24h ahead at 02:00 UTC on the 1st; alert if next month's partition is missing 12h before boundary | Monitoring `okoro_audit_partition_exists{month=N+1}` → 0 | Manual partition creation (`infra/postgres/partition-cron.sql` ad-hoc); investigate cron failure | RUNBOOK §"Partition cron" |
+| D-05 | Audit append-only trigger bypassed (UPDATE/DELETE on AuditEvent) | 5 | 1 | 2 | 10 | Trigger in migration `20260502000100_audit_append_only`; only `okoro_schema_owner` role can disable per ADR-0006 | Trigger failure logged; alert on any successful UPDATE/DELETE on AuditEvent | **Do not roll forward**: snapshot + investigate; redaction job uses dedicated grant per ADR-0006 § "Operator authorization" | SECURITY_RUNBOOK §"Audit tamper attempt" |
 | D-06 | Cross-tenant data leak via missing `principalId` filter | 4 | 1 | 4 | 16 | Per-service code review for `principalId` in WHERE; optional RLS as defense-in-depth (peer's `apps/api/src/common/security/`) | RLS deny-counter alert; weekly random sample audit | Patch the offending query; affected-tenant notification per incident-comm SLA (per ARCHITECTURE.md §9) | SECURITY_RUNBOOK §"Tenant leak" |
 | D-07 | Long-running migration locks AuditEvent table | 3 | 2 | 1 | 6 | Forward-only additive migrations per ARCHITECTURE.md §8.3; migration smoke run on staging at full prod data size; `lock_timeout = 5s` on prod migrations | Migration timeout, alert | Roll back migration; defer to maintenance window | RUNBOOK §"Migration lock" |
 | D-08 | Storage exhausted (audit growth ahead of partition rolloff) | 3 | 2 | 1 | 6 | Partition rolloff every 1st at 04:00 UTC; storage tier headroom 50%; alert at 70% | `pg_database_size` > 70% of plan ceiling | Provision next plan tier; trigger partition rolloff manually if scheduled detach delayed | RUNBOOK §"PG storage" |
@@ -224,7 +224,7 @@ DPoP fails closed (deny verify with INVALID_SIGNATURE).
 
 | ID | Failure mode | S | L | D | RPN | Mitigation | Detection | Recovery | Runbook |
 |----|--------------|---|---|---|-----|------------|-----------|----------|---------|
-| R-01 | Redis cluster outage (primary + standby down) | 4 | 1 | 1 | 4 | Cache reads fall back to Postgres (logged via `aegis_cache_set_failed_total`); spend evaluation 503; DPoP verify denied | Redis health probe; pod readiness false | Wait for Railway managed restart; if > 15 min, manual failover from snapshot | DR_RUNBOOK §"Redis cluster down" |
+| R-01 | Redis cluster outage (primary + standby down) | 4 | 1 | 1 | 4 | Cache reads fall back to Postgres (logged via `okoro_cache_set_failed_total`); spend evaluation 503; DPoP verify denied | Redis health probe; pod readiness false | Wait for Railway managed restart; if > 15 min, manual failover from snapshot | DR_RUNBOOK §"Redis cluster down" |
 | R-02 | Redis primary down, failover to standby | 2 | 3 | 1 | 6 | Sentinel/failover automated; brief window of writes lost (≤ 1 s with `appendfsync everysec`); spend counters use `appendfsync always` so no loss | Failover event metric | n/a — automated | RUNBOOK §"Redis failover" |
 | R-03 | Redis memory pressure → eviction storm on cache DB (DB 0) | 2 | 4 | 2 | 16 | LRU policy; budget at 50% utilization; alert at 70%; CAPACITY_PLAN.md §6 sizing covers +12mo | `redis_evicted_keys{db="0"}` rate page > 100/s | Provision larger Redis tier; investigate cache hit rate regression | RUNBOOK §"Redis eviction" |
 | R-04 | Redis spend DB (DB 1) eviction (must be 0) | 5 | 1 | 1 | 5 | DB 1 is `noeviction`; any non-zero eviction is a page-immediately scenario; `appendfsync always` ensures durability | `redis_evicted_keys{db="1"}` page on > 0 | **Stop new spend evaluations** (toggle `FEATURE_SPEND_GUARD_OFFLINE`); reconcile from Postgres SpendRecord per RUNBOOK § "Spend reconciliation" before re-enabling | SECURITY_RUNBOOK §"Spend integrity loss" |
@@ -252,7 +252,7 @@ fail-closed — both invariants honored.
 | Q-02 | `bate:signal` worker crash loop (single-row poison message) | 3 | 2 | 2 | 12 | Per-job try/catch + dead-letter after 5 attempts; isolate poison message to DLQ; log with `signalId` | Worker crash count metric | Inspect DLQ row, fix bug, replay | RUNBOOK §"BATE poison" |
 | Q-03 | Outbox drain blocked by KMS-down (K-03) | 3 | 3 | 1 | 9 | Outbox writes accept new payloads even when sign blocked; drain pauses signing; resumes on KMS recovery | KMS sign error → outbox depth growth | KMS recovery resolves; if KMS down > 1 hour, escalate per K-01 runbook | DR_RUNBOOK §"KMS extended outage" |
 | Q-04 | Job idempotency key collision (CSPRNG failure) | 3 | 1 | 3 | 9 | UUIDv4 collision probability negligible; ON CONFLICT DO NOTHING degrades gracefully | n/a (collision is silent and benign) | n/a | n/a |
-| Q-05 | Cron drift (policy expiry sweep skipped) | 2 | 2 | 3 | 12 | BullMQ scheduled job persisted in DB 3; on Redis restart, scheduled jobs resume from AOF | Skipped-execution metric | Manual sweep via `aegis-cli policies expire`; investigate cron health | RUNBOOK §"Cron drift" |
+| Q-05 | Cron drift (policy expiry sweep skipped) | 2 | 2 | 3 | 12 | BullMQ scheduled job persisted in DB 3; on Redis restart, scheduled jobs resume from AOF | Skipped-execution metric | Manual sweep via `okoro-cli policies expire`; investigate cron health | RUNBOOK §"Cron drift" |
 
 ---
 
@@ -280,9 +280,9 @@ adversarial probing" rather than fault-rate.
 
 | ID | Failure mode | S | L | D | RPN | Mitigation | Detection | Recovery | Runbook |
 |----|--------------|---|---|---|-----|------------|-----------|----------|---------|
-| A-01 | Token replay across consecutive verify calls | 4 | 5 | 1 | 20 | Layer 1 jti per call (THREAT_MODEL_v2 §7.3); Layer 3 jti set in Redis DB 2; verify-result cache key includes jti per A-016; DPoP nonce per ADR-0010 | `aegis_replay_blocked_total` rate; BATE weight `AGENT_DPOP_REPLAY_ATTEMPT: -200` | Per-agent revocation if persistent; trust-score-driven cold-start ban | SECURITY_RUNBOOK §"Replay" |
+| A-01 | Token replay across consecutive verify calls | 4 | 5 | 1 | 20 | Layer 1 jti per call (THREAT_MODEL_v2 §7.3); Layer 3 jti set in Redis DB 2; verify-result cache key includes jti per A-016; DPoP nonce per ADR-0010 | `okoro_replay_blocked_total` rate; BATE weight `AGENT_DPOP_REPLAY_ATTEMPT: -200` | Per-agent revocation if persistent; trust-score-driven cold-start ban | SECURITY_RUNBOOK §"Replay" |
 | A-02 | Enumeration of agent IDs via `/v1/agents/{id}` | 2 | 5 | 2 | 20 | Negative caching `agent:{id}:notfound` 60 s TTL (per A-015); rate limit per IP at edge (Phase 3 CF rule); per-key throttle | Anomalous 404 rate per source IP / key | Add IP allow-list for the source if persistent | SECURITY_RUNBOOK §"Enumeration" |
-| A-03 | Brute-force key guessing on private key (theoretical) | 5 | 1 | 5 | 25 | Ed25519 128-bit security; private keys never in AEGIS so not exposed by AEGIS breach; agent-side compromise responsibility per CLAUDE.md inv. 1 | n/a | n/a (out of AEGIS attack surface) | n/a |
+| A-03 | Brute-force key guessing on private key (theoretical) | 5 | 1 | 5 | 25 | Ed25519 128-bit security; private keys never in OKORO so not exposed by OKORO breach; agent-side compromise responsibility per CLAUDE.md inv. 1 | n/a | n/a (out of OKORO attack surface) | n/a |
 | A-04 | Dictionary attack on hashed audit redaction leaves (per ADR-0006 § "Dictionary attack residual") | 3 | 3 | 4 | 36 | Hash includes per-event salt published only after redaction; documented residual per ADR-0006; auditor disclosure | Per-DPO inquiry, not detection | Recommend salt rotation if attack feasibility increases | RETENTION_POLICY §3 + SECURITY_RUNBOOK |
 | A-05 | API-key compromise (RP's verify-key leaked) | 4 | 3 | 2 | 24 | API-key rotation flow per RUNBOOK; per-key audit log; revoke + reissue ≤ 5 min | Anomalous key usage geography / volume | Revoke key; force RP to re-onboard verify-key | RUNBOOK §"API key compromise" |
 | A-06 | Compromised RP revokes legitimate agents (denial-of-service via authority) | 4 | 1 | 3 | 12 | RP revocation requires API-key auth which is rotatable; per-revocation audit row attributable; multi-key for production RPs (dual-control optional) | Revocation rate spike per RP | Restore agents from audit (event payload contains agent registration); investigate RP-side compromise | SECURITY_RUNBOOK §"Authority abuse" |
@@ -305,7 +305,7 @@ collapse customer trust; this section deserves heightened scrutiny.
 | AC-04 | Archive Merkle root publication fails (`/.well-known/audit-archive-roots.json` not updated) | 3 | 2 | 2 | 12 | Publication is the last step of archive job; alert on stale `archive_root_publish_age_seconds > 24h` | Endpoint freshness alert | Re-trigger publication; investigate static-asset host | RUNBOOK §"Archive root publication" |
 | AC-05 | Notarization break (OpenTimestamps disagrees with internal Merkle root) | 5 | 1 | 3 | 15 | Cross-verification at archive-job exit; notarization mismatch escalates to incident | Archive job notarization-mismatch alert | Forensic preservation; investigate which side is wrong (internal recompute vs. notarization service) | DR_RUNBOOK §"Notarization break" |
 | AC-06 | Audit GET pagination returns out-of-order events | 2 | 2 | 3 | 12 | Strict `(timestamp, id)` ordering; cursor-based pagination not offset-based | Customer-reported anomaly; integration test | Patch ordering; reissue affected pages | RUNBOOK §"Audit GET" |
-| AC-07 | Audit signing key (current version) destroyed prematurely | 5 | 1 | 1 | 5 | KMS key destroy requires `aegis_schema_owner` + 7-day soft-delete window per RETENTION_POLICY §6; cannot single-keystroke destroy | KMS key state monitor | Restore from soft-delete window; if past window, re-issue chain segment with new key + meta event | DR_RUNBOOK §"Signing key destruction" |
+| AC-07 | Audit signing key (current version) destroyed prematurely | 5 | 1 | 1 | 5 | KMS key destroy requires `okoro_schema_owner` + 7-day soft-delete window per RETENTION_POLICY §6; cannot single-keystroke destroy | KMS key state monitor | Restore from soft-delete window; if past window, re-issue chain segment with new key + meta event | DR_RUNBOOK §"Signing key destruction" |
 
 ### 11.2 Why notarization mismatch (AC-05) is critical
 
@@ -314,7 +314,7 @@ the two trust roots is wrong.** Until reconciled, no auditor can
 trust either. Forensic preservation is the only safe action while
 the discrepancy is investigated. The runbook anchor's first action is
 **"do not write any new audit events to the affected partition"** —
-which means pausing the entire AEGIS write path, accepting service
+which means pausing the entire OKORO write path, accepting service
 unavailability over silent corruption.
 
 This is the prototypical example of CLAUDE.md inv. 4 ("no silent
@@ -327,7 +327,7 @@ expensive choice is the only correct one.
 
 | ID | Failure mode | S | L | D | RPN | Mitigation | Detection | Recovery | Runbook |
 |----|--------------|---|---|---|-----|------------|-----------|----------|---------|
-| O-01 | Config drift (env var diverges between staging + prod) | 2 | 4 | 4 | 32 | Single Zod-validated config in `apps/api/src/config/`; CI enforces config schema parity; quarterly drift audit | Config-diff report from `aegis-cli config diff` | Reconcile via PR; document divergence intent | RUNBOOK §"Config drift" |
+| O-01 | Config drift (env var diverges between staging + prod) | 2 | 4 | 4 | 32 | Single Zod-validated config in `apps/api/src/config/`; CI enforces config schema parity; quarterly drift audit | Config-diff report from `okoro-cli config diff` | Reconcile via PR; document divergence intent | RUNBOOK §"Config drift" |
 | O-02 | Secret rotation gap (old secret expires before new one provisioned) | 4 | 2 | 2 | 16 | Rotation runbook 30-day overlap; CI calendar reminder 14 days before expiry | Secret expiry monitor | Emergency rotation; investigate scheduling failure | RUNBOOK §"Secret rotation" |
 | O-03 | Concurrent deploy collision (two operators deploy simultaneously) | 2 | 2 | 1 | 4 | Railway deploy lock per service; `claude-peers claim` for in-repo coordination | Deploy-conflict error | Wait for first deploy; redo second | RUNBOOK |
 | O-04 | Migration deployed without app deploy (or vice versa) | 4 | 2 | 1 | 8 | Three-step contract per ARCHITECTURE.md §8.3; `prisma migrate deploy` in container start script | App startup error or schema diff | Roll back; redeploy correctly; investigate CI/CD ordering | RUNBOOK §"Migration ordering" |
@@ -372,7 +372,7 @@ Trigger: GCP KMS us-east outage 11:00 UTC (peak verify load 800 rps).
 
 Expected behaviour:
 1. K-01 detection within 30 s; cross-region KMS adapter switches to
-   us-west via `AEGIS_KMS_PROVIDER` rolling config.
+   us-west via `OKORO_KMS_PROVIDER` rolling config.
 2. During the ~60 s switch window, audit append falls through to
    outbox per K-03; verify continues from cache (no audit blocking
    the hot path).
@@ -402,7 +402,7 @@ Expected behaviour:
 
 Operator actions:
 - Validate D-01 mitigation; confirm partition for next month exists
-  (manual `aegis-cli admin partition ensure-next` if cron retry
+  (manual `okoro-cli admin partition ensure-next` if cron retry
   exhausts).
 - Confirm outbox drain catches up.
 
@@ -464,16 +464,16 @@ alert config drift against this table is itself a failure mode
 
 | Failure ID | Alert name                                    | Severity | Receiver                  |
 |------------|-----------------------------------------------|----------|---------------------------|
-| C-01..C-08 | `aegis_crypto_*`                              | page     | on-call + security        |
-| K-01..K-06 | `aegis_kms_*`                                 | page     | on-call                   |
-| D-01..D-10 | `aegis_postgres_*`                            | page     | on-call + DBA             |
-| R-01..R-07 | `aegis_redis_*`                               | page or warn | on-call (page on R-04, R-06) |
-| Q-01..Q-05 | `aegis_bullmq_*`                              | warn     | on-call                   |
-| E-01..E-06 | `aegis_external_*`                            | warn     | on-call                   |
-| A-01..A-07 | `aegis_security_*`                            | page     | security                  |
-| AC-01..AC-07 | `aegis_audit_chain_*`                       | page     | security + on-call        |
+| C-01..C-08 | `okoro_crypto_*`                              | page     | on-call + security        |
+| K-01..K-06 | `okoro_kms_*`                                 | page     | on-call                   |
+| D-01..D-10 | `okoro_postgres_*`                            | page     | on-call + DBA             |
+| R-01..R-07 | `okoro_redis_*`                               | page or warn | on-call (page on R-04, R-06) |
+| Q-01..Q-05 | `okoro_bullmq_*`                              | warn     | on-call                   |
+| E-01..E-06 | `okoro_external_*`                            | warn     | on-call                   |
+| A-01..A-07 | `okoro_security_*`                            | page     | security                  |
+| AC-01..AC-07 | `okoro_audit_chain_*`                       | page     | security + on-call        |
 | O-01..O-07 | (process — no alert; covered by review/audit) | n/a      | operator                  |
-| W-01..W-04 | `aegis_worker_*` (Phase 3)                    | page or warn | on-call                |
+| W-01..W-04 | `okoro_worker_*` (Phase 3)                    | page or warn | on-call                |
 
 Every alert includes a `runbook_url` annotation pointing at the
 matching `RUNBOOK.md` or `DR_RUNBOOK.md` section.

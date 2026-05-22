@@ -6,7 +6,7 @@
   triggering a build.
 -->
 
-## AEGIS preflight — ✅ **READY TO SHIP**
+## OKORO preflight — ✅ **READY TO SHIP**
 
 **Result**: 8 pass · 5 warn · 0 fail · 1 skip · exit 1
 **Run**: `feature/something` @ `a1b2c3d`
@@ -15,8 +15,8 @@
 |---|---|---|---|
 | ✅ | `stack-signature` | stack signature | 142 ts · 69 specs · 18 modules · 14 models · 22 errors |
 | ✅ | `peer-claims` | active peer claims | 4 active (bc67a785, bba1b6c1, c4f241c5, cb622ccf) |
-| ✅ | `tsc-api` | tsc @aegis/api | 0 errors |
-| ⚠️ | `lint-api` | lint @aegis/api | eslint config can't load 'eslint-plugin-security' (env issue, not lint) |
+| ✅ | `tsc-api` | tsc @okoro/api | 0 errors |
+| ⚠️ | `lint-api` | lint @okoro/api | eslint config can't load 'eslint-plugin-security' (env issue, not lint) |
 | ✅ | `migration-immutability` | migration immutability | 4 migrations clean |
 | ✅ | `error-catalog-audit` | error catalog audit | all throws cataloged |
 | ✅ | `cross-package-parity` | cross-package parity tests | 4 files passed |

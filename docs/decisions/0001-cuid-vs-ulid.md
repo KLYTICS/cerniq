@@ -6,7 +6,7 @@
 
 ## Context
 
-The AEGIS spec (`docs/spec/01_MASTER.md` § 2.2) uses ULIDs for `agentId`,
+The OKORO spec (`docs/spec/01_MASTER.md` § 2.2) uses ULIDs for `agentId`,
 `policyId`, etc. Prisma's `@id @default(cuid())` is the canonical Prisma
 shortcut. The two diverge:
 

@@ -3,7 +3,7 @@ title: Denial precedence
 description: The wire contract for verify failures. First match wins. Importing — not mirroring — keeps this page honest.
 ---
 
-When AEGIS denies a verify request, it returns exactly one `denialReason`.
+When OKORO denies a verify request, it returns exactly one `denialReason`.
 The order below is **part of the wire contract** — relying-party SDKs build
 retry, escalation, and logging logic on this exact order. Adding a new
 reason is only non-breaking when it goes at the **end** of the list.
@@ -22,7 +22,7 @@ importing it. There is no second source of truth to keep in sync.
 ## Adding a new denial reason
 
 1. Append the reason to `DENIAL_REASON_PRECEDENCE`. Never insert in the middle.
-2. Add it to `docs/spec/AEGIS_API_SPEC.yaml` under the same denial-reason enum.
+2. Add it to `docs/spec/OKORO_API_SPEC.yaml` under the same denial-reason enum.
 3. Map an HTTP status code — typically `403`; use `402` for billing gates and `429` for rate or spend windows.
 4. Run `pnpm test:parity` — the build fails until every surface agrees.
 5. Add a human-readable entry to `REASON_COPY` in

@@ -1,8 +1,8 @@
 #!/usr/bin/env -S node --import=tsx
-// AEGIS — OpenAPI ↔ Prisma parity gate (workspace-scoped to @aegis/api).
+// OKORO — OpenAPI ↔ Prisma parity gate (workspace-scoped to @okoro/api).
 //
 // CI entry point: spec-sync.yml job-2 invokes this exact path:
-//   pnpm -F @aegis/api exec tsx scripts/check-openapi-prisma-parity.ts
+//   pnpm -F @okoro/api exec tsx scripts/check-openapi-prisma-parity.ts
 //
 // What we check (high-signal, low-noise):
 //   1. Every Prisma `enum` whose name maps to an OpenAPI component (or to
@@ -17,7 +17,7 @@
 //
 // What we DO NOT check (deliberately):
 //   - Field types — Prisma's optional/nullable/relation rules don't map
-//     1:1 to OpenAPI. Type checking lives in the @aegis/types Zod
+//     1:1 to OpenAPI. Type checking lives in the @okoro/types Zod
 //     parity script.
 //   - Internal models (Principal, ApiKey, BateSignal, OutboxEvent, …).
 //     They are not part of the public surface; they ship through
@@ -42,7 +42,7 @@ function getScriptPaths() {
   // In CJS (Jest / ts-jest), the runtime injects `__dirname`.
   // When run natively as an ESM script (tsx / node --import=tsx),
   // __dirname is undefined so we fall back to cwd — which is always
-  // apps/api/ when invoked via `pnpm -F @aegis/api exec tsx scripts/...`
+  // apps/api/ when invoked via `pnpm -F @okoro/api exec tsx scripts/...`
   const scriptDir: string =
     typeof __dirname !== 'undefined' ? resolve(__dirname) : process.cwd();
   const APP_ROOT = resolve(scriptDir, '..');
@@ -51,7 +51,7 @@ function getScriptPaths() {
     APP_ROOT,
     REPO_ROOT,
     PRISMA_PATH: join(APP_ROOT, 'prisma', 'schema.prisma'),
-    SPEC_PATH: join(REPO_ROOT, 'docs', 'spec', 'AEGIS_API_SPEC.yaml'),
+    SPEC_PATH: join(REPO_ROOT, 'docs', 'spec', 'OKORO_API_SPEC.yaml'),
     REPORT_PATH: join(REPO_ROOT, 'spec-sync.json'),
   };
 }
@@ -223,13 +223,13 @@ const MODEL_MAPPINGS: readonly ModelMapping[] = [
     // Wire renames: the API DTO (apps/api/src/modules/audit/audit.dto.ts)
     // surfaces these Prisma columns under different names. `denialReason`
     // is the Prisma storage column; the wire calls it `decisionReason`
-    // (broader semantic — covers approve/flag context too). `aegisSignature`
+    // (broader semantic — covers approve/flag context too). `okoroSignature`
     // is the storage column; the wire calls it `signature` (consumer-facing).
     renames: {
       id: 'eventId',
       createdAt: 'timestamp',
       denialReason: 'decisionReason',
-      aegisSignature: 'signature',
+      okoroSignature: 'signature',
     },
     internalFields: new Set([
       'agent',

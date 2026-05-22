@@ -19,19 +19,19 @@ retry semantics, and the live event catalog.
 | GET    | `/v1/webhooks/deliveries/:id`           | Inspect one delivery, including failures |
 | POST   | `/v1/webhooks/deliveries/:id/replay`    | Replay a delivery (DLQ recovery)         |
 
-Authentication: `X-AEGIS-API-Key` with **FULL** scope.
+Authentication: `X-OKORO-API-Key` with **FULL** scope.
 
 ## Create
 
 ```bash
-curl -X POST https://api.aegislabs.io/v1/webhooks/subscriptions \
-  -H "X-AEGIS-API-Key: $AEGIS_API_KEY" \
+curl -X POST https://api.okorolabs.io/v1/webhooks/subscriptions \
+  -H "X-OKORO-API-Key: $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://example.com/aegis-webhooks",
+    "url": "https://example.com/okoro-webhooks",
     "events": [
-      "aegis.agent.trust_score_changed",
-      "aegis.agent.revoked"
+      "okoro.agent.trust_score_changed",
+      "okoro.agent.revoked"
     ],
     "active": true
   }'
@@ -43,6 +43,6 @@ subscription record returns the secret as `signingSecretPrefix` only.
 ## Event catalog
 
 The set of subscribable events is the wire constant `WEBHOOK_EVENT` in
-`@aegis/types`. This page renders the live catalog from that constant:
+`@okoro/types`. This page renders the live catalog from that constant:
 
 <WebhookEventCatalog />

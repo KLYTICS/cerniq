@@ -16,7 +16,7 @@ interface CTAButtonProps {
 }
 
 export function CTAButton({ href, label, primary = false }: CTAButtonProps): ReactElement {
-  const className = primary ? 'aegis-button' : 'aegis-button-ghost';
+  const className = primary ? 'okoro-button' : 'okoro-button-ghost';
   // Mailto links open the user's mail client; everything else is a same-
   // origin nav.
   return (

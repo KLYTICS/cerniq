@@ -5,7 +5,7 @@ Scope: `apps/api/src/**` + `packages/types/**`
 
 ## Per-invariant assessment
 
-### Invariant 1: Private keys never enter AEGIS
+### Invariant 1: Private keys never enter OKORO
 - Status: PASS
 - Evidence:
   - `prisma/schema.prisma` `AgentIdentity` model carries `publicKey` only; no
@@ -14,7 +14,7 @@ Scope: `apps/api/src/**` + `packages/types/**`
     and persists it; nothing in `identity.dto.ts` exposes a private-key field.
   - All `privateKey` references (`audit.service.ts:36-59`, `policy.module.ts:19-35`,
     `audit-chain.util.ts:86`, `jwt.util.ts:103`, `ed25519.util.ts:16-19,44`) are
-    AEGIS's own audit/policy signing keys held in env vars or generated locally
+    OKORO's own audit/policy signing keys held in env vars or generated locally
     in dev — never agent material.
   - Pino redaction is documented in `SECURITY.md §4.1` (not verified at code
     level here — see Gaps).
@@ -63,7 +63,7 @@ Scope: `apps/api/src/**` + `packages/types/**`
   - Hash-chain construction in `audit-chain.util.ts:72-92` uses prev-signature
     + canonical-payload Ed25519 signing as documented; `prevHash` enforces
     that both prev-id and prev-sig are set together (line 76).
-  - Genesis hash literal `AEGIS-AUDIT-GENESIS-v1` (line 74) is stable.
+  - Genesis hash literal `OKORO-AUDIT-GENESIS-v1` (line 74) is stable.
 - Gaps:
   - **No DB-level guard against UPDATE/DELETE on `AuditEvent`.** Postgres
     triggers / RLS rules are not in any migration in `apps/api/prisma`. The
@@ -169,9 +169,9 @@ Scope: `apps/api/src/**` + `packages/types/**`
 1. **`policy.module.ts:26-28` derives the wrong public key.** When
    `JWT_ED25519_PRIVATE_B64` is set but `JWT_ED25519_PUBLIC_B64` is not, the
    module calls `generateKeypair()` and uses the *new* random keypair's public
-   key while keeping the configured private key. The `aegisPublicKeyB64`
+   key while keeping the configured private key. The `okoroPublicKeyB64`
    advertised at `/.well-known/...` will not match signatures produced by
-   `aegisPrivateKey`. Every signed policy will fail verification. The fix is
+   `okoroPrivateKey`. Every signed policy will fail verification. The fix is
    one line: `pubB64 = explicitPubB64 ?? encodeBase64Url(await ed.getPublicKeyAsync(priv))`.
 2. **Constants duplicated outside `packages/types`.** `INITIAL_SCORE`,
    `INITIAL_BAND` exist in `bate.cold-start.ts` but are hard-coded in

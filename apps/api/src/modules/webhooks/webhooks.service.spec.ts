@@ -110,7 +110,7 @@ describe('WebhooksService', () => {
   describe('subscribe()', () => {
     it('returns an id and a one-time plaintext whsec_ secret', async () => {
       const { svc } = makeService();
-      const result = await svc.subscribe('prn_A', 'https://example.com/wh', ['aegis.agent.revoked']);
+      const result = await svc.subscribe('prn_A', 'https://example.com/wh', ['okoro.agent.revoked']);
       expect(result.id).toMatch(/^sub_/);
       expect(result.secret).toMatch(/^whsec_/);
     });
@@ -169,8 +169,8 @@ describe('WebhooksService', () => {
   describe('list()', () => {
     it('returns only subscriptions for the given principalId', async () => {
       const { svc } = makeService();
-      await svc.subscribe('prn_A', 'https://a.com/wh', ['aegis.agent.revoked']);
-      await svc.subscribe('prn_B', 'https://b.com/wh', ['aegis.agent.trust_score_changed']);
+      await svc.subscribe('prn_A', 'https://a.com/wh', ['okoro.agent.revoked']);
+      await svc.subscribe('prn_B', 'https://b.com/wh', ['okoro.agent.trust_score_changed']);
       const list = await svc.list('prn_A');
       expect(list).toHaveLength(1);
       expect(list[0].url).toBe('https://a.com/wh');
@@ -185,9 +185,9 @@ describe('WebhooksService', () => {
 
     it('maps Prisma rows to { id, url, events, active } shape', async () => {
       const { svc } = makeService();
-      const { id } = await svc.subscribe('prn_A', 'https://a.com/wh', ['aegis.agent.revoked']);
+      const { id } = await svc.subscribe('prn_A', 'https://a.com/wh', ['okoro.agent.revoked']);
       const list = await svc.list('prn_A');
-      expect(list[0]).toMatchObject({ id, url: 'https://a.com/wh', events: ['aegis.agent.revoked'], active: true });
+      expect(list[0]).toMatchObject({ id, url: 'https://a.com/wh', events: ['okoro.agent.revoked'], active: true });
     });
   });
 
@@ -195,11 +195,11 @@ describe('WebhooksService', () => {
     it('creates a WebhookDelivery row for each matching active subscription', async () => {
       const { svc, subs, deliveries, prisma } = makeService();
       // Manually insert active subs with matching event
-      subs.push({ id: 'sub_1', principalId: 'prn_A', url: 'https://a.com/wh', events: ['aegis.agent.revoked'], active: true, secret: 'x' });
+      subs.push({ id: 'sub_1', principalId: 'prn_A', url: 'https://a.com/wh', events: ['okoro.agent.revoked'], active: true, secret: 'x' });
       (prisma.webhookSubscription.findMany as jest.Mock).mockResolvedValueOnce([subs[0]]);
-      (prisma.webhookDelivery.create as jest.Mock).mockResolvedValueOnce({ id: 'del_1', subscriptionId: 'sub_1', event: 'aegis.agent.revoked', payload: {} });
+      (prisma.webhookDelivery.create as jest.Mock).mockResolvedValueOnce({ id: 'del_1', subscriptionId: 'sub_1', event: 'okoro.agent.revoked', payload: {} });
 
-      await svc.enqueue({ type: 'aegis.agent.revoked', data: { agentId: 'agt_1' } }, 'prn_A');
+      await svc.enqueue({ type: 'okoro.agent.revoked', data: { agentId: 'agt_1' } }, 'prn_A');
 
       expect(deliveries.length + (prisma.webhookDelivery.create as jest.Mock).mock.calls.length).toBeGreaterThan(0);
     });
@@ -219,7 +219,7 @@ describe('WebhooksService', () => {
     it('does nothing when no active subscription matches the event', async () => {
       const { svc, prisma, delivery } = makeService();
       (prisma.webhookSubscription.findMany as jest.Mock).mockResolvedValueOnce([]);
-      await svc.enqueue({ type: 'aegis.agent.revoked', data: {} }, 'prn_A');
+      await svc.enqueue({ type: 'okoro.agent.revoked', data: {} }, 'prn_A');
       expect(delivery.enqueue).not.toHaveBeenCalled();
     });
 

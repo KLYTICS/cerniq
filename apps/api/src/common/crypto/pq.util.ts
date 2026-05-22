@@ -17,8 +17,8 @@
 //        defeat the security purpose. (Fail-closed; classical compromise
 //        + PQ verify-pass is rejected.)
 //
-// Feature flag: AEGIS_HYBRID_PQ_ENABLED. When OFF, this util is dormant
-// (no PQ signature produced; AEGIS runs pure Ed25519 per ADR-0002).
+// Feature flag: OKORO_HYBRID_PQ_ENABLED. When OFF, this util is dormant
+// (no PQ signature produced; OKORO runs pure Ed25519 per ADR-0002).
 // When ON, audit chain entries are signed hybrid; pre-flag entries
 // remain pure Ed25519 and are verifiable as long as their kid stays
 // in JWKS.

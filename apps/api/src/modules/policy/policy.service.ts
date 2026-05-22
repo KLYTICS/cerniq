@@ -18,16 +18,16 @@ import {
 /**
  * Phase 1 policy issuance.
  *
- * AEGIS issues a JWT containing the policy claims and signs it with the
- * AEGIS Ed25519 service key (loaded from env, ephemeral in dev). The signed
+ * OKORO issues a JWT containing the policy claims and signs it with the
+ * OKORO Ed25519 service key (loaded from env, ephemeral in dev). The signed
  * token is what relying parties can verify offline; per-request signing is
  * the agent's responsibility, referencing this policy by ID.
  */
 @Injectable()
 export class PolicyService {
   private readonly logger = new Logger(PolicyService.name);
-  private aegisPrivateKey?: Uint8Array;
-  private aegisPublicKeyB64?: string;
+  private okoroPrivateKey?: Uint8Array;
+  private okoroPublicKeyB64?: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -36,8 +36,8 @@ export class PolicyService {
   ) {}
 
   setSigningMaterial(privateKey: Uint8Array, publicKeyB64: string): void {
-    this.aegisPrivateKey = privateKey;
-    this.aegisPublicKeyB64 = publicKeyB64;
+    this.okoroPrivateKey = privateKey;
+    this.okoroPublicKeyB64 = publicKeyB64;
   }
 
   async create(principalId: string, agentId: string, dto: CreatePolicyDto): Promise<CreatePolicyResponseDto> {
@@ -50,7 +50,7 @@ export class PolicyService {
       throw new ForbiddenException({ error: 'AGENT_REVOKED', message: 'Cannot create policies for a revoked agent.' });
     }
 
-    if (!this.aegisPrivateKey || !this.aegisPublicKeyB64) {
+    if (!this.okoroPrivateKey || !this.okoroPublicKeyB64) {
       throw new Error('Policy signing material not initialised. Check JWT_ED25519_* env vars.');
     }
 
@@ -68,17 +68,17 @@ export class PolicyService {
       iat: nowSec,
       exp: Math.floor(expiresAt.getTime() / 1000),
       jti: ulid(),
-      // AEGIS-policy-token shape (informational)
+      // OKORO-policy-token shape (informational)
       scopes: dto.scopes,
       label: dto.label ?? null,
     };
 
     const signedToken = await this.jwt.sign(
       // The JwtUtil signs with the supplied key. We reuse the agent token shape
-      // because relying parties only need to confirm AEGIS' EdDSA signature.
+      // because relying parties only need to confirm OKORO' EdDSA signature.
        
       tokenPayload,
-      this.aegisPrivateKey,
+      this.okoroPrivateKey,
     );
 
     const tokenHash = createHash('sha256').update(signedToken).digest('hex');

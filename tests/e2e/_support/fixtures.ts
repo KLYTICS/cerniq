@@ -6,9 +6,9 @@
  * RawClient directly.
  */
 
-import { generateKeypair, signAgentToken } from '@aegis/sdk';
-import type { Aegis } from '@aegis/sdk';
-import type { AgentRecord, PolicyScope, SignContext } from '@aegis/sdk';
+import { generateKeypair, signAgentToken } from '@okoro/sdk';
+import type { Okoro } from '@okoro/sdk';
+import type { AgentRecord, PolicyScope, SignContext } from '@okoro/sdk';
 import { randomUUID } from 'node:crypto';
 
 export interface AgentFixture {
@@ -41,7 +41,7 @@ export function pastIso(secondsAgo = 60): string {
 }
 
 export async function createAgent(
-  sdk: Aegis,
+  sdk: Okoro,
   opts: { runtime?: 'openai' | 'anthropic' | 'google' | 'custom'; label?: string } = {},
 ): Promise<AgentFixture> {
   const kp = await generateKeypair();
@@ -54,7 +54,7 @@ export async function createAgent(
 }
 
 export async function createPolicy(
-  sdk: Aegis,
+  sdk: Okoro,
   agentId: string,
   scopes: PolicyScope[],
   opts: { expiresAt?: string; label?: string } = {},
@@ -91,7 +91,7 @@ export const SCOPES = {
  * Sign a per-request agent token using the SDK's client-side signer.
  *
  * We use this everywhere instead of a server-side /v1/token/sign endpoint —
- * AEGIS by design never sees a private key, so test tokens are signed
+ * OKORO by design never sees a private key, so test tokens are signed
  * locally.
  */
 export async function signTokenFor(

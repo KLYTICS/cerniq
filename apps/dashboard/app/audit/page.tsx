@@ -6,8 +6,8 @@
 import type { Metadata } from 'next';
 
 import {
-  AegisApiError,
-  AegisAuthMissingError,
+  OkoroApiError,
+  OkoroAuthMissingError,
   listAgents,
   listAudit,
   type AgentRow,
@@ -17,7 +17,7 @@ import { authConfigured } from '../../lib/auth';
 import { fmtNum, fmtPct, relativeTime, shortId } from '../../lib/format';
 
 export const metadata: Metadata = {
-  title: 'Audit · AEGIS',
+  title: 'Audit · OKORO',
 };
 
 const MAX_AGENT_FANOUT = 50;
@@ -42,11 +42,11 @@ async function fetchAggregatedAudit(): Promise<Result | { error: { code: string;
   try {
     agentList = await listAgents({ limit: MAX_AGENT_FANOUT });
   } catch (err) {
-    if (err instanceof AegisAuthMissingError) {
-      return { error: { code: err.code, message: 'Set AEGIS_DASHBOARD_API_KEY to populate this view.' } };
+    if (err instanceof OkoroAuthMissingError) {
+      return { error: { code: err.code, message: 'Set OKORO_DASHBOARD_API_KEY to populate this view.' } };
     }
-    if (err instanceof AegisApiError) return { error: { code: err.code, message: err.message } };
-    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting AEGIS API.' } };
+    if (err instanceof OkoroApiError) return { error: { code: err.code, message: err.message } };
+    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting OKORO API.' } };
   }
 
   const combined: CombinedRow[] = [];
@@ -81,8 +81,8 @@ export default async function AuditPage() {
   const data = await fetchAggregatedAudit();
 
   return (
-    <section className="aegis-page">
-      <header className="aegis-page-header">
+    <section className="okoro-page">
+      <header className="okoro-page-header">
         <h1>Audit</h1>
         <p className="muted">
           Recent verify decisions across all your agents. Each row is signed and chained
@@ -93,7 +93,7 @@ export default async function AuditPage() {
 
       {!authConfigured() ? (
         <div className="data-empty">
-          <p>Set <code>AEGIS_DASHBOARD_API_KEY</code> to populate this view.</p>
+          <p>Set <code>OKORO_DASHBOARD_API_KEY</code> to populate this view.</p>
         </div>
       ) : 'error' in data ? (
         <div className="data-empty error" role="alert">

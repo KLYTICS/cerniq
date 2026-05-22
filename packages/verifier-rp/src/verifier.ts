@@ -1,4 +1,4 @@
-// AegisVerifier — the public entry point for the relying-party verifier.
+// OkoroVerifier — the public entry point for the relying-party verifier.
 //
 // Verification algorithm (fail-fast, in order):
 //   1. Parse compact JWS.
@@ -25,7 +25,7 @@ import { RevocationCache } from './revocation-cache.js';
 import { checkScopeAndSpend } from './scope-check.js';
 import type { JwksKey } from './types.js';
 import type {
-  AegisVerifierConfig,
+  OkoroVerifierConfig,
   AgentStatusSnapshot,
   DenialReason,
   ReplayCache,
@@ -36,33 +36,33 @@ import type {
   VerifyOutcomeSuccess,
 } from './types.js';
 
-const DEFAULT_BASE_URL = 'https://api.aegislabs.io/v1';
+const DEFAULT_BASE_URL = 'https://api.okorolabs.io/v1';
 const DEFAULT_JWKS_TTL = 3600;
 const DEFAULT_REVOCATION_TTL = 30;
 const DEFAULT_REPLAY_MAX = 10_000;
 const DEFAULT_SKEW_SECONDS = 5;
 
-export class AegisVerifier {
+export class OkoroVerifier {
   private readonly config: Required<
-    Omit<AegisVerifierConfig, 'replayCache' | 'fetch' | 'logger'>
+    Omit<OkoroVerifierConfig, 'replayCache' | 'fetch' | 'logger'>
   > & {
     replayCache: ReplayCache;
     fetchImpl: typeof globalThis.fetch;
-    logger: AegisVerifierConfig['logger'];
+    logger: OkoroVerifierConfig['logger'];
   };
 
   private readonly jwksClient: JwksClient;
   private readonly revocationCache: RevocationCache;
 
-  constructor(config: AegisVerifierConfig) {
+  constructor(config: OkoroVerifierConfig) {
     // type-rationale: runtime JS callers can pass undefined/null despite the type.
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (typeof config !== 'object' || config === null) {
-      throw new ConfigError('AegisVerifier: config object is required');
+      throw new ConfigError('OkoroVerifier: config object is required');
     }
     if (typeof config.getAgentPublicKey !== 'function') {
       throw new ConfigError(
-        'AegisVerifier: getAgentPublicKey callback is required. ' +
+        'OkoroVerifier: getAgentPublicKey callback is required. ' +
           'Supply a function (agentId) => Promise<Uint8Array> that resolves the agent public key. ' +
           'See README "Resolving agent keys".',
       );
@@ -70,7 +70,7 @@ export class AegisVerifier {
     const fetchImpl = config.fetch ?? globalThis.fetch;
     if (typeof fetchImpl !== 'function') {
       throw new ConfigError(
-        'AegisVerifier: no fetch implementation available. Pass `fetch: customFetch` or run on a runtime with global fetch.',
+        'OkoroVerifier: no fetch implementation available. Pass `fetch: customFetch` or run on a runtime with global fetch.',
       );
     }
 
@@ -112,7 +112,7 @@ export class AegisVerifier {
 
   /**
    * Drop the cached revocation status for an agent. Call this from your
-   * webhook handler when AEGIS notifies you of `aegis.agent.revoked`.
+   * webhook handler when OKORO notifies you of `okoro.agent.revoked`.
    */
   invalidateAgent(agentId: string): void {
     this.revocationCache.invalidate(agentId);

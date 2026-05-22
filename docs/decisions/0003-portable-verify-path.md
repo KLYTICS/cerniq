@@ -23,7 +23,7 @@ NestJS adapter (`verify.service.ts`) and the future Cloudflare Worker
 adapter (`workers/cf-verify`) implement `VerifyPorts` against their
 respective I/O backends and call the same algorithm.
 
-**Allowed imports in the algorithm file**: `@aegis/types` and
+**Allowed imports in the algorithm file**: `@okoro/types` and
 TypeScript primitives only.
 
 **Forbidden imports in the algorithm file**:
@@ -59,7 +59,7 @@ enforces this list.
 - Open gap: as of 2026-05-01 the canonical `verify.ports.ts` imports
   `TrustBand` from `@prisma/client`, which technically violates the
   "no `@prisma/client` import" rule. Tracked as a follow-up — mirror
-  the type into `@aegis/types` and drop the Prisma import. (See peer
+  the type into `@okoro/types` and drop the Prisma import. (See peer
   message log + agent review `docs/reviews/architecture-compliance.md`.)
 
 ## Alternatives considered

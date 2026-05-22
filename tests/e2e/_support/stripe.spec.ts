@@ -14,7 +14,7 @@ import { describe, expect, it } from 'vitest';
 import crypto from 'node:crypto';
 import { buildEvent, signStripeEvent, tamperSignature } from './stripe';
 
-const SECRET = 'whsec_test_aegis_e2e_only';
+const SECRET = 'whsec_test_okoro_e2e_only';
 
 describe('_support/stripe.ts · signStripeEvent', () => {
   it('matches the hand-replicated HMAC-SHA256 of `<ts>.<body>`', () => {

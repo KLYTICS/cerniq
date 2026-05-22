@@ -28,31 +28,31 @@ The orchestrator prints one line per check. The `❌` lines are the gating failu
 ```bash
 make preflight-fast
 # or, more granular:
-pnpm -F @aegis/api exec tsx tools/preflight/preflight.ts --json | jq '.checks[] | select(.status=="fail" or .status=="warn")'
+pnpm -F @okoro/api exec tsx tools/preflight/preflight.ts --json | jq '.checks[] | select(.status=="fail" or .status=="warn")'
 ```
 
 ## Per-check remediation
 
 ### `tsc-api` ❌
-**Means**: `pnpm -F @aegis/api exec tsc --noEmit` returned non-zero.
+**Means**: `pnpm -F @okoro/api exec tsc --noEmit` returned non-zero.
 **Common causes**:
 - A peer added a dependency to `apps/api/package.json` without running `pnpm install`. Fix: `pnpm install` then re-run preflight.
 - An optional dependency type package isn't materializing (e.g., `Cannot find type definition file for 'cron'` — peer just added `@nestjs/schedule` but `@types/cron` not installed). Fix: `pnpm install` again, or add `"types": ["node"]` to `apps/api/tsconfig.json` `compilerOptions` to opt out of implicit type roots.
-- Real type error in your branch. Fix: `pnpm -F @aegis/api exec tsc --noEmit` and read the report.
+- Real type error in your branch. Fix: `pnpm -F @okoro/api exec tsc --noEmit` and read the report.
 
 ### `lint-api` ⚠ or ❌
 **Warn**: ESLint config can't load a plugin (env issue, not lint). Fix: `pnpm install` to materialize the missing plugin (commonly `eslint-plugin-security`).
-**Fail**: real ESLint errors or warnings beyond `--max-warnings=0`. Fix: `pnpm -F @aegis/api lint --fix` for auto-fixable, hand-fix the rest. Never bump `--max-warnings` to silence it.
+**Fail**: real ESLint errors or warnings beyond `--max-warnings=0`. Fix: `pnpm -F @okoro/api lint --fix` for auto-fixable, hand-fix the rest. Never bump `--max-warnings` to silence it.
 
 ### `migration-immutability` ❌
 **Means**: a Prisma migration that's already been applied to staging/prod has been modified locally.
 **Why this matters**: applied migrations are part of the chain — modifying one in place causes silent schema drift between environments. The script that catches this lives at `scripts/check-migration-immutability.ts`.
-**Fix**: restore the migration files from git (`git restore apps/api/prisma/migrations/<dir>/`), then add a NEW migration for your change (`pnpm -F @aegis/api exec prisma migrate dev --name <new_change>`).
+**Fix**: restore the migration files from git (`git restore apps/api/prisma/migrations/<dir>/`), then add a NEW migration for your change (`pnpm -F @okoro/api exec prisma migrate dev --name <new_change>`).
 
 ### `error-catalog-audit` ❌
 **Means**: a `throw new <X>Error(` somewhere in `apps/api/src` references a class not registered in `apps/api/src/common/errors/error-catalog.ts`.
 **Why this matters**: the SDK derives retry semantics from the catalog. An uncataloged error reaches the wire as `internal_error` (the redacted fallback), losing retry hints and breaking SDK retry logic.
-**Fix**: open `apps/api/src/common/errors/error-catalog.ts`, add an entry for the class with `code`, `httpStatus`, `retryable`, `backoff`, `customerMessage` (no internals), `category`. Then `pnpm -F @aegis/scripts audit:errors` to confirm. See the related runbook: [`error-catalog-drift.md`](./error-catalog-drift.md).
+**Fix**: open `apps/api/src/common/errors/error-catalog.ts`, add an entry for the class with `code`, `httpStatus`, `retryable`, `backoff`, `customerMessage` (no internals), `category`. Then `pnpm -F @okoro/scripts audit:errors` to confirm. See the related runbook: [`error-catalog-drift.md`](./error-catalog-drift.md).
 
 ### `cross-package-parity` ❌
 **Means**: at least one of the 4 specs in `tests/cross-package/` failed:
@@ -66,7 +66,7 @@ pnpm -F @aegis/api exec tsx tools/preflight/preflight.ts --json | jq '.checks[] 
 ### `env-vars` ⚠ (or ❌ with `--prod`)
 **Means**: one or more required prod env vars are missing.
 **Required set**: `DATABASE_URL`, `REDIS_URL`, `AUDIT_ED25519_PRIVATE_KEY_B64`, `AUDIT_ED25519_PUBLIC_KEY_B64`, `JWT_ED25519_PRIVATE_KEY_B64`, `JWT_ED25519_PUBLIC_KEY_B64`, `STRIPE_API_KEY`, `STRIPE_WEBHOOK_SECRET`.
-**Fix**: pull from Railway `railway variables list -s aegis-api` and confirm each is set. For local: `cp .env.example .env` and fill in. For CI: add as repo secrets.
+**Fix**: pull from Railway `railway variables list -s okoro-api` and confirm each is set. For local: `cp .env.example .env` and fill in. For CI: add as repo secrets.
 
 ### `operator-decisions` ⚠
 **Means**: at least one row in `OPERATOR_DECISIONS.md` is `OPEN`.
@@ -81,7 +81,7 @@ pnpm -F @aegis/api exec tsx tools/preflight/preflight.ts --json | jq '.checks[] 
 ### `perf-baseline-freshness` ⚠
 **Means**: `apps/api/perf-baseline.json` has only SLO targets (no real measurements) OR is more than 30 days old.
 **Why**: regressions are invisible without a baseline.
-**Fix**: spin up the dev stack (`make dev` + `pnpm -F @aegis/scripts seed:demo`), then `pnpm bench:verify --output apps/api/perf-baseline.json`. Re-run after any change to `verify.algorithm.ts` or its dependencies.
+**Fix**: spin up the dev stack (`make dev` + `pnpm -F @okoro/scripts seed:demo`), then `pnpm bench:verify --output apps/api/perf-baseline.json`. Re-run after any change to `verify.algorithm.ts` or its dependencies.
 
 ### `architecture-drift` ⚠
 **Means**: `apps/api/src/modules/compliance/audit-retention.service.ts` still uses `setInterval` instead of the framework `@Cron` decorator.
@@ -100,8 +100,8 @@ pnpm -F @aegis/api exec tsx tools/preflight/preflight.ts --json | jq '.checks[] 
 
 **Means**: the preflight tool itself crashed (not a check failure).
 **Common causes**:
-- `tsx` not installed in the workspace ESM context the tool was launched from. Fix: launch via `make preflight-fast` (uses `pnpm -F @aegis/api exec tsx`) or absolute path.
-- Path resolution issue when `pnpm -F @aegis/api exec tsx tools/preflight/preflight.ts` is run from `apps/api/` cwd (relative path resolves wrong). Fix: pass the absolute path `$(CURDIR)/tools/preflight/preflight.ts`. The Makefile target already does this.
+- `tsx` not installed in the workspace ESM context the tool was launched from. Fix: launch via `make preflight-fast` (uses `pnpm -F @okoro/api exec tsx`) or absolute path.
+- Path resolution issue when `pnpm -F @okoro/api exec tsx tools/preflight/preflight.ts` is run from `apps/api/` cwd (relative path resolves wrong). Fix: pass the absolute path `$(CURDIR)/tools/preflight/preflight.ts`. The Makefile target already does this.
 - The `claude-peers` binary isn't on `$HOME/.claude/peers/bin/`. The `peer-claims` check soft-skips in this case; only fails if invocation throws.
 
 ## Mitigate

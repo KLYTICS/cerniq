@@ -167,7 +167,7 @@ describe('PolicyService', () => {
     it('throws when signing material has not been set', async () => {
       const { svc } = makeService({ agents: [ACTIVE_AGENT] });
       // Bypass setSigningMaterial
-      (svc as unknown as { aegisPrivateKey: undefined }).aegisPrivateKey = undefined;
+      (svc as unknown as { okoroPrivateKey: undefined }).okoroPrivateKey = undefined;
       await expect(svc.create('prn_A', 'agt_1', BASE_DTO)).rejects.toThrow(/signing material/i);
     });
 

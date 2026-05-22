@@ -26,9 +26,9 @@ export function FeatureMatrix({
   rows: readonly FeatureRow[];
 }): ReactElement {
   return (
-    <table className="data-table dense pricing-table" aria-label="AEGIS pricing tiers and features">
+    <table className="data-table dense pricing-table" aria-label="OKORO pricing tiers and features">
       <caption className="visually-hidden">
-        AEGIS pricing tiers, monthly cost, included verifies, agents, audit retention, BATE
+        OKORO pricing tiers, monthly cost, included verifies, agents, audit retention, BATE
         access, webhooks, and SLA targets.
       </caption>
       <thead>

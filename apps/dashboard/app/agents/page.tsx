@@ -4,8 +4,8 @@
 import type { Metadata } from 'next';
 
 import {
-  AegisApiError,
-  AegisAuthMissingError,
+  OkoroApiError,
+  OkoroAuthMissingError,
   listAgents,
   type AgentListParams,
   type AgentListResult,
@@ -17,7 +17,7 @@ import { AgentTable } from './components/AgentTable';
 import { RegisterAgentForm } from './components/RegisterAgentForm';
 
 export const metadata: Metadata = {
-  title: 'Agents · AEGIS',
+  title: 'Agents · OKORO',
 };
 
 interface PageProps {
@@ -33,13 +33,13 @@ async function safeListAgents(params: AgentListParams): Promise<FetchOutcome> {
   try {
     return { result: await listAgents(params) };
   } catch (err) {
-    if (err instanceof AegisAuthMissingError) {
-      return { error: { code: err.code, message: 'Set AEGIS_DASHBOARD_API_KEY to populate this view.' } };
+    if (err instanceof OkoroAuthMissingError) {
+      return { error: { code: err.code, message: 'Set OKORO_DASHBOARD_API_KEY to populate this view.' } };
     }
-    if (err instanceof AegisApiError) {
+    if (err instanceof OkoroApiError) {
       return { error: { code: err.code, message: err.message } };
     }
-    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting AEGIS API.' } };
+    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting OKORO API.' } };
   }
 }
 
@@ -56,13 +56,13 @@ export default async function AgentsPage({ searchParams }: PageProps) {
   const outcome = await safeListAgents(filter);
 
   return (
-    <section className="aegis-page">
-      <header className="aegis-page-header">
-        <div className="aegis-page-header-row">
+    <section className="okoro-page">
+      <header className="okoro-page-header">
+        <div className="okoro-page-header-row">
           <div>
             <h1>Agents</h1>
             <p className="muted">
-              Cryptographic identities registered to your principal. AEGIS holds public keys
+              Cryptographic identities registered to your principal. OKORO holds public keys
               only — private keys never leave the SDK (CLAUDE.md invariant 1).
             </p>
           </div>
@@ -124,7 +124,7 @@ function FilterBar({ current }: { current: { status?: string; runtime?: string; 
         <span>search</span>
         <input name="search" defaultValue={current.search ?? ''} placeholder="id, label, model…" />
       </label>
-      <button type="submit" className="aegis-button-ghost">
+      <button type="submit" className="okoro-button-ghost">
         apply
       </button>
     </form>

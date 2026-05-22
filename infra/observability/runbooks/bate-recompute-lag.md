@@ -5,18 +5,18 @@
 - **Names**: `BateRecomputeLag` (warning, **disabled** pending
   metric), `BateAnomalySignalSpike` (warning, **disabled** pending
   metric)
-- **Group**: `aegis.bate`
-- **File**: `infra/observability/alerts/aegis.rules.yml`
+- **Group**: `okoro.bate`
+- **File**: `infra/observability/alerts/okoro.rules.yml`
 
 > **Status**: both alerts ship as `expr: vector(0) > 1` — they cannot
 > fire today. The runbook is correct as written; only the trigger is
 > stubbed. Tracked: M-007 follow-up.
 >
 > Required emitters (when M-007 follow-up lands):
-> - `aegis_bate_queue_oldest_job_age_seconds` — gauge from
+> - `okoro_bate_queue_oldest_job_age_seconds` — gauge from
 >   `apps/api/src/modules/bate/bate.worker.ts` exposing the BullMQ
 >   `bate-signals` queue's oldest waiting job age.
-> - `aegis_bate_signals_total{severity, signal_type}` — counter from
+> - `okoro_bate_signals_total{severity, signal_type}` — counter from
 >   `BateService.ingestSignal`. Severity is `info|warning|critical`
 >   per `docs/BATE_ALGORITHM.md` § anomaly rules R-1..R-5.
 
@@ -36,7 +36,7 @@
   approve actions for an agent that should already be in a lower band,
   or deny for one that's recovered. Stale scores undermine the BATE
   contract (`docs/BATE_ALGORITHM.md` § Trust bands).
-- **Webhook delivery**: `aegis.agent.trust_score_changed` fires on
+- **Webhook delivery**: `okoro.agent.trust_score_changed` fires on
   band crossings (round-2 handoff). Lag means delayed webhooks →
   delayed customer-side response to a high-risk agent.
 - **SLO**: BATE recompute lag SLO is < 60 s at p99
@@ -48,15 +48,15 @@
    ships):
 
    ```promql
-   aegis_bate_queue_oldest_job_age_seconds
+   okoro_bate_queue_oldest_job_age_seconds
    ```
 
    Until then, query BullMQ directly via Redis:
 
    ```bash
-   railway run -s aegis-redis -- redis-cli LLEN bull:bate-signals:wait
-   railway run -s aegis-redis -- redis-cli ZRANGE bull:bate-signals:delayed 0 5 WITHSCORES
-   railway run -s aegis-redis -- redis-cli LLEN bull:bate-signals:active
+   railway run -s okoro-redis -- redis-cli LLEN bull:bate-signals:wait
+   railway run -s okoro-redis -- redis-cli ZRANGE bull:bate-signals:delayed 0 5 WITHSCORES
+   railway run -s okoro-redis -- redis-cli LLEN bull:bate-signals:active
    ```
 
    `wait` length > 100 sustained = the worker is not keeping up.
@@ -66,8 +66,8 @@
 2. **Check worker health.**
 
    ```bash
-   railway logs -s aegis-worker | rg -F 'bate.worker' | tail -30
-   railway logs -s aegis-worker | rg -iF 'redis connection|bullmq.*error|prisma' | tail -20
+   railway logs -s okoro-worker | rg -F 'bate.worker' | tail -30
+   railway logs -s okoro-worker | rg -iF 'redis connection|bullmq.*error|prisma' | tail -20
    ```
 
    Common failure modes:
@@ -80,9 +80,9 @@
 
 3. **Per-signal-type breakdown** (anomaly spike):
 
-   Once `aegis_bate_signals_total` ships:
+   Once `okoro_bate_signals_total` ships:
    ```promql
-   sum by (signal_type) (rate(aegis_bate_signals_total{severity="critical"}[5m]))
+   sum by (signal_type) (rate(okoro_bate_signals_total{severity="critical"}[5m]))
    ```
 
    Until then, query Postgres:
@@ -109,15 +109,15 @@
 5. **Postgres lock check** for `TrustScoreHistory`:
 
    ```bash
-   railway run -s aegis-postgres -- psql -c "SELECT pid, locktype, mode, relation::regclass, granted FROM pg_locks WHERE relation = 'TrustScoreHistory'::regclass;"
+   railway run -s okoro-postgres -- psql -c "SELECT pid, locktype, mode, relation::regclass, granted FROM pg_locks WHERE relation = 'TrustScoreHistory'::regclass;"
    ```
 
 ## Mitigate
 
-- **Worker crashed**: `railway service restart -s aegis-worker`.
+- **Worker crashed**: `railway service restart -s okoro-worker`.
   Confirm `wait` queue drains within 5 min.
 - **Worker keeping up but lag growing**: scale horizontally —
-  `railway service scale aegis-worker --replicas <n+1>`. The 1 s
+  `railway service scale okoro-worker --replicas <n+1>`. The 1 s
   per-agent debounce (`jobId = bate:recompute:<agentId>`) means
   multiple workers are safe; they coalesce on the same job id.
 - **Single relying party flooding signals**: reach the customer
@@ -138,7 +138,7 @@
 ## Eradicate
 
 - For worker scaling needs that recur: bump the default replica
-  count in `infra/railway/aegis-worker.json`.
+  count in `infra/railway/okoro-worker.json`.
 - For single-RP flooding: file an issue under the customer's
   account; their integration may need rate limiting on their side.
   Document in their runbook.
@@ -151,13 +151,13 @@
 Once the metric ships:
 
 ```promql
-aegis_bate_queue_oldest_job_age_seconds < 30
+okoro_bate_queue_oldest_job_age_seconds < 30
 ```
 
 Until then (manual):
 
 ```bash
-railway run -s aegis-redis -- redis-cli LLEN bull:bate-signals:wait
+railway run -s okoro-redis -- redis-cli LLEN bull:bate-signals:wait
 # must be < 50 sustained over 10 min
 ```
 
@@ -176,7 +176,7 @@ usually lower).
 
 ## Escalate
 
-- **Not resolved in 30 min** → notify `#aegis-oncall` lead.
+- **Not resolved in 30 min** → notify `#okoro-oncall` lead.
 - **Not resolved in 1 h** → page `${ESCALATION_CONTACT}` (OD-007 pending).
 - **Real-attack signal pattern** detected (step 3/4 shows a
   coordinated burst across many agents) → page security on-call
@@ -187,4 +187,4 @@ usually lower).
 **Yes** if recompute lag exceeded the 60 s SLO for > 30 min, or if
 the trigger was an upstream worker crash that lost in-flight jobs.
 **No** for self-resolving anomaly-signal spikes that turned out to be
-correct fraud detection — log in `#aegis-ops` instead.
+correct fraud detection — log in `#okoro-ops` instead.

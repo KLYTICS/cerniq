@@ -11,7 +11,7 @@
 ## Symptom
 
 One or more of:
-1. `pnpm -F @aegis/scripts audit:errors` reports an `AegisError` subclass thrown but not registered in the catalog.
+1. `pnpm -F @okoro/scripts audit:errors` reports an `OkoroError` subclass thrown but not registered in the catalog.
 2. `pnpm vitest run tests/cross-package/error-catalog-parity.spec.ts` fails — a code's `httpStatus` or `retryable` differs across server, TS-generated mirror, or Python-generated mirror.
 3. A customer reports receiving a 5xx with a stack trace, internal class name, or stripe/secret material in the message body — the customer-message leak canary fired (or didn't, but should have).
 4. Two entries with the same `code` — duplicate registration breaks the lookup.
@@ -22,7 +22,7 @@ One or more of:
 - **Parity drift → SDK retry storms or lost retries**:
   - Server says `retryable: true`, SDK says `false`: SDK gives up immediately on transient failures (lost retries → flaky integrations).
   - Server says `retryable: false`, SDK says `true`: SDK retries on permanent failures, amplifying load (retry storm during incidents).
-- **Customer message leak**: if `customerMessage` ever includes `aegis_*`, `whsec_*`, `sk_*`, stack trace, or `null`/`undefined` strings, that's a security incident — secrets or internals exposed to customers.
+- **Customer message leak**: if `customerMessage` ever includes `okoro_*`, `whsec_*`, `sk_*`, stack trace, or `null`/`undefined` strings, that's a security incident — secrets or internals exposed to customers.
 - **Duplicate code**: silently overwrites the earlier entry. Behavior depends on JS object iteration order and is not deterministic.
 
 ## Diagnose
@@ -31,7 +31,7 @@ One or more of:
 
    ```bash
    # Find uncataloged throws.
-   pnpm -F @aegis/scripts audit:errors
+   pnpm -F @okoro/scripts audit:errors
 
    # Confirm cross-language parity.
    pnpm vitest run tests/cross-package/error-catalog-parity.spec.ts
@@ -45,16 +45,16 @@ One or more of:
    The `audit:errors --list` mode prints every throw site and its registration status:
 
    ```bash
-   pnpm -F @aegis/scripts audit:errors -- --list | rg -i 'uncataloged|missing'
+   pnpm -F @okoro/scripts audit:errors -- --list | rg -i 'uncataloged|missing'
    ```
 
 3. **Check the generated mirrors are up-to-date.**
 
    ```bash
    # Round-15 design: TS mirror at packages/types/src/error-catalog.generated.ts
-   # Python mirror at packages/sdk-py/aegis/error_catalog.py
+   # Python mirror at packages/sdk-py/okoro/error_catalog.py
    head -3 packages/types/src/error-catalog.generated.ts
-   head -3 packages/sdk-py/aegis/error_catalog.py
+   head -3 packages/sdk-py/okoro/error_catalog.py
    ```
 
    Both must carry `@generated` headers (parity test enforces this). If a mirror is hand-edited without the header, regenerate.
@@ -62,7 +62,7 @@ One or more of:
 4. **Confirm a duplicate-code situation.**
 
    ```bash
-   pnpm -F @aegis/api exec node -e "
+   pnpm -F @okoro/api exec node -e "
      const { ERROR_CATALOG } = require('./dist/common/errors/error-catalog');
      const codes = Object.values(ERROR_CATALOG).map(e => e.code);
      const dupes = codes.filter((c, i) => codes.indexOf(c) !== i);
@@ -91,7 +91,7 @@ One or more of:
     httpStatus: 4xx | 5xx,
     retryable: true | false,
     backoff: 'none' | 'linear' | 'exponential' | 'on_retry_after_header',
-    customerMessage: '...',  // NEVER include aegis_*, whsec_*, sk_*, stack
+    customerMessage: '...',  // NEVER include okoro_*, whsec_*, sk_*, stack
     category: 'auth | validation | policy | rate_limit | billing | crypto | transient | internal',
   },
   ```
@@ -115,7 +115,7 @@ One or more of:
 
 ```bash
 # All three gates must pass.
-pnpm -F @aegis/scripts audit:errors
+pnpm -F @okoro/scripts audit:errors
 pnpm vitest run tests/cross-package/error-catalog-parity.spec.ts
 pnpm jest apps/api/src/common/errors/error-catalog.spec.ts
 
@@ -140,8 +140,8 @@ make preflight-fast
 ## See also
 
 - Round 15 handoff: `docs/SESSION_HANDOFF.md` 2026-05-05 entry, Lane 5.
-- Code: `apps/api/src/common/errors/error-catalog.ts`, `aegis-error.ts`, `apps/api/src/common/filters/http-exception.filter.ts`.
-- Generators (peer c4f241c5 round-16): `packages/types/src/error-catalog.generated.ts`, `packages/sdk-py/aegis/error_catalog.py`.
+- Code: `apps/api/src/common/errors/error-catalog.ts`, `okoro-error.ts`, `apps/api/src/common/filters/http-exception.filter.ts`.
+- Generators (peer c4f241c5 round-16): `packages/types/src/error-catalog.generated.ts`, `packages/sdk-py/okoro/error_catalog.py`.
 - Audit script: `scripts/audit-error-catalog.ts`.
 - Spec: `apps/api/src/common/errors/error-catalog.spec.ts`, `tests/cross-package/error-catalog-parity.spec.ts`.
 - Generated catalog reference: `apps/api/src/common/errors/error-catalog.generated.md`.

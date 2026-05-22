@@ -7,7 +7,7 @@ narrative** — never a single endpoint in isolation.
 ## Running
 
 ```bash
-pnpm --filter @aegis/api test:e2e
+pnpm --filter @okoro/api test:e2e
 ```
 
 The existing `test:e2e` script is
@@ -22,7 +22,7 @@ The existing `test:e2e` script is
 > `<name>.e2e.spec.ts` (with a dot). Two options to run them today:
 >
 > 1. Pass an explicit pattern:
->    `pnpm --filter @aegis/api test:e2e -- "test/e2e/.*\\.e2e\\.spec\\.ts$"`
+>    `pnpm --filter @okoro/api test:e2e -- "test/e2e/.*\\.e2e\\.spec\\.ts$"`
 > 2. Add a sibling `*.e2e-spec.ts` re-export, e.g.
 >    `full-flow.e2e-spec.ts → export * from './full-flow.e2e.spec'`.
 >
@@ -34,13 +34,13 @@ The existing `test:e2e` script is
 ## Required infrastructure
 
 - **Postgres 16** at `DATABASE_URL` (defaulted to
-  `postgresql://aegis:aegis@localhost:5432/aegis_test?schema=public` by
+  `postgresql://okoro:okoro@localhost:5432/okoro_test?schema=public` by
   `apps/api/test/setup-env.ts`).
 - **Redis 7** at `REDIS_URL` (defaulted to `redis://localhost:6379`).
 - Both are provided by the repo-root `docker-compose.yml`.
 
 Schema migrations run automatically when `RUN_MIGRATIONS=1` is set; for
-local iteration assume `pnpm --filter @aegis/api prisma:deploy` has been
+local iteration assume `pnpm --filter @okoro/api prisma:deploy` has been
 run once.
 
 Between specs the helper truncates these tables in dependency order:

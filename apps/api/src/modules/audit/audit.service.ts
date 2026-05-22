@@ -34,7 +34,7 @@ export interface AppendAuditInput {
   // ── Enterprise backbone (ADR-0008, ADR-0011, ADR-0012) ──────────────
   /** FK to RelyingParty when this event came through an MCP bridge / API client. */
   relyingPartyId?: string | null;
-  /** Which AEGIS audit-signing kid signed this row. Defaults to 'kid-genesis-v1'. */
+  /** Which OKORO audit-signing kid signed this row. Defaults to 'kid-genesis-v1'. */
   signingKeyId?: string | null;
   /** PolicyEngine that produced the decision: 'builtin' | 'cedar' | 'opa'. */
   policyEngineId?: string | null;
@@ -46,7 +46,7 @@ export interface AppendAuditInput {
  * Append-only audit log.
  *
  * CLAUDE.md invariant #3: every write goes through `append()` and forms a
- * hash chain — each event is signed by AEGIS over `prev_hash || canonical(payload)`.
+ * hash chain — each event is signed by OKORO over `prev_hash || canonical(payload)`.
  *
  * Signing primitive: Ed25519 (per CLAUDE.md "one curve, one library").
  * Public key is published at `GET /v1/.well-known/audit-signing-key`.
@@ -80,7 +80,7 @@ export class AuditService {
       return;
     }
     if (this.config.nodeEnv === 'production') {
-      throw new Error('AEGIS_SIGNING_PRIVATE_KEY and AEGIS_SIGNING_PUBLIC_KEY must be set in production.');
+      throw new Error('OKORO_SIGNING_PRIVATE_KEY and OKORO_SIGNING_PUBLIC_KEY must be set in production.');
     }
     const kp = await this.ed25519.generateKeypair();
     this.auditPrivateKey = kp.privateKey;
@@ -112,7 +112,7 @@ export class AuditService {
    */
   async append(input: AppendAuditInput): Promise<string> {
     return await withSpan(
-      'aegis.audit.chain.append',
+      'okoro.audit.chain.append',
       () => this.appendInternal(input),
       {
         'principal.id': input.principalId,
@@ -148,12 +148,12 @@ export class AuditService {
             ? await tx.auditEvent.findFirst({
                 where: { agentId: input.agentId },
                 orderBy: { timestamp: 'desc' },
-                select: { id: true, aegisSignature: true },
+                select: { id: true, okoroSignature: true },
               })
             : await tx.auditEvent.findFirst({
                 where: { agentId: null, principalId: input.principalId },
                 orderBy: { timestamp: 'desc' },
-                select: { id: true, aegisSignature: true },
+                select: { id: true, okoroSignature: true },
               });
 
           // Build v2 chain payload — hashes the redactable fields (ADR-0006).
@@ -188,7 +188,7 @@ export class AuditService {
               {
                 eventId,
                 prevEventId: prev?.id ?? null,
-                prevSignatureB64Url: prev?.aegisSignature ?? null,
+                prevSignatureB64Url: prev?.okoroSignature ?? null,
                 payload: built.signed,
               },
               (msg) => signer.signRaw(msg),
@@ -203,7 +203,7 @@ export class AuditService {
               {
                 eventId,
                 prevEventId: prev?.id ?? null,
-                prevSignatureB64Url: prev?.aegisSignature ?? null,
+                prevSignatureB64Url: prev?.okoroSignature ?? null,
                 payload: built.signed,
               },
               privateKey,
@@ -239,7 +239,7 @@ export class AuditService {
               policySnapshotHash: built.rawHashes.policySnapshotHash,
               trustScoreAtEvent: input.trustScoreAtEvent,
               trustBandAtEvent: input.trustBandAtEvent,
-              aegisSignature: signature,
+              okoroSignature: signature,
               payloadVersion: 2,
               // ADR-0008/0011/0012 — enterprise backbone columns. M-037:
               // signingKeyId resolution order: caller-supplied → KMS active
@@ -305,7 +305,7 @@ export class AuditService {
         decision: e.decision,
         decisionReason: e.denialReason,
         trustScoreAtEvent: e.trustScoreAtEvent,
-        signature: e.aegisSignature,
+        signature: e.okoroSignature,
       })),
       nextCursor: hasMore ? (sliced[sliced.length - 1]?.id ?? null) : null,
       count: sliced.length,
@@ -345,7 +345,7 @@ export class AuditService {
     requestedAmount: string | null;
     requestedAmountHash: string | null;
     currency: string | null;
-    aegisSignature: string;
+    okoroSignature: string;
     payloadVersion: number;
     redactedAt: string | null;
   }> {
@@ -400,7 +400,7 @@ export class AuditService {
           requestedAmount: e.requestedAmount?.toString() ?? null,
           requestedAmountHash: e.requestedAmountHash,
           currency: e.currency,
-          aegisSignature: e.aegisSignature,
+          okoroSignature: e.okoroSignature,
           payloadVersion: e.payloadVersion,
           redactedAt: e.redactedAt?.toISOString() ?? null,
         };
@@ -442,7 +442,7 @@ export class AuditService {
     requestedAmount: string | null;
     requestedAmountHash: string | null;
     currency: string | null;
-    aegisSignature: string;
+    okoroSignature: string;
     payloadVersion: number;
     redactedAt: string | null;
   }> {
@@ -491,7 +491,7 @@ export class AuditService {
           requestedAmount: e.requestedAmount?.toString() ?? null,
           requestedAmountHash: e.requestedAmountHash,
           currency: e.currency,
-          aegisSignature: e.aegisSignature,
+          okoroSignature: e.okoroSignature,
           payloadVersion: e.payloadVersion,
           redactedAt: e.redactedAt?.toISOString() ?? null,
         };

@@ -5,7 +5,7 @@
 //
 // Strategy
 // ────────
-//   1. If `AEGIS_API_BASE_URL` is set at request time, SSR-fetch the JSON.
+//   1. If `OKORO_API_BASE_URL` is set at request time, SSR-fetch the JSON.
 //      The response has the same `Cache-Control: public, max-age=3600` as
 //      `next: { revalidate: 3600 }`, so the two cache layers compose.
 //   2. Map the API shape (snake_case, normalized E4 / cents / null
@@ -141,7 +141,7 @@ function ctaForTier(id: PublicTierId): { label: string; href: string } {
   if (id === 'ENTERPRISE') {
     return {
       label: 'Contact us',
-      href: `mailto:${SALES_EMAIL}?subject=AEGIS%20Enterprise%20inquiry`,
+      href: `mailto:${SALES_EMAIL}?subject=OKORO%20Enterprise%20inquiry`,
     };
   }
   return {
@@ -206,9 +206,9 @@ function fallback(reason: string): ResolvedPricing {
 }
 
 export async function resolvePricing(): Promise<ResolvedPricing> {
-  const base = process.env.AEGIS_API_BASE_URL;
+  const base = process.env.OKORO_API_BASE_URL;
   if (!base || base.length === 0) {
-    return fallback('AEGIS_API_BASE_URL unset');
+    return fallback('OKORO_API_BASE_URL unset');
   }
   const url = `${base.replace(/\/$/, '')}/.well-known/pricing.json`;
 

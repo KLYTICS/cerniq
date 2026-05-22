@@ -50,7 +50,7 @@ interface CachedPolicy {
  * The actual decision logic lives in `algorithm/verify.algorithm.ts` and
  * is framework-free so the Cloudflare Worker (Phase 3) can import it
  * unchanged. This class implements the `VerifyPorts` contract using
- * Prisma + Redis + the AEGIS audit/BATE/spend services.
+ * Prisma + Redis + the OKORO audit/BATE/spend services.
  *
  * Gate order (outer to inner):
  *   G-2: UsageGuardService — plan-tier monthly quota (billing gate, fails-open)
@@ -185,7 +185,7 @@ export class VerifyService {
           // Best-effort write — but we must NOT swallow silently
           // (CLAUDE.md invariant #4 + audit T-5). Persistent failures
           // surface as `lastSeenAt` going stale on the dashboard plus
-          // an elevated `aegis_cache_set_failed_total{op="touch_agent"}`.
+          // an elevated `okoro_cache_set_failed_total{op="touch_agent"}`.
           this.logger.warn(`touchAgent failed agent=${agentId}: ${(err as Error).message}`);
           this.metrics.cacheSetFailedTotal.inc({ op: 'touch_agent' });
         });
@@ -202,15 +202,15 @@ export class VerifyService {
     // Span attrs are filled from the algorithm result via setActiveSpanAttributes
     // below — DTO doesn't carry agent.id/policy.id (they're inside the token).
     const result = await withSpan(
-      'aegis.verify.algorithm',
+      'okoro.verify.algorithm',
       // type-rationale: VerifyRequestDto is a NestJS DTO class; spreading it
       // intentionally converts to a plain object that the algorithm consumes.
       // eslint-disable-next-line @typescript-eslint/no-misused-spread
       () => verifyAlgorithm({ ...dto, relyingPartyPrincipalId }, ports),
       {
         'principal.id': relyingPartyPrincipalId,
-        'aegis.feature.bate': this.config.enableBate,
-        'aegis.verify.action': dto.action,
+        'okoro.feature.bate': this.config.enableBate,
+        'okoro.verify.action': dto.action,
       },
     );
 
@@ -273,7 +273,7 @@ export class VerifyService {
     };
     // Cache miss → durable read succeeded → cache set is best-effort but
     // must be observable (H-3 fix). Failures bump
-    // `aegis_cache_set_failed_total{op="agent"}` so a Redis flap is alarm-able
+    // `okoro_cache_set_failed_total{op="agent"}` so a Redis flap is alarm-able
     // before it cascades into Postgres saturation.
     await this.redis.set(cacheKey, value, 60).catch((err) => {
       this.logger.warn(`agent cache set failed agent=${agentId}: ${(err as Error).message}`);

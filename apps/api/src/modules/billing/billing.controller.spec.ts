@@ -5,7 +5,7 @@ import { Test } from '@nestjs/testing';
 import {
   ServiceUnavailableError,
   ValidationError,
-} from '../../common/errors/aegis-error';
+} from '../../common/errors/okoro-error';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AppConfigService } from '../../config/config.service';
 
@@ -40,11 +40,11 @@ describe('BillingController', () => {
     prisma = { principal: { findUnique: jest.fn() } };
     config = {} as never;
     Object.defineProperty(config, 'stripeCheckoutSuccessUrl', {
-      get: jest.fn(() => 'https://app.aegislabs.io/billing/success'),
+      get: jest.fn(() => 'https://app.okorolabs.io/billing/success'),
       configurable: true,
     });
     Object.defineProperty(config, 'stripeCheckoutCancelUrl', {
-      get: jest.fn(() => 'https://app.aegislabs.io/billing/cancel'),
+      get: jest.fn(() => 'https://app.okorolabs.io/billing/cancel'),
       configurable: true,
     });
 
@@ -73,8 +73,8 @@ describe('BillingController', () => {
       expect(stripe.createCheckoutSession).toHaveBeenCalledWith({
         principalId: PRINCIPAL_ID,
         planTier: 'DEVELOPER',
-        successUrl: 'https://app.aegislabs.io/billing/success',
-        cancelUrl: 'https://app.aegislabs.io/billing/cancel',
+        successUrl: 'https://app.okorolabs.io/billing/success',
+        cancelUrl: 'https://app.okorolabs.io/billing/cancel',
       });
     });
 
@@ -122,12 +122,12 @@ describe('BillingController', () => {
       });
       const out = await controller.portal(
         { principalId: PRINCIPAL_ID, scope: 'FULL' as never } as never,
-        { returnUrl: 'https://app.aegislabs.io/billing/back' },
+        { returnUrl: 'https://app.okorolabs.io/billing/back' },
       );
       expect(out).toEqual({ url: 'https://billing.stripe.com/p/session/abc' });
       expect(stripe.createPortalSession).toHaveBeenCalledWith(
         PRINCIPAL_ID,
-        'https://app.aegislabs.io/billing/back',
+        'https://app.okorolabs.io/billing/back',
       );
     });
   });

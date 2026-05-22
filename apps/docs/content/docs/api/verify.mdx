@@ -10,8 +10,8 @@ fail-closed pipeline and returns the first failure (or `allowed: true`).
 ## Request
 
 ```bash
-curl -X POST https://api.aegislabs.io/v1/verify \
-  -H "X-AEGIS-Verify-Key: $AEGIS_VERIFY_KEY" \
+curl -X POST https://api.okorolabs.io/v1/verify \
+  -H "X-OKORO-Verify-Key: $OKORO_VERIFY_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "token": "eyJhbGciOiJFZERTQSI...",
@@ -22,8 +22,8 @@ curl -X POST https://api.aegislabs.io/v1/verify \
   }'
 ```
 
-The `X-AEGIS-Verify-Key` is the verify-only API key. Use it on the
-relying-party side. Never expose your `X-AEGIS-API-Key` (FULL scope) to
+The `X-OKORO-Verify-Key` is the verify-only API key. Use it on the
+relying-party side. Never expose your `X-OKORO-API-Key` (FULL scope) to
 the verify hot path.
 
 ## Successful response
@@ -42,7 +42,7 @@ the verify hot path.
 ```
 
 Cache the response for up to `cacheTtlSeconds` (default 30) — see
-`VERIFY_RESULT_DEFAULT_TTL_SECONDS` in `@aegis/types`. The cache key is
+`VERIFY_RESULT_DEFAULT_TTL_SECONDS` in `@okoro/types`. The cache key is
 the token hash.
 
 ## Denial response
@@ -79,8 +79,8 @@ cache-miss path adds two Postgres reads. See [SRE persona](/docs/personas/sre).
 ## Edge verification
 
 For environments where the round-trip is unacceptable, use the offline
-verifier [`@aegis/verifier-rp`](https://github.com/klytics/aegis/tree/main/packages/verifier-rp).
+verifier [`@okoro/verifier-rp`](https://github.com/klytics/okoro/tree/main/packages/verifier-rp).
 It validates the same token against the JWKS published at
-`/.well-known/aegis-jwks.json` without contacting AEGIS at all. Spend
+`/.well-known/okoro-jwks.json` without contacting OKORO at all. Spend
 limits and trust scores are not available in offline mode — design your
 policy scopes accordingly.

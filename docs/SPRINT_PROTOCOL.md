@@ -1,4 +1,4 @@
-# AEGIS — Sprint Protocol
+# OKORO — Sprint Protocol
 ## How 100 Engineers Ship in Parallel Without Stepping on Each Other
 
 > **Owner:** Engineering Lead + Operator  
@@ -9,7 +9,7 @@
 
 ## 1. Core Principle
 
-AEGIS is built by parallel sessions (humans, Claude agents, or both) working concurrently. Without discipline, parallel sessions cause merge conflicts, duplicate work, and broken invariants. This protocol prevents that.
+OKORO is built by parallel sessions (humans, Claude agents, or both) working concurrently. Without discipline, parallel sessions cause merge conflicts, duplicate work, and broken invariants. This protocol prevents that.
 
 The claim protocol is the coordination layer. **It is not optional.** Every session that touches code must claim its module before writing a single line.
 
@@ -60,7 +60,7 @@ cat WORK_BOARD.md | grep "STATUS: open"
 # Step 2: Read the full module entry — understand scope and file paths
 
 # Step 3: Claim it
-claude-peers claim aegis <module-id> \
+claude-peers claim okoro <module-id> \
   --note "Implementing Stripe billing integration" \
   --ttl 7200   # 2 hours; extend if needed
 
@@ -83,7 +83,7 @@ claude-peers claim aegis <module-id> \
 
 ```bash
 # Before TTL expires
-claude-peers extend aegis:<module-id> --ttl 3600
+claude-peers extend okoro:<module-id> --ttl 3600
 # Update WORK_BOARD.md: add (extended HH:MM UTC)
 ```
 
@@ -91,7 +91,7 @@ claude-peers extend aegis:<module-id> --ttl 3600
 
 After your PR is merged:
 ```bash
-claude-peers release aegis:<module-id>
+claude-peers release okoro:<module-id>
 # Update WORK_BOARD.md: STATUS: landed
 # Append to docs/SESSION_HANDOFF.md
 ```
@@ -251,7 +251,7 @@ if (error) throw new BateScoringError({ cause: error });
 const MAX_DELEGATION_DEPTH = 5; // in verify.service.ts
 
 // ✅ Always
-import { MAX_DELEGATION_DEPTH } from '@aegis/types'; // in packages/types
+import { MAX_DELEGATION_DEPTH } from '@okoro/types'; // in packages/types
 ```
 
 ### 6.3 Architecture Change Protocol
@@ -297,7 +297,7 @@ claude-peers msg <session-id> "Question about your M-044 PR..."
 claude-peers broadcast "Heads up: changing verify.algorithm.ts step 7 semantics"
 
 # List all active sessions and their claims
-claude-peers list --repo aegis
+claude-peers list --repo okoro
 ```
 
 ### 7.3 Conflict Resolution
@@ -418,5 +418,5 @@ grep "Priority: P0" WORK_BOARD.md                    # urgent modules
 
 ---
 
-*Sprint protocol version: 1.0 | AEGIS Phase 1*  
+*Sprint protocol version: 1.0 | OKORO Phase 1*  
 *Next review: after first sprint with >5 concurrent engineers*

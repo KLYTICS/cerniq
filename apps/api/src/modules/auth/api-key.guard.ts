@@ -33,7 +33,7 @@ export class ApiKeyGuard implements CanActivate {
     ]);
 
     const req = ctx.switchToHttp().getRequest<Request>();
-    const headerName = verifyKeyOnly ? 'x-aegis-verify-key' : 'x-aegis-api-key';
+    const headerName = verifyKeyOnly ? 'x-okoro-verify-key' : 'x-okoro-api-key';
     const presented = req.headers[headerName];
     const plaintext = Array.isArray(presented) ? presented[0] : presented;
 

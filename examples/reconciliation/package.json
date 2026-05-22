@@ -1,17 +1,17 @@
 {
-  "name": "@aegis-examples/reconciliation",
+  "name": "@okoro-examples/reconciliation",
   "private": true,
   "version": "0.1.0",
-  "description": "Joins AEGIS audit events to underlying-system records, surfaces the four mismatch classes from INTEGRATION_PATTERNS §10.",
+  "description": "Joins OKORO audit events to underlying-system records, surfaces the four mismatch classes from INTEGRATION_PATTERNS §10.",
   "type": "module",
   "scripts": {
-    "demo": "tsx src/cli.ts --aegis fixtures/aegis-export.ndjson --psp fixtures/psp-charges.ndjson",
+    "demo": "tsx src/cli.ts --okoro fixtures/okoro-export.ndjson --psp fixtures/psp-charges.ndjson",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {},
   "devDependencies": {
-    "@aegis/tsconfig": "workspace:*",
+    "@okoro/tsconfig": "workspace:*",
     "@types/node": "^22.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",

@@ -1,4 +1,4 @@
-# Contributing to AEGIS
+# Contributing to OKORO
 
 > Internal-only repo today. This document also serves as the bar for any
 > future external contributors when the SDK + docs site go public.
@@ -65,7 +65,7 @@ pnpm dev                # API + dashboard concurrently
 
 - TypeScript strict mode is non-negotiable. `any` requires a `// type-rationale:` comment justifying it.
 - No fabricated data, no Math.random in production paths, no fallback values for observability.
-- Errors are typed (`AegisError` subclasses), not strings.
+- Errors are typed (`OkoroError` subclasses), not strings.
 - Public methods on services have a `.spec.ts` (or `// untestable: <reason>`).
 - Crypto code requires a paired `.spec.ts`. No exceptions.
 
@@ -73,7 +73,7 @@ pnpm dev                # API + dashboard concurrently
 
 - Changesets: `pnpm changeset` to record a versioned change.
 - The CI release workflow opens a PR with version bumps; merging that PR
-  publishes any `@aegis/sdk` / `@aegis/types` changes to npm.
+  publishes any `@okoro/sdk` / `@okoro/types` changes to npm.
 - The API and dashboard deploy on merge to `main` via Railway.
 
 ## Threat-model checklist for any change touching auth, audit, or verify

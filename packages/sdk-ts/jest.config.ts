@@ -9,7 +9,7 @@ const config: Config = {
   // pnpm hoists @noble under .pnpm/<scope>+<pkg>@<ver>/. The @noble packages
   // are ESM-only so they must pass through ts-jest at test time.
   transformIgnorePatterns: [
-    '/node_modules/(?!(\\.pnpm/)?(@noble|@aegis)([+/]|$))',
+    '/node_modules/(?!(\\.pnpm/)?(@noble|@okoro)([+/]|$))',
   ],
   // ESM-style relative imports (`./foo.js`) must resolve to the `.ts` source
   // when ts-jest emits CJS.

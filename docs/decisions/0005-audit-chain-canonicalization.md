@@ -5,7 +5,7 @@
 
 ## Context
 
-The audit log is the load-bearing compliance artifact for AEGIS:
+The audit log is the load-bearing compliance artifact for OKORO:
 SOC2, FINRA, and (for CERNIQ-pipeline customers) COSSEC all require
 tamper-evident records of every authorization decision.
 
@@ -33,7 +33,7 @@ We use a **deterministic stable-stringify** that:
 
 We call this **RFC 8785-lite**. It is sufficient because:
 
-- We control both signer (AEGIS API and worker) and verifier (the
+- We control both signer (OKORO API and worker) and verifier (the
   third-party JS verifier we'll publish, plus internal tooling).
 - We've audited the input shape; no edge case fields can leak into
   the canonical form.
@@ -44,10 +44,10 @@ Chain construction (per event):
 prev_hash  = sha256( prev_event.signature_bytes  ||  prev_event.id_utf8 )    (32B)
 canonical  = stable_stringify(payload)
 sign_input = prev_hash || canonical
-signature  = ed25519.sign(aegis_audit_private_key, sign_input)
+signature  = ed25519.sign(okoro_audit_private_key, sign_input)
 ```
 
-For the genesis event: `prev_hash = sha256("AEGIS-AUDIT-GENESIS-v1")`.
+For the genesis event: `prev_hash = sha256("OKORO-AUDIT-GENESIS-v1")`.
 
 ## Consequences
 
@@ -96,7 +96,7 @@ verification. Rejected immediately.
 Migrating canonicalization is a breaking change for chain verifiers.
 Strategy: cut a new audit signing key (old chain remains verifiable
 under the old key per JWKS rotation), start the new chain with a new
-genesis sentinel (`"AEGIS-AUDIT-GENESIS-v2"`), and offer customers a
+genesis sentinel (`"OKORO-AUDIT-GENESIS-v2"`), and offer customers a
 verifier that handles both eras.
 
 ## References

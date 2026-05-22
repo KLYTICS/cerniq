@@ -1,10 +1,10 @@
-// RedactService — implements GDPR Art. 17 erasure for AEGIS audit events.
+// RedactService — implements GDPR Art. 17 erasure for OKORO audit events.
 //
 // IMPORTANT: this service does NOT modify `audit.service.ts`. It uses
 // Prisma directly for the redact write (zeroing raw columns) and then
 // calls `AuditService.append()` to record a `audit.redact` meta-event
 // in the chain. The chain remains tamper-evident because the redacted
-// row's *Hash columns and aegisSignature are not modified.
+// row's *Hash columns and okoroSignature are not modified.
 //
 // Failure modes:
 //   - eventId not found → 404.

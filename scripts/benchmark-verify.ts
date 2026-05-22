@@ -1,8 +1,8 @@
 #!/usr/bin/env -S node --import=tsx
 /**
- * AEGIS — `pnpm bench:verify` — verify hot-path latency baseline.
+ * OKORO — `pnpm bench:verify` — verify hot-path latency baseline.
  *
- * Issues N concurrent verify requests against a running AEGIS API, captures
+ * Issues N concurrent verify requests against a running OKORO API, captures
  * per-request latency, and emits exact percentiles (p50/p95/p99/p99.9) plus
  * a PASS/FAIL line per percentile vs the SLO targets in
  * `apps/api/src/modules/billing/plans.ts`.
@@ -17,8 +17,8 @@
  *   - The API must be reachable at `--api-url` (default `http://localhost:3000`).
  *
  * USAGE
- *   pnpm --filter @aegis/scripts bench:verify \
- *     --api-key  aegis_sk_xxx \
+ *   pnpm --filter @okoro/scripts bench:verify \
+ *     --api-key  okoro_sk_xxx \
  *     --concurrency 20 --total 5000 \
  *     --output    apps/api/perf-baseline.json
  *
@@ -34,7 +34,7 @@
  *     connection-pool warm-up isn't counted as user-visible latency.
  *   - The script uses `fetch`; no NestJS bootstrap, no Prisma. It's
  *     intentionally something an SRE can run from a laptop against any
- *     AEGIS deployment that exposes `/v1/verify`.
+ *     OKORO deployment that exposes `/v1/verify`.
  */
 
 import { writeFile } from 'node:fs/promises';
@@ -233,7 +233,7 @@ export async function doOneVerify(idx: number, args: DoOneVerifyArgs): Promise<V
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-aegis-api-key': args.apiKey,
+        'x-okoro-api-key': args.apiKey,
       },
       body,
     });
@@ -340,7 +340,7 @@ export function renderHumanTable(result: BenchResult): string {
   const lines: string[] = [];
   lines.push('');
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  lines.push(' AEGIS verify hot-path benchmark');
+  lines.push(' OKORO verify hot-path benchmark');
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   lines.push(`  api          : ${result.options.apiUrl}`);
   lines.push(`  agent        : ${result.options.agentId}`);
@@ -396,11 +396,11 @@ async function main(): Promise<void> {
   const program = new Command();
   program
     .name('benchmark-verify')
-    .description('Latency baseline for the AEGIS /v1/verify hot path against a running API.')
+    .description('Latency baseline for the OKORO /v1/verify hot path against a running API.')
     .addOption(new Option('--concurrency <n>', 'in-flight requests').default('10'))
     .addOption(new Option('--total <n>', 'measured request count (excludes warmup)').default('1000'))
-    .addOption(new Option('--api-url <url>', 'AEGIS API base URL').default(env.AEGIS_API_URL ?? 'http://localhost:3000'))
-    .addOption(new Option('--api-key <key>', 'principal API key (or set AEGIS_API_KEY)'))
+    .addOption(new Option('--api-url <url>', 'OKORO API base URL').default(env.OKORO_API_URL ?? 'http://localhost:3000'))
+    .addOption(new Option('--api-key <key>', 'principal API key (or set OKORO_API_KEY)'))
     .addOption(new Option('--agent-id <id>', 'agent label to verify against').default('maria/checkout-bot'))
     .addOption(new Option('--warmup <n>', 'warmup requests, discarded from stats').default('100'))
     .addOption(new Option('--output <path>', 'write JSON result to this path for diffing'))
@@ -423,9 +423,9 @@ async function main(): Promise<void> {
   }
   const opts = program.opts<CliOpts>();
 
-  const apiKey = opts.apiKey ?? env.AEGIS_API_KEY;
+  const apiKey = opts.apiKey ?? env.OKORO_API_KEY;
   if (!apiKey) {
-    stderr.write('--api-key (or AEGIS_API_KEY env) is required\n');
+    stderr.write('--api-key (or OKORO_API_KEY env) is required\n');
     exit(2);
   }
 

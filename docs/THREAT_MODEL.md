@@ -1,6 +1,6 @@
-# AEGIS — Threat Model
+# OKORO — Threat Model
 
-> Source: 03_AEGIS_TECHNICAL_SPEC.md §5. This file tracks live mitigation
+> Source: 03_OKORO_TECHNICAL_SPEC.md §5. This file tracks live mitigation
 > status — keep it in sync with the master spec on every security change.
 
 ## Trust boundaries
@@ -9,16 +9,16 @@
 agent host  ──┐
               │  HTTPS + signed JWT
               ▼
-        AEGIS API (Railway / CF edge)
+        OKORO API (Railway / CF edge)
               │
               ├── PostgreSQL (managed, encrypted at rest)
               ├── Redis (managed, in-memory)
               └── BullMQ (queue)
 ```
 
-- **AEGIS never holds private keys.** Only Ed25519 *public* keys are persisted. This is an architectural decision, not a policy — the registration endpoint has no field for a private key.
+- **OKORO never holds private keys.** Only Ed25519 *public* keys are persisted. This is an architectural decision, not a policy — the registration endpoint has no field for a private key.
 - **API keys are bcrypt-hashed (cost 12).** Plaintext is shown exactly once at issuance.
-- **Audit records are Ed25519 signed by AEGIS** (single curve, single library — see `docs/decisions/0002-ed25519-only-crypto.md`). Public key is published at `/.well-known/jwks.json`; third parties verify integrity without calling us. (Earlier drafts of this doc cited RSA-4096; that choice was retired in v2 of the threat model — see `docs/THREAT_MODEL_v2.md` § 4.2 for the rationale.)
+- **Audit records are Ed25519 signed by OKORO** (single curve, single library — see `docs/decisions/0002-ed25519-only-crypto.md`). Public key is published at `/.well-known/jwks.json`; third parties verify integrity without calling us. (Earlier drafts of this doc cited RSA-4096; that choice was retired in v2 of the threat model — see `docs/THREAT_MODEL_v2.md` § 4.2 for the rationale.)
 
 ## Threat catalog
 
@@ -40,7 +40,7 @@ agent host  ──┐
 | Use | Algorithm | Why |
 | - | - | - |
 | Agent signing | Ed25519 (libsodium / `@noble/ed25519`) | 64-byte sigs, ~50 µs sign, PQ-vulnerable but standard | 
-| Policy capability tokens | EdDSA (AEGIS service key) | Same primitive end-to-end; no asymmetric mismatch |
+| Policy capability tokens | EdDSA (OKORO service key) | Same primitive end-to-end; no asymmetric mismatch |
 | Audit record signing | Ed25519 (separate keypair from agent/policy signing) | Same primitive everywhere; constant-time verify; 64-byte sigs keep audit-export size manageable; PQ migration plan in `docs/POST_QUANTUM_ROADMAP.md` |
 | API keys | bcrypt cost 12 | Standard for human-secret hashing; not used in hot path |
 | Webhook signing | HMAC-SHA-256 | Standard pattern; per-subscription secret rotated on demand |
@@ -55,7 +55,7 @@ Ed25519 is **not** PQ-safe. Migration plan:
 
 ## Compliance touchpoints
 
-| Standard | Where AEGIS satisfies | Phase |
+| Standard | Where OKORO satisfies | Phase |
 | - | - | - |
 | NIST AI Agent Identity (Feb 2026 concept paper) | Identity, scoped policy, append-only audit | 0–1 |
 | SOC2 Type I | Access controls, encryption, audit, change mgmt | 1 (target month 12) |
@@ -72,7 +72,7 @@ Ed25519 is **not** PQ-safe. Migration plan:
 - [ ] `JWT_ED25519_PRIVATE_KEY_B64` rotated and persisted
 - [ ] Rate limit thresholds tuned per environment
 - [ ] Penetration test completed (GHOST SWARM methodology)
-- [ ] Bug bounty program live (`security@aegislabs.io`)
+- [ ] Bug bounty program live (`security@okorolabs.io`)
 - [ ] Cyber-insurance binder issued (Embroker / Coalition)
 - [ ] Incident-response runbook published
-- [ ] Status page live at `status.aegislabs.io`
+- [ ] Status page live at `status.okorolabs.io`

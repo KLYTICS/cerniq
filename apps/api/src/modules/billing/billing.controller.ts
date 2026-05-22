@@ -44,7 +44,7 @@ import { Auth } from '../../common/decorators/auth.decorator';
 import {
   ServiceUnavailableError,
   ValidationError,
-} from '../../common/errors/aegis-error';
+} from '../../common/errors/okoro-error';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AppConfigService } from '../../config/config.service';
 import { Public } from '../auth/api-key.guard';

@@ -1,4 +1,4 @@
-module github.com/klytics/aegis/packages/cli
+module github.com/klytics/okoro/packages/cli
 
 go 1.24.0
 

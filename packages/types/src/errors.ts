@@ -1,7 +1,7 @@
 // Public error envelope shape — what consumers can rely on receiving in
 // non-200 responses (and in the body of 200 verify denials).
 //
-// Mirrors the `Error` schema in AEGIS_API_SPEC.yaml.
+// Mirrors the `Error` schema in OKORO_API_SPEC.yaml.
 
 export interface ErrorEnvelope {
   error: string;

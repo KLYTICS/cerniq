@@ -1,26 +1,26 @@
 // Walks the 9 denial-precedence reasons in order, against a running
 // fintech-payments server. Each scenario produces a curl-shaped
 // reproduction line so an operator can paste it into the on-call
-// runbook. This is the single best way to internalize what AEGIS
+// runbook. This is the single best way to internalize what OKORO
 // will refuse and how each refusal surfaces to the user.
 //
 // Usage:
 //   pnpm tsx src/walk-denials.ts http://localhost:3001
 //
-// Requires AEGIS_API_BASE + an operator API key for the orchestration
+// Requires OKORO_API_BASE + an operator API key for the orchestration
 // (creating revoked agents, expired policies, etc.). The verify path
 // itself only sees the per-tx token.
 
-import { Aegis, generateKeypair, sign } from '@aegis/sdk';
+import { Okoro, generateKeypair, sign } from '@okoro/sdk';
 import { randomUUID } from 'node:crypto';
 
 const target = process.argv[2] ?? 'http://localhost:3001';
-const aegis = new Aegis({
-  baseUrl: process.env.AEGIS_API_BASE ?? 'https://api.aegislabs.io',
-  apiKey: requireEnv('AEGIS_API_KEY'),
+const okoro = new Okoro({
+  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okorolabs.io',
+  apiKey: requireEnv('OKORO_API_KEY'),
 });
 
-// Each scenario sets up the AEGIS-side state, mints a token, calls
+// Each scenario sets up the OKORO-side state, mints a token, calls
 // /api/charge, and asserts the expected denialReason. The order
 // matches CLAUDE.md invariant 6 (denial precedence).
 const scenarios = [
@@ -40,7 +40,7 @@ for (const reason of scenarios) {
   const token = await mintTokenFor(reason);
   const resp = await fetch(`${target}/api/charge`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-AEGIS-Token': token },
+    headers: { 'Content-Type': 'application/json', 'X-OKORO-Token': token },
     body: JSON.stringify({
       amount: 49,
       currency: 'USD',
@@ -54,7 +54,7 @@ for (const reason of scenarios) {
   process.stderr.write(`  ${ok} expected=${reason}  got=${got}  http=${resp.status}\n`);
 }
 
-// mintTokenFor sets up the AEGIS-side state to reproduce one of the 9
+// mintTokenFor sets up the OKORO-side state to reproduce one of the 9
 // denial reasons, then mints a request token. The setup logic is the
 // fixture, not the example — operators reading this file should focus
 // on what each reason means, not the contortion to trigger it.
@@ -62,8 +62,8 @@ async function mintTokenFor(reason: (typeof scenarios)[number]): Promise<string>
   const kp = await generateKeypair();
   // Default-good agent + policy; each branch below mutates state to
   // trigger the targeted denial reason.
-  const agent = await aegis.agents.register({ publicKey: kp.publicKey, runtime: 'CUSTOM' });
-  const policy = await aegis.policies.create({
+  const agent = await okoro.agents.register({ publicKey: kp.publicKey, runtime: 'CUSTOM' });
+  const policy = await okoro.policies.create({
     agentId: agent.id,
     scope: 'commerce',
     maxPerTransaction: '500.00',
@@ -73,7 +73,7 @@ async function mintTokenFor(reason: (typeof scenarios)[number]): Promise<string>
 
   switch (reason) {
     case 'AGENT_NOT_FOUND':
-      // The agent is not registered with AEGIS — sign a token using a
+      // The agent is not registered with OKORO — sign a token using a
       // fresh keypair never shared with the API.
       return await sign(kp.privateKey, {
         agentId: 'ag_does_not_exist',
@@ -84,10 +84,10 @@ async function mintTokenFor(reason: (typeof scenarios)[number]): Promise<string>
         jti: randomUUID(),
       });
     case 'AGENT_REVOKED':
-      await aegis.agents.revoke(agent.id);
+      await okoro.agents.revoke(agent.id);
       break;
     case 'POLICY_REVOKED':
-      await aegis.policies.revoke(policy.id);
+      await okoro.policies.revoke(policy.id);
       break;
     case 'INVALID_SIGNATURE': {
       const wrongKp = await generateKeypair();

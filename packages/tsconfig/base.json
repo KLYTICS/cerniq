@@ -1,5 +1,5 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "display": "AEGIS Base",
+  "display": "OKORO Base",
   "extends": "../../tsconfig.base.json"
 }

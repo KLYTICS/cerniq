@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --import=tsx
 /**
- * AEGIS — `pnpm db:index-audit` — verify-hot-path index recommendation.
+ * OKORO — `pnpm db:index-audit` — verify-hot-path index recommendation.
  *
  * Connects to `DATABASE_URL` and runs `EXPLAIN (ANALYZE, FORMAT JSON)`
  * against six representative hot queries the verify path issues against
@@ -241,7 +241,7 @@ export function evaluateRow(query: HotQueryDef, plan: PlanSummary, costThreshold
 
 export function renderMarkdownReport(rows: ReadonlyArray<AuditRow>, generatedAt: string): string {
   const lines: string[] = [];
-  lines.push('# AEGIS — DB Index Audit (verify hot path)');
+  lines.push('# OKORO — DB Index Audit (verify hot path)');
   lines.push('');
   lines.push(`Generated: ${generatedAt}`);
   lines.push('');
@@ -352,17 +352,17 @@ async function main(): Promise<void> {
     .addOption(new Option('--output <path>', 'markdown report path').default('dist/db-index-audit-report.md'))
     .addOption(
       new Option('--principal-id <id>', 'principalId to bind into the EXPLAIN params').default(
-        env.AEGIS_DEMO_PRINCIPAL_ID ?? DEFAULT_DEMO_PRINCIPAL_ID,
+        env.OKORO_DEMO_PRINCIPAL_ID ?? DEFAULT_DEMO_PRINCIPAL_ID,
       ),
     )
     .addOption(
       new Option('--agent-id <id>', 'agentId (DB id, not label) to bind into EXPLAIN params').default(
-        env.AEGIS_DEMO_AGENT_ID ?? DEFAULT_DEMO_AGENT_ID,
+        env.OKORO_DEMO_AGENT_ID ?? DEFAULT_DEMO_AGENT_ID,
       ),
     )
     .addOption(
       new Option('--api-key-hash <hash>', 'bcrypt hash to bind into the ApiKey EXPLAIN').default(
-        env.AEGIS_DEMO_API_KEY_HASH ?? DEFAULT_DEMO_KEY_HASH,
+        env.OKORO_DEMO_API_KEY_HASH ?? DEFAULT_DEMO_KEY_HASH,
       ),
     );
 

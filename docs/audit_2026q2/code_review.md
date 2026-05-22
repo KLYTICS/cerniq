@@ -1,4 +1,4 @@
-# AEGIS Phase-1 Code Review
+# OKORO Phase-1 Code Review
 
 Review window: 2026-Q2 (pre-Phase-1 launch).
 Scope: `apps/api/src/modules/{auth,identity,policy,verify,audit,bate,webhooks,health,principals,billing}` and supporting `common/{errors,crypto,redis}`.
@@ -22,7 +22,7 @@ Severity legend: **critical** (will cause data loss / silent failure / invariant
 
 ### auth/api-key.guard.ts:41,44,49 — uses `UnauthorizedException` with custom envelope
 - **Severity:** medium
-- **Why:** CLAUDE.md "Errors are typed". `AuthenticationError` exists in `common/errors/aegis-error.ts` but is bypassed in favor of NestJS' `UnauthorizedException({error, message})`. The `HttpExceptionFilter` (referenced in `common/filters/`) presumably maps these, but the audit doc's claim that envelope is uniform requires consistent `code` field — `error` vs `code` drift will surface in the dashboard.
+- **Why:** CLAUDE.md "Errors are typed". `AuthenticationError` exists in `common/errors/okoro-error.ts` but is bypassed in favor of NestJS' `UnauthorizedException({error, message})`. The `HttpExceptionFilter` (referenced in `common/filters/`) presumably maps these, but the audit doc's claim that envelope is uniform requires consistent `code` field — `error` vs `code` drift will surface in the dashboard.
 - **Fix:** throw `new AuthenticationError('...')` (or a new `KeyScopeError`) so `code` is `AUTH_REQUIRED`/etc. uniformly.
 
 ### auth/api-key.service.ts:64 — bcrypt fan-out is O(N) per request
@@ -185,7 +185,7 @@ Severity legend: **critical** (will cause data loss / silent failure / invariant
 ### webhooks/webhook.delivery.ts:71-73 — `markAbandoned` invoked from `'failed'` event handler is racy
 - **Severity:** medium
 - **Why:** The `'failed'` listener checks `attemptsMade >= MAX_ATTEMPTS` and marks abandoned, but BullMQ may also requeue depending on attempts setting. There's also no DLQ topic/queue — abandoned deliveries become quietly stuck rows.
-- **Fix:** add a `aegis.webhooks.dlq` BullMQ queue; route abandoned jobs there with a 30-day retention so ops can replay.
+- **Fix:** add a `okoro.webhooks.dlq` BullMQ queue; route abandoned jobs there with a 30-day retention so ops can replay.
 
 ### webhooks/webhook.delivery.ts:153-157 — sets status to PENDING after each attempt
 - **Severity:** low
@@ -237,10 +237,10 @@ The directory is **empty**.
 
 ## Cross-cutting findings
 
-### CC-1: `AegisError` hierarchy is underused
+### CC-1: `OkoroError` hierarchy is underused
 - **Severity:** medium (touches every module)
-- **Affected:** `auth`, `identity`, `policy`, `audit` controllers/services use NestJS' built-in `UnauthorizedException`/`NotFoundException`/`ForbiddenException` with custom payloads instead of throwing `AuthenticationError`/`NotFoundError`/`AuthorizationError` from `common/errors/aegis-error.ts`. Result: error envelopes are inconsistent (`{error,message}` vs `{message,details,code}`), `instanceof` checks in interceptors don't match, and the typed `code` field promised in ARCHITECTURE.md § 5 is missing on most paths.
-- **Fix:** sweep all `throw new XxxException({error, message})` → `throw new AegisErrorSubclass(...)` and rely on `HttpExceptionFilter` to render. Add an ESLint rule banning the Nest built-ins from `src/modules/`.
+- **Affected:** `auth`, `identity`, `policy`, `audit` controllers/services use NestJS' built-in `UnauthorizedException`/`NotFoundException`/`ForbiddenException` with custom payloads instead of throwing `AuthenticationError`/`NotFoundError`/`AuthorizationError` from `common/errors/okoro-error.ts`. Result: error envelopes are inconsistent (`{error,message}` vs `{message,details,code}`), `instanceof` checks in interceptors don't match, and the typed `code` field promised in ARCHITECTURE.md § 5 is missing on most paths.
+- **Fix:** sweep all `throw new XxxException({error, message})` → `throw new OkoroErrorSubclass(...)` and rely on `HttpExceptionFilter` to render. Add an ESLint rule banning the Nest built-ins from `src/modules/`.
 
 ### CC-2: Replay protection (jti cache) absent everywhere
 - **Severity:** high (top-5 #1)

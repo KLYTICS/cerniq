@@ -19,7 +19,7 @@ import type { Auth0Service } from './auth0.service';
 
 function makeService(): jest.Mocked<Pick<Auth0Service, 'handleActionLogin' | 'exchangeToken'>> {
   return {
-    handleActionLogin: jest.fn().mockResolvedValue({ principalId: 'prn_A', apiKey: 'aegis_...' }),
+    handleActionLogin: jest.fn().mockResolvedValue({ principalId: 'prn_A', apiKey: 'okoro_...' }),
     exchangeToken: jest.fn().mockResolvedValue({ api_key_id: 'key_123', principal_id: 'prn_A', roles: [], expires_at: '2026-01-01T00:00:00.000Z' }),
   };
 }

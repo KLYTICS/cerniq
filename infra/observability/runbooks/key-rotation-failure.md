@@ -5,8 +5,8 @@
 - **Names**: `ApiKeyRotationFailureRate` (warning),
   `ApiKeyExpiredAuthSpike` (warning) — *both not yet emitted; flip on
   metric land per round 15 backlog*.
-- **Group**: `aegis.auth`
-- **File**: `infra/observability/alerts/aegis.rules.yml`
+- **Group**: `okoro.auth`
+- **File**: `infra/observability/alerts/okoro.rules.yml`
 - **Source**: round-15 rotation surface — `apps/api/src/modules/auth/api-key-rotation.controller.ts`, `api-key.service.ts.rotate()`, `api-key.guard.ts`.
 
 ## Symptom
@@ -34,12 +34,12 @@ One or more of:
    sum(rate(api_key_auth_total{result="expired"}[5m])) / sum(rate(api_key_auth_total[5m]))
    ```
 
-   The first two give success rate of the rotation endpoint. The third gives the customer-visible expired-rate. Round 15 metric naming may be `aegis_api_key_*` — confirm via `metrics.service.ts`.
+   The first two give success rate of the rotation endpoint. The third gives the customer-visible expired-rate. Round 15 metric naming may be `okoro_api_key_*` — confirm via `metrics.service.ts`.
 
 2. **Pull the rotation audit events to see the chain state.**
 
    ```bash
-   railway run -s aegis-api -- psql "$DATABASE_URL" -c "
+   railway run -s okoro-api -- psql "$DATABASE_URL" -c "
      SELECT id, \"createdAt\", \"principalId\", payload
      FROM \"AuditEvent\"
      WHERE \"eventType\" = 'api_key.rotated'

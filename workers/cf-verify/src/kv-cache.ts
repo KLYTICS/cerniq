@@ -18,7 +18,7 @@
 //   - On ANY suspicion (revoked agent, expired policy, scope mismatch,
 //     spend miss): forward to origin. The Worker NEVER writes to the DB.
 
-import type { TrustBand } from '@aegis/types';
+import type { TrustBand } from '@okoro/types';
 
 export interface CachedAgent {
   id: string;

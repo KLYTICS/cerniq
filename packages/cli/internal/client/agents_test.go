@@ -34,7 +34,7 @@ func TestAgentsRegister_PostsAndDecodes(t *testing.T) {
 		if r.Method != http.MethodPost || r.URL.Path != "/v1/agents/register" {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
-		if r.Header.Get("X-AEGIS-API-Key") != "sk_test_abc123" {
+		if r.Header.Get("X-OKORO-API-Key") != "sk_test_abc123" {
 			t.Errorf("missing API key header")
 		}
 		body, _ := io.ReadAll(r.Body)
@@ -60,8 +60,8 @@ func TestAgentsRegister_PostsAndDecodes(t *testing.T) {
 
 func TestAgentsStatus_PublicNoAuthHeader(t *testing.T) {
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("X-AEGIS-API-Key") != "" {
-			t.Errorf("public endpoint must not send X-AEGIS-API-Key")
+		if r.Header.Get("X-OKORO-API-Key") != "" {
+			t.Errorf("public endpoint must not send X-OKORO-API-Key")
 		}
 		_ = json.NewEncoder(w).Encode(AgentStatusResponse{
 			AgentID: "agt_01", Status: StatusActive, TrustScore: 720, TrustBand: BandVerified,

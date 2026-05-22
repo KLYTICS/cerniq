@@ -4,7 +4,7 @@
 // no DELETE on AuditEvent. Retention is therefore implemented as
 // REDACTION (zero-out raw columns) + a meta-event APPENDED to the chain
 // documenting the action. The chain stays cryptographically intact
-// because the *Hash columns and aegisSignature are untouched — verifiers
+// because the *Hash columns and okoroSignature are untouched — verifiers
 // rebuild the hash from the now-null raw values and still match.
 //
 // We delegate the actual redaction to `RedactService.redactEvent` so the
@@ -104,7 +104,7 @@ export class AuditRetentionService implements OnModuleInit, OnModuleDestroy {
     private readonly metrics: MetricsService,
     private readonly shutdown: ShutdownService,
   ) {
-    const fromEnv = process.env.AEGIS_AUDIT_RETENTION_INTERVAL_MS;
+    const fromEnv = process.env.OKORO_AUDIT_RETENTION_INTERVAL_MS;
     const parsed = fromEnv ? Number.parseInt(fromEnv, 10) : NaN;
     this.intervalMs =
       Number.isFinite(parsed) && parsed > 0

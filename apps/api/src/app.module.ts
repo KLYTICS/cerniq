@@ -50,13 +50,13 @@ import { WellknownModule } from './modules/wellknown/wellknown.module';
               ? { target: 'pino-pretty', options: { singleLine: true, colorize: true } }
               : undefined,
           redact: {
-            paths: ['req.headers["x-aegis-api-key"]', 'req.headers["x-aegis-verify-key"]', 'req.headers.authorization'],
+            paths: ['req.headers["x-okoro-api-key"]', 'req.headers["x-okoro-verify-key"]', 'req.headers.authorization'],
             censor: '***',
           },
           customProps: () => {
             const ctx = CorrelationContext.current();
             return {
-              service: 'aegis-api',
+              service: 'okoro-api',
               ...(ctx?.txId ? { txId: ctx.txId } : {}),
               ...(ctx?.principalId ? { principalId: ctx.principalId } : {}),
               ...(ctx?.agentId ? { agentId: ctx.agentId } : {}),
@@ -91,7 +91,7 @@ import { WellknownModule } from './modules/wellknown/wellknown.module';
     WebhooksModule,
     // Round 5–8 enterprise backbone:
     KmsModule,
-    PolicyEngineModule, // registers Cedar+OPA WASM evaluators per AEGIS_POLICY_ENGINES env
+    PolicyEngineModule, // registers Cedar+OPA WASM evaluators per OKORO_POLICY_ENGINES env
     Auth0Module,
     IdpClerkModule,
     IdpWorkOsModule,

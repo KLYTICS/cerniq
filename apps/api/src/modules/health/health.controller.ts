@@ -36,7 +36,7 @@
 // Error redaction: error strings are short, fixed phrases or first-line
 // messages. We never include DSNs, secret material, or stack traces in
 // the readiness payload. The spec asserts none of the canary patterns
-// (`aegis_`, `whsec_`, `sk_`) appear in any error string.
+// (`okoro_`, `whsec_`, `sk_`) appear in any error string.
 
 import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';

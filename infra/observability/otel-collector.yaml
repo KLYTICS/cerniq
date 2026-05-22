@@ -1,5 +1,5 @@
 # =============================================================================
-# AEGIS — OpenTelemetry Collector configuration
+# OKORO — OpenTelemetry Collector configuration
 # =============================================================================
 # Pipeline-only config: receivers → processors → exporters. No vendor
 # secrets, no real endpoint URLs. Operator replaces every `# operator:
@@ -32,7 +32,7 @@ receivers:
         # batches; default 4 MiB is fine pre-launch.
       http:
         endpoint: 0.0.0.0:4318
-        # CORS only matters if a browser SDK posts directly. AEGIS
+        # CORS only matters if a browser SDK posts directly. OKORO
         # dashboard does NOT — it goes through the API, which then
         # exports to this collector internally.
 
@@ -88,7 +88,7 @@ processors:
         value: production
         action: upsert
       - key: service.namespace
-        value: aegis
+        value: okoro
         action: upsert
 
   # attributes: redact request headers we know carry secrets. The Pino
@@ -96,9 +96,9 @@ processors:
   # span attributes that get to the collector via the auto-instrumentation.
   attributes:
     actions:
-      - key: http.request.header.x-aegis-api-key
+      - key: http.request.header.x-okoro-api-key
         action: delete
-      - key: http.request.header.x-aegis-verify-key
+      - key: http.request.header.x-okoro-verify-key
         action: delete
       - key: http.request.header.authorization
         action: delete
@@ -114,7 +114,7 @@ exporters:
   # /metrics. Self-contained, no external creds.
   prometheus:
     endpoint: 0.0.0.0:9464
-    namespace: aegis
+    namespace: okoro
     send_timestamps: true
     metric_expiration: 5m
     enable_open_metrics: true

@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * AEGIS — preflight ship-readiness orchestrator.
+ * OKORO — preflight ship-readiness orchestrator.
  *
  * Single executable that runs every gating + warning check the operator
  * needs before deploy. Encodes `docs/TERMINAL_ORCHESTRATION.md` §5 (FAANG
@@ -20,7 +20,7 @@
  *   2  gating failure — DO NOT SHIP
  *   3  internal error in the preflight itself
  *
- * Why this exists: AEGIS has 15 quality scripts (tsc, lint, audit:errors,
+ * Why this exists: OKORO has 15 quality scripts (tsc, lint, audit:errors,
  * benchmark-verify, db-index-audit, check:migrations, etc.) but no single
  * orchestrator. Operators need ONE command that says "ship or don't ship."
  * This is that command.
@@ -104,7 +104,7 @@ export function parseFlags(argv: readonly string[]): Flags {
 }
 
 function printHelp(): void {
-  process.stdout.write(`AEGIS preflight — ship-readiness gate
+  process.stdout.write(`OKORO preflight — ship-readiness gate
 
 Usage: tsx tools/preflight/preflight.ts [flags]
 
@@ -196,27 +196,27 @@ export const CHECKS: Check[] = [
   },
   {
     id: 'tsc-api',
-    label: 'tsc @aegis/api',
+    label: 'tsc @okoro/api',
     category: 'gating',
     fastSafe: true,
     run(): CheckResult {
-      const r = exec('pnpm', ['-F', '@aegis/api', 'exec', 'tsc', '--noEmit']);
+      const r = exec('pnpm', ['-F', '@okoro/api', 'exec', 'tsc', '--noEmit']);
       if (r.status === 0) return { status: 'pass', details: '0 errors' };
       const errCount = (r.stdout.match(/error TS\d+/g) ?? []).length;
       return {
         status: 'fail',
         details: `${errCount} error(s)`,
-        remediation: 'pnpm -F @aegis/api exec tsc --noEmit  # see full output',
+        remediation: 'pnpm -F @okoro/api exec tsc --noEmit  # see full output',
       };
     },
   },
   {
     id: 'lint-api',
-    label: 'lint @aegis/api',
+    label: 'lint @okoro/api',
     category: 'gating',
     fastSafe: true,
     run(): CheckResult {
-      const r = exec('pnpm', ['-F', '@aegis/api', 'lint']);
+      const r = exec('pnpm', ['-F', '@okoro/api', 'lint']);
       if (r.status === 0) return { status: 'pass', details: '0 warnings' };
       // Distinguish environmental (missing plugin / config error) from code lint failure.
       const combined = r.stdout + r.stderr;
@@ -235,13 +235,13 @@ export const CHECKS: Check[] = [
         return {
           status: 'warn',
           details: `eslint exit ${r.status} but no parsed findings`,
-          remediation: 'pnpm -F @aegis/api lint  # see full output',
+          remediation: 'pnpm -F @okoro/api lint  # see full output',
         };
       }
       return {
         status: 'fail',
         details: `${errCount} error(s) · ${warnCount} warning(s)`,
-        remediation: 'pnpm -F @aegis/api lint  # see full output',
+        remediation: 'pnpm -F @okoro/api lint  # see full output',
       };
     },
   },
@@ -269,7 +269,7 @@ export const CHECKS: Check[] = [
     category: 'gating',
     fastSafe: true,
     run(): CheckResult {
-      const r = exec('pnpm', ['-F', '@aegis/scripts', 'audit:errors']);
+      const r = exec('pnpm', ['-F', '@okoro/scripts', 'audit:errors']);
       if (r.status === 0) {
         const m = r.stdout.match(/(\d+)\s+files\s+scanned[\s,]+(\d+)\s+throw\s+sites/i);
         return {
@@ -279,7 +279,7 @@ export const CHECKS: Check[] = [
       }
       return {
         status: 'fail',
-        details: 'uncataloged AegisError subclass thrown',
+        details: 'uncataloged OkoroError subclass thrown',
         remediation: 'register the class in apps/api/src/common/errors/error-catalog.ts',
       };
     },
@@ -309,16 +309,16 @@ export const CHECKS: Check[] = [
     fastSafe: true,
     run(ctx: Context): CheckResult {
       // Names sourced from .env.example (the canonical surface). Round 13
-      // renamed AUDIT_* → AEGIS_SIGNING_*; old names are deprecated aliases.
+      // renamed AUDIT_* → OKORO_SIGNING_*; old names are deprecated aliases.
       // ADR-0014 added STRIPE_PRICE_TEAM and STRIPE_PRICE_SCALE.
       const required = [
         'DATABASE_URL',
         'REDIS_URL',
-        'AEGIS_SIGNING_PRIVATE_KEY',
-        'AEGIS_SIGNING_PUBLIC_KEY',
+        'OKORO_SIGNING_PRIVATE_KEY',
+        'OKORO_SIGNING_PUBLIC_KEY',
         'JWT_ED25519_PRIVATE_KEY_B64',
         'JWT_ED25519_PUBLIC_KEY_B64',
-        'AEGIS_WEBHOOK_SECRET_DEK_B64',  // round-13 webhook secret-at-rest DEK
+        'OKORO_WEBHOOK_SECRET_DEK_B64',  // round-13 webhook secret-at-rest DEK
         'STRIPE_SECRET_KEY',
         'STRIPE_WEBHOOK_SECRET',
         'STRIPE_PRICE_DEVELOPER',
@@ -443,7 +443,7 @@ export const CHECKS: Check[] = [
         return {
           status: 'warn',
           details: 'audit-retention uses setInterval — Terminal H owes @nestjs/schedule swap',
-          remediation: 'pnpm add @nestjs/schedule -F @aegis/api · ScheduleModule.forRoot() in app.module.ts · @Cron in retention service',
+          remediation: 'pnpm add @nestjs/schedule -F @okoro/api · ScheduleModule.forRoot() in app.module.ts · @Cron in retention service',
         };
       }
       return { status: 'pass', details: 'audit-retention on framework cron' };
@@ -459,8 +459,8 @@ export const CHECKS: Check[] = [
       // real file. Catches the inverse drift: alert references a renamed or
       // deleted runbook → on-call hits 404 mid-incident.
       const ruleFiles = [
-        'infra/observability/alerts/aegis.rules.yml',
-        'infra/observability/alerts/aegis-security.rules.yml',
+        'infra/observability/alerts/okoro.rules.yml',
+        'infra/observability/alerts/okoro-security.rules.yml',
       ];
       const broken: Array<{ rule: string; runbook: string }> = [];
       let totalRefs = 0;
@@ -616,7 +616,7 @@ function symbol(s: CheckStatus): string {
 function printPretty(results: CompletedCheck[], totalMs: number, exitCode: number): void {
   const ts = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
   const sep = '─'.repeat(70);
-  process.stdout.write(`\n${C.bold}AEGIS Preflight${C.reset} — ${ts}\n${C.dim}${sep}${C.reset}\n`);
+  process.stdout.write(`\n${C.bold}OKORO Preflight${C.reset} — ${ts}\n${C.dim}${sep}${C.reset}\n`);
   const labelWidth = Math.max(...results.map((r) => r.label.length));
   for (let i = 0; i < results.length; i++) {
     const r = results[i]!;

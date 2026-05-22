@@ -10,7 +10,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 /**
- * Fields the AEGIS request context carries. Each field is optional because
+ * Fields the OKORO request context carries. Each field is optional because
  * the context is populated incrementally:
  *
  *   middleware → guard → service → audit / metrics / pino

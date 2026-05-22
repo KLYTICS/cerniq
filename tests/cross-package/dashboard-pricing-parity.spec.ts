@@ -56,15 +56,15 @@ function synthesizeApiBody() {
 
 describe('dashboard pricing — SSR-fetch happy path', () => {
   const ORIG_FETCH = global.fetch;
-  const ORIG_BASE = process.env.AEGIS_API_BASE_URL;
+  const ORIG_BASE = process.env.OKORO_API_BASE_URL;
 
   beforeEach(() => {
-    process.env.AEGIS_API_BASE_URL = 'http://api.local';
+    process.env.OKORO_API_BASE_URL = 'http://api.local';
   });
   afterEach(() => {
     global.fetch = ORIG_FETCH;
-    if (ORIG_BASE === undefined) delete process.env.AEGIS_API_BASE_URL;
-    else process.env.AEGIS_API_BASE_URL = ORIG_BASE;
+    if (ORIG_BASE === undefined) delete process.env.OKORO_API_BASE_URL;
+    else process.env.OKORO_API_BASE_URL = ORIG_BASE;
   });
 
   it('reports source=api when the endpoint returns a valid body', async () => {
@@ -168,23 +168,23 @@ describe('dashboard pricing — SSR-fetch happy path', () => {
 
 describe('dashboard pricing — fallback paths', () => {
   const ORIG_FETCH = global.fetch;
-  const ORIG_BASE = process.env.AEGIS_API_BASE_URL;
+  const ORIG_BASE = process.env.OKORO_API_BASE_URL;
   afterEach(() => {
     global.fetch = ORIG_FETCH;
-    if (ORIG_BASE === undefined) delete process.env.AEGIS_API_BASE_URL;
-    else process.env.AEGIS_API_BASE_URL = ORIG_BASE;
+    if (ORIG_BASE === undefined) delete process.env.OKORO_API_BASE_URL;
+    else process.env.OKORO_API_BASE_URL = ORIG_BASE;
   });
 
-  it('falls back when AEGIS_API_BASE_URL is unset', async () => {
-    delete process.env.AEGIS_API_BASE_URL;
+  it('falls back when OKORO_API_BASE_URL is unset', async () => {
+    delete process.env.OKORO_API_BASE_URL;
     const result = await resolvePricing();
     expect(result.source).toBe('fallback');
-    expect(result.reason).toContain('AEGIS_API_BASE_URL');
+    expect(result.reason).toContain('OKORO_API_BASE_URL');
     expect(result.tiers).toBe(FALLBACK_TIERS);
   });
 
   it('falls back when fetch throws (network error)', async () => {
-    process.env.AEGIS_API_BASE_URL = 'http://api.local';
+    process.env.OKORO_API_BASE_URL = 'http://api.local';
     global.fetch = vi.fn(async () => {
       throw new Error('ECONNREFUSED');
     }) as unknown as typeof fetch;
@@ -194,7 +194,7 @@ describe('dashboard pricing — fallback paths', () => {
   });
 
   it('falls back on non-2xx status', async () => {
-    process.env.AEGIS_API_BASE_URL = 'http://api.local';
+    process.env.OKORO_API_BASE_URL = 'http://api.local';
     global.fetch = vi.fn(async () =>
       new Response('upstream broken', { status: 503 }),
     ) as unknown as typeof fetch;
@@ -204,7 +204,7 @@ describe('dashboard pricing — fallback paths', () => {
   });
 
   it('falls back on malformed JSON', async () => {
-    process.env.AEGIS_API_BASE_URL = 'http://api.local';
+    process.env.OKORO_API_BASE_URL = 'http://api.local';
     global.fetch = vi.fn(async () =>
       new Response('<<not json>>', {
         status: 200,
@@ -217,7 +217,7 @@ describe('dashboard pricing — fallback paths', () => {
   });
 
   it('falls back when tiers field is missing', async () => {
-    process.env.AEGIS_API_BASE_URL = 'http://api.local';
+    process.env.OKORO_API_BASE_URL = 'http://api.local';
     global.fetch = vi.fn(async () =>
       new Response(JSON.stringify({ spec_version: '1.0.0' }), { status: 200 }),
     ) as unknown as typeof fetch;

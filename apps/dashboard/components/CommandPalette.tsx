@@ -1,7 +1,7 @@
 'use client';
 
 // Cmd-K command palette. Mounted globally by AppShell. Listens for Cmd/Ctrl-K
-// and a custom `aegis:open-palette` event so chord shortcuts can also trigger
+// and a custom `okoro:open-palette` event so chord shortcuts can also trigger
 // it. Uses native portal-free fixed positioning + focus trap on input.
 
 import { useRouter } from 'next/navigation';
@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { searchCommands, type Command } from '../lib/commands';
 
-const OPEN_EVENT = 'aegis:open-palette';
+const OPEN_EVENT = 'okoro:open-palette';
 
 export function CommandPalette() {
   const router = useRouter();

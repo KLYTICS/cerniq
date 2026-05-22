@@ -1,19 +1,19 @@
-# @aegis/audit-evidence-bundle
+# @okoro/audit-evidence-bundle
 
 CLI that produces a SOC2-ready, auditor-friendly tarball containing
-everything an external auditor needs to **independently verify** an AEGIS
-audit chain — without contacting AEGIS.
+everything an external auditor needs to **independently verify** an OKORO
+audit chain — without contacting OKORO.
 
 ## Quick start
 
 ```sh
-AEGIS_API_BASE=https://api.aegislabs.io \
-AEGIS_API_KEY=sk_live_... \
-  pnpm --filter @aegis/audit-evidence-bundle start \
+OKORO_API_BASE=https://api.okorolabs.io \
+OKORO_API_KEY=sk_live_... \
+  pnpm --filter @okoro/audit-evidence-bundle start \
     --principal-id prc_acme \
     --from 2026-01-01 \
     --to 2026-04-30 \
-    --output ./aegis-evidence-2026Q1.tar.gz
+    --output ./okoro-evidence-2026Q1.tar.gz
 ```
 
 Exit codes:
@@ -27,14 +27,14 @@ Exit codes:
 ## Bundle contents
 
 ```
-aegis-evidence-2026Q1/
+okoro-evidence-2026Q1/
 ├── audit-events.ndjson        Streamed export, one signed row per line
 ├── jwks.json                  Public Ed25519 keys (no private material)
-├── aegis-configuration.json   Well-known discovery doc
+├── okoro-configuration.json   Well-known discovery doc
 ├── retention-policy.json      Lane B; omitted if endpoint not yet live
 ├── security.txt               RFC 9116 vuln-disclosure contact
 ├── manifest.json              Counts, time range, principal, verdict
-├── chain-verification.json    Pre-computed @aegis/audit-verifier verdict
+├── chain-verification.json    Pre-computed @okoro/audit-verifier verdict
 ├── SHA256SUMS                 sha256+filename, one line each
 └── README.md                  Plain-English auditor instructions
 ```
@@ -46,7 +46,7 @@ opens the tarball.
 
 - **Zero new heavyweight dependencies.** The tar writer is a 100-line POSIX
   ustar implementation in `build-bundle.ts`; gzip is `node:zlib`. The only
-  workspace dep is `@aegis/audit-verifier`, the same module external
+  workspace dep is `@okoro/audit-verifier`, the same module external
   auditors will use to re-verify.
 - **Constant-memory NDJSON pipeline.** The export is streamed from HTTP
   → SHA256 hasher → disk in one pass; row counts and redaction counts
@@ -65,6 +65,6 @@ later adds `tools/*` to the workspace, swap the `link:` references to
 ## Testing
 
 ```sh
-pnpm --filter @aegis/audit-evidence-bundle exec vitest run
-pnpm --filter @aegis/audit-evidence-bundle exec tsc --noEmit
+pnpm --filter @okoro/audit-evidence-bundle exec vitest run
+pnpm --filter @okoro/audit-evidence-bundle exec tsc --noEmit
 ```

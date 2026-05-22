@@ -1,11 +1,11 @@
-// Server-side API client for the AEGIS dashboard.
+// Server-side API client for the OKORO dashboard.
 //
 // Phase 1 contract: every fetch is server-side (Next.js Server Components or
 // Server Actions). The client never sees the API key. When Auth0 wiring lands
 // (M-020), `getSessionApiKey()` will resolve a per-principal key bound to the
-// user session; until then we fall back to `AEGIS_DASHBOARD_API_KEY`.
+// user session; until then we fall back to `OKORO_DASHBOARD_API_KEY`.
 //
-// All methods return typed results or throw `AegisApiError`. Pages render
+// All methods return typed results or throw `OkoroApiError`. Pages render
 // errors via boundaries — never fabricate empty results to mask failure
 // (CLAUDE.md invariant 4).
 
@@ -13,10 +13,10 @@ import { getSessionApiKey } from './auth';
 
 // Header constants — kept local rather than imported because the SDK does
 // not re-export them and the dashboard doesn't depend on the SDK runtime.
-// The values are part of the public AEGIS API contract — see packages/types
+// The values are part of the public OKORO API contract — see packages/types
 // constants.ts.
-const AEGIS_HEADER_API_KEY = 'X-AEGIS-API-Key';
-const AEGIS_HEADER_REQUEST_ID = 'X-Request-Id';
+const OKORO_HEADER_API_KEY = 'X-OKORO-API-Key';
+const OKORO_HEADER_REQUEST_ID = 'X-Request-Id';
 
 const DEFAULT_TIMEOUT_MS = 8_000;
 
@@ -78,7 +78,7 @@ export interface AuditPage {
   nextCursor: string | null;
 }
 
-export class AegisApiError extends Error {
+export class OkoroApiError extends Error {
   constructor(
     public readonly status: number,
     public readonly code: string,
@@ -86,14 +86,14 @@ export class AegisApiError extends Error {
     public readonly requestId?: string,
   ) {
     super(message);
-    this.name = 'AegisApiError';
+    this.name = 'OkoroApiError';
   }
 }
 
-export class AegisAuthMissingError extends AegisApiError {
+export class OkoroAuthMissingError extends OkoroApiError {
   constructor() {
-    super(0, 'NO_API_KEY', 'No AEGIS API key available for this dashboard session.');
-    this.name = 'AegisAuthMissingError';
+    super(0, 'NO_API_KEY', 'No OKORO API key available for this dashboard session.');
+    this.name = 'OkoroAuthMissingError';
   }
 }
 
@@ -116,9 +116,9 @@ function buildUrl(base: string, path: string, query?: RequestOptions['query']): 
 
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const apiKey = await getSessionApiKey();
-  if (!apiKey) throw new AegisAuthMissingError();
+  if (!apiKey) throw new OkoroAuthMissingError();
 
-  const baseUrl = process.env.AEGIS_API_BASE_URL ?? 'http://localhost:4000';
+  const baseUrl = process.env.OKORO_API_BASE_URL ?? 'http://localhost:4000';
   const url = buildUrl(baseUrl, `/v1/${path.replace(/^\/?(v1\/)?/, '')}`, opts.query);
 
   // Combine caller-provided AbortSignal with the timeout. If both fire, the
@@ -132,7 +132,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     const res = await fetch(url, {
       method: opts.method ?? 'GET',
       headers: {
-        [AEGIS_HEADER_API_KEY]: apiKey,
+        [OKORO_HEADER_API_KEY]: apiKey,
         accept: 'application/json',
         ...(opts.body !== undefined ? { 'content-type': 'application/json' } : {}),
       },
@@ -141,7 +141,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
       signal: ac.signal,
     });
 
-    const requestId = res.headers.get(AEGIS_HEADER_REQUEST_ID) ?? undefined;
+    const requestId = res.headers.get(OKORO_HEADER_REQUEST_ID) ?? undefined;
 
     if (res.status === 204) return undefined as T;
 
@@ -155,16 +155,16 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
       const message = (payload && typeof payload === 'object' && 'message' in payload
         ? String((payload as Record<string, unknown>).message)
         : res.statusText);
-      throw new AegisApiError(res.status, code, message, requestId);
+      throw new OkoroApiError(res.status, code, message, requestId);
     }
     return payload as T;
   } catch (err) {
-    if (err instanceof AegisApiError) throw err;
+    if (err instanceof OkoroApiError) throw err;
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new AegisApiError(0, 'TIMEOUT', `Request to AEGIS API timed out after ${DEFAULT_TIMEOUT_MS}ms.`);
+      throw new OkoroApiError(0, 'TIMEOUT', `Request to OKORO API timed out after ${DEFAULT_TIMEOUT_MS}ms.`);
     }
     const msg = err instanceof Error ? err.message : 'unknown';
-    throw new AegisApiError(0, 'NETWORK_ERROR', `AEGIS API unreachable: ${msg}`);
+    throw new OkoroApiError(0, 'NETWORK_ERROR', `OKORO API unreachable: ${msg}`);
   } finally {
     clearTimeout(timer);
     opts.signal?.removeEventListener('abort', onAbort);
@@ -226,7 +226,7 @@ export interface HandshakeStatus {
   agentId: string;
   verified: boolean;
   verifiedAt?: string;
-  protocolVersion?: 'aegis-handshake-v1';
+  protocolVersion?: 'okoro-handshake-v1';
 }
 
 export async function getHandshakeStatus(agentId: string): Promise<HandshakeStatus> {

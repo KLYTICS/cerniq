@@ -67,7 +67,7 @@ export const GENERATED_ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>
     code: "auth_required",
     httpStatus: 401,
     retryable: false,
-    customerMessage: "Authentication required. Provide a valid AEGIS API key.",
+    customerMessage: "Authentication required. Provide a valid OKORO API key.",
     category: "auth",
   }),
   ["forbidden"]: Object.freeze({

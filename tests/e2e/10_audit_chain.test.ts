@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import type { Aegis } from '@aegis/sdk';
+import type { Okoro } from '@okoro/sdk';
 import { RawClient, makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixtures';
 import { pollUntil } from './_support/retry';
@@ -21,7 +21,7 @@ interface AuditLog {
 }
 
 describe('10 · audit chain', () => {
-  let sdk: Aegis;
+  let sdk: Okoro;
   let raw: RawClient;
   const cleanup: string[] = [];
 

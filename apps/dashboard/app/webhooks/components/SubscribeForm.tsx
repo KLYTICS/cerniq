@@ -5,10 +5,10 @@ import { useState, useTransition } from 'react';
 import { subscribeWebhook, type SubscribeOutcome } from './actions';
 
 const DEFAULT_EVENTS = [
-  'aegis.agent.trust_score_changed',
-  'aegis.agent.revoked',
-  'aegis.policy.expired',
-  'aegis.anomaly.detected',
+  'okoro.agent.trust_score_changed',
+  'okoro.agent.revoked',
+  'okoro.policy.expired',
+  'okoro.anomaly.detected',
 ];
 
 export function SubscribeForm() {
@@ -28,15 +28,15 @@ export function SubscribeForm() {
 
   if (!open) {
     return (
-      <button type="button" className="aegis-button" onClick={() => { setOpen(true); }}>
+      <button type="button" className="okoro-button" onClick={() => { setOpen(true); }}>
         Subscribe a URL
       </button>
     );
   }
 
   return (
-    <div className="aegis-panel" role="dialog" aria-label="Subscribe webhook">
-      <p className="aegis-panel-title">New webhook subscription</p>
+    <div className="okoro-panel" role="dialog" aria-label="Subscribe webhook">
+      <p className="okoro-panel-title">New webhook subscription</p>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -49,7 +49,7 @@ export function SubscribeForm() {
             name="url"
             type="url"
             required
-            placeholder="https://api.example.com/webhooks/aegis"
+            placeholder="https://api.example.com/webhooks/okoro"
             disabled={pending}
           />
         </label>
@@ -87,7 +87,7 @@ export function SubscribeForm() {
         <div className="form-actions">
           <button
             type="button"
-            className="aegis-button-ghost"
+            className="okoro-button-ghost"
             onClick={() => {
               setOpen(false);
               setOutcome(null);
@@ -96,7 +96,7 @@ export function SubscribeForm() {
           >
             Close
           </button>
-          <button type="submit" className="aegis-button" disabled={pending}>
+          <button type="submit" className="okoro-button" disabled={pending}>
             {pending ? 'Subscribing…' : 'Subscribe'}
           </button>
         </div>

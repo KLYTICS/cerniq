@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * AEGIS — post-deploy health check.
+ * OKORO — post-deploy health check.
  * Used by CI deploy job and Railway healthcheck.
  *
  * Walks: /health (liveness), /ready (readiness incl. DB+Redis),
@@ -11,10 +11,10 @@
  *
  * Usage:
  *   node scripts/health-check.mjs                              # localhost:4000
- *   AEGIS_BASE_URL=https://api.aegislabs.io node scripts/health-check.mjs
+ *   OKORO_BASE_URL=https://api.okorolabs.io node scripts/health-check.mjs
  */
 
-const BASE = process.env.AEGIS_BASE_URL ?? 'http://localhost:4000';
+const BASE = process.env.OKORO_BASE_URL ?? 'http://localhost:4000';
 const TIMEOUT_MS = 5_000;
 
 const checks = [

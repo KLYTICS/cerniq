@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "display": "AEGIS — Node 20+",
+  "display": "OKORO — Node 20+",
   "extends": "./base.json",
   "compilerOptions": {
     "target": "ES2022",

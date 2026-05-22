@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Regenerates the @aegis/sdk TypeScript reference under
+// Regenerates the @okoro/sdk TypeScript reference under
 // content/docs/sdk/(generated)/typescript/ via TypeDoc + typedoc-plugin-markdown.
 //
 // The (generated) route segment is gitignored — the source of truth is

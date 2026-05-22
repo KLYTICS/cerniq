@@ -11,7 +11,7 @@ describe('Ed25519Util', () => {
 
   it('signs and verifies a round trip', async () => {
     const { privateKey, publicKey } = await util.generateKeypair();
-    const msg = 'hello aegis';
+    const msg = 'hello okoro';
 
     const sig = await util.sign(msg, privateKey);
     const ok = await util.verify(msg, sig, encodeBase64Url(publicKey));

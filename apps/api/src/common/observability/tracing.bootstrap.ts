@@ -11,9 +11,9 @@
 // initTracing()` before `NestFactory.create()`.
 //
 // Configuration:
-//   AEGIS_OTEL_ENABLED=true|false        — top-level enable (default false)
-//   AEGIS_OTEL_SERVICE_NAME=aegis-api    — `service.name` resource attribute
-//   AEGIS_OTEL_EXPORTER=otlp-http|console — exporter (default otlp-http)
+//   OKORO_OTEL_ENABLED=true|false        — top-level enable (default false)
+//   OKORO_OTEL_SERVICE_NAME=okoro-api    — `service.name` resource attribute
+//   OKORO_OTEL_EXPORTER=otlp-http|console — exporter (default otlp-http)
 //   OTEL_EXPORTER_OTLP_ENDPOINT=...      — standard env (any OTel collector)
 //   OTEL_RESOURCE_ATTRIBUTES=...         — standard env, merged in
 //
@@ -25,10 +25,10 @@
 //   - BullMQ job lifecycle
 //
 // Span naming convention (manual spans we add later):
-//   `aegis.verify.algorithm`        — the pure algorithm
-//   `aegis.audit.chain.append`      — one chain insert
-//   `aegis.kms.<provider>.<op>`     — KMS round-trip
-//   `aegis.policy.engine.<id>.eval` — policy engine evaluation
+//   `okoro.verify.algorithm`        — the pure algorithm
+//   `okoro.audit.chain.append`      — one chain insert
+//   `okoro.kms.<provider>.<op>`     — KMS round-trip
+//   `okoro.policy.engine.<id>.eval` — policy engine evaluation
 //
 // SECURITY: traces MUST NOT carry private key bytes, raw API keys, or
 // agent token contents. The verify path tags spans with `agent.id`,
@@ -46,7 +46,7 @@ export interface TracingBootstrapOptions {
   exporter?: 'otlp-http' | 'console' | 'noop';
   /**
    * Extra resource attributes (`OTEL_RESOURCE_ATTRIBUTES` is merged on top).
-   * E.g. { 'deployment.environment': 'production', 'aegis.region': 'us-east-1' }
+   * E.g. { 'deployment.environment': 'production', 'okoro.region': 'us-east-1' }
    */
   resourceAttributes?: Record<string, string>;
 }
@@ -67,9 +67,9 @@ export interface TracingHandle {
  * Production wiring (call from `main.ts` BEFORE NestFactory.create):
  *
  *   const tracing = await initTracing({
- *     enabled: process.env.AEGIS_OTEL_ENABLED === 'true',
- *     serviceName: process.env.AEGIS_OTEL_SERVICE_NAME ?? 'aegis-api',
- *     resourceAttributes: { 'aegis.region': process.env.AEGIS_REGION ?? 'unknown' },
+ *     enabled: process.env.OKORO_OTEL_ENABLED === 'true',
+ *     serviceName: process.env.OKORO_OTEL_SERVICE_NAME ?? 'okoro-api',
+ *     resourceAttributes: { 'okoro.region': process.env.OKORO_REGION ?? 'unknown' },
  *   });
  *   process.on('SIGTERM', () => tracing.shutdown());
  */
@@ -101,7 +101,7 @@ export async function initTracing(opts: TracingBootstrapOptions = {}): Promise<T
   } catch (err) {
     // OTel deps missing — log on stderr and continue without tracing.
     process.stderr.write(
-      `aegis: OTel dependencies not installed (${(err as Error).message}); tracing disabled.\n`,
+      `okoro: OTel dependencies not installed (${(err as Error).message}); tracing disabled.\n`,
     );
     return { enabled: false, flush: async () => undefined, shutdown: async () => undefined };
   }
@@ -115,8 +115,8 @@ export async function initTracing(opts: TracingBootstrapOptions = {}): Promise<T
 
   sdk = new NodeSDK({
     resource: new Resource({
-      [SemanticResourceAttributes.SERVICE_NAME]: opts.serviceName ?? 'aegis-api',
-      [SemanticResourceAttributes.SERVICE_VERSION]: process.env.AEGIS_VERSION ?? '0.0.0',
+      [SemanticResourceAttributes.SERVICE_NAME]: opts.serviceName ?? 'okoro-api',
+      [SemanticResourceAttributes.SERVICE_VERSION]: process.env.OKORO_VERSION ?? '0.0.0',
       ...opts.resourceAttributes,
     }),
     traceExporter: exporter,

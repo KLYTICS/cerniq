@@ -60,7 +60,7 @@ Date: 2026-05-02
   2. The attacker now has an agent ID under their control whose verify
      responses include `principalId: <attacker_principal>`. They issue
      a policy under their principal (`policy.controller.create`), receive
-     an AEGIS-signed policy token, and now any signature the victim
+     an OKORO-signed policy token, and now any signature the victim
      emits — *captured from any public log, audit export, or
      observation* — will verify under attacker's agentId/principalId
      because the JWT `sub` field controls agent lookup but the only
@@ -98,7 +98,7 @@ Date: 2026-05-02
   Any GDPR Article 17 erasure request lands at `audit.service.redact()`,
   which calls `prisma.auditEvent.update(...)` to null out raw fields →
   trigger raises `'AuditEvent is append-only — UPDATE/DELETE is forbidden'`
-  → user sees a 500. AEGIS is now **incapable of complying with EU
+  → user sees a 500. OKORO is now **incapable of complying with EU
   Article 17** while the trigger is in place. The "bypass procedure"
   documented in the migration comment requires a human to
   `DISABLE TRIGGER` from a privileged role and re-enable — not
@@ -119,15 +119,15 @@ Date: 2026-05-02
      `WHEN (OLD.redactedAt IS NOT NULL OR NEW.redactedAt IS DISTINCT FROM OLD.redactedAt = false)`
      so updates that *only* set `redactedAt`/`action`/`relyingParty`/
      `requestedAmount`/`policySnapshot` to null are allowed. Verify
-     hash columns + `aegisSignature` are unchanged in the trigger.
+     hash columns + `okoroSignature` are unchanged in the trigger.
   Option 3 is the smallest blast radius — recommended.
 
 ### S-4 — Audit-chain key rotation has no cross-key verifiability path → silent re-key breaks all historical audit verification
 - File: `apps/api/src/modules/wellknown/wellknown.service.ts:34-74` + `apps/api/src/modules/audit/audit.service.ts:53-69`
 - Attack: An attacker with control of the deploy pipeline (compromised
   Railway service token, malicious insider, supply-chain hit on the
-  CI image) rotates `AEGIS_SIGNING_PRIVATE_KEY` and
-  `AEGIS_SIGNING_PUBLIC_KEY`. The well-known JWKS endpoint serves the
+  CI image) rotates `OKORO_SIGNING_PRIVATE_KEY` and
+  `OKORO_SIGNING_PUBLIC_KEY`. The well-known JWKS endpoint serves the
   *new* key under the same `kid` namespace (kid = sha256(key)[:16] is
   bound to the key, but only the current kid is published — no
   historical kid set). Auditors fetching `/.well-known/jwks.json`
@@ -164,7 +164,7 @@ Date: 2026-05-02
 ### S-5 — Rate-limiting is per-edge-IP because Express `trust proxy` is not set behind Railway/Cloudflare
 - File: `apps/api/src/main.ts:11-23` (no `app.set('trust proxy', …)`) + `apps/api/src/app.module.ts:55-62` (default ThrottlerGuard tracker is `req.ip`)
 - Attack:
-  1. AEGIS deploys behind Railway → Cloudflare. `req.ip` is the *edge
+  1. OKORO deploys behind Railway → Cloudflare. `req.ip` is the *edge
      IP*, not the originating client. The `default` throttler (limit
      120/min) applies a *single* counter for **all traffic from a given
      edge node**.
@@ -186,7 +186,7 @@ Date: 2026-05-02
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.set('trust proxy', /* Cloudflare hop count */ 2);
   ```
-  Plus: customize throttler tracker to `req.headers['x-aegis-api-key'] ?? req.ip`
+  Plus: customize throttler tracker to `req.headers['x-okoro-api-key'] ?? req.ip`
   so authenticated traffic gets per-key buckets, anonymous traffic
   gets per-real-IP buckets. Currently per-key throttling is implicit
   (one bucket per IP that happens to hold a key) → not what was
@@ -232,7 +232,7 @@ Date: 2026-05-02
   2. The receiver's response body (up to 2048 chars of it) is persisted
      in `WebhookDelivery.responseBody` (`webhook.delivery.ts:151,193`).
      A hostile receiver can echo back the request body in their
-     response — now AEGIS persists the customer's raw evidence payload
+     response — now OKORO persists the customer's raw evidence payload
      in the database under the receiver's audit row, which the
      receiver-owner can later read via the dashboard's
      `webhooks/:id/deliveries` endpoint (if/when it ships).
@@ -257,20 +257,20 @@ Date: 2026-05-02
   1. Customer registers webhook URL `https://attacker.example.com/redirect`.
      SSRF guard runs on registration target → resolves to public IP
      1.2.3.4 → approved.
-  2. AEGIS POSTs the body with HMAC signature in the headers. The
+  2. OKORO POSTs the body with HMAC signature in the headers. The
      receiver responds `302 Location: http://169.254.169.254/latest/meta-data/`.
   3. Node's `fetch()` defaults to `redirect: 'follow'`. The SSRF guard
      comment (`ssrf-guard.ts:14-21`) explicitly says *"caller follows
      redirects manually, re-running this guard on each hop"* — but
      the implementation in `webhook.delivery.ts:138-149` does NOT pass
      `redirect: 'manual'`. So Node follows the 302 → fetches AWS IMDS
-     (or GCP / Azure metadata) → **AEGIS now sends the HMAC-signed
+     (or GCP / Azure metadata) → **OKORO now sends the HMAC-signed
      payload to internal metadata endpoints**, and the response
      (which contains IAM credentials on AWS) is persisted in
      `responseBody` (truncated to 2048 chars — but IMDS role
      credentials fit easily).
 - Impact: SSRF re-emerges via redirect, AND the HMAC-signed body could
-  be replayed against an internal endpoint that trusts the AEGIS
+  be replayed against an internal endpoint that trusts the OKORO
   signing key (unlikely but possible in a customer environment that
   shares the secret with internal services).
 - Fix:
@@ -353,7 +353,7 @@ Date: 2026-05-02
 - Attack: Not an exploit, but a *security-bypass via dead code*. The
   Auth0Module isn't wired into `app.module.ts` (verified — not in
   imports[]), so this code path never runs. **However**, if a future
-  session wires it up, the dashboard receives `api_key_id: aegis_live_<ulid>`
+  session wires it up, the dashboard receives `api_key_id: okoro_live_<ulid>`
   that is *not in the ApiKey table*, then attempts to use it as an
   authenticator → 401 → user perceives the SSO flow as broken AND the
   dashboard must implement a fallback. Worse: the audit log shows
@@ -394,11 +394,11 @@ Date: 2026-05-02
 - File: `apps/api/src/modules/auth/api-key.service.ts:54-76`
 - Attack:
   1. Lookup is `findMany({ where: { keyPrefix } })` then bcrypt.compare
-     loop. If the attacker can submit `aegis_sk_AAA…` and observe
+     loop. If the attacker can submit `okoro_sk_AAA…` and observe
      timing of 401 response, the response time is roughly proportional
      to the number of candidates with that prefix (each bcrypt.compare
      is ~100ms at cost=12).
-  2. With `keyPrefix = aegis_sk_<3 random chars>`, the prefix has only
+  2. With `keyPrefix = okoro_sk_<3 random chars>`, the prefix has only
      ~62^3 = ~238k buckets across the entire customer base; some
      buckets will hold many keys at scale. An attacker measuring
      timing can identify "high-density" prefixes — useful for
@@ -422,7 +422,7 @@ Date: 2026-05-02
      — `REDIS_URL` config schema doesn't enforce password presence
      — config.schema.ts:16: `REDIS_URL: z.string().url()` — `redis://localhost`
      is valid), they can write `agent:status:<id>` = `<deeply nested
-     JSON>`. On the next verify call, AEGIS reads + `JSON.parse` →
+     JSON>`. On the next verify call, OKORO reads + `JSON.parse` →
      CPU spike + GC pressure.
   2. Worse: Redis cache injection of `agent:status:<victim>` =
      `{"id":"victim","publicKey":"<attacker_key>","status":"ACTIVE","trustScore":1000,"trustBand":"PLATINUM","principalId":"<victim>"}`
@@ -487,7 +487,7 @@ Date: 2026-05-02
   }
   ```
 
-### S-16 — No global request body size limit; default Express limit is `100kb` but AEGIS uses `rawBody: true`
+### S-16 — No global request body size limit; default Express limit is `100kb` but OKORO uses `rawBody: true`
 - File: `apps/api/src/main.ts:11-15` (`NestFactory.create(AppModule, { bufferLogs: true, rawBody: true })`)
 - Attack:
   1. With `rawBody: true`, Nest stores the raw body buffer for use by

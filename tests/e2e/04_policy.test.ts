@@ -1,10 +1,10 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import type { Aegis } from '@aegis/sdk';
+import type { Okoro } from '@okoro/sdk';
 import { RawClient, makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, futureIso, pastIso } from './_support/fixtures';
 
 describe('04 · policy engine', () => {
-  let sdk: Aegis;
+  let sdk: Okoro;
   let raw: RawClient;
   const agentsToRevoke: string[] = [];
 

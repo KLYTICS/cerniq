@@ -37,12 +37,12 @@ describe('CedarPolicyEngine', () => {
     expect(r.decision).toBe('APPROVE');
   });
 
-  it('denies when Cedar Denies, mapping aegis.deny_reason obligation', async () => {
+  it('denies when Cedar Denies, mapping okoro.deny_reason obligation', async () => {
     const engine = new CedarPolicyEngine(
       new FakeEvaluator({
         decision: 'Deny',
         diagnostics: { reason: 'merchant_not_in_allowlist' },
-        obligations: [{ kind: 'aegis.deny_reason', data: { reason: 'SCOPE_NOT_GRANTED' } }],
+        obligations: [{ kind: 'okoro.deny_reason', data: { reason: 'SCOPE_NOT_GRANTED' } }],
       }),
     );
     const r = await engine.evaluate(baseInput());
@@ -53,7 +53,7 @@ describe('CedarPolicyEngine', () => {
     }
   });
 
-  it('falls back to SCOPE_NOT_GRANTED when Cedar Denies without aegis.deny_reason', async () => {
+  it('falls back to SCOPE_NOT_GRANTED when Cedar Denies without okoro.deny_reason', async () => {
     const engine = new CedarPolicyEngine(new FakeEvaluator({ decision: 'Deny' }));
     const r = await engine.evaluate(baseInput());
     if (r.decision === 'DENY') expect(r.denialReason).toBe('SCOPE_NOT_GRANTED');
@@ -63,7 +63,7 @@ describe('CedarPolicyEngine', () => {
     const engine = new CedarPolicyEngine(
       new FakeEvaluator({
         decision: 'Deny',
-        obligations: [{ kind: 'aegis.deny_reason', data: { reason: 'COMPLETELY_MADE_UP' } }],
+        obligations: [{ kind: 'okoro.deny_reason', data: { reason: 'COMPLETELY_MADE_UP' } }],
       }),
     );
     const r = await engine.evaluate(baseInput());

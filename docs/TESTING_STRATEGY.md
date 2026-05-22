@@ -1,4 +1,4 @@
-# AEGIS — Testing Strategy
+# OKORO — Testing Strategy
 ## Unit, Integration, E2E, Load, Chaos, and Property Testing
 
 > **Owner:** Engineering Lead  
@@ -9,7 +9,7 @@
 
 ## 1. Testing Philosophy
 
-AEGIS tests must answer one question: **"Would a user be approved who should be denied, or denied who should be approved?"**
+OKORO tests must answer one question: **"Would a user be approved who should be denied, or denied who should be approved?"**
 
 Everything flows from that. We have zero tolerance for false approvals. A missed denial is a security failure. A false denial is an availability failure. Both are P0.
 
@@ -22,7 +22,7 @@ Everything flows from that. We have zero tolerance for false approvals. A missed
    /--------\      Unit (pure functions — crypto, BATE, algorithm)
 ```
 
-The middle tier is the most valuable for AEGIS. Pure function unit tests validate logic. Integration tests validate the DB/Redis wiring. E2E tests validate the full contract.
+The middle tier is the most valuable for OKORO. Pure function unit tests validate logic. Integration tests validate the DB/Redis wiring. E2E tests validate the full contract.
 
 ---
 
@@ -49,7 +49,7 @@ The middle tier is the most valuable for AEGIS. Pure function unit tests validat
 - `bate.scorer.ts` (every signal type, every band boundary)
 - `bate.anomaly.ts` (every rule: R-1 through R-5)
 - Every Zod schema in `packages/types`
-- Every `AegisError` subclass
+- Every `OkoroError` subclass
 - `audit-chain.ts` (signing, verification, tamper detection)
 
 **With exceptions documented:**
@@ -66,7 +66,7 @@ Every crypto function requires a paired `.spec.ts`. No exceptions.
 describe('ed25519', () => {
   it('round-trips: sign → verify with same key', async () => {
     const { privateKey, publicKey } = await generateKeyPair();
-    const message = new TextEncoder().encode('hello aegis');
+    const message = new TextEncoder().encode('hello okoro');
     const sig = await sign(message, privateKey);
     expect(await verify(sig, message, publicKey)).toBe(true);
   });
@@ -503,7 +503,7 @@ export const options = {
   },
 };
 
-const BASE_URL = __ENV.BASE_URL || 'https://api.aegislabs.io/v1';
+const BASE_URL = __ENV.BASE_URL || 'https://api.okorolabs.io/v1';
 const API_KEY = __ENV.API_KEY;
 
 export default function () {
@@ -532,7 +532,7 @@ export default function () {
 Run against staging before every GA milestone:
 ```bash
 k6 run tests/load/verify.js \
-  -e BASE_URL=https://staging.api.aegislabs.io/v1 \
+  -e BASE_URL=https://staging.api.okorolabs.io/v1 \
   -e API_KEY=$STAGING_API_KEY
 
 # Expected results for Phase 1 GA:
@@ -719,7 +719,7 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_PASSWORD: test
-          POSTGRES_DB: aegis_test
+          POSTGRES_DB: okoro_test
       redis:
         image: redis:7
     steps:
@@ -795,12 +795,12 @@ afterAll(async () => {
   await prisma.principal.delete({ where: { id: testPrincipalId } });
   
   // Clean Redis keys for this principal
-  const keys = await redis.keys(`aegis:*:${testPrincipalId}:*`);
+  const keys = await redis.keys(`okoro:*:${testPrincipalId}:*`);
   if (keys.length > 0) await redis.del(...keys);
 });
 ```
 
 ---
 
-*Testing strategy version: 1.0 | AEGIS Phase 1*  
+*Testing strategy version: 1.0 | OKORO Phase 1*  
 *Next review: after first 50K verify calls in production*

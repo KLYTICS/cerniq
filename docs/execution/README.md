@@ -1,11 +1,11 @@
 ---
-title: AEGIS — Execution Operating System
+title: OKORO — Execution Operating System
 audience: every contributor — operator, staff engineer, contractor, every Claude session, every future hire
 last-reviewed: 2026-05-08
 status: source-of-truth
 ---
 
-# AEGIS Execution Operating System
+# OKORO Execution Operating System
 
 The institutional contract that turns parallel work into a public-company-
 grade business. Layered on top of `CLAUDE.md` (architectural invariants),
@@ -15,7 +15,7 @@ session discipline), `docs/SESSION_HANDOFF.md` (delivery log), and
 
 ## What this folder is for
 
-AEGIS is being built today as if it will be a publicly traded company in
+OKORO is being built today as if it will be a publicly traded company in
 24-36 months. Every contributor — human or AI agent — ships work that must
 clear a bar set in three places at once:
 
@@ -32,7 +32,7 @@ binds them into a single execution model.
 
 ## The 4 axes
 
-Every piece of work at AEGIS is described by four coordinates:
+Every piece of work at OKORO is described by four coordinates:
 
 ```
 DEPARTMENT      ×    AGENT ROLE     ×    TASK STAGE       ×    QUALITY GATE

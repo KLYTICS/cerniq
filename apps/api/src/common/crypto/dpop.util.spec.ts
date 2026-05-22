@@ -39,8 +39,8 @@ async function signProof(args: {
 }
 
 describe('verifyDpopProof', () => {
-  const TOKEN = 'aegis_test_token_abcdef';
-  const URL = 'https://aegis.example.com/v1/verify';
+  const TOKEN = 'okoro_test_token_abcdef';
+  const URL = 'https://okoro.example.com/v1/verify';
 
   it('accepts a valid proof', async () => {
     const k = await makeKey();
@@ -68,7 +68,7 @@ describe('verifyDpopProof', () => {
 
   it('rejects htu mismatch (different path)', async () => {
     const k = await makeKey();
-    const proof = await signProof({ priv: k.priv, jwk: k.jwk, htm: 'POST', htu: 'https://aegis.example.com/v1/agents', iat: Math.floor(Date.now() / 1000), accessToken: TOKEN });
+    const proof = await signProof({ priv: k.priv, jwk: k.jwk, htm: 'POST', htu: 'https://okoro.example.com/v1/agents', iat: Math.floor(Date.now() / 1000), accessToken: TOKEN });
     const r = await verifyDpopProof(proof, { method: 'POST', url: URL, accessToken: TOKEN, replayCache: new StubReplayCache() });
     expect(r.valid).toBe(false);
     if (!r.valid) expect(r.reason).toBe('DPoP_HTU_MISMATCH');
@@ -76,7 +76,7 @@ describe('verifyDpopProof', () => {
 
   it('accepts htu with case-insensitive host + ignored fragment', async () => {
     const k = await makeKey();
-    const proof = await signProof({ priv: k.priv, jwk: k.jwk, htm: 'POST', htu: 'https://AEGIS.EXAMPLE.COM/v1/verify#frag', iat: Math.floor(Date.now() / 1000), accessToken: TOKEN });
+    const proof = await signProof({ priv: k.priv, jwk: k.jwk, htm: 'POST', htu: 'https://OKORO.EXAMPLE.COM/v1/verify#frag', iat: Math.floor(Date.now() / 1000), accessToken: TOKEN });
     const r = await verifyDpopProof(proof, { method: 'POST', url: URL, accessToken: TOKEN, replayCache: new StubReplayCache() });
     expect(r.valid).toBe(true);
   });

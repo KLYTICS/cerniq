@@ -1,12 +1,12 @@
 ---
-title: AEGIS for site reliability engineers
-audience: SREs operating AEGIS or operating services that depend on AEGIS
+title: OKORO for site reliability engineers
+audience: SREs operating OKORO or operating services that depend on OKORO
 last-reviewed: 2026-05-02
 ---
 
-# AEGIS for SREs — what to watch, what to page on
+# OKORO for SREs — what to watch, what to page on
 
-AEGIS is on the hot path for every relying-party action. If AEGIS is
+OKORO is on the hot path for every relying-party action. If OKORO is
 unhealthy, every dependent service degrades. The SLOs and runbooks are
 sized for that reality.
 
@@ -20,10 +20,10 @@ sized for that reality.
 | `/.well-known/jwks.json` | 99.99% availability (this is the offline-verify fallback) | `docs/SLO.md`                  |
 | Webhook delivery     | p99 first attempt < 5s; 99% within 10 attempts   | M-008                          |
 
-Alert rules live in `infra/observability/alerts/aegis-security.rules.yml`
+Alert rules live in `infra/observability/alerts/okoro-security.rules.yml`
 (peer-shipped 2026-05-02). The alerts are *security-flavored* — auth
 failure spikes, audit append failures, replay-cache failures — because
-those are the cases where degraded AEGIS turns into a security
+those are the cases where degraded OKORO turns into a security
 incident, not just a latency one.
 
 ## Dashboards
@@ -70,7 +70,7 @@ out across CF regions.
 ## Failure modes
 
 `docs/FAILURE_MODES.md` (sid=a9198691, 2026-05-02) enumerates how
-AEGIS degrades when each dependency (Postgres, Redis, KMS, Auth0)
+OKORO degrades when each dependency (Postgres, Redis, KMS, Auth0)
 goes away. Worth reading before you're paged at 3am.
 
 ## Reference
@@ -78,5 +78,5 @@ goes away. Worth reading before you're paged at 3am.
 - `docs/SLO.md`, `docs/RUNBOOK.md`, `docs/DR_RUNBOOK.md`, `docs/SMOKE_TEST.md`
 - `docs/SECURITY_RUNBOOK.md`, `docs/CAPACITY_PLAN.md`, `docs/FAILURE_MODES.md`
 - `infra/observability/` — alert rules + Grafana dashboards.
-- `aegis doctor` — for the operator side, the same probes the SRE
+- `okoro doctor` — for the operator side, the same probes the SRE
   dashboard surfaces, but on demand.

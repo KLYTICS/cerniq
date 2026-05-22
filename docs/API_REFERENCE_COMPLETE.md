@@ -1,7 +1,7 @@
-# AEGIS — Complete API Reference
+# OKORO — Complete API Reference
 ## Every Endpoint with Request/Response Examples
 
-> **Base URL:** `https://api.aegislabs.io`  
+> **Base URL:** `https://api.okorolabs.io`  
 > **Auth:** `Authorization: Bearer <api_key>` on all endpoints except `/health`, `/ready`, `/.well-known/*`  
 > **Version:** All endpoints are under `/v1/`  
 > **Updated:** 2026-05-04
@@ -27,7 +27,7 @@ Authorization: Bearer ak_live_xxxxxxxxxxxxxxxxxxxx
 Public. No auth. Used by load balancers and uptime monitors.
 
 ```bash
-curl https://api.aegislabs.io/health
+curl https://api.okorolabs.io/health
 ```
 
 **Response 200:**
@@ -47,8 +47,8 @@ This endpoint NEVER checks DB or Redis. It always returns 200 if the process is 
 Authenticated (admin token). Deep health check.
 
 ```bash
-curl https://api.aegislabs.io/ready \
-  -H "X-AEGIS-Admin: $AEGIS_ADMIN_TOKEN"
+curl https://api.okorolabs.io/ready \
+  -H "X-OKORO-Admin: $OKORO_ADMIN_TOKEN"
 ```
 
 **Response 200:**
@@ -77,10 +77,10 @@ curl https://api.aegislabs.io/ready \
 
 ### GET /.well-known/audit-signing-key
 
-Public. Returns the current AEGIS audit signing key as JWKS. Used by relying parties to verify audit chain signatures independently.
+Public. Returns the current OKORO audit signing key as JWKS. Used by relying parties to verify audit chain signatures independently.
 
 ```bash
-curl https://api.aegislabs.io/.well-known/audit-signing-key
+curl https://api.okorolabs.io/.well-known/audit-signing-key
 ```
 
 **Response 200:**
@@ -108,8 +108,8 @@ curl https://api.aegislabs.io/.well-known/audit-signing-key
 Register a new AI agent identity.
 
 ```bash
-curl -X POST https://api.aegislabs.io/v1/agents \
-  -H "Authorization: Bearer $AEGIS_API_KEY" \
+curl -X POST https://api.okorolabs.io/v1/agents \
+  -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "my-payment-agent",
@@ -162,8 +162,8 @@ curl -X POST https://api.aegislabs.io/v1/agents \
 List all agents for your principal.
 
 ```bash
-curl https://api.aegislabs.io/v1/agents \
-  -H "Authorization: Bearer $AEGIS_API_KEY" \
+curl https://api.okorolabs.io/v1/agents \
+  -H "Authorization: Bearer $OKORO_API_KEY" \
   -G \
   --data-urlencode "status=ACTIVE" \
   --data-urlencode "limit=20" \
@@ -206,8 +206,8 @@ curl https://api.aegislabs.io/v1/agents \
 Get a single agent with full trust detail.
 
 ```bash
-curl https://api.aegislabs.io/v1/agents/agent_01HX5TZK \
-  -H "Authorization: Bearer $AEGIS_API_KEY"
+curl https://api.okorolabs.io/v1/agents/agent_01HX5TZK \
+  -H "Authorization: Bearer $OKORO_API_KEY"
 ```
 
 **Response 200:**
@@ -243,8 +243,8 @@ curl https://api.aegislabs.io/v1/agents/agent_01HX5TZK \
 Update agent metadata or description. (Cannot change publicKey — use rotation endpoint.)
 
 ```bash
-curl -X PATCH https://api.aegislabs.io/v1/agents/agent_01HX5TZK \
-  -H "Authorization: Bearer $AEGIS_API_KEY" \
+curl -X PATCH https://api.okorolabs.io/v1/agents/agent_01HX5TZK \
+  -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "description": "Updated description", "metadata": { "version": "2.0.0" } }'
 ```
@@ -258,8 +258,8 @@ curl -X PATCH https://api.aegislabs.io/v1/agents/agent_01HX5TZK \
 Revoke an agent. Revocation propagates within 30 seconds. This action is irreversible — to re-enable, register a new agent.
 
 ```bash
-curl -X DELETE https://api.aegislabs.io/v1/agents/agent_01HX5TZK \
-  -H "Authorization: Bearer $AEGIS_API_KEY" \
+curl -X DELETE https://api.okorolabs.io/v1/agents/agent_01HX5TZK \
+  -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "reason": "No longer needed" }'
 ```
@@ -281,8 +281,8 @@ curl -X DELETE https://api.aegislabs.io/v1/agents/agent_01HX5TZK \
 Rotate an agent's Ed25519 public key. Existing tokens signed by the old key become invalid immediately.
 
 ```bash
-curl -X POST https://api.aegislabs.io/v1/agents/agent_01HX5TZK/rotate-key \
-  -H "Authorization: Bearer $AEGIS_API_KEY" \
+curl -X POST https://api.okorolabs.io/v1/agents/agent_01HX5TZK/rotate-key \
+  -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "newPublicKey": "base64url-encoded-new-public-key" }'
 ```
@@ -298,8 +298,8 @@ curl -X POST https://api.aegislabs.io/v1/agents/agent_01HX5TZK/rotate-key \
 Create a policy.
 
 ```bash
-curl -X POST https://api.aegislabs.io/v1/policies \
-  -H "Authorization: Bearer $AEGIS_API_KEY" \
+curl -X POST https://api.okorolabs.io/v1/policies \
+  -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "payment-policy",
@@ -317,7 +317,7 @@ curl -X POST https://api.aegislabs.io/v1/policies \
 **Policy Types:**
 | Type | Description |
 |------|-------------|
-| `BUILTIN` | AEGIS built-in scope + spend enforcement |
+| `BUILTIN` | OKORO built-in scope + spend enforcement |
 | `CEDAR` | Cedar policy language (enterprise) |
 | `OPA` | OPA Rego policy (enterprise) |
 
@@ -358,8 +358,8 @@ curl -X POST https://api.aegislabs.io/v1/policies \
 Attach a policy to one or more agents.
 
 ```bash
-curl -X POST https://api.aegislabs.io/v1/policies/pol_01HX5TZK/attach \
-  -H "Authorization: Bearer $AEGIS_API_KEY" \
+curl -X POST https://api.okorolabs.io/v1/policies/pol_01HX5TZK/attach \
+  -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "agentIds": ["agent_01HX5TZK", "agent_02HX5TZK"] }'
 ```
@@ -380,8 +380,8 @@ curl -X POST https://api.aegislabs.io/v1/policies/pol_01HX5TZK/attach \
 List all policies.
 
 ```bash
-curl https://api.aegislabs.io/v1/policies \
-  -H "Authorization: Bearer $AEGIS_API_KEY"
+curl https://api.okorolabs.io/v1/policies \
+  -H "Authorization: Bearer $OKORO_API_KEY"
 ```
 
 **Response 200:**
@@ -406,8 +406,8 @@ curl https://api.aegislabs.io/v1/policies \
 Revoke a policy. All agents with this policy lose its grants immediately.
 
 ```bash
-curl -X DELETE https://api.aegislabs.io/v1/policies/pol_01HX5TZK \
-  -H "Authorization: Bearer $AEGIS_API_KEY"
+curl -X DELETE https://api.okorolabs.io/v1/policies/pol_01HX5TZK \
+  -H "Authorization: Bearer $OKORO_API_KEY"
 ```
 
 **Response 200:**
@@ -424,8 +424,8 @@ curl -X DELETE https://api.aegislabs.io/v1/policies/pol_01HX5TZK \
 Verify an agent JWT and enforce policies. This is the highest-traffic endpoint — designed for < 50ms median latency.
 
 ```bash
-curl -X POST https://api.aegislabs.io/v1/verify \
-  -H "Authorization: Bearer $AEGIS_API_KEY" \
+curl -X POST https://api.okorolabs.io/v1/verify \
+  -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9...",
@@ -518,8 +518,8 @@ curl -X POST https://api.aegislabs.io/v1/verify \
 Query the audit log for your principal.
 
 ```bash
-curl "https://api.aegislabs.io/v1/audit?agentId=agent_01HX5TZK&limit=20" \
-  -H "Authorization: Bearer $AEGIS_API_KEY"
+curl "https://api.okorolabs.io/v1/audit?agentId=agent_01HX5TZK&limit=20" \
+  -H "Authorization: Bearer $OKORO_API_KEY"
 ```
 
 **Query Parameters:**
@@ -569,8 +569,8 @@ curl "https://api.aegislabs.io/v1/audit?agentId=agent_01HX5TZK&limit=20" \
 Verify the integrity of your audit chain. Returns any breaks found.
 
 ```bash
-curl -X POST https://api.aegislabs.io/v1/audit/verify-chain \
-  -H "Authorization: Bearer $AEGIS_API_KEY" \
+curl -X POST https://api.okorolabs.io/v1/audit/verify-chain \
+  -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "limit": 1000, "from": "2026-05-01T00:00:00.000Z" }'
 ```
@@ -613,8 +613,8 @@ curl -X POST https://api.aegislabs.io/v1/audit/verify-chain \
 Get a detailed trust score breakdown for an agent.
 
 ```bash
-curl https://api.aegislabs.io/v1/agents/agent_01HX5TZK/trust \
-  -H "Authorization: Bearer $AEGIS_API_KEY"
+curl https://api.okorolabs.io/v1/agents/agent_01HX5TZK/trust \
+  -H "Authorization: Bearer $OKORO_API_KEY"
 ```
 
 **Response 200:**
@@ -655,8 +655,8 @@ curl https://api.aegislabs.io/v1/agents/agent_01HX5TZK/trust \
 Submit a behavioral signal for an agent (e.g., from a fraud report or external observation).
 
 ```bash
-curl -X POST https://api.aegislabs.io/v1/agents/agent_01HX5TZK/signals \
-  -H "Authorization: Bearer $AEGIS_API_KEY" \
+curl -X POST https://api.okorolabs.io/v1/agents/agent_01HX5TZK/signals \
+  -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "type": "FRAUD_REPORT_MINOR",
@@ -701,11 +701,11 @@ curl -X POST https://api.aegislabs.io/v1/agents/agent_01HX5TZK/signals \
 Create a webhook subscription.
 
 ```bash
-curl -X POST https://api.aegislabs.io/v1/webhooks \
-  -H "Authorization: Bearer $AEGIS_API_KEY" \
+curl -X POST https://api.okorolabs.io/v1/webhooks \
+  -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://your-service.com/webhooks/aegis",
+    "url": "https://your-service.com/webhooks/okoro",
     "events": ["agent.revoked", "agent.trust_band_changed", "policy.expired"],
     "description": "My service webhook"
   }'
@@ -726,7 +726,7 @@ curl -X POST https://api.aegislabs.io/v1/webhooks \
 ```json
 {
   "id": "sub_01HX5TZK",
-  "url": "https://your-service.com/webhooks/aegis",
+  "url": "https://your-service.com/webhooks/okoro",
   "events": ["agent.revoked"],
   "secret": "whsec_xxxxxxxxxxxx",
   "status": "ACTIVE",
@@ -737,7 +737,7 @@ curl -X POST https://api.aegislabs.io/v1/webhooks \
 **IMPORTANT:** The `secret` is returned ONCE. Store it securely. Use it to verify the HMAC signature on incoming webhooks:
 
 ```typescript
-const sig = req.headers['x-aegis-signature'];
+const sig = req.headers['x-okoro-signature'];
 const expected = createHmac('sha256', webhookSecret)
   .update(rawBody)
   .digest('hex');
@@ -773,8 +773,8 @@ Every webhook event has this format:
 Create a new API key.
 
 ```bash
-curl -X POST https://api.aegislabs.io/v1/auth/api-keys \
-  -H "Authorization: Bearer $AEGIS_API_KEY" \
+curl -X POST https://api.okorolabs.io/v1/auth/api-keys \
+  -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "production-key",
@@ -802,8 +802,8 @@ curl -X POST https://api.aegislabs.io/v1/auth/api-keys \
 List all API keys (key values are never returned, only metadata).
 
 ```bash
-curl https://api.aegislabs.io/v1/auth/api-keys \
-  -H "Authorization: Bearer $AEGIS_API_KEY"
+curl https://api.okorolabs.io/v1/auth/api-keys \
+  -H "Authorization: Bearer $OKORO_API_KEY"
 ```
 
 ---
@@ -813,8 +813,8 @@ curl https://api.aegislabs.io/v1/auth/api-keys \
 Revoke an API key.
 
 ```bash
-curl -X DELETE https://api.aegislabs.io/v1/auth/api-keys/key_01HX5TZK \
-  -H "Authorization: Bearer $AEGIS_API_KEY"
+curl -X DELETE https://api.okorolabs.io/v1/auth/api-keys/key_01HX5TZK \
+  -H "Authorization: Bearer $OKORO_API_KEY"
 ```
 
 ---
@@ -874,10 +874,10 @@ All list endpoints use cursor-based pagination:
 
 ```bash
 # First page
-curl "https://api.aegislabs.io/v1/agents?limit=20"
+curl "https://api.okorolabs.io/v1/agents?limit=20"
 
 # Next page (using cursor from previous response)
-curl "https://api.aegislabs.io/v1/agents?limit=20&cursor=agent_cursor_value"
+curl "https://api.okorolabs.io/v1/agents?limit=20&cursor=agent_cursor_value"
 ```
 
 Response includes:
@@ -893,6 +893,6 @@ Response includes:
 
 ---
 
-*API Reference version: 1.0 | AEGIS Phase 1 GA*  
-*OpenAPI spec: https://api.aegislabs.io/openapi.json*  
-*Postman collection: https://docs.aegislabs.io/postman*
+*API Reference version: 1.0 | OKORO Phase 1 GA*  
+*OpenAPI spec: https://api.okorolabs.io/openapi.json*  
+*Postman collection: https://docs.okorolabs.io/postman*

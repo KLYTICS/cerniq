@@ -12,9 +12,9 @@ const FIXED_ROTATED_AT = '2026-01-01T00:00:00.000Z';
 
 function buildService(): WellknownService {
   const config = {
-    aegisSigningPublicKey: ZERO_KEY_B64,
-    aegisSigningKeyRotatedAt: FIXED_ROTATED_AT,
-    apiBaseUrl: 'https://api.aegislabs.io',
+    okoroSigningPublicKey: ZERO_KEY_B64,
+    okoroSigningKeyRotatedAt: FIXED_ROTATED_AT,
+    apiBaseUrl: 'https://api.okorolabs.io',
   } as unknown as AppConfigService;
   const svc = new WellknownService(config);
   svc.onModuleInit();
@@ -53,7 +53,7 @@ describe('WellknownController', () => {
       expect(out!.publicKey).toBe(ZERO_KEY_B64);
       expect(out!.algorithm).toBe('EdDSA');
       expect(out!.curve).toBe('Ed25519');
-      expect(out!.issuer).toBe('https://aegislabs.io');
+      expect(out!.issuer).toBe('https://okorolabs.io');
       expect(out!.purpose).toBe('audit-event-signing');
       expect(out!.rotatedAt).toBe(FIXED_ROTATED_AT);
       expect(headers.etag).toBe(`"${svc.getKid()}"`);
@@ -173,7 +173,7 @@ describe('WellknownController', () => {
     });
   });
 
-  describe('GET /.well-known/aegis-configuration', () => {
+  describe('GET /.well-known/okoro-configuration', () => {
     it('returns the full discovery doc with stable schema', () => {
       const svc = buildService();
       const ctl = new WellknownController(svc);
@@ -181,16 +181,16 @@ describe('WellknownController', () => {
 
       const out = ctl.configuration(res);
 
-      expect(out.issuer).toBe('https://api.aegislabs.io');
+      expect(out.issuer).toBe('https://api.okorolabs.io');
       expect(out.spec_version).toBe('1.0.0');
-      expect(out.jwks_uri).toBe('https://api.aegislabs.io/.well-known/jwks.json');
+      expect(out.jwks_uri).toBe('https://api.okorolabs.io/.well-known/jwks.json');
       expect(out.audit_signing_key_uri).toBe(
-        'https://api.aegislabs.io/.well-known/audit-signing-key',
+        'https://api.okorolabs.io/.well-known/audit-signing-key',
       );
-      expect(out.security_txt).toBe('https://api.aegislabs.io/.well-known/security.txt');
-      expect(out.llms_txt).toBe('https://api.aegislabs.io/.well-known/llms.txt');
-      expect(out.endpoints.verify).toBe('https://api.aegislabs.io/v1/verify');
-      expect(out.endpoints.billing_webhook).toBe('https://api.aegislabs.io/v1/billing/webhook');
+      expect(out.security_txt).toBe('https://api.okorolabs.io/.well-known/security.txt');
+      expect(out.llms_txt).toBe('https://api.okorolabs.io/.well-known/llms.txt');
+      expect(out.endpoints.verify).toBe('https://api.okorolabs.io/v1/verify');
+      expect(out.endpoints.billing_webhook).toBe('https://api.okorolabs.io/v1/billing/webhook');
       expect(out.supported_algorithms).toEqual(['EdDSA']);
       expect(out.supported_curves).toEqual(['Ed25519']);
       expect(out.trust_bands).toEqual(['FLAGGED', 'WATCH', 'VERIFIED', 'PLATINUM']);
@@ -220,17 +220,17 @@ describe('WellknownController', () => {
       const ctl = new WellknownController(svc);
       const out = ctl.configuration(fakeResponse().res);
 
-      expect(out.sdks.typescript).toBe('@aegis/sdk');
-      expect(out.sdks.python).toBe('aegis');
-      expect(out.sdks.verifier_rp).toBe('@aegis/verifier-rp');
-      expect(out.sdks.mcp_bridge).toBe('@aegis/mcp-bridge');
-      expect(out.sdks.mcp_server).toBe('@aegis/mcp-server');
+      expect(out.sdks.typescript).toBe('@okoro/sdk');
+      expect(out.sdks.python).toBe('okoro');
+      expect(out.sdks.verifier_rp).toBe('@okoro/verifier-rp');
+      expect(out.sdks.mcp_bridge).toBe('@okoro/mcp-bridge');
+      expect(out.sdks.mcp_server).toBe('@okoro/mcp-server');
     });
 
     it('falls back to canonical issuer when apiBaseUrl is unset', () => {
       const config = {
-        aegisSigningPublicKey: ZERO_KEY_B64,
-        aegisSigningKeyRotatedAt: FIXED_ROTATED_AT,
+        okoroSigningPublicKey: ZERO_KEY_B64,
+        okoroSigningKeyRotatedAt: FIXED_ROTATED_AT,
         apiBaseUrl: undefined,
       } as unknown as AppConfigService;
       const svc = new WellknownService(config);
@@ -238,7 +238,7 @@ describe('WellknownController', () => {
       const ctl = new WellknownController(svc);
       const out = ctl.configuration(fakeResponse().res);
 
-      expect(out.issuer).toBe('https://aegislabs.io');
+      expect(out.issuer).toBe('https://okorolabs.io');
     });
   });
 
@@ -250,10 +250,10 @@ describe('WellknownController', () => {
 
       const out = ctl.securityTxt(res);
 
-      expect(out).toContain('Contact: mailto:security@aegislabs.io');
+      expect(out).toContain('Contact: mailto:security@okorolabs.io');
       expect(out).toMatch(/Expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
       expect(out).toContain('Preferred-Languages: en');
-      expect(out).toContain('Canonical: https://api.aegislabs.io/.well-known/security.txt');
+      expect(out).toContain('Canonical: https://api.okorolabs.io/.well-known/security.txt');
       expect(out).toContain('Policy:');
       expect(headers['content-type']).toMatch(/text\/plain/);
     });
@@ -280,12 +280,12 @@ describe('WellknownController', () => {
 
       const out = ctl.llmsTxt(res);
 
-      expect(out).toContain('# AEGIS — Agent Gateway & Identity Stack');
-      expect(out).toContain('https://api.aegislabs.io/.well-known/aegis-configuration');
-      expect(out).toContain('POST https://api.aegislabs.io/v1/verify');
-      expect(out).toContain('npm install @aegis/sdk');
-      expect(out).toContain('pip install aegis');
-      expect(out).toContain('npm install @aegis/verifier-rp');
+      expect(out).toContain('# OKORO — Agent Gateway & Identity Stack');
+      expect(out).toContain('https://api.okorolabs.io/.well-known/okoro-configuration');
+      expect(out).toContain('POST https://api.okorolabs.io/v1/verify');
+      expect(out).toContain('npm install @okoro/sdk');
+      expect(out).toContain('pip install okoro');
+      expect(out).toContain('npm install @okoro/verifier-rp');
       expect(out).toContain('AGENT_NOT_FOUND → AGENT_REVOKED → INVALID_SIGNATURE');
       expect(headers['content-type']).toMatch(/text\/markdown/);
     });
@@ -310,7 +310,7 @@ describe('WellknownController', () => {
       expect(out.guarantees).toHaveLength(3);
       expect(out.guarantees[0]).toContain('chain remains verifiable');
       expect(out.operational.retention_run_interval_seconds).toBe(86_400);
-      expect(out.operational.configurable_via_env).toBe('AEGIS_AUDIT_RETENTION_INTERVAL_MS');
+      expect(out.operational.configurable_via_env).toBe('OKORO_AUDIT_RETENTION_INTERVAL_MS');
       expect(headers['content-type']).toMatch(/application\/json/);
       expect(headers['cache-control']).toBeUndefined();
       // Cache-Control comes from a Nest @Header decorator — fakeResponse only
@@ -358,25 +358,25 @@ describe('WellknownController', () => {
     });
   });
 
-  describe('aegis-configuration advertises retention-policy.json', () => {
+  describe('okoro-configuration advertises retention-policy.json', () => {
     it('exposes retention_policy_uri pointing at the new well-known endpoint', () => {
       const svc = buildService();
       const ctl = new WellknownController(svc);
       const out = ctl.configuration(fakeResponse().res);
 
       expect(out.retention_policy_uri).toBe(
-        'https://api.aegislabs.io/.well-known/retention-policy.json',
+        'https://api.okorolabs.io/.well-known/retention-policy.json',
       );
     });
   });
 
-  describe('aegis-configuration advertises pricing.json', () => {
+  describe('okoro-configuration advertises pricing.json', () => {
     it('exposes pricing_uri pointing at the new well-known endpoint', () => {
       const svc = buildService();
       const ctl = new WellknownController(svc);
       const out = ctl.configuration(fakeResponse().res);
 
-      expect(out.pricing_uri).toBe('https://api.aegislabs.io/.well-known/pricing.json');
+      expect(out.pricing_uri).toBe('https://api.okorolabs.io/.well-known/pricing.json');
     });
   });
 

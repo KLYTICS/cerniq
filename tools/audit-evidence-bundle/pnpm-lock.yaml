@@ -8,11 +8,11 @@ importers:
 
   .:
     dependencies:
-      '@aegis/audit-verifier':
+      '@okoro/audit-verifier':
         specifier: link:../../packages/audit-verifier
         version: link:../../packages/audit-verifier
     devDependencies:
-      '@aegis/tsconfig':
+      '@okoro/tsconfig':
         specifier: link:../../packages/tsconfig
         version: link:../../packages/tsconfig
       '@types/node':

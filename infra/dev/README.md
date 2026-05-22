@@ -1,4 +1,4 @@
-# AEGIS — dev stack
+# OKORO — dev stack
 
 > One-command local environment: Postgres + Redis + API + worker + Prometheus + Grafana + OTel collector.
 > Pinned Docker images, healthchecks on every service, no `latest` tags.
@@ -8,9 +8,9 @@
 ```sh
 # from repo root
 cp infra/dev/.env.example infra/dev/.env
-# (optional) generate the AEGIS audit-signing keypair and wire its public half
-pnpm --filter @aegis/scripts run keys
-# then copy the AEGIS_SIGNING_PUBLIC_KEY value into infra/dev/.env
+# (optional) generate the OKORO audit-signing keypair and wire its public half
+pnpm --filter @okoro/scripts run keys
+# then copy the OKORO_SIGNING_PUBLIC_KEY value into infra/dev/.env
 
 docker compose -f infra/dev/docker-compose.dev.yml --env-file infra/dev/.env up -d --build
 ```
@@ -33,7 +33,7 @@ curl -s http://localhost:4000/v1/health/ready
 # expect {"status":"ok",...}
 
 # 2. Metrics flowing?
-curl -s http://localhost:4000/metrics | grep ^aegis_
+curl -s http://localhost:4000/metrics | grep ^okoro_
 
 # 3. Prometheus targets healthy?
 open http://localhost:9090/targets
@@ -42,7 +42,7 @@ open http://localhost:9090/targets
 # 4. Grafana
 open http://localhost:3000
 # login: admin / admin (or whatever you set GF_SECURITY_ADMIN_PASSWORD to)
-# AEGIS folder → "Verify path" dashboard provisioned
+# OKORO folder → "Verify path" dashboard provisioned
 ```
 
 The full 12-step golden path lives in `docs/SMOKE_TEST.md`.
@@ -75,22 +75,22 @@ build issues before they hit a deploy.
 
 ## Dashboard drift caveat (read this)
 
-The Grafana dashboard mounted at `infra/dev/grafana/dashboards/aegis-verify.json`
-is a copy of the production dashboard `infra/observability/grafana-dashboards/aegis-verify-latency.json`.
+The Grafana dashboard mounted at `infra/dev/grafana/dashboards/okoro-verify.json`
+is a copy of the production dashboard `infra/observability/grafana-dashboards/okoro-verify-latency.json`.
 Per `docs/SESSION_HANDOFF.md` (entry 2026-05-02), **5 panels reference metric
 names that are not currently emitted by `apps/api/src/common/observability/metrics.service.ts`**:
 
-- `aegis_verify_denials_total`
-- `aegis_bate_recompute_lag_seconds_bucket`
-- `aegis_bullmq_waiting_jobs`
-- `aegis_cache_hits_total`
-- `aegis_cache_misses_total`
+- `okoro_verify_denials_total`
+- `okoro_bate_recompute_lag_seconds_bucket`
+- `okoro_bullmq_waiting_jobs`
+- `okoro_cache_hits_total`
+- `okoro_cache_misses_total`
 
 Until that drift is resolved (rewrite the panels OR extend `metrics.service.ts`),
 expect those panels in dev Grafana to render "No data". The other panels —
-`aegis_verify_total{decision,denial_reason}`, `aegis_bate_score_delta`,
-`aegis_audit_append_total`, `aegis_webhook_delivery_total`,
-`aegis_http_requests_total`, default Node metrics — render correctly.
+`okoro_verify_total{decision,denial_reason}`, `okoro_bate_score_delta`,
+`okoro_audit_append_total`, `okoro_webhook_delivery_total`,
+`okoro_http_requests_total`, default Node metrics — render correctly.
 
 This is the same drift production has. Documented here so dev users don't
 chase a phantom configuration bug.
@@ -99,19 +99,19 @@ chase a phantom configuration bug.
 
 | Symptom                                          | Likely cause                                      | Mitigation                                                                 |
 | ------------------------------------------------ | ------------------------------------------------- | -------------------------------------------------------------------------- |
-| `api` container crash-loops with Prisma errors  | Migrations not applied                            | `pnpm --filter @aegis/api exec prisma migrate deploy` against this DB.     |
-| `api` boot fails on `AEGIS_SIGNING_PUBLIC_KEY`   | Public key env var unset                          | `pnpm --filter @aegis/scripts run keys`, copy `AEGIS_SIGNING_PUBLIC_KEY` into `infra/dev/.env`, restart. |
+| `api` container crash-loops with Prisma errors  | Migrations not applied                            | `pnpm --filter @okoro/api exec prisma migrate deploy` against this DB.     |
+| `api` boot fails on `OKORO_SIGNING_PUBLIC_KEY`   | Public key env var unset                          | `pnpm --filter @okoro/scripts run keys`, copy `OKORO_SIGNING_PUBLIC_KEY` into `infra/dev/.env`, restart. |
 | Prometheus targets all DOWN                      | API/worker not exposing `/metrics` on the network | Confirm `api`, `worker` are healthy: `docker compose ps`. Check inside the container with `wget -qO- http://api:4000/metrics`. |
 | Grafana shows "No data" on every panel           | Dashboard drift (see above) OR Prometheus down    | Check `http://localhost:9090/targets`. If targets are UP, drift is the cause. |
 
 ## What's intentionally missing
 
-- **Alertmanager.** The `aegis.rules.yml` rules file is mounted into Prometheus
+- **Alertmanager.** The `okoro.rules.yml` rules file is mounted into Prometheus
   and parsed; alerts will fire and be visible at `http://localhost:9090/alerts`,
   but they have nowhere to go. Production Alertmanager lives in a separate
   stack. We don't pretend to test paging in dev.
 - **TLS.** Everything is plain HTTP. Internal networks only.
-- **Real KMS.** `AEGIS_SIGNING_PUBLIC_KEY` is read from the `.env` file in dev.
+- **Real KMS.** `OKORO_SIGNING_PUBLIC_KEY` is read from the `.env` file in dev.
   Production injects it from KMS at deploy time per
   `infra/kms/rotation-runbook.md`.
 

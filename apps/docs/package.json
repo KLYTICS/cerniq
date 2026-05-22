@@ -1,8 +1,8 @@
 {
-  "name": "@aegis/docs",
+  "name": "@okoro/docs",
   "version": "0.1.0",
   "private": true,
-  "description": "Live documentation site for AEGIS. Next.js 16 + Fumadocs.",
+  "description": "Live documentation site for OKORO. Next.js 16 + Fumadocs.",
   "scripts": {
     "predev": "node scripts/generate-api-docs.mjs && node scripts/generate-sdk-docs.mjs",
     "dev": "next dev -p 3100",
@@ -16,7 +16,7 @@
     "lhci:autorun": "lhci autorun"
   },
   "dependencies": {
-    "@aegis/types": "workspace:*",
+    "@okoro/types": "workspace:*",
     "fumadocs-core": "^14.6.0",
     "fumadocs-mdx": "^11.3.0",
     "fumadocs-openapi": "^5.5.0",

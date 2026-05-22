@@ -1,18 +1,18 @@
-import type { ErrorCatalogEntry } from '@aegis/types';
+import type { ErrorCatalogEntry } from '@okoro/types';
 
 import {
-  AegisAuthenticationError,
-  AegisAuthorizationError,
-  AegisConflictError,
-  AegisError,
-  AegisInternalError,
-  AegisNetworkError,
-  AegisNotFoundError,
-  AegisRateLimitedError,
-  AegisServiceUnavailableError,
-  AegisValidationError,
+  OkoroAuthenticationError,
+  OkoroAuthorizationError,
+  OkoroConflictError,
+  OkoroError,
+  OkoroInternalError,
+  OkoroNetworkError,
+  OkoroNotFoundError,
+  OkoroRateLimitedError,
+  OkoroServiceUnavailableError,
+  OkoroValidationError,
   catalogEntryFor,
-  isAegisErrorRetryable,
+  isOkoroErrorRetryable,
 } from './errors.js';
 
 export interface HttpClientConfig {
@@ -29,7 +29,7 @@ export interface RequestOptions {
   body?: unknown;
   query?: Record<string, unknown>;
   /**
-   * If true, the request is sent with the verify-only key (`X-AEGIS-Verify-Key`).
+   * If true, the request is sent with the verify-only key (`X-OKORO-Verify-Key`).
    * Required for `/v1/verify` calls — the management key has too much power and
    * relying parties should never see it.
    */
@@ -41,11 +41,11 @@ export interface RetryOptions {
   /** Hard ceiling on attempts (including the first). Default: 3. */
   maxAttempts?: number;
   /** Hook for tests / observability — fires before each backoff sleep. */
-  onRetry?: (info: { attempt: number; delayMs: number; error: AegisError }) => void;
+  onRetry?: (info: { attempt: number; delayMs: number; error: OkoroError }) => void;
   /** Override the sleep implementation (for tests). */
   sleep?: (ms: number) => Promise<void>;
   /** Override the Retry-After header reader (for tests). */
-  getRetryAfter?: (err: AegisError) => number | undefined;
+  getRetryAfter?: (err: OkoroError) => number | undefined;
 }
 
 export class HttpClient {
@@ -73,8 +73,8 @@ export class HttpClient {
     if (!key) {
       throw new Error(
         useVerifyKey
-          ? 'AEGIS verifyKey is required for verify() calls.'
-          : 'AEGIS apiKey is required for management calls.',
+          ? 'OKORO verifyKey is required for verify() calls.'
+          : 'OKORO apiKey is required for management calls.',
       );
     }
 
@@ -88,8 +88,8 @@ export class HttpClient {
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      [useVerifyKey ? 'X-AEGIS-Verify-Key' : 'X-AEGIS-API-Key']: key,
-      'X-AEGIS-Sdk': '@aegis/sdk@0.1.0',
+      [useVerifyKey ? 'X-OKORO-Verify-Key' : 'X-OKORO-API-Key']: key,
+      'X-OKORO-Sdk': '@okoro/sdk@0.1.0',
     };
     if (this.userAgent) headers['User-Agent'] = this.userAgent;
 
@@ -112,7 +112,7 @@ export class HttpClient {
         const message =
           typeof payload === 'string'
             ? payload
-            : (payload as { message?: string } | null)?.message ?? `AEGIS request failed (${res.status})`;
+            : (payload as { message?: string } | null)?.message ?? `OKORO request failed (${res.status})`;
         const requestId = res.headers.get('x-request-id') ?? undefined;
         const details = typeof payload === 'object' && payload !== null ? payload : undefined;
         // Capture Retry-After for the retry wrapper before throwing.
@@ -120,29 +120,29 @@ export class HttpClient {
         const catalogCode = extractCatalogCodeFromBody(payload);
         switch (res.status) {
           case 400:
-            throw new AegisValidationError(message, 400, requestId, details, catalogCode);
+            throw new OkoroValidationError(message, 400, requestId, details, catalogCode);
           case 401:
-            throw new AegisAuthenticationError(message, 401, requestId, details, catalogCode);
+            throw new OkoroAuthenticationError(message, 401, requestId, details, catalogCode);
           case 403:
-            throw new AegisAuthorizationError(message, 403, requestId, details, catalogCode);
+            throw new OkoroAuthorizationError(message, 403, requestId, details, catalogCode);
           case 404:
-            throw new AegisNotFoundError(message, 404, requestId, details, catalogCode);
+            throw new OkoroNotFoundError(message, 404, requestId, details, catalogCode);
           case 409:
-            throw new AegisConflictError(message, 409, requestId, details, catalogCode);
+            throw new OkoroConflictError(message, 409, requestId, details, catalogCode);
           case 429:
-            throw new AegisRateLimitedError(message, 429, requestId, details, catalogCode);
+            throw new OkoroRateLimitedError(message, 429, requestId, details, catalogCode);
           case 503:
-            throw new AegisServiceUnavailableError(message, 503, requestId, details, catalogCode);
+            throw new OkoroServiceUnavailableError(message, 503, requestId, details, catalogCode);
           default:
-            throw new AegisInternalError(message, res.status, requestId, details, catalogCode);
+            throw new OkoroInternalError(message, res.status, requestId, details, catalogCode);
         }
       }
       this.lastRetryAfterSeconds = undefined;
       return payload as T;
     } catch (err) {
-      // Network / abort errors — wrap so callers can `instanceof AegisError`.
+      // Network / abort errors — wrap so callers can `instanceof OkoroError`.
       if (err instanceof Error && err.name === 'AbortError') {
-        throw new AegisNetworkError(`Request to ${url.toString()} timed out after ${this.timeoutMs}ms`, err);
+        throw new OkoroNetworkError(`Request to ${url.toString()} timed out after ${this.timeoutMs}ms`, err);
       }
       throw err;
     } finally {
@@ -163,7 +163,7 @@ export class HttpClient {
    *   - on_retry_after_header: honor Retry-After (seconds or HTTP date),
    *     capped at 60s
    *
-   * Network-layer failures (AegisNetworkError) are treated as exponential
+   * Network-layer failures (OkoroNetworkError) are treated as exponential
    * with the same schedule, since transport errors carry no catalog code.
    */
   async requestWithRetry<T>(path: string, opts: RequestOptions, retryOpts: RetryOptions = {}): Promise<T> {
@@ -185,7 +185,7 @@ const EXPONENTIAL_SCHEDULE_MS: readonly number[] = [100, 400, 1600];
 const defaultSleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Catalog-driven retry. Wraps any thrown AegisError, decides whether to
+ * Catalog-driven retry. Wraps any thrown OkoroError, decides whether to
  * retry based on `catalogEntryFor(err).backoff`, and sleeps the catalog-
  * specified amount.
  */
@@ -201,16 +201,16 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
       return await fn();
     } catch (err) {
       lastError = err;
-      if (!(err instanceof AegisError)) throw err;
+      if (!(err instanceof OkoroError)) throw err;
       if (attempt >= maxAttempts) throw err;
-      if (!isAegisErrorRetryable(err)) throw err;
+      if (!isOkoroErrorRetryable(err)) throw err;
 
       const entry = catalogEntryFor(err);
       const delayMs = nextDelayMs({
         attempt,
         entry,
-        retryAfterSeconds: err instanceof AegisError ? getRetryAfter?.(err) : undefined,
-        isNetwork: err instanceof AegisNetworkError,
+        retryAfterSeconds: err instanceof OkoroError ? getRetryAfter?.(err) : undefined,
+        isNetwork: err instanceof OkoroNetworkError,
       });
       if (delayMs === null) throw err; // backoff says "do not retry"
       onRetry?.({ attempt, delayMs, error: err });
