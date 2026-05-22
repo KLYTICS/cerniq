@@ -83,8 +83,13 @@ async function main(): Promise<void> {
   audit
     .command('verify')
     .description('Independently verify the audit chain against the published JWKS')
-    .option('--from <iso>')
-    .option('--to <iso>')
+    .option('--from <iso>', 'lower bound on event timestamp (inclusive)')
+    .option('--to <iso>', 'upper bound on event timestamp (exclusive)')
+    .option('--no-fail-fast', 'walk every row even after a break')
+    .option('--max-row-detail <n>', 'cap per-row detail in JSON output (default 100)', (v) =>
+      Number.parseInt(v, 10),
+    )
+    .option('--json', 'emit the full ChainReport as JSON')
     .action(auditVerify);
 
   const kms = program.command('kms').description('Key management');

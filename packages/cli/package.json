@@ -43,6 +43,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aegis/audit-verifier": "workspace:*",
     "@aegis/sdk": "workspace:*",
     "@aegis/types": "workspace:*",
     "@noble/ed25519": "^2.1.0",
