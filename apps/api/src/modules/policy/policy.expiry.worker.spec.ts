@@ -40,7 +40,7 @@ describe('PolicyExpiryWorker.sweep', () => {
     expect(webhooks.enqueue).not.toHaveBeenCalled();
   });
 
-  it('revokes expired policies and fires aegis.policy.expired per row', async () => {
+  it('revokes expired policies and fires okoro.policy.expired per row', async () => {
     const expiredAt = new Date('2026-04-01T00:00:00Z');
     prisma.agentPolicy.findMany.mockResolvedValue([
       {
@@ -72,7 +72,7 @@ describe('PolicyExpiryWorker.sweep', () => {
     expect(webhooks.enqueue).toHaveBeenCalledTimes(2);
     expect(webhooks.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'aegis.policy.expired',
+        type: 'okoro.policy.expired',
         data: expect.objectContaining({ policyId: 'pol_1', agentId: 'agt_1' }),
       }),
       'prn_1',
@@ -98,5 +98,13 @@ describe('PolicyExpiryWorker.sweep', () => {
     expect(result.errors).toBe(1);
     // Revocation was not rolled back — verify hot path still gates expiry.
     expect(prisma.agentPolicy.updateMany).toHaveBeenCalled();
+    // Both outcome buckets emit: swept (durable revocation) + webhook_error
+    // (best-effort fan-out). Without the second emit, operators have to
+    // scrape log lines to alert on webhook delivery failures.
+    expect(metrics.policyExpiredSweptTotal.inc).toHaveBeenCalledWith({ outcome: 'swept' }, 1);
+    expect(metrics.policyExpiredSweptTotal.inc).toHaveBeenCalledWith(
+      { outcome: 'webhook_error' },
+      1,
+    );
   });
 });
