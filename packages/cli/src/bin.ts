@@ -10,7 +10,7 @@ import {
   bootstrap, whoami,
   agentsCreate, agentsList, agentsGet, agentsRevoke,
   policiesCreate, policiesList, policiesRevoke,
-  auditSearch, auditVerify,
+  auditSearch, auditVerify, auditVerifyManifests,
   kmsList, kmsRotate,
   mcpInstall,
 } from './index.js';
@@ -91,6 +91,15 @@ async function main(): Promise<void> {
     )
     .option('--json', 'emit the full ChainReport as JSON')
     .action(auditVerify);
+  audit
+    .command('verify-manifests')
+    .description('Verify the signed-manifest corpus in a directory (sealed-archive cohesion per ADR-0015)')
+    .argument('<dir>', 'directory containing *.manifest.json files')
+    .option('--jwks <url>', 'fetch JWKS from URL (HTTPS)')
+    .option('--jwks-file <path>', 'read JWKS from a local file (airgapped path)')
+    .option('--recursive', 'walk subdirectories of <dir>')
+    .option('--json', 'emit the full ManifestCorpusReport as JSON')
+    .action((dir, opts) => auditVerifyManifests(dir, opts));
 
   const kms = program.command('kms').description('Key management');
   kms

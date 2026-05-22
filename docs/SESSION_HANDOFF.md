@@ -5,6 +5,179 @@
 
 ---
 
+## 2026-05-22 · sdk-py-webhook-events · M-WEBHOOK-3-py — Python typed event union closes the M-WEBHOOK arc 100% TS↔Py
+
+Fifth commit this session (after 7040d7f M-WEBHOOK-2, 7ab08a1 recipe-
+parity gate, 4f20586 M-WEBHOOK-1-py, f44241d M-WEBHOOK-2-py). Operator
+said _"as you see fit ultrathink"_. Ultrathink-deliberation across
+three lenses (compounding-the-pattern, blast-radius, narrative-
+closure) all pointed at the same slice: M-WEBHOOK-3-py over M-IDEM-3.
+The pattern is locked, the blast radius is trivially additive, and
+closing the M-WEBHOOK arc 100% TS↔Py is a clean operator-facing unit.
+
+### Design tension resolved — Python typing strategy
+
+Three options for mirroring the TS discriminated union:
+
+1. **TypedDict + Literal** — wire-shape faithful, dict access,
+   narrows via `if event["event"] == "..."` under mypy.
+2. **Frozen dataclass + Literal** — attribute access (Pythonic),
+   narrows via isinstance/match, but requires construction from dict.
+3. **Pydantic v2 discriminated union** — best ergonomics, adds runtime
+   validation cost.
+
+Picked (1) TypedDict — wire-shape faithful (mirrors TS's zero-
+construction `as` approach exactly), zero runtime cost, zero new
+dependencies (consistent with my prior two stdlib-only Py commits),
+and mypy 1.x narrows TypedDict unions on Literal-keyed discriminator
+fields. The customer's `if event["event"] == "..."` pattern works the
+same as TS's `switch (event.event)`.
+
+Python 3.11+'s `NotRequired[T]` from `typing` makes optional fields
+cleanly expressible inside otherwise-required TypedDicts — exactly
+the right tool for `subscriptionId`/`deliveryId`/`occurredAt` which
+are technically optional in the envelope.
+
+### What shipped (4 files, ~840 LoC, 18 + 7 = 25 passing tests)
+
+- `packages/sdk-py/aegis/webhook_events.py` (new):
+  - 5 envelope TypedDicts (one per catalog event) with
+    `event: Literal["..."]` discriminator field and optional base
+    fields (`subscriptionId`/`deliveryId`/`occurredAt`) declared
+    as `NotRequired[str]`.
+  - 2 concrete payload TypedDicts
+    (`AgentTrustScoreChangedPayload`, `AgentPolicyExpiredPayload`)
+    sourced from API emitter code.
+  - 3 placeholder payloads as `dict[str, Any]` for events with no
+    emitter yet (matches TS's `Record<string, unknown>` — concrete
+    schemas land WITH the emitter per CLAUDE.md docs rule).
+  - `WebhookEnvelope` Union type using PEP 604 `|` syntax (mypy and
+    ruff both prefer it over `typing.Union` in Python 3.11+).
+  - `WebhookEventName` Literal alias for the catalog values.
+  - `WebhookEventParseError(ValueError)` carrying `raw_event_name`
+    attribute for forensics. Inherits from ValueError (not
+    AegisError) because parse failures are caller-input errors, not
+    API errors — matches TS's `extends Error` choice.
+  - `interpret_webhook_event(raw) -> WebhookEnvelope` runtime
+    validator: validates raw is a dict, validates `event` is a
+    string in the known catalog, casts through.
+  - `is_webhook_envelope(raw) -> TypeGuard[WebhookEnvelope]` for
+    silent-skip pattern (matches TS's `isWebhookEnvelope`).
+  - **Import-time exhaustiveness gate**: locks `WebhookEventName`
+    Literal against `WEBHOOK_EVENT` catalog. If the canonical
+    catalog grows a new entry and this module isn't updated,
+    `import aegis.webhook_events` raises `RuntimeError` with a
+    clear message — louder than the TS `_ExhaustivenessGate`,
+    which only fails at tsc time.
+- `packages/sdk-py/tests/test_webhook_events.py` (new, **18
+  passing**): mirrors `webhook-events.spec.ts` test-for-test:
+  happy path on all 5 catalog entries (2 with full payload
+  narrowing, 3 with opaque-data assertions), failure modes
+  (non-dict, missing event field, non-string event, unknown event
+  with guidance message), `raw_event_name` forensics on every error
+  path, drift regression for the historical `okoro.policy.expired`
+  bug, `is_webhook_envelope` truth-table across 4 cases, full-
+  catalog runtime sanity, static-type smoke that TypedDict
+  assignment works for both known payload variants, type-only
+  WebhookEnvelope-Union-accepts-all-5-variants test.
+- `tests/cross-package/sdk-ts-py-webhook-events-parity.spec.ts`
+  (new, **7 passing**): the enterprise-quality piece. Locks 7
+  properties cross-language:
+  - Catalog values byte-equivalent on both sides (sorted JSON
+    comparison).
+  - Both SDKs accept the same 5 catalog inputs and return identical
+    `.event`/`["event"]` values.
+  - Both SDKs reject the same unknown event name with parse-error
+    + raw-event attached + guidance message containing the
+    unknown name.
+  - Both SDKs reject non-object envelope with parse-error.
+  - Both SDKs reject missing-event-field with parse-error.
+  - `is_webhook_envelope`/`isWebhookEnvelope` agree on truth value
+    across 5 test cases (known event, unknown event, non-object,
+    missing event field, null).
+  - Drift regression: both SDKs reject the historical
+    `okoro.policy.expired` legacy name.
+- `packages/sdk-py/aegis/__init__.py`: barrel exports — 15 new
+  symbols (5 event envelopes, 5 payloads, 1 Union, 1 Literal alias,
+  1 error class, 2 functions).
+
+### M-WEBHOOK arc — Python parity 100% closed
+
+| Primitive             | TS                          | Py                       | Cross-lang gate                               |
+| --------------------- | --------------------------- | ------------------------ | --------------------------------------------- |
+| M-WEBHOOK-1 (sign)    | webhook.ts                  | webhook.py               | sdk-ts-py-webhook-signature-parity.spec.ts    |
+| M-WEBHOOK-2 (dedupe)  | webhook-replay.ts           | webhook_replay.py        | sdk-ts-py-webhook-replay-parity.spec.ts       |
+| M-WEBHOOK-3 (narrow)  | webhook-events.ts           | webhook_events.py ★      | sdk-ts-py-webhook-events-parity.spec.ts ★     |
+
+★ = this commit. Plus:
+- API ↔ TS-SDK: `webhook-signature-parity.spec.ts` (HMAC byte-equivalence)
+- API emit → catalog: `webhook-event-emitter-parity.spec.ts` (event name lock)
+- Recipe-level (TS): `webhook-delivery-id-parity.spec.ts` (verify/dedupe/narrow seam)
+
+The entire webhook protocol is now locked across three independent
+implementations (API NestJS, TS-SDK @noble, Py-SDK stdlib) with SIX
+parity gates. A protocol bug now requires breaking multiple gates in
+the same commit to ship.
+
+### Verification
+
+- `cd packages/sdk-py && python3 -m pytest` → 202/202 (was 184; +18
+  new from test_webhook_events.py). Zero regressions.
+- `python3 -m mypy --strict --follow-imports=silent aegis/webhook_events.py`
+  → 0 issues.
+- `python3 -m ruff check aegis/webhook_events.py tests/test_webhook_events.py`
+  → all checks passed (after 2 auto-fixes: PT017 pytest.raises pattern,
+  UP007 PEP 604 `|` union syntax — both match prior Py SDK style).
+- `pnpm test:parity` → 38/38 files (+1), 398/398 tests (+7). No
+  regressions in any of the existing 37 gates.
+
+### Customer-facing Python recipe (full verify→dedupe→narrow)
+
+```python
+import asyncio, json, os
+from aegis import (
+    verify_webhook_signature,
+    assert_not_replay,
+    create_memory_replay_store,
+    interpret_webhook_event,
+)
+
+replay_store = create_memory_replay_store(max_entries=50_000)
+
+async def webhook_handler(request):
+    body = (await request.body()).decode()
+    sig = request.headers["X-AEGIS-Signature"]
+    delivery_id = request.headers["X-AEGIS-Delivery-Id"]
+    secret = os.environ["AEGIS_WEBHOOK_SECRET"]
+
+    verify_webhook_signature(payload=body, signature=sig, secret=secret)
+    await assert_not_replay(
+        store=replay_store, delivery_id=delivery_id, ttl_seconds=86_400
+    )
+    event = interpret_webhook_event(json.loads(body))
+
+    if event["event"] == "aegis.agent.trust_score_changed":
+        # event["data"] narrowed to AgentTrustScoreChangedPayload
+        score = event["data"]["score"]
+        prev = event["data"]["previousScore"]
+        ...
+    elif event["event"] == "aegis.agent.policy_expired":
+        # event["data"] narrowed to AgentPolicyExpiredPayload
+        await revoke_downstream_session(event["data"]["agentId"])
+```
+
+### Remaining Py-side follow-up (next sessions)
+
+**M-IDEM-3** — Python idempotency-key surface mirroring TS's
+`idempotency.ts` plus the operator-pinned `AUTO_IDEMPOTENT_METHODS`
+table (commit 80377f3). Longest-pending Py parity gap after this
+commit. ~600 LoC and touches `aegis/_http.py` so coordinate with
+any peer working on the http client (potential overlap with peer
+`d75f2658`'s M-ABORT-1-py if/when they ship the AbortSignal Py
+mirror).
+
+---
+
 ## 2026-05-22 · cli-audit-verify-m016-close · operator CLI wires through @aegis/audit-verifier; ~/.aegis perms tightened
 
 Operator said _"continue"_. Closed the M-016 placeholder in the

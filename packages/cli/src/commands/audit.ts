@@ -1,8 +1,14 @@
+import { readFile, readdir } from 'node:fs/promises';
+import { join } from 'node:path';
+
 import {
+  loadJwksFromFile,
   loadJwksFromUrl,
   parseAuditNdjson,
   verifyChain,
+  verifyManifestCorpus,
   type ChainReport,
+  type SignedAuditCompressionManifest,
 } from '@aegis/audit-verifier';
 
 import { client } from '../client.js';
@@ -155,4 +161,105 @@ export async function auditVerify(opts: {
     err(`  reason      : ${report.firstBreak.reason ?? '(none)'}`);
     process.exit(1);
   }
+}
+
+/**
+ * Verify a directory of signed audit-compression manifests.
+ *
+ * Operator-side companion to `aegis-audit-verify verify-manifests`
+ * (the standalone binary). Walks <dir> for *.manifest.json files
+ * (optionally --recursive), parses each as SignedAuditCompressionManifest,
+ * hands the array to verifyManifestCorpus() from @aegis/audit-verifier.
+ *
+ * Manifest verification covers a different surface than chain
+ * verification: sealed-archive cohesion per ADR-0015, not row-level
+ * Ed25519 chain links. A SOC 2 auditor reviewing a customer's archived
+ * audit retention runs THIS command against the customer's manifest
+ * directory; chain integrity inside each sealed slice is implied by
+ * the manifest signature.
+ *
+ * Flags:
+ *   --jwks <url>       Fetch JWKS from URL (HTTPS).
+ *   --jwks-file <path> Read JWKS from a local file (airgapped path).
+ *   --recursive        Walk subdirectories of <dir>.
+ *   --json             Emit the full ManifestCorpusReport as JSON.
+ *
+ * Note: --jwks-file is the dominant flag for this command since
+ * archived-manifest verification is often done in airgapped
+ * compliance environments. --jwks (URL) is provided for symmetry
+ * with `aegis audit verify`.
+ */
+export async function auditVerifyManifests(
+  dir: string,
+  opts: {
+    jwks?: string;
+    jwksFile?: string;
+    recursive?: boolean;
+    json?: boolean;
+  } = {},
+): Promise<void> {
+  if (!opts.jwks && !opts.jwksFile) {
+    err('one of --jwks <url> or --jwks-file <path> is required');
+    process.exit(2);
+  }
+  if (opts.jwks && opts.jwksFile) {
+    err('use --jwks OR --jwks-file, not both');
+    process.exit(2);
+  }
+
+  const jwks = opts.jwksFile
+    ? await loadJwksFromFile(opts.jwksFile)
+    : await loadJwksFromUrl(opts.jwks!);
+  info(`fetched ${jwks.keys.length} audit signing key(s)`);
+
+  const manifests = await loadManifestsFromDir(dir, opts.recursive ?? false);
+  if (manifests.length === 0) {
+    err(`no *.manifest.json files found under ${dir}`);
+    process.exit(2);
+  }
+  info(`loaded ${manifests.length} manifest(s) from ${dir}${opts.recursive ? ' (recursive)' : ''}`);
+
+  const report = await verifyManifestCorpus(manifests, jwks);
+
+  if (opts.json) {
+    emitJson(report);
+    if (!report.valid) process.exit(1);
+    return;
+  }
+
+  const tag = report.valid ? '✓ INTACT' : '✗ BROKEN';
+  ok(`AEGIS manifest corpus — ${tag}`);
+  info(`manifests verified : ${report.totalManifests}`);
+  info(`slices             : ${report.totalSlices}`);
+  info(`signing keys       : ${report.signingKeysUsed.join(', ') || '(none)'}`);
+  info(`duration           : ${report.durationMs}ms`);
+  if (!report.valid) process.exit(1);
+}
+
+/**
+ * Walk a directory for *.manifest.json files. CLI plumbing —
+ * intentionally duplicated from the @aegis/audit-verifier standalone
+ * binary rather than exported, because file walking is convenience
+ * plumbing, not verification algorithm. The single-sourced-algorithm
+ * property is at verifyManifestCorpus(); how each CLI translates
+ * filesystem layout into the function's input shape is its own
+ * UX concern.
+ */
+async function loadManifestsFromDir(
+  dir: string,
+  recursive: boolean,
+): Promise<SignedAuditCompressionManifest[]> {
+  const out: SignedAuditCompressionManifest[] = [];
+  const entries = await readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (recursive) out.push(...(await loadManifestsFromDir(path, true)));
+      continue;
+    }
+    if (!entry.name.endsWith('.manifest.json')) continue;
+    const text = await readFile(path, 'utf8');
+    out.push(JSON.parse(text) as SignedAuditCompressionManifest);
+  }
+  return out;
 }
