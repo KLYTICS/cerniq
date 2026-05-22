@@ -14,6 +14,7 @@ import {
   catalogEntryFor,
   isAegisErrorRetryable,
 } from './errors.js';
+import { parseReplayHeaders, type OnWriteResponse } from './idempotency.js';
 
 export interface HttpClientConfig {
   apiKey?: string | undefined;
@@ -22,6 +23,12 @@ export interface HttpClientConfig {
   timeoutMs: number;
   fetch?: typeof globalThis.fetch | undefined;
   userAgent?: string | undefined;
+  /**
+   * Optional observability hook for idempotent writes. See `AegisConfig.
+onWriteResponse` for full semantics. Fired only when the request carried
+   * `idempotencyKey`. Errors thrown by the hook are swallowed.
+   */
+  onWriteResponse?: OnWriteResponse | undefined;
 }
 
 export interface RequestOptions {
@@ -44,6 +51,16 @@ export interface RequestOptions {
    * or X-AEGIS-Sdk — those are reserved for the HttpClient.
    */
   headers?: Record<string, string>;
+  /**
+   * Idempotency-Key for the request. When set, the HttpClient ships
+   * `Idempotency-Key: <value>` on the wire so the API's per-principal
+   * idempotency interceptor can dedupe replays. Higher-level callers
+   * should use `resolveIdempotencyKey()` from `./idempotency.js` to
+   * apply the auto-attach policy and pass the result here. Set to
+   * `undefined` to omit (the default for reads and pure POSTs that
+   * are forbidden from carrying a key — e.g. `/agents/:id/challenge`).
+   */
+  idempotencyKey?: string;
 }
 
 /** Knobs for the catalog-driven retry wrapper. */
@@ -65,6 +82,7 @@ export class HttpClient {
   private readonly timeoutMs: number;
   private readonly fetchFn: typeof globalThis.fetch;
   private readonly userAgent: string | undefined;
+  private readonly onWriteResponse: OnWriteResponse | undefined;
   /** Captured Retry-After header from the last response, if any (seconds). */
   private lastRetryAfterSeconds: number | undefined;
 
@@ -75,6 +93,7 @@ export class HttpClient {
     this.timeoutMs = config.timeoutMs;
     this.fetchFn = config.fetch ?? globalThis.fetch.bind(globalThis);
     this.userAgent = config.userAgent;
+    this.onWriteResponse = config.onWriteResponse;
   }
 
   async request<T>(path: string, opts: RequestOptions): Promise<T> {
@@ -117,9 +136,21 @@ export class HttpClient {
         headers[k] = v;
       }
     }
+    // Idempotency-Key wins over any same-named entry in opts.headers —
+    // the structured field is the supported public path; the raw
+    // header is a backwards-compat affordance for callers that
+    // pre-date this slice.
+    if (opts.idempotencyKey !== undefined) {
+      headers['Idempotency-Key'] = opts.idempotencyKey;
+    }
 
     const ctrl = new AbortController();
     const timer = setTimeout(() => { ctrl.abort(); }, this.timeoutMs);
+    // Capture the wall-clock start so the `onWriteResponse` hook can
+    // report measured RTT. Read once after fetch returns regardless of
+    // success/failure (the hook only fires on success below, but the
+    // capture cost is one Date.now() call either way).
+    const startedAt = Date.now();
     try {
       const res = await this.fetchFn(url.toString(), {
         method: opts.method,
@@ -163,6 +194,24 @@ export class HttpClient {
         }
       }
       this.lastRetryAfterSeconds = undefined;
+      // Fire the onWriteResponse hook for any request that carried an
+      // idempotency key. Subscribers observe replay rate + correlate
+      // first-seen timestamps. Hook errors are swallowed — the write
+      // hot path must never break because an observability subscriber
+      // threw.
+      if (opts.idempotencyKey !== undefined && this.onWriteResponse !== undefined) {
+        try {
+          this.onWriteResponse({
+            replay: parseReplayHeaders(res.headers),
+            requestId: res.headers.get('x-request-id') ?? undefined,
+            status: res.status,
+            latencyMs: Date.now() - startedAt,
+            idempotencyKey: opts.idempotencyKey,
+          });
+        } catch {
+          // Swallow — observability hook is not part of the write contract.
+        }
+      }
       return payload as T;
     } catch (err) {
       // Network / abort errors — wrap so callers can `instanceof AegisError`.

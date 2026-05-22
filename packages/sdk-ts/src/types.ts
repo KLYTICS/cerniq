@@ -101,4 +101,13 @@ export interface AegisConfig {
   timeoutMs?: number;
   fetch?: typeof globalThis.fetch;
   userAgent?: string;
+  /**
+   * Optional observability hook fired after every SDK request that
+   * carried an `Idempotency-Key`. Receives parsed replay metadata,
+   * server correlation id, status, and round-trip latency. Use it to
+   * emit replay-rate metrics or tag traces. Fire-and-forget; HttpClient
+   * never awaits the return value and swallows thrown errors so a
+   * misbehaving subscriber cannot break the write hot path.
+   */
+  onWriteResponse?: import('./idempotency.js').OnWriteResponse;
 }

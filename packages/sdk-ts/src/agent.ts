@@ -1,4 +1,5 @@
 import type { HttpClient } from './http.js';
+import { resolveIdempotencyKey, type IdempotencyOptions } from './idempotency.js';
 import type { AgentRecord, AgentStatus, RegisterAgentInput, TrustBand } from './types.js';
 
 export interface HandshakeChallenge {
@@ -29,8 +30,12 @@ export interface HandshakeStatus {
 export class AgentClient {
   constructor(private readonly http: HttpClient) {}
 
-  register(input: RegisterAgentInput): Promise<AgentRecord> {
-    return this.http.request<AgentRecord>('/agents/register', { method: 'POST', body: input });
+  register(input: RegisterAgentInput, idem?: IdempotencyOptions): Promise<AgentRecord> {
+    return this.http.request<AgentRecord>('/agents/register', {
+      method: 'POST',
+      body: input,
+      idempotencyKey: resolveIdempotencyKey('agents.register', idem),
+    });
   }
 
   list(query?: { limit?: number; cursor?: string }): Promise<{ agents: AgentRecord[]; nextCursor: string | null }> {
@@ -43,8 +48,11 @@ export class AgentClient {
     });
   }
 
-  async revoke(agentId: string): Promise<void> {
-    await this.http.request<undefined>(`/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE' });
+  async revoke(agentId: string, idem?: IdempotencyOptions): Promise<void> {
+    await this.http.request<undefined>(`/agents/${encodeURIComponent(agentId)}`, {
+      method: 'DELETE',
+      idempotencyKey: resolveIdempotencyKey('agents.revoke', idem),
+    });
   }
 
   status(
@@ -70,10 +78,18 @@ export class AgentClient {
    * Issue a single-use handshake challenge for the agent. Pair with
    * `signHandshake(privateKey, response.message)` and `verifyHandshake()`.
    */
-  challenge(agentId: string): Promise<HandshakeChallenge> {
+  challenge(agentId: string, idem?: IdempotencyOptions): Promise<HandshakeChallenge> {
+    // Per the policy table: `agents.challenge` is operator-configured.
+    // The default expectation is 'forbidden' since each call must mint
+    // a fresh nonce; resolveIdempotencyKey returns undefined in that
+    // case regardless of `idem`, so the SDK won't leak a replay key
+    // onto an idempotent-by-design endpoint.
     return this.http.request<HandshakeChallenge>(
       `/agents/${encodeURIComponent(agentId)}/challenge`,
-      { method: 'POST' },
+      {
+        method: 'POST',
+        idempotencyKey: resolveIdempotencyKey('agents.challenge', idem),
+      },
     );
   }
 
@@ -82,10 +98,18 @@ export class AgentClient {
    * is lifted to ≥600 and a 30-day proof-of-possession record is cached
    * server-side.
    */
-  verifyHandshake(agentId: string, signature: string): Promise<HandshakeVerified> {
+  verifyHandshake(
+    agentId: string,
+    signature: string,
+    idem?: IdempotencyOptions,
+  ): Promise<HandshakeVerified> {
     return this.http.request<HandshakeVerified>(
       `/agents/${encodeURIComponent(agentId)}/verify-handshake`,
-      { method: 'POST', body: { signature } },
+      {
+        method: 'POST',
+        body: { signature },
+        idempotencyKey: resolveIdempotencyKey('agents.verifyHandshake', idem),
+      },
     );
   }
 
@@ -114,10 +138,12 @@ export class AgentClient {
       transactionId?: string;
       evidence?: Record<string, unknown>;
     },
+    idem?: IdempotencyOptions,
   ): Promise<{ accepted: true }> {
     return this.http.request(`/agents/${encodeURIComponent(agentId)}/report`, {
       method: 'POST',
       body,
+      idempotencyKey: resolveIdempotencyKey('agents.report', idem),
     });
   }
 }

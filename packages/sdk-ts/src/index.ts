@@ -20,6 +20,7 @@ export class Aegis {
       timeoutMs: config.timeoutMs ?? DEFAULT_TIMEOUT_MS,
       fetch: config.fetch,
       userAgent: config.userAgent,
+      onWriteResponse: config.onWriteResponse,
     });
     this.agents = new AgentClient(this.http);
     this.policies = new PolicyClient(this.http);
@@ -100,4 +101,20 @@ export type {
   BreakerState,
   FallbackMode,
 } from './verify-gateway.js';
+export {
+  AUTO_IDEMPOTENT_METHODS,
+  FIRST_SEEN_HEADER,
+  IDEMPOTENCY_HEADER,
+  REPLAY_HEADER,
+  generateIdempotencyKey,
+  parseReplayHeaders,
+  resolveIdempotencyKey,
+} from './idempotency.js';
+export type {
+  AutoAttachMode,
+  IdempotencyOptions,
+  OnWriteResponse,
+  ReplayMetadata,
+  WriteResponseInfo,
+} from './idempotency.js';
 export type * from './types.js';
