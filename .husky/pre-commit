@@ -7,7 +7,21 @@
 # is reserved for true emergencies and pairs with a follow-up commit.
 
 # Format-and-lint only the staged files via lint-staged.
-pnpm lint-staged
+#
+# Gate on lint-staged's exit code. Before .lintstagedrc.cjs landed
+# (PR #45), `pnpm lint-staged` exited non-zero with "could not find
+# any valid configuration" — but the hook didn't check, so the error
+# was silent. Now that lint-staged actually does work, a real failure
+# (broken prettier config, malformed task command, prettier rejecting
+# a file it can't parse) should fail the commit loud. `--no-verify`
+# remains the documented emergency hatch.
+if ! pnpm lint-staged; then
+  echo
+  echo "✖ lint-staged failed. See output above."
+  echo "  Fix the underlying formatting/lint issue, or bypass with"
+  echo "  --no-verify if this is a documented emergency."
+  exit 1
+fi
 
 # Block accidental commits of `.env`, secrets, raw private keys, or other
 # clearly-not-shippable artifacts. Belt-and-braces alongside the security CI.
