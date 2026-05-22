@@ -5,6 +5,88 @@
 
 ---
 
+## 2026-05-22 · wedge-public-architecture-page · commitments register, 3 commits
+
+Operator said _"continue enterprise quality"_. Sequenced three
+moves: smallest first (footer link for /principles to complete its
+discoverability), defensively investigated the audit-verifier
+cli.spec.ts regression (out of scope — needs Result-typed refactor +
+new verify-manifests subcommand), then the substantial piece —
+/architecture as the procurement-grade companion to /principles.
+
+### What shipped (3 commits on feat/sdk-verify-gateway-hardening)
+
+- **`aa6ac8b` feat(marketing): /principles footer link** — one-line
+  additive change to layout.tsx. Placed between /security and Docs
+  (the procurement-grade research cluster). Header nav untouched —
+  that's conversion-funnel real estate; /principles is deep-research.
+- **`c85f10f` feat(marketing): /architecture page + parity gate** —
+  net-new public route surfacing eight curated ADRs in three themes:
+  Cryptographic foundation (0002, 0005, 0011), Verifiability (0003,
+  0006, 0007), Neutrality (0009, 0016). Each card carries a buyer-
+  friendly oneLine, a procurement-context "why it matters", an
+  evidence path, and a link to the source ADR. Companion parity test
+  (`tests/cross-package/marketing-architecture-parity.spec.ts`)
+  asserts every COMMITMENT.adrSlug resolves to a file on disk and
+  every adrTitle matches the file's first H1 verbatim — so renaming
+  an ADR title without updating the page fails CI. 388 lines total
+  (page + spec).
+- **`cd6c935` feat(marketing): /architecture footer link** — sibling
+  to aa6ac8b. Footer cluster order: Security → Principles →
+  Architecture → Docs. Posture → refusals → commitments → reference.
+
+### Verification
+
+- `pnpm --filter @aegis/marketing typecheck` — clean
+- `pnpm --filter @aegis/marketing build` — 20 static pages, both
+  /principles and /architecture in the route manifest as `○` (static
+  prerendered), generated in 216ms
+- `pnpm --filter @aegis/e2e test:parity` — **33 files, 366 tests
+  all pass**, including the new `marketing-architecture-parity.spec.ts`
+  with 6 assertions
+
+### Pattern crystallized this session
+
+Three public pages now follow the same shape:
+
+| Page              | Exported array     | Parity test                                           |
+|-------------------|--------------------|-------------------------------------------------------|
+| /security         | IMPLEMENTED+ALIGNED | `marketing-security-standards-parity.spec.ts`        |
+| /principles       | REFUSALS           | `marketing-non-goals-parity.spec.ts`                  |
+| /architecture     | COMMITMENTS        | `marketing-architecture-parity.spec.ts`               |
+
+Each page exports the source-of-truth array; each parity test
+asserts sync with the engineering source (wellknown discovery for
+/security, docs/NON_GOALS.md for /principles, docs/decisions/ for
+/architecture). Adding a public commitment without the matching
+engineering change (or vice versa) is impossible to land — the build
+gate forces both. **The marketing surface is now structurally a
+mirror of the engineering source.**
+
+### Investigated but not shipped
+
+- **`@aegis/audit-verifier` cli.spec.ts regression**. The spec
+  expects a refactored `parseArgs` that returns a `ParseResult`
+  discriminated union (not exit-on-error) AND introduces a new
+  `verify-manifests` subcommand. That's a substantial refactor
+  (~596-line spec drives ~138 lines of cli.ts toward a new shape),
+  not a small fix. Out of scope here. The existing presence-checking
+  in `packages/cli/src/commands/audit.ts` continues to work; full
+  chain walking via `@aegis/audit-verifier` is parked until the
+  refactor lands.
+
+### Next on my queue
+
+- The audit-verifier refactor as its own work module (Result-typed
+  parseArgs + verify-manifests subcommand + the ~596-line spec
+  re-enabled).
+- Possibly /verifiable-claims — a fourth pattern-page that lists
+  every marketing claim and the test that enforces it. Would close
+  the trust loop completely ("here's our claim, here's the CI gate
+  that prevents the claim from being a lie").
+
+---
+
 ## 2026-05-22 · sdk-idempotency-operator-pass · activate AUTO_IDEMPOTENT_METHODS policy table
 
 Operator said _"continue as you see fit ultrathink"_ — picked the
