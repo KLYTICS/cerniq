@@ -5,6 +5,172 @@
 
 ---
 
+## 2026-05-22 · sdk-webhook-typed-events · M-WEBHOOK-3 ships typed event union + catches live drift bug
+
+Operator said _"continue"_ — picked M-WEBHOOK-3 (typed webhook event
+union) as the next slice in the enterprise SDK arc because it
+composes directly with M-WEBHOOK-1 (signature verifier): verify
+first, then narrow with `switch (envelope.event)`. Established the
+"typed wire-event union" pattern as a second instance after
+`VerifyOutcome`, making it a repeatable codebase template. Claimed
+`okoro:sdk-webhook-typed-events`. No peer overlap.
+
+### Production drift bug caught + fixed in same commit
+
+**Discovery via audit before writing code**: `apps/api/src/modules/
+policy/policy.expiry.worker.ts:144` emitted
+`type: 'okoro.policy.expired'` — a string that does NOT match any
+value in `WEBHOOK_EVENT` (catalog says `aegis.agent.policy_expired`).
+Subscriptions match on exact string in `webhooks.service.ts:65`, so
+every customer subscribed to the catalog name had been silently
+missing policy-expired events since the worker shipped.
+
+The new cross-package parity gate detected this on its first run
+with a clear error message pointing at file:line + emitted name +
+valid catalog values. Fix: replace the string literal with
+`WEBHOOK_EVENT.AGENT_POLICY_EXPIRED` constant reference — refactor-
+safe by construction. Paired spec assertion updated to match.
+
+### What shipped (uncommitted, ~530 LoC net-new + 2 small API edits)
+
+- `packages/sdk-ts/src/webhook-events.ts` (new, ~210 lines):
+  Five interface variants (`AgentTrustScoreChangedEvent`,
+  `AgentAnomalyDetectedEvent`, `AgentPolicyExpiredEvent`,
+  `AgentFlaggedByRelyingPartyEvent`, `AgentRevokedEvent`) sharing a
+  `WebhookEnvelopeBase` (event, subscriptionId, deliveryId, occurredAt).
+  Two payload interfaces with concrete shapes sourced from the
+  observable emitter code (trust_score_changed from bate.worker.ts;
+  policy_expired from policy.expiry.worker.ts). Three payload types
+  for not-yet-emitted events ship as `Record<string, unknown>` —
+  concrete shapes land WITH emitters, per CLAUDE.md docs rule "docs
+  reflect code, not aspiration". Compile-time `_ExhaustivenessGate`
+  using mapped-type-over-WEBHOOK_EVENT — adding a catalog entry
+  without a union variant fails tsc with a `MISSING
+WebhookEnvelope variant for event: X` error. Runtime `interpret
+WebhookEvent(raw)` with a `WebhookEventParseError` for unknown
+  events and a guidance message ("SDK may be older than the API —
+  consider upgrading"). Type-guard variant `isWebhookEnvelope` for
+  silent skip-on-unknown.
+- `packages/sdk-ts/src/webhook-events.spec.ts` (new, ~165 lines,
+  **12 passing**): per-event narrowing (full payload assertions on
+  the two known shapes; opaque-data assertion on unknown emitters);
+  failure modes (non-object, missing event, non-string event,
+  unknown name, drift-regression-net for `okoro.policy.expired`);
+  type-guard variant; full-catalog-coverage runtime mirror of the
+  static gate.
+- `tests/cross-package/webhook-event-emitter-parity.spec.ts` (new,
+  ~165 lines, **3 passing**): recursive walk of `apps/api/src/**/*.ts`
+  (non-spec); regex-extracts every `type:` value within an
+  `.enqueue(...)` call; supports both string-literal emission
+  (`type: '...'`) AND catalog-constant emission
+  (`type: WEBHOOK_EVENT.X` resolved via runtime catalog lookup);
+  asserts every emitted name matches a catalog value; the failure
+  message lists file:line + emitted name + valid catalog values
+  for easy debugging. 20-line scan window accommodates rationale
+  comments between `.enqueue(` and the `type:` field.
+- `packages/sdk-ts/src/index.ts`: barrel exports for the
+  `interpretWebhookEvent`, `isWebhookEnvelope`, `WebhookEventParseError`,
+  and the union + payload + event interface types (11 type exports).
+- `apps/api/src/modules/policy/policy.expiry.worker.ts`: drift fix
+  — `type: WEBHOOK_EVENT.AGENT_POLICY_EXPIRED` (was the literal
+  `okoro.policy.expired`); added explanatory comment block + `@aegis/
+types` import.
+- `apps/api/src/modules/policy/policy.expiry.worker.spec.ts`: spec
+  assertion + test name updated to match the corrected event name.
+
+### Customer-facing pattern (post-this-slice)
+
+```ts
+import {
+  verifyWebhookSignature,
+  interpretWebhookEvent,
+} from '@aegis/sdk';
+
+app.post('/webhooks/aegis', async (req, res) => {
+  const body = await req.text();
+  const sig = req.headers.get('X-AEGIS-Signature');
+  await verifyWebhookSignature({
+    payload: body,
+    signature: sig!,
+    secret: process.env.AEGIS_WEBHOOK_SECRET!,
+  });
+
+  const event = interpretWebhookEvent(JSON.parse(body));
+  switch (event.event) {
+    case 'aegis.agent.trust_score_changed':
+      // event.data is AgentTrustScoreChangedPayload — full narrowing
+      log.info({ agentId: event.data.agentId },
+        `trust score ${event.data.previousScore} → ${event.data.score}`);
+      break;
+    case 'aegis.agent.policy_expired':
+      // event.data is AgentPolicyExpiredPayload
+      await revokeDownstreamSession(event.data.agentId);
+      break;
+    // tsc requires every other catalog event handled here
+    case 'aegis.agent.anomaly_detected':
+    case 'aegis.agent.flagged_by_relying_party':
+    case 'aegis.agent.revoked':
+      // event.data is Record<string, unknown> until emitter ships
+      log.info({ data: event.data }, `received ${event.event}`);
+      break;
+  }
+  res.status(200).end();
+});
+```
+
+### Verification
+
+- `npx jest webhook-events.spec webhook.spec idempotency.spec
+http.spec intent.spec verify-gateway.spec` → **118/118 pass**.
+- `npx tsc --noEmit` (packages/sdk-ts) → **clean**.
+- `npx vitest run webhook-event-emitter-parity
+webhook-signature-parity idempotency-header-parity
+error-catalog-parity denial-reason-parity
+intent-manifest-denial-reason-parity` → **34/34 pass**.
+- `npx jest policy.expiry.worker.spec` (apps/api) → **3/3 pass**.
+
+### Combined session output (this turn + prior three)
+
+The full enterprise-SDK arc on `feat/sdk-verify-gateway-hardening`
+now includes:
+
+- M-IDEM-1: SDK auto-attach policy (commit 149fcd4)
+- M-IDEM-2: response-side replay observability hook (commit 149fcd4)
+- M-IDEM-4: idempotency header parity gate (commit 149fcd4)
+- M-WEBHOOK-1: webhook signature verifier (commit 392a6e7)
+- M-WEBHOOK-3: typed event union + drift fix (this commit)
+
+Total: ~1,550 LoC net-new across 8 new files, 75+ new tests, FIVE
+cross-package parity assertions locking the wire contract from both
+directions, plus **one live drift bug detected + fixed** by the
+new gate. Zero regression in any prior surface.
+
+### Next session(s) pick up here
+
+- **M-WEBHOOK-2 (replay-cache adapter)**: optional
+  `InMemoryWebhookReplayCache` / `RedisWebhookReplayCache` for
+  at-most-once delivery. Today customers build their own dedupe on
+  `X-AEGIS-Delivery-Id`.
+- **M-WEBHOOK-3 follow-up (payload schemas for not-yet-emitted
+  events)**: when emitters for `anomaly_detected`,
+  `flagged_by_relying_party`, and `revoked` land, replace the
+  `Record<string, unknown>` placeholder payloads with concrete
+  interfaces sourced from the new emitter code. The compile-time
+  gate ensures any new catalog entry forces this update.
+- **M-IDEM-3 (Python SDK mirror)**: still pending — port idempotency
+  + webhook signature + typed event union to `packages/sdk-py/`.
+- **Operator pass on `AUTO_IDEMPOTENT_METHODS`**: still pending.
+
+### Peer coordination
+
+- Active claim `okoro:sdk-webhook-typed-events` (this session) —
+  release on commit.
+- Prior claim `okoro:sdk-webhook-signature-verifier` from this
+  conversation's last turn — auto-released after release call.
+- No active peer overlap.
+
+---
+
 ## 2026-05-22 · sdk-webhook-signature-verifier · M-WEBHOOK-1 ships SDK helper for HMAC verify
 
 Operator asked _"continue ultrathink"_ on the enterprise-quality SDK

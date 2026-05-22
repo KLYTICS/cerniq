@@ -40,7 +40,7 @@ describe('PolicyExpiryWorker.sweep', () => {
     expect(webhooks.enqueue).not.toHaveBeenCalled();
   });
 
-  it('revokes expired policies and fires okoro.policy.expired per row', async () => {
+  it('revokes expired policies and fires aegis.agent.policy_expired per row', async () => {
     const expiredAt = new Date('2026-04-01T00:00:00Z');
     prisma.agentPolicy.findMany.mockResolvedValue([
       {
@@ -72,7 +72,7 @@ describe('PolicyExpiryWorker.sweep', () => {
     expect(webhooks.enqueue).toHaveBeenCalledTimes(2);
     expect(webhooks.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'okoro.policy.expired',
+        type: 'aegis.agent.policy_expired',
         data: expect.objectContaining({ policyId: 'pol_1', agentId: 'agt_1' }),
       }),
       'prn_1',

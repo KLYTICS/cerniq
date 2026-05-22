@@ -128,4 +128,22 @@ export {
   verifyWebhookSignature,
 } from './webhook.js';
 export type { VerifiedWebhook, VerifyWebhookOptions } from './webhook.js';
+export {
+  WebhookEventParseError,
+  interpretWebhookEvent,
+  isWebhookEnvelope,
+} from './webhook-events.js';
+export type {
+  AgentAnomalyDetectedEvent,
+  AgentAnomalyDetectedPayload,
+  AgentFlaggedByRelyingPartyEvent,
+  AgentFlaggedByRelyingPartyPayload,
+  AgentPolicyExpiredEvent,
+  AgentPolicyExpiredPayload,
+  AgentRevokedEvent,
+  AgentRevokedPayload,
+  AgentTrustScoreChangedEvent,
+  AgentTrustScoreChangedPayload,
+  WebhookEnvelope,
+} from './webhook-events.js';
 export type * from './types.js';
