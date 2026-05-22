@@ -22,6 +22,8 @@ export class Aegis {
       userAgent: config.userAgent,
       onWriteResponse: config.onWriteResponse,
       signal: config.signal,
+      apiVersion: config.apiVersion,
+      onApiVersionDeprecated: config.onApiVersionDeprecated,
     });
     this.agents = new AgentClient(this.http);
     this.policies = new PolicyClient(this.http);
@@ -135,6 +137,16 @@ export {
   paginate,
 } from './pagination.js';
 export type { PaginationOptions } from './pagination.js';
+export {
+  API_VERSION_HEADER,
+  DEPRECATION_HEADER,
+  LATEST_VERSION_HEADER,
+  parseVersionResponse,
+} from './version.js';
+export type {
+  ApiVersionDeprecationInfo,
+  OnApiVersionDeprecated,
+} from './version.js';
 export {
   WebhookEventParseError,
   interpretWebhookEvent,

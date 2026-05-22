@@ -133,4 +133,40 @@ export interface AegisConfig {
    * not accumulate handlers.
    */
   signal?: AbortSignal;
+  /**
+   * Pinned API version sent on every request via the `Aegis-Version`
+   * header. The Aegis API uses date-shape version strings
+   * (`2026-05-22`) by default; the SDK passes the value through
+   * opaquely so a future format change requires no SDK update.
+   *
+   * Forward-compat: customers can pin TODAY even before the API
+   * begins honoring the header. When the API ships version-aware
+   * behavior, pinned customers automatically get the version they
+   * expected. Unpinned customers get the server's current version
+   * (which may change over time).
+   *
+   * Stripe-shape: every Aegis SDK installation should pin a version
+   * once a stable production version exists. The customer doc
+   * encourages pinning; the SDK does not enforce it (default-unset
+   * is silent — no console warning at construct time).
+   */
+  apiVersion?: string;
+  /**
+   * Optional observability hook fired when the API marks the pinned
+   * version as approaching sunset (response carries the
+   * `Aegis-Deprecation` header). Receives a structured payload with
+   * the pinned version, the deprecation date, the server's latest
+   * version (if available), and the request URL.
+   *
+   * Fire-and-forget — the HttpClient swallows thrown errors so a
+   * misbehaving subscriber cannot break the response hot path. Use
+   * to emit a Sentry warning, file a Jira ticket, page the on-call,
+   * or whatever fits your observability stack.
+   *
+   * The hook fires ONLY on explicit `Aegis-Deprecation`. Drift
+   * between pinned and server-latest versions does NOT fire this
+   * hook (a separate `onApiVersionDrift` may ship later if customers
+   * ask). Today: high-signal, low-noise.
+   */
+  onApiVersionDeprecated?: import('./version.js').OnApiVersionDeprecated;
 }

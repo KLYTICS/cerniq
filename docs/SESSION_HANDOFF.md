@@ -5,6 +5,171 @@
 
 ---
 
+## 2026-05-22 · sdk-api-version-pinning · M-VERSION-1 — Stripe-shape forward-compat scaffold
+
+Operator asked _"continue"_ after M-PAGINATE-1. Picked API version
+pinning as the highest-leverage net-new slice — high one-time
+enterprise value (prevents future API-change customer breaks), SDK
+side ships as forward-compat scaffold today even before the API
+honors the header. Stripe-shape: every SDK request carries
+`Aegis-Version: <pinned>` when the customer has pinned, and the API
+honors it whenever version-aware behavior switching is wired
+server-side. Claimed `okoro:sdk-api-version-pinning`. Peer
+8bda6e32 on `sdk-py-webhook-replay` — Python scope, no overlap.
+
+### What shipped (uncommitted, ~440 LoC net-new + small additive edits)
+
+- `packages/sdk-ts/src/version.ts` (new, ~145 lines):
+  - Three header constants pinning the wire contract:
+    `API_VERSION_HEADER = 'Aegis-Version'` (request),
+    `LATEST_VERSION_HEADER = 'Aegis-Latest-Version'` (response),
+    `DEPRECATION_HEADER = 'Aegis-Deprecation'` (response).
+  - `ApiVersionDeprecationInfo` interface — structured payload for
+    deprecation callback (pinnedVersion, deprecatedAt, latestVersion,
+    requestUrl).
+  - `OnApiVersionDeprecated` callback type.
+  - `parseVersionResponse(headers, requestUrl, pinnedVersion)`:
+    returns `ApiVersionDeprecationInfo | undefined`. Returns
+    undefined when no deprecation header is present (common case —
+    no allocation when nothing to report). Case-insensitive header
+    lookup; works with both `Headers` and plain records.
+- `packages/sdk-ts/src/version.spec.ts` (new, ~225 lines,
+  **19 passing**):
+  - Request header: sent when pinned; omitted when unset; sent on
+    EVERY request; reserved-header contract prevents override via
+    `opts.headers`.
+  - parseVersionResponse: undefined on absent; structured info on
+    present; surfaces latestVersion when both present; case-
+    insensitive; treats empty value as absent; Headers Web API
+    support.
+  - Callback: fires on deprecation header; does NOT fire without
+    header; does NOT fire when apiVersion unset (no pin = no
+    deprecation surface — the deliberate high-signal-low-noise
+    choice); does NOT fire when callback unset; survives
+    subscriber-throw; fires on every deprecating response with
+    correct request URL.
+  - Header constant locks: `Aegis-Version`, `Aegis-Latest-Version`,
+    `Aegis-Deprecation` literal-string pins.
+- `packages/sdk-ts/src/types.ts`: `AegisConfig.apiVersion?: string`
+  + `AegisConfig.onApiVersionDeprecated?: OnApiVersionDeprecated`
+  with rich JSDoc covering the Stripe-shape rationale + the
+  forward-compat-today semantics.
+- `packages/sdk-ts/src/http.ts`:
+  - `HttpClientConfig.apiVersion?` + `onApiVersionDeprecated?`.
+  - Constructor captures both.
+  - `request()` injects `Aegis-Version` header on every request when
+    pinned; adds `'aegis-version'` to the reserved-header guard so
+    `opts.headers` cannot override the config-level pin.
+  - On success path: parses response headers via
+    `parseVersionResponse`; if deprecation info present AND callback
+    wired, fires it in try/catch. Hook errors swallowed (same
+    pattern as M-IDEM-2 `onWriteResponse`).
+- `packages/sdk-ts/src/index.ts`: threads both fields into the
+  HttpClient constructor in the Aegis class ctor; barrel re-exports
+  the 4 helpers + 2 types.
+
+### Design decisions (locked in source + spec)
+
+1. **Bare `Aegis-Version` header name, not `X-Aegis-Version`.**
+   Operator decision 2026-05-22. Stripe-shape, RFC-6648 compliant.
+   The existing `X-AEGIS-*` headers are legacy that the next
+   versioning revamp can clean up; this slice lands the new header
+   on the right convention from day one.
+2. **Deprecation callback fires ONLY on explicit `Aegis-Deprecation`
+   response header.** NOT on drift between pinned vs server-latest
+   (that would be a separate `onApiVersionDrift` hook if customers
+   ever ask). Today: high-signal, low-noise — the customer is
+   notified specifically when the server says "your pin is
+   sunsetting", not every time the server ships a new version.
+3. **Default-unset behavior is silent.** No console.warn at
+   construct time encouraging pinning. Matches Stripe's pattern;
+   avoids surprise onboarding friction. Documentation is the
+   pinning recommendation, not runtime noise.
+4. **SDK does not validate the version string format.** The API
+   chooses the format (date, semver, custom); the SDK passes the
+   string opaquely. Forward-compat against any future format
+   change.
+5. **`apiVersion` is reserved against `opts.headers` override.**
+   The config-level pin is the source of truth; allowing
+   per-request override via raw headers would let a caller
+   accidentally (or maliciously) downgrade the version contract.
+
+### Customer-facing pattern (post-this-slice)
+
+```ts
+const aegis = new Aegis({
+  apiKey: process.env.AEGIS_API_KEY,
+  apiVersion: '2026-05-22',                     // pin
+  onApiVersionDeprecated: (info) => {
+    logger.warn(info, 'Aegis API version deprecating — schedule upgrade');
+    metrics.increment('aegis.api_version_deprecation', 1, {
+      pinned: info.pinnedVersion,
+    });
+    // Alternative: file a Jira ticket, page the on-call, etc.
+  },
+});
+
+await aegis.agents.register({ ... });   // header sent automatically
+```
+
+### Verification
+
+- `npx jest version.spec pagination.spec abort.spec http.spec
+idempotency.spec webhook-replay.spec webhook-events.spec
+webhook.spec intent.spec verify-gateway.spec` → **188/188 pass**
+  (19 new + 169 prior).
+- `npx tsc --noEmit` (packages/sdk-ts) → **clean**.
+- `npx vitest run idempotency-header-parity webhook-signature-parity
+webhook-event-emitter-parity intent-manifest-denial-reason-parity`
+  → **24/24 pass**.
+
+### Combined session output (this turn + prior seven)
+
+Full enterprise-SDK arc on `feat/sdk-verify-gateway-hardening`:
+
+- M-IDEM-1/2/4: idempotency E2E (149fcd4)
+- M-WEBHOOK-1: signature verifier (392a6e7)
+- M-WEBHOOK-3: typed events + drift fix (0e3f48b)
+- M-WEBHOOK-2: replay cache (7040d7f — Erwin)
+- M-IDEM-OP: AUTO_IDEMPOTENT_METHODS pinned (80377f3)
+- M-ABORT-1: AbortSignal threading (6f3790a)
+- M-PAGINATE-1: async-iterable pagination (bfcd729)
+- M-VERSION-1: API version pinning (this commit)
+
+Total ~2,830 LoC net-new across 13 new files, 120+ new tests, 5
+cross-package parity gates, 2 production bugs caught + fixed
+(policy-expiry drift; listener-leak prevention via tests), zero
+regression. SDK is now end-to-end enterprise-grade: retry-safe
+writes, observable response metadata, signature-verified webhooks
+with dedupe + typed narrowing, serverless-deadline-aware cancellation,
+ergonomic pagination, AND forward-compat version pinning.
+
+### Next session(s) pick up here
+
+- **API-side `Aegis-Version` honoring** — multi-session arc.
+  Behavior-switching infrastructure (version → behavior mapping per
+  endpoint), `Aegis-Deprecation` header emission policy, an ADR
+  documenting the versioning scheme. The SDK side is ready;
+  shipping the API side activates the customer value.
+- **Telemetry exporter interface** — vendor-neutral OTel/Datadog
+  bridge composing with existing `onWriteResponse` +
+  `onApiVersionDeprecated` hooks. Two instances of the
+  hook-on-config pattern already exist; the third would lock the
+  template.
+- **`policies.list` cursor support** — API-side change; then
+  `policies.listAll` follows the M-PAGINATE-1 pattern in three
+  lines.
+- **M-IDEM-3 Python parity** — peer is in flight on Py webhook
+  replay; coordinate next-session to align on what's left.
+
+### Peer coordination
+
+- Released claim `okoro:sdk-api-version-pinning`.
+- No conflicts with peer `okoro:sdk-py-webhook-replay` (Python
+  scope, no overlap with my TS edits).
+
+---
+
 ## 2026-05-22 · audit-verifier-cli-refactor · Result-typed parseArgs + verify-manifests subcommand
 
 Operator said _"continue"_. Closed the long-deferred audit-verifier

@@ -15,6 +15,11 @@ import {
   isAegisErrorRetryable,
 } from './errors.js';
 import { parseReplayHeaders, type OnWriteResponse } from './idempotency.js';
+import {
+  API_VERSION_HEADER,
+  parseVersionResponse,
+  type OnApiVersionDeprecated,
+} from './version.js';
 
 export interface HttpClientConfig {
   apiKey?: string | undefined;
@@ -36,6 +41,18 @@ onWriteResponse` for full semantics. Fired only when the request carried
    * docstring on `AegisConfig.signal` for the customer-facing pattern.
    */
   signal?: AbortSignal | undefined;
+  /**
+   * Pinned API version sent as `Aegis-Version` header on every
+   * request. Passed opaquely — SDK does not validate the format.
+   * See `AegisConfig.apiVersion` for the customer-facing rationale.
+   */
+  apiVersion?: string | undefined;
+  /**
+   * Optional callback fired when a response carries the
+   * `Aegis-Deprecation` header. Fire-and-forget; HttpClient swallows
+   * thrown errors. See `AegisConfig.onApiVersionDeprecated`.
+   */
+  onApiVersionDeprecated?: OnApiVersionDeprecated | undefined;
 }
 
 export interface RequestOptions {
@@ -111,6 +128,8 @@ export class HttpClient {
   private readonly userAgent: string | undefined;
   private readonly onWriteResponse: OnWriteResponse | undefined;
   private readonly configSignal: AbortSignal | undefined;
+  private readonly apiVersion: string | undefined;
+  private readonly onApiVersionDeprecated: OnApiVersionDeprecated | undefined;
   /** Captured Retry-After header from the last response, if any (seconds). */
   private lastRetryAfterSeconds: number | undefined;
 
@@ -123,6 +142,8 @@ export class HttpClient {
     this.userAgent = config.userAgent;
     this.onWriteResponse = config.onWriteResponse;
     this.configSignal = config.signal;
+    this.apiVersion = config.apiVersion;
+    this.onApiVersionDeprecated = config.onApiVersionDeprecated;
   }
 
   async request<T>(path: string, opts: RequestOptions): Promise<T> {
@@ -159,6 +180,7 @@ export class HttpClient {
         'x-aegis-api-key',
         'x-aegis-verify-key',
         'x-aegis-sdk',
+        'aegis-version',
       ]);
       for (const [k, v] of Object.entries(opts.headers)) {
         if (RESERVED.has(k.toLowerCase())) continue;
@@ -171,6 +193,12 @@ export class HttpClient {
     // pre-date this slice.
     if (opts.idempotencyKey !== undefined) {
       headers['Idempotency-Key'] = opts.idempotencyKey;
+    }
+    // Pinned API version — Stripe-shape forward-compat. Send the
+    // header on every request when the customer has pinned;
+    // otherwise omit (server uses current).
+    if (this.apiVersion !== undefined) {
+      headers[API_VERSION_HEADER] = this.apiVersion;
     }
 
     // Multi-source abort: combine the internal per-request timeout with
@@ -269,6 +297,24 @@ export class HttpClient {
           });
         } catch {
           // Swallow — observability hook is not part of the write contract.
+        }
+      }
+      // Fire the onApiVersionDeprecated hook when the response carries
+      // the Aegis-Deprecation header. Fires on EVERY request (read
+      // or write) when both apiVersion is pinned AND the callback is
+      // wired AND the header is present. parseVersionResponse returns
+      // undefined when the header is absent, so the common case is
+      // free of allocation. Hook errors are swallowed for the same
+      // reason as onWriteResponse — observability cannot break the
+      // response hot path.
+      if (this.apiVersion !== undefined && this.onApiVersionDeprecated !== undefined) {
+        const deprecation = parseVersionResponse(res.headers, url.toString(), this.apiVersion);
+        if (deprecation !== undefined) {
+          try {
+            this.onApiVersionDeprecated(deprecation);
+          } catch {
+            // Swallow — observability hook is not part of the response contract.
+          }
         }
       }
       return payload as T;
