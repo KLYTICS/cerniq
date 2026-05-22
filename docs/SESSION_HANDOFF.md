@@ -5,6 +5,198 @@
 
 ---
 
+## 2026-05-22 · wedge-public-principles-page · refuse-to-build register goes public (2 commits)
+
+Operator said _"as you see fit enterprise quality scaffolded thinking
+planning and implementing ultrathink"_. The greenfield hook context
+(empty AEGIS shell, Vercel knowledge update) suggested scaffolding a
+new project, but the strategic intent was clearly to keep building
+the wedge surface in OKORO — D1–D9 had just landed, the next
+high-leverage move was making the **refuse-to-build commitments
+public-facing** rather than starting yet another codebase.
+
+### What shipped (2 commits on feat/sdk-verify-gateway-hardening)
+
+- **`ad6c029` feat(marketing): /principles page** — net-new public
+  route at `apps/marketing/app/principles/page.tsx` (243 lines). The
+  procurement-grade artifact for the CISO question "what are you
+  committing to NOT build?". Six refusals rendered with the same
+  four-part structure as `docs/NON_GOALS.md` (What / Why refused /
+  Tempting moment / Escape hatch): configurable precedence, additional
+  first-party SDK languages, multi-cloud edge, alternative
+  canonicalization, customer-tunable trust weights, "universal AI
+  agent" positioning. Exports a `REFUSALS` array (same pattern as
+  `/security`'s `IMPLEMENTED`/`ALIGNED` arrays) so a parity test can
+  enforce sync.
+- **`a8d8bbb` test(parity): /principles ↔ NON_GOALS.md sync gate**
+  — `tests/cross-package/marketing-non-goals-parity.spec.ts`
+  (133 lines, 4 assertions). Closes the contract: every customer-
+  facing refusal in the doc (§§ 1.x + 3.x) must appear on the page,
+  every page entry must correspond to a real doc heading, every
+  refusal must have a stable URL-safe slug, every refusal must
+  render the full four-part structure above minimum lengths. Compares
+  by section number — titles allowed to differ between engineering
+  (`"BATE weights"`) and buyer-friendly (`"behavioral trust weights"`)
+  framings. Internal-operational refusals (§ 2.x dashboard / Stripe)
+  deliberately excluded from page and gate — they evolve freely.
+
+### Verification
+
+- `pnpm --filter @aegis/marketing typecheck` — clean
+- `pnpm --filter @aegis/e2e test:parity` — **31 files, 357 tests
+  all pass**, including the new `marketing-non-goals-parity.spec.ts`
+  contributing 4 of those.
+
+### Design choices worth carrying forward
+
+- **Section-number anchor over title anchor.** The parity test treats
+  the doc's `### X.Y — Title` section numbers as the stable contract
+  and lets titles diverge between page (buyer-friendly) and doc
+  (engineering). This is what lets marketing rephrase "BATE" as
+  "behavioral trust" without breaking CI.
+- **Slug stability is a separate gate.** Slugs (`configurable-precedence`,
+  `customer-tunable-trust-weights`, etc.) are tested as URL-safe and
+  unique because future deep-links from ADRs or sales material to
+  `/principles#<slug>` must not silently break.
+- **Internal vs. customer-facing refusal split.** `docs/NON_GOALS.md`
+  carries both (§ 2.x is internal-operational); the page only
+  surfaces § 1.x + § 3.x. The gate respects the split, so adding a
+  § 2.x refusal to the doc doesn't break parity.
+
+### Next on my queue, awaiting nod
+
+- Link `/principles` from the marketing homepage footer (small touch
+  on the front door — separate decision since it changes nav).
+- Possibly extend the same pattern to a public `/architecture` or
+  `/commitments` page mirroring the ADR set most relevant to
+  procurement (ADR-0004 precedence, ADR-0011 audit chain,
+  ADR-0016 intent manifest).
+- Wire the CLI's `audit verify` to consume `/v1/audit-events/export`
+  via `@aegis/audit-verifier` (still parked from D4-reframe pending
+  the audit-verifier cli.spec.ts regression).
+
+---
+
+## 2026-05-22 · sdk-idempotency-followup · M-IDEM-2 response hook + M-IDEM-4 parity gate
+
+Operator said _"continue enterprise quality as you see fit"_ on
+`feat/sdk-verify-gateway-hardening` after the prior M-IDEM-1 slice
+(SDK auto-attach policy). Picked the two highest-leverage follow-ups
+from that handoff's pickup list: response-side replay observability
+(M-IDEM-2) and the cross-package header parity gate (M-IDEM-4). Both
+net-new + small, both compose with the M-IDEM-1 surface, no overlap
+with `okoro:post-rename-verification-audit` peer (docs-only) or
+`okoro:enterprise-wedge` peer (committed work).
+
+### What shipped (uncommitted, ~250 LoC net-new + small additive edits)
+
+**M-IDEM-2 — response-side replay callback** wires the missing half
+of idempotency: customers can now observe when a retry collapsed onto
+a stored response, not just blindly attach keys. Stripe-shaped
+config-hook design (rather than another method variant or event bus),
+chosen because no event bus is in tracked code today.
+
+- `packages/sdk-ts/src/idempotency.ts` — added `WriteResponseInfo`
+  (replay + requestId + status + latencyMs + idempotencyKey) and
+  `OnWriteResponse` callback types. Co-located with the other
+  idempotency primitives.
+- `packages/sdk-ts/src/types.ts` — `AegisConfig.onWriteResponse?`
+  added. Cross-file type import via `import('./idempotency.js')` so
+  types.ts stays a pure interface module.
+- `packages/sdk-ts/src/http.ts` — `HttpClientConfig.onWriteResponse?`
+  added; constructor captures it; request path measures wall-clock
+  RTT and fires the hook in try/catch after every successful
+  response that carried `opts.idempotencyKey`. Errors are swallowed —
+  observability subscribers cannot break the write hot path.
+- `packages/sdk-ts/src/index.ts` — threads `onWriteResponse` into the
+  HttpClient construction in the `Aegis` ctor; re-exports the two new
+  types from the barrel.
+- `packages/sdk-ts/src/idempotency.spec.ts` — 5 new hook tests:
+  fresh-write fires with `replayed:false`; replay headers parsed
+  correctly; no hook fired without idempotencyKey; subscriber throw
+  is swallowed; omitting the hook is supported.
+
+**M-IDEM-4 — cross-package header parity gate** is the regression
+net for the whole idempotency surface. Asserts the three SDK header
+constants agree with `@aegis/types` AEGIS_HEADER_IDEMPOTENCY AND
+with the literal strings emitted at `apps/api/src/common/idempotency/
+idempotency.interceptor.ts:70-71`. Regex-parses the interceptor
+source — no NestJS bootstrap required, runs in ~2ms.
+
+- `tests/cross-package/idempotency-header-parity.spec.ts` (new,
+  ~110 lines, **8 tests**): request-side parity (SDK ↔ types
+  constant); response-side parity (every SDK response constant
+  appears in interceptor `res.setHeader()` calls); literal-string
+  lock against future refactor drift; belt-and-braces "all SDK
+  constants present" check that forces a paired interceptor update
+  if a new SDK constant is added.
+
+### Verification
+
+- `npx jest idempotency.spec` → **27/27 pass** (22 prior + 5 new).
+- `npx jest http.spec intent.spec verify-gateway.spec idempotency.spec`
+  → **81/81 pass**, no regression in adjacent surface.
+- `npx tsc --noEmit` (packages/sdk-ts) → **clean**.
+- `npx vitest run idempotency-header-parity` → **8/8 pass**.
+- `npx vitest run idempotency-header-parity error-catalog-parity
+denial-reason-parity intent-manifest-denial-reason-parity`
+  → **23/23 pass**, no regression in cross-package suite.
+
+### Customer-facing pattern (post-this-slice)
+
+```ts
+const aegis = new Aegis({
+  apiKey: process.env.AEGIS_API_KEY,
+  onWriteResponse: (info) => {
+    metrics.increment('aegis.write.outcome', 1, {
+      replayed: String(info.replay.replayed),
+      status: String(info.status),
+    });
+    if (info.replay.replayed) {
+      log.info(
+        { requestId: info.requestId, firstSeenAt: info.replay.firstSeenAt },
+        'Aegis write collapsed onto idempotency-cache hit',
+      );
+    }
+  },
+});
+```
+
+The hook fires for every write that carried a key — whether the SDK
+auto-minted it (per `AUTO_IDEMPOTENT_METHODS`) or the caller passed
+one explicitly. Reads (`GET`) and key-less writes don't fire the hook.
+
+### Next session(s) pick up here
+
+- **M-IDEM-3 (Python SDK mirror)**: port `generate_idempotency_key`,
+  `resolve_idempotency_key`, `parse_replay_headers`, the policy
+  table, and the response-callback config to `packages/sdk-py/`.
+  Mirror the spec tests. Add `tests/cross-package/idempotency-py-
+parity.spec.ts` to lock cross-language behavior.
+- **Operator pass on `AUTO_IDEMPOTENT_METHODS`**: still pending —
+  the table values all default to `'opt-in'`. Recs unchanged from
+  prior handoff (`agents.register`/`policies.create`/`agents.report`
+  → `'auto'`; `agents.challenge` → `'forbidden'`).
+- **M-IDEM-5 (suggested)**: surface the replay-rate as a built-in
+  metric on `Aegis.metrics()` mirroring the verify-gateway pattern
+  (`hits`, `misses`, `replays`). Lets dashboards plot replay rate
+  without requiring customers to wire `onWriteResponse` for the
+  common case.
+
+### Peer coordination
+
+- No active claim on this slice (auto-released after the prior
+  M-IDEM-1 claim TTL expired). Net-new files only — minimal
+  coordination cost.
+- `okoro:enterprise-wedge-decision-pack-D1-thru-D9` peer landed
+  4 commits on the wedge surface in parallel; my touched files
+  (`idempotency.ts`, `idempotency.spec.ts`, `http.ts`, `types.ts`,
+  `index.ts`, the new parity spec) do not overlap with their D1-D9
+  decision-pack scope.
+- `okoro:post-rename-verification-audit` peer is docs-only.
+
+---
+
 ## 2026-05-22 · enterprise-wedge-decision-pack-D1-thru-D9 · 4 commits land the wedge surface
 
 Operator asked for an "okoro sdk and api enterprise quality undeniable
@@ -29,37 +221,37 @@ regulated-industry advisor retainer) for the operator.
 - **`4a80b71` D5** — `examples/offline-verifier-rp/` (net-new). A
   single `pnpm demo` that signs three receipts with `@aegis/sdk`,
   verifies each with `@aegis/verifier-rp`, and prints PASS/FAIL for
-  valid / revoked-agent / tampered-sig — *without* any outbound
+  valid / revoked-agent / tampered-sig — _without_ any outbound
   network call to OKORO. The injected fetch shim throws on any URL
   other than the demo agent's status read, so a future regression
   that reaches an unexpected endpoint fails the demo in CI. Exit
   code 0/1/2 → safe to wire into CI as a contract test. **Verified
   end-to-end:** `pnpm --filter @aegis-examples/offline-verifier-rp
-  demo` → 3/3 PASS, exit 0. `pnpm-workspace.yaml` extended by one
+demo` → 3/3 PASS, exit 0. `pnpm-workspace.yaml` extended by one
   targeted line (other examples untouched — each is a separate
   decision).
 - **`aa94dcb` D9 + D3-clarification** — `docs/NON_GOALS.md`
   (net-new, ~280 lines) codifies six refusals as durable artifacts
-  with the shape *What / Why refused / Tempting moment / Escape
-  hatch*: configurable precedence, additional first-party SDKs,
+  with the shape _What / Why refused / Tempting moment / Escape
+  hatch_: configurable precedence, additional first-party SDKs,
   multi-cloud edge, alternative canonicalization, customer-tunable
   BATE weights, dashboard features before Auth0 v4, Stripe-side
   config without operator sign-off, "universal AI agent identity"
   positioning. **D3-clarification**: `OPERATOR_DECISIONS.md` OD-001
   amended with a status note recording that the BATE weights table
   ships at `WEIGHTS_VERSION = 'v1.2.0-intent-2026-05-15'` with DPoP
-  + intent-manifest signals beyond the original Default; the
-  `TRUST_SCORE_TOO_LOW` denial reason fires correctly
-  (`verify.algorithm.ts:370`, spec-tested at
-  `verify.algorithm.spec.ts:176`) — the operator gap is calibration
-  sign-off on the current values, not a missing code path.
-  **Caveat:** this commit incidentally co-committed 10 rebrand-cascade
-  files (`docs/decisions/0021-cloudflare-okoro-rename.md` and 9
-  `scripts/rename-aegis-to-okoro/*` files) that were pre-staged in
-  the index from a prior session. The commit message describes my
-  changes accurately; the file list shows the swept-in additions.
-  Subsequent commits in this session were paranoid about the staged
-  set.
+  - intent-manifest signals beyond the original Default; the
+    `TRUST_SCORE_TOO_LOW` denial reason fires correctly
+    (`verify.algorithm.ts:370`, spec-tested at
+    `verify.algorithm.spec.ts:176`) — the operator gap is calibration
+    sign-off on the current values, not a missing code path.
+    **Caveat:** this commit incidentally co-committed 10 rebrand-cascade
+    files (`docs/decisions/0021-cloudflare-okoro-rename.md` and 9
+    `scripts/rename-aegis-to-okoro/*` files) that were pre-staged in
+    the index from a prior session. The commit message describes my
+    changes accurately; the file list shows the swept-in additions.
+    Subsequent commits in this session were paranoid about the staged
+    set.
 - **`d575995` D4-reframe** — `packages/cli/src/commands/audit.ts`
   comment-only refresh. The CLI's `auditVerify` placeholder claimed
   "M-016 ships a Node verifier; this CLI stops at presence checking
@@ -107,7 +299,7 @@ regulated-industry advisor retainer) for the operator.
 - **D6 (dashboard pricing fallback)**: investigated and reframed —
   the fallback IS deliberate and well-instrumented with an
   operator-visible source footer (`data-testid="pricing-provenance"
-  data-source="api|fallback"` rendered at
+data-source="api|fallback"` rendered at
   `apps/dashboard/app/pricing/page.tsx:53-63`). The remaining work
   is the env-var setting in production (operator-config), not code.
 - **D7 (dashboard feature freeze until Auth0 v4)** and **D8 (regulated
@@ -240,11 +432,27 @@ SESSION_HANDOFF.md and will surface when the stash is applied.
 - 11,440 aegis tokens still in tracked content — the substitution
   has NOT been re-applied. Run the rename kit (now including the new
   15-rebrand-domain script) when ready.
-- 1,206 FUSE-hidden untracked artifacts from cowork-claude's sandbox
-  still in the tree. OPERATOR_FINISH.md step 2 cleans them:
-  `find . -name '.fuse_hidden*' -type f -delete 2>/dev/null`.
-- Git remote still `KLYTICS/aegis.git`; `.git/config hooksPath` still
-  `/Users/money/Desktop/AEGIS/.husky` (broken — old path).
+- ~~1,206 FUSE-hidden untracked artifacts + 2 `_probe` files from
+  cowork-claude's sandbox still in the tree.~~ **CLEANED (post-recovery
+  hygiene pass, same session)**: ran OPERATOR_FINISH step 2
+  (`find . -name '.fuse_hidden*' -type f -delete` + `rm -f _probe
+_aegis_rename_probe`). Tree now shows only meaningful signal: my
+  recovery edits, the M-TSv2-5 peer's SDK-TS modifications, lockfile
+  drift, and one untracked `docs/bible/` directory from another
+  session. Broadcast `ffc6125f` confirmed cleanup.
+- Git remote still `KLYTICS/aegis.git` — operator needs to rename the
+  GitHub repo first; not safe to flip the remote URL unilaterally.
+- ~~`.git/config hooksPath` still `/Users/money/Desktop/AEGIS/.husky`
+  (broken — old path).~~ **FIXED (same session)**: set to relative
+  `.husky` via `git config core.hooksPath .husky`. Relative form
+  survives any future folder rename. Husky pre-commit + lint-staged
+  auto-format from PR #45 now active on this checkout.
+- One untracked `docs/bible/` directory (14 files, ~256K of doctrine
+  documentation: PREAMBLE / INVARIANTS / WEDGE / ARCHITECTURE / HOT_PATH
+  / DOMAIN_MODEL / TENANCY / FLEXIBILITY / SCALABILITY / ACCESSIBILITY
+  / DECISIONS / TERMINALS / OBSERVABILITY + README) from another
+  session. Substantial content; not in any commit. Operator should
+  review before deciding to `git add docs/bible/` or `git clean -fd`.
 - Durable peer decision `27db590f` (the rebrand script promotion) is
   consistent with the restored state.
 
