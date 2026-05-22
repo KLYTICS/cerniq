@@ -110,4 +110,27 @@ export interface AegisConfig {
    * misbehaving subscriber cannot break the write hot path.
    */
   onWriteResponse?: import('./idempotency.js').OnWriteResponse;
+  /**
+   * Caller-supplied AbortSignal applied to every request made through
+   * this client. The SDK combines this signal with its internal
+   * per-request timeout via listener forwarding — whichever aborts
+   * first wins. Designed for serverless deadline propagation:
+   *
+   *   export async function POST(req: Request) {
+   *     const aegis = new Aegis({ apiKey, signal: req.signal });
+   *     await aegis.agents.register({ ... });
+   *     return Response.json({ ok: true });
+   *   }
+   *
+   * When this signal aborts, in-flight requests throw the signal's
+   * `reason` verbatim — typically a DOMException (`AbortError`) — so
+   * customer code can match on the same shape they get from native
+   * `fetch`. Internal-timeout aborts continue to throw
+   * `AegisNetworkError` (preserving the existing contract).
+   *
+   * Listener cleanup is automatic via the SDK's `try/finally` —
+   * passing a long-lived signal (shared across many requests) does
+   * not accumulate handlers.
+   */
+  signal?: AbortSignal;
 }

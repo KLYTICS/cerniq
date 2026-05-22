@@ -21,6 +21,7 @@ export class Aegis {
       fetch: config.fetch,
       userAgent: config.userAgent,
       onWriteResponse: config.onWriteResponse,
+      signal: config.signal,
     });
     this.agents = new AgentClient(this.http);
     this.policies = new PolicyClient(this.http);

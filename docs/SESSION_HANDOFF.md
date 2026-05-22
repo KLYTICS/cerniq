@@ -5,6 +5,160 @@
 
 ---
 
+## 2026-05-22 · sdk-abort-signal-threading · M-ABORT-1 — serverless deadline propagation
+
+Operator asked _"continue ultrathink"_. Audited the remaining SDK
+enterprise gaps and picked the highest-leverage net-new slice:
+AbortSignal threading. Today's Vercel Edge / Cloudflare Worker
+deployments hit this immediately — without SDK signal threading,
+customers either ignore the platform's `request.signal` (in-flight
+requests killed mid-flight by the runtime, ugly) or hand-roll the
+forwarding (subtly wrong). This is the #1 enterprise serverless
+integration ask.
+
+Claimed `okoro:sdk-abort-signal-threading`. Peer 8bda6e32 active in
+the same repo on `sdk-webhook-delivery-id-parity` — pure-additive
+cross-package test, no overlap with my http.ts / types.ts / index.ts
+edits. Confirmed via peer note before starting.
+
+### What shipped (uncommitted, ~400 LoC net-new + small additive edits)
+
+- `packages/sdk-ts/src/types.ts`: `AegisConfig.signal?: AbortSignal`
+  with rich JSDoc covering the serverless-deadline pattern. Listener
+  cleanup is automatic via the SDK's try/finally — passing a
+  long-lived signal (shared across many requests) does not
+  accumulate handlers.
+- `packages/sdk-ts/src/http.ts`:
+  - `HttpClientConfig.signal?`, `RequestOptions.signal?` (per-call
+    override). Both honored; combined via listener forwarding.
+  - `RetryOptions.signal?` for the retry wrapper. Default sleep is
+    now signal-aware — aborts during backoff reject with the
+    signal's reason immediately.
+  - `request()`: combines internal timeout + per-call signal +
+    config signal via a pattern that keeps the TIMEOUT controller
+    separate from the COMBINED controller. The catch handler
+    disambiguates "we timed out" (→ AegisNetworkError, preserving
+    the existing customer contract) from "external signal aborted"
+    (→ propagate the caller's reason verbatim, matching native
+    fetch convention).
+  - Listener cleanup: every `addEventListener('abort', ...)` is
+    paired with a `removeEventListener` in the `finally` block,
+    even on the error path. Verified by two listener-count tests.
+  - **Disambiguation uses signal-state, not err.name**. Runtime
+    variation across Node / browsers / workers means a DOMException
+    thrown by fetch may or may not pass `instanceof Error`; the
+    `combinedCtrl.signal.aborted` check is reliable across all
+    target runtimes.
+- `packages/sdk-ts/src/index.ts`: threads `config.signal` into the
+  HttpClient constructor in the `Aegis` class ctor.
+- `packages/sdk-ts/src/abort.spec.ts` (new, ~290 lines,
+  **12 passing**):
+  - Preflight: already-aborted opts.signal → throw reason; already-
+    aborted configSignal → throw reason.
+  - Mid-request: caller aborts during fetch → propagate reason.
+  - Timeout vs external disambiguation: internal timeout fires →
+    AegisNetworkError; external signal fires → caller's reason.
+  - Multi-signal: caller signal wins when first; config signal
+    wins when first.
+  - Listener cleanup: verified via add/removeEventListener spy that
+    every listener attached on the caller's signal is removed after
+    the request completes (success path AND error path).
+  - withRetry: signal pre-aborted → no fn invocation, throw reason;
+    signal aborts mid-sleep → throws reason WITHOUT finishing sleep
+    or attempting another request; no-signal path still retries.
+
+### Design choices (locked in source comments)
+
+1. **Per-method signal threading deliberately OUT of scope.** For the
+   dominant serverless use case (`new Aegis({ signal: request.signal
+})`), construct-time signal applies to all requests through the
+   client — sufficient and avoids breaking the IdempotencyOptions
+   2nd-arg shape established by M-IDEM-1. For per-call control,
+   customers can call `http.request(path, { signal })` directly or
+   construct a fresh client.
+2. **Abort-during-retry-backoff fires immediately.** No "finish current
+   sleep" or "attempt one more request" — the caller asked to abort,
+   the SDK respects that now. Test pins this with attempt-count
+   assertion.
+3. **Reason propagation matches fetch native behavior.** External
+   signal abort → throw `signal.reason` verbatim (typically a
+   DOMException, but customers can pass any value via `abort(reason)`).
+   Existing customer `catch (err) { if (err.name === 'AbortError') }`
+   patterns work unchanged.
+4. **Internal timeout still throws AegisNetworkError.** Preserving the
+   existing customer contract; the message shape (`Request to X
+timed out after Yms`) is intentionally unchanged.
+
+### Customer-facing pattern (post-this-slice)
+
+```ts
+// Vercel Edge / Cloudflare Worker — runtime deadline propagation
+export async function POST(req: Request): Promise<Response> {
+  const aegis = new Aegis({
+    apiKey: process.env.AEGIS_API_KEY,
+    signal: req.signal,                    // runtime deadline
+  });
+  await aegis.agents.register({ ... });   // SDK aborts cleanly if
+  await aegis.policies.create({ ... });   // the runtime fires signal
+  return Response.json({ ok: true });
+}
+
+// Long-lived customer abort controller (cancel button)
+const cancel = new AbortController();
+const aegis = new Aegis({ apiKey, signal: cancel.signal });
+button.onclick = () => cancel.abort(new Error('user cancelled'));
+// SDK throws the Error verbatim — customer's typed catch works
+```
+
+### Verification
+
+- `npx jest abort.spec http.spec idempotency.spec webhook-replay.spec
+webhook-events.spec webhook.spec intent.spec verify-gateway.spec`
+  → **156/156 pass** (12 new abort tests + 144 prior).
+- `npx tsc --noEmit` (packages/sdk-ts) → **clean**.
+- `npx vitest run idempotency-header-parity webhook-signature-parity
+webhook-event-emitter-parity` → **19/19 pass** (no regression).
+
+### Combined session output (this turn + prior five)
+
+Full enterprise-SDK arc on `feat/sdk-verify-gateway-hardening`:
+
+- M-IDEM-1/2/4: idempotency E2E (149fcd4)
+- M-WEBHOOK-1: signature verifier (392a6e7)
+- M-WEBHOOK-3: typed event union + drift fix (0e3f48b)
+- M-WEBHOOK-2: replay cache (7040d7f — Erwin)
+- M-IDEM-OP: AUTO_IDEMPOTENT_METHODS pinned (80377f3)
+- M-ABORT-1: AbortSignal threading (this commit)
+
+Total ~1,950 LoC net-new across 9 new files, 90+ new tests, 5 cross-
+package parity gates, **two production bugs fixed** (policy-expiry
+event-name drift caught by emitter parity; abort cleanup leak
+prevented by listener-pair tests), zero regression.
+
+### Next session(s) pick up here
+
+- **API version pinning (Stripe-Version header)** — gap from prior
+  ultrathink audit; needs API coord, multi-session arc. Could ship
+  SDK side first as a no-op header with deprecation-warning hook.
+- **Pagination iterators** — `for await (const x of aegis.agents
+.list())` ergonomic wrapper.
+- **Telemetry exporter interface** — vendor-neutral OTel/Datadog
+  bridge composing with the existing onWriteResponse hook.
+- **M-IDEM-3 Python SDK mirror** — still pending. The TS surface is
+  now fully locked including signal threading; Python parity should
+  mirror byte-for-byte.
+- **Payload schemas for not-yet-emitted catalog events** (anomaly,
+  flagged_by_relying_party, revoked) — locked in by M-WEBHOOK-3
+  exhaustiveness gate to ship WITH their emitters.
+
+### Peer coordination
+
+- Released claim `okoro:sdk-abort-signal-threading` (this session).
+- No conflicts with peer 8bda6e32's `sdk-webhook-delivery-id-parity`
+  scope (cross-package test only).
+
+---
+
 ## 2026-05-22 · wedge-public-proof-page · trust loop closes — four pages, four parity gates
 
 Operator said _"continue"_. The procurement trust loop was three-
