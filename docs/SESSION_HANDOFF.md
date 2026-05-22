@@ -5,6 +5,154 @@
 
 ---
 
+## 2026-05-22 · sdk-py-webhook-replay · M-WEBHOOK-2-py — Python replay defense + TS↔Py behavioral parity gate
+
+Same session as M-WEBHOOK-1-py (commit 4f20586). Operator said
+_"continue"_. Picked the next Python parity slice: replay defense
+mirroring my own TS commit 7040d7f. Composes with the just-shipped
+M-WEBHOOK-1-py to give Python customers the full verify+dedupe recipe,
+not just signature verification.
+
+### Design tension resolved — async/sync interface tolerance
+
+The TS interface uses `Promise<T> | T` because JavaScript awaits plain
+values transparently. Python doesn't — `await 'first-sight'` raises
+TypeError. Three options for the Py mirror:
+
+1. Sync-only `record_or_replay`: locks out Redis (async). Friction.
+2. Async-only: customers paying asyncio tax for an in-memory dict.
+3. Either, with `inspect.isawaitable` discriminator in the helper.
+
+Picked (3) — `WebhookReplayStore.record_or_replay` may return EITHER
+the literal directly (in-memory) OR an Awaitable (aioredis).
+`assert_not_replay` is async and checks `inspect.isawaitable` to await
+only when needed. Customers in sync code use
+`asyncio.run(assert_not_replay(...))` — same dual-mode pattern as
+`Aegis`/`AsyncAegis`. Mirrors TS's sync-or-async tolerance most
+faithfully and aligns with the Py SDK's existing discipline.
+
+### What shipped (3 files, ~720 LoC, 17 + 7 = 24 passing tests)
+
+- `packages/sdk-py/aegis/webhook_replay.py` (new):
+  - `WebhookReplayDetectedError(AegisError)` — code
+    `WEBHOOK_REPLAY_DETECTED`, status 409, carries `delivery_id`.
+  - `WebhookReplayStore` runtime-checkable Protocol — atomic
+    `record_or_replay(delivery_id, ttl_seconds) -> ReplayVerdict
+| Awaitable[ReplayVerdict]`.
+  - `_MemoryReplayStore` class — bounded LRU + per-entry TTL.
+    Insertion-order eviction via Python `dict` (CPython 3.7+ language
+    guarantee, matches JS Map iteration order this mirrors). **Does
+    NOT refresh LRU position on a replay hit** (security property —
+    attacker re-attempting cannot hold a slot indefinitely).
+  - `create_memory_replay_store(*, max_entries, now)` factory
+    returning the Protocol type (so customers swapping to Redis later
+    don't need to import the concrete class).
+  - `assert_not_replay(*, store, delivery_id, ttl_seconds)` async
+    helper with `inspect.isawaitable` discriminator.
+  - `DEFAULT_REPLAY_TTL_SECONDS = 86_400` — operator-pinned, locked
+    across TS and Py.
+  - Zero new dependencies; stdlib-only (`inspect`, `time`,
+    `collections.abc`, `typing`).
+- `packages/sdk-py/tests/test_webhook_replay.py` (new, **17
+  passing**): test-for-test mirror of `webhook-replay.spec.ts`
+  including the operator-added atomicity stampede coverage:
+  100 concurrent calls → exactly 1 first-sight + 99 replays;
+  50 different ids all return first-sight independently;
+  `assert_not_replay` stampede yields exactly 1 success out of 20.
+  Plus a Protocol-conformance test asserting `isinstance(store,
+WebhookReplayStore)` holds at runtime.
+- `tests/cross-package/sdk-ts-py-webhook-replay-parity.spec.ts`
+  (new, **7 passing**): the enterprise-quality piece. Unlike the
+  signature gate (byte-equivalence — same HMAC hex from same inputs),
+  the replay store has separate state on each side by design, so the
+  parity gate locks BEHAVIORAL equivalence: given the same canonical
+  scenario, both SDKs produce identical verdict sequences. Seven tests:
+  - `DEFAULT_REPLAY_TTL_SECONDS = 86_400` on both sides.
+  - First-sight/replay/replay verdict sequence identical.
+  - LRU eviction — replay does NOT refresh position (the security
+    property locked across both languages).
+  - maxEntries cap — oldest-first eviction identical.
+  - TTL expiry boundary — same eviction window (exactly at
+    `expiresAt <= currentTime`).
+  - Stampede atomicity — both sides yield 1 first-sight + 99 replays
+    in 100 concurrent calls (TS via `Promise.all`, Py via
+    `asyncio.gather`).
+  - `WebhookReplayDetectedError` shape — code/status/delivery_id
+    parity asserted via JSON-round-tripping the captured attributes.
+- `packages/sdk-py/aegis/__init__.py`: barrel exports — 6 new symbols
+  added to `__all__`.
+
+### M-WEBHOOK arc — Python parity status update
+
+After this commit, the Python SDK covers two of the three M-WEBHOOK
+primitives (with cross-language parity gates for both):
+
+| Primitive             | TS                          | Py                     | Cross-lang gate                              |
+| --------------------- | --------------------------- | ---------------------- | -------------------------------------------- |
+| M-WEBHOOK-1 (sign)    | webhook.ts                  | webhook.py             | sdk-ts-py-webhook-signature-parity.spec.ts   |
+| M-WEBHOOK-2 (dedupe)  | webhook-replay.ts           | webhook_replay.py ★    | sdk-ts-py-webhook-replay-parity.spec.ts ★    |
+| M-WEBHOOK-3 (narrow)  | webhook-events.ts           | (pending)              | (pending)                                    |
+
+★ = this commit. M-WEBHOOK-3-py is the only remaining slice to fully
+close the TS↔Py parity gap on the webhook arc.
+
+### Verification
+
+- `cd packages/sdk-py && python3 -m pytest` → 184/184 (was 167;
+  +17 new from test_webhook_replay.py). Zero regressions.
+- `python3 -m mypy --strict --follow-imports=silent aegis/webhook_replay.py`
+  → 0 issues.
+- `python3 -m ruff check aegis/webhook_replay.py tests/test_webhook_replay.py`
+  → all checks passed (4 fixes auto-applied for import-order +
+  spacing — matches Py SDK existing style).
+- `pnpm test:parity` → 37/37 files (+1), 391/391 tests (+7 this
+  commit). No regressions in any of the existing 36 gates.
+
+### Customer-facing Python recipe (after M-WEBHOOK-1-py + this commit)
+
+```python
+import asyncio
+from aegis import (
+    verify_webhook_signature,
+    assert_not_replay,
+    create_memory_replay_store,
+)
+
+# Use create_memory_replay_store() for single-process receivers.
+# For Django/FastAPI behind a load balancer with > 1 pod, supply a
+# Redis-backed WebhookReplayStore (~5-line aioredis adapter).
+replay_store = create_memory_replay_store(max_entries=50_000)
+
+async def webhook_handler(request):
+    body = (await request.body()).decode()
+    sig = request.headers["X-AEGIS-Signature"]
+    delivery_id = request.headers["X-AEGIS-Delivery-Id"]
+    secret = os.environ["AEGIS_WEBHOOK_SECRET"]
+
+    verify_webhook_signature(payload=body, signature=sig, secret=secret)
+    await assert_not_replay(
+        store=replay_store, delivery_id=delivery_id, ttl_seconds=86_400
+    )
+    # ...process the verified, deduped event...
+```
+
+### Remaining Py-side slices (next sessions)
+
+1. **M-WEBHOOK-3-py** — typed event union mirroring TS `webhook-events.ts`.
+   `Literal[...]` over `WEBHOOK_EVENT` catalog (already in
+   `_shared_constants_generated.py`), `interpret_webhook_event`
+   runtime check, exhaustiveness via mypy `assert_never`. ~250 LoC
+   plus cross-language parity gate covering: same catalog values on
+   both sides, same `WebhookEventParseError` shape, same handling of
+   unknown event names.
+2. **M-IDEM-3** — Python idempotency-key surface. Longest-pending.
+   The TS surface has the `AUTO_IDEMPOTENT_METHODS` table operator-
+   pinned (commit 80377f3) plus header parsing + the
+   `OnWriteResponse` hook. ~600 LoC and touches `aegis/_http.py` so
+   needs coordination with any peer working on the http client.
+
+---
+
 ## 2026-05-22 · sdk-api-version-pinning · M-VERSION-1 — Stripe-shape forward-compat scaffold
 
 Operator asked _"continue"_ after M-PAGINATE-1. Picked API version

@@ -67,6 +67,14 @@ from .webhook import (
     WebhookTimestampError,
     verify_webhook_signature,
 )
+from .webhook_replay import (
+    DEFAULT_REPLAY_TTL_SECONDS,
+    ReplayVerdict,
+    WebhookReplayDetectedError,
+    WebhookReplayStore,
+    assert_not_replay,
+    create_memory_replay_store,
+)
 from .models import (
     AgentPolicy,
     AgentRecord,
@@ -158,6 +166,12 @@ __all__ = [
     "WebhookSignatureMalformedError",
     "WebhookTimestampError",
     "verify_webhook_signature",
+    "DEFAULT_REPLAY_TTL_SECONDS",
+    "ReplayVerdict",
+    "WebhookReplayDetectedError",
+    "WebhookReplayStore",
+    "assert_not_replay",
+    "create_memory_replay_store",
     "__version__",
     "b64u_decode",
     "b64u_encode",
