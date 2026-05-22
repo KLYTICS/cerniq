@@ -5,6 +5,144 @@
 
 ---
 
+## 2026-05-22 · sdk-webhook-signature-verifier · M-WEBHOOK-1 ships SDK helper for HMAC verify
+
+Operator asked _"continue ultrathink"_ on the enterprise-quality SDK
+arc. Audited gap surface across SDK + API; webhook signature
+verification was the highest-leverage net-new slice: the API has
+shipped HMAC-signed webhooks since M-008, but customers receiving them
+had no SDK helper — every integration hand-rolls HMAC verify, which is
+the #1 source of webhook-SDK CVEs (non-constant-time compare,
+missing timestamp tolerance, loose signature parsing). Claimed
+`okoro:sdk-webhook-signature-verifier`. No peer overlap.
+
+### What shipped (uncommitted on feat branch, ~430 LoC net-new)
+
+- `packages/sdk-ts/src/webhook.ts` (new, ~250 lines):
+  `verifyWebhookSignature(opts)` async helper using WebCrypto
+  `crypto.subtle.verify` (constant-time HMAC verify by construction);
+  Stripe-shape `t=<unix-ts>,v1=<hmac-sha256-hex>` parser with multiple
+  `v1=` support for key rotation forward-compat; ordered defense
+  (parse → timestamp tolerance → HMAC verify — timestamp first to
+  reject obvious replays without HMAC computation cost); three typed
+  errors (`AegisWebhookSignatureMalformedError`,
+  `AegisWebhookSignatureInvalidError`, `AegisWebhookTimestampError`
+  carrying signature/received timestamps for forensics); wire-header
+  constants matching `apps/api/src/modules/webhooks/webhook.delivery.
+ts:353-356`. Zero Node-only imports — runs unchanged in browsers, edge,
+  Workers, Bun, Deno per CLAUDE.md invariant #8.
+- `packages/sdk-ts/src/webhook.spec.ts` (new, ~270 lines, **25
+  passing**): happy path + skew reporting; wrong-secret/wrong-
+  payload/timestamp-swap rejection; malformed header coverage
+  (missing `t=`, missing `v1=`, non-hex, non-integer ts, negative ts,
+  unknown segments ignored for forward-compat); key rotation (accept
+  on first OR second `v1=` match, reject when none); timestamp
+  tolerance (stale + future, narrower override, `Infinity` to disable,
+  **order-of-operations assertion** that timestamp check precedes
+  HMAC); header-constant lock; pinned-default lock.
+- `tests/cross-package/webhook-signature-parity.spec.ts` (new,
+  ~115 lines, **8 passing**): end-to-end SDK-verifies-API-signed
+  payload; regex-parses `webhook.delivery.ts` to lock the signing
+  template (`${ts}.${body}`), algorithm (`sha256`), encoding (`hex`),
+  output shape (`t=${ts},v1=${h}`); mutation-detection round-trips
+  (colon-separator rejected, SHA-512 rejected) ensure future
+  refactors break this test before breaking customers.
+- `packages/sdk-ts/src/index.ts`: barrel exports for the 7 public
+  webhook surface members.
+
+### Operator decision recorded (DEFAULT_TOLERANCE_SECONDS)
+
+Pinned at **300s (Stripe-default)** per operator confirmation at the
+AskUserQuestion checkpoint. Rationale captured in the source-of-truth
+JSDoc block on the constant:
+
+- Industry default; matches what most receivers expect from their
+  webhook tooling.
+- Balances replay defense against delivery jitter from the BullMQ
+  exponential-backoff retry schedule.
+- Tighter values (60s) reject legitimate retries and fire false
+  security alerts.
+- Looser values (900s) double the replay attack surface for marginal
+  delivery-reliability gain.
+
+Customers can override per-call via `toleranceSeconds`. Changing this
+default is part of the customer-observable contract and must move
+together with the SDK CHANGELOG.
+
+### Customer-facing pattern (post-this-slice)
+
+```ts
+import { verifyWebhookSignature } from '@aegis/sdk';
+
+app.post('/webhooks/aegis', async (req, res) => {
+  const body = await req.text(); // CRITICAL: raw body, not parsed JSON
+  const sig = req.headers.get('X-AEGIS-Signature');
+  try {
+    const { timestamp, skewSeconds } = await verifyWebhookSignature({
+      payload: body,
+      signature: sig!,
+      secret: process.env.AEGIS_WEBHOOK_SECRET!,
+    });
+    metrics.histogram('webhook.skew_seconds', skewSeconds);
+    // ... safe to parse body and route by X-AEGIS-Event ...
+    res.status(200).end();
+  } catch (err) {
+    if (err instanceof AegisWebhookTimestampError) return res.status(400).end();
+    if (err instanceof AegisWebhookSignatureInvalidError) return res.status(401).end();
+    if (err instanceof AegisWebhookSignatureMalformedError) return res.status(400).end();
+    throw err;
+  }
+});
+```
+
+### Verification
+
+- `npx jest webhook.spec idempotency.spec http.spec intent.spec
+verify-gateway.spec` → **106/106 pass** (25 webhook + 27 idempotency
+  + 54 prior).
+- `npx tsc --noEmit` (packages/sdk-ts) → **clean**.
+- `npx vitest run idempotency-header-parity webhook-signature-parity`
+  → **16/16 pass**.
+
+### Combined session output (this turn + prior two)
+
+The full enterprise-SDK arc on `feat/sdk-verify-gateway-hardening` now
+includes:
+
+- M-IDEM-1: SDK auto-attach policy (Idempotency-Key)
+- M-IDEM-2: response-side replay observability hook
+- M-IDEM-4: idempotency header parity gate
+- M-WEBHOOK-1: webhook signature verifier (this slice)
+
+Total: ~1,020 LoC net-new across 6 new files, 60+ new tests, four
+cross-package parity assertions locking the wire contract, zero
+regression in any prior surface.
+
+### Next session(s) pick up here
+
+- **M-WEBHOOK-2 (replay-cache helper)**: ship an optional
+  `InMemoryWebhookReplayCache` and `RedisWebhookReplayCache` adapter
+  that dedupes on `X-AEGIS-Delivery-Id` within the tolerance window.
+  Today customers have to build this themselves; an SDK adapter
+  closes the loop on at-most-once delivery semantics.
+- **M-WEBHOOK-3 (typed event union)**: generate a discriminated-union
+  type for the webhook event payloads (mirror of `VerifyOutcome`
+  pattern) so customers get exhaustiveness checking on
+  `switch (event.event)`. Sourced from the `WEBHOOK_EVENT` catalog
+  in `@aegis/types`.
+- **M-IDEM-3 (Python SDK mirror)**: still pending — port idempotency
+  + webhook helpers to `packages/sdk-py/`.
+- **M-IDEM-5 (built-in metrics on Aegis instance)**: still pending.
+
+### Peer coordination
+
+- Active claim `okoro:sdk-webhook-signature-verifier` (this session) —
+  auto-expires after 7200s TTL.
+- No peer overlap on touched files. The wedge-public-principles-page
+  peer landed 2 commits in parallel; my files are entirely separate.
+
+---
+
 ## 2026-05-22 · wedge-public-principles-page · refuse-to-build register goes public (2 commits)
 
 Operator said _"as you see fit enterprise quality scaffolded thinking

@@ -117,4 +117,15 @@ export type {
   ReplayMetadata,
   WriteResponseInfo,
 } from './idempotency.js';
+export {
+  AegisWebhookSignatureInvalidError,
+  AegisWebhookSignatureMalformedError,
+  AegisWebhookTimestampError,
+  DEFAULT_TOLERANCE_SECONDS,
+  WEBHOOK_DELIVERY_ID_HEADER,
+  WEBHOOK_EVENT_HEADER,
+  WEBHOOK_SIGNATURE_HEADER,
+  verifyWebhookSignature,
+} from './webhook.js';
+export type { VerifiedWebhook, VerifyWebhookOptions } from './webhook.js';
 export type * from './types.js';
