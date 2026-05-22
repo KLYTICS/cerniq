@@ -1,7 +1,8 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { ulid } from 'ulid';
 
+import { CorrelationContext } from '../correlation/correlation.context.js';
 import { AegisError } from '../errors/aegis-error.js';
 import { getCatalogEntry, getInternalFallback, type ErrorCatalogEntry } from '../errors/error-catalog.js';
 
@@ -32,9 +33,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse<Response>();
-    const req = ctx.getRequest<Request>();
 
-    const requestId = (req.headers['x-request-id'] as string | undefined) ?? ulid();
+    // CorrelationMiddleware is mounted before the global guard and already
+    // sanitized any inbound `X-Request-Id` (rejecting untrusted bytes /
+    // oversize payloads) and minted a fresh `tx_<ulid>` otherwise. Trust
+    // that value; reading `req.headers['x-request-id']` here would echo
+    // the original untrusted bytes back into the response envelope and
+    // header, undoing the middleware's sanitization.
+    const requestId = CorrelationContext.current()?.txId ?? `tx_${ulid()}`;
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let error = 'INTERNAL_SERVER_ERROR';

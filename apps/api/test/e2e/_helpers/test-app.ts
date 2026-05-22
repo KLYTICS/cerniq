@@ -4,7 +4,7 @@
 
 import { randomBytes } from 'node:crypto';
 
-import { RequestMethod, ValidationPipe, VersioningType, type INestApplication } from '@nestjs/common';
+import { ValidationPipe, VersioningType, type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import helmet from 'helmet';
 import type request from 'supertest';
@@ -69,12 +69,11 @@ export async function createTestApp(): Promise<TestAppHandle> {
   const app = moduleRef.createNestApplication({ bufferLogs: true, rawBody: true });
 
   app.use(helmet());
-  app.setGlobalPrefix('v1', {
-    exclude: [
-      { path: '/', method: RequestMethod.ALL },
-      { path: '.well-known/(.*)', method: RequestMethod.ALL },
-    ],
-  });
+  // URI versioning is the single source of `/v1/` — mirrors main.ts. An
+  // earlier revision of this helper also called `setGlobalPrefix('v1')`,
+  // which stacked with versioning and produced `/v1/v1/...` mounts, so
+  // every test that hit `/v1/...` was a 404. Keep these in lockstep with
+  // src/main.ts.
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
   app.useGlobalPipes(
     new ValidationPipe({
