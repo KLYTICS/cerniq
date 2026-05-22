@@ -57,7 +57,8 @@ describe('WorkOsAdapter.verifyAccessToken', () => {
   it('returns null when session is expired', async () => {
     const a = build(fakeWorkos({
       authResponse: {
-        user: { id: 'u', email: 'a@b.co', emailVerified: true },
+        user: { id: 'u', email: 'a@b.co', emailVerified: true, organizationId: 'org' },
+        organizationId: 'org',
         sessionId: 's', expiresAt: Math.floor(Date.now() / 1000) - 60, // already expired
       },
     }));
@@ -75,16 +76,69 @@ describe('WorkOsAdapter.verifyAccessToken', () => {
     expect(workos.authenticateSession).not.toHaveBeenCalled(); // cache hit short-circuited
   });
 
-  it('handles missing organizationId by setting idpDomain to ""', async () => {
+  it('rejects session when organizationId is missing (no silent fabrication)', async () => {
+    // Prior behavior: idpOrganizationId would be coerced to "" → tenant
+    // collision risk across orgs without an organizationId. New behavior
+    // (operator-chosen strict design): reject the session entirely.
     const a = build(fakeWorkos({
       authResponse: {
         user: { id: 'u', email: 'a@b.co', emailVerified: true },
         sessionId: 's', expiresAt: Math.floor(Date.now() / 1000) + 3600,
       },
     }));
+    expect(await a.verifyAccessToken('any')).toBeNull();
+  });
+
+  it('rejects session when user.id is empty', async () => {
+    const a = build(fakeWorkos({
+      authResponse: {
+        user: { id: '', email: 'a@b.co', emailVerified: true, organizationId: 'org_1' },
+        organizationId: 'org_1',
+        sessionId: 's', expiresAt: Math.floor(Date.now() / 1000) + 3600,
+      },
+    }));
+    expect(await a.verifyAccessToken('any')).toBeNull();
+  });
+
+  it('rejects session when user.email is empty', async () => {
+    const a = build(fakeWorkos({
+      authResponse: {
+        user: { id: 'u', email: '', emailVerified: true, organizationId: 'org_1' },
+        organizationId: 'org_1',
+        sessionId: 's', expiresAt: Math.floor(Date.now() / 1000) + 3600,
+      },
+    }));
+    expect(await a.verifyAccessToken('any')).toBeNull();
+  });
+
+  it('allows empty idpDomain when org exists but has no verified domain', async () => {
+    // A WorkOS Organization may legitimately exist without a verified
+    // domain (invite-only orgs). idpDomain is allowed to be "" in that
+    // case; only required identity fields strict-reject.
+    const a = build(fakeWorkos({
+      authResponse: {
+        user: { id: 'u', email: 'a@b.co', emailVerified: true, organizationId: 'org_1' },
+        organizationId: 'org_1',
+        sessionId: 's', expiresAt: Math.floor(Date.now() / 1000) + 3600,
+      },
+      org: { id: 'org_1', name: 'Acme', domains: [] },
+    }));
     const r = await a.verifyAccessToken('any');
-    expect(r?.idpOrganizationId).toBe('');
+    expect(r).not.toBeNull();
+    expect(r?.idpOrganizationId).toBe('org_1');
     expect(r?.idpDomain).toBe('');
+  });
+
+  it('sets name to null when both firstName and lastName are absent', async () => {
+    const a = build(fakeWorkos({
+      authResponse: {
+        user: { id: 'u', email: 'a@b.co', emailVerified: true, organizationId: 'org_1' },
+        organizationId: 'org_1',
+        sessionId: 's', expiresAt: Math.floor(Date.now() / 1000) + 3600,
+      },
+    }));
+    const r = await a.verifyAccessToken('any');
+    expect(r?.name).toBeNull();
   });
 });
 

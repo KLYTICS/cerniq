@@ -13,6 +13,12 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { AppConfigService } from '../../config/config.service';
 
+import {
+  extractStringArray,
+  isMfaSatisfied,
+  optionalStringClaim,
+  requireStringClaim,
+} from './idp-claim-validators';
 import type { IdpAdapter, IdpUser } from './idp.adapter';
 
 const ALLOWED_ALGS = new Set(['RS256', 'RS384', 'RS512']); // Auth0 default; EdDSA when GA.
@@ -73,23 +79,56 @@ export class Auth0Adapter implements IdpAdapter {
     const algoOid = header.alg === 'RS512' ? 'RSA-SHA512' : header.alg === 'RS384' ? 'RSA-SHA384' : 'RSA-SHA256';
     if (!verifyAsymmetric(algoOid, data, pubKey, sig)) return null;
 
+    // Strict-validation of required claims. Per root CLAUDE.md invariant
+    // 4 ("No silent failures and no fabricated data"), a wrong-type or
+    // empty required claim rejects the token outright — never coerce to
+    // an empty string and register a tenant-collision-prone identity.
+    //
+    // Logs are intentionally structured-context-only: the field name and
+    // its observed JS type are recorded, but the claim *value* is never
+    // logged (it may be user-identifying).
+    const idpUserId = requireStringClaim(claims, 'sub');
+    if (idpUserId === null) {
+      this.logger.warn(
+        `auth0_jwt_rejected reason=missing_required_claim claim=sub claimType=${typeof claims.sub}`,
+      );
+      return null;
+    }
+    // Auth0 puts the active-org id at `org_id` (new Organizations API) or
+    // at `organization` (legacy custom claim). Either is acceptable.
+    const idpOrganizationId =
+      requireStringClaim(claims, 'org_id') ??
+      requireStringClaim(claims, 'organization');
+    if (idpOrganizationId === null) {
+      this.logger.warn(
+        `auth0_jwt_rejected reason=missing_required_claim claim=org_id claimType=${typeof claims.org_id}`,
+      );
+      return null;
+    }
+    const idpDomain = requireStringClaim(claims, 'https://aegis.dev/domain');
+    if (idpDomain === null) {
+      this.logger.warn(
+        `auth0_jwt_rejected reason=missing_required_claim claim=https://aegis.dev/domain claimType=${typeof claims['https://aegis.dev/domain']}`,
+      );
+      return null;
+    }
+    const email = requireStringClaim(claims, 'email');
+    if (email === null) {
+      this.logger.warn(
+        `auth0_jwt_rejected reason=missing_required_claim claim=email claimType=${typeof claims.email}`,
+      );
+      return null;
+    }
+
     return {
-      idpUserId: typeof claims.sub === 'string' ? claims.sub : '',
-      idpOrganizationId:
-        typeof claims.org_id === 'string'
-          ? claims.org_id
-          : typeof claims.organization === 'string'
-            ? claims.organization
-            : '',
-      idpDomain:
-        typeof claims['https://aegis.dev/domain'] === 'string'
-          ? claims['https://aegis.dev/domain']
-          : '',
-      email: typeof claims.email === 'string' ? claims.email : '',
+      idpUserId,
+      idpOrganizationId,
+      idpDomain,
+      email,
       emailVerified: Boolean(claims.email_verified),
-      name: typeof claims.name === 'string' ? claims.name : null,
-      roles: Array.isArray(claims['https://aegis.dev/roles']) ? (claims['https://aegis.dev/roles'] as string[]) : [],
-      mfaSatisfied: Array.isArray(claims.amr) && (claims.amr as string[]).includes('mfa'),
+      name: optionalStringClaim(claims, 'name'),
+      roles: extractStringArray(claims['https://aegis.dev/roles']),
+      mfaSatisfied: isMfaSatisfied(claims),
       rawClaims: claims,
     };
   }
