@@ -52,6 +52,38 @@ describe('AuditChainUtil', () => {
     expect(got).toBe(want);
   });
 
+  // Gap 2 from PR #38 post-merge audit. The overload signatures on hashLeaf
+  // (audit-chain.util.ts ~line 123) encode the "absent vs. present-but-empty"
+  // v2 invariant in the type system:
+  //   - definitely-non-nullish input  → return type is `string` (no null)
+  //   - definitely-null/undefined     → return type is `null`
+  //   - the impl signature is `string | null` (catches mixed input)
+  // The narrow overloads matter for ADR-0006 redact-row callers that pass
+  // a schema-default `''` and need to avoid `!`-assertions or `?? ''`
+  // crutches downstream. This is primarily a *compile-time* regression test:
+  // if a future refactor drops the narrow overloads, the typed assignments
+  // below stop compiling because the impl signature returns `string | null`.
+  // Runtime asserts mirror the type expectations so a behaviour regression
+  // (returning null for `''`, say) also fails loudly.
+  it('hashLeaf overload narrows to string for non-nullish input (type regression)', () => {
+    // Compile-time: the explicit `: string` annotation requires the string
+    // overload to exist and return `string`, not `string | null`.
+    const fromEmpty: string = util.hashLeaf('');
+    const fromText: string = util.hashLeaf('hello');
+    const fromObject: string = util.hashLeaf({ a: 1, b: 2 });
+    // Compile-time: the explicit `: null` annotations require the
+    // null/undefined overload to exist and return `null`, not `string | null`.
+    const fromNull: null = util.hashLeaf(null);
+    const fromUndef: null = util.hashLeaf(undefined);
+
+    // Runtime mirrors of the same expectations.
+    expect(typeof fromEmpty).toBe('string');
+    expect(typeof fromText).toBe('string');
+    expect(typeof fromObject).toBe('string');
+    expect(fromNull).toBeNull();
+    expect(fromUndef).toBeNull();
+  });
+
   it('buildPayload commits to v=2 and produces matching rawHashes', () => {
     const built = util.buildPayload(baseInput());
     expect(built.signed.v).toBe(2);
@@ -82,7 +114,12 @@ describe('AuditChainUtil', () => {
     const pub = await ed.getPublicKeyAsync(priv);
     const pubB64 = encodeBase64Url(pub);
 
-    const first = { eventId: 'evt_1', prevEventId: null, prevSignatureB64Url: null, payload: samplePayload() };
+    const first = {
+      eventId: 'evt_1',
+      prevEventId: null,
+      prevSignatureB64Url: null,
+      payload: samplePayload(),
+    };
     const sig1 = await util.sign(first, priv);
 
     const second = {
@@ -101,7 +138,12 @@ describe('AuditChainUtil', () => {
     const pub = await ed.getPublicKeyAsync(priv);
     const pubB64 = encodeBase64Url(pub);
 
-    const input = { eventId: 'evt_1', prevEventId: null, prevSignatureB64Url: null, payload: samplePayload() };
+    const input = {
+      eventId: 'evt_1',
+      prevEventId: null,
+      prevSignatureB64Url: null,
+      payload: samplePayload(),
+    };
     const sig = await util.sign(input, priv);
 
     const tampered = {
@@ -116,7 +158,12 @@ describe('AuditChainUtil', () => {
     const pub = await ed.getPublicKeyAsync(priv);
     const pubB64 = encodeBase64Url(pub);
 
-    const first = { eventId: 'evt_1', prevEventId: null, prevSignatureB64Url: null, payload: samplePayload() };
+    const first = {
+      eventId: 'evt_1',
+      prevEventId: null,
+      prevSignatureB64Url: null,
+      payload: samplePayload(),
+    };
     const sig1 = await util.sign(first, priv);
 
     const second = {

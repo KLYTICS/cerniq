@@ -14,7 +14,9 @@ function buildConfig(overrides: Partial<{ priv: string; pub: string; isProd: boo
 }
 
 describe('AuditSignerService', () => {
-  beforeEach(() => { __resetKmsForTests(); });
+  beforeEach(() => {
+    __resetKmsForTests();
+  });
 
   it('uses KMS-backed signing when an adapter is registered', async () => {
     const adapter = new InMemoryKmsAdapter();
@@ -33,7 +35,9 @@ describe('AuditSignerService', () => {
 
     const svc = new AuditSignerService(buildConfig() as never, new Ed25519Util());
     await svc.init();
-    const { signatureB64Url, kid } = await svc.signChainMessage(new TextEncoder().encode('audit-msg'));
+    const { signatureB64Url, kid } = await svc.signChainMessage(
+      new TextEncoder().encode('audit-msg'),
+    );
     expect(kid).toBe('kid-test-aws');
     expect(signatureB64Url).toMatch(/^[A-Za-z0-9_-]+$/);
 
@@ -91,5 +95,29 @@ describe('AuditSignerService', () => {
     // "destroy + re-init resets the chain.")
     await expect(svc.signChainMessage(new TextEncoder().encode('x'))).resolves.toBeDefined();
     // After destroy then re-init, fresh resolved is built.
+  });
+
+  // Gap 2 from PR #38 post-merge audit. The defensive guard in
+  // ensureResolved() (audit-signer.service.ts ~line 140):
+  //   if (!this.resolved) throw new Error('AuditSignerService: init did not produce a resolved signer.');
+  // is reachable in real failure modes (broken init implementation, swapped
+  // adapter that no-ops, race during onModuleDestroy + concurrent sign).
+  // Without this test, a future refactor could silently drop the guard and
+  // produce a TypeError-from-undefined instead of the named, doctrine-
+  // compliant error. The audit explicitly called this out as a Quality-bar
+  // violation: "Crypto, auth, billing, policy, audit, and tenant-boundary
+  // changes require paired tests in the same change."
+  it('throws defensive error when init does not produce a resolved signer', async () => {
+    const svc = new AuditSignerService(buildConfig() as never, new Ed25519Util());
+    // Force init() to be a no-op so this.resolved stays undefined when
+    // ensureResolved() is reached. We're testing the second `if (!this.resolved)`
+    // check inside ensureResolved, not the first — the first triggers init(),
+    // and we're simulating the case where init runs but leaves resolved unset.
+    jest.spyOn(svc, 'init').mockImplementation(async () => {
+      /* no-op */
+    });
+    await expect(svc.signChainMessage(new TextEncoder().encode('m'))).rejects.toThrow(
+      /init did not produce a resolved signer/i,
+    );
   });
 });

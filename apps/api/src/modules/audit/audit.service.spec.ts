@@ -100,7 +100,9 @@ function makeEd25519(): jest.Mocked<Ed25519Util> {
   };
 }
 
-function makeConfig(): jest.Mocked<Pick<AppConfigService, 'auditEd25519PrivateB64' | 'auditEd25519PublicB64' | 'nodeEnv'>> {
+function makeConfig(): jest.Mocked<
+  Pick<AppConfigService, 'auditEd25519PrivateB64' | 'auditEd25519PublicB64' | 'nodeEnv'>
+> {
   // No env keys → will use ephemeral key (fine for tests; not production)
   return {
     auditEd25519PrivateB64: undefined,
@@ -114,20 +116,32 @@ function makeConfig(): jest.Mocked<Pick<AppConfigService, 'auditEd25519PrivateB6
  * The `$transaction` mock calls the callback with a tx stub whose
  * `auditEvent.create` pushes into the same array as the outer queries.
  */
-function makePrisma(initialEvents: AuditEventRow[] = [], agents: { id: string; principalId: string }[] = []) {
+function makePrisma(
+  initialEvents: AuditEventRow[] = [],
+  agents: { id: string; principalId: string }[] = [],
+) {
   const events: AuditEventRow[] = [...initialEvents];
 
   // The tx stub used inside $transaction callbacks
   const txStub = {
     $executeRaw: jest.fn().mockResolvedValue(undefined),
     auditEvent: {
-      findFirst: jest.fn(async ({ where }: { where: { agentId?: string | null; principalId?: string } & Record<string, unknown> }) => {
-        return events.find((e) => {
-          if (where.agentId !== undefined && e.agentId !== where.agentId) return false;
-          if (where.principalId !== undefined && e.principalId !== where.principalId) return false;
-          return true;
-        }) ?? null;
-      }),
+      findFirst: jest.fn(
+        async ({
+          where,
+        }: {
+          where: { agentId?: string | null; principalId?: string } & Record<string, unknown>;
+        }) => {
+          return (
+            events.find((e) => {
+              if (where.agentId !== undefined && e.agentId !== where.agentId) return false;
+              if (where.principalId !== undefined && e.principalId !== where.principalId)
+                return false;
+              return true;
+            }) ?? null
+          );
+        },
+      ),
       create: jest.fn(async ({ data }: { data: Partial<AuditEventRow> & { id: string } }) => {
         const row: AuditEventRow = {
           id: data.id,
@@ -169,52 +183,74 @@ function makePrisma(initialEvents: AuditEventRow[] = [], agents: { id: string; p
     }),
     agentIdentity: {
       findFirst: jest.fn(async ({ where }: { where: { id?: string; principalId?: string } }) => {
-        return agents.find(
-          (a) =>
-            (!where.id || a.id === where.id) &&
-            (!where.principalId || a.principalId === where.principalId),
-        ) ?? null;
+        return (
+          agents.find(
+            (a) =>
+              (!where.id || a.id === where.id) &&
+              (!where.principalId || a.principalId === where.principalId),
+          ) ?? null
+        );
       }),
     },
     auditEvent: {
-      findFirst: jest.fn(async ({ where }: { where: { id?: string; principalId?: string } & Record<string, unknown> }) => {
-        return events.find((e) => {
-          if (where.id !== undefined && e.id !== where.id) return false;
-          if (where.principalId !== undefined && e.principalId !== where.principalId) return false;
-          return true;
-        }) ?? null;
-      }),
-      findMany: jest.fn(async ({ where, take, orderBy, cursor, skip }: {
-        where?: Partial<AuditEventRow> & Record<string, unknown>;
-        take?: number;
-        orderBy?: unknown;
-        cursor?: { id: string };
-        skip?: number;
-      }) => {
-        let filtered = events.filter((e) => {
-          if (where?.agentId !== undefined && e.agentId !== where.agentId) return false;
-          if (where?.principalId !== undefined && e.principalId !== where.principalId) return false;
-          return true;
-        });
-        // Stable order: by timestamp asc or desc
-        if (orderBy && (orderBy as Record<string, string>).timestamp === 'asc') {
-          filtered = [...filtered].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-        } else {
-          filtered = [...filtered].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-        }
-        // Cursor pagination
-        if (cursor) {
-          const idx = filtered.findIndex((e) => e.id === cursor.id);
-          if (idx !== -1) filtered = filtered.slice(idx + (skip ?? 1));
-        }
-        if (take !== undefined) filtered = filtered.slice(0, take);
-        return filtered;
-      }),
-      update: jest.fn(async ({ where, data }: { where: { id: string }; data: Partial<AuditEventRow> }) => {
-        const row = events.find((e) => e.id === where.id);
-        if (row) Object.assign(row, data);
-        return row;
-      }),
+      findFirst: jest.fn(
+        async ({
+          where,
+        }: {
+          where: { id?: string; principalId?: string } & Record<string, unknown>;
+        }) => {
+          return (
+            events.find((e) => {
+              if (where.id !== undefined && e.id !== where.id) return false;
+              if (where.principalId !== undefined && e.principalId !== where.principalId)
+                return false;
+              return true;
+            }) ?? null
+          );
+        },
+      ),
+      findMany: jest.fn(
+        async ({
+          where,
+          take,
+          orderBy,
+          cursor,
+          skip,
+        }: {
+          where?: Partial<AuditEventRow> & Record<string, unknown>;
+          take?: number;
+          orderBy?: unknown;
+          cursor?: { id: string };
+          skip?: number;
+        }) => {
+          let filtered = events.filter((e) => {
+            if (where?.agentId !== undefined && e.agentId !== where.agentId) return false;
+            if (where?.principalId !== undefined && e.principalId !== where.principalId)
+              return false;
+            return true;
+          });
+          // Stable order: by timestamp asc or desc
+          if (orderBy && (orderBy as Record<string, string>).timestamp === 'asc') {
+            filtered = [...filtered].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+          } else {
+            filtered = [...filtered].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+          }
+          // Cursor pagination
+          if (cursor) {
+            const idx = filtered.findIndex((e) => e.id === cursor.id);
+            if (idx !== -1) filtered = filtered.slice(idx + (skip ?? 1));
+          }
+          if (take !== undefined) filtered = filtered.slice(0, take);
+          return filtered;
+        },
+      ),
+      update: jest.fn(
+        async ({ where, data }: { where: { id: string }; data: Partial<AuditEventRow> }) => {
+          const row = events.find((e) => e.id === where.id);
+          if (row) Object.assign(row, data);
+          return row;
+        },
+      ),
     },
   };
 
@@ -223,10 +259,12 @@ function makePrisma(initialEvents: AuditEventRow[] = [], agents: { id: string; p
 
 // ── Service factory ───────────────────────────────────────────────────────────
 
-function makeService(opts: {
-  initialEvents?: AuditEventRow[];
-  agents?: { id: string; principalId: string }[];
-} = {}) {
+function makeService(
+  opts: {
+    initialEvents?: AuditEventRow[];
+    agents?: { id: string; principalId: string }[];
+  } = {},
+) {
   const { prisma, events, txStub } = makePrisma(opts.initialEvents ?? [], opts.agents ?? []);
   const config = makeConfig();
   const chain = makeChain();
@@ -277,7 +315,9 @@ describe('AuditService', () => {
       const { svc, txStub } = makeService();
       await svc.append(BASE_APPEND);
       expect(txStub.auditEvent.create).toHaveBeenCalledTimes(1);
-      const callArg = (txStub.auditEvent.create as jest.Mock).mock.calls[0][0] as { data: AuditEventRow };
+      const callArg = (txStub.auditEvent.create as jest.Mock).mock.calls[0][0] as {
+        data: AuditEventRow;
+      };
       expect(callArg.data.id).toMatch(/^evt_/);
       expect(callArg.data.principalId).toBe('prn_A');
       expect(callArg.data.agentId).toBe('agt_1');
@@ -321,6 +361,27 @@ describe('AuditService', () => {
       await svc.append(BASE_APPEND);
       await svc.append({ ...BASE_APPEND, action: 'commerce.refund' });
       expect(ed25519.generateKeypair).toHaveBeenCalledTimes(1);
+    });
+
+    // Gap 2 from PR #38 post-merge audit. The defensive guard in
+    // audit.service.ts (~line 196):
+    //   const privateKey = this.auditPrivateKey;
+    //   if (!privateKey) {
+    //     throw new Error('AuditService: signing key not initialized.');
+    //   }
+    // is reachable if initSigningKey() runs but does not actually set
+    // auditPrivateKey (broken init path, race during onModuleDestroy,
+    // adapter swap mid-flight). Without this regression test, a future
+    // refactor could drop the guard and produce a downstream sign() call
+    // against `undefined`, which fails opaquely far from the root cause.
+    // CLAUDE.md doctrine: audit-path changes require paired tests.
+    it('throws "signing key not initialized" when initSigningKey leaves the key unset', async () => {
+      const { svc } = makeService(); // dev path, no KMS signer
+      // Simulate a broken init that completes without setting auditPrivateKey.
+      // (The real init always sets the key; this guards against future
+      // refactors that introduce a return-before-assign path.)
+      jest.spyOn(svc, 'initSigningKey').mockResolvedValue(undefined);
+      await expect(svc.append(BASE_APPEND)).rejects.toThrow(/signing key not initialized/i);
     });
 
     it('rethrows Prisma errors (fail closed — append-only guarantee)', async () => {
@@ -577,12 +638,16 @@ describe('AuditService', () => {
       const events = [makeEventRow('evt_x', 'agt_1', 'prn_B', new Date())];
       const { svc } = makeService({ agents: [AGENT], initialEvents: events });
       // prn_A tries to redact prn_B's event
-      await expect(svc.redact('evt_x', 'prn_A', ['action'], 'gdpr')).rejects.toThrow(NotFoundException);
+      await expect(svc.redact('evt_x', 'prn_A', ['action'], 'gdpr')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('throws NotFoundException when eventId does not exist', async () => {
       const { svc } = makeService({ agents: [AGENT] });
-      await expect(svc.redact('evt_nonexistent', 'prn_A', ['action'], 'gdpr')).rejects.toThrow(NotFoundException);
+      await expect(svc.redact('evt_nonexistent', 'prn_A', ['action'], 'gdpr')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('throws when no redactable fields are supplied', async () => {
@@ -608,7 +673,9 @@ describe('AuditService', () => {
       const events = [makeEventRow('evt_z2', 'agt_1', 'prn_A', new Date())];
       const { svc, prisma } = makeService({ agents: [AGENT], initialEvents: events });
       await svc.redact('evt_z2', 'prn_A', ['action'], 'gdpr-erasure');
-      const updateCall = (prisma.auditEvent.update as jest.Mock).mock.calls[0][0] as { data: AuditEventRow };
+      const updateCall = (prisma.auditEvent.update as jest.Mock).mock.calls[0][0] as {
+        data: AuditEventRow;
+      };
       expect(updateCall.data.redactedAt).toBeInstanceOf(Date);
     });
 
