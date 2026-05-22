@@ -25,7 +25,12 @@ before:
 
 builds:
   - id: aegis
-    main: ./packages/cli
+    # main is relative to goreleaser's cwd; cwd is packages/cli (set
+    # via goreleaser-action `workdir:` in .github/workflows/cli.yml).
+    # Previously this was `./packages/cli` from a repo-root cwd, which
+    # resolved the path but failed at `go build` because Go could not
+    # find go.mod in cwd or parent (go.mod lives in packages/cli).
+    main: .
     binary: aegis
     env:
       - CGO_ENABLED=0
