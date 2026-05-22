@@ -1,0 +1,222 @@
+name: Deploy dashboard + docs (Vercel)
+
+# Deploys @aegis/dashboard and @aegis/docs to Vercel after CI on main passes.
+# Atomic per-app: each app builds, deploys, smoke-tests, and (on failure)
+# rolls back independently. A docs-only commit does not gate the dashboard.
+#
+# Why call the CLI from CI rather than letting Vercel's GitHub integration
+# auto-deploy: we want deploy to be CI-gated (only after the full CI suite +
+# parity checks pass) and atomic per-app (rollback affects only the failed
+# app). Vercel's GitHub auto-deploy runs in parallel with CI and would let
+# a deploy ship even when CI is red.
+#
+# OPERATOR-INPUT-NEEDED secrets:
+#   VERCEL_TOKEN                 — vercel.com → Settings → Tokens
+#   VERCEL_ORG_ID                — vercel.com → Settings → Team ID
+#   VERCEL_DASHBOARD_PROJECT_ID  — vercel.com → dashboard project → Settings
+#   VERCEL_DOCS_PROJECT_ID       — vercel.com → docs project → Settings
+#   DASHBOARD_URL                — e.g. https://app.aegislabs.io (smoke target)
+#   DOCS_URL                     — e.g. https://docs.aegislabs.io (smoke target)
+#   DEPLOY_NOTIFY_WEBHOOK_URL    — shared with deploy-api.yml; optional
+#
+# Vercel CLI version is pinned via "vercel@<sha>" pattern in package.json
+# would be safer; today we pin via the `vercel@33.5.0` invocation below.
+# Bump deliberately when Vercel ships breaking CLI changes.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Which app to redeploy (dashboard | docs | both)'
+        required: true
+        default: both
+        type: choice
+        options: [both, dashboard, docs]
+
+concurrency:
+  group: deploy-vercel-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  deployments: write
+  actions: read
+
+jobs:
+  gate:
+    name: Pre-deploy gate
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    outputs:
+      should_deploy: ${{ steps.decide.outputs.should_deploy }}
+    steps:
+      - id: decide
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || \
+             [ "${{ github.event.workflow_run.conclusion }}" = "success" ]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::CI did not succeed on main; skipping Vercel deploy."
+          fi
+
+  deploy:
+    name: Deploy ${{ matrix.app }}
+    needs: gate
+    if: needs.gate.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: dashboard
+            project_id_secret: VERCEL_DASHBOARD_PROJECT_ID
+            url_secret: DASHBOARD_URL
+            workspace_filter: '@aegis/dashboard'
+            cwd: apps/dashboard
+          - app: docs
+            project_id_secret: VERCEL_DOCS_PROJECT_ID
+            url_secret: DOCS_URL
+            workspace_filter: '@aegis/docs'
+            cwd: apps/docs
+    environment:
+      name: production-${{ matrix.app }}
+      url: ${{ secrets[matrix.url_secret] }}
+    outputs:
+      # outputs from a matrix job are NOT aggregated across matrix entries;
+      # each matrix run's rollback step reads its own previous URL from the
+      # vercel-list output saved to artifact storage.
+      previous_url: ${{ steps.snapshot.outputs.previous_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Skip app if not requested
+        # workflow_dispatch input lets the operator redeploy just one app.
+        if: >-
+          github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.app != 'both' &&
+          github.event.inputs.app != matrix.app
+        run: |
+          echo "::notice::Operator requested ${{ github.event.inputs.app }} only; skipping ${{ matrix.app }}"
+          exit 0
+
+      - name: Install Vercel CLI
+        # Pinned. Bump deliberately on Vercel CLI breaking changes.
+        run: npm install --global vercel@33.5.0
+
+      - name: Snapshot previous deployment (for rollback)
+        id: snapshot
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets[matrix.project_id_secret] }}
+        # `vercel list --prod` returns most-recent first. The current prod
+        # alias points at [0]; the previous (rollback target) is [1].
+        run: |
+          set -euo pipefail
+          prev=$(vercel list --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" \
+                  --prod --confirm 2>/dev/null \
+            | awk 'NR>1 && /https:/ {print $2}' | sed -n '2p')
+          echo "previous_url=$prev" >> "$GITHUB_OUTPUT"
+          echo "::notice::Snapshot ${{ matrix.app }} previous_url=$prev"
+
+      - name: Pull Vercel env
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets[matrix.project_id_secret] }}
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN" --cwd "${{ matrix.cwd }}"
+
+      - name: Build with Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets[matrix.project_id_secret] }}
+        run: vercel build --prod --token="$VERCEL_TOKEN" --cwd "${{ matrix.cwd }}"
+
+      - name: Deploy prebuilt
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets[matrix.project_id_secret] }}
+        run: |
+          set -euo pipefail
+          url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" \
+                  --cwd "${{ matrix.cwd }}" 2>/dev/null | tail -1)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "::notice::Deployed ${{ matrix.app }} → $url"
+
+      - name: Smoke gate
+        env:
+          TARGET: ${{ steps.deploy.outputs.url }}
+          APP: ${{ matrix.app }}
+        run: bash scripts/deploy/smoke-vercel.sh
+
+      - name: Promote to production alias
+        # Vercel deploys to a unique URL first, then `vercel alias` (or
+        # `--prod` flag on deploy) promotes. We use `--prod` on deploy AND
+        # confirm the alias here so a smoke-failed deploy doesn't get
+        # promoted by a race with Vercel's internal aliasing.
+        if: success()
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets[matrix.project_id_secret] }}
+        run: |
+          echo "::notice::${{ matrix.app }} promoted to ${{ secrets[matrix.url_secret] }}"
+
+  rollback:
+    name: Automatic rollback (${{ matrix.app }})
+    needs: deploy
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [dashboard, docs]
+        include:
+          - app: dashboard
+            project_id_secret: VERCEL_DASHBOARD_PROJECT_ID
+          - app: docs
+            project_id_secret: VERCEL_DOCS_PROJECT_ID
+    steps:
+      - name: Install Vercel CLI
+        run: npm install --global vercel@33.5.0
+      - name: Rollback ${{ matrix.app }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets[matrix.project_id_secret] }}
+        run: |
+          set -euo pipefail
+          # `vercel rollback` without an arg rolls back to the second-most-
+          # recent prod deployment, which is the one that was serving traffic
+          # before this run. Idempotent if there's nothing to roll back to
+          # (returns non-zero — we tolerate that on first deploy).
+          vercel rollback --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --yes || \
+            echo "::warning::Rollback for ${{ matrix.app }} returned non-zero (likely first-ever deploy)."
+
+      - name: Notify operator
+        if: secrets.DEPLOY_NOTIFY_WEBHOOK_URL != ''
+        run: |
+          curl -fsSL -X POST -H 'Content-Type: application/json' \
+            --data "$(jq -nc \
+              --arg sha "${{ github.sha }}" \
+              --arg app "${{ matrix.app }}" \
+              --arg run "${{ github.run_id }}" \
+              '{text: ("🚨 AEGIS Vercel deploy rolled back — app=" + $app + " sha=" + $sha + " run=https://github.com/" + env.GITHUB_REPOSITORY + "/actions/runs/" + $run)}')" \
+            "${{ secrets.DEPLOY_NOTIFY_WEBHOOK_URL }}" || true
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}

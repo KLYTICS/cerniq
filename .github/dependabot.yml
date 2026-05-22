@@ -1,0 +1,147 @@
+# AEGIS dependency-update configuration.
+#
+# Before this file existed Dependabot used the default "one PR per update"
+# behaviour, which produced one failing PR per CVE because each ran the full
+# `pnpm install --frozen-lockfile` independently and any peer-dep conflict
+# blocked the whole PR. The 6 failing security updates on main (2026-05-20)
+# all hit this pattern.
+#
+# Strategy here:
+#   1. Group updates by ecosystem-and-severity so peer-dep conflicts resolve
+#      in a single PR rather than 6 racing ones.
+#   2. Daily cadence — security CVEs land as soon as they're disclosed, not
+#      weekly. Volume stays manageable because groups collapse them.
+#   3. Reviewers / labels per group so the on-call sees what's hitting where.
+#   4. Lockfile-only updates (no manifest churn) for indirect deps.
+#   5. Workflow files use a separate weekly cadence — fewer changes, higher
+#      review value (workflow drift is harder to spot than dep bumps).
+
+version: 2
+
+updates:
+  # ────────────────────────────────────────────────────────────────────
+  # npm — single workspace root (pnpm reads from root + workspaces).
+  # ────────────────────────────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: daily
+      time: '06:00'
+      timezone: 'Etc/UTC'
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - automerge-candidate
+    commit-message:
+      prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
+      include: scope
+    versioning-strategy: increase-if-necessary
+    groups:
+      # All security advisories collapse into a single PR per day.
+      # The auto-merge workflow can land this without human review when CI
+      # passes, since security updates are forced regardless of semver.
+      security-all:
+        applies-to: security-updates
+        patterns: ['*']
+      # NestJS family — moves together. Splitting them breaks peer deps.
+      nestjs:
+        patterns:
+          - '@nestjs/*'
+          - 'nest-*'
+      # Prisma — Engine, Client, CLI versions must match.
+      prisma:
+        patterns:
+          - '@prisma/*'
+          - 'prisma'
+      # Next.js stack (dashboard + docs) — React, Next, fumadocs all
+      # interact; one PR avoids cascading version conflicts.
+      nextjs:
+        patterns:
+          - 'next'
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
+          - 'fumadocs-*'
+      # Vitest + tooling — test deps move together.
+      testing:
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
+          - '@vitejs/*'
+      # Linting / formatting — single bump per cadence.
+      lint:
+        patterns:
+          - 'eslint'
+          - '@eslint/*'
+          - 'eslint-*'
+          - 'prettier'
+          - '@typescript-eslint/*'
+      # Types — DefinitelyTyped sweeps; bundle so PR count stays manageable.
+      types:
+        patterns:
+          - '@types/*'
+      # Everything else, minor + patch only — bundles the long tail.
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+        patterns: ['*']
+        exclude-patterns:
+          - '@nestjs/*'
+          - '@prisma/*'
+          - 'next'
+          - 'react'
+          - 'react-dom'
+          - 'fumadocs-*'
+          - 'vitest'
+          - 'eslint'
+          - 'prettier'
+
+  # ────────────────────────────────────────────────────────────────────
+  # GitHub Actions — every workflow file. Weekly because workflow drift
+  # is a slower, lower-volume problem than runtime CVEs.
+  # ────────────────────────────────────────────────────────────────────
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: 'Etc/UTC'
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: 'chore(actions)'
+    groups:
+      # All Actions updates → one PR per week. Workflow files are reviewed
+      # together because hidden cross-action dependencies (e.g. an upload
+      # action requiring a specific download action version) only surface
+      # in integration.
+      all-actions:
+        patterns: ['*']
+
+  # ────────────────────────────────────────────────────────────────────
+  # Docker — for the api + worker Dockerfiles. Image-base CVEs are a
+  # frequent source of supply-chain alerts.
+  # ────────────────────────────────────────────────────────────────────
+  - package-ecosystem: docker
+    directory: /infra/docker
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: 'Etc/UTC'
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - docker
+    commit-message:
+      prefix: 'chore(docker)'
+    groups:
+      all-docker:
+        patterns: ['*']

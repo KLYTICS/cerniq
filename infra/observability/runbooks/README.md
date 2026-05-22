@@ -97,6 +97,7 @@ These runbooks back failures from CI gates and process surfaces (the round-15+ q
 | Audit retention tick missed > 25h / mid-batch crash | [audit-retention-failure.md](./audit-retention-failure.md) | on-call (compliance-adjacent) |
 | Plan-aware throttle 429 storm / tier mis-classification | [plan-aware-throttle-storm.md](./plan-aware-throttle-storm.md) | on-call |
 | Error catalog uncataloged / parity drift / customer-message leak | [error-catalog-drift.md](./error-catalog-drift.md) | engineer who hit the gate (security-adjacent if leak) |
+| `Deploy API + worker` or `Deploy dashboard + docs` workflow failed on main | [deploy-pipeline.md](./deploy-pipeline.md) | on-call (auto-rolled-back; forward-fix or revert) |
 
 These five reach Prometheus-alert parity once their underlying metrics emit (round 15 backlog). The runbook content is correct as written — only the alert linkage moves.
 

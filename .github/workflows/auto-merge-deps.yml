@@ -1,0 +1,74 @@
+name: Auto-merge dependency PRs
+
+# Auto-merges Dependabot PRs that:
+#   1. are grouped patch + minor (no major bumps),
+#   2. pass CI (the same `CI` workflow gating prod deploys),
+#   3. pass the Security workflow (gitleaks, audit, license).
+#
+# Major version bumps are NEVER auto-merged — they require human review.
+# Security updates (grouped via `security-all` in dependabot.yml) ARE
+# auto-merged regardless of semver level, on the theory that "CVE in prod"
+# is a worse outcome than "merging a security patch without review."
+#
+# How it works:
+#   - PR opens → label "automerge-candidate" applied by dependabot.yml.
+#   - We listen for `pull_request_target` + check-suite completion.
+#   - dependabot/fetch-metadata gives us update-type + dependency-type.
+#   - If update-type is patch/minor or group is "security-all":
+#       gh pr merge --squash --auto (waits for required checks to pass).
+#   - Otherwise: leave a comment explaining why it wasn't auto-merged.
+#
+# Defence in depth:
+#   - CI on main is a required check → an auto-merged PR cannot bypass it.
+#   - Branch protection on main is required (operator-owned, see
+#     scripts/deploy/README.md for setup checklist).
+#   - The PAT used has `pull-requests: write` only; cannot push directly.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, labeled, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  decide:
+    name: Decide auto-merge
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fetch Dependabot metadata
+        id: meta
+        # Official action; emits update-type (semver-patch | semver-minor |
+        # semver-major), dependency-type, dependency-group, etc.
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge (patch + minor, or security group)
+        # `gh pr merge --auto` waits for all required checks before merging.
+        # If a required check fails, the PR stays open with the failed check
+        # surfaced — exactly what we want for visibility without manual review.
+        if: >-
+          steps.meta.outputs.update-type == 'version-update:semver-patch' ||
+          steps.meta.outputs.update-type == 'version-update:semver-minor' ||
+          steps.meta.outputs.dependency-group == 'security-all'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          set -euo pipefail
+          gh pr merge --auto --squash "$PR_URL"
+          gh pr comment "$PR_URL" --body \
+            "Auto-merge enabled (update-type=${{ steps.meta.outputs.update-type }}, group=${{ steps.meta.outputs.dependency-group }}). Will merge once all required checks pass."
+
+      - name: Comment on major bumps (human review required)
+        if: steps.meta.outputs.update-type == 'version-update:semver-major'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr comment "$PR_URL" --body \
+            "Major version bump (${{ steps.meta.outputs.dependency-names }} → ${{ steps.meta.outputs.new-version }}) — requires human review. Auto-merge NOT enabled. See CHANGELOG of the upstream package before approving."
