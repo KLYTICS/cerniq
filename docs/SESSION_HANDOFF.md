@@ -5,6 +5,98 @@
 
 ---
 
+## 2026-05-22 · cli-audit-verify-manifests + shared-index coordination event
+
+Operator said _"continue"_. Intended a focused follow-up to 00f954b:
+expose `aegis audit verify-manifests` in the operator CLI symmetrically
+with the standalone `aegis-audit-verify` binary. The work landed — but
+NOT under its own commit. A peer Claude session running
+`okoro:sdk-py-webhook-events` committed M-WEBHOOK-3-py (`cf2e31f`) in
+the few-second window between my final `git status` verification and
+my `git commit`. Because the two sessions share one `.git/index`, the
+peer's commit swept up my staged CLI files alongside their sdk-py
+deliverables.
+
+### What landed in `cf2e31f` from this session (despite message attribution)
+
+- `packages/cli/src/commands/audit.ts` (+107 lines) — new
+  `auditVerifyManifests(dir, opts)` function. Walks `<dir>` for
+  `*.manifest.json` files (optionally `--recursive`), loads JWKS via
+  `loadJwksFromUrl` or `loadJwksFromFile`, hands the parsed manifests
+  to `verifyManifestCorpus()` from `@aegis/audit-verifier`. Emits
+  human report (ok/info/err) or full JSON `ManifestCorpusReport` per
+  `--json`. Exit 1 on chain break, 0 on intact, 2 on argument/IO
+  error.
+- `packages/cli/src/bin.ts` (+11 lines) — exposes
+  `aegis audit verify-manifests <dir>` with flags `--jwks <url>`,
+  `--jwks-file <path>`, `--recursive`, `--json`. `--jwks-file` is the
+  dominant flag for archived-manifest verification since it's often
+  done in airgapped compliance environments.
+- `packages/cli/src/index.ts` (+2 lines) — re-exports the new
+  function from the package's public library surface.
+
+### Architectural property preserved through the coordination event
+
+The chain-verification algorithm is still single-sourced at
+`verifyManifestCorpus()` in `@aegis/audit-verifier`. Both the operator
+CLI (`aegis audit verify-manifests`) and the standalone binary
+(`aegis-audit-verify verify-manifests`) call the same function with
+the same input shape. The directory-walking helper
+(`loadManifestsFromDir`) is intentionally DUPLICATED across the two
+CLIs rather than exposed from `@aegis/audit-verifier`'s public API,
+because file walking is CLI plumbing, not verification algorithm.
+**Three entry points, one algorithm**: operator CLI, standalone
+binary, programmatic import.
+
+### Verification (run before commit attempt)
+
+- `pnpm --filter @aegis/cli typecheck` — clean
+- `pnpm --filter @aegis/cli test` — 5/5 pass
+- `pnpm --filter @aegis/e2e test:parity` — 38 files, 398 tests pass
+
+### The coordination failure mode worth recording
+
+Two Claude sessions sharing one `.git/index`:
+
+  - Session A (this one) staged 3 CLI files via `git add` after
+    verifying the diff. `git status --short` showed exactly the
+    intended set.
+  - Session B (`sdk-py-webhook-events`) ran `git commit` for their
+    M-WEBHOOK-3-py work while my files were staged. Their commit
+    swept up everything in the index — the 4 sdk-py-related files
+    THEY intended (`__init__.py` update, `webhook_events.py`,
+    `test_webhook_events.py`, parity spec) PLUS my 3 CLI files PLUS
+    a 173-line `SESSION_HANDOFF` update.
+
+`claude-peers conflict-check` catches **path overlap with active
+peer CLAIMS** but does not catch **index contamination by another
+session's staging**. Mitigation for next session: in addition to
+`git status` before commit, watch `.git/index`'s mtime relative to
+the start of staging — if it's been touched by anyone else, abort
+and re-stage from a known baseline. A stronger structural defense
+would be per-session worktrees with isolated indexes (each peer
+opens its own `git worktree add` under `.claude/worktrees/`), or a
+peer-level "intent to commit" lock.
+
+### Effect on commit attribution
+
+A future `git blame` on `packages/cli/src/commands/audit.ts` for the
+`auditVerifyManifests` lines will point at `cf2e31f`, whose commit
+message describes sdk-py M-WEBHOOK-3-py. This handoff entry is the
+forensic trail for the CLI work's actual intent. The peer's commit
+message accurately describes THEIR sdk-py changes; it just happens
+to also carry my CLI work as a side-effect of shared-index timing.
+
+### Next on my queue
+
+- Per-session worktrees as a discipline going forward (each peer
+  session opens its own `git worktree add` under
+  `.claude/worktrees/` and commits from there).
+- Fixture-based e2e for `verify-manifests` against a real sealed-
+  archive corpus.
+
+---
+
 ## 2026-05-22 · sdk-py-webhook-events · M-WEBHOOK-3-py — Python typed event union closes the M-WEBHOOK arc 100% TS↔Py
 
 Fifth commit this session (after 7040d7f M-WEBHOOK-2, 7ab08a1 recipe-
