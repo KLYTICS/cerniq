@@ -37,6 +37,16 @@ export class AppConfigService {
   get apiKeyBcryptCost(): number {
     return this.config.API_KEY_BCRYPT_COST;
   }
+  /**
+   * Founder-led admin onboarding token (see AEGIS_ADMIN_TOKEN env var
+   * in config.schema.ts). Returns undefined when unset; the AdminGuard
+   * then closes the entire /admin/* surface as the safe-by-default
+   * posture (better to 401 every admin call than allow unauthenticated
+   * access because the env var was forgotten).
+   */
+  get aegisAdminToken(): string | undefined {
+    return this.config.AEGIS_ADMIN_TOKEN;
+  }
   get throttleVerifyPerMin(): number {
     return this.config.THROTTLE_VERIFY_PER_MIN;
   }
