@@ -223,9 +223,11 @@ The founder-led path matches the GTM brief in `docs/execution/AEGIS_LATEST_SESSI
 |------|----------|-------------------|
 | 1 CRITICAL + 17 HIGH Dependabot alerts on default branch | high | Closed in Tier 1 (#15 + #42 + W1/W2 overrides + #20) |
 | Auth invariant 4 ("no silent failures") violated in IDP adapters | high | Closed by PR #42 (this session) |
+| PR #38 Gap 2: missing paired tests for AuditSignerService / AuditService / hashLeaf | medium | **CLOSED on main 2026-05-21 by PR #46 (sha 4b9b4ed) — peer-shipped while audit was in flight** |
 | Spec-sync drift between OpenAPI / Zod / Prisma / verifier-rp | medium | Closed by main's PR #32 + this branch's #59 backfill |
+| osv-scanner PR-side failures flagged as environmental (per peer ca612b33) | low | Environmental — same root family as the Warp runner blackout closed by PR #39 (now on ubuntu-latest) |
 | Marketing `next lint --max-warnings=0` deprecated post-Next 16 (CI gate red) | medium | Not closed — needs dedicated marketing lint cleanup PR; 81 pre-existing lint errors |
-| AEGIS → OKORO rebrand staged but uncommitted in main worktree | medium | Operator-strategic — has effects on every package.json, ADR-0020 references it |
+| AEGIS → OKORO rebrand staged but uncommitted in main worktree | medium | Operator-strategic — has effects on every package.json, ADR-0020 references it. Peer 0c5056a4 advisory: **leave `workers/cf-verify/` ALONE** during rebrand — wire-format coupling with deployed binary; see docs/decisions/0021-cloudflare-okoro-rename.md |
 | PR #2 lint gate red until #11 lands | low | Will auto-clear post-#11 merge |
 | Hot-path conflicts on PR #4, #9, #13 | medium | Need feature owners to resolve manually |
 | Phase-0 Gaps 1-5 (no customer onboarding wire-up) | **HIGHEST — blocks revenue** | Phase B above; founder-led path skips most |
