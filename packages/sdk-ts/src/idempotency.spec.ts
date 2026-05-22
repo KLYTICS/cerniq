@@ -100,6 +100,61 @@ describe('resolveIdempotencyKey', () => {
   });
 });
 
+describe('AUTO_IDEMPOTENT_METHODS — operator-decided values (2026-05-22)', () => {
+  // These values were chosen by operator decision after the policy
+  // table scaffold landed (M-IDEM-1). Each row is part of the SDK's
+  // customer-observable contract — flipping a row changes whether
+  // customers' calls get auto-protected retries.
+  //
+  // Changing a value below requires:
+  //   1. Update the rationale block in idempotency.ts
+  //   2. Add a SDK CHANGELOG entry
+  //   3. Notify customers via release notes
+  //
+  // The test names below state the customer-visible behavior, not
+  // the internal mode, so a maintainer reading test output understands
+  // what each row buys.
+
+  it('agents.register auto-mints a key (write that creates persistent identity)', () => {
+    expect(AUTO_IDEMPOTENT_METHODS['agents.register']).toBe('auto');
+  });
+  it('agents.revoke does NOT auto-mint (DELETE is server-side idempotent)', () => {
+    expect(AUTO_IDEMPOTENT_METHODS['agents.revoke']).toBe('opt-in');
+  });
+  it('agents.report auto-mints a key (fraud signal double-submit cost)', () => {
+    expect(AUTO_IDEMPOTENT_METHODS['agents.report']).toBe('auto');
+  });
+  it('agents.challenge refuses any key — replay returns a stale nonce', () => {
+    expect(AUTO_IDEMPOTENT_METHODS['agents.challenge']).toBe('forbidden');
+  });
+  it('agents.verifyHandshake does NOT auto-mint (server-side replay defense covers it)', () => {
+    expect(AUTO_IDEMPOTENT_METHODS['agents.verifyHandshake']).toBe('opt-in');
+  });
+  it('policies.create auto-mints a key (write that creates signed policy JWT)', () => {
+    expect(AUTO_IDEMPOTENT_METHODS['policies.create']).toBe('auto');
+  });
+  it('policies.revoke does NOT auto-mint (DELETE is server-side idempotent)', () => {
+    expect(AUTO_IDEMPOTENT_METHODS['policies.revoke']).toBe('opt-in');
+  });
+  it('intent.reconcile stays opt-in — ADR-0017 caller mints the key', () => {
+    expect(AUTO_IDEMPOTENT_METHODS['intent.reconcile']).toBe('opt-in');
+  });
+
+  it('agents.register attaches a key automatically when caller omits options', () => {
+    // End-to-end check that the 'auto' mode does what its name says
+    // for the customer's most common call site.
+    const key = resolveIdempotencyKey('agents.register');
+    expect(key).toMatch(UUID_V4_RE);
+  });
+
+  it('agents.challenge refuses a key even when caller explicitly requests one', () => {
+    // The 'forbidden' security guarantee — the SDK protects the
+    // handshake flow from a key that would silently break it.
+    expect(resolveIdempotencyKey('agents.challenge', { key: 'caller-asked' })).toBeUndefined();
+    expect(resolveIdempotencyKey('agents.challenge', { auto: true })).toBeUndefined();
+  });
+});
+
 describe('AUTO_IDEMPOTENT_METHODS table shape', () => {
   it('pins intent.reconcile to opt-in', () => {
     expect(AUTO_IDEMPOTENT_METHODS['intent.reconcile']).toBe('opt-in');

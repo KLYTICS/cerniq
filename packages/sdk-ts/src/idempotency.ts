@@ -95,50 +95,61 @@ export type AutoAttachMode =
   /** SDK MUST NOT carry `Idempotency-Key` for this method, even if requested. */
   | 'forbidden';
 
-// ────────────────────────────────────────────────────────────────
-// TODO[OPERATOR]: shape the auto-attach policy.
-//
-// When a caller invokes a write method WITHOUT passing
-// `IdempotencyOptions`, this table decides what the SDK does:
-//
-//   'auto'      — mint a fresh UUID v4 and attach. Safe retries by
-//                 default. Matches Stripe. Costs: larger server-side
-//                 keyspace; rare confusion when a caller logically
-//                 "retries" a different request from the same site.
-//   'opt-in'    — attach a key only when caller passes options.
-//                 Maximum visibility, customer must opt in to safety.
-//   'forbidden' — never attach a key for this method. Use for
-//                 idempotent-by-design endpoints like `/agents/:id/
-//                 challenge` where each call MUST mint a fresh nonce
-//                 (a replay would return a stale, possibly-expired
-//                 challenge and silently break the handshake flow).
-//
-// The trade-off you're shaping:
-//   • Stripe defaults everything to 'auto' — best DX, less visibility.
-//   • Twilio defaults to 'opt-in' — every retry is a deliberate act.
-//   • OKORO needs 'forbidden' for the challenge family because the
-//     replay-stale-nonce footgun is real.
-//
-// Pinned rows (do not edit — these match existing wire contracts):
-//   'intent.reconcile' is 'opt-in' because ADR-0017 already requires
-//   the caller to mint the key (it's part of the manifest identity).
-//
-// Fill the rest. Acceptance: every key has a string value; tests use
-// this table to assert the SDK's behavior at each call site.
+/**
+ * Per-method auto-attach policy, decided by operator 2026-05-22.
+ *
+ * Modes:
+ *   - 'auto'      — SDK mints a UUID v4 and attaches the header when
+ *                   the caller omits `IdempotencyOptions`. Safe retries
+ *                   by default. Matches Stripe's defaults.
+ *   - 'opt-in'    — SDK attaches a key only when the caller passes
+ *                   options explicitly. Caller-aware retry behavior.
+ *   - 'forbidden' — SDK refuses to attach a key even if the caller
+ *                   passes options. For endpoints where a replay
+ *                   returns a stale-and-dangerous response (e.g.
+ *                   a 5-min-TTL nonce).
+ *
+ * Rationale by row (changes from default 'opt-in' marked ★):
+ *
+ *   ★ agents.register      = 'auto'       — mints persistent agent
+ *       identity; double-submit creates a duplicate row. High blast
+ *       radius. SDK protects by default.
+ *   agents.revoke          = 'opt-in'     — DELETE is resource-level
+ *       idempotent at the server; second revoke is a server-side no-op.
+ *       No SDK protection needed.
+ *   ★ agents.report        = 'auto'       — fraud signal report;
+ *       double-submit inflates BATE risk delta against legitimate
+ *       agents. False-positive cost is real (agent suspension).
+ *   ★ agents.challenge     = 'forbidden'  — each call MUST mint a
+ *       fresh 5-min-TTL nonce. Server-side replay of the idempotency
+ *       key would return a stale nonce; the SDK enforces client-side
+ *       so the Idempotency-Key header never reaches the wire here.
+ *   agents.verifyHandshake = 'opt-in'     — signature is single-use;
+ *       server-side replay defense already covers double-submit.
+ *   ★ policies.create      = 'auto'       — mints a new signed policy
+ *       JWT; double-submit creates two valid policies, the second
+ *       shadowing the first. High blast radius. SDK protects.
+ *   policies.revoke        = 'opt-in'     — DELETE is resource-level
+ *       idempotent. No SDK protection needed.
+ *   intent.reconcile       = 'opt-in'     — PINNED per ADR-0017; the
+ *       caller-minted key is part of the manifest identity contract.
+ *
+ * Changing a row is part of the customer-observable SDK contract.
+ * Update CHANGELOG and the rationale block above together.
+ */
 export const AUTO_IDEMPOTENT_METHODS: Record<string, AutoAttachMode> = {
   // ── agents
-  'agents.register':         'opt-in', // TODO: pick — write that creates a new agent identity
-  'agents.revoke':           'opt-in', // TODO: pick — destructive, retry-safe by design (idempotent DELETE)
-  'agents.report':           'opt-in', // TODO: pick — fraud signal report; double-submit is a real risk
-  'agents.challenge':        'opt-in', // TODO: pick — but READ THE NOTE: a replay returns a stale nonce
-  'agents.verifyHandshake':  'opt-in', // TODO: pick — proof-of-possession verification, single-use signature
+  'agents.register':         'auto',
+  'agents.revoke':           'opt-in',
+  'agents.report':           'auto',
+  'agents.challenge':        'forbidden',
+  'agents.verifyHandshake':  'opt-in',
   // ── policies
-  'policies.create':         'opt-in', // TODO: pick — write that mints a new signed policy JWT
-  'policies.revoke':         'opt-in', // TODO: pick — destructive, retry-safe (idempotent DELETE)
+  'policies.create':         'auto',
+  'policies.revoke':         'opt-in',
   // ── intent (pinned per ADR-0017)
   'intent.reconcile':        'opt-in',
 };
-// ────────────────────────────────────────────────────────────────
 
 /**
  * Generate a fresh RFC-4122 v4 UUID using Web Crypto. Stable across

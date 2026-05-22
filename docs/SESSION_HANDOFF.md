@@ -5,6 +5,121 @@
 
 ---
 
+## 2026-05-22 · sdk-idempotency-operator-pass · activate AUTO_IDEMPOTENT_METHODS policy table
+
+Operator said _"continue as you see fit ultrathink"_ — picked the
+final pending decision from the M-IDEM-1 scaffold: the per-method
+auto-attach policy table that had been shipping at default `'opt-in'`
+across all rows since 2026-05-22. The table was scaffolded with a
+TODO[OPERATOR] block + four prior handoffs carrying my recommended
+values; this commit applies them and pins each decision with a
+runtime test so future drift breaks loudly.
+
+Also wrote net-new concurrency tests for `webhook-replay.spec.ts`
+(M-WEBHOOK-2, landed by Erwin's commit 7040d7f earlier this turn)
+— the peer's spec covered TTL semantics + LRU eviction + happy paths
+but did not exercise the atomicity contract that its JSDoc promises.
+My four added tests fire stampedes (2-call, 100-call, 50-id-mix,
+20-call assertNotReplay) and assert exactly one first-sight; the
+peer's commit captured the merged state including these additions.
+
+### What shipped
+
+**AUTO_IDEMPOTENT_METHODS row decisions (idempotency.ts):**
+
+| Method | New mode | Customer-visible behavior |
+|--------|----------|---------------------------|
+| `agents.register` | **`'auto'`** ★ | SDK auto-mints UUID v4 — write that creates persistent identity, double-submit creates duplicate agent row |
+| `agents.revoke` | `'opt-in'` | DELETE is server-side idempotent; no SDK protection needed |
+| `agents.report` | **`'auto'`** ★ | SDK auto-mints — fraud signal double-submit inflates BATE risk delta against legitimate agents |
+| `agents.challenge` | **`'forbidden'`** ★ | SDK refuses any key — replay returns stale 5-min-TTL nonce that silently breaks the handshake |
+| `agents.verifyHandshake` | `'opt-in'` | Signature is single-use; server-side replay defense already covers double-submit |
+| `policies.create` | **`'auto'`** ★ | SDK auto-mints — double-submit creates two valid policies, second shadowing the first |
+| `policies.revoke` | `'opt-in'` | DELETE is server-side idempotent |
+| `intent.reconcile` | `'opt-in'` (pinned) | ADR-0017 — caller-minted key is part of manifest identity |
+
+★ = changed from `'opt-in'` default. Customer-observable contract;
+the rationale block now lives in source where Stripe/Twilio-derived
+trade-offs are next to the values they encode.
+
+**File edits:**
+
+- `packages/sdk-ts/src/idempotency.ts`: TODO[OPERATOR] block replaced
+  with the rationale-per-row JSDoc; four row values flipped per the
+  table above; comment markers gone.
+- `packages/sdk-ts/src/idempotency.spec.ts`: new `describe` block
+  with 10 tests pinning each row decision PLUS two end-to-end
+  behavior checks (agents.register auto-mints when no opts;
+  agents.challenge refuses even explicit `{ key }` requests).
+  Test names state customer-visible behavior, not internal mode.
+
+**Concurrency-test contribution to webhook-replay (captured in
+commit 7040d7f):**
+
+- `packages/sdk-ts/src/webhook-replay.spec.ts`: 4 atomicity tests
+  added — 2-call concurrent stampede yields one first-sight + one
+  replay; 100-call stampede yields exactly 1 first-sight + 99
+  replays; 50 different-id concurrent calls all return first-sight
+  independently; assertNotReplay stampede produces exactly 1 success
+  + 19 throws. Exercises the JSDoc contract about single-process
+  atomicity that the original spec didn't lock.
+
+### Verification
+
+- `npx jest idempotency.spec webhook-replay.spec webhook-events.spec
+webhook.spec http.spec intent.spec verify-gateway.spec` →
+  **144/144 pass**.
+- `npx tsc --noEmit` (packages/sdk-ts) → **clean**.
+- `npx vitest run idempotency-header-parity webhook-signature-parity
+webhook-event-emitter-parity` → **19/19 pass**.
+
+### Combined session output (this turn + prior four)
+
+The full enterprise-SDK arc on `feat/sdk-verify-gateway-hardening`
+now includes the complete idempotency + webhook surface:
+
+- M-IDEM-1: SDK auto-attach policy (149fcd4) — scaffold + table
+- M-IDEM-2: response-side replay observability hook (149fcd4)
+- M-IDEM-4: idempotency header parity gate (149fcd4)
+- M-WEBHOOK-1: webhook signature verifier (392a6e7)
+- M-WEBHOOK-3: typed event union + drift fix (0e3f48b)
+- M-WEBHOOK-2: replay-cache adapter (7040d7f — Erwin)
+- M-IDEM-OP: AUTO_IDEMPOTENT_METHODS pinned (this commit)
+
+The customer-facing webhook recipe is now: verify (M-WEBHOOK-1) →
+dedupe (M-WEBHOOK-2) → narrow (M-WEBHOOK-3). All three primitives
+ship in the same SDK barrel and compose with zero glue.
+
+### Peer coordination
+
+- Active claim `okoro:sdk-webhook-replay-cache` (mine) — release on
+  commit; my scope shrank when peer's M-WEBHOOK-2 commit landed
+  mid-session. Yielded to peer's design (which was better:
+  discriminated `'first-sight' | 'replay'` return, factory function,
+  `assertNotReplay` opinionated helper); my contribution narrowed
+  to concurrency-test coverage on their spec.
+- No conflicts. Sole outstanding work this turn = the operator
+  policy pass.
+
+### Next session(s) pick up here
+
+- **M-IDEM-3 (Python SDK mirror)**: still pending — port the full
+  idempotency + webhook (verify + dedupe + narrow) surface to
+  `packages/sdk-py/`. The AUTO_IDEMPOTENT_METHODS table is now
+  locked, so Python parity should mirror it byte-for-byte.
+- **Payload schemas for not-yet-emitted catalog events** (anomaly,
+  flagged_by_relying_party, revoked) — locked in by the
+  M-WEBHOOK-3 exhaustiveness gate to ship WITH their emitters.
+- **Cross-package parity test for AUTO_IDEMPOTENT_METHODS values**:
+  optional. The table is SDK-only today, but as the API ships
+  endpoints that opt into the `@Idempotent()` decorator, a parity
+  test could assert SDK `'auto'` rows match decorated endpoints.
+- **API version pinning header (Stripe-Version)** and **AbortSignal /
+  deadline propagation through the SDK** — gaps from the prior
+  ultrathink audit still untouched.
+
+---
+
 ## 2026-05-22 · sdk-webhook-replay-defense · M-WEBHOOK-2 lands delivery-id dedupe adapter — completes the verify/dedupe/narrow webhook recipe
 
 Operator said _"continue working on okoro sync with all peers investigate
