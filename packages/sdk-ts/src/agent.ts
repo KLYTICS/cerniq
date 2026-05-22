@@ -1,5 +1,6 @@
 import type { HttpClient } from './http.js';
 import { resolveIdempotencyKey, type IdempotencyOptions } from './idempotency.js';
+import { paginate, type PaginationOptions } from './pagination.js';
 import type { AgentRecord, AgentStatus, RegisterAgentInput, TrustBand } from './types.js';
 
 export interface HandshakeChallenge {
@@ -42,6 +43,34 @@ export class AgentClient {
     return this.http.request('/agents', { method: 'GET', query });
   }
 
+  /**
+   * Async-iterable wrapper around `list()`. Composes `paginate()` so
+   * callers can iterate the full agent stream without managing cursors
+   * by hand:
+   *
+   *   for await (const agent of aegis.agents.listAll({ status: 'ACTIVE' })) {
+   *     console.log(agent.id);
+   *   }
+   *
+   * Composes with M-ABORT-1 via `options.signal` — abort terminates
+   * the iteration between pages with the signal's reason. Safety cap
+   * (`PaginationOptions.maxPages`) defaults to `DEFAULT_MAX_PAGES`.
+   */
+  listAll(
+    query?: { limit?: number; status?: AgentStatus },
+    options?: PaginationOptions,
+  ): AsyncIterableIterator<AgentRecord> {
+    type Page = { agents: AgentRecord[]; nextCursor: string | null };
+    type Query = { limit?: number; status?: AgentStatus; cursor?: string };
+    return paginate<AgentRecord, Page, Query>(
+      (q) => this.list(q),
+      (page) => page.agents,
+      (page) => page.nextCursor,
+      (query ?? {}) as Query,
+      options,
+    );
+  }
+
   get(agentId: string): Promise<AgentRecord> {
     return this.http.request<AgentRecord>(`/agents/${encodeURIComponent(agentId)}`, {
       method: 'GET',
@@ -72,6 +101,40 @@ export class AgentClient {
       method: 'GET',
       query,
     });
+  }
+
+  /**
+   * Async-iterable wrapper around `audit()`. Iterates the agent's
+   * full audit event stream across all pages — useful for SOC2
+   * evidence export, time-bounded compliance queries, and incident
+   * forensics. The compliance-export pattern:
+   *
+   *   for await (const event of aegis.agents.auditAll(agentId, {
+   *     from: '2026-01-01T00:00:00Z',
+   *     to: '2026-04-01T00:00:00Z',
+   *   })) {
+   *     ndjsonStream.write(JSON.stringify(event) + '\n');
+   *   }
+   *
+   * Safety cap matters here more than for `listAll` — audit streams
+   * can be large. Set `options.maxPages: Infinity` only when you
+   * have an external bound (date range, agent id) that guarantees
+   * the stream terminates.
+   */
+  auditAll(
+    agentId: string,
+    query?: { from?: string; to?: string; limit?: number },
+    options?: PaginationOptions,
+  ): AsyncIterableIterator<unknown> {
+    type Page = { events: unknown[]; nextCursor: string | null; count: number };
+    type Query = { from?: string; to?: string; limit?: number; cursor?: string };
+    return paginate<unknown, Page, Query>(
+      (q) => this.audit(agentId, q),
+      (page) => page.events,
+      (page) => page.nextCursor,
+      (query ?? {}) as Query,
+      options,
+    );
   }
 
   /**

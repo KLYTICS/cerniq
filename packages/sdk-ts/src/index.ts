@@ -130,6 +130,12 @@ export {
 } from './webhook.js';
 export type { VerifiedWebhook, VerifyWebhookOptions } from './webhook.js';
 export {
+  DEFAULT_MAX_PAGES,
+  PaginationLimitExceededError,
+  paginate,
+} from './pagination.js';
+export type { PaginationOptions } from './pagination.js';
+export {
   WebhookEventParseError,
   interpretWebhookEvent,
   isWebhookEnvelope,

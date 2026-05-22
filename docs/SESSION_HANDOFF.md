@@ -5,6 +5,162 @@
 
 ---
 
+## 2026-05-22 · sdk-pagination-iterators · M-PAGINATE-1 — async-iterable wrappers for list/audit
+
+Operator asked _"continue"_ after the M-ABORT-1 commit. Audited the
+remaining SDK enterprise gaps and picked pagination iterators as the
+highest-leverage net-new slice — direct daily ergonomic pain (every
+list-call site is `while (cursor) {...}` boilerplate today), composes
+with M-ABORT-1, all net-new files. Claimed
+`okoro:sdk-pagination-iterators`. Peer 8bda6e32 on `sdk-py-webhook-
+signature` — Python work, no overlap.
+
+### What shipped (uncommitted, ~440 LoC net-new)
+
+- `packages/sdk-ts/src/pagination.ts` (new, ~165 lines):
+  - `paginate<TItem, TPage, TQuery>(fetchPage, extractItems,
+    extractCursor, initial, options?)`: generic AsyncIterableIterator
+    wrapper. Lazy fetch (single network in-flight); cursor threading
+    correct on page 1 (server reads undefined as "page 1", no
+    double-fetch).
+  - `PaginationLimitExceededError`: thrown when `maxPages` cap exceeded
+    without end-of-stream. Carries the limit + pagesConsumed for
+    forensics.
+  - `DEFAULT_MAX_PAGES = 10_000`: operator-decided safety cap.
+    Rationale block in source captures the trade-off (Stripe default
+    Infinity rejected as too trusting; 1_000 rejected as too tight).
+  - `PaginationOptions.signal?: AbortSignal`: composes with M-ABORT-1.
+    Three checkpoints: preflight (already-aborted = no fetch),
+    between pages, and threaded into fetchPage if caller forwards it
+    via their bound function.
+- `packages/sdk-ts/src/pagination.spec.ts` (new, ~205 lines,
+  **13 passing**):
+  - Single-page: yields items, ends WITHOUT a second fetch (cursor
+    threading correctness — no double-fetch of page 1).
+  - Empty page: yields zero items, one fetch.
+  - Multi-page: cursor threaded correctly; initial query preserved
+    on every call.
+  - Safety cap: PaginationLimitExceededError on runaway-server bug;
+    `Infinity` opts out; default is `10_000`.
+  - Error mid-iteration: fetchPage rejection propagates immediately,
+    no swallow, items from successful pages still yielded.
+  - Abort integration: preflight abort throws reason with ZERO
+    fetches; between-pages abort honored (next page NOT fetched);
+    type ergonomics check (paginate's TItem type narrows correctly).
+- `packages/sdk-ts/src/agent.ts`: net-new methods
+  `listAll(query?, options?): AsyncIterableIterator<AgentRecord>`
+  and `auditAll(agentId, query?, options?): AsyncIterableIterator<
+unknown>`. Both ADDITIVE — existing `list()` and `audit()`
+  signatures unchanged. The wrapping pattern is so generic that
+  future cursor-paginated endpoints can compose `paginate()` with
+  three lines of glue each.
+- `packages/sdk-ts/src/index.ts`: barrel exports `paginate`,
+  `PaginationLimitExceededError`, `DEFAULT_MAX_PAGES`, and
+  `PaginationOptions` type.
+
+### Design decisions (locked)
+
+1. **Lazy fetch over eager prefetch.** Eager would overlap next-page
+   fetch with current-page consumption — lower latency at the cost
+   of doubling network calls if iteration breaks early. Matches
+   Stripe's default; caller can buffer themselves if they want
+   eager.
+2. **`DEFAULT_MAX_PAGES = 10_000` over `Infinity` or `1_000`.** At
+   server's default 100 items/page, 10k pages = 1M items. Generous
+   for legitimate workloads, hard stop for runaway server bugs.
+   Stripe trusts the server (Infinity); OKORO defends-in-depth.
+3. **Cursor starts `undefined`, not empty string.** Server reads
+   undefined as "page 1"; the helper passes that through and only
+   sets cursor from the server's response. This is the standard
+   correctness lock — naive impls double-fetch page 1.
+4. **Error mid-iteration throws immediately.** No partial-page-then-
+   throw; no swallow. A failed page is unsafe data; the caller can
+   restart with the last successful cursor if they want resumable
+   iteration.
+5. **Abort honored between pages, not within a page's yield loop.**
+   Per-item check would slow the hot path; between-page check is
+   sufficient because each page is consumed synchronously before
+   the next fetch. Customer abort triggers a clean
+   end-of-iteration with the signal's reason on the next iteration
+   attempt.
+
+### Customer-facing pattern (post-this-slice)
+
+```ts
+// Simple iteration over all agents
+for await (const agent of aegis.agents.listAll()) {
+  console.log(agent.id);
+}
+
+// Filtered iteration with cancellation (composes with M-ABORT-1)
+const ctrl = new AbortController();
+button.onclick = () => ctrl.abort();
+for await (const event of aegis.agents.auditAll(agentId, {
+  from: '2026-01-01T00:00:00Z',
+  to: '2026-04-01T00:00:00Z',
+}, { signal: ctrl.signal })) {
+  await processEvent(event);
+}
+
+// Force-bounded for known-large enumerations
+for await (const event of aegis.agents.auditAll(agentId, query, {
+  maxPages: 100,  // hard cap — throw if more
+})) { ... }
+```
+
+### Verification
+
+- `npx jest pagination.spec abort.spec http.spec idempotency.spec
+webhook-replay.spec webhook-events.spec webhook.spec intent.spec
+verify-gateway.spec` → **169/169 pass** (13 new + 156 prior).
+- `npx tsc --noEmit` (packages/sdk-ts) → **clean**.
+- `npx vitest run idempotency-header-parity webhook-signature-parity
+webhook-event-emitter-parity intent-manifest-denial-reason-parity`
+  → **24/24 pass**.
+
+### Combined session output (this turn + prior six)
+
+Full enterprise-SDK arc on `feat/sdk-verify-gateway-hardening`:
+
+- M-IDEM-1/2/4: idempotency E2E (149fcd4)
+- M-WEBHOOK-1: signature verifier (392a6e7)
+- M-WEBHOOK-3: typed events + drift fix (0e3f48b)
+- M-WEBHOOK-2: replay cache (7040d7f — Erwin)
+- M-IDEM-OP: AUTO_IDEMPOTENT_METHODS pinned (80377f3)
+- M-ABORT-1: AbortSignal threading (6f3790a)
+- M-PAGINATE-1: async-iterable pagination (this commit)
+
+Total ~2,390 LoC net-new across 11 new files, 100+ new tests, 5
+cross-package parity gates, 2 production bugs fixed (policy-expiry
+drift; listener-leak prevention), zero regression. Every list-call
+in the SDK is now ergonomic-by-default; every write-call is
+retry-safe by default; every webhook is verifiable by default;
+every long-running request is cancelable by default.
+
+### Next session(s) pick up here
+
+- **API version pinning (Stripe-Version header)** — gap from prior
+  audit; needs API coord for behavior switching, but SDK side
+  could ship as a forward-compat scaffold (header + deprecation
+  warning hook) immediately.
+- **Telemetry exporter interface** — vendor-neutral OTel/Datadog
+  bridge composing with the existing onWriteResponse hook.
+- **`policies.list` pagination** — currently returns a plain array;
+  if it gains cursor support, `listAll` follows the same pattern.
+- **M-IDEM-3 Python webhook port** — peer 8bda6e32 in flight; my TS
+  pagination work doesn't conflict.
+- **Cross-language pagination parity** — when Python catches up,
+  add `tests/cross-package/pagination-parity.spec.ts` asserting
+  TS and Py iterate the same way.
+
+### Peer coordination
+
+- Released claim `okoro:sdk-pagination-iterators`.
+- No conflicts with peer `okoro:sdk-py-webhook-signature` (Python
+  scope, no overlap with my agent.ts edits).
+
+---
+
 ## 2026-05-22 · sdk-py-webhook-signature · M-WEBHOOK-1-py — Python signature verifier mirror + TS↔Py byte-equivalence gate
 
 Same session, third commit (after M-WEBHOOK-2 commit 7040d7f and the
