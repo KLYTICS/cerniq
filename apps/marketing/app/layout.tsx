@@ -124,6 +124,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <a href="/security">Security</a>
               <a href="/principles">Principles</a>
               <a href="/architecture">Architecture</a>
+              <a href="/proof">Proof</a>
               <a href={DOCS_URL}>Docs</a>
               <a href="/changelog">Changelog</a>
               <a href={STATUS_URL}>Status</a>
