@@ -5,6 +5,159 @@
 
 ---
 
+## 2026-05-22 · sdk-py-webhook-signature · M-WEBHOOK-1-py — Python signature verifier mirror + TS↔Py byte-equivalence gate
+
+Same session, third commit (after M-WEBHOOK-2 commit 7040d7f and the
+recipe-parity gate 7ab08a1). Operator said _"as you see fit
+ultrathink"_. After ultrathink-deliberation across drift-risk,
+customer-payoff, and smallest-coherent-change lenses, picked the
+longest-running pending follow-up: closing one slice of the
+TS-runs-ahead-of-Py parity gap.
+
+The TS SDK has been shipping M-IDEM + M-WEBHOOK-1/2/3 on this branch
+without Python mirrors. Every TS commit widens the parity gap.
+M-WEBHOOK-1-py is the highest-impact single Python commit because:
+(1) it's the foundation that M-WEBHOOK-2/3-py will compose on,
+(2) it eliminates the #1 webhook-SDK CVE pattern (hand-rolled HMAC
+verify) for Python webhook receivers (Django/FastAPI/Flask shops,
+LangChain agents, AI-platform integrations), (3) it lands with
+cross-language byte-equivalence by construction.
+
+### What shipped (3 files, 901 LoC, 22 + 5 = 27 passing tests)
+
+- `packages/sdk-py/aegis/webhook.py` (new, 303 LoC): full Python
+  mirror of `packages/sdk-ts/src/webhook.ts`. Surface:
+  - 3 wire-header constants (`WEBHOOK_SIGNATURE_HEADER`,
+    `WEBHOOK_EVENT_HEADER`, `WEBHOOK_DELIVERY_ID_HEADER`).
+  - `DEFAULT_TOLERANCE_SECONDS = 300` — operator-pinned to match TS.
+  - 3 typed errors (`WebhookSignatureMalformedError`,
+    `WebhookSignatureInvalidError`, `WebhookTimestampError`)
+    inheriting from `AegisError` per Py SDK convention. The
+    timestamp error carries `signature_timestamp`, `received_at`,
+    `tolerance_seconds` for forensics — same as TS.
+  - `VerifiedWebhook` frozen dataclass with `timestamp` +
+    `skew_seconds`.
+  - `verify_webhook_signature(*, payload, signature, secret,
+tolerance_seconds, now)` — keyword-only, sync, stdlib-only.
+  - **Constant-time compare via `hmac.compare_digest`** — Python's
+    native primitive (no equivalent of TS's `crypto.subtle.verify`
+    needed). The spec includes a meta-test asserting the module
+    source uses `hmac.compare_digest` and forbids `==` patterns on
+    HMAC bytes — belt-and-braces against future refactors.
+  - Stdlib-only (`hmac`, `hashlib`, `re`, `time`, `dataclasses`,
+    `collections.abc`). Zero new dependencies.
+- `packages/sdk-py/tests/test_webhook.py` (new, 379 LoC, **22
+  passing**): mirrors `webhook.spec.ts` exactly. Covers happy path,
+  positive/negative skew, infinity-tolerance escape hatch, custom
+  tolerance windows, all header-parsing malformed cases (missing t,
+  missing v1, non-integer t, odd-length hex, non-hex), unknown-segment
+  forward-compat, wrong-secret + modified-payload + wrong-template +
+  wrong-algorithm rejection, multi-v1 key rotation, and the meta-test
+  that locks constant-time discipline. **Canonical parity vector
+  (secret/ts/body/expected-signature)** baked in — see the cross-
+  language gate below for what locks it to the TS side.
+- `tests/cross-package/sdk-ts-py-webhook-signature-parity.spec.ts`
+  (new, 219 LoC, **5 passing**): the enterprise-quality piece. The
+  M-015 acceptance criterion ("JWT byte-equivalent to TS SDK") gets
+  its M-WEBHOOK-1 counterpart. Four cross-direction tests:
+  - TS-SDK verifies the canonical signature (TS-side correctness).
+  - Py-SDK verifies the canonical signature via `python3 -c` subprocess
+    (Py-side correctness AND byte-equivalence with TS — same secret/
+    template/algorithm produce the same hex).
+  - TS produces a signature → Py-SDK verifies it (cross-direction
+    acceptance one way).
+  - Py produces a signature → TS-SDK verifies it (cross-direction
+    acceptance the other way).
+  Plus a fifth test asserting Py rejects a wrong-template signature,
+  mirroring the TS rejection-discipline test from `webhook.spec.ts`.
+  Subprocess pattern follows `preflight-cli.spec.ts`'s `spawnSync`
+  precedent; PYTHONPATH-injected import skips the venv setup step
+  so CI doesn't need a `pip install -e .` action.
+- `packages/sdk-py/aegis/__init__.py`: barrel exports — 8 new symbols
+  added to `__all__`.
+
+### Composition with existing gates — three-way lock
+
+After this commit, the webhook signature scheme is locked across all
+three implementations:
+
+| Pair                   | Gate                                                   |
+| ---------------------- | ------------------------------------------------------ |
+| API ↔ TS-SDK           | `webhook-signature-parity.spec.ts`                     |
+| TS-SDK ↔ Py-SDK        | `sdk-ts-py-webhook-signature-parity.spec.ts` ★         |
+| Recipe-level (3 prims) | `webhook-delivery-id-parity.spec.ts`                   |
+
+★ = this commit. Transitively API ↔ TS ↔ Py — three independent
+implementations of the same signing scheme, all locked to each other.
+
+### Verification
+
+- `cd packages/sdk-py && python3 -m pytest` → 167/167 (was 145; +22
+  new from test_webhook.py). Zero regressions in the existing 145.
+- `python3 -m mypy --strict --follow-imports=silent aegis/webhook.py`
+  → 0 issues. (Whole-import-graph mypy reports 6 pre-existing errors
+  in `_http.py`, `intent.py`, `verify_cache.py` — codebase debt, not
+  introduced by this commit.)
+- `python3 -m ruff check aegis/webhook.py tests/test_webhook.py`
+  → all checks passed (12 UP012 redundant-encoding fixes auto-applied
+  to match Py SDK's existing style).
+- `pnpm test:parity` → 36/36 files (+2 since session start), 384/384
+  tests (+18 since session start; +5 from this commit). No regressions
+  in any of the existing 31 gates.
+
+### Operator-observable constants — locked across TS and Py
+
+| Constant                       | Value               |
+| ------------------------------ | ------------------- |
+| `WEBHOOK_SIGNATURE_HEADER`     | `X-AEGIS-Signature` |
+| `WEBHOOK_EVENT_HEADER`         | `X-AEGIS-Event`     |
+| `WEBHOOK_DELIVERY_ID_HEADER`   | `X-AEGIS-Delivery-Id` |
+| `DEFAULT_TOLERANCE_SECONDS`    | `300`               |
+
+If a future commit changes any of these on either SDK without updating
+the other, the cross-language parity gate fails.
+
+### Customer-facing usage (Python, after this slice)
+
+```python
+from aegis import verify_webhook_signature, WebhookSignatureInvalidError
+
+@app.post("/webhooks/aegis")
+async def webhook(request: Request):
+    body = (await request.body()).decode()
+    sig = request.headers["X-AEGIS-Signature"]
+    secret = os.environ["AEGIS_WEBHOOK_SECRET"]
+    try:
+        verified = verify_webhook_signature(
+            payload=body, signature=sig, secret=secret
+        )
+    except WebhookSignatureInvalidError:
+        return Response(status_code=401)
+    # ... process verified.timestamp / verified.skew_seconds
+```
+
+### Remaining Py-side follow-ups (next sessions)
+
+1. **M-WEBHOOK-2-py** — `aegis.webhook_replay` mirroring
+   `webhook-replay.ts` (this session's commit 7040d7f). Single-call
+   `record_or_replay(id, ttl) -> Literal['first-sight', 'replay']`,
+   in-memory store, `assert_not_replay` helper, replay error class.
+   Same atomic interface choice the operator locked for TS.
+2. **M-WEBHOOK-3-py** — `aegis.webhook_events` mirroring
+   `webhook-events.ts` (peer's commit 0e3f48b). Typed event union
+   over `WEBHOOK_EVENT` catalog from `_shared_constants_generated.py`,
+   `interpret_webhook_event` runtime check, exhaustiveness pattern
+   adapted to Python (Literal + assert-no-other in tests).
+3. **M-IDEM-3** — Python idempotency-key surface mirroring
+   `idempotency.ts`. Long-pending; the AUTO_IDEMPOTENT_METHODS table
+   in TS was just operator-passed in commit 80377f3 — Py needs the
+   same table.
+
+Each is a self-contained slice with its own cross-language parity gate,
+following the pattern this commit establishes.
+
+---
+
 ## 2026-05-22 · sdk-abort-signal-threading · M-ABORT-1 — serverless deadline propagation
 
 Operator asked _"continue ultrathink"_. Audited the remaining SDK

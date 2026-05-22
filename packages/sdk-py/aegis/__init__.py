@@ -56,6 +56,17 @@ from .errors import (
     ServerError,
     ValidationError,
 )
+from .webhook import (
+    DEFAULT_TOLERANCE_SECONDS,
+    WEBHOOK_DELIVERY_ID_HEADER,
+    WEBHOOK_EVENT_HEADER,
+    WEBHOOK_SIGNATURE_HEADER,
+    VerifiedWebhook,
+    WebhookSignatureInvalidError,
+    WebhookSignatureMalformedError,
+    WebhookTimestampError,
+    verify_webhook_signature,
+)
 from .models import (
     AgentPolicy,
     AgentRecord,
@@ -138,6 +149,15 @@ __all__ = [
     "VerifyRequest",
     "VerifyResult",
     "VerifySpendRemaining",
+    "DEFAULT_TOLERANCE_SECONDS",
+    "VerifiedWebhook",
+    "WEBHOOK_DELIVERY_ID_HEADER",
+    "WEBHOOK_EVENT_HEADER",
+    "WEBHOOK_SIGNATURE_HEADER",
+    "WebhookSignatureInvalidError",
+    "WebhookSignatureMalformedError",
+    "WebhookTimestampError",
+    "verify_webhook_signature",
     "__version__",
     "b64u_decode",
     "b64u_encode",
