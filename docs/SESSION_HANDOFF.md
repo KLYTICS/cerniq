@@ -5,6 +5,91 @@
 
 ---
 
+## 2026-05-22 · cli-audit-verify-m016-close · operator CLI wires through @aegis/audit-verifier; ~/.aegis perms tightened
+
+Operator said _"continue"_. Closed the M-016 placeholder in the
+operator-facing CLI — the work I'd queued in the prior turn's
+handoff after refactoring `@aegis/audit-verifier` clean. While
+there I caught a real pre-existing security regression
+(credentials.spec.ts had 2 failing assertions on directory mode
+hardening) and closed it in a separate small commit.
+
+### What shipped (2 commits on feat/sdk-verify-gateway-hardening)
+
+- **`00f954b` feat(cli): `aegis audit verify` wired through
+  @aegis/audit-verifier** — closes the M-016 surface in the operator
+  CLI. Where the previous body did presence-checking against
+  `/v1/audit-events` (display-shaped DTO, missing 8 canonical
+  payload fields), the new body does real chain walking via
+  `verifyChain()` from the now-green audit-verifier. Fetches NDJSON
+  from `/v1/audit-events/export` with X-AEGIS-API-Key, parses with
+  `parseAuditNdjson`, fetches JWKS via `loadJwksFromUrl`. Emits
+  human report (ok/info/err lines) or full JSON ChainReport per
+  `--json`. Exit 1 on chain break, 0 on intact. Three new flags
+  propagate the underlying primitive's capabilities:
+  `--no-fail-fast`, `--max-row-detail <n>`, `--json`. Both `--from`
+  and `--to` continue to scope the export window. **162+/56-** lines
+  total (audit.ts + bin.ts + package.json + pnpm-lock).
+
+  **Architectural property preserved:** the chain-verification
+  algorithm is single-sourced in `@aegis/audit-verifier`. The
+  operator CLI is now literally a thin wrapper around the same
+  library a third-party auditor would install — both call
+  `verifyChain()` with the same args. The bit-for-bit equivalence
+  is ADR-0011 §6 (third-party verifier) expressed as code rather
+  than aspiration.
+
+- **`38c4a92` fix(cli): tighten ~/.aegis to mode 0o700** — closes
+  a pre-existing security regression I found while running the CLI
+  test suite during the M-016 work. `credentials.spec.ts` asserted
+  that fresh creation of `~/.aegis` placed the directory at 0o700
+  and `credentials.json` at 0o600; `writeCredentials()` only
+  chmod'd the file, leaving the directory at the umask-derived
+  default (typically 0o755). Any local user could list the
+  credentials filename and watch its mtime even though the file
+  contents were 0o600. Fix: pass `{ recursive: true, mode: 0o700 }`
+  to mkdir AND explicit `chmod(dir, 0o700)` afterwards (belt-and-
+  braces against umask relaxation + pre-existing-dir cases). **8+/1-**
+  lines.
+
+### Verification
+
+- `pnpm --filter @aegis/cli typecheck` — clean
+- `pnpm --filter @aegis/cli test` — **5/5 pass** (was 2/5 before
+  38c4a92; the credentials.spec.ts assertions on dir/file mode
+  hardening now pass)
+- `pnpm --filter @aegis/audit-verifier test` — 173/173 still pass
+  (verified post-CLI-wire — no regression in the underlying
+  primitive)
+- `pnpm --filter @aegis/e2e test:parity` — **37 files, 391 tests
+  pass** (broader parity suite still clean)
+
+### The full audit-chain story is now end-to-end
+
+The chain walks the same way at every layer:
+
+  1. Operator at terminal: `aegis audit verify --json --from 2026-...`
+     calls `verifyChain()`.
+  2. Third-party auditor with a sealed export: `aegis-audit-verify
+     verify ./export.ndjson --jwks ...` calls `verifyChain()`.
+  3. Programmatic embedder: `import { verifyChain } from
+     '@aegis/audit-verifier'` and call directly.
+
+All three paths use the same Ed25519 verification, the same
+canonical-JSON algorithm, the same prev_hash recomputation. The
+wedge "an auditor can verify without trusting AEGIS" is now
+demonstrable from three independent entry points.
+
+### Next on my queue
+
+- Fixture-based e2e for `verify-manifests` against a real sealed-
+  archive corpus.
+- Possibly wire `aegis audit verify-manifests` into the operator
+  CLI too (the audit-verifier package supports it; the operator
+  CLI does not yet expose it).
+
+---
+
 ## 2026-05-22 · sdk-py-webhook-replay · M-WEBHOOK-2-py — Python replay defense + TS↔Py behavioral parity gate
 
 Same session as M-WEBHOOK-1-py (commit 4f20586). Operator said
