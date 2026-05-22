@@ -18,6 +18,16 @@
     "pnpm": ">=9.0.0"
   },
   "packageManager": "pnpm@9.12.3",
+  "pnpm": {
+    "overrides": {
+      "hono@<4.12.18": ">=4.12.18",
+      "brace-expansion@>=5.0.0 <5.0.6": ">=5.0.6",
+      "tmp@<=0.2.3": ">=0.2.4",
+      "ws@>=8.0.0 <8.20.1": ">=8.20.1",
+      "protobufjs@<=7.5.7": ">=7.5.8",
+      "uuid@<11.1.1": ">=11.1.1"
+    }
+  },
   "scripts": {
     "build": "pnpm -r run build",
     "dev": "pnpm --filter @aegis/api dev",
