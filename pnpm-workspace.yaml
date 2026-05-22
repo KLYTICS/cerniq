@@ -5,3 +5,4 @@ packages:
   - "scripts"
   - "tests"
   - "tools/*"
+  - "examples/offline-verifier-rp"
