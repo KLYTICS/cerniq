@@ -5,6 +5,84 @@
 
 ---
 
+## 2026-05-22 · audit-verifier-cli-refactor · Result-typed parseArgs + verify-manifests subcommand
+
+Operator said _"continue"_. Closed the long-deferred audit-verifier
+cli.spec.ts refactor I'd been flagging across the last 4 turns. The
+596-line spec was authoritative on the package's CLI shape but the
+implementation lagged with exit-on-error parseArgs (unreachable from
+vitest) and a TODO `verify-manifests` subcommand. Single-commit lands
+the full refactor passing 173/173 audit-verifier tests including 75
+in cli.spec.ts.
+
+### What shipped (`58e6bc7`, 407+/50- lines on packages/audit-verifier/src/cli.ts)
+
+- **`parseArgs` is now a total function** over `readonly string[]`.
+  Never throws, never exits, returns a discriminator-valid
+  `ParseResult` for every input — including pathological argv
+  (unicode subcommands, NaN in `--max-row-detail`, very long argv,
+  repeated `--jwks`, mixed `--help` anywhere). Property-style tests
+  in the spec hammer this with a hand-rolled exhaustive enumeration.
+- **Three-arm discriminated union** for `ParseResult`:
+  `{ok: true, args}` | `{ok: false, reason: 'help', exitCode: 0}` |
+  `{ok: false, reason: 'invalid', exitCode: 2, message}`. Callers
+  inspect the discriminator and act. No more side-effecting exits in
+  the parser.
+- **`verify-manifests <dir>` subcommand**. Walks for `*.manifest.json`
+  files (optionally `--recursive`), parses as
+  `SignedAuditCompressionManifest`, hands to the already-shipped
+  `verifyManifestCorpus()`. Closes the M-016 sealed-manifest
+  verification surface per ADR-0015.
+- **Help routing**: `--help`, `-h`, bare `help` route from ANY
+  position in argv. `verify --help` no longer fails — help-anywhere
+  wins.
+- **Tristate flag-value validation** via `getFlagValue()`. Flag at
+  end of argv OR flag followed by another `--flag` both surface as
+  a flag-specific error ("--jwks requires a URL value") rather than
+  a misleading downstream error or silent default.
+- **Unknown-flag rejection** with the sorted valid-flag catalogue
+  as actionable recovery hint. Cross-subcommand flag misuse caught
+  with the same shape.
+- On `invalid` ParseResult, main() writes USAGE then the specific
+  error to stderr in that order so the operator sees both context
+  and the bad input.
+- Entry-point guard handles `cli.cjs` / `cli.mjs` / `cli.js` on
+  both POSIX and Windows. Importing the module from cli.spec.ts
+  does not trigger main().
+
+### Why this matters beyond the package
+
+The `/proof` page (shipped earlier this session in `0e2aca7`) lists
+`@aegis/audit-verifier` as a procurement claim: *"a SOC 2 auditor
+can pull the NDJSON export and verify every signature plus prev-hash
+link locally."* That claim now has a green test suite end-to-end —
+typecheck clean AND test suite green AND the dist/cli.cjs subprocess
+suite passes against the just-built binary. The wedge claim is
+real, not aspirational.
+
+### Verification
+
+- `pnpm --filter @aegis/audit-verifier typecheck` — clean
+- `pnpm --filter @aegis/audit-verifier build` — cli.cjs + cli.mjs + .d.ts emit
+- `pnpm --filter @aegis/audit-verifier test` — **173/173 pass; 75
+  in cli.spec.ts including the subprocess suite against
+  dist/cli.cjs**
+- `pnpm --filter @aegis/e2e test:parity` — **36 files, 384 tests
+  pass** (broader parity suite picks up the new audit-verifier tests
+  without regression)
+
+### Next on my queue
+
+- Wire `packages/cli/src/commands/audit.ts` to consume
+  `/v1/audit-events/export` (NDJSON) via the now-shipped
+  `@aegis/audit-verifier`. This is the natural follow-up that
+  finally closes the M-016 placeholder in the operator-facing CLI
+  with real chain walking.
+- Possibly fixture-based e2e for `verify-manifests` against a real
+  sealed-archive corpus.
+
+---
+
 ## 2026-05-22 · sdk-pagination-iterators · M-PAGINATE-1 — async-iterable wrappers for list/audit
 
 Operator asked _"continue"_ after the M-ABORT-1 commit. Audited the
