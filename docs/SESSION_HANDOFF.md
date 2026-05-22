@@ -5,6 +5,71 @@
 
 ---
 
+## 2026-05-22 · wedge-public-proof-page · trust loop closes — four pages, four parity gates
+
+Operator said _"continue"_. The procurement trust loop was three-
+fourths complete after the prior turn (/security + /architecture +
+/principles). Shipped the fourth surface to close it: **/proof —
+fetchable artifacts behind every claim**.
+
+### What shipped (`0e2aca7`, 458 lines, 1 commit)
+
+- **`apps/marketing/app/proof/page.tsx`** — net-new public route
+  listing 11 artifacts in 4 kinds: 6 live discovery endpoints, 1
+  pricing endpoint, 3 verifier libraries, the source repo itself.
+  Each card carries oneLine + whatItProves + a click-through link.
+- **`tests/cross-package/marketing-proof-artifacts-parity.spec.ts`**
+  — 7-assertion gate that is meaningfully stronger than the other
+  marketing parity specs:
+    - `routePath` entries grep `wellknown.controller.ts` for the
+      matching `@Get('<route>')` decorator — assert the route is wired.
+    - `packagePath` entries assert the package.json exists on disk
+      AND is NOT `"private": true` — a private package cannot be
+      installed by a third party, so it fails the "fetch it yourself"
+      property.
+    - Kind-shape rules enforce that `discovery`/`pricing` artifacts
+      MUST have a `routePath` and `library` artifacts MUST have a
+      `packagePath` — a defensive guard against future entries that
+      bypass the gate.
+- **`apps/marketing/app/layout.tsx`** — `/proof` added to the footer
+  cluster. Final order: Security → Principles → Architecture → Proof
+  → Docs. Reading order: posture → refusals → commitments →
+  artifacts → reference.
+
+### Pattern fully complete — four public pages, four exported arrays, four gates
+
+| Page              | Exported           | Parity test                                     | Engineering source                            |
+|-------------------|--------------------|-------------------------------------------------|-----------------------------------------------|
+| /security         | IMPLEMENTED+ALIGNED| marketing-security-standards-parity.spec.ts     | wellknown.service.ts                          |
+| /principles       | REFUSALS           | marketing-non-goals-parity.spec.ts              | docs/NON_GOALS.md                             |
+| /architecture     | COMMITMENTS        | marketing-architecture-parity.spec.ts           | docs/decisions/                               |
+| **/proof**        | **PROOF_ARTIFACTS**| **marketing-proof-artifacts-parity.spec.ts**    | **wellknown.controller.ts + packages/\*/package.json** |
+
+`/proof`'s gate is the **strongest** of the four — it asserts each
+artifact resolves to a real route definition or a publishable
+package on disk, not just a markdown heading. A 404 on a /proof
+link cannot ship.
+
+### Verification
+
+- `pnpm --filter @aegis/marketing typecheck` — clean
+- `pnpm --filter @aegis/marketing build` — **21 static pages**
+  (was 20; /proof is the 21st), all routes prerendered (`○`)
+- `pnpm --filter @aegis/e2e test:parity` — **35 files, 379 tests**
+  all pass, including 7 new assertions in
+  `marketing-proof-artifacts-parity.spec.ts`
+
+### Next on my queue
+
+- Add Markdown rendering for the per-artifact `whatItProves` field
+  (currently plain string; richer markup would help long descriptions).
+- Possibly wire `/proof` into the homepage's existing wedge section
+  alongside the /try playground link.
+- The audit-verifier `cli.spec.ts` refactor remains parked as its
+  own work module.
+
+---
+
 ## 2026-05-22 · sdk-webhook-delivery-id-parity · M-WEBHOOK arc parity ratchet closes — recipe-level gate locks API↔SDK contract end-to-end
 
 Same session as M-WEBHOOK-2 (commit 7040d7f), same arc. The follow-up
