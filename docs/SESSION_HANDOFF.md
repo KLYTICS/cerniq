@@ -325,6 +325,151 @@ then `pnpm install && pnpm check`, then `git add -A && git commit`.
 
 ---
 
+## 2026-05-21 · operator-strategic-orchestrator (enterprise-quality polish) · ADR-0020 EQR-1 through EQR-10 + OD-021/022/023 + M-060h runbook + observability dashboards (docs-only)
+
+Third pass on ADR-0020, triggered by operator directive _"as you see
+fit enterprise quality."_ Hardened the strategic decision against
+public-company-grade operational and compliance bars per root
+CLAUDE.md framing (_"public-company infrastructure: every change
+needs a clear owner, a small blast radius, typed contracts, auditable
+behavior, and verification evidence"_).
+
+### What shipped (all docs, no code)
+
+`docs/decisions/0020-cross-project-agent-orchestrator.md` — added
+**Enterprise Quality Readiness** section (~340 lines) covering ten
+EQR sub-areas:
+
+- **EQR-1** SLO codification — 8 SLIs with SLO targets and 28-day
+  error budgets, encoded as gates in `tests/load/orchestrator.k6.ts`
+  (M-060g). Quarterly review cadence locked.
+- **EQR-2** Observability spec — 9 Prometheus metrics with
+  `principalId` labels, structured log redaction rules (extending
+  ADR-0006 redactability pattern to orchestrator payloads), OTel
+  traces with `taskId` / `correlationId` propagation, 4 alert
+  definitions (TaskCreateErrorRateHigh P2, ApprovalBacklog P2,
+  AuditChainBreak wake-the-house P0, SlackCallbackForgeryAttempts
+  security P1).
+- **EQR-3** FMEA matrix — 8 failure modes (Slack outage, forged
+  callback, DB primary failure, outbox backlog, audit-chain hash
+  mismatch, ROI cost-model misconfig, consumer DoS, schema migration
+  misapply) each with detection signal, blast radius, mitigation, and
+  rollback path. Feature-flag rollback procedure documented.
+- **EQR-4** Wire-level versioning policy — additive-only within
+  majors, ≥ 90-day deprecation window with `Deprecation` header on
+  breaking changes (extends invariant #7), cross-SDK parity gate.
+- **EQR-5** Security review gates — CLAUDE.md crypto/auth/tenant
+  paired-tests mandate applied to M-060b/d (8 paired spec files
+  enumerated); STRIDE threat-model delta required in same PR
+  (spoofing / tampering / repudiation / info-disclosure / DoS / EoP
+  with D-decision mitigations); KMS key inventory tied to ADR-0011;
+  pen-test scope explicit.
+- **EQR-6** Compliance evidence binding — SOC 2 CC6/CC7/CC8 control
+  mappings, GDPR Art. 17 redaction inheritance, audit retention
+  inheritance from OD-004, ComplianceKit dogfood evidence-export
+  story (CK's customers get SOC 2 evidence via `@okoro/verifier-rp`
+  reading from OKORO's audit chain — meta-compliance).
+- **EQR-7** HA/DR posture — inherits existing Postgres active-passive
+  + Redis cluster + stateless API pods; multi-region deferred to
+  follow-on ADR; EU data residency follows API's current single-region
+  US choice.
+- **EQR-8** Pricing/billing — orchestrator slots into existing OD-003
+  tier table (FREE off / Developer 1K/mo / Team 25K/mo / Scale 250K/mo
+  / Enterprise bespoke); Stripe metering for overage; pricing
+  surfaced via `/.well-known/pricing.json` extension (additive per
+  invariant #7); customer comms requirement gated on release
+  checklist.
+- **EQR-9** Operational runbook — new file at
+  `docs/runbooks/orchestrator.md` (388 lines) with 11 sections
+  covering healthcheck, useful queries, all four alert responses,
+  the P0 audit-chain-break (wake-the-house) procedure with no-silent-
+  recovery rule, customer-ticket flow for stuck tasks, bulk-approve
+  fallback via M-060f when Slack is out, feature-flag flip
+  procedure, escalation ladder, cross-links to ADR-0020 EQR-3 FMEA.
+- **EQR-10** Definition of "done" — 10-item release-gate checklist
+  required before flipping `OKORO_ORCHESTRATOR_ENABLED` default-on in
+  production. Any unchecked item blocks GA.
+
+`OPERATOR_DECISIONS.md` — three new OPEN rows filed in §2 (operator
+input pending; defaults proposed for each):
+
+- **OD-021** Slack workspace registration UX (dashboard self-serve
+  vs. CLI fallback; KMS key per workspace; blocks M-060d ship to
+  first paying customer).
+- **OD-022** Per-role cost calibration for D7b (V1 holds single
+  $150/hr blended rate; V1.1 splits by engineer / ops / executive /
+  compliance / support roles once ≥ 90 days of real data justifies
+  it; no V1 action needed).
+- **OD-023** Non-audit task-record retention (90 days default;
+  audit-chain task events still inherit OD-004's 7-year default;
+  Enterprise can extend as paid line item; blocks DPA template).
+
+§5 cross-reference map updated: OD-020 now blocks M-060a–**h** (added
+M-060h runbook); OD-021 → M-060d; OD-022 → M-060f; OD-023 → M-060b.
+
+`WORK_BOARD.md` — M-060 family extensions:
+
+- **M-060g acceptance** extended with DB-failover chaos test +
+  audit-chain-break chaos test (wake-the-house alert path); 8 SLOs
+  measured with error-budget tracking.
+- **NEW M-060h** Operator runbook + observability dashboards module.
+  Depends on M-060b shipping (need real metrics to author dashboards).
+  Acceptance includes alert-injection tests, page-on-call drill,
+  bulk-approve flow rehearsed end-to-end with operator sign-off.
+- **M-060b acceptance** extended with EQR-5 paired tests
+  (`task.audit-chain.integrity.spec.ts`,
+  `task.kms-signature.spec.ts`,
+  `task.tenant-isolation.spec.ts` — explicit cross-principalId
+  negative tests across N≥3 principals); STRIDE threat-model delta
+  required in same PR; EQR-2 observability assertions.
+- **M-060d acceptance** extended with 5 paired specs (HMAC, KMS
+  signature, replay attack, forged payload, cross-principal
+  callback); `OrchestratorSlackCallbackForgeryAttempts` security
+  alert wired; `intent.approval.forgery_attempt` audit event on
+  every KMS-mismatch callback.
+
+`docs/runbooks/orchestrator.md` — NEW 388-line operational runbook
+stub per docs/CLAUDE.md mandate (exact commands, expected output,
+rollback steps, escalation criteria). Stub level acknowledged
+explicitly; concrete command outputs fill in during M-060h.
+
+### Why this matters
+
+ADR-0020 D1–D8 locked the *architecture*. EQR-1 through EQR-10 lock
+the *operational and compliance contract* an enterprise buyer (and
+their auditor) will hold us to. The 11-section runbook + 4 alerts +
+8 SLOs + 8 paired security specs + 3 chaos tests + STRIDE threat
+model + SOC 2 control mapping is the difference between "neat
+platform" and "platform an enterprise IT director can sign a
+contract against."
+
+The 10-item EQR-10 release checklist is the single forcing function:
+no GA flag flip until every box is checked. The gate is the gate.
+
+### Pending operator action
+
+- **OD-021** (Slack UX) — accept dashboard self-serve default OR
+  override with CLI-first / centralized-provisioning model. Blocks
+  M-060d ship to first paying customer.
+- **OD-022** (per-role cost calibration) — no V1 action needed;
+  revisit V1.1 with 90 days of data.
+- **OD-023** (non-audit retention) — accept 90-day default OR
+  override for stricter privacy posture. Blocks DPA template.
+
+### Coordination status
+
+- Broadcast message `8496d772` (thread `8496d772`) sent earlier this
+  session to 4 active peer sessions (sid=13271bbf, 0c5056a4,
+  42dda801, 634c2f97) with full commit instructions for the cowork
+  rename peer. ACK pending.
+- This polish pass touches the same 4 files plus 1 new file
+  (`docs/runbooks/orchestrator.md`); no overlap with active peer
+  scopes.
+- ComplianceKit unchanged this pass (still deferred per active CK
+  peer claim sid=106921fc on `cursor/production-env-seed-alignment`).
+
+---
+
 ## 2026-05-21 · operator-strategic-orchestrator (follow-up) · ADR-0020 D8 + sdk-py + CK interop correction (docs-only)
 
 Follow-up pass after operator asked _"follow up on all across both"_
