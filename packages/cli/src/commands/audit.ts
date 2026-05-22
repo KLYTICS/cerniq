@@ -63,11 +63,19 @@ export async function auditVerify(opts: { from?: string; to?: string }): Promise
       unknownKid++;
       continue;
     }
-    // Full chain reconstruction lives in the @aegis/verifier-rp package
-    // (M-016 ships a Node verifier; this CLI stops at presence checking
-    // until that lands). Real signature recomputation is a 2-line call:
-    //   import { verifyChainEvent } from '@aegis/verifier-rp';
-    //   verified += await verifyChainEvent(ev, pub) ? 1 : 0;
+    // Full chain reconstruction ships in the dedicated `@aegis/audit-verifier`
+    // package (`packages/audit-verifier/src/chain.ts` — `verifyChain`,
+    // `verifyRow`, `computePrevHash`, `buildSignedMessage`). M-016 is closed
+    // by that package, not by this CLI command. This command intentionally
+    // stays at presence-checking against `/v1/audit-events` because the
+    // display-shaped DTO at that endpoint omits the eight canonical-payload
+    // fields a real signature recomputation requires (denialReason,
+    // policyId, trustBandAtEvent, currency, the three commitment hashes,
+    // and the `v` schema marker) plus `signingKeyId` and the prior event's
+    // refs. Full third-party chain walking should use
+    // `@aegis/audit-verifier` against the NDJSON stream from
+    // `/v1/audit-events/export`, which IS verification-shaped (see
+    // `apps/api/src/modules/audit/audit-events.controller.ts`).
     if (ev.aegisSignature) verified++;
   }
   if (unknownKid > 0) err(`${unknownKid} event(s) reference an unknown signing kid`);
