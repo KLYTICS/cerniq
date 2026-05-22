@@ -146,4 +146,14 @@ export type {
   AgentTrustScoreChangedPayload,
   WebhookEnvelope,
 } from './webhook-events.js';
+export {
+  AegisWebhookReplayDetectedError,
+  assertNotReplay,
+  createMemoryReplayStore,
+} from './webhook-replay.js';
+export type {
+  AssertNotReplayOptions,
+  MemoryReplayStoreOptions,
+  WebhookReplayStore,
+} from './webhook-replay.js';
 export type * from './types.js';

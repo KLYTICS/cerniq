@@ -5,6 +5,139 @@
 
 ---
 
+## 2026-05-22 · sdk-webhook-replay-defense · M-WEBHOOK-2 lands delivery-id dedupe adapter — completes the verify/dedupe/narrow webhook recipe
+
+Operator said _"continue working on okoro sync with all peers investigate
+enterprise quality think plan scaffoldedly implement"_. Picked the
+slice peer sid=df873b29 had **explicitly defined and deferred** in
+392a6e7's commit trailer ("Rejected: shipping a built-in replay-cache.
+Replay defense needs storage backend — out of scope; see M-WEBHOOK-2
+for the follow-up adapter design"). No file overlap with the peer's
+active `sdk-webhook-typed-events` claim. Claimed
+`okoro:sdk-webhook-replay-defense` (sid same shell, distinct claim).
+
+### Why this slice closes a real security gap
+
+`verifyWebhookSignature` (M-W-1) gates on HMAC + a 300s timestamp
+window. Inside that window, a captured signature is still
+cryptographically valid — an attacker who reads the wire OR a
+well-meaning load balancer that re-fires the request will get the
+customer's handler executed twice unless the customer dedupes on
+`X-AEGIS-Delivery-Id`. SOC2 reviewers flag any webhook handler
+without this defense. M-W-2 ships the missing primitive.
+
+### Operator design decision (locked via AskUserQuestion)
+
+Three interface shapes were surfaced: (A) atomic single-call
+`recordOrReplay → 'first-sight' | 'replay'`, (B) separate `has` +
+`add` (TOCTOU-prone in distributed receivers), (C) boolean
+`setIfAbsent`. Operator picked (A) — atomic by construction, maps
+to Redis `SET NX EX` in one round trip, discriminated return matches
+the SDK's existing union-return style (`VerifyOutcome`,
+`WebhookEnvelope`). Rationale captured in the file header so future
+maintainers see the trade-off without re-litigating it.
+
+### What shipped (uncommitted at handoff write, ~370 LoC net-new)
+
+- `packages/sdk-ts/src/webhook-replay.ts` (new, ~200 lines):
+  `AegisWebhookReplayDetectedError` (`code: WEBHOOK_REPLAY_DETECTED`,
+  HTTP 409, carries `deliveryId` for forensics, minifier-safe
+  `catalogKey` per F-06). `WebhookReplayStore` interface — atomic
+  `recordOrReplay(id, ttl) → Promise<'first-sight' | 'replay'> | ...`
+  with sync-or-async tolerance mirroring `VerifyCache` (cache.ts).
+  `createMemoryReplayStore({ maxEntries, ttlSeconds })` — bounded
+  LRU with per-entry TTL, **does NOT refresh LRU position on a
+  replay hit** (security property: an attacker re-attempting cannot
+  hold a slot indefinitely). `assertNotReplay({ store, deliveryId,
+ttlSeconds })` — the customer-facing helper. Zero Node-only
+  imports — runs unchanged in browsers / Bun / Deno / CF Workers /
+  Vercel Edge.
+- `packages/sdk-ts/src/webhook-replay.spec.ts` (new, ~210 lines,
+  **15 passing tests** after operator-added atomicity coverage):
+  first-sight/replay verdicts; independent delivery ids; TTL
+  expiry frees the id; LRU-position-not-refreshed-on-replay (the
+  security property); maxEntries cap with oldest-first eviction;
+  size() observability; `assertNotReplay` happy/throw paths;
+  default TTL = 86_400; custom async store pass-through; error
+  class shape matches `AegisError` discipline. Operator-added
+  atomicity contract block (4 tests): 2 concurrent calls yield
+  exactly one first-sight; 100-call stampede yields 1 + 99;
+  50 different ids all return first-sight independently;
+  `assertNotReplay` stampede produces exactly 1 success. These
+  lock in the JSDoc-promised atomicity at both the store layer and
+  the customer-facing helper layer.
+- `packages/sdk-ts/src/index.ts`: barrel export — 3 runtime
+  symbols (`AegisWebhookReplayDetectedError`, `assertNotReplay`,
+  `createMemoryReplayStore`) + 3 type exports
+  (`AssertNotReplayOptions`, `MemoryReplayStoreOptions`,
+  `WebhookReplayStore`).
+
+### Verification
+
+- `pnpm --filter @aegis/sdk typecheck` → green.
+- `pnpm --filter @aegis/sdk test` → 10/10 suites, 157/157 tests
+  (was 153 before operator-added atomicity coverage; +4 net).
+- `pnpm test:parity` → 33/33 files, 366/366 tests. No regressions
+  in any of the cross-package gates (denial-precedence, idempotency
+  header, webhook-signature, webhook-event-emitter, etc.).
+- Not-tested: full `pnpm check` (broader-than-needed for a
+  new-file slice). Not-tested: dashboard typecheck (no dashboard
+  imports of these new symbols yet — barrel-only addition is
+  additive and cannot break existing consumers).
+
+### Customer-facing recipe (post-this-slice the arc composes)
+
+```ts
+import {
+  verifyWebhookSignature,
+  assertNotReplay,
+  createMemoryReplayStore,
+  interpretWebhookEvent,
+  WEBHOOK_SIGNATURE_HEADER,
+  WEBHOOK_DELIVERY_ID_HEADER,
+} from '@aegis/sdk';
+
+const replayStore = createMemoryReplayStore({ maxEntries: 50_000 });
+// For > 1 receiver pod, swap the line above for a Redis-backed
+// `WebhookReplayStore` impl (~3-line SETNX adapter — see file header).
+
+app.post('/webhooks/aegis', async (req, res) => {
+  const body = await req.text();
+  const sig = req.headers.get(WEBHOOK_SIGNATURE_HEADER);
+  const id  = req.headers.get(WEBHOOK_DELIVERY_ID_HEADER);
+
+  await verifyWebhookSignature({ payload: body, signature: sig!, secret });
+  await assertNotReplay({ store: replayStore, deliveryId: id!, ttlSeconds: 86_400 });
+  const event = interpretWebhookEvent(JSON.parse(body));
+
+  switch (event.event) {
+    case 'aegis.agent.trust_score_changed': /* event.data narrowed */ break;
+    case 'aegis.agent.policy_expired': /* event.data narrowed */ break;
+    // tsc requires every catalog event handled
+  }
+  res.status(200).end();
+});
+```
+
+### Follow-ups for the next session
+
+1. **M-IDEM-3 Python mirror** still pending (called out in M-W-1
+   trailer + M-W-3 handoff). The TS arc M-IDEM-1/2 + M-W-1/2/3 is
+   complete after this commit; Python SDK needs the matching
+   surface to keep the parity-test ratchet green when it's authored.
+2. **Cross-package parity test** for replay-defense end-to-end
+   (API mints `X-AEGIS-Delivery-Id` → SDK dedupes by exact byte
+   match). Current parity already covers signature byte-equivalence
+   (M-W-1) and event-name byte-equivalence (M-W-3); a third gate
+   would lock the delivery-id wire shape so any future ULID/CUID
+   format change on the API side fails fast at SDK level.
+3. **Industry quickstart update**: `examples/fintech-payments`
+   should adopt the verify/dedupe/narrow recipe in its webhook
+   receiver so customers see the canonical pattern in working
+   code, not just docs.
+
+---
+
 ## 2026-05-22 · sdk-webhook-typed-events · M-WEBHOOK-3 ships typed event union + catches live drift bug
 
 Operator said _"continue"_ — picked M-WEBHOOK-3 (typed webhook event
