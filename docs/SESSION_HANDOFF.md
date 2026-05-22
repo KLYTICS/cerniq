@@ -5,6 +5,110 @@
 
 ---
 
+## 2026-05-22 · sdk-webhook-delivery-id-parity · M-WEBHOOK arc parity ratchet closes — recipe-level gate locks API↔SDK contract end-to-end
+
+Same session as M-WEBHOOK-2 (commit 7040d7f), same arc. The follow-up
+I'd flagged for the next session was the cross-package parity test
+for the delivery-id wire shape. Shipping it in the same pass — tight
+(~210 LoC), pure-additive, and the M-WEBHOOK arc isn't fully fenced
+without it. Claimed `okoro:sdk-webhook-delivery-id-parity` (distinct
+from peer `d75f2658`'s still-active `sdk-webhook-replay-cache` claim
+— they absorbed my M-WEBHOOK-2 cleanly and shipped two adjacent
+commits: `80377f3` AUTO_IDEMPOTENT_METHODS and `c85f10f`
+marketing/architecture).
+
+### Scope: what's NEW vs what was already covered
+
+The existing parity gates already covered:
+- `webhook-signature-parity.spec.ts` — HMAC byte-equivalence + header
+  name presence in API source (M-WEBHOOK-1 coverage).
+- `webhook-event-emitter-parity.spec.ts` — every API-emitted event
+  name resolves to a `WEBHOOK_EVENT` catalog entry (M-WEBHOOK-3
+  coverage, and what caught the `okoro.policy.expired` drift bug).
+
+This commit adds the missing third leg: **recipe-level parity**.
+Locks the contract that the three M-WEBHOOK primitives, composed on
+simulated API output, produce the customer-facing semantics docs and
+SDK promise. Catches drift the per-primitive gates miss because each
+gate is too narrow to see the seam.
+
+### Drift this gate catches
+
+1. **Semantic source-shape**: a future refactor that swaps
+   `'X-AEGIS-Delivery-Id': delivery.id` for any other field
+   (`delivery.subscriptionId`, `delivery.attemptId`, etc.). Dedupe
+   correctness would silently break — the stamped value would no
+   longer be unique-per-attempt — and customers would start
+   double-processing. Locked via a regex source-shape assertion.
+2. **Format swap**: CUID → ULID/UUID/dbgenerated. Strings would still
+   compare equal in the dedupe path, but the wire-shape change is
+   customer-observable and deserves an explicit conversation. Locked
+   via a Prisma-schema source-shape assertion against the
+   `WebhookDelivery.id` field.
+3. **Recipe seam drift**: any change to the verify/dedupe/narrow
+   composition that makes a fresh delivery fail OR a re-fire pass.
+   Locked via end-to-end round-trip tests that simulate exactly what
+   the API emits (HMAC-signed body + three headers) and walk it
+   through the SDK's public surface.
+4. **Wire-shape robustness**: SDK rejects a delivery-id format the
+   API actually emits. Tests CUID-like + ULID-like + prefixed shapes
+   so a future format change is forward-compatible by construction.
+
+### What shipped (1 file, ~210 LoC, 6 passing tests)
+
+- `tests/cross-package/webhook-delivery-id-parity.spec.ts` (new):
+  - **Source-shape lock** (2 tests): API stamps `delivery.id` on the
+    header (regex on webhook.delivery.ts), and the schema declares
+    that id as `cuid()` (regex on schema.prisma).
+  - **Recipe parity** (4 tests): fresh delivery passes all three
+    primitives; re-fire rejected at dedupe (signature still valid
+    but dedupe catches it — the whole point of M-WEBHOOK-2); two
+    different deliveries with same event type not collapsed (dedupe
+    keys on delivery-id, not event name); SDK accepts three id
+    shapes (CUID/ULID/prefixed) for forward-compat.
+  - Inline `apiSign(secret, ts, body)` mirrors
+    `WebhookDeliveryWorker.sign` (existing
+    `webhook-signature-parity` catches any drift in that mirror).
+  - `simulateApiDelivery()` builder produces exactly the headers +
+    body shape a customer receiver would observe on the wire.
+
+### Verification
+
+- `pnpm test:parity` → 34/34 files (+1), 372/372 tests (+6). No
+  regressions in any of the 33 existing gates.
+- Failure-mode-verified: each of the 6 tests fails for the intended
+  reason (per `tests/CLAUDE.md`'s "verify the test can fail for the
+  intended reason"). Source-shape locks fail the moment the regex
+  stops matching; recipe tests fail the moment any primitive's
+  contract drifts.
+- Not-tested: `pnpm check` (broader-than-needed — pure-additive new
+  test file in `tests/cross-package/`, blast radius is the parity
+  suite alone).
+
+### M-WEBHOOK arc status — closed for TS SDK
+
+After this commit, the M-WEBHOOK arc has full parity coverage for
+the TypeScript surface:
+
+| Primitive             | Implementation               | Parity gate                            |
+| --------------------- | ---------------------------- | -------------------------------------- |
+| M-WEBHOOK-1 (sign)    | `webhook.ts`                 | `webhook-signature-parity.spec.ts`     |
+| M-WEBHOOK-2 (dedupe)  | `webhook-replay.ts`          | `webhook-delivery-id-parity.spec.ts` ★ |
+| M-WEBHOOK-3 (narrow)  | `webhook-events.ts`          | `webhook-event-emitter-parity.spec.ts` |
+
+★ = this commit.
+
+### Remaining follow-ups (next sessions)
+
+1. **M-IDEM-3 Python mirror** + matching Py-side M-WEBHOOK-1/2/3
+   surface. The TS arc is now end-to-end with parity gates; Python
+   is the next ratchet to close. `packages/sdk-py/**`.
+2. **`examples/fintech-payments` quickstart** — adopt the
+   verify/dedupe/narrow recipe in its webhook receiver so customers
+   see the canonical pattern in working code, not docs.
+
+---
+
 ## 2026-05-22 · wedge-public-architecture-page · commitments register, 3 commits
 
 Operator said _"continue enterprise quality"_. Sequenced three
