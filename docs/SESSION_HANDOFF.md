@@ -2,6 +2,74 @@
 
 > Append a short entry every time a session lands meaningful work.
 > Newest at top. Format: date, session, what shipped, what's next.
+>
+> **Naming note (2026-05-22):** the product is now OKORO. Historical entries
+> below retain `aegis` references intact — they are the audit trail of how we
+> got here. Only file this protection for: this file, `OPERATOR_DECISIONS.md`,
+> `WORK_BOARD.md`, and `docs/decisions/0021-cloudflare-okoro-rename.md` (if
+> present). New entries should use `okoro:` claim namespaces and OKORO product
+> name.
+
+---
+
+## 2026-05-22 (rename: aegis → okoro content substitution landed) · claim=okoro:rename-content-substitution
+
+**Status:** ✅ Bulk content rename committed to `chore/rename-okoro` as
+`db1bf72`. 781 files changed (9369 ins / 9369 del — line-balanced, pure
+substitution). Git's similarity-index swept up the file/directory renames
+(`packages/sdk-py/aegis/* → packages/sdk-py/okoro/*`, `scripts/aegis-cli*`,
+`tools/postman/aegis.* → okoro.*`, `infra/*/aegis-*`, etc.) in the same commit.
+
+### Excluded from substitution (intentional)
+
+- `apps/api/prisma/migrations/` — CLAUDE.md immutability contract.
+- `pnpm-lock.yaml` — regenerates via `pnpm install` in a follow-up commit.
+- `OPERATOR_DECISIONS.md`, `WORK_BOARD.md`, this file — audit-trail per
+  `scripts/rename-aegis-to-okoro/OPERATOR_FINISH.md` and durable peers
+  decision `1c0003a0`.
+- Binary/operator-owned: `*.docx`, `*.xlsx`, `*.pptx` were renamed at the
+  filename level by git's similarity heuristic but contents are operator-owned.
+
+### Working-tree verification
+
+- `grep -rliE "aegis"` across `.ts/.tsx/.json/.yaml/.yml/.toml/.sh/.py/.sql/.css/.md`
+  with the documented exclusions returns **zero hits**.
+- No `okoro_okoro` / `okorookoro` double-substitution collisions.
+- Zero diff under `apps/api/prisma/migrations/`.
+
+### Known follow-ups (separate commits)
+
+1. **`pnpm install`** to regenerate `pnpm-lock.yaml` (currently has 28 stale
+   `@aegis/*` package identifiers). Operator-owned because it touches the
+   network and can affect parallel worktrees.
+2. **`pnpm typecheck && pnpm test:parity && pnpm check:openapi-zod &&
+   pnpm check:openapi-prisma && pnpm check:migrations`** — full local gate.
+   Deferred pending lockfile regen.
+3. **Rename-kit cleanup.** `scripts/rename-aegis-to-okoro/` is now stale: a
+   prior pass applied AEGIS→OKORO to the script bodies themselves, leaving
+   identity substitutions (`s/OKORO/OKORO/g`). Options: (a) delete the
+   directory now that the rename is done, (b) fix the substitution rules
+   back to literal AEGIS for future re-runs. The directory is the only
+   tracked path that still legitimately needs `aegis` in its name.
+4. **`docs/finance/.~lock.AEGIS_Financial_Model_v1.xlsx#`** is a stale Excel
+   lock file currently tracked. Close Excel, then `git rm` it. Add
+   `.~lock.*` to `.gitignore` if not already.
+5. **GitHub repo rename** (`klytics/aegis` → `klytics/okoro`). Operator-owned.
+   Commit URLs in this handoff log point at the old slug intentionally —
+   they're audit trail. New CI badge URLs in `README.md` (already pointed at
+   `klytics/okoro` per prior sandbox edit) only resolve after the GitHub
+   rename happens.
+6. **`pnpm-lock.yaml` regen + typecheck**, **branch sweep** (the other 97
+   branches still hold `@aegis/*` workspace names), and the **Prisma
+   migration emission** for renaming `aegis_app`/`aegis_owner` roles +
+   `aegis_current_principal`/`aegis_rls_bypass_active` functions +
+   `aegis.*` GUC namespace remain. The kit's migration emitter is broken
+   (self-renamed identity statements) — emit the migration by hand.
+
+### Commit links
+
+- `db1bf72` — content substitution (this entry)
+- `17abd9f` — restore rename scripts (prior session)
 
 ---
 
