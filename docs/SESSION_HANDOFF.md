@@ -5,13 +5,397 @@
 
 ---
 
+## 2026-05-22 · enterprise-wedge-decision-pack-D1-thru-D9 · 4 commits land the wedge surface
+
+Operator asked for an "okoro sdk and api enterprise quality undeniable
+wedge and adaptability — ultrathink decide for yourself most optimally"
+analysis followed by "as you see fit all of them ultrathink continue."
+Treated as full execution latitude on the engineering-shaped decisions
+in the memo I assembled earlier in the session (D1–D9), reserving the
+founder-binding strategic calls (SOC 2 scoping, first design partner,
+regulated-industry advisor retainer) for the operator.
+
+### What shipped (4 commits on feat/sdk-verify-gateway-hardening)
+
+- **`0798c7e` D1 + D2** — ADR-0004 amendments. **D1**: closes the
+  3-reason drift between the canonical Decision section (9 reasons)
+  and production code (12 reasons after `PLAN_LIMIT_EXCEEDED` /
+  `TRIAL_EXHAUSTED` / `INTENT_MISMATCH` were added). **D2**:
+  reaffirms non-configurability — no env var, feature flag,
+  per-principal override, or policy-engine extension will be added
+  to reorder denial precedence. The escape hatch is API versioning
+  (`/v2/verify`), not configuration. Cross-referenced from
+  `docs/NON_GOALS.md`.
+- **`4a80b71` D5** — `examples/offline-verifier-rp/` (net-new). A
+  single `pnpm demo` that signs three receipts with `@aegis/sdk`,
+  verifies each with `@aegis/verifier-rp`, and prints PASS/FAIL for
+  valid / revoked-agent / tampered-sig — *without* any outbound
+  network call to OKORO. The injected fetch shim throws on any URL
+  other than the demo agent's status read, so a future regression
+  that reaches an unexpected endpoint fails the demo in CI. Exit
+  code 0/1/2 → safe to wire into CI as a contract test. **Verified
+  end-to-end:** `pnpm --filter @aegis-examples/offline-verifier-rp
+  demo` → 3/3 PASS, exit 0. `pnpm-workspace.yaml` extended by one
+  targeted line (other examples untouched — each is a separate
+  decision).
+- **`aa94dcb` D9 + D3-clarification** — `docs/NON_GOALS.md`
+  (net-new, ~280 lines) codifies six refusals as durable artifacts
+  with the shape *What / Why refused / Tempting moment / Escape
+  hatch*: configurable precedence, additional first-party SDKs,
+  multi-cloud edge, alternative canonicalization, customer-tunable
+  BATE weights, dashboard features before Auth0 v4, Stripe-side
+  config without operator sign-off, "universal AI agent identity"
+  positioning. **D3-clarification**: `OPERATOR_DECISIONS.md` OD-001
+  amended with a status note recording that the BATE weights table
+  ships at `WEIGHTS_VERSION = 'v1.2.0-intent-2026-05-15'` with DPoP
+  + intent-manifest signals beyond the original Default; the
+  `TRUST_SCORE_TOO_LOW` denial reason fires correctly
+  (`verify.algorithm.ts:370`, spec-tested at
+  `verify.algorithm.spec.ts:176`) — the operator gap is calibration
+  sign-off on the current values, not a missing code path.
+  **Caveat:** this commit incidentally co-committed 10 rebrand-cascade
+  files (`docs/decisions/0021-cloudflare-okoro-rename.md` and 9
+  `scripts/rename-aegis-to-okoro/*` files) that were pre-staged in
+  the index from a prior session. The commit message describes my
+  changes accurately; the file list shows the swept-in additions.
+  Subsequent commits in this session were paranoid about the staged
+  set.
+- **`d575995` D4-reframe** — `packages/cli/src/commands/audit.ts`
+  comment-only refresh. The CLI's `auditVerify` placeholder claimed
+  "M-016 ships a Node verifier; this CLI stops at presence checking
+  until that lands" — but **M-016 is shipped** as the dedicated
+  `packages/audit-verifier/` package (`verifyChain`, `verifyRow`,
+  `computePrevHash`, `buildSignedMessage`, manifest corpus tests,
+  its own CLI surface). Comment updated to point at the right home
+  and document why the CLI command itself stays at presence-checking
+  (the `/v1/audit-events` DTO is display-shaped; full chain walking
+  needs the verification-shaped NDJSON stream from
+  `/v1/audit-events/export`).
+
+### Earlier-in-session findings worth carrying forward
+
+- **The wedge has four undeniable artifacts**: (i) generated denial
+  precedence as a public ABI mirrored across types, SDK, OpenAPI,
+  docs by ~28 parity tests in `tests/cross-package/`; (ii) hash-
+  chained, append-only audit with a daily CI workflow
+  (`.github/workflows/audit-chain-integrity.yml`) AND a dedicated
+  third-party verifier package (`@aegis/audit-verifier`); (iii)
+  intent manifest layer with `INTENT_MISMATCH` as a denial reason
+  and cross-protocol substitution tests; (iv) FAPI 2.0 / JAR / RAR
+  conformance scaffolding via `tests/cross-package/fapi-*-parity.spec.ts`.
+- **The codebase has already chosen its first vertical** (regulated
+  financial services) via the `examples/` surface — FINRA, ISO 20022,
+  banking-rails, fintech-payments, ACP fintech, reconciliation, SaaS
+  seat provisioning. Marketing positioning should follow what the
+  code already says (`docs/NON_GOALS.md` § 3.1 makes this concrete).
+
+### Known follow-ups (not blocked on my work)
+
+- **`@aegis/audit-verifier` typecheck failure**: `cli.spec.ts:34`
+  imports `parseArgs` and `ParseResult` from `./cli.js` but neither
+  is exported. Pre-existing on this branch; surfaced when I ran
+  `pnpm --filter @aegis/audit-verifier typecheck`. Not in scope here.
+- **`@aegis/sdk` dist drift**: the prebuilt `packages/sdk-ts/dist/`
+  on this branch imports `@okoro/types` (from an earlier text-
+  substitution pass) while the on-disk types package is still
+  `@aegis/types`. Any consumer hits `ERR_MODULE_NOT_FOUND` at runtime
+  until the SDK is rebuilt. Same regression I flagged in the prior
+  session, now inverted (last time the dist had `@aegis/*` and source
+  had `@okoro/*`). The dist needs to be rebuilt as part of the
+  branding cascade. Tracked via the rebrand-cascade work in
+  `scripts/rename-aegis-to-okoro/`.
+- **D6 (dashboard pricing fallback)**: investigated and reframed —
+  the fallback IS deliberate and well-instrumented with an
+  operator-visible source footer (`data-testid="pricing-provenance"
+  data-source="api|fallback"` rendered at
+  `apps/dashboard/app/pricing/page.tsx:53-63`). The remaining work
+  is the env-var setting in production (operator-config), not code.
+- **D7 (dashboard feature freeze until Auth0 v4)** and **D8 (regulated
+  financial services as Vertical 1)** are codified as
+  `docs/NON_GOALS.md` § 2.1 and § 3.1 — durable doc artifacts that
+  prevent silent drift.
+
+### Mid-session event: dir-rename wiped first execution attempt
+
+Mid-session, the working directory `/Users/money/Desktop/AEGIS/` was
+renamed to `/Users/money/Desktop/OKORO/` (consistent with the OD-024
+brand rename to `okoroapp.com`). The empty AEGIS shell remained and
+the shell cwd kept resetting to it after each command. **All
+uncommitted working-tree state from my first execution attempt died
+with the rename** — D1, D5, D2, D9, D3-clarification, and a planned
+D4 implementation in `packages/verifier-rp/src/audit-chain.ts` +
+tests were all lost. The four commits above are the redo, this time
+with discipline of committing after each chunk so a second rename
+costs nothing. Lesson encoded: **in a multi-session repo where
+sibling processes can rename the worktree at any moment, commits are
+the only durable artifact**.
+
+The verifier-rp audit-chain primitive I planned to ship was NOT
+needed — that's `@aegis/audit-verifier`, which I discovered while
+re-orienting after the rename. The lesson there: survey existing
+packages before writing new ones in a 945-modified-file workspace
+with multiple parallel sessions.
+
+### Founder-binding decisions still parked
+
+- First design partner profile (recommend: regulated-industry CISO).
+- SOC 2 Type 1 scoping window (audit-chain + tenant-isolation + KMS
+  abstraction makes Type 1 attainable in 3-6 months).
+- Regulated-industry advisor retainer (ex-CISO from a top-5 bank or
+  top-3 health payer).
+- Auth0 v4 SDK installation (operator credential-bound).
+- KMS provider wiring (operator console-bound).
+- Stripe metered-price + Stripe Tax configuration (operator).
+
+### Next on my queue, awaiting operator nod or pivot
+
+- Wire the CLI's `audit verify` to consume `/v1/audit-events/export`
+  via `@aegis/audit-verifier` for full chain walking (the natural
+  closing of the M-016-shipped placeholder). Pre-existing typecheck
+  failure in audit-verifier's `cli.spec.ts` needs to be resolved
+  first or scoped around.
+- Resolve the `@aegis/*` ↔ `@okoro/*` rename drift on the SDK dist
+  (rebuild-on-CI or `prepare` script). Tracked alongside the
+  rebrand-cascade.
+
+---
+
+## 2026-05-22 · post-rename-verification-audit · ADR-0021 + rename kit recovered from stash after destructive cleanup
+
+Operator prompt: _"continue ultrathink"_. Investigated post-folder-
+rename state, discovered ALL prior session artifacts (ADR-0021, M-061..
+M-064 in WORK_BOARD, OD-024..026 in OPERATOR_DECISIONS, the 15-rebrand
+script, and three SESSION_HANDOFF entries) had been wiped by
+`git restore . && git clean -fd` — the rollback recipe documented in
+OPERATOR_FINISH.md line 172-174 was run while unstaged work from
+multiple sessions was in flight. The folder rename (AEGIS → OKORO)
+happened separately.
+
+### Root cause
+
+`git restore .` reverted modified tracked files (cowork-claude's
+947-file substitution + my edits to OPERATOR_DECISIONS / WORK_BOARD /
+SESSION_HANDOFF). `git clean -fd` removed untracked new files (my
+ADR-0021, the rename kit scripts, the 15-rebrand-domain script).
+Together: the destructive cleanup recipe assumes nobody has unstaged
+work — true after a normal commit, false during a multi-session
+rename. The peers status was not checked before running.
+
+### What survived (and recovered)
+
+Two independent stores preserved the work:
+
+1. **Stash `stash@{0}: okoro-rebrand-work-in-progress`** — somebody
+   (operator or peer) stashed the substitution + my edits + the
+   untracked artifacts before the cleanup. The stash's three-parent
+   structure (^1 index, ^2 HEAD, ^3 untracked) preserved everything.
+2. **Durable peer decisions in `~/.claude/peers/decisions.jsonl`** —
+   six decisions captured the contracts (`a7a5c9d6`, `3c5b1ce7`,
+   `2c61be87`, `90ac192f`, `1c0003a0`, `27db590f`). These live outside
+   the repo and are immune to `git restore` / `git clean`.
+
+### Recovery actions taken this session
+
+- `git checkout stash@{0}^3 -- docs/decisions/0021-cloudflare-okoro-rename.md`
+  restored ADR-0021 (4 addendums intact).
+- `git checkout stash@{0}^3 -- scripts/rename-aegis-to-okoro/`
+  restored the entire rename kit (8 files: 00-preflight,
+  10-rename-checkout, 15-rebrand-domain-to-okoroapp, 20-rename-all-
+  branches, 30-rename-folder, 40-emit-prisma-migration,
+  OPERATOR_FINISH.md, README.md, run.sh).
+- Surgical Edit of OPERATOR_DECISIONS.md to re-insert OD-024, OD-025,
+  OD-026 as DECIDED rows in § 3 + cross-reference rows in § 5.
+- Surgical Edit of WORK_BOARD.md to re-insert M-061..M-064 sprint
+  section before "How to add a new module".
+- This SESSION_HANDOFF entry.
+
+### What's still in the stash (not applied this session)
+
+The stash retains the 945-file substitution (cowork-claude's
+`AEGIS → OKORO` perl-i across the tree). Applying it is the operator's
+call: it brings back the rename content but conflicts with the 3
+unpushed commits (`af7c9e5` ADR-0020, `36829be` handoff, `6eaa972`
+policy) on 4 files (OPERATOR_DECISIONS / WORK_BOARD / SESSION_HANDOFF /
+0004-denial-precedence). To apply:
+
+```bash
+git stash apply stash@{0}        # apply (keeps stash for retry)
+# resolve conflicts on the 4 files
+# OR if rolling back the rollback completely:
+git stash pop stash@{0}          # apply + delete
+```
+
+The stash also contains my SESSION_HANDOFF entries for the three
+prior sessions (cloudflare-okoro-rename-audit, cloudflare-rename-sync-
+pass, rebrand-domain-cascade-script) — those are inside the stashed
+SESSION_HANDOFF.md and will surface when the stash is applied.
+
+### State of the repository right now
+
+- Branch: `feat/sdk-verify-gateway-hardening` at `af7c9e5` + 3 ahead
+  of origin.
+- Working tree: ADR-0021 restored, rename kit restored, OPERATOR_DECISIONS
+  - WORK_BOARD edited (surgical inserts), SESSION_HANDOFF appended
+    (this entry).
+- 11,440 aegis tokens still in tracked content — the substitution
+  has NOT been re-applied. Run the rename kit (now including the new
+  15-rebrand-domain script) when ready.
+- 1,206 FUSE-hidden untracked artifacts from cowork-claude's sandbox
+  still in the tree. OPERATOR_FINISH.md step 2 cleans them:
+  `find . -name '.fuse_hidden*' -type f -delete 2>/dev/null`.
+- Git remote still `KLYTICS/aegis.git`; `.git/config hooksPath` still
+  `/Users/money/Desktop/AEGIS/.husky` (broken — old path).
+- Durable peer decision `27db590f` (the rebrand script promotion) is
+  consistent with the restored state.
+
+### Operator next-action menu
+
+1. **Re-apply the rename**: `bash scripts/rename-aegis-to-okoro/run.sh`
+   from `/Users/money/Desktop/OKORO`. The kit now includes
+   `15-rebrand-domain-to-okoroapp.sh` between steps 10 and 40, so
+   `okorolabs.io → okoroapp.com` lands automatically (OD-024 cascade
+   wired). Resolve any pre-existing conflicts; commit; push.
+2. **Apply just the stash**: `git stash apply stash@{0}` and resolve
+   conflicts on the 4 files. Faster than re-running the kit; reuses
+   cowork-claude's exact substitution work.
+3. **Fix the git config drift**:
+   `git remote set-url origin https://github.com/KLYTICS/okoro.git`
+   (after the GitHub repo rename) and
+   `git config core.hooksPath /Users/money/Desktop/OKORO/.husky`.
+4. **Discard everything and start clean**: `git stash drop stash@{0}`
+   to abandon the WIP, then run the kit from scratch. Loses
+   cowork-claude's session work but produces a clean diff.
+
+### Lessons captured (for the next destructive-cleanup decision)
+
+- `git restore . && git clean -fd` should never run while
+  `claude-peers status` shows active claims in the same project.
+- New artifacts (untracked files) survive `git restore` but die to
+  `git clean -fd`. The two-command combo nukes everything below
+  HEAD.
+- The peers archive (`~/.claude/peers/decisions.jsonl`) is the only
+  store that survives destructive git operations. Decision-records
+  matter most precisely when files are at risk.
+
+### Files touched this session
+
+- `docs/decisions/0021-cloudflare-okoro-rename.md` (restored from stash)
+- `scripts/rename-aegis-to-okoro/*` (8 files restored from stash)
+- `OPERATOR_DECISIONS.md` (OD-024..026 re-inserted)
+- `WORK_BOARD.md` (M-061..M-064 sprint section re-inserted)
+- `docs/SESSION_HANDOFF.md` (this entry)
+
+No edits to `apps/`, `packages/`, `workers/`, `infra/`, or any code
+surface.
+
+---
+
+## 2026-05-22 · sdk-idempotency-auto-attach · SDK auto-attach policy on write paths
+
+Operator asked _"continue building sdk and api enterprise quality
+scaffold"_ on `feat/sdk-verify-gateway-hardening`. Audit found the
+API-side idempotency interceptor was already complete
+(`apps/api/src/common/idempotency/`) but SDK callers only attached
+`Idempotency-Key` on one call site (`intent.reconcile`) — the rest of
+the write surface (`agents.register/revoke/report/challenge/
+verifyHandshake`, `policies.create/revoke`) had no key support, so
+safe retries were impossible without hand-rolling the header through
+`opts.headers`. Scoped via AskUserQuestion + claimed
+`okoro:sdk-idempotency-auto-attach` (no overlap with M-TSv2-5 or
+rebrand-cascade peer scopes).
+
+### What shipped (uncommitted, ~340 LoC net-new)
+
+- `packages/sdk-ts/src/idempotency.ts` (new, ~165 lines):
+  `generateIdempotencyKey()` (RFC-4122 v4 via `crypto.randomUUID`
+  with a manual fallback for ancient runtimes); `resolveIdempotencyKey
+(callSite, opts?)` applying a per-method policy table;
+  `parseReplayHeaders(headers)` → `{replayed, firstSeenAt?}`;
+  wire-header constants (`IDEMPOTENCY_HEADER`, `REPLAY_HEADER`,
+  `FIRST_SEEN_HEADER`). Zero Node-only imports — portable per CLAUDE.md
+  invariant #8.
+- `packages/sdk-ts/src/idempotency.spec.ts` (new, ~175 lines, **22
+  passing**): RFC-4122-v4 shape; 1000-call uniqueness; manual-fallback
+  path; policy semantics (caller key wins; `{auto: true}` mints;
+  `'forbidden'` overrides caller intent — security boundary); table
+  shape; `parseReplayHeaders` against `Headers` and plain records, case
+  insensitive; wire-constant lock against API interceptor at
+  `idempotency.interceptor.ts:70-71`.
+- `packages/sdk-ts/src/http.ts` (small additive edit): new optional
+  `RequestOptions.idempotencyKey?: string`; injects header after the
+  user-headers merge so the structured field always wins; reserved-
+  header contract preserved.
+- `packages/sdk-ts/src/agent.ts` + `policy.ts` (additive edits): every
+  write method now accepts an optional `IdempotencyOptions` 2nd-arg
+  (`register`, `revoke`, `report`, `challenge`, `verifyHandshake`,
+  `policies.create`, `policies.revoke`) and consults the policy table.
+  Backwards-compat: omitting the arg = same behavior as before.
+- `packages/sdk-ts/src/index.ts`: barrel re-exports.
+
+### Operator decision pending in code (intentional TODO block)
+
+`idempotency.ts:AUTO_IDEMPOTENT_METHODS` ships with all rows set to
+`'opt-in'` as the safe default. The TODO block in the file documents
+the trade-off and what each value means. Recommendations to flip:
+
+- `agents.register`, `agents.report`, `policies.create`: `'auto'`
+  (writes that mint persistent state — double-submit risk worth
+  defending against by default).
+- `agents.revoke`, `policies.revoke`: keep `'opt-in'` (DELETE is
+  resource-level idempotent).
+- `agents.challenge`: **`'forbidden'`** — replaying a 5-min-TTL nonce
+  silently breaks the handshake. SDK enforces this client-side so the
+  header never reaches the wire.
+- `agents.verifyHandshake`: keep `'opt-in'` (signature is single-use;
+  server-side replay defense already covers it).
+
+### Verification
+
+- `npx jest idempotency.spec` → **22/22 pass**.
+- `npx jest http.spec intent.spec verify-gateway.spec idempotency.spec`
+  → **76/76 pass** (no regression in adjacent surface).
+- `npx tsc --noEmit` (packages/sdk-ts) → **clean**.
+- The three previously-failing SDK suites (blocked on operator-owned
+  `@aegis/types` workspace symlink gap, per prior handoff) remain
+  unchanged — this slice didn't touch the contract surface gating them.
+
+### Next session(s) pick up here
+
+- **Operator pass**: flip `AUTO_IDEMPOTENT_METHODS` per the recs
+  above; capture rationale in ADR if non-default.
+- **M-IDEM-2 (response-side replay metadata)**: surface
+  `{ replayed, firstSeenAt }` back to the caller via a new
+  `requestWithMetadata<T>(...): Promise<{data:T, replay:ReplayMetadata}>`
+  on `HttpClient`. The wire path already returns these headers; the
+  SDK discards them today.
+- **M-IDEM-3 (Python SDK mirror)**: port the three helpers + table to
+  `packages/sdk-py/` with matching policy semantics. Cross-language
+  parity via `tests/cross-package`.
+- **M-IDEM-4 (parity test)**: add
+  `tests/cross-package/idempotency-header-parity.spec.ts` asserting
+  the three SDK constants match `AEGIS_HEADER_IDEMPOTENCY` in
+  `@aegis/types/src/constants.ts` and the response-header strings
+  emitted at `apps/api/src/common/idempotency/idempotency.interceptor
+.ts:70-71`.
+
+### Peer coordination
+
+- Active claim `okoro:sdk-idempotency-auto-attach` (this session).
+- `okoro:M-TSv2-5` (shipped per prior handoff; claim is stale at
+  sid=5443a97a/cwd=AEGIS but no conflict — verify-outcome surface
+  untouched by this slice).
+- `okoro:rebrand-domain-cascade-script` — peer scoped to
+  `scripts/rename-aegis-to-okoro/**` only. No overlap.
+
+---
+
 ## 2026-05-21 · policy-expiry-worker-observability · close webhook_error metric gap (6eaa972)
 
 Operator asked _"continue building okoro sdk and api"_ on
 `feat/sdk-verify-gateway-hardening`. Scoped via AskUserQuestion to
 M-004 policy expiry worker (one coherent commit, then stop) after
 confirming the peer claim `sid=13271bbf` (audit-crypto paired tests)
-held the audit-* surface. WORK_BOARD listed M-004 as "remaining" but
+held the audit-\* surface. WORK_BOARD listed M-004 as "remaining" but
 `policy.expiry.worker.{ts,spec.ts}` were already shipped — board is
 stale.
 
@@ -57,7 +441,7 @@ and the test assertion mirrors the file's existing Jest-mock pattern.
   2026-05-01 with no recent peer presence.
 - **Adjacent observability gaps worth flagging** (not addressed
   here): the `BateWorker` and `OutboxWorker` (`apps/api/src/modules/
-  bate/bate.worker.ts`, `apps/api/src/common/outbox/outbox.worker.ts`)
+bate/bate.worker.ts`, `apps/api/src/common/outbox/outbox.worker.ts`)
   may have similar log-only failure paths. Each warrants its own
   small commit if `okoro_*_total` counters exist with unused label
   values.
@@ -370,9 +754,9 @@ EQR sub-areas:
   story (CK's customers get SOC 2 evidence via `@okoro/verifier-rp`
   reading from OKORO's audit chain — meta-compliance).
 - **EQR-7** HA/DR posture — inherits existing Postgres active-passive
-  + Redis cluster + stateless API pods; multi-region deferred to
-  follow-on ADR; EU data residency follows API's current single-region
-  US choice.
+  - Redis cluster + stateless API pods; multi-region deferred to
+    follow-on ADR; EU data residency follows API's current single-region
+    US choice.
 - **EQR-8** Pricing/billing — orchestrator slots into existing OD-003
   tier table (FREE off / Developer 1K/mo / Team 25K/mo / Scale 250K/mo
   / Enterprise bespoke); Stripe metering for overage; pricing
@@ -435,8 +819,8 @@ explicitly; concrete command outputs fill in during M-060h.
 
 ### Why this matters
 
-ADR-0020 D1–D8 locked the *architecture*. EQR-1 through EQR-10 lock
-the *operational and compliance contract* an enterprise buyer (and
+ADR-0020 D1–D8 locked the _architecture_. EQR-1 through EQR-10 lock
+the _operational and compliance contract_ an enterprise buyer (and
 their auditor) will hold us to. The 11-section runbook + 4 alerts +
 8 SLOs + 8 paired security specs + 3 chaos tests + STRIDE threat
 model + SOC 2 control mapping is the difference between "neat
@@ -3065,7 +3449,7 @@ loss is material.
 
 ## 2026-05-06 (Round 20 — commerce loop closure: Stripe webhook + portal endpoint + audit events + dashboard billing widget + pricing page + e2e Stripe + R19 cleanups) · sid=c4f241c5 · claim=okoro:round-20-commerce-loop
 
-**Status:** ✅ Landed. **5 parallel agents, ~10 min wall.** Round 19 made TRIAL_EXHAUSTED _fire_; Round 20 closes the _conversion loop_ — every blocked trial customer can now upgrade through Stripe checkout, see their usage in the dashboard, and manage subscription via the customer portal. **API tsc 0 errors (sixth consecutive round preserved)**, **89/89 jest across 6 billing/verify/trial suites**, **168/168 scripts vitest**, **all 4 packages tsc clean** (api/sdk/dashboard/e2e), Postman 44 requests across 12 folders / denial walk-through 10/10 still green.
+**Status:** ✅ Landed. **5 parallel agents, ~10 min wall.** Round 19 made TRIAL*EXHAUSTED \_fire*; Round 20 closes the _conversion loop_ — every blocked trial customer can now upgrade through Stripe checkout, see their usage in the dashboard, and manage subscription via the customer portal. **API tsc 0 errors (sixth consecutive round preserved)**, **89/89 jest across 6 billing/verify/trial suites**, **168/168 scripts vitest**, **all 4 packages tsc clean** (api/sdk/dashboard/e2e), Postman 44 requests across 12 folders / denial walk-through 10/10 still green.
 
 ### Why this round mattered
 
