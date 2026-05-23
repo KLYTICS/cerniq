@@ -1,4 +1,4 @@
-# AEGIS — Session handoff log
+# CERNIQ — Session handoff log
 
 > Append a short entry every time a session lands meaningful work.
 > Newest at top. Format: date, session, what shipped, what's next.
@@ -12,6 +12,73 @@
 > namespaces and CERNIQ product name.
 
 ---
+
+## 2026-05-23 (provider migration + PR #53 merged to local main) · claim=cerniq:provider-migration · sid=anakin
+
+**Status:** ✅ Source-of-truth moved to Radicle (canonical). PR #53 (the
+AEGIS → OKORO → CERNIQ rebrand, 15 commits, 786 files) merged into local
+main; pushed to Radicle. GitHub origin **NOT YET pushed** — see decision
+gate below.
+
+### What shipped
+
+1. **Radicle canonical** — repo provisioned with RID
+   `rad:z3JUSaS2iRrV1raoSaqXxowLDHq6b`, signed by node DID
+   `did:key:z6MktaWRHDtqf9WBqcuoM2u7Qq7Nq91zciw9xE5ib8JkN3EA` (alias
+   `anakin`). Replicated across 5 active community seeders (`rosa`,
+   `iris`, `garden.bastidehub.xyz`, `radicle.linuxw.info`,
+   `nuclide-amd` — plus `rad.bajeanno.com` lagging). The network now
+   holds the same signed state as the local repo.
+2. **NOTICE.md** at repo root — declares Radicle canonical, GitHub +
+   GitLab as mirrors, documents the rebrand chain.
+3. **Mirror infrastructure** at `scripts/mirror-policy.sh` and
+   `.github/workflows/mirror-from-radicle.yml` — every 15 min, clones
+   from Radicle, force-pushes `main` + tags to GitHub. WIP/chore/agent
+   worktree branches stay on Radicle only.
+4. **PR #53 merged** with a `--no-ff` merge commit (`e4c3b35`) preserving
+   the 15-commit rebrand history.
+
+### Verification — `pnpm doctor:full` on `e4c3b35`
+
+`CERNIQ doctor: green` (full). All gates pass:
+`tsc @cerniq/{api,types,verifier-rp}` ✓, `audit:errors` ✓,
+`cross-package parity` ✓, `postman validator` ✓, prisma client ready,
+@cerniq/types build ready, denial-precedence chain intact, discovery
+surface intact (all 7 .well-known routes registered).
+
+### Operator decision pending
+
+GitHub `KLYTICS/cerniq` PR #53 shows BLOCKED with 11 red CI checks while
+the merge passes `pnpm doctor:full` locally. Three failure classes
+identified:
+
+- **Pre-existing drift**: `packages/cli` policies API + `tools/postman`
+  validator. Documented in 2026-05-22 entry below; carries forward.
+- **Newly-public-repo security scan findings**: Dependabot/osv/trivy/
+  gitleaks/license-allowlist/posture — likely real but mostly old. PR
+  #53's wave-1 security fixes cleared 32/49; remaining ~17 need a
+  separate triage pass.
+- **CI-infra**: `build` check fails on GitHub but green locally because
+  GitHub CI does not run `pnpm doctor:full` preflight before
+  `pnpm typecheck`. Add doctor:full as preamble step in CI workflow.
+
+**Operator call required:** push directly to GitHub (admin bypass, FF,
+auto-closes #53) and accept the documented drift on main — OR triage
+the new security findings before letting the rebrand land on GitHub
+main. Radicle canonical is unblocked either way.
+
+### Next session
+
+- If push approved: `git push origin main` then triage the ~20 other
+  open PRs (all branched from pre-rename `1deb9fd`; will show
+  "needs-rebase").
+- Independently: GitLab mirror (klytics group) still pending — user has
+  not yet created the GitLab account.
+- Independently: triage CI security findings cluster; add `doctor:full`
+  preamble step to GitHub CI build job.
+- Long-tail: encrypt the Radicle node key (currently unencrypted
+  passphrase per dev-mode bootstrap; `rad auth` again sets one).
+
 
 ## 2026-05-22 (rename: cerniq-state verification — full chain audit) · claim=cerniq:rename-cerniq-verification · sid=d0a4b0655ee4
 

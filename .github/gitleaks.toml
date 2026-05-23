@@ -32,6 +32,13 @@ regexes = [
     '''pol_01[A-Z0-9]{24}''',         # example policyId in docs
     '''stripe_spt_xxx''',             # spec example
     '''cerniq_signed_xxx''',           # spec example
+
+    # Public-by-definition crypto identifiers. These appear in audit-trail
+    # commits (NOTICE.md, SESSION_HANDOFF.md, decisions/) and will recur
+    # whenever we reference the Radicle canonical or a Radicle node DID.
+    # They are the cryptographic ANALOG of a domain name, not a secret.
+    '''did:key:z6Mk[1-9A-HJ-NP-Za-km-z]{40,50}''',  # W3C did:key (Ed25519)
+    '''rad:z[1-9A-HJ-NP-Za-km-z]{30,}''',           # Radicle project ID (RID)
 ]
 
 # ─────────────────────────────────────────────────────────────
