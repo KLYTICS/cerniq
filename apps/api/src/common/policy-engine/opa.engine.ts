@@ -9,17 +9,17 @@
 //
 // Embedded WASM (preferred for the hot path):
 //   - Customer compiles their Rego at policy-create time:
-//       opa build -t wasm -e "data.okoro.authz.allow" policy.rego -o policy.wasm
+//       opa build -t wasm -e "data.cerniq.authz.allow" policy.rego -o policy.wasm
 //   - We store the WASM bytes on `AgentPolicy.compiledArtifact`.
 //   - At verify time, instantiate a `@open-policy-agent/opa-wasm`
 //     instance per request (or pool) and evaluate against the input
 //     document.
 //
 // Sidecar HTTP (fallback for shops with a central OPA fleet):
-//   - We POST `{ input: ... }` to `OPA_SIDECAR_URL/v1/data/okoro/authz/allow`
+//   - We POST `{ input: ... }` to `OPA_SIDECAR_URL/v1/data/cerniq/authz/allow`
 //   - Response: `{ result: true }` for Allow, `{ result: false }` for Deny.
 //
-// Mapping OKORO → OPA input document:
+// Mapping CERNIQ → OPA input document:
 //   {
 //     "agent":         { id, status, trustScore, trustBand, principalId },
 //     "action":        "<verify-input.action>",
@@ -32,11 +32,11 @@
 //   }
 //
 // Rego conventions:
-//   - `package okoro.authz`
+//   - `package cerniq.authz`
 //   - `default allow = false`
 //   - `allow { ... }` — Allow path.
 //   - `deny_reason["<DenialReason>"] { ... }` — emits a denial reason
-//     from the locked OKORO enum (ADR-0004). When `allow == false` AND
+//     from the locked CERNIQ enum (ADR-0004). When `allow == false` AND
 //     a `deny_reason` rule is true, the engine surfaces that reason;
 //     otherwise it defaults to SCOPE_NOT_GRANTED.
 
@@ -59,10 +59,7 @@ export interface OpaEvaluatorLike {
    *     rules (when allow=false).
    *   - `metadata`: free-form, audited.
    */
-  evaluate(input: {
-    artifact: unknown;
-    document: Record<string, unknown>;
-  }): Promise<{
+  evaluate(input: { artifact: unknown; document: Record<string, unknown> }): Promise<{
     allow: boolean;
     deny_reasons?: string[];
     metadata?: Record<string, unknown>;
@@ -87,7 +84,9 @@ export class OpaPolicyEngine implements PolicyEngine {
   constructor(private readonly evaluator: OpaEvaluatorLike) {}
 
   async evaluate(input: PolicyEvaluationInput): Promise<PolicyEvaluationResult> {
-    const artifact = (input.policy as PolicyEvaluationInput['policy'] & { compiledArtifact?: unknown }).compiledArtifact;
+    const artifact = (
+      input.policy as PolicyEvaluationInput['policy'] & { compiledArtifact?: unknown }
+    ).compiledArtifact;
     if (!artifact) return deny('POLICY_REVOKED', 'opa_artifact_missing');
 
     const document = buildDocument(input);
@@ -137,7 +136,13 @@ export class OpaPolicyEngine implements PolicyEngine {
 function buildDocument(input: PolicyEvaluationInput): Record<string, unknown> {
   const a = input.agent;
   const doc: Record<string, unknown> = {
-    agent: { id: a.id, status: a.status, trustScore: a.trustScore, trustBand: a.trustBand, principalId: a.principalId },
+    agent: {
+      id: a.id,
+      status: a.status,
+      trustScore: a.trustScore,
+      trustBand: a.trustBand,
+      principalId: a.principalId,
+    },
     action: input.action,
     trust: { band: a.trustBand, score: a.trustScore },
     now_unix: Math.floor(input.now.getTime() / 1000),

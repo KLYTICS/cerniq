@@ -1,11 +1,13 @@
 # Architecture compliance review
+
 Reviewer: code-reviewer
 Date: 2026-05-01
 Scope: `apps/api/src/**` + `packages/types/**`
 
 ## Per-invariant assessment
 
-### Invariant 1: Private keys never enter OKORO
+### Invariant 1: Private keys never enter CERNIQ
+
 - Status: PASS
 - Evidence:
   - `prisma/schema.prisma` `AgentIdentity` model carries `publicKey` only; no
@@ -14,7 +16,7 @@ Scope: `apps/api/src/**` + `packages/types/**`
     and persists it; nothing in `identity.dto.ts` exposes a private-key field.
   - All `privateKey` references (`audit.service.ts:36-59`, `policy.module.ts:19-35`,
     `audit-chain.util.ts:86`, `jwt.util.ts:103`, `ed25519.util.ts:16-19,44`) are
-    OKORO's own audit/policy signing keys held in env vars or generated locally
+    CERNIQ's own audit/policy signing keys held in env vars or generated locally
     in dev — never agent material.
   - Pino redaction is documented in `SECURITY.md §4.1` (not verified at code
     level here — see Gaps).
@@ -26,6 +28,7 @@ Scope: `apps/api/src/**` + `packages/types/**`
   - Pino redaction list is only referenced in docs; no test asserts it.
 
 ### Invariant 2: Portable verify hot path
+
 - Status: PARTIAL
 - Evidence:
   - `verify/algorithm/verify.algorithm.ts` is correctly framework-free —
@@ -56,14 +59,15 @@ Scope: `apps/api/src/**` + `packages/types/**`
     `deny()` path bypasses it.
 
 ### Invariant 3: Audit log is append-only and signed
+
 - Status: PASS (with one gap)
 - Evidence:
   - `prisma/schema.prisma` `AuditEvent` has indexes for read paths but no
     helper service does `update`/`delete` — only `create` (`audit.service.ts:113`).
   - Hash-chain construction in `audit-chain.util.ts:72-92` uses prev-signature
-    + canonical-payload Ed25519 signing as documented; `prevHash` enforces
-    that both prev-id and prev-sig are set together (line 76).
-  - Genesis hash literal `OKORO-AUDIT-GENESIS-v1` (line 74) is stable.
+    - canonical-payload Ed25519 signing as documented; `prevHash` enforces
+      that both prev-id and prev-sig are set together (line 76).
+  - Genesis hash literal `CERNIQ-AUDIT-GENESIS-v1` (line 74) is stable.
 - Gaps:
   - **No DB-level guard against UPDATE/DELETE on `AuditEvent`.** Postgres
     triggers / RLS rules are not in any migration in `apps/api/prisma`. The
@@ -76,6 +80,7 @@ Scope: `apps/api/src/**` + `packages/types/**`
     transaction or an advisory lock per `agentId`.
 
 ### Invariant 4: No silent failures, no fabricated data
+
 - Status: PARTIAL
 - Evidence:
   - No `Math.random` anywhere under `apps/api/src` (grep clean).
@@ -109,6 +114,7 @@ Scope: `apps/api/src/**` + `packages/types/**`
     and discarded with no surfacing to the verify response. Marginal.
 
 ### Invariant 5: Multi-tenant isolation by `principalId`
+
 - Status: PARTIAL
 - Evidence:
   - Identity, policy, audit services all take `principalId` first and scope
@@ -136,6 +142,7 @@ Scope: `apps/api/src/**` + `packages/types/**`
     deliberately spans principals — but worth a comment.
 
 ### Invariant 6: Denial precedence is fixed
+
 - Status: PARTIAL
 - Documented order (`SECURITY.md §6` and `CLAUDE.md`): `AGENT_NOT_FOUND` →
   `AGENT_REVOKED` → `INVALID_SIGNATURE` → `POLICY_REVOKED` → `POLICY_EXPIRED`
@@ -148,7 +155,7 @@ Scope: `apps/api/src/**` + `packages/types/**`
   (lines 44-49) → step 5/6 SCOPE_NOT_GRANTED (57, 66) → step 7
   SPEND_LIMIT_EXCEEDED (74).
 - Gaps:
-  - **Step 1 returns `INVALID_SIGNATURE` for malformed tokens *before*
+  - **Step 1 returns `INVALID_SIGNATURE` for malformed tokens _before_
     `AGENT_NOT_FOUND` can be evaluated.** A garbage token yields
     `INVALID_SIGNATURE` even though the documented top of the precedence is
     `AGENT_NOT_FOUND`. This is defensible (no agent id is recoverable from a
@@ -168,10 +175,10 @@ Scope: `apps/api/src/**` + `packages/types/**`
 
 1. **`policy.module.ts:26-28` derives the wrong public key.** When
    `JWT_ED25519_PRIVATE_B64` is set but `JWT_ED25519_PUBLIC_B64` is not, the
-   module calls `generateKeypair()` and uses the *new* random keypair's public
-   key while keeping the configured private key. The `okoroPublicKeyB64`
+   module calls `generateKeypair()` and uses the _new_ random keypair's public
+   key while keeping the configured private key. The `cerniqPublicKeyB64`
    advertised at `/.well-known/...` will not match signatures produced by
-   `okoroPrivateKey`. Every signed policy will fail verification. The fix is
+   `cerniqPrivateKey`. Every signed policy will fail verification. The fix is
    one line: `pubB64 = explicitPubB64 ?? encodeBase64Url(await ed.getPublicKeyAsync(priv))`.
 2. **Constants duplicated outside `packages/types`.** `INITIAL_SCORE`,
    `INITIAL_BAND` exist in `bate.cold-start.ts` but are hard-coded in

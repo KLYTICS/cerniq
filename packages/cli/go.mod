@@ -1,4 +1,4 @@
-module github.com/klytics/okoro/packages/cli
+module github.com/klytics/cerniq/packages/cli
 
 go 1.24.0
 

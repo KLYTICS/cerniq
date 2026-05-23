@@ -14,7 +14,9 @@ export class PolicyController {
   constructor(private readonly policy: PolicyService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a scoped permission policy and receive an OKORO-signed token.' })
+  @ApiOperation({
+    summary: 'Create a scoped permission policy and receive an CERNIQ-signed token.',
+  })
   create(
     @Auth() auth: AuthenticatedKey,
     @Param('agentId') agentId: string,
@@ -25,13 +27,18 @@ export class PolicyController {
 
   @Get()
   @ApiOperation({ summary: 'List policies for an agent.' })
-  list(@Auth() auth: AuthenticatedKey, @Param('agentId') agentId: string): Promise<PolicyResponseDto[]> {
+  list(
+    @Auth() auth: AuthenticatedKey,
+    @Param('agentId') agentId: string,
+  ): Promise<PolicyResponseDto[]> {
     return this.policy.list(auth.principalId, agentId);
   }
 
   @Delete(':policyId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Instantly revoke a policy. Cache invalidation propagates within seconds.' })
+  @ApiOperation({
+    summary: 'Instantly revoke a policy. Cache invalidation propagates within seconds.',
+  })
   async revoke(
     @Auth() auth: AuthenticatedKey,
     @Param('agentId') agentId: string,

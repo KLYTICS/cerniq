@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import type { Okoro } from '@okoro/sdk';
+import type { Cerniq } from '@cerniq/sdk';
 import { makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixtures';
 
@@ -19,7 +19,7 @@ import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixt
  * for the same jti — that's the bug worth catching.
  */
 describe('08 · replay protection', () => {
-  let sdk: Okoro;
+  let sdk: Cerniq;
   const cleanup: string[] = [];
 
   beforeAll(() => {
@@ -48,7 +48,12 @@ describe('08 · replay protection', () => {
       currency: 'USD',
       merchantDomain: 'delta.com',
     });
-    const ctx = { action: 'commerce.purchase', amount: 11, currency: 'USD', merchantDomain: 'delta.com' };
+    const ctx = {
+      action: 'commerce.purchase',
+      amount: 11,
+      currency: 'USD',
+      merchantDomain: 'delta.com',
+    };
 
     const first = await sdk.verify(token, ctx);
     const second = await sdk.verify(token, ctx);
@@ -73,7 +78,9 @@ describe('08 · replay protection', () => {
         );
       }
     } else {
-      expect(['INVALID_SIGNATURE', 'SCOPE_NOT_GRANTED', 'POLICY_REVOKED']).toContain(second.denialReason);
+      expect(['INVALID_SIGNATURE', 'SCOPE_NOT_GRANTED', 'POLICY_REVOKED']).toContain(
+        second.denialReason,
+      );
     }
   });
 });

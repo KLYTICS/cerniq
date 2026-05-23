@@ -1,9 +1,9 @@
-# OKORO — LangChain / CrewAI / AutoGen Integration Guide
+# CERNIQ — LangChain / CrewAI / AutoGen Integration Guide
 
 ## Wrapping AI Agent Frameworks with Identity, Policy, and Audit
 
 > **Updated:** 2026-05-04  
-> **Packages:** `@okoro/sdk` (TypeScript), `okoro` (Python)  
+> **Packages:** `@cerniq/sdk` (TypeScript), `cerniq` (Python)  
 > **Frameworks:** LangChain JS/Python, CrewAI, AutoGen, LlamaIndex
 
 ---
@@ -17,7 +17,7 @@ LangChain agents are powerful but anonymous. When a LangChain agent makes a tool
 - How much has it spent today?
 - What did it do, provably?
 
-OKORO answers all four questions with a single integration point: the `OkoroCallbackHandler`.
+CERNIQ answers all four questions with a single integration point: the `CerniqCallbackHandler`.
 
 ---
 
@@ -26,9 +26,9 @@ OKORO answers all four questions with a single integration point: the `OkoroCall
 ### 2.1 Install
 
 ```bash
-npm install @okoro/sdk @langchain/core
+npm install @cerniq/sdk @langchain/core
 # or
-pnpm add @okoro/sdk @langchain/core
+pnpm add @cerniq/sdk @langchain/core
 ```
 
 ### 2.2 Basic Integration
@@ -36,19 +36,19 @@ pnpm add @okoro/sdk @langchain/core
 ```typescript
 import { ChatOpenAI } from '@langchain/openai';
 import { AgentExecutor, createToolCallingAgent } from 'langchain/agents';
-import { OkoroCallbackHandler, OkoroClient } from '@okoro/sdk';
+import { CerniqCallbackHandler, CerniqClient } from '@cerniq/sdk';
 
-// Initialize OKORO client
-const okoro = new OkoroClient({
-  apiKey: process.env.OKORO_API_KEY!,
-  agentId: process.env.OKORO_AGENT_ID!,
-  privateKey: process.env.OKORO_PRIVATE_KEY!, // Ed25519 private key
+// Initialize CERNIQ client
+const cerniq = new CerniqClient({
+  apiKey: process.env.CERNIQ_API_KEY!,
+  agentId: process.env.CERNIQ_AGENT_ID!,
+  privateKey: process.env.CERNIQ_PRIVATE_KEY!, // Ed25519 private key
 });
 
-// Create the OKORO callback handler
-// This intercepts every tool call and wraps it with OKORO verification
-const okoroHandler = new OkoroCallbackHandler({
-  client: okoro,
+// Create the CERNIQ callback handler
+// This intercepts every tool call and wraps it with CERNIQ verification
+const cerniqHandler = new CerniqCallbackHandler({
+  client: cerniq,
   // Scopes required for this agent's tool calls
   defaultScopes: ['tool:execute'],
   // Spend tracking: include amount + currency in tool metadata when possible
@@ -71,7 +71,7 @@ const agent = createToolCallingAgent({ llm: model, tools, prompt });
 const executor = new AgentExecutor({
   agent,
   tools,
-  callbacks: [okoroHandler], // ← wire it here
+  callbacks: [cerniqHandler], // ← wire it here
 });
 
 // Run
@@ -80,7 +80,7 @@ const result = await executor.invoke({
 });
 
 // Every tool call during this run:
-// 1. Presents a signed OKORO JWT
+// 1. Presents a signed CERNIQ JWT
 // 2. Is checked against policy (spend limit, scope)
 // 3. Gets an audit event written (signed, in the hash chain)
 // 4. Respects revocation (if agent is revoked mid-run, calls start failing)
@@ -91,8 +91,8 @@ const result = await executor.invoke({
 Different tools can require different scopes:
 
 ```typescript
-const okoroHandler = new OkoroCallbackHandler({
-  client: okoro,
+const cerniqHandler = new CerniqCallbackHandler({
+  client: cerniq,
   // Per-tool scope requirements
   toolScopeMap: {
     transfer_funds: ['payment:write'],
@@ -109,16 +109,16 @@ const okoroHandler = new OkoroCallbackHandler({
 
 ### 2.4 Handling Denials Gracefully
 
-When OKORO denies a tool call, the handler raises a structured error:
+When CERNIQ denies a tool call, the handler raises a structured error:
 
 ```typescript
-import { OkoroDenialError } from '@okoro/sdk';
+import { CerniqDenialError } from '@cerniq/sdk';
 
 try {
   await executor.invoke({ input: 'Transfer $10,000' });
 } catch (err) {
-  if (err instanceof OkoroDenialError) {
-    console.error(`OKORO blocked this action: ${err.denialReason}`);
+  if (err instanceof CerniqDenialError) {
+    console.error(`CERNIQ blocked this action: ${err.denialReason}`);
     // err.denialReason: 'SPEND_LIMIT_EXCEEDED' | 'SCOPE_NOT_GRANTED' | ...
     // err.agentId: which agent was blocked
     // err.auditEventId: reference to the audit log entry
@@ -133,9 +133,9 @@ try {
 }
 ```
 
-### 2.5 Streaming with OKORO
+### 2.5 Streaming with CERNIQ
 
-OKORO verification is synchronous and fast (~50ms). It doesn't interfere with LangChain streaming:
+CERNIQ verification is synchronous and fast (~50ms). It doesn't interfere with LangChain streaming:
 
 ```typescript
 const stream = await executor.stream({ input: 'Process my order' });
@@ -147,7 +147,7 @@ for await (const chunk of stream) {
 }
 
 // Tool calls within the stream are verified synchronously
-// If a denial occurs mid-stream: stream terminates with OkoroDenialError
+// If a denial occurs mid-stream: stream terminates with CerniqDenialError
 ```
 
 ---
@@ -157,9 +157,9 @@ for await (const chunk of stream) {
 ### 3.1 Install
 
 ```bash
-pip install okoro-sdk langchain langchain-openai
+pip install cerniq-sdk langchain langchain-openai
 # or
-uv add okoro-sdk langchain langchain-openai
+uv add cerniq-sdk langchain langchain-openai
 ```
 
 ### 3.2 Basic Integration
@@ -168,21 +168,21 @@ uv add okoro-sdk langchain langchain-openai
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain import hub
-from okoro import AsyncOkoro, OkoroCallbackHandler
+from cerniq import AsyncCerniq, CerniqCallbackHandler
 
 import asyncio, os
 
 async def main():
-    # Initialize OKORO
-    okoro = AsyncOkoro(
-        api_key=os.environ["OKORO_API_KEY"],
-        agent_id=os.environ["OKORO_AGENT_ID"],
-        private_key=os.environ["OKORO_PRIVATE_KEY"],
+    # Initialize CERNIQ
+    cerniq = AsyncCerniq(
+        api_key=os.environ["CERNIQ_API_KEY"],
+        agent_id=os.environ["CERNIQ_AGENT_ID"],
+        private_key=os.environ["CERNIQ_PRIVATE_KEY"],
     )
 
-    # OKORO callback handler for LangChain
-    okoro_handler = OkoroCallbackHandler(
-        client=okoro,
+    # CERNIQ callback handler for LangChain
+    cerniq_handler = CerniqCallbackHandler(
+        client=cerniq,
         default_scopes=["tool:execute"],
     )
 
@@ -195,7 +195,7 @@ async def main():
     executor = AgentExecutor(
         agent=agent,
         tools=tools,
-        callbacks=[okoro_handler],  # wire here
+        callbacks=[cerniq_handler],  # wire here
     )
 
     result = await executor.ainvoke({"input": "What's my account balance?"})
@@ -210,22 +210,22 @@ For stateful multi-step agent graphs:
 
 ```python
 from langgraph.graph import StateGraph, END
-from okoro import AsyncOkoro, verify_tool_call
+from cerniq import AsyncCerniq, verify_tool_call
 
-okoro = AsyncOkoro(api_key=..., agent_id=..., private_key=...)
+cerniq = AsyncCerniq(api_key=..., agent_id=..., private_key=...)
 
 # Decorator approach: protect individual tool functions
-@verify_tool_call(client=okoro, scopes=["data:read"], spend=None)
+@verify_tool_call(client=cerniq, scopes=["data:read"], spend=None)
 async def query_database(query: str) -> dict:
-    """Runs a database query. Protected by OKORO."""
+    """Runs a database query. Protected by CERNIQ."""
     return await db.execute(query)
 
-@verify_tool_call(client=okoro, scopes=["payment:write"], spend_field="amount")
+@verify_tool_call(client=cerniq, scopes=["payment:write"], spend_field="amount")
 async def process_payment(amount: float, recipient: str) -> dict:
-    """Processes a payment. Protected by OKORO with spend tracking."""
+    """Processes a payment. Protected by CERNIQ with spend tracking."""
     return await payment_service.transfer(amount, recipient)
 
-# These functions now require valid OKORO tokens when called
+# These functions now require valid CERNIQ tokens when called
 # Use them in your LangGraph nodes as normal
 ```
 
@@ -238,27 +238,27 @@ async def process_payment(amount: float, recipient: str) -> dict:
 ```python
 from crewai import Agent, Task, Crew, Process
 from crewai.tools import tool
-from okoro import AsyncOkoro, OkoroTool
+from cerniq import AsyncCerniq, CerniqTool
 
-okoro = AsyncOkoro(
-    api_key=os.environ["OKORO_API_KEY"],
-    agent_id=os.environ["OKORO_AGENT_ID"],
-    private_key=os.environ["OKORO_PRIVATE_KEY"],
+cerniq = AsyncCerniq(
+    api_key=os.environ["CERNIQ_API_KEY"],
+    agent_id=os.environ["CERNIQ_AGENT_ID"],
+    private_key=os.environ["CERNIQ_PRIVATE_KEY"],
 )
 
-# Method 1: Use OkoroTool wrapper
-class DatabaseTool(OkoroTool):
+# Method 1: Use CerniqTool wrapper
+class DatabaseTool(CerniqTool):
     name: str = "query_database"
     description: str = "Execute a database query"
-    okoro_scopes: list = ["data:read"]
+    cerniq_scopes: list = ["data:read"]
 
     def _run(self, query: str) -> str:
-        # OKORO verifies identity before this method is called
+        # CERNIQ verifies identity before this method is called
         return database.query(query)
 
 # Method 2: Decorator
 @tool("transfer_funds")
-@okoro.protect(scopes=["payment:write"], spend_field="amount_usd")
+@cerniq.protect(scopes=["payment:write"], spend_field="amount_usd")
 def transfer_funds(amount_usd: float, recipient_id: str) -> str:
     """Transfer funds to a recipient. Requires payment:write scope."""
     return payment_service.transfer(amount_usd, recipient_id)
@@ -271,40 +271,40 @@ researcher = Agent(
     verbose=True,
 )
 
-# OKORO verification happens automatically when the agent uses the tool
+# CERNIQ verification happens automatically when the agent uses the tool
 crew = Crew(agents=[researcher], tasks=[...], process=Process.sequential)
 result = crew.kickoff()
 ```
 
 ### 4.2 Per-Agent Policies in CrewAI
 
-Map each CrewAI agent to a separate OKORO agent for fine-grained policies:
+Map each CrewAI agent to a separate CERNIQ agent for fine-grained policies:
 
 ```python
-from okoro import AsyncOkoro
+from cerniq import AsyncCerniq
 
 # Orchestrator agent: higher trust, broader scopes
-orchestrator_okoro = AsyncOkoro(
-    api_key=os.environ["OKORO_API_KEY"],
+orchestrator_cerniq = AsyncCerniq(
+    api_key=os.environ["CERNIQ_API_KEY"],
     agent_id=os.environ["ORCHESTRATOR_AGENT_ID"],
     private_key=os.environ["ORCHESTRATOR_PRIVATE_KEY"],
 )
 
 # Subagent: limited scopes, lower spend limit
-subagent_okoro = AsyncOkoro(
-    api_key=os.environ["OKORO_API_KEY"],
+subagent_cerniq = AsyncCerniq(
+    api_key=os.environ["CERNIQ_API_KEY"],
     agent_id=os.environ["SUBAGENT_ID"],
     private_key=os.environ["SUBAGENT_PRIVATE_KEY"],
 )
 
 orchestrator = Agent(
     role="Orchestrator",
-    tools=[OkoroTool(client=orchestrator_okoro, scopes=["*"])],
+    tools=[CerniqTool(client=orchestrator_cerniq, scopes=["*"])],
 )
 
 subagent = Agent(
     role="Data Collector",
-    tools=[OkoroTool(client=subagent_okoro, scopes=["data:read"])],
+    tools=[CerniqTool(client=subagent_cerniq, scopes=["data:read"])],
 )
 ```
 
@@ -314,19 +314,19 @@ subagent = Agent(
 
 ```python
 import autogen
-from okoro import AsyncOkoro, OkoroUserProxyAgent
+from cerniq import AsyncCerniq, CerniqUserProxyAgent
 
-okoro = AsyncOkoro(
-    api_key=os.environ["OKORO_API_KEY"],
-    agent_id=os.environ["OKORO_AGENT_ID"],
-    private_key=os.environ["OKORO_PRIVATE_KEY"],
+cerniq = AsyncCerniq(
+    api_key=os.environ["CERNIQ_API_KEY"],
+    agent_id=os.environ["CERNIQ_AGENT_ID"],
+    private_key=os.environ["CERNIQ_PRIVATE_KEY"],
 )
 
-# OkoroUserProxyAgent wraps autogen.UserProxyAgent
-# Intercepts all function calls and verifies with OKORO
-user_proxy = OkoroUserProxyAgent(
+# CerniqUserProxyAgent wraps autogen.UserProxyAgent
+# Intercepts all function calls and verifies with CERNIQ
+user_proxy = CerniqUserProxyAgent(
     name="UserProxy",
-    okoro_client=okoro,
+    cerniq_client=cerniq,
     default_scopes=["tool:execute", "code:execute"],
     human_input_mode="NEVER",
     code_execution_config={"work_dir": "coding"},
@@ -337,7 +337,7 @@ assistant = autogen.AssistantAgent(
     llm_config={"model": "gpt-4o"},
 )
 
-# Run conversation — all function calls are OKORO-verified
+# Run conversation — all function calls are CERNIQ-verified
 user_proxy.initiate_chat(
     assistant,
     message="Analyze this dataset and generate a report",
@@ -351,13 +351,13 @@ user_proxy.initiate_chat(
 For regulated industries, the full audit trail of every LangChain action is critical:
 
 ```python
-from okoro import AsyncOkoro
+from cerniq import AsyncCerniq
 
-okoro = AsyncOkoro(api_key=..., agent_id=..., private_key=...)
+cerniq = AsyncCerniq(api_key=..., agent_id=..., private_key=...)
 
 # After your agent run, export the audit trail
 async def export_run_audit(run_id: str, agent_id: str):
-    events = await okoro.audit.list(
+    events = await cerniq.audit.list(
         agent_id=agent_id,
         since_run_id=run_id,
         include_chain_proof=True,  # cryptographic proof of integrity
@@ -379,15 +379,15 @@ async def export_run_audit(run_id: str, agent_id: str):
 ## 7. Pattern: Spend-Aware Agent Loops
 
 ```python
-from okoro import AsyncOkoro, SpendExceededError
+from cerniq import AsyncCerniq, SpendExceededError
 
-okoro = AsyncOkoro(api_key=..., agent_id=..., private_key=...)
+cerniq = AsyncCerniq(api_key=..., agent_id=..., private_key=...)
 
 async def safe_agent_loop(tasks: list, daily_budget_usd: float):
     """Run agent tasks with a hard spend cap."""
 
     # Configure daily budget via policy
-    await okoro.policies.apply(
+    await cerniq.policies.apply(
         scope="payment:write",
         spend_limit=daily_budget_usd,
         currency="USD",
@@ -418,7 +418,7 @@ async def safe_agent_loop(tasks: list, daily_budget_usd: float):
 ## 8. Complete Example: Financial Research Agent
 
 ```python
-# Full production example: research agent with OKORO protection
+# Full production example: research agent with CERNIQ protection
 
 import os
 import asyncio
@@ -426,18 +426,18 @@ from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.tools import tool
 from langchain import hub
-from okoro import AsyncOkoro, OkoroCallbackHandler
+from cerniq import AsyncCerniq, CerniqCallbackHandler
 
-okoro = AsyncOkoro(
-    api_key=os.environ["OKORO_API_KEY"],
-    agent_id=os.environ["OKORO_AGENT_ID"],
-    private_key=os.environ["OKORO_PRIVATE_KEY"],
+cerniq = AsyncCerniq(
+    api_key=os.environ["CERNIQ_API_KEY"],
+    agent_id=os.environ["CERNIQ_AGENT_ID"],
+    private_key=os.environ["CERNIQ_PRIVATE_KEY"],
 )
 
 @tool
 def fetch_market_data(ticker: str) -> dict:
     """Fetch current market data for a stock ticker."""
-    # okoro verifies: scope=data:read, no spend tracking needed
+    # cerniq verifies: scope=data:read, no spend tracking needed
     return market_api.get(ticker)
 
 @tool
@@ -449,12 +449,12 @@ def execute_trade(ticker: str, quantity: int, price: float) -> dict:
         quantity: Number of shares
         price: Target price
     """
-    # okoro verifies: scope=trading:execute, spend=quantity*price USD
+    # cerniq verifies: scope=trading:execute, spend=quantity*price USD
     return trading_api.order(ticker, quantity, price)
 
 async def run():
-    handler = OkoroCallbackHandler(
-        client=okoro,
+    handler = CerniqCallbackHandler(
+        client=cerniq,
         toolScopeMap={
             "fetch_market_data": ["data:read"],
             "execute_trade": ["trading:execute"],
@@ -497,14 +497,14 @@ asyncio.run(run())
 
 ```bash
 # Required for all LangChain integrations
-OKORO_API_KEY=ak_live_xxxx          # Your OKORO API key
-OKORO_AGENT_ID=agent_xxxx           # Agent identifier
-OKORO_PRIVATE_KEY=base64_ed25519    # Agent's Ed25519 private key (keep secret!)
+CERNIQ_API_KEY=ak_live_xxxx          # Your CERNIQ API key
+CERNIQ_AGENT_ID=agent_xxxx           # Agent identifier
+CERNIQ_PRIVATE_KEY=base64_ed25519    # Agent's Ed25519 private key (keep secret!)
 
 # Optional
-OKORO_BASE_URL=https://api.okoroapp.com   # Default
-OKORO_TOKEN_TTL=30                        # JWT TTL in seconds (default: 30)
-OKORO_AUDIT_ENABLED=true                  # Disable for local dev (default: true)
+CERNIQ_BASE_URL=https://api.cerniqapp.com   # Default
+CERNIQ_TOKEN_TTL=30                        # JWT TTL in seconds (default: 30)
+CERNIQ_AUDIT_ENABLED=true                  # Disable for local dev (default: true)
 ```
 
 ---
@@ -517,12 +517,12 @@ OKORO_AUDIT_ENABLED=true                  # Disable for local dev (default: true
 
 ```python
 # Increase TTL for long operations (max 300s recommended)
-okoro = AsyncOkoro(
+cerniq = AsyncCerniq(
     ...,
     token_ttl=120,  # 2 minutes
 )
 # Or generate a fresh token per batch:
-okoro.refresh_token()  # generates new token, resets TTL
+cerniq.refresh_token()  # generates new token, resets TTL
 ```
 
 ### "SPEND_LIMIT_EXCEEDED after N calls"
@@ -530,7 +530,7 @@ okoro.refresh_token()  # generates new token, resets TTL
 Expected behavior if `spend_limit` is configured. To increase:
 
 ```bash
-okoro policy apply --agent $AGENT_ID --spend-limit 10000 --currency USD --window day
+cerniq policy apply --agent $AGENT_ID --spend-limit 10000 --currency USD --window day
 ```
 
 ### "Callback handler not being called"
@@ -552,4 +552,4 @@ executor = AgentExecutor(
 
 ---
 
-_LangChain integration guide version: 1.0 | OKORO Phase 1_
+_LangChain integration guide version: 1.0 | CERNIQ Phase 1_

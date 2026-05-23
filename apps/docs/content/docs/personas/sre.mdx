@@ -1,11 +1,11 @@
 ---
 title: SRE & On-call
-description: Run OKORO in production. Status, runbooks, deploy, rollback, observability, incident response.
+description: Run CERNIQ in production. Status, runbooks, deploy, rollback, observability, incident response.
 ---
 
 <StatusBadge />
 
-OKORO is a hot-path service. The verify endpoint sits between AI agents and
+CERNIQ is a hot-path service. The verify endpoint sits between AI agents and
 the actions they perform, so a regression has customer-visible blast radius.
 This page is the canonical entry point for everyone holding the pager.
 
@@ -20,22 +20,22 @@ This page is the canonical entry point for everyone holding the pager.
 
 ## First-action runbooks
 
-The full runbook library lives in [`docs/`](https://github.com/klytics/okoro/tree/main/docs).
+The full runbook library lives in [`docs/`](https://github.com/klytics/cerniq/tree/main/docs).
 Start here when something's wrong:
 
 | Scenario                              | Runbook                                                                                                                          |
 | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| p99 spike on `/v1/verify`             | [`docs/RUNBOOK.md` § Verify latency](https://github.com/klytics/okoro/blob/main/docs/RUNBOOK.md)                                |
-| Audit chain hash mismatch alarm       | [`docs/IMMUTABILITY.md`](https://github.com/klytics/okoro/blob/main/docs/IMMUTABILITY.md)                                      |
-| Redis spend counter divergence        | [`docs/FAILURE_MODES.md` § Spend TOCTOU](https://github.com/klytics/okoro/blob/main/docs/FAILURE_MODES.md)                     |
-| Stripe webhook backlog                | [`docs/RUNBOOK.md` § Billing](https://github.com/klytics/okoro/blob/main/docs/RUNBOOK.md)                                      |
-| Region-wide outage / DR cutover       | [`docs/DR_RUNBOOK.md`](https://github.com/klytics/okoro/blob/main/docs/DR_RUNBOOK.md)                                          |
-| Incident response coordination        | [`docs/INCIDENT_RESPONSE.md`](https://github.com/klytics/okoro/blob/main/docs/INCIDENT_RESPONSE.md)                            |
-| Capacity headroom & autoscale         | [`docs/CAPACITY_PLAN.md`](https://github.com/klytics/okoro/blob/main/docs/CAPACITY_PLAN.md)                                    |
+| p99 spike on `/v1/verify`             | [`docs/RUNBOOK.md` § Verify latency](https://github.com/klytics/cerniq/blob/main/docs/RUNBOOK.md)                                |
+| Audit chain hash mismatch alarm       | [`docs/IMMUTABILITY.md`](https://github.com/klytics/cerniq/blob/main/docs/IMMUTABILITY.md)                                      |
+| Redis spend counter divergence        | [`docs/FAILURE_MODES.md` § Spend TOCTOU](https://github.com/klytics/cerniq/blob/main/docs/FAILURE_MODES.md)                     |
+| Stripe webhook backlog                | [`docs/RUNBOOK.md` § Billing](https://github.com/klytics/cerniq/blob/main/docs/RUNBOOK.md)                                      |
+| Region-wide outage / DR cutover       | [`docs/DR_RUNBOOK.md`](https://github.com/klytics/cerniq/blob/main/docs/DR_RUNBOOK.md)                                          |
+| Incident response coordination        | [`docs/INCIDENT_RESPONSE.md`](https://github.com/klytics/cerniq/blob/main/docs/INCIDENT_RESPONSE.md)                            |
+| Capacity headroom & autoscale         | [`docs/CAPACITY_PLAN.md`](https://github.com/klytics/cerniq/blob/main/docs/CAPACITY_PLAN.md)                                    |
 
 ## Deploy & rollback
 
-- **Deploy target**: Railway for the API, Vercel for the dashboard and these docs. See [`docs/DEPLOYMENT_GUIDE.md`](https://github.com/klytics/okoro/blob/main/docs/DEPLOYMENT_GUIDE.md).
+- **Deploy target**: Railway for the API, Vercel for the dashboard and these docs. See [`docs/DEPLOYMENT_GUIDE.md`](https://github.com/klytics/cerniq/blob/main/docs/DEPLOYMENT_GUIDE.md).
 - **Migration immutability**: every Prisma migration is append-only after merge. Never edit a previously applied migration in production. Local repair only.
 - **Rollback**: code rollbacks are safe; migrations are forward-only. If a migration is the regression, write a forward migration that restores the prior shape.
 
@@ -45,7 +45,7 @@ Start here when something's wrong:
 | ------------------- | ---------------------------------------------------------------------------------------------- |
 | Logs (Pino)         | JSON, with `requestId`, `principalId`, `agentId`, `policyId`, `denialReason` tagged            |
 | Metrics (Prom)      | `/metrics` on the API; `verify_*`, `audit_*`, `bate_*`, `webhook_*` namespaces                 |
-| Traces (OTel)       | `okoro.verify.algorithm`, `okoro.audit.chain.append`, `okoro.kms.<provider>.<op>` span names |
+| Traces (OTel)       | `cerniq.verify.algorithm`, `cerniq.audit.chain.append`, `cerniq.kms.<provider>.<op>` span names |
 | Audit chain export  | `GET /v1/audit/export.ndjson` with hash-chain verifiability — see compliance persona           |
 
 ## Denial precedence — what to look at first when verify fails in production

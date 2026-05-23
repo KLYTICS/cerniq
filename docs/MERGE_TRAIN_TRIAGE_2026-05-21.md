@@ -1,12 +1,12 @@
 ---
-title: OKORO — Merge-train triage (2026-05-21)
+title: CERNIQ — Merge-train triage (2026-05-21)
 triaged-on: 2026-05-21
 triager: sid=busy-khorana-7281c7 (autonomous, read-only)
 scope: 8 DIRTY PRs blocking the supply-chain hardening wave
 result: 1 SUPERSEDED (close), 7 STALE-FORK (re-extract from current main)
 ---
 
-# OKORO — Merge-train triage (2026-05-21)
+# CERNIQ — Merge-train triage (2026-05-21)
 
 A focused triage of the 8 DIRTY pull requests as of 2026-05-21. The
 finding: **none of them are real merge conflicts in the substance
@@ -17,22 +17,22 @@ main would be silently destructive (it would un-land M-014).
 
 The correct fix is **re-extraction** — cherry-pick the real changes
 onto a fresh branch off current main, leaving the stale deletions
-behind. One PR (#26) is already SUPERSEDED by [PR #32](https://github.com/KLYTICS/okoro/pull/32) and should
+behind. One PR (#26) is already SUPERSEDED by [PR #32](https://github.com/KLYTICS/cerniq/pull/32) and should
 just close.
 
 ## TL;DR action table (sorted by priority)
 
-| PR | Title | Action | Blocks | Notes |
-|----|-------|--------|--------|-------|
-| [#26](https://github.com/KLYTICS/okoro/pull/26) | fix(spec-sync) M-056 regression | **Close** | unblocks #32 | Superseded by [#32](https://github.com/KLYTICS/okoro/pull/32) (broader scope; mergeable) |
-| [#9](https://github.com/KLYTICS/okoro/pull/9) | fix(audit): SOC2 third-party verification (M-038) | Re-extract | SOC2 compliance | Compliance-critical; 39 real modifications + 79 stale deletions |
-| [#2](https://github.com/KLYTICS/okoro/pull/2) | SDK VerifyGateway: 4-round enterprise hardening | Re-extract | Core SDK feature | 206 new files of substantive work |
-| [#25](https://github.com/KLYTICS/okoro/pull/25) | feat(types,sdk-ts,dashboard): canonical DenialContextKind | Re-extract | Dashboard wiring | 177 new files; type-system feature |
-| [#13](https://github.com/KLYTICS/okoro/pull/13) | feat(webhooks): payload contracts + drift observability | Re-extract | Webhook obs | Cross-cutting; needed for multi-tenant story |
-| [#4](https://github.com/KLYTICS/okoro/pull/4) | fix(infra): enterprise quality pass | Re-extract | Infra hardening | 27 real code mods; auth + compliance |
-| [#8](https://github.com/KLYTICS/okoro/pull/8) | chore(deps): close all 44 Dependabot alerts | Re-extract | Dep health | Batch with #16 |
-| [#16](https://github.com/KLYTICS/okoro/pull/16) | chore(deps): W1 transitive sweep via pnpm.overrides | Re-extract | Dep health | 6 real mods; closes 15 alerts (4H/9M/2L) |
-| [#14](https://github.com/KLYTICS/okoro/pull/14) | chore(husky): wire conflict-check pre-commit | Re-extract | Peer tooling | Smallest scope; 7 real mods |
+| PR                                               | Title                                                     | Action     | Blocks           | Notes                                                                                     |
+| ------------------------------------------------ | --------------------------------------------------------- | ---------- | ---------------- | ----------------------------------------------------------------------------------------- |
+| [#26](https://github.com/KLYTICS/cerniq/pull/26) | fix(spec-sync) M-056 regression                           | **Close**  | unblocks #32     | Superseded by [#32](https://github.com/KLYTICS/cerniq/pull/32) (broader scope; mergeable) |
+| [#9](https://github.com/KLYTICS/cerniq/pull/9)   | fix(audit): SOC2 third-party verification (M-038)         | Re-extract | SOC2 compliance  | Compliance-critical; 39 real modifications + 79 stale deletions                           |
+| [#2](https://github.com/KLYTICS/cerniq/pull/2)   | SDK VerifyGateway: 4-round enterprise hardening           | Re-extract | Core SDK feature | 206 new files of substantive work                                                         |
+| [#25](https://github.com/KLYTICS/cerniq/pull/25) | feat(types,sdk-ts,dashboard): canonical DenialContextKind | Re-extract | Dashboard wiring | 177 new files; type-system feature                                                        |
+| [#13](https://github.com/KLYTICS/cerniq/pull/13) | feat(webhooks): payload contracts + drift observability   | Re-extract | Webhook obs      | Cross-cutting; needed for multi-tenant story                                              |
+| [#4](https://github.com/KLYTICS/cerniq/pull/4)   | fix(infra): enterprise quality pass                       | Re-extract | Infra hardening  | 27 real code mods; auth + compliance                                                      |
+| [#8](https://github.com/KLYTICS/cerniq/pull/8)   | chore(deps): close all 44 Dependabot alerts               | Re-extract | Dep health       | Batch with #16                                                                            |
+| [#16](https://github.com/KLYTICS/cerniq/pull/16) | chore(deps): W1 transitive sweep via pnpm.overrides       | Re-extract | Dep health       | 6 real mods; closes 15 alerts (4H/9M/2L)                                                  |
+| [#14](https://github.com/KLYTICS/cerniq/pull/14) | chore(husky): wire conflict-check pre-commit              | Re-extract | Peer tooling     | Smallest scope; 7 real mods                                                               |
 
 ## The root cause is structural, not substantive
 
@@ -88,14 +88,14 @@ of the codebase untouched.
 If operator capacity is limited and only a few re-extractions can
 happen this week, prioritize:
 
-1. **[#26](https://github.com/KLYTICS/okoro/pull/26) close** — 30 seconds, removes confusion, clears the
+1. **[#26](https://github.com/KLYTICS/cerniq/pull/26) close** — 30 seconds, removes confusion, clears the
    "spec-sync regression fix" double-PR situation.
-2. **[#9](https://github.com/KLYTICS/okoro/pull/9) (M-038 SOC2 audit chain)** — compliance-critical,
+2. **[#9](https://github.com/KLYTICS/cerniq/pull/9) (M-038 SOC2 audit chain)** — compliance-critical,
    lands SOC2 third-party verification work.
-3. **[#16](https://github.com/KLYTICS/okoro/pull/16) (W1 dep sweep)** — closes 15 Dependabot alerts
+3. **[#16](https://github.com/KLYTICS/cerniq/pull/16) (W1 dep sweep)** — closes 15 Dependabot alerts
    immediately (4 HIGH, 9 MEDIUM, 2 LOW). Highest security ROI per
    minute of re-extraction effort.
-4. **[#25](https://github.com/KLYTICS/okoro/pull/25) (DenialContextKind)** — feature work that other
+4. **[#25](https://github.com/KLYTICS/cerniq/pull/25) (DenialContextKind)** — feature work that other
    sessions may be waiting on.
 5. Everything else as bandwidth allows.
 

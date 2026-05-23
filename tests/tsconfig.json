@@ -11,8 +11,8 @@
     "target": "ES2022",
     "baseUrl": ".",
     "paths": {
-      "@okoro/sdk": ["../packages/sdk-ts/src/index.ts"],
-      "@okoro/types": ["../packages/types/src/index.ts"]
+      "@cerniq/sdk": ["../packages/sdk-ts/src/index.ts"],
+      "@cerniq/types": ["../packages/types/src/index.ts"]
     }
   },
   "include": ["e2e/**/*.ts", "load/**/*.ts", "vitest.config.ts"],

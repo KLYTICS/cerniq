@@ -1,4 +1,4 @@
-# OKORO — Operations Runbook
+# CERNIQ — Operations Runbook
 
 > **On-call?** This document covers local development and routine
 > operations. For SEV-1/SEV-2 incidents (chain integrity break, KMS
@@ -20,7 +20,7 @@ pnpm dev:dashboard         # Dashboard → http://localhost:3000
 
 ```bash
 # Replace EMAIL and LABEL.
-docker compose exec postgres psql -U okoro -d okoro <<'SQL'
+docker compose exec postgres psql -U cerniq -d cerniq <<'SQL'
 WITH p AS (
   INSERT INTO "Principal" (id, email, "emailVerified")
   VALUES ('p_root', 'erwin@klytics.io', true)
@@ -45,17 +45,21 @@ A future PR adds `apps/api/scripts/bootstrap-principal.ts` that does both.
 ## Common failures
 
 ### `Configuration validation failed`
+
 `AppConfigService` rejected the env. Inspect the error — it lists every missing/invalid var. Most common: `DATABASE_URL` or `REDIS_URL` missing.
 
 ### Verify returns `INVALID_SIGNATURE` for an obviously good token
+
 - Check the `publicKey` registered on the agent matches the private key the agent is using.
 - Confirm the SDK is on the same major version as the API; token shape is forward-compatible but not reverse.
-- `okoro_vk_` keys can call `/verify`; `okoro_sk_` can also. Wrong key on `/agents/register` → 401, not a verify failure.
+- `cerniq_vk_` keys can call `/verify`; `cerniq_sk_` can also. Wrong key on `/agents/register` → 401, not a verify failure.
 
 ### BATE recompute lag
+
 Phase 1 recomputes inline after each ingest (synchronous trigger inside `BateService.ingestSignal`). Latency >100 ms is a signal volume issue → bump to BullMQ worker (Phase 2 backlog Epic 9).
 
 ### `/health/ready` reports degraded
+
 - `database: false` → check `DATABASE_URL`, run `pnpm db:migrate`.
 - `redis: false` → check `REDIS_URL`, ensure docker compose service is running.
 

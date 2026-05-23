@@ -1,10 +1,10 @@
-import type { Okoro } from '@okoro/sdk';
+import type { Cerniq } from '@cerniq/sdk';
 
 import type { ToolDefinition } from './registry.js';
 
-export function registerPoliciesTools(okoro: Okoro, registry: Map<string, ToolDefinition>): void {
-  registry.set('okoro.policies.create', {
-    name: 'okoro.policies.create',
+export function registerPoliciesTools(cerniq: Cerniq, registry: Map<string, ToolDefinition>): void {
+  registry.set('cerniq.policies.create', {
+    name: 'cerniq.policies.create',
     description:
       'Issue a scoped policy for an agent. Returns a signed JWT (EdDSA) the agent presents at ' +
       '/v1/verify. Spend limits, MCC ranges, and merchant allow-lists are validated server-side.',
@@ -39,15 +39,16 @@ export function registerPoliciesTools(okoro: Okoro, registry: Map<string, ToolDe
       additionalProperties: false,
     },
     handler: async (args) =>
-      await okoro.policies.create({
+      await cerniq.policies.create({
         agentId: String(args.agent_id),
         scopes: args.scopes as never,
-        expiresInSeconds: typeof args.expires_in_seconds === 'number' ? args.expires_in_seconds : undefined,
+        expiresInSeconds:
+          typeof args.expires_in_seconds === 'number' ? args.expires_in_seconds : undefined,
       }),
   });
 
-  registry.set('okoro.policies.get', {
-    name: 'okoro.policies.get',
+  registry.set('cerniq.policies.get', {
+    name: 'cerniq.policies.get',
     description: 'Fetch one policy by id.',
     inputSchema: {
       type: 'object',
@@ -55,11 +56,11 @@ export function registerPoliciesTools(okoro: Okoro, registry: Map<string, ToolDe
       required: ['policy_id'],
       additionalProperties: false,
     },
-    handler: async (args) => await okoro.policies.get(String(args.policy_id)),
+    handler: async (args) => await cerniq.policies.get(String(args.policy_id)),
   });
 
-  registry.set('okoro.policies.list', {
-    name: 'okoro.policies.list',
+  registry.set('cerniq.policies.list', {
+    name: 'cerniq.policies.list',
     description: 'List active policies for an agent or principal.',
     inputSchema: {
       type: 'object',
@@ -72,17 +73,21 @@ export function registerPoliciesTools(okoro: Okoro, registry: Map<string, ToolDe
       additionalProperties: false,
     },
     handler: async (args) =>
-      await okoro.policies.list({
+      await cerniq.policies.list({
         agentId: typeof args.agent_id === 'string' ? args.agent_id : undefined,
-        status: typeof args.status === 'string' ? (args.status as 'ACTIVE' | 'REVOKED' | 'EXPIRED') : undefined,
+        status:
+          typeof args.status === 'string'
+            ? (args.status as 'ACTIVE' | 'REVOKED' | 'EXPIRED')
+            : undefined,
         limit: typeof args.limit === 'number' ? args.limit : undefined,
         cursor: typeof args.cursor === 'string' ? args.cursor : undefined,
       }),
   });
 
-  registry.set('okoro.policies.revoke', {
-    name: 'okoro.policies.revoke',
-    description: 'Revoke a policy immediately. All future verifies under this policy return POLICY_REVOKED.',
+  registry.set('cerniq.policies.revoke', {
+    name: 'cerniq.policies.revoke',
+    description:
+      'Revoke a policy immediately. All future verifies under this policy return POLICY_REVOKED.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -92,9 +97,10 @@ export function registerPoliciesTools(okoro: Okoro, registry: Map<string, ToolDe
       required: ['policy_id'],
       additionalProperties: false,
     },
-    handler: async (args) =>
-      { await okoro.policies.revoke(String(args.policy_id), {
+    handler: async (args) => {
+      await cerniq.policies.revoke(String(args.policy_id), {
         reason: typeof args.reason === 'string' ? args.reason : undefined,
-      }); },
+      });
+    },
   });
 }

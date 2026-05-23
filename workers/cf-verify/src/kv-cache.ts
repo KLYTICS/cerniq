@@ -18,7 +18,7 @@
 //   - On ANY suspicion (revoked agent, expired policy, scope mismatch,
 //     spend miss): forward to origin. The Worker NEVER writes to the DB.
 
-import type { TrustBand } from '@okoro/types';
+import type { TrustBand } from '@cerniq/types';
 
 export interface CachedAgent {
   id: string;
@@ -38,7 +38,11 @@ export interface CachedPolicy {
     category: string;
     actions?: string[];
     merchantDomains?: string[];
-    spendLimit?: { amount: string; currency: string; window: 'per_request' | 'per_day' | 'lifetime' };
+    spendLimit?: {
+      amount: string;
+      currency: string;
+      window: 'per_request' | 'per_day' | 'lifetime';
+    };
   }[];
   cachedAt: number;
 }

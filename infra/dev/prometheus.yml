@@ -1,4 +1,4 @@
-# OKORO — dev Prometheus config.
+# CERNIQ — dev Prometheus config.
 #
 # Scrapes the api + worker + Prometheus self. No alertmanager wired in dev
 # (alerts are exported via the rules file but routes go nowhere) — production
@@ -12,21 +12,21 @@ global:
     env: dev
 
 rule_files:
-  - /etc/prometheus/rules/okoro.rules.yml
+  - /etc/prometheus/rules/cerniq.rules.yml
 
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
-  - job_name: 'okoro-api'
+  - job_name: 'cerniq-api'
     metrics_path: /metrics
     static_configs:
       - targets: ['api:4000']
         labels:
           service: api
 
-  - job_name: 'okoro-worker'
+  - job_name: 'cerniq-worker'
     metrics_path: /metrics
     static_configs:
       - targets: ['worker:4001']

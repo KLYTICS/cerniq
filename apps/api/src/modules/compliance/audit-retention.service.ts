@@ -4,7 +4,7 @@
 // no DELETE on AuditEvent. Retention is therefore implemented as
 // REDACTION (zero-out raw columns) + a meta-event APPENDED to the chain
 // documenting the action. The chain stays cryptographically intact
-// because the *Hash columns and okoroSignature are untouched — verifiers
+// because the *Hash columns and cerniqSignature are untouched — verifiers
 // rebuild the hash from the now-null raw values and still match.
 //
 // We delegate the actual redaction to `RedactService.redactEvent` so the
@@ -31,12 +31,7 @@
 //     so a single poisoned row doesn't stall the sweep.
 //   - The metrics counter only increments on confirmed successful redacts.
 
-import {
-  Injectable,
-  Logger,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import type { PlanTier } from '@prisma/client';
 
 import { MetricsService } from '../../common/observability/metrics.service';
@@ -104,12 +99,10 @@ export class AuditRetentionService implements OnModuleInit, OnModuleDestroy {
     private readonly metrics: MetricsService,
     private readonly shutdown: ShutdownService,
   ) {
-    const fromEnv = process.env.OKORO_AUDIT_RETENTION_INTERVAL_MS;
+    const fromEnv = process.env.CERNIQ_AUDIT_RETENTION_INTERVAL_MS;
     const parsed = fromEnv ? Number.parseInt(fromEnv, 10) : NaN;
     this.intervalMs =
-      Number.isFinite(parsed) && parsed > 0
-        ? parsed
-        : DEFAULT_RETENTION_RUN_INTERVAL_MS;
+      Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_RETENTION_RUN_INTERVAL_MS;
   }
 
   onModuleInit(): void {
@@ -125,9 +118,7 @@ export class AuditRetentionService implements OnModuleInit, OnModuleDestroy {
       this.intervalHandle.unref();
     }
     this.shutdown.register('audit-retention-worker', () => this.drain());
-    this.logger.log(
-      `audit-retention armed — intervalMs=${this.intervalMs}`,
-    );
+    this.logger.log(`audit-retention armed — intervalMs=${this.intervalMs}`);
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -155,9 +146,7 @@ export class AuditRetentionService implements OnModuleInit, OnModuleDestroy {
   }
 
   getStatus(): RetentionStatus {
-    const base = this.lastRunAt
-      ? this.lastRunAt.getTime()
-      : Date.now();
+    const base = this.lastRunAt ? this.lastRunAt.getTime() : Date.now();
     return {
       lastRunAt: this.lastRunAt,
       lastRunDurationMs: this.lastRunDurationMs,
@@ -207,7 +196,7 @@ export class AuditRetentionService implements OnModuleInit, OnModuleDestroy {
       let cursor: string | undefined;
       let processedPrincipals = 0;
       // Pagination — `id ASC` cursor is stable + cheap (PK index).
-       
+
       while (true) {
         if (result.redacted >= maxEvents) break;
 
@@ -255,9 +244,7 @@ export class AuditRetentionService implements OnModuleInit, OnModuleDestroy {
     } catch (err) {
       // Defensive — pagination/query errors are logged but the partial
       // result we accumulated is still returned.
-      this.logger.error(
-        `audit-retention sweep aborted: ${(err as Error).message}`,
-      );
+      this.logger.error(`audit-retention sweep aborted: ${(err as Error).message}`);
     }
 
     result.durationMs = Date.now() - startedAt.getTime();
@@ -283,11 +270,8 @@ export class AuditRetentionService implements OnModuleInit, OnModuleDestroy {
     if (remainingBudget <= 0) return stats;
 
     const plan = getPlan(planTier);
-    const cutoff = new Date(
-      Date.now() - plan.auditRetentionDays * 24 * 60 * 60 * 1000,
-    );
-    const reason =
-      `retention_policy:plan=${planTier}:days=${plan.auditRetentionDays}`;
+    const cutoff = new Date(Date.now() - plan.auditRetentionDays * 24 * 60 * 60 * 1000);
+    const reason = `retention_policy:plan=${planTier}:days=${plan.auditRetentionDays}`;
 
     const batchSize = Math.min(DEFAULT_PER_PRINCIPAL_BATCH, remainingBudget);
 

@@ -1,19 +1,24 @@
-import { GENERATED_ERROR_CATALOG, getEntry, getEntryByClassName, type ErrorCatalogEntry } from '@okoro/types';
-import type { ErrorEnvelope } from '@okoro/types';
+import {
+  GENERATED_ERROR_CATALOG,
+  getEntry,
+  getEntryByClassName,
+  type ErrorCatalogEntry,
+} from '@cerniq/types';
+import type { ErrorEnvelope } from '@cerniq/types';
 
-// SDK-side error hierarchy. Mirrors the API's OkoroError tree but lives in
-// its own namespace so consumers can `instanceof OkoroError` without
+// SDK-side error hierarchy. Mirrors the API's CerniqError tree but lives in
+// its own namespace so consumers can `instanceof CerniqError` without
 // importing server packages.
 //
 // Each subclass exposes a `static catalog: ErrorCatalogEntry` reference so
 // callers can introspect retry semantics without instantiating the class.
 // The legacy public `code` field (uppercase) is preserved for backwards
 // compatibility — `catalogCode` is the new stable lower-snake-case form
-// from `@okoro/types` ErrorCatalog.
+// from `@cerniq/types` ErrorCatalog.
 
-export type { ErrorCatalogEntry } from '@okoro/types';
+export type { ErrorCatalogEntry } from '@cerniq/types';
 
-export abstract class OkoroError extends Error {
+export abstract class CerniqError extends Error {
   override readonly name: string;
   abstract readonly code: string;
   /** Stable lower-snake-case code from the server catalog (or undefined for transport-only errors). */
@@ -41,59 +46,59 @@ export abstract class OkoroError extends Error {
     super(message);
     const target = new.target;
     if (target.catalogKey === '') {
-      throw new Error('OkoroError subclass missing static catalogKey: ' + new.target.name);
+      throw new Error('CerniqError subclass missing static catalogKey: ' + new.target.name);
     }
     this.name = target.catalogKey;
     this.catalogCode = catalogCode ?? target.catalog?.code;
   }
 }
 
-export class OkoroAuthenticationError extends OkoroError {
-  static override readonly catalogKey = 'OkoroAuthenticationError';
+export class CerniqAuthenticationError extends CerniqError {
+  static override readonly catalogKey = 'CerniqAuthenticationError';
   override readonly code = 'AUTH_REQUIRED';
-  static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('auth_required');
+  static override readonly catalog: ErrorCatalogEntry | undefined = getEntry('auth_required');
 }
-export class OkoroAuthorizationError extends OkoroError {
-  static override readonly catalogKey = 'OkoroAuthorizationError';
+export class CerniqAuthorizationError extends CerniqError {
+  static override readonly catalogKey = 'CerniqAuthorizationError';
   override readonly code = 'FORBIDDEN';
-  static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('forbidden');
+  static override readonly catalog: ErrorCatalogEntry | undefined = getEntry('forbidden');
 }
-export class OkoroNotFoundError extends OkoroError {
-  static override readonly catalogKey = 'OkoroNotFoundError';
+export class CerniqNotFoundError extends CerniqError {
+  static override readonly catalogKey = 'CerniqNotFoundError';
   override readonly code = 'NOT_FOUND';
-  static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('not_found');
+  static override readonly catalog: ErrorCatalogEntry | undefined = getEntry('not_found');
 }
-export class OkoroValidationError extends OkoroError {
-  static override readonly catalogKey = 'OkoroValidationError';
+export class CerniqValidationError extends CerniqError {
+  static override readonly catalogKey = 'CerniqValidationError';
   override readonly code = 'INVALID_REQUEST';
-  static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('invalid_request');
+  static override readonly catalog: ErrorCatalogEntry | undefined = getEntry('invalid_request');
 }
-export class OkoroConflictError extends OkoroError {
-  static override readonly catalogKey = 'OkoroConflictError';
+export class CerniqConflictError extends CerniqError {
+  static override readonly catalogKey = 'CerniqConflictError';
   override readonly code = 'CONFLICT';
-  static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('conflict');
+  static override readonly catalog: ErrorCatalogEntry | undefined = getEntry('conflict');
 }
-export class OkoroRateLimitedError extends OkoroError {
-  static override readonly catalogKey = 'OkoroRateLimitedError';
+export class CerniqRateLimitedError extends CerniqError {
+  static override readonly catalogKey = 'CerniqRateLimitedError';
   override readonly code = 'RATE_LIMITED';
-  static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('rate_limited');
+  static override readonly catalog: ErrorCatalogEntry | undefined = getEntry('rate_limited');
 }
-export class OkoroInternalError extends OkoroError {
-  static override readonly catalogKey = 'OkoroInternalError';
+export class CerniqInternalError extends CerniqError {
+  static override readonly catalogKey = 'CerniqInternalError';
   override readonly code = 'INTERNAL';
-  static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('internal_error');
+  static override readonly catalog: ErrorCatalogEntry | undefined = getEntry('internal_error');
 }
-export class OkoroServiceUnavailableError extends OkoroError {
-  static override readonly catalogKey = 'OkoroServiceUnavailableError';
+export class CerniqServiceUnavailableError extends CerniqError {
+  static override readonly catalogKey = 'CerniqServiceUnavailableError';
   override readonly code = 'SERVICE_UNAVAILABLE';
-  static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('service_unavailable');
+  static override readonly catalog: ErrorCatalogEntry | undefined = getEntry('service_unavailable');
 }
-export class OkoroNetworkError extends OkoroError {
-  static override readonly catalogKey = 'OkoroNetworkError';
+export class CerniqNetworkError extends CerniqError {
+  static override readonly catalogKey = 'CerniqNetworkError';
   override readonly code = 'NETWORK_ERROR';
   // Transport-layer error — no server catalog entry exists. We treat it as
   // retryable with exponential backoff at the wrapper level (see http.ts).
-  static override readonly catalog: ErrorCatalogEntry | undefined =undefined;
+  static override readonly catalog: ErrorCatalogEntry | undefined = undefined;
   constructor(message: string, cause?: unknown) {
     super(message, 0, undefined);
     if (cause !== undefined) (this as { cause?: unknown }).cause = cause;
@@ -101,12 +106,12 @@ export class OkoroNetworkError extends OkoroError {
 }
 
 /**
- * Map an envelope to an OkoroError. Prefers the `code` field on the
+ * Map an envelope to an CerniqError. Prefers the `code` field on the
  * envelope (stable lower-snake-case from the server catalog) when
- * present, falling back to status-code mapping for older / non-OKORO
+ * present, falling back to status-code mapping for older / non-CERNIQ
  * responses.
  */
-export function fromEnvelope(env: ErrorEnvelope): OkoroError {
+export function fromEnvelope(env: ErrorEnvelope): CerniqError {
   // Server envelope's `error` field carries the legacy uppercase code; the
   // new server filter also embeds `code` in `details`. Try both.
   const detailsCode = extractCatalogCode(env);
@@ -118,26 +123,33 @@ export function fromEnvelope(env: ErrorEnvelope): OkoroError {
   }
   switch (env.statusCode) {
     case 400:
-      return new OkoroValidationError(env.message, env.statusCode, env.requestId, env.details);
+      return new CerniqValidationError(env.message, env.statusCode, env.requestId, env.details);
     case 401:
-      return new OkoroAuthenticationError(env.message, env.statusCode, env.requestId, env.details);
+      return new CerniqAuthenticationError(env.message, env.statusCode, env.requestId, env.details);
     case 403:
-      return new OkoroAuthorizationError(env.message, env.statusCode, env.requestId, env.details);
+      return new CerniqAuthorizationError(env.message, env.statusCode, env.requestId, env.details);
     case 404:
-      return new OkoroNotFoundError(env.message, env.statusCode, env.requestId, env.details);
+      return new CerniqNotFoundError(env.message, env.statusCode, env.requestId, env.details);
     case 409:
-      return new OkoroConflictError(env.message, env.statusCode, env.requestId, env.details);
+      return new CerniqConflictError(env.message, env.statusCode, env.requestId, env.details);
     case 429:
-      return new OkoroRateLimitedError(env.message, env.statusCode, env.requestId, env.details);
+      return new CerniqRateLimitedError(env.message, env.statusCode, env.requestId, env.details);
     case 503:
-      return new OkoroServiceUnavailableError(env.message, env.statusCode, env.requestId, env.details);
+      return new CerniqServiceUnavailableError(
+        env.message,
+        env.statusCode,
+        env.requestId,
+        env.details,
+      );
     default:
-      return new OkoroInternalError(env.message, env.statusCode, env.requestId, env.details);
+      return new CerniqInternalError(env.message, env.statusCode, env.requestId, env.details);
   }
 }
 
 /** Pull a catalog `code` out of either the envelope's details bag or top-level fields. */
-export function extractCatalogCode(env: ErrorEnvelope | { details?: unknown; error?: string }): string | undefined {
+export function extractCatalogCode(
+  env: ErrorEnvelope | { details?: unknown; error?: string },
+): string | undefined {
   // Catalog `code` lives in details for the new filter shape.
   const details = (env as { details?: unknown }).details;
   if (details !== null && typeof details === 'object') {
@@ -157,7 +169,7 @@ export function extractCatalogCode(env: ErrorEnvelope | { details?: unknown; err
   return undefined;
 }
 
-function classFromCatalogEntry(entry: ErrorCatalogEntry, env: ErrorEnvelope): OkoroError {
+function classFromCatalogEntry(entry: ErrorCatalogEntry, env: ErrorEnvelope): CerniqError {
   // Pick the SDK class whose static catalog matches; fall back to status.
   const ctor = SDK_ERROR_BY_CODE[entry.code];
   if (ctor !== undefined) {
@@ -167,47 +179,100 @@ function classFromCatalogEntry(entry: ErrorCatalogEntry, env: ErrorEnvelope): Ok
   // (e.g. denial-precedence codes that the SDK surfaces as 403 forbidden).
   switch (entry.httpStatus) {
     case 400:
-      return new OkoroValidationError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new CerniqValidationError(
+        env.message,
+        entry.httpStatus,
+        env.requestId,
+        env.details,
+        entry.code,
+      );
     case 401:
-      return new OkoroAuthenticationError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new CerniqAuthenticationError(
+        env.message,
+        entry.httpStatus,
+        env.requestId,
+        env.details,
+        entry.code,
+      );
     case 402:
     case 403:
-      return new OkoroAuthorizationError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new CerniqAuthorizationError(
+        env.message,
+        entry.httpStatus,
+        env.requestId,
+        env.details,
+        entry.code,
+      );
     case 404:
-      return new OkoroNotFoundError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new CerniqNotFoundError(
+        env.message,
+        entry.httpStatus,
+        env.requestId,
+        env.details,
+        entry.code,
+      );
     case 409:
-      return new OkoroConflictError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new CerniqConflictError(
+        env.message,
+        entry.httpStatus,
+        env.requestId,
+        env.details,
+        entry.code,
+      );
     case 429:
-      return new OkoroRateLimitedError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new CerniqRateLimitedError(
+        env.message,
+        entry.httpStatus,
+        env.requestId,
+        env.details,
+        entry.code,
+      );
     case 503:
-      return new OkoroServiceUnavailableError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new CerniqServiceUnavailableError(
+        env.message,
+        entry.httpStatus,
+        env.requestId,
+        env.details,
+        entry.code,
+      );
     default:
-      return new OkoroInternalError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new CerniqInternalError(
+        env.message,
+        entry.httpStatus,
+        env.requestId,
+        env.details,
+        entry.code,
+      );
   }
 }
 
-type OkoroErrorCtor = new (message: string, statusCode: number, requestId: string | undefined, details?: unknown) => OkoroError;
+type CerniqErrorCtor = new (
+  message: string,
+  statusCode: number,
+  requestId: string | undefined,
+  details?: unknown,
+) => CerniqError;
 
-const SDK_ERROR_BY_CODE: Readonly<Record<string, OkoroErrorCtor>> = Object.freeze({
-  auth_required: OkoroAuthenticationError,
-  forbidden: OkoroAuthorizationError,
-  not_found: OkoroNotFoundError,
-  invalid_request: OkoroValidationError,
-  conflict: OkoroConflictError,
-  rate_limited: OkoroRateLimitedError,
-  internal_error: OkoroInternalError,
-  service_unavailable: OkoroServiceUnavailableError,
+const SDK_ERROR_BY_CODE: Readonly<Record<string, CerniqErrorCtor>> = Object.freeze({
+  auth_required: CerniqAuthenticationError,
+  forbidden: CerniqAuthorizationError,
+  not_found: CerniqNotFoundError,
+  invalid_request: CerniqValidationError,
+  conflict: CerniqConflictError,
+  rate_limited: CerniqRateLimitedError,
+  internal_error: CerniqInternalError,
+  service_unavailable: CerniqServiceUnavailableError,
 });
 
-/** True iff the given OkoroError's catalog entry says it's retryable. */
-export function isOkoroErrorRetryable(err: OkoroError): boolean {
-  if (err instanceof OkoroNetworkError) return true;
+/** True iff the given CerniqError's catalog entry says it's retryable. */
+export function isCerniqErrorRetryable(err: CerniqError): boolean {
+  if (err instanceof CerniqNetworkError) return true;
   if (err.catalogCode === undefined) return false;
   return getEntry(err.catalogCode)?.retryable === true;
 }
 
-/** Resolve the catalog entry for a thrown OkoroError, if any. */
-export function catalogEntryFor(err: OkoroError): ErrorCatalogEntry | undefined {
+/** Resolve the catalog entry for a thrown CerniqError, if any. */
+export function catalogEntryFor(err: CerniqError): ErrorCatalogEntry | undefined {
   if (err.catalogCode === undefined) return undefined;
   return getEntry(err.catalogCode);
 }

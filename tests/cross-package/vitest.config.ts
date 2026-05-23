@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
 /**
- * Vitest config for OKORO cross-package parity tests.
+ * Vitest config for CERNIQ cross-package parity tests.
  *
  * These specs are pure unit-shaped checks that load source from multiple
  * workspace packages directly (via relative imports) and assert they agree

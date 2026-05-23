@@ -1,4 +1,4 @@
-# OKORO — Agent briefing for new Claude sessions
+# CERNIQ — Agent briefing for new Claude sessions
 
 > **Read this in the first 60 seconds of a new session in this repo.**
 > It's the cold-pickup compression of CLAUDE.md (156 lines), the master
@@ -7,9 +7,9 @@
 
 ---
 
-## What OKORO is (one sentence)
+## What CERNIQ is (one sentence)
 
-OKORO is the neutral verification, policy enforcement, behavioral
+CERNIQ is the neutral verification, policy enforcement, behavioral
 attestation, and signed-audit layer between AI agents and the services
 they act on. We hold **public keys only**, sign **only what we
 observed**, and stay **vendor / model / protocol neutral**. The wedge:
@@ -24,7 +24,7 @@ observed**, and stay **vendor / model / protocol neutral**. The wedge:
 ~/.claude/peers/bin/claude-peers status
 
 # 2. Where is the repo? Anything dirty?
-cd /Users/money/Desktop/OKORO && git status --short
+cd /Users/money/Desktop/CERNIQ && git status --short
 
 # 3. What was the last round? (newest at top)
 head -80 docs/SESSION_HANDOFF.md
@@ -35,7 +35,7 @@ tell you who else is editing what so you don't overwrite their
 in-flight work. Always claim your scope:
 
 ```sh
-~/.claude/peers/bin/claude-peers claim okoro "<scope-name>" \
+~/.claude/peers/bin/claude-peers claim cerniq "<scope-name>" \
   --note "<one-line summary>" --ttl 14400
 ```
 
@@ -49,14 +49,14 @@ Send a `peers msg <sid>` to coordinate cross-cutting changes.
 These are **inviolable**. If your work would break one, stop and write
 an ADR in `docs/decisions/` first.
 
-| # | Invariant | Where it's enforced |
-|---|-----------|---------------------|
-| 1 | **Private keys never enter OKORO.** | SDK generates client-side; only `publicKey` on register. |
-| 2 | **Verify hot path is portable.** | `apps/api/src/modules/verify/algorithm/verify.algorithm.ts` has zero NestJS / Prisma / Node-only imports. CF Workers must run the same code. |
-| 3 | **Audit log is append-only and signed.** | `audit.service.append()` is the only write path. No UPDATE / DELETE on `AuditEvent`. Hash chain + Ed25519 sig per row. |
-| 4 | **No silent failures, no fabricated data.** | Redis-down → fail-closed `ANOMALY_FLAGGED`. No synthetic trust scores. No empty arrays masquerading as "no results". |
-| 5 | **Multi-tenant isolation by `principalId`.** | Every service method takes principalId first; every Prisma query has `where: { principalId }`; RLS belt-and-braces. |
-| 6 | **Denial precedence is fixed and ordered.** | `AGENT_NOT_FOUND → AGENT_REVOKED → INVALID_SIGNATURE → POLICY_REVOKED → POLICY_EXPIRED → SCOPE_NOT_GRANTED → SPEND_LIMIT_EXCEEDED → TRUST_SCORE_TOO_LOW → ANOMALY_FLAGGED`. Locked by ADR-0004 + `tests/cross-package/denial-precedence-enum.spec.ts`. |
+| #   | Invariant                                    | Where it's enforced                                                                                                                                                                                                                                    |
+| --- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | **Private keys never enter CERNIQ.**         | SDK generates client-side; only `publicKey` on register.                                                                                                                                                                                               |
+| 2   | **Verify hot path is portable.**             | `apps/api/src/modules/verify/algorithm/verify.algorithm.ts` has zero NestJS / Prisma / Node-only imports. CF Workers must run the same code.                                                                                                           |
+| 3   | **Audit log is append-only and signed.**     | `audit.service.append()` is the only write path. No UPDATE / DELETE on `AuditEvent`. Hash chain + Ed25519 sig per row.                                                                                                                                 |
+| 4   | **No silent failures, no fabricated data.**  | Redis-down → fail-closed `ANOMALY_FLAGGED`. No synthetic trust scores. No empty arrays masquerading as "no results".                                                                                                                                   |
+| 5   | **Multi-tenant isolation by `principalId`.** | Every service method takes principalId first; every Prisma query has `where: { principalId }`; RLS belt-and-braces.                                                                                                                                    |
+| 6   | **Denial precedence is fixed and ordered.**  | `AGENT_NOT_FOUND → AGENT_REVOKED → INVALID_SIGNATURE → POLICY_REVOKED → POLICY_EXPIRED → SCOPE_NOT_GRANTED → SPEND_LIMIT_EXCEEDED → TRUST_SCORE_TOO_LOW → ANOMALY_FLAGGED`. Locked by ADR-0004 + `tests/cross-package/denial-precedence-enum.spec.ts`. |
 
 The full operating directive lives at [`CLAUDE.md`](../CLAUDE.md). Read
 it once, then come back here.
@@ -66,7 +66,7 @@ it once, then come back here.
 ## Repo layout (memorize this)
 
 ```
-okoro/
+cerniq/
 ├── apps/
 │   ├── api/                  NestJS API — modules/ (identity, policy, verify,
 │   │   ├── prisma/           audit, bate, billing, webhooks, auth, auth0,
@@ -75,19 +75,19 @@ okoro/
 │   └── dashboard/            Next.js 16 dev portal
 ├── packages/
 │   ├── types/                Zod schemas — wire contract source of truth
-│   ├── sdk-ts/               @okoro/sdk — TS public client
-│   ├── sdk-py/               okoro — Python public client
-│   ├── verifier-rp/          @okoro/verifier-rp — drop-in offline RP verifier
-│   ├── audit-verifier/       @okoro/audit-verifier — offline audit chain verifier
-│   ├── mcp-bridge/           @okoro/mcp-bridge — wrap() any MCP server
-│   ├── mcp-server/           @okoro/mcp-server — Claude Desktop integration
-│   ├── cli/                  Go single-static-binary okoro-cli
+│   ├── sdk-ts/               @cerniq/sdk — TS public client
+│   ├── sdk-py/               cerniq — Python public client
+│   ├── verifier-rp/          @cerniq/verifier-rp — drop-in offline RP verifier
+│   ├── audit-verifier/       @cerniq/audit-verifier — offline audit chain verifier
+│   ├── mcp-bridge/           @cerniq/mcp-bridge — wrap() any MCP server
+│   ├── mcp-server/           @cerniq/mcp-server — Claude Desktop integration
+│   ├── cli/                  Go single-static-binary cerniq-cli
 │   └── tsconfig/             shared TS configs
 ├── workers/
 │   └── cf-verify/            Cloudflare Worker — Phase 3 edge verify
 ├── examples/
 │   ├── fintech-payments/     Single-token PSP gate
-│   ├── acp-bridge/           Stripe ACP + OKORO dual verify
+│   ├── acp-bridge/           Stripe ACP + CERNIQ dual verify
 │   ├── banking-rails/        ISO 20022 / treasury per-rail trust
 │   ├── ai-platform-tool-call/ MCP integration
 │   ├── relying-party-verifier/ RP pattern
@@ -112,34 +112,34 @@ okoro/
 
 ## Documentation map (where to read what)
 
-| If you need…                                | Read |
-|---------------------------------------------|------|
-| The contract for this session               | `CLAUDE.md` |
-| The ARCHITECTURAL big picture               | `docs/MASTER_ENGINEERING_HANDOFF.md` |
-| What's claimed / shipping right now         | `WORK_BOARD.md` + `peers status` |
-| What's just landed (newest first)           | `docs/SESSION_HANDOFF.md` |
-| How a layer is composed with X foundational system | `docs/INTEGRATION_PATTERNS.md` |
-| How to onboard a partner                    | `docs/PARTNER_ONBOARDING.md` |
-| Compliance evidence map                     | `docs/COMPLIANCE_BUNDLE.md` |
-| Local dev setup                             | `docs/RUNBOOK.md` |
-| On-call incident response                   | `docs/INCIDENT_RUNBOOK.md` |
-| Architecture deep-canon docs                | `docs/{ARCHITECTURE, SECURITY, THREAT_MODEL_v2, CAPACITY_PLAN, FAILURE_MODES, RETENTION_POLICY}.md` |
-| The OpenAPI wire spec                       | `docs/spec/OKORO_API_SPEC.yaml` |
-| Why a decision was made                     | `docs/decisions/0001..0013.md` (ADRs) |
+| If you need…                                       | Read                                                                                                |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| The contract for this session                      | `CLAUDE.md`                                                                                         |
+| The ARCHITECTURAL big picture                      | `docs/MASTER_ENGINEERING_HANDOFF.md`                                                                |
+| What's claimed / shipping right now                | `WORK_BOARD.md` + `peers status`                                                                    |
+| What's just landed (newest first)                  | `docs/SESSION_HANDOFF.md`                                                                           |
+| How a layer is composed with X foundational system | `docs/INTEGRATION_PATTERNS.md`                                                                      |
+| How to onboard a partner                           | `docs/PARTNER_ONBOARDING.md`                                                                        |
+| Compliance evidence map                            | `docs/COMPLIANCE_BUNDLE.md`                                                                         |
+| Local dev setup                                    | `docs/RUNBOOK.md`                                                                                   |
+| On-call incident response                          | `docs/INCIDENT_RUNBOOK.md`                                                                          |
+| Architecture deep-canon docs                       | `docs/{ARCHITECTURE, SECURITY, THREAT_MODEL_v2, CAPACITY_PLAN, FAILURE_MODES, RETENTION_POLICY}.md` |
+| The OpenAPI wire spec                              | `docs/spec/CERNIQ_API_SPEC.yaml`                                                                    |
+| Why a decision was made                            | `docs/decisions/0001..0013.md` (ADRs)                                                               |
 
 ---
 
 ## What just shipped (rounds 11–14)
 
-| Round | Lead session | What landed                                                           |
-|-------|--------------|------------------------------------------------------------------------|
-| 11    | sid=d328b045 | spec-sync CI scripts + denial-enum reorder + fintech `agent-sim.ts`    |
-| 12    | sid=d328b045 | `examples/acp-bridge`, `examples/banking-rails`, `INTEGRATION_PATTERNS.md` |
-| 12    | sid=c4f241c5 | Webhook secret envelope encryption, Stripe scaffold                    |
-| 12    | sid=69abf7c1 | Stripe billing controller, audit NDJSON tenant export, OTel spans, dashboard /billing + /webhooks |
-| 13    | sid=c4f241c5 | KMS module type-clean, multi-tenant E2E, bulk-encrypt webhook secrets  |
-| 13    | sid=d328b045 | `@okoro/audit-verifier` package, `examples/reconciliation`, `INCIDENT_RUNBOOK.md`, `COMPLIANCE_BUNDLE.md` |
-| 14    | sid=d328b045 | this briefing + cross-package parity tests + partner onboarding kit    |
+| Round | Lead session | What landed                                                                                                |
+| ----- | ------------ | ---------------------------------------------------------------------------------------------------------- |
+| 11    | sid=d328b045 | spec-sync CI scripts + denial-enum reorder + fintech `agent-sim.ts`                                        |
+| 12    | sid=d328b045 | `examples/acp-bridge`, `examples/banking-rails`, `INTEGRATION_PATTERNS.md`                                 |
+| 12    | sid=c4f241c5 | Webhook secret envelope encryption, Stripe scaffold                                                        |
+| 12    | sid=69abf7c1 | Stripe billing controller, audit NDJSON tenant export, OTel spans, dashboard /billing + /webhooks          |
+| 13    | sid=c4f241c5 | KMS module type-clean, multi-tenant E2E, bulk-encrypt webhook secrets                                      |
+| 13    | sid=d328b045 | `@cerniq/audit-verifier` package, `examples/reconciliation`, `INCIDENT_RUNBOOK.md`, `COMPLIANCE_BUNDLE.md` |
+| 14    | sid=d328b045 | this briefing + cross-package parity tests + partner onboarding kit                                        |
 
 For the long-form what-shipped-when, walk `docs/SESSION_HANDOFF.md`.
 
@@ -148,28 +148,33 @@ For the long-form what-shipped-when, walk `docs/SESSION_HANDOFF.md`.
 ## Where to start (by intent)
 
 ### "I want to add a new feature"
+
 1. Check `WORK_BOARD.md` for an open module that fits.
 2. Claim it via peers + flip STATUS to `claimed by <sid>`.
 3. Read the module's listed Goal + Acceptance + paths.
 4. Stay inside the listed paths. Coordinate via peers msg if you need to cross.
 
 ### "I want to fix a bug"
+
 1. Reproduce locally (`docs/RUNBOOK.md`).
 2. If it's an invariant violation → `docs/INCIDENT_RUNBOOK.md` first.
 3. Write the regression test in `tests/cross-package/` if it spans surfaces, otherwise in the module's `*.spec.ts`.
 4. Fix; submit; run `pnpm vitest run` from root for the parity sweep.
 
 ### "I want to extend a foundational integration"
+
 1. Find the closest example in `examples/`.
 2. Read `docs/INTEGRATION_PATTERNS.md` § for that vertical.
 3. Don't reinvent — the dual-verify pattern (acp-bridge), per-rail trust (banking-rails), MCP wrap (ai-platform-tool-call) are the canonical shapes.
 
 ### "I'm operating in production"
+
 1. `docs/INCIDENT_RUNBOOK.md` for SEV-1/SEV-2.
 2. `infra/observability/runbooks/` for specific alert symptoms.
 3. `docs/CAPACITY_PLAN.md` § for SLA targets.
 
 ### "I want to ship a public package"
+
 1. `packages/audit-verifier/` and `packages/verifier-rp/` are the two MIT-licensed external-facing packages. The pattern: closed dep set (`@noble/*` only), edge-runtime ready, paired specs, "what's intentionally absent" README section.
 2. Add a parity test in `tests/cross-package/` that locks the public surface against the API.
 
@@ -181,7 +186,7 @@ For the long-form what-shipped-when, walk `docs/SESSION_HANDOFF.md`.
 [ ] No `any` without // type-rationale: prefix
 [ ] noUncheckedIndexedAccess respected
 [ ] Every public service method has a unit test OR // untestable: <reason>
-[ ] Errors are OkoroError subclasses (apps/api/src/common/errors/)
+[ ] Errors are CerniqError subclasses (apps/api/src/common/errors/)
 [ ] Constants live in packages/types/src/constants.ts
 [ ] No Math.random() in production paths (tests/seeds OK)
 [ ] Crypto code has paired .spec.ts — NO exceptions
@@ -225,14 +230,14 @@ These are **shared / claim-required** before editing:
 pnpm vitest run
 
 # Spec-sync:
-pnpm -F @okoro/types spec-sync       # OpenAPI ↔ Zod
-pnpm -F @okoro/api spec-sync         # OpenAPI ↔ Prisma
+pnpm -F @cerniq/types spec-sync       # OpenAPI ↔ Zod
+pnpm -F @cerniq/api spec-sync         # OpenAPI ↔ Prisma
 
 # API typecheck:
-pnpm -F @okoro/api typecheck
+pnpm -F @cerniq/api typecheck
 
 # Dashboard typecheck:
-pnpm -F @okoro/dashboard typecheck
+pnpm -F @cerniq/dashboard typecheck
 ```
 
 Anything red here will be red in CI. Don't push until all green

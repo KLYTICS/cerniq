@@ -5,7 +5,7 @@
 //
 // Strategy
 // ────────
-//   1. If `OKORO_API_BASE_URL` is set at request time, SSR-fetch the JSON.
+//   1. If `CERNIQ_API_BASE_URL` is set at request time, SSR-fetch the JSON.
 //      The response has the same `Cache-Control: public, max-age=3600` as
 //      `next: { revalidate: 3600 }`, so the two cache layers compose.
 //   2. Map the API shape (snake_case, normalized E4 / cents / null
@@ -141,7 +141,7 @@ function ctaForTier(id: PublicTierId): { label: string; href: string } {
   if (id === 'ENTERPRISE') {
     return {
       label: 'Contact us',
-      href: `mailto:${SALES_EMAIL}?subject=OKORO%20Enterprise%20inquiry`,
+      href: `mailto:${SALES_EMAIL}?subject=CERNIQ%20Enterprise%20inquiry`,
     };
   }
   return {
@@ -156,11 +156,11 @@ function mapApiToPublicTier(id: PublicTierId, t: ApiTier): PublicTier {
     id,
     displayName: id === 'TEAM' ? 'Team' : id === 'SCALE' ? 'Scale' : t.display_name,
     price: id === 'SCALE' ? '$1,499 / mo' : formatPrice(t.monthly_price_cents),
-    verifies: id === 'SCALE' ? '5M / mo' : formatVerifies(t.monthly_verify_quota, t.lifetime_verify_quota),
+    verifies:
+      id === 'SCALE' ? '5M / mo' : formatVerifies(t.monthly_verify_quota, t.lifetime_verify_quota),
     // ENTERPRISE overage is "Negotiated" copy — the API returns null for
     // hard-stop tiers, but FREE shows "—" while ENTERPRISE shows "Negotiated".
-    overage:
-      id === 'ENTERPRISE' ? 'Negotiated' : formatOverage(t.overage_per_call_e4),
+    overage: id === 'ENTERPRISE' ? 'Negotiated' : formatOverage(t.overage_per_call_e4),
     agents: id === 'SCALE' ? '1,000' : formatAgents(t.agent_cap),
     retention: formatRetention(t.audit_retention_days),
     bate: t.bate_access,
@@ -206,9 +206,9 @@ function fallback(reason: string): ResolvedPricing {
 }
 
 export async function resolvePricing(): Promise<ResolvedPricing> {
-  const base = process.env.OKORO_API_BASE_URL;
+  const base = process.env.CERNIQ_API_BASE_URL;
   if (!base || base.length === 0) {
-    return fallback('OKORO_API_BASE_URL unset');
+    return fallback('CERNIQ_API_BASE_URL unset');
   }
   const url = `${base.replace(/\/$/, '')}/.well-known/pricing.json`;
 

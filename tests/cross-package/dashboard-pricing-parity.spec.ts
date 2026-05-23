@@ -56,23 +56,24 @@ function synthesizeApiBody() {
 
 describe('dashboard pricing — SSR-fetch happy path', () => {
   const ORIG_FETCH = global.fetch;
-  const ORIG_BASE = process.env.OKORO_API_BASE_URL;
+  const ORIG_BASE = process.env.CERNIQ_API_BASE_URL;
 
   beforeEach(() => {
-    process.env.OKORO_API_BASE_URL = 'http://api.local';
+    process.env.CERNIQ_API_BASE_URL = 'http://api.local';
   });
   afterEach(() => {
     global.fetch = ORIG_FETCH;
-    if (ORIG_BASE === undefined) delete process.env.OKORO_API_BASE_URL;
-    else process.env.OKORO_API_BASE_URL = ORIG_BASE;
+    if (ORIG_BASE === undefined) delete process.env.CERNIQ_API_BASE_URL;
+    else process.env.CERNIQ_API_BASE_URL = ORIG_BASE;
   });
 
   it('reports source=api when the endpoint returns a valid body', async () => {
-    global.fetch = vi.fn(async () =>
-      new Response(JSON.stringify(synthesizeApiBody()), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+    global.fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify(synthesizeApiBody()), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
     ) as unknown as typeof fetch;
 
     const result = await resolvePricing();
@@ -89,8 +90,8 @@ describe('dashboard pricing — SSR-fetch happy path', () => {
   });
 
   it('mapped FREE/DEVELOPER/ENTERPRISE display strings match the fallback', async () => {
-    global.fetch = vi.fn(async () =>
-      new Response(JSON.stringify(synthesizeApiBody()), { status: 200 }),
+    global.fetch = vi.fn(
+      async () => new Response(JSON.stringify(synthesizeApiBody()), { status: 200 }),
     ) as unknown as typeof fetch;
     const result = await resolvePricing();
 
@@ -126,8 +127,8 @@ describe('dashboard pricing — SSR-fetch happy path', () => {
   });
 
   it('TEAM is mapped from the API GROWTH tier and matches the fallback labels', async () => {
-    global.fetch = vi.fn(async () =>
-      new Response(JSON.stringify(synthesizeApiBody()), { status: 200 }),
+    global.fetch = vi.fn(
+      async () => new Response(JSON.stringify(synthesizeApiBody()), { status: 200 }),
     ) as unknown as typeof fetch;
     const result = await resolvePricing();
     const team = result.tiers.find((t) => t.id === 'TEAM')!;
@@ -139,8 +140,8 @@ describe('dashboard pricing — SSR-fetch happy path', () => {
   });
 
   it('SCALE falls back to the hardcoded placeholder (no server enum yet)', async () => {
-    global.fetch = vi.fn(async () =>
-      new Response(JSON.stringify(synthesizeApiBody()), { status: 200 }),
+    global.fetch = vi.fn(
+      async () => new Response(JSON.stringify(synthesizeApiBody()), { status: 200 }),
     ) as unknown as typeof fetch;
     const result = await resolvePricing();
     const scale = result.tiers.find((t) => t.id === 'SCALE')!;
@@ -149,8 +150,8 @@ describe('dashboard pricing — SSR-fetch happy path', () => {
   });
 
   it('builds 8 feature rows in the same order as the fallback', async () => {
-    global.fetch = vi.fn(async () =>
-      new Response(JSON.stringify(synthesizeApiBody()), { status: 200 }),
+    global.fetch = vi.fn(
+      async () => new Response(JSON.stringify(synthesizeApiBody()), { status: 200 }),
     ) as unknown as typeof fetch;
     const result = await resolvePricing();
     expect(result.rows.map((r) => r.label)).toEqual([
@@ -168,23 +169,23 @@ describe('dashboard pricing — SSR-fetch happy path', () => {
 
 describe('dashboard pricing — fallback paths', () => {
   const ORIG_FETCH = global.fetch;
-  const ORIG_BASE = process.env.OKORO_API_BASE_URL;
+  const ORIG_BASE = process.env.CERNIQ_API_BASE_URL;
   afterEach(() => {
     global.fetch = ORIG_FETCH;
-    if (ORIG_BASE === undefined) delete process.env.OKORO_API_BASE_URL;
-    else process.env.OKORO_API_BASE_URL = ORIG_BASE;
+    if (ORIG_BASE === undefined) delete process.env.CERNIQ_API_BASE_URL;
+    else process.env.CERNIQ_API_BASE_URL = ORIG_BASE;
   });
 
-  it('falls back when OKORO_API_BASE_URL is unset', async () => {
-    delete process.env.OKORO_API_BASE_URL;
+  it('falls back when CERNIQ_API_BASE_URL is unset', async () => {
+    delete process.env.CERNIQ_API_BASE_URL;
     const result = await resolvePricing();
     expect(result.source).toBe('fallback');
-    expect(result.reason).toContain('OKORO_API_BASE_URL');
+    expect(result.reason).toContain('CERNIQ_API_BASE_URL');
     expect(result.tiers).toBe(FALLBACK_TIERS);
   });
 
   it('falls back when fetch throws (network error)', async () => {
-    process.env.OKORO_API_BASE_URL = 'http://api.local';
+    process.env.CERNIQ_API_BASE_URL = 'http://api.local';
     global.fetch = vi.fn(async () => {
       throw new Error('ECONNREFUSED');
     }) as unknown as typeof fetch;
@@ -194,9 +195,9 @@ describe('dashboard pricing — fallback paths', () => {
   });
 
   it('falls back on non-2xx status', async () => {
-    process.env.OKORO_API_BASE_URL = 'http://api.local';
-    global.fetch = vi.fn(async () =>
-      new Response('upstream broken', { status: 503 }),
+    process.env.CERNIQ_API_BASE_URL = 'http://api.local';
+    global.fetch = vi.fn(
+      async () => new Response('upstream broken', { status: 503 }),
     ) as unknown as typeof fetch;
     const result = await resolvePricing();
     expect(result.source).toBe('fallback');
@@ -204,12 +205,13 @@ describe('dashboard pricing — fallback paths', () => {
   });
 
   it('falls back on malformed JSON', async () => {
-    process.env.OKORO_API_BASE_URL = 'http://api.local';
-    global.fetch = vi.fn(async () =>
-      new Response('<<not json>>', {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+    process.env.CERNIQ_API_BASE_URL = 'http://api.local';
+    global.fetch = vi.fn(
+      async () =>
+        new Response('<<not json>>', {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
     ) as unknown as typeof fetch;
     const result = await resolvePricing();
     expect(result.source).toBe('fallback');
@@ -217,9 +219,9 @@ describe('dashboard pricing — fallback paths', () => {
   });
 
   it('falls back when tiers field is missing', async () => {
-    process.env.OKORO_API_BASE_URL = 'http://api.local';
-    global.fetch = vi.fn(async () =>
-      new Response(JSON.stringify({ spec_version: '1.0.0' }), { status: 200 }),
+    process.env.CERNIQ_API_BASE_URL = 'http://api.local';
+    global.fetch = vi.fn(
+      async () => new Response(JSON.stringify({ spec_version: '1.0.0' }), { status: 200 }),
     ) as unknown as typeof fetch;
     const result = await resolvePricing();
     expect(result.source).toBe('fallback');

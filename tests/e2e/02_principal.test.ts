@@ -31,7 +31,7 @@ describe('02 · principal & api key', () => {
 
   it('invalid api key returns 401', async () => {
     const cfg = readConfig();
-    const bad = new RawClient({ ...cfg, apiKey: 'okoro_sk_definitely_not_a_real_key_0123456789' });
+    const bad = new RawClient({ ...cfg, apiKey: 'cerniq_sk_definitely_not_a_real_key_0123456789' });
     const r = await bad.get('/v1/agents/agt_anything');
     expect(r.status).toBe(401);
   });
@@ -43,18 +43,22 @@ describe('02 · principal & api key', () => {
 
   it('POST /v1/principals/register — self-service path (skipped if not implemented)', async () => {
     // Probe; if not implemented (404), skip without failing.
-    const probe = await raw.post('/v1/principals/register', { email: `probe-${Date.now()}@okoro-test.io` }, { auth: 'none' });
+    const probe = await raw.post(
+      '/v1/principals/register',
+      { email: `probe-${Date.now()}@cerniq-test.io` },
+      { auth: 'none' },
+    );
     if (probe.status === 404) return;
     expect([201, 409]).toContain(probe.status);
     if (probe.status === 201) {
       const body = probe.body as { principalId?: string; apiKey?: string };
       expect(body.principalId).toMatch(/^pri_/);
-      expect(body.apiKey).toMatch(/^okoro_sk_/);
+      expect(body.apiKey).toMatch(/^cerniq_sk_/);
 
       // Duplicate email rejection.
       const dup = await raw.post(
         '/v1/principals/register',
-        { email: (probe.body as { email?: string }).email ?? 'probe@okoro-test.io' },
+        { email: (probe.body as { email?: string }).email ?? 'probe@cerniq-test.io' },
         { auth: 'none' },
       );
       expect([409, 400]).toContain(dup.status);

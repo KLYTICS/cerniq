@@ -7,7 +7,7 @@
 //
 // Why a Server Action and not a direct `fetch('/v1/billing/checkout')`:
 // the dashboard's API key lives in a server env var; a client fetch
-// against the OKORO API would either need to proxy through a route
+// against the CERNIQ API would either need to proxy through a route
 // handler or expose the key. The Server Action is the proxy.
 
 import { useState, useTransition, type ReactElement } from 'react';
@@ -28,15 +28,11 @@ const TIER_LABEL: Record<PaidTier, string> = {
 
 export function UpgradeButton({ currentTier }: Props): ReactElement {
   const [open, setOpen] = useState(false);
-  const [tier, setTier] = useState<PaidTier>(
-    currentTier === 'DEVELOPER' ? 'GROWTH' : 'DEVELOPER',
-  );
+  const [tier, setTier] = useState<PaidTier>(currentTier === 'DEVELOPER' ? 'GROWTH' : 'DEVELOPER');
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const tiers: PaidTier[] = (['DEVELOPER', 'GROWTH'] as const).filter(
-    (t) => t !== currentTier,
-  );
+  const tiers: PaidTier[] = (['DEVELOPER', 'GROWTH'] as const).filter((t) => t !== currentTier);
 
   function go(): void {
     setError(null);
@@ -54,9 +50,11 @@ export function UpgradeButton({ currentTier }: Props): ReactElement {
     return (
       <button
         type="button"
-        className="okoro-button"
+        className="cerniq-button"
         aria-label="Upgrade plan"
-        onClick={() => { setOpen(true); }}
+        onClick={() => {
+          setOpen(true);
+        }}
       >
         Upgrade ▶
       </button>
@@ -72,7 +70,9 @@ export function UpgradeButton({ currentTier }: Props): ReactElement {
         id="upgrade-tier"
         aria-label="Select plan tier"
         value={tier}
-        onChange={(e) => { setTier(e.target.value as PaidTier); }}
+        onChange={(e) => {
+          setTier(e.target.value as PaidTier);
+        }}
         disabled={pending}
         style={{
           background: 'var(--bg-elev)',
@@ -91,7 +91,7 @@ export function UpgradeButton({ currentTier }: Props): ReactElement {
       </select>
       <button
         type="button"
-        className="okoro-button"
+        className="cerniq-button"
         aria-label="Continue to Stripe Checkout"
         disabled={pending}
         onClick={go}
@@ -100,7 +100,7 @@ export function UpgradeButton({ currentTier }: Props): ReactElement {
       </button>
       <button
         type="button"
-        className="okoro-button-ghost"
+        className="cerniq-button-ghost"
         aria-label="Cancel upgrade"
         disabled={pending}
         onClick={() => {

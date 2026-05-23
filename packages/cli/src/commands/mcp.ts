@@ -1,4 +1,4 @@
-// `okoro mcp install` — writes an `okoro-mcp` entry into the host's MCP
+// `cerniq mcp install` — writes an `cerniq-mcp` entry into the host's MCP
 // config. Supports Claude Desktop and Cursor.
 
 import { existsSync } from 'node:fs';
@@ -12,11 +12,14 @@ import { info, ok, warn, err } from '../output.js';
 type Host = 'claude-desktop' | 'cursor';
 
 interface McpConfig {
-  mcpServers?: Record<string, {
-    command: string;
-    args?: string[];
-    env?: Record<string, string>;
-  }>;
+  mcpServers?: Record<
+    string,
+    {
+      command: string;
+      args?: string[];
+      env?: Record<string, string>;
+    }
+  >;
 }
 
 function configPath(host: Host): string {
@@ -33,13 +36,17 @@ function configPath(host: Host): string {
     : join(home, '.config', 'Cursor', 'User', 'mcp.json');
 }
 
-export async function mcpInstall(opts: { host?: Host; serverName?: string; force?: boolean }): Promise<void> {
+export async function mcpInstall(opts: {
+  host?: Host;
+  serverName?: string;
+  force?: boolean;
+}): Promise<void> {
   const host = opts.host ?? 'claude-desktop';
-  const name = opts.serverName ?? 'okoro';
+  const name = opts.serverName ?? 'cerniq';
   const path = configPath(host);
   const creds = await resolveCredentials();
   if (!creds) {
-    err('not logged in — run `okoro bootstrap` first.');
+    err('not logged in — run `cerniq bootstrap` first.');
     process.exit(1);
   }
 
@@ -49,7 +56,7 @@ export async function mcpInstall(opts: { host?: Host; serverName?: string; force
       cfg = JSON.parse(await readFile(path, 'utf8')) as McpConfig;
     } catch {
       warn(`existing ${path} is not valid JSON; backing up and starting fresh.`);
-      await writeFile(`${path}.okoro-backup.${Date.now()}`, await readFile(path, 'utf8'));
+      await writeFile(`${path}.cerniq-backup.${Date.now()}`, await readFile(path, 'utf8'));
     }
   } else {
     await mkdir(join(path, '..'), { recursive: true });
@@ -63,11 +70,11 @@ export async function mcpInstall(opts: { host?: Host; serverName?: string; force
 
   cfg.mcpServers[name] = {
     command: 'npx',
-    args: ['-y', '@okoro/mcp-server'],
-    env: { OKORO_API_KEY: creds.apiKey, OKORO_BASE_URL: creds.baseUrl },
+    args: ['-y', '@cerniq/mcp-server'],
+    env: { CERNIQ_API_KEY: creds.apiKey, CERNIQ_BASE_URL: creds.baseUrl },
   };
 
   await writeFile(path, JSON.stringify(cfg, null, 2) + '\n', 'utf8');
-  ok(`installed @okoro/mcp-server into ${host} at ${path}`);
+  ok(`installed @cerniq/mcp-server into ${host} at ${path}`);
   info(`Restart ${host} to pick up the change.`);
 }

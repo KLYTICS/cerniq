@@ -5,7 +5,7 @@
 // call (POLICY_EXPIRED denial), so an unswept expired policy is already
 // safe — the sweep keeps the data model truthful for dashboards, CSV
 // exports, and SOC2 evidence. It also fires the
-// `okoro.policy.expired` webhook so customers can plumb expiry into
+// `cerniq.policy.expired` webhook so customers can plumb expiry into
 // their own ticketing.
 //
 // Design:
@@ -30,7 +30,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { AppConfigService } from '../../config/config.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
 
-export const POLICY_EXPIRY_QUEUE = 'okoro.policy.expiry';
+export const POLICY_EXPIRY_QUEUE = 'cerniq.policy.expiry';
 export const POLICY_EXPIRY_REPEAT_KEY = 'policy:expiry:tick';
 export const POLICY_EXPIRY_INTERVAL_MS = 5 * 60_000; // 5 min — see ADR-0007 §"Cadence"
 
@@ -66,9 +66,9 @@ export class PolicyExpiryWorker implements OnModuleInit, OnModuleDestroy {
         concurrency: 1, // sweep is global; no parallelism wanted
       },
     );
-    this.worker.on('failed', (job, err) =>
-      { this.logger.warn(`policy.expiry sweep failed jobId=${job?.id}: ${err?.message}`); },
-    );
+    this.worker.on('failed', (job, err) => {
+      this.logger.warn(`policy.expiry sweep failed jobId=${job?.id}: ${err?.message}`);
+    });
 
     // Repeatable schedule — BullMQ dedupes the repeatable key so multiple
     // pods won't queue parallel sweeps. The first pod to register wins.
@@ -106,8 +106,10 @@ export class PolicyExpiryWorker implements OnModuleInit, OnModuleDestroy {
     // is fine here because (a) verify hot path already gates expiry, and
     // (b) the sweep concurrency=1 prevents two workers from racing on the
     // same row.
-    const expired: (Pick<AgentPolicy, 'id' | 'agentId' | 'expiresAt'> & { principalId?: string })[] =
-      await this.prisma.agentPolicy.findMany({
+    const expired: (Pick<AgentPolicy, 'id' | 'agentId' | 'expiresAt'> & {
+      principalId?: string;
+    })[] = await this.prisma.agentPolicy
+      .findMany({
         where: { revokedAt: null, status: 'ACTIVE', expiresAt: { lt: now } },
         select: {
           id: true,
@@ -141,7 +143,7 @@ export class PolicyExpiryWorker implements OnModuleInit, OnModuleDestroy {
       try {
         await this.webhooks.enqueue(
           {
-            type: 'okoro.policy.expired',
+            type: 'cerniq.policy.expired',
             data: {
               policyId: row.id,
               agentId: row.agentId,

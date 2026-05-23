@@ -14,7 +14,7 @@ export class MetricsService implements OnModuleInit {
   readonly registry = new Registry();
 
   readonly verifyLatency = new Histogram({
-    name: 'okoro_verify_latency_seconds',
+    name: 'cerniq_verify_latency_seconds',
     help: 'Latency of /v1/verify in seconds.',
     labelNames: ['decision'] as const,
     // Phase 1 origin target is 200 ms p99; Phase 3 edge is 80 ms.
@@ -22,32 +22,32 @@ export class MetricsService implements OnModuleInit {
   });
 
   readonly verifyTotal = new Counter({
-    name: 'okoro_verify_total',
+    name: 'cerniq_verify_total',
     help: 'Verify decisions by outcome.',
     labelNames: ['decision', 'denial_reason'] as const,
   });
 
   readonly bateScoreDelta = new Histogram({
-    name: 'okoro_bate_score_delta',
+    name: 'cerniq_bate_score_delta',
     help: 'Trust-score delta per BATE signal application.',
     labelNames: ['signal_type'] as const,
     buckets: [-500, -250, -100, -50, -20, -5, 0, 5, 20, 50, 100, 250, 500],
   });
 
   readonly httpRequestsTotal = new Counter({
-    name: 'okoro_http_requests_total',
+    name: 'cerniq_http_requests_total',
     help: 'HTTP requests handled, by route + status class.',
     labelNames: ['method', 'route', 'status_class'] as const,
   });
 
   readonly auditAppendTotal = new Counter({
-    name: 'okoro_audit_append_total',
+    name: 'cerniq_audit_append_total',
     help: 'Audit chain appends.',
     labelNames: ['result'] as const, // ok | error
   });
 
   readonly webhookDeliveryTotal = new Counter({
-    name: 'okoro_webhook_delivery_total',
+    name: 'cerniq_webhook_delivery_total',
     help: 'Webhook delivery attempts by terminal status.',
     labelNames: ['status', 'event'] as const,
   });
@@ -61,7 +61,7 @@ export class MetricsService implements OnModuleInit {
    * for at least one subscription).
    */
   readonly webhookSecretDecryptFailureTotal = new Counter({
-    name: 'okoro_webhook_secret_decrypt_failure_total',
+    name: 'cerniq_webhook_secret_decrypt_failure_total',
     help: 'Webhook deliveries ABANDONED because the encrypted secret could not be unwrapped.',
   });
 
@@ -71,7 +71,7 @@ export class MetricsService implements OnModuleInit {
    * incident is silently piling DB load; alarm threshold > 1/sec.
    */
   readonly cacheSetFailedTotal = new Counter({
-    name: 'okoro_cache_set_failed_total',
+    name: 'cerniq_cache_set_failed_total',
     help: 'Best-effort cache writes that failed (Redis outage / eviction / type mismatch).',
     labelNames: ['op'] as const, // 'agent' | 'policy' | 'touch_agent' | 'spend_day' | 'spend_month' | 'verify_result'
   });
@@ -82,7 +82,7 @@ export class MetricsService implements OnModuleInit {
    * is enqueueing rows that no consumer can process — page after >5min.
    */
   readonly outboxDrainedTotal = new Counter({
-    name: 'okoro_outbox_drained_total',
+    name: 'cerniq_outbox_drained_total',
     help: 'Outbox rows processed by the OutboxWorker, by kind and outcome.',
     labelNames: ['kind', 'outcome'] as const,
   });
@@ -93,7 +93,7 @@ export class MetricsService implements OnModuleInit {
    * alarm at >0 per hour.
    */
   readonly outboxDeadLetteredTotal = new Counter({
-    name: 'okoro_outbox_dead_lettered_total',
+    name: 'cerniq_outbox_dead_lettered_total',
     help: 'Outbox rows that exhausted retries — manual intervention required.',
     labelNames: ['kind'] as const,
   });
@@ -105,18 +105,18 @@ export class MetricsService implements OnModuleInit {
    * Alert: any single agent_id accumulating >10 triggers/hour warrants review.
    */
   readonly bateAnomalyTriggerTotal = new Counter({
-    name: 'okoro_bate_anomaly_trigger_total',
+    name: 'cerniq_bate_anomaly_trigger_total',
     help: 'Number of BATE anomaly rule firings during recompute jobs, by rule.',
     labelNames: ['rule'] as const,
   });
 
   /**
    * G-3 sweep: count of policies revoked by `PolicyExpiryWorker` and the
-   * outcome bucket. Sample alert: `rate(okoro_policy_expired_swept_total[1h])
+   * outcome bucket. Sample alert: `rate(cerniq_policy_expired_swept_total[1h])
    * > 100` means a customer is mass-issuing short-TTL policies.
    */
   readonly policyExpiredSweptTotal = new Counter({
-    name: 'okoro_policy_expired_swept_total',
+    name: 'cerniq_policy_expired_swept_total',
     help: 'Number of policies revoked by the expiry sweep worker.',
     labelNames: ['outcome'] as const,
   });
@@ -134,7 +134,7 @@ export class MetricsService implements OnModuleInit {
    * the retention worker is no longer firing — page operators.
    */
   readonly auditRetentionEventsRedactedTotal = new Counter({
-    name: 'okoro_audit_retention_events_redacted_total',
+    name: 'cerniq_audit_retention_events_redacted_total',
     help: 'Audit events redacted by the retention sweep (chain intact, raw columns zeroed).',
   });
 
@@ -144,10 +144,10 @@ export class MetricsService implements OnModuleInit {
    * the `breaker` label is restricted to the wired callsites:
    * 'kms.aws.decrypt', 'kms.gcp.sign', 'kms.vault.sign', 'stripe.api'.
    * Alert: any non-zero value sustained > 1 min indicates a wedged
-   * dependency — page on `okoro_circuit_breaker_state{breaker=~".+"} > 0`.
+   * dependency — page on `cerniq_circuit_breaker_state{breaker=~".+"} > 0`.
    */
   readonly circuitBreakerStateGauge = new Gauge({
-    name: 'okoro_circuit_breaker_state',
+    name: 'cerniq_circuit_breaker_state',
     help: 'Outbound circuit breaker state (0=CLOSED, 1=HALF_OPEN, 2=OPEN).',
     labelNames: ['breaker'] as const,
   });
@@ -155,10 +155,10 @@ export class MetricsService implements OnModuleInit {
   /**
    * Total CLOSED→OPEN transitions per breaker. Each increment is an SLO
    * burn event (a downstream dependency just degraded). Alert at any
-   * non-zero `rate(okoro_circuit_breaker_trips_total[5m])`.
+   * non-zero `rate(cerniq_circuit_breaker_trips_total[5m])`.
    */
   readonly circuitBreakerTripsTotal = new Counter({
-    name: 'okoro_circuit_breaker_trips_total',
+    name: 'cerniq_circuit_breaker_trips_total',
     help: 'Number of CLOSED→OPEN transitions per outbound circuit breaker.',
     labelNames: ['breaker'] as const,
   });
@@ -166,15 +166,15 @@ export class MetricsService implements OnModuleInit {
   /**
    * BullMQ queue depth gauge — sampled on a 15s interval per queue. Labels
    * are bounded enums:
-   *   - `queue`  ∈ {'okoro.webhooks', …} (one per BullMQ queue we run).
+   *   - `queue`  ∈ {'cerniq.webhooks', …} (one per BullMQ queue we run).
    *   - `state`  ∈ {'waiting','active','completed','failed','delayed','paused'}.
    *
    * 1 queue × 6 states = 6 series — well under any cardinality budget.
-   * Alert: `okoro_bullmq_queue_depth{state="waiting",queue="okoro.webhooks"} > 1000`
+   * Alert: `cerniq_bullmq_queue_depth{state="waiting",queue="cerniq.webhooks"} > 1000`
    * for >5min means consumers can't keep up; page operators.
    */
   readonly bullmqQueueDepthGauge = new Gauge({
-    name: 'okoro_bullmq_queue_depth',
+    name: 'cerniq_bullmq_queue_depth',
     help: 'BullMQ queue depth, sampled per state.',
     labelNames: ['queue', 'state'] as const,
   });
@@ -186,7 +186,7 @@ export class MetricsService implements OnModuleInit {
    * job will be retried by BullMQ before the bucket fires.
    */
   readonly bullmqJobProcessingMs = new Histogram({
-    name: 'okoro_bullmq_job_processing_ms',
+    name: 'cerniq_bullmq_job_processing_ms',
     help: 'BullMQ job processing duration in milliseconds.',
     labelNames: ['queue', 'event'] as const,
     buckets: [10, 50, 100, 500, 1_000, 5_000, 10_000, 30_000],
@@ -200,7 +200,7 @@ export class MetricsService implements OnModuleInit {
    *                    permanent error (e.g. HTTP 4xx, secret_decrypt_failed).
    */
   readonly bullmqJobsTotal = new Counter({
-    name: 'okoro_bullmq_jobs_total',
+    name: 'cerniq_bullmq_jobs_total',
     help: 'BullMQ job outcomes by queue, event kind, and terminal result.',
     labelNames: ['queue', 'event', 'result'] as const,
   });
@@ -212,18 +212,18 @@ export class MetricsService implements OnModuleInit {
    * chain + dashboard query against `Principal.trialUsedCount`.
    */
   readonly trialUsageIncrementedTotal = new Counter({
-    name: 'okoro_trial_usage_incremented_total',
+    name: 'cerniq_trial_usage_incremented_total',
     help: 'Number of FREE-tier verify increments through the lifetime trial counter.',
   });
 
   readonly trialExhaustedTotal = new Counter({
-    name: 'okoro_trial_exhausted_total',
+    name: 'cerniq_trial_exhausted_total',
     help: 'Number of TRIAL_EXHAUSTED denials emitted (cap reached or fail-closed).',
   });
 
   onModuleInit(): void {
     // Default Node + process metrics — heap, event loop lag, GC, etc.
-    collectDefaultMetrics({ register: this.registry, prefix: 'okoro_' });
+    collectDefaultMetrics({ register: this.registry, prefix: 'cerniq_' });
     this.registry.registerMetric(this.verifyLatency);
     this.registry.registerMetric(this.verifyTotal);
     this.registry.registerMetric(this.bateScoreDelta);

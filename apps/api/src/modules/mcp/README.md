@@ -1,15 +1,15 @@
 # MCP control-plane module
 
 Implements ADR-0008. Manages the registry of trusted MCP servers per
-principal. Each registration tells OKORO:
+principal. Each registration tells CERNIQ:
 
-- *who* runs this MCP server (`principalId`)
-- *where* it lives (`endpoint`, `transport`)
-- *what* tools it exposes (`actionPrefix`, optional `manifestUrl`)
-- *how trusted* its callers must be (`minTrustBand`)
+- _who_ runs this MCP server (`principalId`)
+- _where_ it lives (`endpoint`, `transport`)
+- _what_ tools it exposes (`actionPrefix`, optional `manifestUrl`)
+- _how trusted_ its callers must be (`minTrustBand`)
 
 Verify-time wiring (so `relyingPartyId` is stamped on audit events when
-a tool call goes through `@okoro/mcp-bridge`) is delivered by M-022 —
+a tool call goes through `@cerniq/mcp-bridge`) is delivered by M-022 —
 peer holds the verify path.
 
 ## Endpoints

@@ -13,12 +13,14 @@ async function bootstrap(): Promise<void> {
   // OTel must initialize BEFORE NestFactory so auto-instrumentation can
   // wrap http / pg / ioredis at import time. See ADR-0011 §6.
   const tracing: TracingHandle = await initTracing({
-    enabled: process.env.OKORO_OTEL_ENABLED === 'true',
-    serviceName: process.env.OKORO_OTEL_SERVICE_NAME ?? 'okoro-api',
-    exporter: (process.env.OKORO_OTEL_EXPORTER as 'otlp-http' | 'console' | 'noop' | undefined) ?? 'otlp-http',
+    enabled: process.env.CERNIQ_OTEL_ENABLED === 'true',
+    serviceName: process.env.CERNIQ_OTEL_SERVICE_NAME ?? 'cerniq-api',
+    exporter:
+      (process.env.CERNIQ_OTEL_EXPORTER as 'otlp-http' | 'console' | 'noop' | undefined) ??
+      'otlp-http',
     resourceAttributes: {
       'deployment.environment': process.env.NODE_ENV ?? 'development',
-      ...(process.env.OKORO_REGION ? { 'okoro.region': process.env.OKORO_REGION } : {}),
+      ...(process.env.CERNIQ_REGION ? { 'cerniq.region': process.env.CERNIQ_REGION } : {}),
     },
   });
 
@@ -65,11 +67,13 @@ async function bootstrap(): Promise<void> {
 
   if (config.enableSwagger) {
     const swagger = new DocumentBuilder()
-      .setTitle('OKORO — Agent Gateway & Identity Stack')
-      .setDescription('Cryptographic identity, scoped policy, and behavioral attestation for AI agents.')
+      .setTitle('CERNIQ — Agent Gateway & Identity Stack')
+      .setDescription(
+        'Cryptographic identity, scoped policy, and behavioral attestation for AI agents.',
+      )
       .setVersion('1.0.0')
-      .addApiKey({ type: 'apiKey', name: 'X-OKORO-API-Key', in: 'header' }, 'ApiKeyAuth')
-      .addApiKey({ type: 'apiKey', name: 'X-OKORO-Verify-Key', in: 'header' }, 'PublicVerifyKey')
+      .addApiKey({ type: 'apiKey', name: 'X-CERNIQ-API-Key', in: 'header' }, 'ApiKeyAuth')
+      .addApiKey({ type: 'apiKey', name: 'X-CERNIQ-Verify-Key', in: 'header' }, 'PublicVerifyKey')
       .build();
     const doc = SwaggerModule.createDocument(app, swagger);
     SwaggerModule.setup('docs', app, doc, {
@@ -81,7 +85,7 @@ async function bootstrap(): Promise<void> {
 
   const url = await app.getUrl();
   // eslint-disable-next-line no-console
-  console.log(`OKORO API listening on ${url}  (env=${config.nodeEnv})`);
+  console.log(`CERNIQ API listening on ${url}  (env=${config.nodeEnv})`);
 }
 
 void bootstrap();

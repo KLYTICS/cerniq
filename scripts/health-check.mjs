@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * OKORO — post-deploy health check.
+ * CERNIQ — post-deploy health check.
  * Used by CI deploy job and Railway healthcheck.
  *
  * Walks: /health (liveness), /ready (readiness incl. DB+Redis),
@@ -11,10 +11,10 @@
  *
  * Usage:
  *   node scripts/health-check.mjs                              # localhost:4000
- *   OKORO_BASE_URL=https://api.okoroapp.com node scripts/health-check.mjs
+ *   CERNIQ_BASE_URL=https://api.cerniqapp.com node scripts/health-check.mjs
  */
 
-const BASE = process.env.OKORO_BASE_URL ?? 'http://localhost:4000';
+const BASE = process.env.CERNIQ_BASE_URL ?? 'http://localhost:4000';
 const TIMEOUT_MS = 5_000;
 
 const checks = [

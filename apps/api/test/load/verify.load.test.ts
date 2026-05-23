@@ -6,12 +6,12 @@
 //
 // Gated behind LOAD_TEST=1 so it doesn't run in normal CI. Exec via:
 //
-//   OKORO_VERIFY_KEY=okoro_vk_xxxx  OKORO_TOKEN=...  LOAD_TEST=1 \
-//     pnpm --filter @okoro/api exec jest test/load/verify.load.test.ts
+//   CERNIQ_VERIFY_KEY=cerniq_vk_xxxx  CERNIQ_TOKEN=...  LOAD_TEST=1 \
+//     pnpm --filter @cerniq/api exec jest test/load/verify.load.test.ts
 //
 // Running it from the bootstrap script and a freshly minted dev token is
 // scaffolded in the next iteration of `scripts/seed-dev.ts` — for now, set
-// OKORO_TOKEN by hand from the dashboard or seed output.
+// CERNIQ_TOKEN by hand from the dashboard or seed output.
 
 import autocannon from 'autocannon';
 
@@ -22,16 +22,17 @@ const TARGETS = {
   edge: { p99Ms: 80, rps: 1_000, durationSec: 30 },
 } as const;
 
-const PROFILE: keyof typeof TARGETS = (process.env.OKORO_LOAD_PROFILE as keyof typeof TARGETS) || 'origin';
+const PROFILE: keyof typeof TARGETS =
+  (process.env.CERNIQ_LOAD_PROFILE as keyof typeof TARGETS) || 'origin';
 
-const URL = process.env.OKORO_API_URL ?? 'http://localhost:4000';
-const VERIFY_KEY = process.env.OKORO_VERIFY_KEY ?? '';
-const TOKEN = process.env.OKORO_TOKEN ?? '';
+const URL = process.env.CERNIQ_API_URL ?? 'http://localhost:4000';
+const VERIFY_KEY = process.env.CERNIQ_VERIFY_KEY ?? '';
+const TOKEN = process.env.CERNIQ_TOKEN ?? '';
 
 (RUN ? describe : describe.skip)(`/v1/verify load — profile=${PROFILE}`, () => {
   beforeAll(() => {
     if (!VERIFY_KEY || !TOKEN) {
-      throw new Error('Set OKORO_VERIFY_KEY and OKORO_TOKEN before running the load test.');
+      throw new Error('Set CERNIQ_VERIFY_KEY and CERNIQ_TOKEN before running the load test.');
     }
   });
 
@@ -46,7 +47,7 @@ const TOKEN = process.env.OKORO_TOKEN ?? '';
       duration: target.durationSec,
       headers: {
         'Content-Type': 'application/json',
-        'X-OKORO-Verify-Key': VERIFY_KEY,
+        'X-CERNIQ-Verify-Key': VERIFY_KEY,
       },
       body: JSON.stringify({
         token: TOKEN,

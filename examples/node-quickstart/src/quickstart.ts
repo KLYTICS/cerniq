@@ -1,6 +1,6 @@
 /**
- * OKORO quickstart — one-file walkthrough of the agent lifecycle using
- * `@okoro/sdk`. Hits a running OKORO API at $OKORO_API_BASE.
+ * CERNIQ quickstart — one-file walkthrough of the agent lifecycle using
+ * `@cerniq/sdk`. Hits a running CERNIQ API at $CERNIQ_API_BASE.
  *
  * Steps:
  *   1. Set up an SDK client.
@@ -11,21 +11,21 @@
  *   6. Verify the token; print the decision.
  *
  * Required env:
- *   OKORO_API_KEY   — full-management key (e.g. from `pnpm --filter @okoro/scripts seed`)
- *   OKORO_VERIFY_KEY — verify-only key (optional; if unset, OKORO_API_KEY is reused
+ *   CERNIQ_API_KEY   — full-management key (e.g. from `pnpm --filter @cerniq/scripts seed`)
+ *   CERNIQ_VERIFY_KEY — verify-only key (optional; if unset, CERNIQ_API_KEY is reused
  *                      and the verify call rides under it — fine for dev only)
- *   OKORO_API_BASE  — default http://localhost:4000
+ *   CERNIQ_API_BASE  — default http://localhost:4000
  *
  * Run:
  *   pnpm install
- *   OKORO_API_KEY=okoro_sk_... pnpm tsx src/quickstart.ts
+ *   CERNIQ_API_KEY=cerniq_sk_... pnpm tsx src/quickstart.ts
  */
 
-import { Okoro, generateKeypair, signAgentToken } from '@okoro/sdk';
+import { Cerniq, generateKeypair, signAgentToken } from '@cerniq/sdk';
 
-const API_BASE = process.env.OKORO_API_BASE ?? 'http://localhost:4000';
-const API_KEY = process.env.OKORO_API_KEY;
-const VERIFY_KEY = process.env.OKORO_VERIFY_KEY ?? process.env.OKORO_API_KEY;
+const API_BASE = process.env.CERNIQ_API_BASE ?? 'http://localhost:4000';
+const API_KEY = process.env.CERNIQ_API_KEY;
+const VERIFY_KEY = process.env.CERNIQ_VERIFY_KEY ?? process.env.CERNIQ_API_KEY;
 
 function section(title: string): void {
   console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 60 - title.length))}`);
@@ -34,13 +34,13 @@ function section(title: string): void {
 async function main(): Promise<void> {
   if (!API_KEY) {
     console.error(
-      'OKORO_API_KEY is required. Run `pnpm --filter @okoro/scripts seed` first; copy the apiKey from its stdout.',
+      'CERNIQ_API_KEY is required. Run `pnpm --filter @cerniq/scripts seed` first; copy the apiKey from its stdout.',
     );
     process.exit(2);
   }
 
   section('1. SDK client');
-  const okoro = new Okoro({ apiKey: API_KEY, baseUrl: API_BASE });
+  const cerniq = new Cerniq({ apiKey: API_KEY, baseUrl: API_BASE });
   console.log(`baseUrl: ${API_BASE}`);
 
   section('2. Keypair (client-side only)');
@@ -49,7 +49,7 @@ async function main(): Promise<void> {
   console.log(`privateKey: <kept local — ${privateKey.length} chars>`);
 
   section('3. Register agent');
-  const agent = await okoro.agents.register({
+  const agent = await cerniq.agents.register({
     publicKey,
     runtime: 'CUSTOM',
     label: 'quickstart-demo',
@@ -59,7 +59,7 @@ async function main(): Promise<void> {
 
   section('4. Create policy');
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  const policy = await okoro.policies.create(agent.agentId, {
+  const policy = await cerniq.policies.create(agent.agentId, {
     label: 'quickstart-policy',
     scopes: [
       {
@@ -83,9 +83,9 @@ async function main(): Promise<void> {
 
   section('6. Verify');
   // Use the verify key here — relying parties should never use the management
-  // key. In this demo we fall back to the management key if OKORO_VERIFY_KEY
+  // key. In this demo we fall back to the management key if CERNIQ_VERIFY_KEY
   // is unset, but production deployments must split.
-  const verifier = new Okoro({ apiKey: VERIFY_KEY ?? API_KEY, baseUrl: API_BASE });
+  const verifier = new Cerniq({ apiKey: VERIFY_KEY ?? API_KEY, baseUrl: API_BASE });
   const result = await verifier.verify(token, {
     action: 'commerce.purchase',
     amount: 49,

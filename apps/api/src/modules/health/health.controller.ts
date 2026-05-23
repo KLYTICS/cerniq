@@ -36,7 +36,7 @@
 // Error redaction: error strings are short, fixed phrases or first-line
 // messages. We never include DSNs, secret material, or stack traces in
 // the readiness payload. The spec asserts none of the canary patterns
-// (`okoro_`, `whsec_`, `sk_`) appear in any error string.
+// (`cerniq_`, `whsec_`, `sk_`) appear in any error string.
 
 import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
@@ -52,7 +52,6 @@ import { StripeService } from '../billing/stripe.service';
 // type-rationale: package.json is a static JSON resource and tsconfig has
 // resolveJsonModule=true. Importing once at module load avoids fs reads
 // per request and keeps `version` baked into the bundle.
- 
 
 const READINESS_CHECK_TIMEOUT_MS = 200;
 
@@ -100,8 +99,7 @@ export class HealthController {
     // type-rationale: ts-jest + CJS interop on a JSON import surfaces both
     // a `default` and the raw object. We accept either shape.
     const pkg =
-      (pkgJson as { default?: { version?: string }; version?: string })
-        .default ?? (pkgJson);
+      (pkgJson as { default?: { version?: string }; version?: string }).default ?? pkgJson;
     this.versionPayload = {
       version: pkg.version ?? '0.0.0',
       gitSha: process.env.GIT_SHA ?? 'dev',
@@ -117,13 +115,9 @@ export class HealthController {
 
   @Public()
   @Get('ready')
-  async ready(
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<ReadinessResponse> {
+  async ready(@Res({ passthrough: true }) res: Response): Promise<ReadinessResponse> {
     const [database, redis, kms, stripe] = await Promise.all([
-      this.runCheck(() =>
-        this.prisma.$queryRaw`SELECT 1`.then(() => undefined),
-      ),
+      this.runCheck(() => this.prisma.$queryRaw`SELECT 1`.then(() => undefined)),
       this.runCheck(async () => {
         const ok = await this.redis.ping();
         if (!ok) throw new Error('ping returned false');
@@ -142,9 +136,7 @@ export class HealthController {
     const checks: ReadinessChecks = { database, redis, kms, stripe };
     const overall = this.computeOverall(checks);
 
-    res.status(
-      overall === 'down' ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.OK,
-    );
+    res.status(overall === 'down' ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.OK);
 
     return {
       status: overall,
@@ -167,19 +159,16 @@ export class HealthController {
    * Run a single readiness probe with a fixed timeout. Returns a
    * structured ComponentStatus — never throws. Captures latency in ms.
    */
-  private async runCheck(
-    fn: () => Promise<void>,
-  ): Promise<ComponentStatus> {
+  private async runCheck(fn: () => Promise<void>): Promise<ComponentStatus> {
     const started = Date.now();
     let timeoutHandle: NodeJS.Timeout | undefined;
     try {
       await Promise.race([
         fn(),
         new Promise<never>((_resolve, reject) => {
-          timeoutHandle = setTimeout(
-            () => { reject(new Error(`timeout: ${READINESS_CHECK_TIMEOUT_MS}ms`)); },
-            READINESS_CHECK_TIMEOUT_MS,
-          );
+          timeoutHandle = setTimeout(() => {
+            reject(new Error(`timeout: ${READINESS_CHECK_TIMEOUT_MS}ms`));
+          }, READINESS_CHECK_TIMEOUT_MS);
         }),
       ]);
       const latencyMs = Date.now() - started;
@@ -203,11 +192,7 @@ export class HealthController {
    */
   private redactError(err: unknown): string {
     const raw =
-      err instanceof Error
-        ? err.message
-        : typeof err === 'string'
-          ? err
-          : 'unknown error';
+      err instanceof Error ? err.message : typeof err === 'string' ? err : 'unknown error';
     const firstLine = raw.split('\n')[0] ?? 'unknown error';
     return firstLine.slice(0, 120);
   }
@@ -221,8 +206,7 @@ export class HealthController {
    */
   private computeOverall(checks: ReadinessChecks): ReadinessOverall {
     if (!checks.database.ok || !checks.kms.ok) return 'down';
-    const nonCoreFailing =
-      !checks.redis.ok || (checks.stripe !== undefined && !checks.stripe.ok);
+    const nonCoreFailing = !checks.redis.ok || (checks.stripe !== undefined && !checks.stripe.ok);
     return nonCoreFailing ? 'degraded' : 'ok';
   }
 }

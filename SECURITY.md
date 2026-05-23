@@ -1,10 +1,10 @@
-# Security Policy — OKORO
+# Security Policy — CERNIQ
 
 ## Reporting a Vulnerability
 
 **Do not file a public issue.**
 
-Email `security@okoroapp.com` (PGP key fingerprint TBD on first deploy)
+Email `security@cerniqapp.com` (PGP key fingerprint TBD on first deploy)
 with:
 
 1. A description of the vulnerability and its impact
@@ -20,9 +20,9 @@ researchers in release notes (with consent).
 
 In-scope:
 
-- OKORO API (`api.okoroapp.com`, `sandbox.okoroapp.com`)
-- OKORO dashboard (`app.okoroapp.com`)
-- OKORO SDK packages (`@okoro/sdk`, `okoro-sdk` Python)
+- CERNIQ API (`api.cerniqapp.com`, `sandbox.cerniqapp.com`)
+- CERNIQ dashboard (`app.cerniqapp.com`)
+- CERNIQ SDK packages (`@cerniq/sdk`, `cerniq-sdk` Python)
 - Cloudflare verify worker (when deployed)
 
 Out-of-scope:
@@ -33,12 +33,12 @@ Out-of-scope:
 
 ## Cryptographic Trust Boundaries
 
-- **OKORO never holds agent private keys.** Compromise of the OKORO
+- **CERNIQ never holds agent private keys.** Compromise of the CERNIQ
   database does not yield agent signing capability. Verifying a stolen
   database is not a path to forging signed agent tokens.
-- **Audit records are OKORO-signed (RSA-4096).** The audit-record signing
-  key is held by OKORO and rotated per a published schedule. Public key:
-  `https://api.okoroapp.com/.well-known/audit-signing-key`.
+- **Audit records are CERNIQ-signed (RSA-4096).** The audit-record signing
+  key is held by CERNIQ and rotated per a published schedule. Public key:
+  `https://api.cerniqapp.com/.well-known/audit-signing-key`.
 - **Token TTL is 60s.** Replay window is bounded; high-value actions
   use single-use `jti`.
 

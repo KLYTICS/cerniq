@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/klytics/okoro/packages/cli/internal/version"
+	"github.com/klytics/cerniq/packages/cli/internal/version"
 	"github.com/spf13/cobra"
 )
 

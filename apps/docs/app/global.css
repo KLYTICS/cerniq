@@ -1,42 +1,42 @@
 @import "tailwindcss";
 @import "fumadocs-ui/style.css";
 
-/* OKORO brand tokens — mirrored from brand/02_design-tokens.json */
+/* CERNIQ brand tokens — mirrored from brand/02_design-tokens.json */
 :root {
-  --okoro-obsidian: #050714;
-  --okoro-ink: #0b1020;
-  --okoro-steel: #161d33;
-  --okoro-graphite: #1f2740;
-  --okoro-mist: #2b3554;
-  --okoro-halo: #f4f6ff;
-  --okoro-fog: #a8b0cc;
-  --okoro-shadow: #6b7494;
-  --okoro-cyan: #5be0ff;
-  --okoro-violet: #8b6bff;
-  --okoro-magenta: #ff5bd0;
-  --okoro-verified: #4cffa8;
-  --okoro-denied: #ff5470;
-  --okoro-pending: #ffb86b;
+  --cerniq-obsidian: #050714;
+  --cerniq-ink: #0b1020;
+  --cerniq-steel: #161d33;
+  --cerniq-graphite: #1f2740;
+  --cerniq-mist: #2b3554;
+  --cerniq-halo: #f4f6ff;
+  --cerniq-fog: #a8b0cc;
+  --cerniq-shadow: #6b7494;
+  --cerniq-cyan: #5be0ff;
+  --cerniq-violet: #8b6bff;
+  --cerniq-magenta: #ff5bd0;
+  --cerniq-verified: #4cffa8;
+  --cerniq-denied: #ff5470;
+  --cerniq-pending: #ffb86b;
 
-  /* Map OKORO palette into Fumadocs CSS variables. */
-  --color-fd-background: var(--okoro-obsidian);
-  --color-fd-foreground: var(--okoro-halo);
-  --color-fd-muted: var(--okoro-graphite);
-  --color-fd-muted-foreground: var(--okoro-fog);
-  --color-fd-border: var(--okoro-mist);
-  --color-fd-primary: var(--okoro-cyan);
-  --color-fd-accent: var(--okoro-violet);
-  --color-fd-card: var(--okoro-ink);
+  /* Map CERNIQ palette into Fumadocs CSS variables. */
+  --color-fd-background: var(--cerniq-obsidian);
+  --color-fd-foreground: var(--cerniq-halo);
+  --color-fd-muted: var(--cerniq-graphite);
+  --color-fd-muted-foreground: var(--cerniq-fog);
+  --color-fd-border: var(--cerniq-mist);
+  --color-fd-primary: var(--cerniq-cyan);
+  --color-fd-accent: var(--cerniq-violet);
+  --color-fd-card: var(--cerniq-ink);
 }
 
-.okoro-canvas {
+.cerniq-canvas {
   background: radial-gradient(ellipse at top, #0b1020 0%, #050714 60%);
-  color: var(--okoro-halo);
+  color: var(--cerniq-halo);
   font-family: "Inter", system-ui, -apple-system, sans-serif;
   min-height: 100vh;
 }
 
-.okoro-aurora {
+.cerniq-aurora {
   background: linear-gradient(135deg, #5be0ff 0%, #8b6bff 50%, #ff5bd0 100%);
   -webkit-background-clip: text;
   background-clip: text;

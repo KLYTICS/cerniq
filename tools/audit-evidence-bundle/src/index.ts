@@ -1,12 +1,12 @@
-// CLI entry point for `@okoro/audit-evidence-bundle`.
+// CLI entry point for `@cerniq/audit-evidence-bundle`.
 //
 // Usage:
-//   OKORO_API_BASE=https://... OKORO_API_KEY=... \
-//     pnpm --filter @okoro/audit-evidence-bundle start \
+//   CERNIQ_API_BASE=https://... CERNIQ_API_KEY=... \
+//     pnpm --filter @cerniq/audit-evidence-bundle start \
 //       --principal-id <id> \
 //       --from 2026-01-01 \
 //       --to 2026-04-30 \
-//       --output ./okoro-evidence-2026Q1.tar.gz
+//       --output ./cerniq-evidence-2026Q1.tar.gz
 //
 // Exit codes:
 //   0  — bundle written, chain valid (or `--verify-only=skip` mode)
@@ -25,7 +25,7 @@ import { planBundleEntries, writeBundle } from './build-bundle.js';
 import { runChainVerification, buildSkippedVerdict } from './verify-chain.js';
 import type { BundleCliOptions, ChainVerificationFileShape } from './types.js';
 
-const HELP = `okoro-audit-evidence-bundle
+const HELP = `cerniq-audit-evidence-bundle
 
 Build a SOC2-ready evidence tarball for an external auditor.
 
@@ -39,8 +39,8 @@ OPTIONAL:
   --agent-id <id>         Limit export to a single agent. Without this we
                           query /v1/agents/<principalId>/audit/export.ndjson
                           (gateway routes a principal-wide export there).
-  --api-base <url>        Defaults to $OKORO_API_BASE.
-  --api-key  <key>        Defaults to $OKORO_API_KEY.
+  --api-base <url>        Defaults to $CERNIQ_API_BASE.
+  --api-key  <key>        Defaults to $CERNIQ_API_KEY.
   --verify-only           Skip chain verification (just bundle). Exit 0 always.
   --no-readme             Omit the auditor README.md from the bundle.
   --help                  Print this message.
@@ -107,16 +107,16 @@ export function parseArgs(argv: readonly string[]): ParsedFlags {
 }
 
 export function resolveCliOptions(parsed: Partial<BundleCliOptions>): BundleCliOptions {
-  const apiBase = parsed.apiBase ?? process.env['OKORO_API_BASE'];
-  const apiKey = parsed.apiKey ?? process.env['OKORO_API_KEY'];
+  const apiBase = parsed.apiBase ?? process.env['CERNIQ_API_BASE'];
+  const apiKey = parsed.apiKey ?? process.env['CERNIQ_API_KEY'];
 
   const missing: string[] = [];
   if (!parsed.principalId) missing.push('--principal-id');
   if (!parsed.from) missing.push('--from');
   if (!parsed.to) missing.push('--to');
   if (!parsed.output) missing.push('--output');
-  if (!apiBase) missing.push('--api-base / OKORO_API_BASE');
-  if (!apiKey) missing.push('--api-key / OKORO_API_KEY');
+  if (!apiBase) missing.push('--api-base / CERNIQ_API_BASE');
+  if (!apiKey) missing.push('--api-key / CERNIQ_API_KEY');
   if (missing.length > 0) {
     throw new Error(`missing required arguments: ${missing.join(', ')}`);
   }
@@ -134,13 +134,13 @@ export function resolveCliOptions(parsed: Partial<BundleCliOptions>): BundleCliO
   };
 }
 
-const AUDITOR_README = `# OKORO Audit Evidence Bundle
+const AUDITOR_README = `# CERNIQ Audit Evidence Bundle
 
-This directory is the cryptographic-quality evidence package for an OKORO
+This directory is the cryptographic-quality evidence package for an CERNIQ
 audit chain. It is designed for external auditors (SOC2, ISO 27001, FINRA,
 internal customer security review) and contains everything needed to
-**independently verify** the integrity of an OKORO deployment's audit log
-**without contacting OKORO**.
+**independently verify** the integrity of an CERNIQ deployment's audit log
+**without contacting CERNIQ**.
 
 ## What's in here
 
@@ -148,11 +148,11 @@ internal customer security review) and contains everything needed to
 | ----------------------------- | ------------------------------------------------------------- |
 | \`audit-events.ndjson\`         | One signed audit event per line, in chain order.              |
 | \`jwks.json\`                   | Public Ed25519 signing keys (JWKS format) — no private keys.  |
-| \`okoro-configuration.json\`    | The deployment's well-known discovery doc.                    |
+| \`cerniq-configuration.json\`    | The deployment's well-known discovery doc.                    |
 | \`retention-policy.json\`       | Retention windows (omitted if not yet published).             |
 | \`security.txt\`                | RFC 9116 contact for vulnerability reports.                   |
 | \`manifest.json\`               | Counts, time range, principal, generation timestamp, verdict. |
-| \`chain-verification.json\`     | Pre-computed verdict from \`@okoro/audit-verifier\`.            |
+| \`chain-verification.json\`     | Pre-computed verdict from \`@cerniq/audit-verifier\`.            |
 | \`SHA256SUMS\`                  | One line per file: \`<sha256>  <filename>\`.                    |
 
 ## How to re-verify offline
@@ -165,7 +165,7 @@ without re-running it yourself. That's the whole point of this package.
 sha256sum -c SHA256SUMS
 
 # 2. Re-run the chain verifier against the raw NDJSON + JWKS.
-npx @okoro/audit-verifier ./audit-events.ndjson --jwks ./jwks.json
+npx @cerniq/audit-verifier ./audit-events.ndjson --jwks ./jwks.json
 \`\`\`
 
 The verifier prints \`OK\` and exits 0 when every row's signature and
@@ -173,7 +173,7 @@ hash-chain link is valid. **Any other outcome is a SEV-1 finding.**
 
 ## What to do if verification fails
 
-The OKORO audit chain is built to be tamper-evident: each row signs over
+The CERNIQ audit chain is built to be tamper-evident: each row signs over
 the previous row's signature, so any change to any historical event
 invalidates every downstream signature. **A failed verification means one
 of three things:**
@@ -181,7 +181,7 @@ of three things:**
 1. **The bundle was corrupted in transit** — re-fetch it before reaching
    conclusions. \`sha256sum -c SHA256SUMS\` will catch this.
 2. **The audit log was tampered with at rest** — escalate immediately to
-   the deployment operator and OKORO Labs (\`security@okoroapp.com\`).
+   the deployment operator and CERNIQ Labs (\`security@cerniqapp.com\`).
    This is a P0 security incident.
 3. **The signing key was rotated mid-chain without a rotation event being
    recorded** — check \`signingKeys\` and \`rotationEvents\` in
@@ -203,7 +203,7 @@ result. If the two disagree, treat as a SEV-1.
   to "all agents owned by this principal"; some deployments restrict that
   to a single agent. Pass \`--agent-id\` explicitly if you see fewer rows
   than expected.
-- \`retention-policy.json\` is best-effort: OKORO deployments that have not
+- \`retention-policy.json\` is best-effort: CERNIQ deployments that have not
   yet shipped \`/.well-known/retention-policy.json\` will produce a bundle
   with \`retention_policy_included: false\` in the manifest.
 
@@ -259,7 +259,7 @@ export async function run(
 
   // Emit a one-line summary on stderr so CI logs see something.
   process.stderr.write(
-    `okoro-audit-evidence-bundle: wrote ${outputAbs} ` +
+    `cerniq-audit-evidence-bundle: wrote ${outputAbs} ` +
       `(rows=${fetched.ndjsonRowCount}, redacted=${fetched.redactedRowCount}, ` +
       `verification=${verification.status})\n`,
   );
@@ -269,10 +269,10 @@ export async function run(
 }
 
 /** Derive the in-tar directory name from the output path. e.g.
- *  `./okoro-evidence-2026Q1.tar.gz` → `okoro-evidence-2026Q1`. */
+ *  `./cerniq-evidence-2026Q1.tar.gz` → `cerniq-evidence-2026Q1`. */
 export function deriveBundleRoot(outputPath: string): string {
-  const base = outputPath.split(/[/\\]/).pop() ?? 'okoro-evidence';
-  return base.replace(/\.tar\.gz$|\.tgz$/i, '') || 'okoro-evidence';
+  const base = outputPath.split(/[/\\]/).pop() ?? 'cerniq-evidence';
+  return base.replace(/\.tar\.gz$|\.tgz$/i, '') || 'cerniq-evidence';
 }
 
 // Direct invocation guard — only run when executed as a script, not when
@@ -291,7 +291,7 @@ if (isMain) {
     },
     (err: unknown) => {
       const msg = err instanceof Error ? err.message : String(err);
-      process.stderr.write(`okoro-audit-evidence-bundle: ${msg}\n`);
+      process.stderr.write(`cerniq-audit-evidence-bundle: ${msg}\n`);
       process.exit(1);
     },
   );

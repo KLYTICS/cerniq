@@ -1,11 +1,11 @@
 ---
-title: OKORO — Execution Operating System
+title: CERNIQ — Execution Operating System
 audience: every contributor — operator, staff engineer, contractor, every Claude session, every future hire
 last-reviewed: 2026-05-08
 status: source-of-truth
 ---
 
-# OKORO Execution Operating System
+# CERNIQ Execution Operating System
 
 The institutional contract that turns parallel work into a public-company-
 grade business. Layered on top of `CLAUDE.md` (architectural invariants),
@@ -15,7 +15,7 @@ session discipline), `docs/SESSION_HANDOFF.md` (delivery log), and
 
 ## What this folder is for
 
-OKORO is being built today as if it will be a publicly traded company in
+CERNIQ is being built today as if it will be a publicly traded company in
 24-36 months. Every contributor — human or AI agent — ships work that must
 clear a bar set in three places at once:
 
@@ -32,7 +32,7 @@ binds them into a single execution model.
 
 ## The 4 axes
 
-Every piece of work at OKORO is described by four coordinates:
+Every piece of work at CERNIQ is described by four coordinates:
 
 ```
 DEPARTMENT      ×    AGENT ROLE     ×    TASK STAGE       ×    QUALITY GATE
@@ -54,8 +54,8 @@ DEPARTMENT      ×    AGENT ROLE     ×    TASK STAGE       ×    QUALITY GATE
 
 The ergonomics:
 
-- A single sentence describes any unit of work: *"Engineering, Implementer,
-  Implementing-stage, Code+Security gates."*
+- A single sentence describes any unit of work: _"Engineering, Implementer,
+  Implementing-stage, Code+Security gates."_
 - A reviewer asking "did we do this right?" can check each axis
   independently and arrive at a yes/no without judgment calls.
 - A new contributor onboarding doesn't need to learn the whole company —
@@ -64,15 +64,15 @@ The ergonomics:
 
 ## Files in this folder
 
-| File | What it does | Read when… |
-|---|---|---|
-| `00_OPERATING_SYSTEM.md` | The master doc. The thesis, the 4 axes, how the design library plugs in, the contract. | Onboarding. |
-| `01_DEPARTMENT_CHARTERS.md` | One charter per department. Mission, scope, out-of-scope, RACI, quality bar, owned docs, handoffs. | Joining or staffing a department. |
-| `02_AGENT_ROLES.md` | Per-agent role briefs (Architect, Implementer, Reviewer, etc.). Context bundle, tool allowlist, handoff points, success criteria, escalation. | Claiming a module on `WORK_BOARD.md` or starting a new Claude session. |
-| `03_TASK_LIFECYCLE.md` | The 8-stage scaffolded thinking → planning → implementing → review → ship → postmortem flow. Required artifacts, sign-offs, time budgets. | Starting any task. |
-| `04_QUALITY_GATES.md` | The FAANG/IPO bar. Code, security, design, docs, compliance, investor-grade. Acceptance criteria + how to check each. | Before requesting review and before merging. |
-| `05_PUBLIC_COMPANY_READINESS.md` | What the IPO bar changes today: disclosure controls, segregation of duties, change management, MD&A writing, materiality, data room. | When making any decision that creates a permanent record. |
-| `06_INTEGRATION_MAP.md` | The bridge — how the design library, CLAUDE.md, WORK_BOARD, ADRs, SESSION_HANDOFF, and the OS docs intersect. Ownership matrix per surface. | When confused about which doc governs what. |
+| File                             | What it does                                                                                                                                  | Read when…                                                             |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `00_OPERATING_SYSTEM.md`         | The master doc. The thesis, the 4 axes, how the design library plugs in, the contract.                                                        | Onboarding.                                                            |
+| `01_DEPARTMENT_CHARTERS.md`      | One charter per department. Mission, scope, out-of-scope, RACI, quality bar, owned docs, handoffs.                                            | Joining or staffing a department.                                      |
+| `02_AGENT_ROLES.md`              | Per-agent role briefs (Architect, Implementer, Reviewer, etc.). Context bundle, tool allowlist, handoff points, success criteria, escalation. | Claiming a module on `WORK_BOARD.md` or starting a new Claude session. |
+| `03_TASK_LIFECYCLE.md`           | The 8-stage scaffolded thinking → planning → implementing → review → ship → postmortem flow. Required artifacts, sign-offs, time budgets.     | Starting any task.                                                     |
+| `04_QUALITY_GATES.md`            | The FAANG/IPO bar. Code, security, design, docs, compliance, investor-grade. Acceptance criteria + how to check each.                         | Before requesting review and before merging.                           |
+| `05_PUBLIC_COMPANY_READINESS.md` | What the IPO bar changes today: disclosure controls, segregation of duties, change management, MD&A writing, materiality, data room.          | When making any decision that creates a permanent record.              |
+| `06_INTEGRATION_MAP.md`          | The bridge — how the design library, CLAUDE.md, WORK_BOARD, ADRs, SESSION_HANDOFF, and the OS docs intersect. Ownership matrix per surface.   | When confused about which doc governs what.                            |
 
 ## Read order (first time)
 

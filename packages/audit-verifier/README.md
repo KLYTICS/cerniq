@@ -1,25 +1,25 @@
-# `@okoro/audit-verifier`
+# `@cerniq/audit-verifier`
 
-Standalone, distributable, **offline** verifier for OKORO audit chains.
+Standalone, distributable, **offline** verifier for CERNIQ audit chains.
 
 Anyone — relying party, customer, regulator, SOC2 auditor — can install this
-package and independently verify the tamper-evidence of an OKORO audit log
-export, without trusting OKORO's API at runtime. The only thing required is
-the OKORO audit-signing JWKS (publicly available at
-`https://api.okoroapp.com/.well-known/audit-signing-key`).
+package and independently verify the tamper-evidence of an CERNIQ audit log
+export, without trusting CERNIQ's API at runtime. The only thing required is
+the CERNIQ audit-signing JWKS (publicly available at
+`https://api.cerniqapp.com/.well-known/audit-signing-key`).
 
-This is the **zero-trust verification** half of the audit-chain story. OKORO
+This is the **zero-trust verification** half of the audit-chain story. CERNIQ
 publishes the algorithm and the public keys; you run the verifier. If the
-chain is intact, the cryptography proves OKORO did not tamper with the log.
+chain is intact, the cryptography proves CERNIQ did not tamper with the log.
 If the chain is broken, the report tells you exactly which row broke and
 how.
 
 ## Why this exists
 
-> "We have a signed audit chain" is a _claim_. `@okoro/audit-verifier` makes
+> "We have a signed audit chain" is a _claim_. `@cerniq/audit-verifier` makes
 > the claim **executable**. A regulator with this package + the public JWKS
 >
-> - a downloaded NDJSON export needs nothing else from OKORO to do their job.
+> - a downloaded NDJSON export needs nothing else from CERNIQ to do their job.
 
 This pattern matches FICO's: FICO publishes the score algorithm and the
 inputs, and lenders can independently reconstruct the score. We publish the
@@ -29,16 +29,16 @@ independently verify the chain.
 ## Install
 
 ```sh
-npm install -g @okoro/audit-verifier
+npm install -g @cerniq/audit-verifier
 # or run without installing:
-npx @okoro/audit-verifier verify ./export.ndjson \
-  --jwks https://api.okoroapp.com/.well-known/audit-signing-key
+npx @cerniq/audit-verifier verify ./export.ndjson \
+  --jwks https://api.cerniqapp.com/.well-known/audit-signing-key
 ```
 
 ## CLI
 
 ```
-okoro-audit-verify verify <export.ndjson> [options]
+cerniq-audit-verify verify <export.ndjson> [options]
 
 Options:
   --jwks <url>           Fetch JWKS from a URL (HTTPS recommended).
@@ -56,29 +56,29 @@ Exit codes:
 ### Online (typical)
 
 ```sh
-okoro-audit-verify verify ./export.ndjson \
-  --jwks https://api.okoroapp.com/.well-known/audit-signing-key
+cerniq-audit-verify verify ./export.ndjson \
+  --jwks https://api.cerniqapp.com/.well-known/audit-signing-key
 ```
 
 ### Airgapped (regulated environments)
 
 ```sh
 # step 1 — download the JWKS from a network-connected machine
-curl -fsSL https://api.okoroapp.com/.well-known/audit-signing-key \
-     -o okoro-audit-jwks.json
+curl -fsSL https://api.cerniqapp.com/.well-known/audit-signing-key \
+     -o cerniq-audit-jwks.json
 
 # step 2 — hand-carry the JWKS + the NDJSON export into the sealed environment
 
 # step 3 — verify offline, no network access
-okoro-audit-verify verify ./export.ndjson --jwks-file ./okoro-audit-jwks.json
+cerniq-audit-verify verify ./export.ndjson --jwks-file ./cerniq-audit-jwks.json
 ```
 
 ## Library API
 
 ```ts
-import { verifyChain, parseAuditNdjson, loadJwksFromUrl } from '@okoro/audit-verifier';
+import { verifyChain, parseAuditNdjson, loadJwksFromUrl } from '@cerniq/audit-verifier';
 
-const jwks = await loadJwksFromUrl('https://api.okoroapp.com/.well-known/audit-signing-key');
+const jwks = await loadJwksFromUrl('https://api.cerniqapp.com/.well-known/audit-signing-key');
 const ndjson = await fs.readFile('./export.ndjson', 'utf8');
 const rows = parseAuditNdjson(ndjson);
 
@@ -103,7 +103,7 @@ For every row in chronological order:
    the row's Ed25519 signature against the JWKS public key for its kid.
 
 The genesis row (first in chain) uses
-`prev_hash = sha256("OKORO-AUDIT-GENESIS-v1")`.
+`prev_hash = sha256("CERNIQ-AUDIT-GENESIS-v1")`.
 
 ## Report shape
 
@@ -131,7 +131,7 @@ interface ChainReport {
   answered by your own reconciliation pipeline (see
   [`examples/reconciliation/`](../../examples/reconciliation/)).
 - **No revocation lookup.** Chain rows are append-only; revocation is
-  a live-state concern handled by `@okoro/verifier-rp`.
+  a live-state concern handled by `@cerniq/verifier-rp`.
 - **No PII decryption.** The chain payload uses commitment hashes
   (`actionHash`, `relyingPartyHash`, etc.). Raw values live in
   redactable DB columns. The verifier doesn't need them — by design,
@@ -150,7 +150,7 @@ to fit on a USB stick.
 
 ## Compliance statement
 
-`@okoro/audit-verifier` is the artifact that backs the following
+`@cerniq/audit-verifier` is the artifact that backs the following
 compliance assertions in `docs/COMPLIANCE_BUNDLE.md`:
 
 | Control                          | How this package satisfies it              |

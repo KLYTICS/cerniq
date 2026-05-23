@@ -1,4 +1,4 @@
-// Fetches everything an external auditor needs from a live OKORO deployment.
+// Fetches everything an external auditor needs from a live CERNIQ deployment.
 //
 // Design notes:
 //   - NDJSON is streamed straight to disk through a SHA256 hasher. We never
@@ -39,19 +39,15 @@ async function readErrorBody(res: Response): Promise<string> {
   }
 }
 
-async function fetchJson(
-  url: string,
-  apiKey: string,
-  adapter: FetchAdapter,
-): Promise<unknown> {
+async function fetchJson(url: string, apiKey: string, adapter: FetchAdapter): Promise<unknown> {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const res = await adapter.fetch(url, {
       headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'User-Agent': 'okoro-audit-evidence-bundle/0.1.0',
+        Accept: 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        'User-Agent': 'cerniq-audit-evidence-bundle/0.1.0',
       },
       signal: controller.signal,
     });
@@ -65,19 +61,15 @@ async function fetchJson(
   }
 }
 
-async function fetchText(
-  url: string,
-  apiKey: string,
-  adapter: FetchAdapter,
-): Promise<string> {
+async function fetchText(url: string, apiKey: string, adapter: FetchAdapter): Promise<string> {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const res = await adapter.fetch(url, {
       headers: {
-        'Accept': 'text/plain, */*;q=0.5',
-        'Authorization': `Bearer ${apiKey}`,
-        'User-Agent': 'okoro-audit-evidence-bundle/0.1.0',
+        Accept: 'text/plain, */*;q=0.5',
+        Authorization: `Bearer ${apiKey}`,
+        'User-Agent': 'cerniq-audit-evidence-bundle/0.1.0',
       },
       signal: controller.signal,
     });
@@ -104,9 +96,9 @@ async function fetchOptionalJson(
   try {
     const res = await adapter.fetch(url, {
       headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'User-Agent': 'okoro-audit-evidence-bundle/0.1.0',
+        Accept: 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        'User-Agent': 'cerniq-audit-evidence-bundle/0.1.0',
       },
     });
     if (res.status === 404 || res.status === 410) {
@@ -146,9 +138,9 @@ export async function streamNdjsonExport(
   try {
     const res = await adapter.fetch(url, {
       headers: {
-        'Accept': 'application/x-ndjson',
-        'Authorization': `Bearer ${apiKey}`,
-        'User-Agent': 'okoro-audit-evidence-bundle/0.1.0',
+        Accept: 'application/x-ndjson',
+        Authorization: `Bearer ${apiKey}`,
+        'User-Agent': 'cerniq-audit-evidence-bundle/0.1.0',
       },
       signal: controller.signal,
     });
@@ -219,7 +211,7 @@ export async function streamNdjsonExport(
 }
 
 export async function createWorkDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'okoro-evidence-'));
+  const dir = await mkdtemp(join(tmpdir(), 'cerniq-evidence-'));
   await mkdir(dir, { recursive: true });
   return dir;
 }
@@ -236,7 +228,7 @@ export async function fetchAllArtifacts(
 
   // The audit export is per-agent (`/v1/agents/:agentId/audit/export.ndjson`),
   // not per-principal. We fall back to {principalId} if no agent was passed,
-  // which is the OKORO convention for "all agents owned by this principal"
+  // which is the CERNIQ convention for "all agents owned by this principal"
   // when (and only when) the operator has wired that route. Document the
   // limitation in the auditor README so it's not a silent assumption.
   const agentSegment = encodeURIComponent(opts.agentId ?? opts.principalId);
@@ -248,9 +240,9 @@ export async function fetchAllArtifacts(
   const ndjson = await streamNdjsonExport(exportUrl, opts.apiKey, adapter, dir);
 
   // Run the four well-known fetches concurrently — small payloads, independent.
-  const [jwks, okoroConfiguration, retention, securityTxt] = await Promise.all([
+  const [jwks, cerniqConfiguration, retention, securityTxt] = await Promise.all([
     fetchJson(`${base}/.well-known/audit-signing-key`, opts.apiKey, adapter),
-    fetchJson(`${base}/.well-known/okoro-configuration`, opts.apiKey, adapter),
+    fetchJson(`${base}/.well-known/cerniq-configuration`, opts.apiKey, adapter),
     fetchOptionalJson(`${base}/.well-known/retention-policy.json`, opts.apiKey, adapter),
     fetchText(`${base}/.well-known/security.txt`, opts.apiKey, adapter),
   ]);
@@ -261,7 +253,7 @@ export async function fetchAllArtifacts(
     redactedRowCount: ndjson.redactedCount,
     ndjsonSha256: ndjson.sha256,
     jwks,
-    okoroConfiguration,
+    cerniqConfiguration,
     retentionPolicy: retention.body,
     retentionPolicyAvailable: retention.available,
     securityTxt,

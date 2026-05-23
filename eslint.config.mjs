@@ -37,7 +37,10 @@ export default tseslint.config(
     rules: {
       // Strictness — make sloppy code fail fast.
       '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
       // `disallowTypeAnnotations: false` lets us keep `typeof import('mod').X`
       // annotations on deferred-load patterns (OpenTelemetry, etc.).
       '@typescript-eslint/consistent-type-imports': [
@@ -138,7 +141,7 @@ export default tseslint.config(
   },
   {
     // mcp-server and cli — both call SDK methods that don't currently exist on
-    // the @okoro/sdk AgentClient surface (e.g. `okoro.agents.create`, `.list`).
+    // the @cerniq/sdk AgentClient surface (e.g. `cerniq.agents.create`, `.list`).
     // The unsafe-* + no-deprecated errors are cascades from this API drift.
     // TODO(api-drift): align SDK + cli + mcp-server, then remove this block.
     files: ['packages/mcp-server/src/**/*.ts', 'packages/cli/src/**/*.ts'],

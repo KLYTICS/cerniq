@@ -4,7 +4,12 @@
 
 import { randomBytes } from 'node:crypto';
 
-import { RequestMethod, ValidationPipe, VersioningType, type INestApplication } from '@nestjs/common';
+import {
+  RequestMethod,
+  ValidationPipe,
+  VersioningType,
+  type INestApplication,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import helmet from 'helmet';
 import type request from 'supertest';
@@ -21,15 +26,15 @@ import { encodeBase64Url } from '../../../src/common/crypto/ed25519.util';
 import { HttpExceptionFilter } from '../../../src/common/filters/http-exception.filter';
 import { PrismaService } from '../../../src/common/prisma/prisma.service';
 
-// WellknownService boot-throws without OKORO_SIGNING_PUBLIC_KEY. Test setup
+// WellknownService boot-throws without CERNIQ_SIGNING_PUBLIC_KEY. Test setup
 // (`apps/api/test/setup-env.ts`) is owned by another session — populate a
 // deterministic-but-test-only key here so the e2e suite is self-contained.
 // The bytes are not cryptographically meaningful (they're not paired with
 // a private key); they only have to round-trip through base64url and be
 // 32 bytes. Audit chain signing uses a separate, ephemeral keypair from
 // AuditService.initSigningKey() in dev.
-process.env.OKORO_SIGNING_PUBLIC_KEY ??= encodeBase64Url(randomBytes(32));
-process.env.OKORO_SIGNING_KEY_ROTATED_AT ??= '2026-01-01T00:00:00.000Z';
+process.env.CERNIQ_SIGNING_PUBLIC_KEY ??= encodeBase64Url(randomBytes(32));
+process.env.CERNIQ_SIGNING_KEY_ROTATED_AT ??= '2026-01-01T00:00:00.000Z';
 
 /**
  * Tables truncated between specs. Order matters — children before parents

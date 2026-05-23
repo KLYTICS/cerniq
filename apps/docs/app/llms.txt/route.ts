@@ -10,7 +10,7 @@ import { source } from '@/lib/source';
 
 export const dynamic = 'force-static';
 
-const SITE = process.env.NEXT_PUBLIC_DOCS_URL ?? 'https://docs.okoroapp.com';
+const SITE = process.env.NEXT_PUBLIC_DOCS_URL ?? 'https://docs.cerniqapp.com';
 
 export function GET() {
   const pages = source.getPages();
@@ -26,7 +26,7 @@ export function GET() {
   }
 
   const body = [
-    '# OKORO Documentation',
+    '# CERNIQ Documentation',
     '',
     '> Neutral verification, policy enforcement, and behavioral attestation',
     '> for AI agents. Public keys only, signed audit trail, vendor- and',
@@ -34,7 +34,7 @@ export function GET() {
     '',
     '## Wire contracts',
     '',
-    `- [API spec (OpenAPI)](https://github.com/klytics/okoro/blob/main/docs/spec/OKORO_API_SPEC.yaml)`,
+    `- [API spec (OpenAPI)](https://github.com/klytics/cerniq/blob/main/docs/spec/CERNIQ_API_SPEC.yaml)`,
     `- [Denial precedence (wire constant)](${SITE}/docs/concepts/denial-precedence)`,
     `- [Trust band thresholds (wire constant)](${SITE}/docs/concepts/trust-bands)`,
     `- [Webhook event catalog (wire constant)](${SITE}/docs/concepts/webhooks)`,

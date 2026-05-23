@@ -1,8 +1,8 @@
-// Public types for @okoro/verifier-rp. Hand-written rather than generated;
+// Public types for @cerniq/verifier-rp. Hand-written rather than generated;
 // these are the surface third parties code against.
 
 /**
- * Denial reasons returned in a failed VerifyOutcome. Mirrors the OKORO denial
+ * Denial reasons returned in a failed VerifyOutcome. Mirrors the CERNIQ denial
  * precedence (see CLAUDE.md § Architecture invariants #6) but extends it with
  * REPLAY_DETECTED — a relying-party-local determination that the same `jti`
  * has been verified before.
@@ -39,17 +39,17 @@ export interface AgentStatusSnapshot {
   publicKey?: string;
 }
 
-export interface OkoroJwtHeader {
+export interface CerniqJwtHeader {
   alg: 'EdDSA';
   typ?: 'JWT';
   kid?: string;
 }
 
 /**
- * Claims OKORO agent tokens carry. Field names match
+ * Claims CERNIQ agent tokens carry. Field names match
  * `packages/sdk-ts/src/crypto.ts#signAgentToken`.
  */
-export interface OkoroJwtClaims {
+export interface CerniqJwtClaims {
   /** Subject — the agent id. */
   sub: string;
   /** Policy id. */
@@ -72,9 +72,9 @@ export interface OkoroJwtClaims {
   mid?: string;
   /** Optional principal id (the developer that owns the agent). */
   iss?: string;
-  /** Optional scope categories baked into the token by OKORO. */
+  /** Optional scope categories baked into the token by CERNIQ. */
   scopes?: string[];
-  /** Optional trust band echoed by OKORO at issue time. */
+  /** Optional trust band echoed by CERNIQ at issue time. */
   tb?: TrustBand;
   /** Optional allowed domains echoed from policy. */
   ad?: string[];
@@ -102,7 +102,7 @@ export interface VerifyOutcomeSuccess {
   scopes: string[];
   trustBand: TrustBand | null;
   trustScore: number | null;
-  claims: OkoroJwtClaims;
+  claims: CerniqJwtClaims;
   /** Time of verification — epoch milliseconds. */
   verifiedAt: number;
 }
@@ -112,7 +112,7 @@ export interface VerifyOutcomeFailure {
   reason: DenialReason;
   detail?: string;
   /** When parsing succeeded but later checks failed, the partial claims. */
-  claims?: OkoroJwtClaims;
+  claims?: CerniqJwtClaims;
   verifiedAt: number;
 }
 
@@ -136,9 +136,9 @@ export interface Logger {
 
 /**
  * Callback the relying party supplies to look up an agent's Ed25519 public
- * key. OKORO's `/v1/agents/:id/status` endpoint does not include the public
+ * key. CERNIQ's `/v1/agents/:id/status` endpoint does not include the public
  * key in its public response, so the relying party must wire either:
- *   (a) a cached fetch against an authenticated OKORO endpoint, or
+ *   (a) a cached fetch against an authenticated CERNIQ endpoint, or
  *   (b) the public key it stored at agent registration time, or
  *   (c) a JWKS subset endpoint per agent id.
  *
@@ -149,10 +149,10 @@ export type GetAgentPublicKey = (agentId: string) => Promise<Uint8Array>;
 /** Webhook hook — invoked when revocation should be invalidated immediately. */
 export type RevocationWebhookHandler = (agentId: string) => void;
 
-export interface OkoroVerifierConfig {
+export interface CerniqVerifierConfig {
   /**
-   * Base URL for the OKORO API. Used for JWKS fetch and agent status fetch.
-   * Default: `https://api.okoroapp.com/v1`.
+   * Base URL for the CERNIQ API. Used for JWKS fetch and agent status fetch.
+   * Default: `https://api.cerniqapp.com/v1`.
    */
   baseUrl?: string;
   /**

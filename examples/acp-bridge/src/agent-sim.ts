@@ -1,24 +1,24 @@
-// Agent-side simulator for the ACP + OKORO dual-verify flow.
+// Agent-side simulator for the ACP + CERNIQ dual-verify flow.
 //
 // In production:
 //   1. The user authorizes the agent through ACP onboarding (Stripe
 //      issues an SPT representing the user's payment authorization).
 //   2. The user (or their IdP — Auth0/Clerk/WorkOS) registers the
-//      agent's public key with OKORO and creates a scoped policy.
-//   3. The agent — at action-time — signs a per-tx OKORO token and
+//      agent's public key with CERNIQ and creates a scoped policy.
+//   3. The agent — at action-time — signs a per-tx CERNIQ token and
 //      presents it alongside the SPT to the merchant.
 //
 // This script simulates step 3 against a running acp-bridge server.
 // It mints both tokens client-side (mock SPT for the demo, real
-// OKORO token via the SDK) and POSTs /api/charge.
+// CERNIQ token via the SDK) and POSTs /api/charge.
 //
 // Run:
-//   OKORO_AGENT_PRIVATE_KEY=<b64u> \
-//   OKORO_AGENT_ID=ag_xxx \
-//   OKORO_POLICY_ID=po_xxx \
+//   CERNIQ_AGENT_PRIVATE_KEY=<b64u> \
+//   CERNIQ_AGENT_ID=ag_xxx \
+//   CERNIQ_POLICY_ID=po_xxx \
 //   pnpm tsx src/agent-sim.ts --target http://localhost:3002 --amount 4900
 
-import { signAgentToken } from '@okoro/sdk';
+import { signAgentToken } from '@cerniq/sdk';
 
 import { mintMockSpt } from './spt-verify.js';
 import type { ChargeRequest, ChargeResponse } from './types.js';
@@ -62,9 +62,9 @@ function readArgs(argv: string[]): SimArgs {
     amount,
     currency: get('--currency') ?? 'USD',
     merchantDomain: get('--domain') ?? 'acme-checkout.com',
-    agentId: requireFlag('--agent', 'OKORO_AGENT_ID'),
-    policyId: requireFlag('--policy', 'OKORO_POLICY_ID'),
-    privateKey: requireFlag('--private-key', 'OKORO_AGENT_PRIVATE_KEY'),
+    agentId: requireFlag('--agent', 'CERNIQ_AGENT_ID'),
+    policyId: requireFlag('--policy', 'CERNIQ_POLICY_ID'),
+    privateKey: requireFlag('--private-key', 'CERNIQ_AGENT_PRIVATE_KEY'),
     payerUserId: get('--payer') ?? 'usr_demo_payer',
     ttlSeconds: Number(get('--ttl') ?? '60'),
   };
@@ -84,11 +84,11 @@ async function main(): Promise<number> {
     ttlSeconds: args.ttlSeconds,
   });
 
-  // OKORO-side: real client-signed token. Private key NEVER leaves
+  // CERNIQ-side: real client-signed token. Private key NEVER leaves
   // the agent — only the signed JWT crosses the wire.
-  const okoroToken = await signAgentToken(args.privateKey, args.agentId, args.policyId, {
+  const cerniqToken = await signAgentToken(args.privateKey, args.agentId, args.policyId, {
     action: 'commerce.purchase',
-    amount: args.amount / 100, // OKORO expects decimal; ACP uses cents
+    amount: args.amount / 100, // CERNIQ expects decimal; ACP uses cents
     currency: args.currency,
     merchantDomain: args.merchantDomain,
     ttlSeconds: args.ttlSeconds,
@@ -96,7 +96,7 @@ async function main(): Promise<number> {
 
   const body: ChargeRequest = {
     paymentToken,
-    okoroToken,
+    cerniqToken,
     amount: args.amount,
     currency: args.currency,
     merchantDomain: args.merchantDomain,
@@ -117,6 +117,8 @@ async function main(): Promise<number> {
 main()
   .then((code) => process.exit(code))
   .catch((err: unknown) => {
-    process.stderr.write(`agent-sim: fatal — ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
+    process.stderr.write(
+      `agent-sim: fatal — ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`,
+    );
     process.exit(1);
   });

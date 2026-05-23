@@ -2,7 +2,7 @@ import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import { createServer, type Server } from 'node:http';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { AddressInfo } from 'node:net';
-import type { Okoro } from '@okoro/sdk';
+import type { Cerniq } from '@cerniq/sdk';
 import { RawClient, makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixtures';
 
@@ -13,7 +13,7 @@ interface CapturedDelivery {
 }
 
 describe('11 · webhook delivery', () => {
-  let sdk: Okoro;
+  let sdk: Cerniq;
   let raw: RawClient;
   let server: Server;
   let endpoint: string;
@@ -33,7 +33,7 @@ describe('11 · webhook delivery', () => {
       req.on('end', () => {
         captured.push({
           body: chunks,
-          signature: (req.headers['x-okoro-signature'] as string | undefined) ?? null,
+          signature: (req.headers['x-cerniq-signature'] as string | undefined) ?? null,
           timestamp: Date.now(),
         });
         res.statusCode = 200;
@@ -61,14 +61,14 @@ describe('11 · webhook delivery', () => {
     // remaining). Probe — if 404, skip with a soft signal.
     const subProbe = await raw.post<{ subscriptionId?: string; secret?: string }>('/v1/webhooks', {
       url: endpoint,
-      events: ['okoro.agent.revoked'],
+      events: ['cerniq.agent.revoked'],
     });
     if (subProbe.status === 404) return;
     expect([200, 201]).toContain(subProbe.status);
     receivedSecret = subProbe.body.secret;
 
     // Trigger something that should fire a webhook — revoking an agent
-    // emits `okoro.agent.revoked`.
+    // emits `cerniq.agent.revoked`.
     const agent = await createAgent(sdk);
     cleanup.push(agent.agentId);
     await createPolicy(sdk, agent.agentId, [SCOPES.commerce()]);
@@ -89,7 +89,9 @@ describe('11 · webhook delivery', () => {
       const m = /^t=(\d+),v1=([0-9a-f]+)$/.exec(got.signature ?? '');
       expect(m, `unexpected signature header shape: ${got.signature}`).toBeTruthy();
       const [, ts, sig] = m!;
-      const expected = createHmac('sha256', receivedSecret).update(`${ts}.${got.body}`).digest('hex');
+      const expected = createHmac('sha256', receivedSecret)
+        .update(`${ts}.${got.body}`)
+        .digest('hex');
       expect(timingSafeEqual(Buffer.from(expected), Buffer.from(sig!))).toBe(true);
     }
   });

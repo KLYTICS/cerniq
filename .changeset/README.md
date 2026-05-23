@@ -1,7 +1,7 @@
 # Changesets
 
 We use [changesets](https://github.com/changesets/changesets) to version
-public packages (`@okoro/sdk`, `@okoro/types`). Internal apps (api,
+public packages (`@cerniq/sdk`, `@cerniq/types`). Internal apps (api,
 dashboard, worker, internal configs) are not versioned here — they deploy
 on merge.
 
@@ -20,6 +20,6 @@ alongside your PR.
 When a release PR is merged to `main`, the CI release workflow runs
 `changeset publish` and pushes new versions to npm.
 
-The first GA release will pin both `@okoro/sdk` and `@okoro/types` to
+The first GA release will pin both `@cerniq/sdk` and `@cerniq/types` to
 `1.0.0`. Until then we ship `0.x.y` with breaking changes between minor
 versions documented in `BREAKING.md` per release.

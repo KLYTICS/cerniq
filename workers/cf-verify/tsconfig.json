@@ -1,5 +1,5 @@
 {
-  "extends": "@okoro/tsconfig/library.json",
+  "extends": "@cerniq/tsconfig/library.json",
   "compilerOptions": {
     "lib": ["ES2022"],
     "types": ["@cloudflare/workers-types"],

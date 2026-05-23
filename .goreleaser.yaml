@@ -1,11 +1,11 @@
-# goreleaser config for the OKORO CLI.
+# goreleaser config for the CERNIQ CLI.
 # https://goreleaser.com/customization/
 #
 # Cross-compiles to darwin/linux/windows × amd64/arm64. Publishes:
 #   - GitHub release with archives + checksums.txt + checksums.txt.sig
 #     (cosign keyless via GitHub OIDC)
-#   - Homebrew tap at klytics/homebrew-okoro
-#   - Scoop bucket at klytics/scoop-okoro
+#   - Homebrew tap at klytics/homebrew-cerniq
+#   - Scoop bucket at klytics/scoop-cerniq
 #   - SBOM (cyclonedx) per archive
 #
 # Local snapshot build (no publish):
@@ -17,29 +17,29 @@
 
 version: 2
 
-project_name: okoro
+project_name: cerniq
 
 before:
   hooks:
     - go mod tidy
 
 builds:
-  - id: okoro
+  - id: cerniq
     main: ./packages/cli
-    binary: okoro
+    binary: cerniq
     env:
       - CGO_ENABLED=0
     goos: [darwin, linux, windows]
     goarch: [amd64, arm64]
     ldflags:
       - -s -w
-      - -X github.com/klytics/okoro/packages/cli/internal/version.Version={{.Version}}
-      - -X github.com/klytics/okoro/packages/cli/internal/version.Commit={{.ShortCommit}}
-      - -X github.com/klytics/okoro/packages/cli/internal/version.BuildDate={{.Date}}
+      - -X github.com/klytics/cerniq/packages/cli/internal/version.Version={{.Version}}
+      - -X github.com/klytics/cerniq/packages/cli/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/klytics/cerniq/packages/cli/internal/version.BuildDate={{.Date}}
 
 archives:
-  - id: okoro
-    name_template: 'okoro_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+  - id: cerniq
+    name_template: 'cerniq_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
     format: tar.gz
     format_overrides:
       - goos: windows
@@ -99,24 +99,24 @@ changelog:
 brews:
   - repository:
       owner: klytics
-      name: homebrew-okoro
-    name: okoro
-    homepage: 'https://okoroapp.com'
-    description: 'Operator CLI for the OKORO agent gateway'
+      name: homebrew-cerniq
+    name: cerniq
+    homepage: 'https://cerniqapp.com'
+    description: 'Operator CLI for the CERNIQ agent gateway'
     license: 'Proprietary'
     install: |
-      bin.install "okoro"
-      generate_completions_from_executable(bin/"okoro", "completion")
+      bin.install "cerniq"
+      generate_completions_from_executable(bin/"cerniq", "completion")
     test: |
-      system "#{bin}/okoro", "--version"
+      system "#{bin}/cerniq", "--version"
 
 scoops:
   - repository:
       owner: klytics
-      name: scoop-okoro
-    name: okoro
-    homepage: 'https://okoroapp.com'
-    description: 'Operator CLI for the OKORO agent gateway'
+      name: scoop-cerniq
+    name: cerniq
+    homepage: 'https://cerniqapp.com'
+    description: 'Operator CLI for the CERNIQ agent gateway'
     license: Proprietary
 
 release:
@@ -124,9 +124,9 @@ release:
   prerelease: auto
   name_template: 'v{{.Version}}'
   header: |
-    ## OKORO CLI {{ .Tag }}
+    ## CERNIQ CLI {{ .Tag }}
 
-    Install: `curl -fsSL https://get.okoro.dev/install.sh | sh`
+    Install: `curl -fsSL https://get.cerniq.dev/install.sh | sh`
   footer: |
     **Verifying the release**
 
@@ -134,7 +134,7 @@ release:
     cosign verify-blob \
       --certificate checksums.txt.pem \
       --signature checksums.txt.sig \
-      --certificate-identity-regexp 'https://github.com/klytics/okoro/.+' \
+      --certificate-identity-regexp 'https://github.com/klytics/cerniq/.+' \
       --certificate-oidc-issuer https://token.actions.githubusercontent.com \
       checksums.txt
     ```

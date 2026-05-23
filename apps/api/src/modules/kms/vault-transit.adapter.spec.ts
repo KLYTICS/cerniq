@@ -3,7 +3,12 @@ import * as ed from '@noble/ed25519';
 
 import { encodeBase64Url } from '../../common/crypto/ed25519.util';
 
-import { VaultTransitAdapter, parseVaultSignature, type VaultTransitKey, type VaultClientLike } from './vault-transit.adapter';
+import {
+  VaultTransitAdapter,
+  parseVaultSignature,
+  type VaultTransitKey,
+  type VaultClientLike,
+} from './vault-transit.adapter';
 
 class FakeVault implements VaultClientLike {
   public callCount = 0;
@@ -13,7 +18,10 @@ class FakeVault implements VaultClientLike {
     private readonly version: number,
     private readonly failuresBeforeOk = 0,
   ) {}
-  async signTransit(input: { name: string; input: string }): Promise<{ data: { signature: string } }> {
+  async signTransit(input: {
+    name: string;
+    input: string;
+  }): Promise<{ data: { signature: string } }> {
     this.callCount++;
     if (this.callCount <= this.failuresBeforeOk) {
       this.failures++;
@@ -25,12 +33,14 @@ class FakeVault implements VaultClientLike {
   }
 }
 
-async function makeKey(version = 1): Promise<{ key: VaultTransitKey; pub: Uint8Array; priv: Uint8Array }> {
+async function makeKey(
+  version = 1,
+): Promise<{ key: VaultTransitKey; pub: Uint8Array; priv: Uint8Array }> {
   const priv = ed.utils.randomPrivateKey();
   const pub = await ed.getPublicKeyAsync(priv);
   const key: VaultTransitKey = {
     kid: `kid-vault-test-v${version}`,
-    transitName: 'okoro-audit',
+    transitName: 'cerniq-audit',
     version,
     publicKey: encodeBase64Url(pub),
     algorithm: 'EdDSA',

@@ -99,7 +99,7 @@ export class CedarWasmEvaluator implements CedarEvaluatorLike {
       decision: result.decision,
       diagnostics: result.diagnostics,
       // Cedar 3.0+ supports policy "obligations" through annotations
-      // (e.g. `@okoro_deny_reason("SPEND_LIMIT_EXCEEDED")`). We extract
+      // (e.g. `@cerniq_deny_reason("SPEND_LIMIT_EXCEEDED")`). We extract
       // them from the diagnostics if present.
       obligations: extractObligations(result.diagnostics),
     };
@@ -108,17 +108,17 @@ export class CedarWasmEvaluator implements CedarEvaluatorLike {
 
 /**
  * Cedar exposes obligations through annotation diagnostics in its 3.x
- * series. We look for `@okoro_deny_reason("<DenialReason>")` style
+ * series. We look for `@cerniq_deny_reason("<DenialReason>")` style
  * annotations and surface them as engine obligations the
- * `CedarPolicyEngine` can map to the locked OKORO denial enum.
+ * `CedarPolicyEngine` can map to the locked CERNIQ denial enum.
  */
 function extractObligations(
   diagnostics: { reason?: string; errors?: string[] } | undefined,
 ): { kind: string; data: Record<string, unknown> }[] | undefined {
   if (!diagnostics?.reason) return undefined;
-  const m = /okoro_deny_reason\("([A-Z_]+)"\)/.exec(diagnostics.reason);
+  const m = /cerniq_deny_reason\("([A-Z_]+)"\)/.exec(diagnostics.reason);
   if (!m) return undefined;
-  return [{ kind: 'okoro.deny_reason', data: { reason: m[1] } }];
+  return [{ kind: 'cerniq.deny_reason', data: { reason: m[1] } }];
 }
 
 /**

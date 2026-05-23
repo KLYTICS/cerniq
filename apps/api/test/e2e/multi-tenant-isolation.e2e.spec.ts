@@ -44,7 +44,7 @@ describe('e2e: multi-tenant isolation', () => {
   async function setupTenant(emailTag: string): Promise<TenantBundle> {
     const config = app.get(AppConfigService);
     const principal = await seedPrincipalAndApiKey(handle.prisma, config, {
-      email: `${emailTag}-${Date.now()}@okoro.test`,
+      email: `${emailTag}-${Date.now()}@cerniq.test`,
     });
     const keys = await generateAgentKeypair();
     const agent = await registerAgentViaApi(http, principal.apiKey, {
@@ -74,7 +74,7 @@ describe('e2e: multi-tenant isolation', () => {
     B = await setupTenant('tenant-B');
     const config = app.get(AppConfigService);
     verifyKey = await seedPrincipalAndApiKey(handle.prisma, config, {
-      email: `vk-iso-${Date.now()}@okoro.test`,
+      email: `vk-iso-${Date.now()}@cerniq.test`,
       scope: 'VERIFY_ONLY',
     });
   });
@@ -86,7 +86,7 @@ describe('e2e: multi-tenant isolation', () => {
   test('an unrecognised API key is rejected with 401', async () => {
     const res = await http
       .get(`/v1/agents/${A.agentId}`)
-      .set('X-OKORO-API-Key', 'okoro_sk_thisisnotarealkeyatall00');
+      .set('X-CERNIQ-API-Key', 'cerniq_sk_thisisnotarealkeyatall00');
     expect(res.status).toBe(401);
   });
 
@@ -96,28 +96,28 @@ describe('e2e: multi-tenant isolation', () => {
     // existence under a different principal IS a leak.
     const res = await http
       .get(`/v1/agents/${A.agentId}`)
-      .set('X-OKORO-API-Key', B.principal.apiKey);
+      .set('X-CERNIQ-API-Key', B.principal.apiKey);
     expect(res.status).toBe(404);
   });
 
   test("B querying A's audit log with B's key returns 404", async () => {
     const res = await http
       .get(`/v1/agents/${A.agentId}/audit`)
-      .set('X-OKORO-API-Key', B.principal.apiKey);
+      .set('X-CERNIQ-API-Key', B.principal.apiKey);
     expect(res.status).toBe(404);
   });
 
   test("B trying to revoke A's agent returns 404", async () => {
     const res = await http
       .delete(`/v1/agents/${A.agentId}`)
-      .set('X-OKORO-API-Key', B.principal.apiKey);
+      .set('X-CERNIQ-API-Key', B.principal.apiKey);
     expect(res.status).toBe(404);
   });
 
   test("B reporting against A's agent returns 404 (cross-tenant fraud-report block)", async () => {
     const res = await http
       .post(`/v1/agents/${A.agentId}/report`)
-      .set('X-OKORO-API-Key', B.principal.apiKey)
+      .set('X-CERNIQ-API-Key', B.principal.apiKey)
       .send({ eventType: 'fraud_confirmed', severity: 'high' });
     expect(res.status).toBe(404);
   });
@@ -137,7 +137,7 @@ describe('e2e: multi-tenant isolation', () => {
     });
     const res = await http
       .post('/v1/verify')
-      .set('X-OKORO-Verify-Key', verifyKey.apiKey)
+      .set('X-CERNIQ-Verify-Key', verifyKey.apiKey)
       .send({ token, action: 'commerce.purchase' });
     expect(res.status).toBe(201);
     expect(res.body.valid).toBe(true);

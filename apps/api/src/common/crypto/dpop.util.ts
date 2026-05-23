@@ -1,10 +1,10 @@
 // DPoP (RFC 9449) — Demonstrating Proof of Possession at the application
-// layer. Per ADR-0010, OKORO adopts DPoP with a single-curve constraint:
+// layer. Per ADR-0010, CERNIQ adopts DPoP with a single-curve constraint:
 // the proof keypair is Ed25519, matching ADR-0002.
 //
 // What a DPoP proof looks like (compact JWT, three base64url segments):
 //   header  = {"typ":"dpop+jwt","alg":"EdDSA","jwk":{"kty":"OKP","crv":"Ed25519","x":"<b64u>"}}
-//   payload = {"htm":"POST","htu":"https://okoro.example/v1/verify","iat":<unix>,
+//   payload = {"htm":"POST","htu":"https://cerniq.example/v1/verify","iat":<unix>,
 //              "jti":"<ulid>","ath":"<b64u(sha256(access_token))>"}
 //   signature over header.payload signed by the private key whose public
 //                                 half is in `header.jwk.x`.
@@ -106,7 +106,10 @@ export type DpopFailureReason =
  * docstring. The caller MUST treat any `valid: false` as INVALID_SIGNATURE
  * per ADR-0004 denial precedence. Do NOT invent partial-trust modes.
  */
-export async function verifyDpopProof(proof: string, ctx: DpopVerifyContext): Promise<DpopVerifyResult> {
+export async function verifyDpopProof(
+  proof: string,
+  ctx: DpopVerifyContext,
+): Promise<DpopVerifyResult> {
   const parts = proof.split('.');
   if (parts.length !== 3) return fail('DPoP_MALFORMED');
   const [headerB64, payloadB64, sigB64] = parts;
@@ -115,14 +118,22 @@ export async function verifyDpopProof(proof: string, ctx: DpopVerifyContext): Pr
   let header: { typ?: string; alg?: string; jwk?: DpopJwk };
   let claims: DpopProofClaims;
   try {
-    header = JSON.parse(dec.decode(decodeBase64Url(headerB64))) as { typ?: string; alg?: string; jwk?: DpopJwk };
+    header = JSON.parse(dec.decode(decodeBase64Url(headerB64))) as {
+      typ?: string;
+      alg?: string;
+      jwk?: DpopJwk;
+    };
     claims = JSON.parse(dec.decode(decodeBase64Url(payloadB64))) as DpopProofClaims;
   } catch {
     return fail('DPoP_MALFORMED');
   }
 
   if (header.typ !== 'dpop+jwt' || header.alg !== 'EdDSA') return fail('DPoP_BAD_HEADER');
-  if (header.jwk?.kty !== 'OKP' || header.jwk.crv !== 'Ed25519' || typeof header.jwk.x !== 'string') {
+  if (
+    header.jwk?.kty !== 'OKP' ||
+    header.jwk.crv !== 'Ed25519' ||
+    typeof header.jwk.x !== 'string'
+  ) {
     return fail('DPoP_BAD_KEY');
   }
 

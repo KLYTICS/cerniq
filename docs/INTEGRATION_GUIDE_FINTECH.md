@@ -1,14 +1,14 @@
-# OKORO — Fintech Integration Guide
+# CERNIQ — Fintech Integration Guide
 
-## AI Agent Payments with Stripe + OKORO (ACP Compatibility)
+## AI Agent Payments with Stripe + CERNIQ (ACP Compatibility)
 
 > **Updated:** 2026-05-04  
-> **Pattern:** OKORO handles agent identity + spend gates. Stripe handles money movement.  
-> **ACP:** OKORO is additive to OpenAI/Stripe Agentic Commerce Protocol.
+> **Pattern:** CERNIQ handles agent identity + spend gates. Stripe handles money movement.  
+> **ACP:** CERNIQ is additive to OpenAI/Stripe Agentic Commerce Protocol.
 
 ---
 
-## 1. The Problem OKORO Solves for Fintech
+## 1. The Problem CERNIQ Solves for Fintech
 
 Stripe can process payments. Stripe cannot answer:
 
@@ -17,22 +17,22 @@ Stripe can process payments. Stripe cannot answer:
 - Was this payment approved by a policy signed by the agent's owner?
 - If something goes wrong, is there a tamper-evident audit trail?
 
-OKORO handles all four. Stripe handles the money. They're complementary, not competing.
+CERNIQ handles all four. Stripe handles the money. They're complementary, not competing.
 
 ---
 
-## 2. Architecture: OKORO + Stripe
+## 2. Architecture: CERNIQ + Stripe
 
 ```
 Human sets up:
-  OKORO principal → agent registered → policy: "max $500/day, scope: payment:write"
+  CERNIQ principal → agent registered → policy: "max $500/day, scope: payment:write"
   Stripe customer → payment method on file
 
 AI agent wants to pay:
   1. Agent signs JWT: { sub: agent_id, scopes: ["payment:write"], amt: 99.00, cur: "USD" }
-  2. Your payment service calls OKORO /v1/verify
-  3. OKORO checks: identity ✓, policy ✓, spend limit ✓, trust band ✓
-  4. OKORO returns: { approved: true, auditEventId: "evt_abc" }
+  2. Your payment service calls CERNIQ /v1/verify
+  3. CERNIQ checks: identity ✓, policy ✓, spend limit ✓, trust band ✓
+  4. CERNIQ returns: { approved: true, auditEventId: "evt_abc" }
   5. Your payment service calls Stripe with payment intent
   6. Stripe charges the card
   7. Your service appends the Stripe payment ID to the audit trail
@@ -42,27 +42,27 @@ Result: full chain of custody from agent authorization → payment execution →
 
 ---
 
-## 3. Express + Stripe + OKORO
+## 3. Express + Stripe + CERNIQ
 
 ### 3.1 Payment Route
 
 ```typescript
 import express from 'express';
 import Stripe from 'stripe';
-import { createExpressMiddleware } from '@okoro/verifier-rp/express';
-import { OkoroClient } from '@okoro/sdk';
+import { createExpressMiddleware } from '@cerniq/verifier-rp/express';
+import { CerniqClient } from '@cerniq/sdk';
 
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-const okoro = new OkoroClient({
-  apiKey: process.env.OKORO_API_KEY!,
+const cerniq = new CerniqClient({
+  apiKey: process.env.CERNIQ_API_KEY!,
 });
 
-// OKORO middleware: verify agent identity before ANY payment processing
+// CERNIQ middleware: verify agent identity before ANY payment processing
 const requirePaymentAuth = createExpressMiddleware({
-  okoroUrl: 'https://api.okoroapp.com',
-  apiKey: process.env.OKORO_API_KEY!,
+  cerniqUrl: 'https://api.cerniqapp.com',
+  apiKey: process.env.CERNIQ_API_KEY!,
   requiredScopes: ['payment:write'],
   trustBandMinimum: 'VERIFIED', // payments require VERIFIED or better
 });
@@ -70,7 +70,7 @@ const requirePaymentAuth = createExpressMiddleware({
 // Payment endpoint
 app.post('/api/payments/charge', express.json(), requirePaymentAuth, async (req, res) => {
   const { amount, currency, description } = req.body;
-  const { agentId, trustBand, auditEventId } = req.okoro;
+  const { agentId, trustBand, auditEventId } = req.cerniq;
 
   // At this point:
   // ✅ Agent identity verified (Ed25519 signature)
@@ -87,10 +87,10 @@ app.post('/api/payments/charge', express.json(), requirePaymentAuth, async (req,
       confirm: true,
       payment_method: await getAgentPaymentMethod(agentId),
       metadata: {
-        // Link Stripe to OKORO audit trail
-        okoro_agent_id: agentId,
-        okoro_audit_event_id: auditEventId,
-        okoro_trust_band: trustBand,
+        // Link Stripe to CERNIQ audit trail
+        cerniq_agent_id: agentId,
+        cerniq_audit_event_id: auditEventId,
+        cerniq_trust_band: trustBand,
         description,
       },
     });
@@ -102,9 +102,9 @@ app.post('/api/payments/charge', express.json(), requirePaymentAuth, async (req,
       trustBand, // informational
     });
   } catch (stripeError) {
-    // Payment failed — OKORO already recorded the attempt in audit log
-    // Roll back spend counter (OKORO provides a spend rollback API)
-    await okoro.verify.rollbackSpend(auditEventId);
+    // Payment failed — CERNIQ already recorded the attempt in audit log
+    // Roll back spend counter (CERNIQ provides a spend rollback API)
+    await cerniq.verify.rollbackSpend(auditEventId);
 
     res.status(400).json({
       success: false,
@@ -129,9 +129,9 @@ async function onboardPrincipal(email: string, stripeCustomerId: string, agentId
     data: { stripeCustomerId },
   });
 
-  // Register agents in OKORO
+  // Register agents in CERNIQ
   for (const agentId of agentIds) {
-    await okoro.agents.update(agentId, {
+    await cerniq.agents.update(agentId, {
       metadata: { stripeCustomerId }, // link for payment routing
     });
   }
@@ -139,7 +139,7 @@ async function onboardPrincipal(email: string, stripeCustomerId: string, agentId
 
 // When agent wants to pay:
 async function getAgentPaymentMethod(agentId: string): Promise<string> {
-  const agent = await okoro.agents.get(agentId);
+  const agent = await cerniq.agents.get(agentId);
   const customer = await stripe.customers.retrieve(agent.metadata.stripeCustomerId);
   // Return the default payment method
   return (customer as Stripe.Customer).invoice_settings.default_payment_method as string;
@@ -154,7 +154,7 @@ async function getAgentPaymentMethod(agentId: string): Promise<string> {
 
 ```typescript
 // Set up spend policy for an agent
-await okoro.policies.apply({
+await cerniq.policies.apply({
   agentId: 'agent_xyz',
   scope: 'payment:write',
   spendLimit: {
@@ -169,7 +169,7 @@ await okoro.policies.apply({
 ### 4.2 Per-Transaction Limit
 
 ```typescript
-await okoro.policies.apply({
+await cerniq.policies.apply({
   agentId: 'agent_xyz',
   scope: 'payment:write',
   spendLimit: {
@@ -191,7 +191,7 @@ app.post('/api/payments/charge', requirePaymentAuth, async (req, res) => {
   if (amount > 100) {
     // Large amount: require explicit human-in-the-loop approval
     const approval = await requestHumanApproval({
-      agentId: req.okoro.agentId,
+      agentId: req.cerniq.agentId,
       amount,
       reason: req.body.description,
     });
@@ -206,7 +206,7 @@ app.post('/api/payments/charge', requirePaymentAuth, async (req, res) => {
     // Human approved — proceed with Stripe
   }
 
-  // < $100: OKORO already verified, proceed directly
+  // < $100: CERNIQ already verified, proceed directly
   await processStripePayment(req);
 });
 ```
@@ -215,7 +215,7 @@ app.post('/api/payments/charge', requirePaymentAuth, async (req, res) => {
 
 ## 5. ACP (Agentic Commerce Protocol) Compatibility
 
-OKORO is additive to ACP. Here's how they compose:
+CERNIQ is additive to ACP. Here's how they compose:
 
 ```
 ACP handles:
@@ -224,43 +224,43 @@ ACP handles:
   - Transaction processing
   - Dispute resolution
 
-OKORO handles (before ACP):
+CERNIQ handles (before ACP):
   - Agent identity (who is making this request?)
   - Authorization (is this agent allowed to make payments?)
   - Spend gates (has this agent spent too much today?)
   - Audit trail (provable record of authorization)
 
 Combined flow:
-  Agent → [OKORO verify] → [ACP payment] → Receipt
+  Agent → [CERNIQ verify] → [ACP payment] → Receipt
 ```
 
-### 5.1 ACP Token + OKORO Token
+### 5.1 ACP Token + CERNIQ Token
 
-When an agent presents both an ACP token and an OKORO token:
+When an agent presents both an ACP token and an CERNIQ token:
 
 ```typescript
 app.post('/api/acp/payment', async (req, res) => {
-  const { acpToken, okoroToken } = req.body;
+  const { acpToken, cerniqToken } = req.body;
 
-  // 1. Verify OKORO identity and policy first
-  const okoroResult = await verifier.verify(okoroToken, {
+  // 1. Verify CERNIQ identity and policy first
+  const cerniqResult = await verifier.verify(cerniqToken, {
     requiredScopes: ['payment:write'],
     trustBandMinimum: 'VERIFIED',
   });
 
-  if (!okoroResult.approved) {
+  if (!cerniqResult.approved) {
     return res.status(403).json({
-      error: okoroResult.denialReason,
-      source: 'okoro',
+      error: cerniqResult.denialReason,
+      source: 'cerniq',
     });
   }
 
   // 2. Now process the ACP token (Stripe/payment rail)
   const acpResult = await acpClient.processPayment(acpToken, {
-    okoroAuditId: okoroResult.auditEventId, // link the two audit trails
+    cerniqAuditId: cerniqResult.auditEventId, // link the two audit trails
   });
 
-  res.json({ success: true, acpResult, okoroAuditId: okoroResult.auditEventId });
+  res.json({ success: true, acpResult, cerniqAuditId: cerniqResult.auditEventId });
 });
 ```
 
@@ -268,21 +268,21 @@ app.post('/api/acp/payment', async (req, res) => {
 
 ## 6. Fraud Detection Integration
 
-OKORO BATE signals can feed your fraud detection system:
+CERNIQ BATE signals can feed your fraud detection system:
 
 ```typescript
-// After OKORO verify, use the trust signal to route payments
+// After CERNIQ verify, use the trust signal to route payments
 app.post('/api/payments/charge', requirePaymentAuth, async (req, res) => {
-  const { trustBand, trustScore } = req.okoro;
+  const { trustBand, trustScore } = req.cerniq;
 
   // Route based on BATE trust band
   if (trustBand === 'FLAGGED') {
     // High risk: block and flag for review
     await fraudReview.flag({
-      agentId: req.okoro.agentId,
+      agentId: req.cerniq.agentId,
       amount: req.body.amount,
       reason: 'low_trust_band',
-      okoroAuditId: req.okoro.auditEventId,
+      cerniqAuditId: req.cerniq.auditEventId,
     });
     return res.status(403).json({ error: 'FRAUD_REVIEW_REQUIRED' });
   }
@@ -318,13 +318,13 @@ app.post('/webhooks/stripe', async (req, res) => {
 
   if (event.type === 'charge.failed') {
     const charge = event.data.object as Stripe.Charge;
-    const okoroAuditId = charge.metadata.okoro_audit_event_id;
+    const cerniqAuditId = charge.metadata.cerniq_audit_event_id;
 
-    if (okoroAuditId) {
-      // Roll back the spend counter in OKORO
+    if (cerniqAuditId) {
+      // Roll back the spend counter in CERNIQ
       // This allows the agent to retry (spend not consumed by failed payment)
-      await okoro.verify.rollbackSpend(okoroAuditId);
-      console.log(`Spend rolled back for audit event ${okoroAuditId}`);
+      await cerniq.verify.rollbackSpend(cerniqAuditId);
+      console.log(`Spend rolled back for audit event ${cerniqAuditId}`);
     }
   }
 
@@ -338,9 +338,9 @@ app.post('/api/payments/refund', async (req, res) => {
   // Create Stripe refund
   const refund = await stripe.refunds.create({ payment_intent: paymentIntentId });
 
-  // Append refund to OKORO audit trail
-  await okoro.audit.append({
-    agentId: req.okoro.agentId,
+  // Append refund to CERNIQ audit trail
+  await cerniq.audit.append({
+    agentId: req.cerniq.agentId,
     action: 'payment:refund',
     metadata: {
       stripeRefundId: refund.id,
@@ -362,7 +362,7 @@ Generate audit reports for compliance (SOC2, PCI-DSS):
 ```typescript
 // Monthly payment audit report
 async function generateComplianceReport(principalId: string, month: string) {
-  const events = await okoro.audit.export({
+  const events = await cerniq.audit.export({
     principalId,
     from: `${month}-01T00:00:00Z`,
     to: `${month}-31T23:59:59Z`,
@@ -390,12 +390,12 @@ async function generateComplianceReport(principalId: string, month: string) {
 ## 9. Environment Variables
 
 ```bash
-# OKORO
-OKORO_API_KEY=ak_live_xxxx
-OKORO_AGENT_ID=agent_xxxx
-OKORO_PRIVATE_KEY=base64_ed25519_private_key
-OKORO_RELYING_PARTY_ID=rp_xxxx         # Register your service as a RP
-OKORO_WEBHOOK_SECRET=whsec_xxxx        # For revocation webhooks
+# CERNIQ
+CERNIQ_API_KEY=ak_live_xxxx
+CERNIQ_AGENT_ID=agent_xxxx
+CERNIQ_PRIVATE_KEY=base64_ed25519_private_key
+CERNIQ_RELYING_PARTY_ID=rp_xxxx         # Register your service as a RP
+CERNIQ_WEBHOOK_SECRET=whsec_xxxx        # For revocation webhooks
 
 # Stripe
 STRIPE_SECRET_KEY=sk_live_xxxx
@@ -409,12 +409,12 @@ DATABASE_URL=postgresql://...
 
 ## 10. Security Checklist
 
-Before going live with OKORO + Stripe payments:
+Before going live with CERNIQ + Stripe payments:
 
 ```
-[ ] OKORO_PRIVATE_KEY is stored in secrets manager, not environment variable
+[ ] CERNIQ_PRIVATE_KEY is stored in secrets manager, not environment variable
 [ ] Stripe webhook signature verified on every webhook event
-[ ] OKORO webhook signature verified on every OKORO event
+[ ] CERNIQ webhook signature verified on every CERNIQ event
 [ ] Spend limits are set on all agents (no unbounded agents)
 [ ] Trust band minimum is VERIFIED for payment:write scope
 [ ] Refund rollback webhook is wired (prevents double-counting on Stripe failure)
@@ -426,4 +426,4 @@ Before going live with OKORO + Stripe payments:
 
 ---
 
-_Fintech integration guide version: 1.0 | OKORO Phase 1_
+_Fintech integration guide version: 1.0 | CERNIQ Phase 1_

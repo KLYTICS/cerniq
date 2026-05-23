@@ -1,11 +1,11 @@
-# `ai-platform-tool-call` — MCP agent → OKORO verify → downstream API
+# `ai-platform-tool-call` — MCP agent → CERNIQ verify → downstream API
 
 The AI-platform vertical: an LLM agent calls a tool via MCP (Model
-Context Protocol), the OKORO verify step runs _between_ the MCP server
+Context Protocol), the CERNIQ verify step runs _between_ the MCP server
 and the downstream API the tool wraps. This is the natural early-
-adopter wedge for OKORO — every tool-using AI agent has the same
+adopter wedge for CERNIQ — every tool-using AI agent has the same
 problem (who is this agent, scoped to what, can it do this right now)
-and MCP is the fastest-growing protocol surface where OKORO slots in.
+and MCP is the fastest-growing protocol surface where CERNIQ slots in.
 
 ## Why this pattern
 
@@ -19,25 +19,25 @@ Today an MCP tool that wraps a sensitive API has three weak spots:
 3. **There is no audit chain.** Each tool call is a log line, not a
    tamper-evident record signed by a neutral third party.
 
-OKORO slots between the MCP server and the downstream API. The MCP
-server stays focused on tool semantics; OKORO handles identity, policy,
+CERNIQ slots between the MCP server and the downstream API. The MCP
+server stays focused on tool semantics; CERNIQ handles identity, policy,
 and audit as a substrate. This pairs with `packages/mcp-server/`
-(landed by peer 2026-05-02), which exposes OKORO itself as a set of
-MCP tools — agents that use OKORO through MCP also get verified
-through OKORO via MCP. Symmetric.
+(landed by peer 2026-05-02), which exposes CERNIQ itself as a set of
+MCP tools — agents that use CERNIQ through MCP also get verified
+through CERNIQ via MCP. Symmetric.
 
 ## The flow
 
 ```
-  LLM client          MCP server (this example)         OKORO API           Your API
+  LLM client          MCP server (this example)         CERNIQ API           Your API
   (Claude            (wraps your downstream API)
    Desktop, etc.)
   ──────────         ─────────────────────────         ──────────         ──────────
   tool_call    →     1. receive tool invocation
-                     2. extract OKORO_TOKEN from
+                     2. extract CERNIQ_TOKEN from
                         tool args (provided by the
                         client, signed by agent kp)
-                     3. okoro.verify(token, ctx)  →    deny / allow
+                     3. cerniq.verify(token, ctx)  →    deny / allow
                                                                    ↓
                      4. on allow: forward to                      →     downstream
                         downstream API                                   action
@@ -46,7 +46,7 @@ through OKORO via MCP. Symmetric.
    ←  tool_result
 ```
 
-The MCP server here is a thin tool-wrapper; the OKORO verify step is
+The MCP server here is a thin tool-wrapper; the CERNIQ verify step is
 identical to the fintech / SaaS examples. What differs is the tool
 shape — see `mcp-server.ts` for the MCP-specific argument extraction.
 
@@ -57,8 +57,8 @@ shape — see `mcp-server.ts` for the MCP-specific argument extraction.
 ```sh
 cd examples/ai-platform-tool-call
 pnpm install
-OKORO_API_BASE=https://api.okoroapp.com \
-OKORO_VERIFY_KEY=okoro_vk_... \
+CERNIQ_API_BASE=https://api.cerniqapp.com \
+CERNIQ_VERIFY_KEY=cerniq_vk_... \
 DOWNSTREAM_API_BASE=https://api.your-svc.example.com \
 pnpm tsx src/mcp-server.ts
 ```
@@ -69,12 +69,12 @@ pnpm tsx src/mcp-server.ts
 // ~/Library/Application Support/Claude/claude_desktop_config.json (macOS)
 {
   "mcpServers": {
-    "your-svc-via-okoro": {
+    "your-svc-via-cerniq": {
       "command": "pnpm",
-      "args": ["tsx", "/path/to/okoro/examples/ai-platform-tool-call/src/mcp-server.ts"],
+      "args": ["tsx", "/path/to/cerniq/examples/ai-platform-tool-call/src/mcp-server.ts"],
       "env": {
-        "OKORO_API_BASE": "https://api.okoroapp.com",
-        "OKORO_VERIFY_KEY": "okoro_vk_...",
+        "CERNIQ_API_BASE": "https://api.cerniqapp.com",
+        "CERNIQ_VERIFY_KEY": "cerniq_vk_...",
         "DOWNSTREAM_API_BASE": "https://api.your-svc.example.com",
       },
     },
@@ -83,35 +83,35 @@ pnpm tsx src/mcp-server.ts
 ```
 
 The `mcp.json` snippet in this directory is the canonical version and
-ships with the `okoro init --industry ai-platform-tool-call` template.
+ships with the `cerniq init --industry ai-platform-tool-call` template.
 
 ## Walking the failure modes
 
-The OKORO denial reasons surface as tool errors — `tool_use` returns
+The CERNIQ denial reasons surface as tool errors — `tool_use` returns
 `isError: true` with a structured message. LLM clients that respect
 the MCP error contract will surface that to the model, which then
 explains the refusal to the user. See
-`docs/OKORO_AS_BACKBONE.md` § 5 for the user-facing translation table.
+`docs/CERNIQ_AS_BACKBONE.md` § 5 for the user-facing translation table.
 
 ## Production checklist
 
-- [ ] Pair with `@okoro/mcp-server` (peer's `packages/mcp-server/`,
+- [ ] Pair with `@cerniq/mcp-server` (peer's `packages/mcp-server/`,
       landed 2026-05-02) so the MCP control plane itself is verified.
-- [ ] Token-binding: the MCP server should require the OKORO token to
+- [ ] Token-binding: the MCP server should require the CERNIQ token to
       be present on _every_ tool call, not just the first. LLM clients
       that cache MCP sessions will silently keep an old token alive
       otherwise.
-- [ ] Scope per tool: each MCP tool maps to one OKORO scope. A
+- [ ] Scope per tool: each MCP tool maps to one CERNIQ scope. A
       `read_invoices` tool maps to `scope=read:invoices`; a
       `issue_refund` tool maps to `scope=refund:invoices`. Don't
       collapse multiple sensitive tools under one scope.
-- [ ] Audit cross-link: include the OKORO `auditEventId` in the
+- [ ] Audit cross-link: include the CERNIQ `auditEventId` in the
       downstream API's request log so a regulator can trace tool call
-      → MCP server → OKORO audit → downstream call in one query.
+      → MCP server → CERNIQ audit → downstream call in one query.
 
 ## Reference
 
-- `packages/mcp-server/` (peer-owned, 2026-05-02) — OKORO itself as MCP tools
+- `packages/mcp-server/` (peer-owned, 2026-05-02) — CERNIQ itself as MCP tools
 - `docs/decisions/0008-mcp-as-control-plane.md` (ADR-0008) — the broader plan
-- `docs/OKORO_AS_BACKBONE.md` § 2.3 — recommended consumption pattern
+- `docs/CERNIQ_AS_BACKBONE.md` § 2.3 — recommended consumption pattern
 - WORK_BOARD M-040f (the ticket this example completes)

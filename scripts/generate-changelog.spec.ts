@@ -16,10 +16,7 @@ import {
   type GitRunner,
   type SessionEntry,
 } from './generate-changelog.js';
-import {
-  findOkoroPackages,
-  OkoroPackageManifest,
-} from './lib/package-introspect.js';
+import { findCerniqPackages, CerniqPackageManifest } from './lib/package-introspect.js';
 
 // ──────────────────────────────────────────────────────────────────────
 // Helpers: build a fake repo on disk so package discovery is real.
@@ -31,49 +28,43 @@ interface FakeRepo {
 }
 
 function makeFakeRepo(): FakeRepo {
-  const root = mkdtempSync(path.join(tmpdir(), 'okoro-changelog-'));
+  const root = mkdtempSync(path.join(tmpdir(), 'cerniq-changelog-'));
   writeFileSync(path.join(root, 'pnpm-workspace.yaml'), 'packages:\n  - "packages/*"\n');
   mkdirSync(path.join(root, 'packages'), { recursive: true });
   mkdirSync(path.join(root, 'docs'), { recursive: true });
 
-  const mkPkg = (
-    folder: string,
-    manifest: Record<string, unknown>,
-  ): string => {
+  const mkPkg = (folder: string, manifest: Record<string, unknown>): string => {
     const dir = path.join(root, 'packages', folder);
     mkdirSync(dir, { recursive: true });
-    writeFileSync(
-      path.join(dir, 'package.json'),
-      JSON.stringify(manifest, null, 2),
-    );
+    writeFileSync(path.join(dir, 'package.json'), JSON.stringify(manifest, null, 2));
     return dir;
   };
 
   mkPkg('sdk-ts', {
-    name: '@okoro/sdk',
+    name: '@cerniq/sdk',
     version: '0.1.0',
-    description: 'OKORO SDK',
+    description: 'CERNIQ SDK',
     license: 'MIT',
     main: 'dist/index.cjs',
-    repository: { type: 'git', url: 'https://github.com/x/okoro.git' },
+    repository: { type: 'git', url: 'https://github.com/x/cerniq.git' },
     engines: { node: '>=18' },
-    keywords: ['okoro', 'sdk', 'agent'],
+    keywords: ['cerniq', 'sdk', 'agent'],
   });
   mkPkg('types', {
-    name: '@okoro/types',
+    name: '@cerniq/types',
     version: '0.1.0',
-    description: 'OKORO types',
+    description: 'CERNIQ types',
     license: 'MIT',
   });
   mkPkg('verifier-rp', {
-    name: '@okoro/verifier-rp',
+    name: '@cerniq/verifier-rp',
     version: '0.1.0',
     description: 'verifier',
     license: 'MIT',
   });
   mkPkg('sdk-py', {
     // sdk-py has no real npm package.json; mock one for discovery.
-    name: 'okoro-py',
+    name: 'cerniq-py',
     version: '0.1.0',
     description: 'python sdk',
     license: 'MIT',
@@ -103,9 +94,11 @@ describe('parseFlags', () => {
     expect(() => parseFlags(['--since', 'yesterday'])).toThrow(/YYYY-MM-DD/);
   });
   it('parses --package, --dry-run, --out', () => {
-    expect(
-      parseFlags(['--package', 'sdk-ts', '--dry-run', '--out', '/tmp/x.md']),
-    ).toMatchObject({ packageFilter: 'sdk-ts', dryRun: true, out: '/tmp/x.md' });
+    expect(parseFlags(['--package', 'sdk-ts', '--dry-run', '--out', '/tmp/x.md'])).toMatchObject({
+      packageFilter: 'sdk-ts',
+      dryRun: true,
+      out: '/tmp/x.md',
+    });
   });
   it('rejects unknown flags', () => {
     expect(() => parseFlags(['--bogus'])).toThrow(/Unknown flag/);
@@ -123,7 +116,7 @@ describe('parseSessionHandoff', () => {
 
   it('extracts heading + bullets', () => {
     const text = `\
-# OKORO — Session handoff log
+# CERNIQ — Session handoff log
 
 ## 2026-05-05 (Round 15) · claim=foo
 
@@ -180,7 +173,7 @@ describe('filterEntriesSince', () => {
 describe('bucketEntriesByPackage', () => {
   it('matches entries by path token', () => {
     const repo = makeFakeRepo();
-    const packages = findOkoroPackages({ repoRoot: repo.root });
+    const packages = findCerniqPackages({ repoRoot: repo.root });
     const entries: SessionEntry[] = [
       {
         date: '2026-05-05',
@@ -203,18 +196,18 @@ describe('bucketEntriesByPackage', () => {
     ];
     const buckets = bucketEntriesByPackage(entries, packages);
     const names = buckets.map((b) => b.pkg.name);
-    expect(names).toContain('@okoro/sdk');
-    expect(names).toContain('@okoro/types');
+    expect(names).toContain('@cerniq/sdk');
+    expect(names).toContain('@cerniq/types');
     // verifier-rp had no matches → no bucket
-    expect(names).not.toContain('@okoro/verifier-rp');
-    const sdkBucket = buckets.find((b) => b.pkg.name === '@okoro/sdk');
+    expect(names).not.toContain('@cerniq/verifier-rp');
+    const sdkBucket = buckets.find((b) => b.pkg.name === '@cerniq/sdk');
     expect(sdkBucket?.entries).toHaveLength(1);
     expect(sdkBucket?.entries[0]?.heading).toBe('sdk shipped');
   });
 
   it('returns [] when no entries touch any package', () => {
     const repo = makeFakeRepo();
-    const packages = findOkoroPackages({ repoRoot: repo.root });
+    const packages = findCerniqPackages({ repoRoot: repo.root });
     const entries: SessionEntry[] = [
       { date: '2026-05-05', heading: 'docs only', body: 'docs/foo.md', bullets: [] },
     ];
@@ -228,8 +221,8 @@ describe('bucketEntriesByPackage', () => {
 
 describe('renderChangelog', () => {
   const repo = makeFakeRepo();
-  const packages = findOkoroPackages({ repoRoot: repo.root });
-  const sdk = packages.find((p) => p.name === '@okoro/sdk') as OkoroPackageManifest;
+  const packages = findCerniqPackages({ repoRoot: repo.root });
+  const sdk = packages.find((p) => p.name === '@cerniq/sdk') as CerniqPackageManifest;
 
   it('emits Keep-A-Changelog header + dated sections', () => {
     const out = renderChangelog({
@@ -282,15 +275,12 @@ describe('readGitCommits + bucketCommitsByPackage', () => {
     const commits = readGitCommits(fake, '2026-04-01');
     expect(commits).toHaveLength(2);
     expect(commits[0]?.subject).toBe('fix: sdk thing');
-    expect(commits[0]?.files).toEqual([
-      'packages/sdk-ts/src/x.ts',
-      'packages/sdk-ts/src/y.ts',
-    ]);
+    expect(commits[0]?.files).toEqual(['packages/sdk-ts/src/x.ts', 'packages/sdk-ts/src/y.ts']);
 
     const repo = makeFakeRepo();
-    const packages = findOkoroPackages({ repoRoot: repo.root });
+    const packages = findCerniqPackages({ repoRoot: repo.root });
     const buckets = bucketCommitsByPackage(commits, packages);
-    expect(buckets.find((b) => b.pkg.name === '@okoro/sdk')?.entries).toHaveLength(1);
+    expect(buckets.find((b) => b.pkg.name === '@cerniq/sdk')?.entries).toHaveLength(1);
   });
 
   it('returns [] when git fails (no repo)', () => {
@@ -334,10 +324,7 @@ describe('run()', () => {
 `;
     writeFileSync(path.join(repo.root, 'docs', 'SESSION_HANDOFF.md'), handoff);
 
-    const result = run(
-      { dryRun: false, repoRoot: repo.root },
-      { log: () => undefined },
-    );
+    const result = run({ dryRun: false, repoRoot: repo.root }, { log: () => undefined });
 
     expect(result.usedFallback).toBe(false);
     expect(result.written.length).toBeGreaterThanOrEqual(2);
@@ -360,7 +347,7 @@ describe('run()', () => {
       { gitRunner: fakeGit, log: () => undefined },
     );
     expect(result.usedFallback).toBe(true);
-    expect(result.buckets.find((b) => b.pkg.name === '@okoro/sdk')).toBeDefined();
+    expect(result.buckets.find((b) => b.pkg.name === '@cerniq/sdk')).toBeDefined();
   });
 
   it('--dry-run does not write files', () => {
@@ -370,10 +357,7 @@ describe('run()', () => {
       '## 2026-05-05\n- packages/sdk-ts/x changed\n',
     );
     let logged = '';
-    const result = run(
-      { dryRun: true, repoRoot: repo.root },
-      { log: (s) => (logged += s) },
-    );
+    const result = run({ dryRun: true, repoRoot: repo.root }, { log: (s) => (logged += s) });
     expect(result.written).toEqual([]);
     expect(logged).toContain('packages/sdk-ts');
     expect(existsSync(path.join(repo.pkgDir('sdk-ts'), 'CHANGELOG.md'))).toBe(false);
@@ -390,7 +374,7 @@ describe('run()', () => {
       { log: () => undefined },
     );
     expect(result.buckets).toHaveLength(1);
-    expect(result.buckets[0]?.pkg.name).toBe('@okoro/sdk');
+    expect(result.buckets[0]?.pkg.name).toBe('@cerniq/sdk');
   });
 
   it('--package with unknown alias throws', () => {

@@ -22,7 +22,7 @@ export class Auth0Service {
   ) {}
 
   /**
-   * Called from the Auth0 Action `okoro-audit-login.js`. Idempotent
+   * Called from the Auth0 Action `cerniq-audit-login.js`. Idempotent
    * by `(user_id, occurred_at)` so retried calls produce one audit row.
    */
   async handleActionLogin(dto: Auth0ActionLoginDto): Promise<Auth0ActionLoginResultDto> {
@@ -57,7 +57,7 @@ export class Auth0Service {
   }
 
   /**
-   * Dashboard exchange: trade an Auth0 access token for an OKORO API key
+   * Dashboard exchange: trade an Auth0 access token for an CERNIQ API key
    * scoped to the human's principal. The API key is short-lived (8 hours)
    * — the dashboard re-exchanges before expiry.
    */
@@ -74,11 +74,11 @@ export class Auth0Service {
       name: user.name,
     });
 
-    // Mint an OKORO API key for the next 8 hours. Stored in ApiKey table
+    // Mint an CERNIQ API key for the next 8 hours. Stored in ApiKey table
     // with its own audit row. The actual create is delegated to a service
     // we don't import here (auth/api-key.service) — to keep this module's
     // scope clean while peer holds policy/verify.
-    const apiKeyId = `okoro_live_${ulid()}`;
+    const apiKeyId = `cerniq_live_${ulid()}`;
     const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000);
 
     await this.audit.append({

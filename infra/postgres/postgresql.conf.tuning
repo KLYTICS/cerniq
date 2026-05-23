@@ -1,5 +1,5 @@
 # =============================================================================
-# OKORO — Postgres production tuning notes
+# CERNIQ — Postgres production tuning notes
 # =============================================================================
 # This file is NOT a complete postgresql.conf. It is the set of overrides we
 # apply on top of the stock postgres:16-alpine defaults. Apply by either:
@@ -31,7 +31,7 @@ shared_buffers = 256MB
 # data.
 effective_cache_size = 768MB
 
-# work_mem: per-sort / per-hash-join allocation. OKORO workloads are PK
+# work_mem: per-sort / per-hash-join allocation. CERNIQ workloads are PK
 # lookups + small range scans (audit events by principal+date). 8 MB is
 # generous for that pattern; bumping higher only helps reporting queries
 # that happen rarely. The risk of high work_mem is multiplication —
@@ -105,7 +105,7 @@ auto_explain.log_timing = off  # `log_timing on` adds significant overhead.
 auto_explain.log_verbose = on
 auto_explain.log_nested_statements = on
 
-# pg_stat_statements knobs. 5000 statements is plenty for OKORO's modest
+# pg_stat_statements knobs. 5000 statements is plenty for CERNIQ's modest
 # query surface.
 pg_stat_statements.max = 5000
 pg_stat_statements.track = all
@@ -136,5 +136,5 @@ pg_stat_statements.track_utility = off  # don't track BEGIN/COMMIT/etc.
 # - ssl: Railway plugin terminates TLS at the network layer; in-Postgres
 #   ssl can be turned on but is redundant for the managed plan.
 # - hba.conf: managed by the plugin. If you self-host, restrict the
-#   `okoro_app` role to the API + worker IP ranges.
+#   `cerniq_app` role to the API + worker IP ranges.
 # =============================================================================

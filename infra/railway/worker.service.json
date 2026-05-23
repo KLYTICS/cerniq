@@ -1,6 +1,6 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
-  "_comment": "OKORO BATE / webhook worker — separate Railway service from the API. Shares the same Postgres + Redis. No public ingress; do NOT attach a domain.",
+  "_comment": "CERNIQ BATE / webhook worker — separate Railway service from the API. Shares the same Postgres + Redis. No public ingress; do NOT attach a domain.",
   "_planTier": "Hobby is sufficient until BATE recompute lag (Grafana panel: bate_recompute_lag_seconds) routinely exceeds 60s, then upsize to Pro for committed CPU.",
   "_region": "us-east — must match the API service so Redis and Postgres traffic stays intra-region.",
   "build": {
@@ -20,22 +20,55 @@
   "regions": ["us-east"],
   "envVars": [
     { "key": "NODE_ENV", "value": "production", "secret": false },
-    { "key": "OKORO_ENV", "value": "production", "secret": false },
+    { "key": "CERNIQ_ENV", "value": "production", "secret": false },
     { "key": "LOG_LEVEL", "value": "info", "secret": false },
-    { "key": "WORKER_TYPE", "value": "all", "secret": false, "_note": "Override per replica when sharding queues: bate | webhooks | signals | all." },
+    {
+      "key": "WORKER_TYPE",
+      "value": "all",
+      "secret": false,
+      "_note": "Override per replica when sharding queues: bate | webhooks | signals | all."
+    },
 
-    { "key": "DATABASE_URL", "secret": true, "_provision": "Same connection string as the API service — share via Railway's reference variable: ${{ okoro-api.DATABASE_URL }}." },
-    { "key": "DATABASE_DIRECT_URL", "secret": true, "_provision": "Mirror of the API's DATABASE_DIRECT_URL. The worker may run lightweight read queries that are friendlier to a direct connection than to pgbouncer transaction-pool mode." },
-    { "key": "REDIS_URL", "secret": true, "_provision": "Reference: ${{ okoro-api.REDIS_URL }}. Sharing the cache instance is intentional — BullMQ requires it." },
+    {
+      "key": "DATABASE_URL",
+      "secret": true,
+      "_provision": "Same connection string as the API service — share via Railway's reference variable: ${{ cerniq-api.DATABASE_URL }}."
+    },
+    {
+      "key": "DATABASE_DIRECT_URL",
+      "secret": true,
+      "_provision": "Mirror of the API's DATABASE_DIRECT_URL. The worker may run lightweight read queries that are friendlier to a direct connection than to pgbouncer transaction-pool mode."
+    },
+    {
+      "key": "REDIS_URL",
+      "secret": true,
+      "_provision": "Reference: ${{ cerniq-api.REDIS_URL }}. Sharing the cache instance is intentional — BullMQ requires it."
+    },
 
-    { "key": "AUDIT_ED25519_PRIVATE_KEY_B64", "secret": true, "_provision": "Same key as the API. The worker writes audit events for asynchronous outcomes (webhook delivery results, BATE score changes); the chain stays unbroken because both services sign with the same key." },
-    { "key": "AUDIT_ED25519_PUBLIC_KEY_B64", "secret": false, "_provision": "Reference from API service." },
+    {
+      "key": "AUDIT_ED25519_PRIVATE_KEY_B64",
+      "secret": true,
+      "_provision": "Same key as the API. The worker writes audit events for asynchronous outcomes (webhook delivery results, BATE score changes); the chain stays unbroken because both services sign with the same key."
+    },
+    {
+      "key": "AUDIT_ED25519_PUBLIC_KEY_B64",
+      "secret": false,
+      "_provision": "Reference from API service."
+    },
 
     { "key": "ENABLE_BATE", "value": "true", "secret": false },
     { "key": "ENABLE_WEBHOOKS", "value": "true", "secret": false },
 
-    { "key": "SENTRY_DSN", "secret": true, "_provision": "Use a SEPARATE Sentry project from the API so worker errors don't drown the API issue list." },
-    { "key": "OTEL_EXPORTER_OTLP_ENDPOINT", "secret": false, "_provision": "Same collector endpoint as the API; the collector multiplexes by service.name." },
-    { "key": "OTEL_SERVICE_NAME", "value": "okoro-worker", "secret": false }
+    {
+      "key": "SENTRY_DSN",
+      "secret": true,
+      "_provision": "Use a SEPARATE Sentry project from the API so worker errors don't drown the API issue list."
+    },
+    {
+      "key": "OTEL_EXPORTER_OTLP_ENDPOINT",
+      "secret": false,
+      "_provision": "Same collector endpoint as the API; the collector multiplexes by service.name."
+    },
+    { "key": "OTEL_SERVICE_NAME", "value": "cerniq-worker", "secret": false }
   ]
 }

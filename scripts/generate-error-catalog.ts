@@ -10,7 +10,7 @@
  *
  * Outputs:
  *   - packages/types/src/error-catalog.generated.ts
- *   - packages/sdk-py/okoro/error_catalog.py
+ *   - packages/sdk-py/cerniq/error_catalog.py
  *
  * Both files start with a `// @generated` (or `# @generated`) banner. Do
  * not hand-edit. Re-run via `pnpm tsx scripts/generate-error-catalog.ts`.
@@ -29,7 +29,15 @@ interface ErrorCatalogEntry {
   retryable: boolean;
   backoff?: 'none' | 'linear' | 'exponential' | 'on_retry_after_header';
   customerMessage: string;
-  category: 'auth' | 'validation' | 'policy' | 'rate_limit' | 'billing' | 'crypto' | 'transient' | 'internal';
+  category:
+    | 'auth'
+    | 'validation'
+    | 'policy'
+    | 'rate_limit'
+    | 'billing'
+    | 'crypto'
+    | 'transient'
+    | 'internal';
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -38,7 +46,7 @@ const REPO_ROOT = resolve(__dirname, '..');
 
 const CATALOG_SOURCE = '../apps/api/src/common/errors/error-catalog.ts';
 const TS_OUT = resolve(REPO_ROOT, 'packages/types/src/error-catalog.generated.ts');
-const PY_OUT = resolve(REPO_ROOT, 'packages/sdk-py/okoro/error_catalog.py');
+const PY_OUT = resolve(REPO_ROOT, 'packages/sdk-py/cerniq/error_catalog.py');
 
 async function loadCatalog(): Promise<Readonly<Record<string, ErrorCatalogEntry>>> {
   const mod = (await import(CATALOG_SOURCE)) as {
@@ -48,7 +56,9 @@ async function loadCatalog(): Promise<Readonly<Record<string, ErrorCatalogEntry>
 }
 
 /** Stable JSON: keys sorted by class name for deterministic diffs. */
-function sortedEntries(catalog: Readonly<Record<string, ErrorCatalogEntry>>): Array<[string, ErrorCatalogEntry]> {
+function sortedEntries(
+  catalog: Readonly<Record<string, ErrorCatalogEntry>>,
+): Array<[string, ErrorCatalogEntry]> {
   return Object.keys(catalog)
     .sort((a, b) => a.localeCompare(b))
     .map((k) => {
@@ -68,7 +78,7 @@ function renderTs(catalog: Readonly<Record<string, ErrorCatalogEntry>>): string 
   lines.push('// JS class name they originated from.');
   lines.push('');
   lines.push("export type Backoff = 'none' | 'linear' | 'exponential' | 'on_retry_after_header';");
-  lines.push("export type Category =");
+  lines.push('export type Category =');
   lines.push("  | 'auth'");
   lines.push("  | 'validation'");
   lines.push("  | 'policy'");
@@ -91,11 +101,14 @@ function renderTs(catalog: Readonly<Record<string, ErrorCatalogEntry>>): string 
   lines.push('}');
   lines.push('');
   lines.push('/** Catalog keyed by stable `code` (lower-snake-case). */');
-  lines.push('export const GENERATED_ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object.freeze({');
+  lines.push(
+    'export const GENERATED_ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object.freeze({',
+  );
   for (const [className, entry] of sortedEntries(catalog)) {
     const quotedCode = JSON.stringify(entry.code);
     const quotedMsg = JSON.stringify(entry.customerMessage);
-    const backoff = entry.backoff !== undefined ? `, backoff: ${JSON.stringify(entry.backoff)}` : '';
+    const backoff =
+      entry.backoff !== undefined ? `, backoff: ${JSON.stringify(entry.backoff)}` : '';
     lines.push(`  [${quotedCode}]: Object.freeze({`);
     lines.push(`    className: ${JSON.stringify(className)},`);
     lines.push(`    code: ${quotedCode},`);
@@ -141,7 +154,9 @@ function renderPy(catalog: Readonly<Record<string, ErrorCatalogEntry>>): string 
   lines.push('    retryable: bool');
   lines.push('    backoff: str  # one of: none, linear, exponential, on_retry_after_header');
   lines.push('    customerMessage: str');
-  lines.push('    category: str  # auth|validation|policy|rate_limit|billing|crypto|transient|internal');
+  lines.push(
+    '    category: str  # auth|validation|policy|rate_limit|billing|crypto|transient|internal',
+  );
   lines.push('');
   lines.push('');
   lines.push('GENERATED_ERROR_CATALOG: Final[dict[str, ErrorCatalogEntry]] = {');
@@ -184,7 +199,9 @@ async function main(): Promise<number> {
 main().then(
   (rc) => process.exit(rc),
   (err: unknown) => {
-    process.stderr.write(`generate-error-catalog: ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
+    process.stderr.write(
+      `generate-error-catalog: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`,
+    );
     process.exit(1);
   },
 );

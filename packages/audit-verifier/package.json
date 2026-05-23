@@ -1,17 +1,17 @@
 {
-  "name": "@okoro/audit-verifier",
+  "name": "@cerniq/audit-verifier",
   "version": "0.1.0",
-  "description": "Offline verifier for OKORO audit chains. Anyone with the public JWKS can independently verify the tamper-evidence of an OKORO audit log export.",
+  "description": "Offline verifier for CERNIQ audit chains. Anyone with the public JWKS can independently verify the tamper-evidence of an CERNIQ audit log export.",
   "license": "MIT",
-  "author": "OKORO Labs <hello@okoroapp.com>",
-  "homepage": "https://okoroapp.com",
+  "author": "CERNIQ Labs <hello@cerniqapp.com>",
+  "homepage": "https://cerniqapp.com",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/klytics/okoro.git",
+    "url": "git+https://github.com/klytics/cerniq.git",
     "directory": "packages/audit-verifier"
   },
   "bugs": {
-    "url": "https://github.com/klytics/okoro/issues"
+    "url": "https://github.com/klytics/cerniq/issues"
   },
   "publishConfig": {
     "access": "public"
@@ -28,7 +28,7 @@
     }
   },
   "bin": {
-    "okoro-audit-verify": "./dist/cli.mjs"
+    "cerniq-audit-verify": "./dist/cli.mjs"
   },
   "files": [
     "dist",
@@ -51,7 +51,7 @@
     "@noble/hashes": "^1.5.0"
   },
   "devDependencies": {
-    "@okoro/tsconfig": "workspace:*",
+    "@cerniq/tsconfig": "workspace:*",
     "@types/node": "^20.14.0",
     "tsup": "^8.3.5",
     "typescript": "^5.6.3",
@@ -61,7 +61,7 @@
     "node": ">=20.11.0"
   },
   "keywords": [
-    "okoro",
+    "cerniq",
     "audit",
     "tamper-evident",
     "ed25519",

@@ -2,35 +2,35 @@
 // jest test runner (see jest.config.ts).
 
 import {
-  OkoroAuthenticationError,
-  OkoroAuthorizationError,
-  OkoroConflictError,
-  OkoroInternalError,
-  OkoroNetworkError,
-  OkoroNotFoundError,
-  OkoroRateLimitedError,
-  OkoroServiceUnavailableError,
-  OkoroValidationError,
+  CerniqAuthenticationError,
+  CerniqAuthorizationError,
+  CerniqConflictError,
+  CerniqInternalError,
+  CerniqNetworkError,
+  CerniqNotFoundError,
+  CerniqRateLimitedError,
+  CerniqServiceUnavailableError,
+  CerniqValidationError,
 } from './errors.js';
 import { HttpClient, nextDelayMs, parseRetryAfter, withRetry, type RetryOptions } from './http.js';
 
 const NEVER_SLEEP: RetryOptions['sleep'] = async () => undefined;
 
-describe('OkoroError.catalogKey (F-06 minification safety)', () => {
+describe('CerniqError.catalogKey (F-06 minification safety)', () => {
   // tsup minifies the SDK on production builds. Without a static catalogKey
   // discriminator, `new.target.name` collapses to "a"/"b"/... and
   // `err.name` becomes useless to consumers. These assertions are the
   // build-pipeline guard.
   const cases: [new (...args: never[]) => unknown, string][] = [
-    [OkoroAuthenticationError, 'OkoroAuthenticationError'],
-    [OkoroAuthorizationError, 'OkoroAuthorizationError'],
-    [OkoroNotFoundError, 'OkoroNotFoundError'],
-    [OkoroValidationError, 'OkoroValidationError'],
-    [OkoroConflictError, 'OkoroConflictError'],
-    [OkoroRateLimitedError, 'OkoroRateLimitedError'],
-    [OkoroInternalError, 'OkoroInternalError'],
-    [OkoroServiceUnavailableError, 'OkoroServiceUnavailableError'],
-    [OkoroNetworkError, 'OkoroNetworkError'],
+    [CerniqAuthenticationError, 'CerniqAuthenticationError'],
+    [CerniqAuthorizationError, 'CerniqAuthorizationError'],
+    [CerniqNotFoundError, 'CerniqNotFoundError'],
+    [CerniqValidationError, 'CerniqValidationError'],
+    [CerniqConflictError, 'CerniqConflictError'],
+    [CerniqRateLimitedError, 'CerniqRateLimitedError'],
+    [CerniqInternalError, 'CerniqInternalError'],
+    [CerniqServiceUnavailableError, 'CerniqServiceUnavailableError'],
+    [CerniqNetworkError, 'CerniqNetworkError'],
   ];
 
   test.each(cases)('%p declares catalogKey matching its un-minified name', (cls, expected) => {
@@ -38,13 +38,13 @@ describe('OkoroError.catalogKey (F-06 minification safety)', () => {
   });
 
   test('instance.name reflects catalogKey, not the (mangled) constructor.name', () => {
-    const err = new OkoroAuthenticationError('x', 401, 'r1', undefined);
+    const err = new CerniqAuthenticationError('x', 401, 'r1', undefined);
     Object.defineProperty(err.constructor, 'name', { value: 'a' });
     // err.name was set from the static catalogKey at construction time.
-    expect(err.name).toBe('OkoroAuthenticationError');
+    expect(err.name).toBe('CerniqAuthenticationError');
     // And the static survives mangling on the constructor reference itself.
     expect((err.constructor as unknown as { catalogKey: string }).catalogKey).toBe(
-      'OkoroAuthenticationError',
+      'CerniqAuthenticationError',
     );
   });
 });
@@ -226,8 +226,8 @@ describe('withRetry (public API)', () => {
     expect(sleep).not.toHaveBeenCalled();
   });
 
-  test('does not retry non-retryable OkoroErrors', async () => {
-    const err = new OkoroAuthorizationError('nope', 403, 'r1', undefined);
+  test('does not retry non-retryable CerniqErrors', async () => {
+    const err = new CerniqAuthorizationError('nope', 403, 'r1', undefined);
     const fn = jest.fn(async () => {
       throw err;
     });
@@ -237,12 +237,12 @@ describe('withRetry (public API)', () => {
 
   test('retries retryable errors up to maxAttempts then throws', async () => {
     const fn = jest.fn(async () => {
-      throw new OkoroInternalError('boom', 500, 'r1', undefined);
+      throw new CerniqInternalError('boom', 500, 'r1', undefined);
     });
     const sleep = jest.fn(async () => undefined);
     const onRetry = jest.fn();
     await expect(withRetry(fn, { maxAttempts: 3, sleep, onRetry })).rejects.toBeInstanceOf(
-      OkoroInternalError,
+      CerniqInternalError,
     );
     expect(fn).toHaveBeenCalledTimes(3);
     expect(sleep).toHaveBeenCalledTimes(2);
@@ -253,7 +253,7 @@ describe('withRetry (public API)', () => {
     let calls = 0;
     const fn = async () => {
       calls += 1;
-      if (calls < 2) throw new OkoroInternalError('flap', 500, 'r1', undefined);
+      if (calls < 2) throw new CerniqInternalError('flap', 500, 'r1', undefined);
       return 42;
     };
     const result = await withRetry(fn, { sleep: NEVER_SLEEP });
@@ -269,7 +269,7 @@ describe('withRetry (public API)', () => {
     let calls = 0;
     const fn = async (): Promise<string> => {
       calls += 1;
-      if (calls < 2) throw new OkoroRateLimitedError('slow', 429, 'r1', undefined);
+      if (calls < 2) throw new CerniqRateLimitedError('slow', 429, 'r1', undefined);
       return 'done';
     };
     const result = await withRetry(fn, {
@@ -280,7 +280,7 @@ describe('withRetry (public API)', () => {
     expect(sleeps).toEqual([2_000]);
   });
 
-  test('non-OkoroErrors are not retried', async () => {
+  test('non-CerniqErrors are not retried', async () => {
     const err = new RangeError('not ours');
     const fn = jest.fn(async () => {
       throw err;
@@ -293,7 +293,7 @@ describe('withRetry (public API)', () => {
     let calls = 0;
     const fn = async (): Promise<number> => {
       calls += 1;
-      if (calls < 3) throw new OkoroNetworkError('net');
+      if (calls < 3) throw new CerniqNetworkError('net');
       return 7;
     };
     const sleep = jest.fn(async () => undefined);
@@ -303,7 +303,7 @@ describe('withRetry (public API)', () => {
   });
 
   test('skips retry when maxAttempts is 1', async () => {
-    const err = new OkoroInternalError('once', 500, 'r1', undefined);
+    const err = new CerniqInternalError('once', 500, 'r1', undefined);
     const fn = jest.fn(async () => {
       throw err;
     });
@@ -323,7 +323,7 @@ describe('HttpClient.requestWithRetry', () => {
     };
     return new HttpClient({
       apiKey: 'sk_test',
-      baseUrl: 'https://api.okoroapp.com',
+      baseUrl: 'https://api.cerniqapp.com',
       timeoutMs: 1_000,
       fetch: fetchFn,
     });
@@ -345,7 +345,7 @@ describe('HttpClient.requestWithRetry', () => {
     expect(result.ok).toBe(true);
   });
 
-  test('retries on 500 and surfaces final OkoroInternalError', async () => {
+  test('retries on 500 and surfaces final CerniqInternalError', async () => {
     const client = mkClient([
       () =>
         new Response(JSON.stringify({ message: 'boom' }), {
@@ -355,7 +355,7 @@ describe('HttpClient.requestWithRetry', () => {
     ]);
     await expect(
       client.requestWithRetry('/agents', { method: 'GET' }, { maxAttempts: 2, sleep: NEVER_SLEEP }),
-    ).rejects.toBeInstanceOf(OkoroInternalError);
+    ).rejects.toBeInstanceOf(CerniqInternalError);
   });
 
   test('does not retry 400 ValidationError', async () => {
@@ -371,7 +371,7 @@ describe('HttpClient.requestWithRetry', () => {
     ]);
     await expect(
       client.requestWithRetry('/agents', { method: 'GET' }, { maxAttempts: 5, sleep: NEVER_SLEEP }),
-    ).rejects.toBeInstanceOf(OkoroValidationError);
+    ).rejects.toBeInstanceOf(CerniqValidationError);
     expect(calls).toBe(1);
   });
 });

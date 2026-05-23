@@ -9,13 +9,13 @@ import { source } from '@/lib/source';
 
 export const dynamic = 'force-static';
 
-const SITE = process.env.NEXT_PUBLIC_DOCS_URL ?? 'https://docs.okoroapp.com';
+const SITE = process.env.NEXT_PUBLIC_DOCS_URL ?? 'https://docs.cerniqapp.com';
 
 export function GET() {
   const pages = source.getPages();
   return Response.json(
     {
-      site: 'OKORO Documentation',
+      site: 'CERNIQ Documentation',
       url: SITE,
       generated_at: new Date().toISOString(),
       spec_version: '1.0.0',

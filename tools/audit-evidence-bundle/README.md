@@ -1,19 +1,19 @@
-# @okoro/audit-evidence-bundle
+# @cerniq/audit-evidence-bundle
 
 CLI that produces a SOC2-ready, auditor-friendly tarball containing
-everything an external auditor needs to **independently verify** an OKORO
-audit chain — without contacting OKORO.
+everything an external auditor needs to **independently verify** an CERNIQ
+audit chain — without contacting CERNIQ.
 
 ## Quick start
 
 ```sh
-OKORO_API_BASE=https://api.okoroapp.com \
-OKORO_API_KEY=sk_live_... \
-  pnpm --filter @okoro/audit-evidence-bundle start \
+CERNIQ_API_BASE=https://api.cerniqapp.com \
+CERNIQ_API_KEY=sk_live_... \
+  pnpm --filter @cerniq/audit-evidence-bundle start \
     --principal-id prc_acme \
     --from 2026-01-01 \
     --to 2026-04-30 \
-    --output ./okoro-evidence-2026Q1.tar.gz
+    --output ./cerniq-evidence-2026Q1.tar.gz
 ```
 
 Exit codes:
@@ -27,14 +27,14 @@ Exit codes:
 ## Bundle contents
 
 ```
-okoro-evidence-2026Q1/
+cerniq-evidence-2026Q1/
 ├── audit-events.ndjson        Streamed export, one signed row per line
 ├── jwks.json                  Public Ed25519 keys (no private material)
-├── okoro-configuration.json   Well-known discovery doc
+├── cerniq-configuration.json   Well-known discovery doc
 ├── retention-policy.json      Lane B; omitted if endpoint not yet live
 ├── security.txt               RFC 9116 vuln-disclosure contact
 ├── manifest.json              Counts, time range, principal, verdict
-├── chain-verification.json    Pre-computed @okoro/audit-verifier verdict
+├── chain-verification.json    Pre-computed @cerniq/audit-verifier verdict
 ├── SHA256SUMS                 sha256+filename, one line each
 └── README.md                  Plain-English auditor instructions
 ```
@@ -46,7 +46,7 @@ opens the tarball.
 
 - **Zero new heavyweight dependencies.** The tar writer is a 100-line POSIX
   ustar implementation in `build-bundle.ts`; gzip is `node:zlib`. The only
-  workspace dep is `@okoro/audit-verifier`, the same module external
+  workspace dep is `@cerniq/audit-verifier`, the same module external
   auditors will use to re-verify.
 - **Constant-memory NDJSON pipeline.** The export is streamed from HTTP
   → SHA256 hasher → disk in one pass; row counts and redaction counts
@@ -65,6 +65,6 @@ later adds `tools/*` to the workspace, swap the `link:` references to
 ## Testing
 
 ```sh
-pnpm --filter @okoro/audit-evidence-bundle exec vitest run
-pnpm --filter @okoro/audit-evidence-bundle exec tsc --noEmit
+pnpm --filter @cerniq/audit-evidence-bundle exec vitest run
+pnpm --filter @cerniq/audit-evidence-bundle exec tsc --noEmit
 ```

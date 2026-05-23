@@ -1,4 +1,4 @@
-// Domain types for the ACP + OKORO dual-verify flow.
+// Domain types for the ACP + CERNIQ dual-verify flow.
 //
 // We model Stripe's Agentic Commerce Protocol shape (Shared Payment
 // Tokens) without depending on the `stripe` npm package — the example
@@ -12,26 +12,26 @@ export type SharedPaymentToken = `spt_${string}`;
 /** Stripe charge identifier — what `POST /v1/charges` returns. */
 export type ChargeId = `ch_${string}`;
 
-/** OKORO auditEventId — links the merchant charge to OKORO's signed
+/** CERNIQ auditEventId — links the merchant charge to CERNIQ's signed
  *  audit chain so a regulator can independently verify either side. */
 export type AuditEventId = string;
 
 /** Inbound /api/charge body. The merchant API receives BOTH tokens
- *  per the ACP + OKORO dual-verify pattern. */
+ *  per the ACP + CERNIQ dual-verify pattern. */
 export interface ChargeRequest {
   /** Stripe Shared Payment Token from ACP authorization. */
   paymentToken: SharedPaymentToken;
-  /** OKORO-signed agent token (the JWT from `signAgentToken`). */
-  okoroToken: string;
+  /** CERNIQ-signed agent token (the JWT from `signAgentToken`). */
+  cerniqToken: string;
   /** Charge amount in the smallest currency unit (cents for USD). */
   amount: number;
   /** ISO 4217 currency code. */
   currency: string;
   /** Merchant Category Code (informational; some PSPs require it). */
   mcc?: string;
-  /** Public-facing merchant domain — used for OKORO scope check. */
+  /** Public-facing merchant domain — used for CERNIQ scope check. */
   merchantDomain: string;
-  /** Optional client-side idempotency key. OKORO jti is used when absent. */
+  /** Optional client-side idempotency key. CERNIQ jti is used when absent. */
   idempotencyKey?: string;
 }
 
@@ -40,13 +40,13 @@ export interface ChargeResponse {
   allowed: boolean;
   /** Stripe charge id when allowed. */
   chargeId?: ChargeId;
-  /** OKORO audit event id (always present — denials are audited too). */
+  /** CERNIQ audit event id (always present — denials are audited too). */
   auditEventId?: AuditEventId;
-  /** When denied, which side refused: 'okoro' or 'stripe' (or 'pre' for
+  /** When denied, which side refused: 'cerniq' or 'stripe' (or 'pre' for
    *  validation errors before either gate was called). */
-  denialSource?: 'okoro' | 'stripe' | 'pre';
-  /** Okoro denial reason from the canonical 9-reason precedence. */
-  okoroDenialReason?: string;
+  denialSource?: 'cerniq' | 'stripe' | 'pre';
+  /** Cerniq denial reason from the canonical 9-reason precedence. */
+  cerniqDenialReason?: string;
   /** Stripe-side error code (e.g. spt_expired, spt_amount_mismatch). */
   stripeError?: string;
 }
@@ -62,7 +62,7 @@ export interface SptVerdict {
   /** When valid: the currency the SPT is denominated in. */
   authorizedCurrency?: string;
   /** When valid: the user identifier the SPT was issued to. Useful for
-   *  cross-checking against OKORO's principalId for the agent. */
+   *  cross-checking against CERNIQ's principalId for the agent. */
   payerUserId?: string;
   /** When invalid: the Stripe error code. */
   errorCode?: string;

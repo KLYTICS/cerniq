@@ -1,0 +1,33 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "_comment": "CERNIQ API service descriptor. Apply via `railway up` after `railway link`. Mirrors apps/api production needs.",
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "pnpm install --frozen-lockfile && pnpm --filter @cerniq/api prisma:generate && pnpm --filter @cerniq/api build"
+  },
+  "deploy": {
+    "startCommand": "pnpm --filter @cerniq/api prisma:deploy && pnpm --filter @cerniq/api start:prod",
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 30,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3,
+    "numReplicas": 1
+  },
+  "regions": ["us-east"],
+  "_envCheckList": [
+    "CERNIQ_ENV=production",
+    "NODE_ENV=production",
+    "DATABASE_URL (from Neon, with ?pgbouncer=true&connection_limit=1 if pooled)",
+    "DATABASE_DIRECT_URL (for migrations)",
+    "REDIS_URL",
+    "JWT_ED25519_PRIVATE_KEY_B64",
+    "JWT_ED25519_PUBLIC_KEY_B64",
+    "AUDIT_SIGNING_PRIVATE_KEY_B64",
+    "AUDIT_SIGNING_PUBLIC_KEY_B64",
+    "STRIPE_SECRET_KEY (live)",
+    "STRIPE_WEBHOOK_SECRET",
+    "SENTRY_DSN",
+    "OTEL_EXPORTER_OTLP_ENDPOINT",
+    "API_KEY_BCRYPT_COST=12"
+  ]
+}

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// `okoro` — operator CLI entry point.
+// `cerniq` — operator CLI entry point.
 
 import { Command } from 'commander';
 
@@ -7,23 +7,31 @@ import { CliError } from './client.js';
 import { err } from './output.js';
 
 import {
-  bootstrap, whoami,
-  agentsCreate, agentsList, agentsGet, agentsRevoke,
-  policiesCreate, policiesList, policiesRevoke,
-  auditSearch, auditVerify,
-  kmsList, kmsRotate,
+  bootstrap,
+  whoami,
+  agentsCreate,
+  agentsList,
+  agentsGet,
+  agentsRevoke,
+  policiesCreate,
+  policiesList,
+  policiesRevoke,
+  auditSearch,
+  auditVerify,
+  kmsList,
+  kmsRotate,
   mcpInstall,
 } from './index.js';
 
 async function main(): Promise<void> {
   const program = new Command();
-  program.name('okoro').version('0.1.0').description('OKORO operator CLI');
+  program.name('cerniq').version('0.1.0').description('CERNIQ operator CLI');
 
   program
     .command('bootstrap')
-    .description('Configure OKORO credentials at ~/.okoro/credentials.json')
-    .option('--api-key <key>', 'OKORO API key')
-    .option('--base-url <url>', 'OKORO API base URL', 'https://api.okoro.dev')
+    .description('Configure CERNIQ credentials at ~/.cerniq/credentials.json')
+    .option('--api-key <key>', 'CERNIQ API key')
+    .option('--base-url <url>', 'CERNIQ API base URL', 'https://api.cerniq.dev')
     .option('--force', 'overwrite existing credentials')
     .action(bootstrap);
 
@@ -63,11 +71,7 @@ async function main(): Promise<void> {
     .option('-s, --status <status>', 'ACTIVE | REVOKED | EXPIRED')
     .option('--json')
     .action(policiesList);
-  policies
-    .command('revoke')
-    .argument('<id>')
-    .option('--reason <r>')
-    .action(policiesRevoke);
+  policies.command('revoke').argument('<id>').option('--reason <r>').action(policiesRevoke);
 
   const audit = program.command('audit').description('Audit log');
   audit
@@ -87,10 +91,7 @@ async function main(): Promise<void> {
     .action(auditVerify);
 
   const kms = program.command('kms').description('Key management');
-  kms
-    .command('list')
-    .option('-p, --purpose <p>', 'AUDIT | JWT | WEBHOOK')
-    .action(kmsList);
+  kms.command('list').option('-p, --purpose <p>', 'AUDIT | JWT | WEBHOOK').action(kmsList);
   kms
     .command('rotate')
     .argument('<purpose>', 'AUDIT | JWT | WEBHOOK')
@@ -100,9 +101,9 @@ async function main(): Promise<void> {
   const mcp = program.command('mcp').description('Manage MCP host integration');
   mcp
     .command('install')
-    .description('Add an okoro-mcp entry to your MCP host config')
+    .description('Add an cerniq-mcp entry to your MCP host config')
     .option('--host <host>', 'claude-desktop | cursor', 'claude-desktop')
-    .option('--server-name <name>', 'name to register the server under', 'okoro')
+    .option('--server-name <name>', 'name to register the server under', 'cerniq')
     .option('--force', 'overwrite an existing entry')
     .action(mcpInstall);
 

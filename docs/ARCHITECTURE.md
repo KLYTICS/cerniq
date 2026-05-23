@@ -1,4 +1,4 @@
-# OKORO — Architecture
+# CERNIQ — Architecture
 
 > Companion to `docs/spec/03_TECHNICAL_SPEC.md` (the canonical reference).
 > This document explains _why_ the design looks the way it does and where
@@ -8,7 +8,7 @@
 
 ## 1. Two surfaces, one core
 
-OKORO is two services joined at the hip:
+CERNIQ is two services joined at the hip:
 
 ```
                  ┌─────────────────────┐
@@ -72,7 +72,7 @@ verify logic that touches a request lives in **framework-free utilities**:
 ```
 apps/api/src/common/crypto/         ← pure (no @nestjs imports)
    ├── ed25519.util.ts              sign / verify / generate
-   ├── jwt.util.ts                   issue / parse OKORO-signed JWTs
+   ├── jwt.util.ts                   issue / parse CERNIQ-signed JWTs
    └── audit-chain.util.ts           prev-hash + signature
 
 apps/api/src/modules/verify/
@@ -144,10 +144,10 @@ service before returning success).
 
 ## 5. Error model
 
-All errors descend from `OkoroError` (in `apps/api/src/common/errors/`):
+All errors descend from `CerniqError` (in `apps/api/src/common/errors/`):
 
 ```
-OkoroError                                    HTTP   Code
+CerniqError                                    HTTP   Code
 ├── AuthenticationError                        401   AUTH_REQUIRED
 ├── AuthorizationError                         403   FORBIDDEN
 ├── NotFoundError                              404   NOT_FOUND
@@ -170,12 +170,12 @@ Every event:
 
 1. We canonicalize the event payload (RFC 8785 JSON Canonicalization).
 2. We compute `prev_hash = sha256(prev_event.signature || event_id)`.
-3. We sign `prev_hash || canonical_payload` with the OKORO Ed25519 key.
-4. We persist event with `okoroSignature` field.
+3. We sign `prev_hash || canonical_payload` with the CERNIQ Ed25519 key.
+4. We persist event with `cerniqSignature` field.
 
 Verification (third party):
 
-1. Fetch the OKORO public key from `/.well-known/audit-signing-key`.
+1. Fetch the CERNIQ public key from `/.well-known/audit-signing-key`.
 2. For each event in chronological order, recompute `prev_hash` and
    verify the signature.
 3. Any break = tampering or storage corruption.
@@ -187,7 +187,7 @@ Implementation: `apps/api/src/common/crypto/audit-chain.util.ts`.
 ## 7. Observability hooks
 
 - **Logs**: `nestjs-pino`, JSON in prod, `pino-pretty` in dev. Redacts
-  `x-okoro-api-key`, `x-okoro-verify-key`, `authorization` headers.
+  `x-cerniq-api-key`, `x-cerniq-verify-key`, `authorization` headers.
 - **Metrics**: Prometheus via `prom-client` (M-010). Key SLIs:
   `verify_latency_seconds{decision}`, `verify_total{denial_reason}`,
   `bate_score_delta{signal_type}`.
@@ -217,11 +217,11 @@ posture.
 
 - **Phase 1 (Railway)**: no canary. The management surface is low-QPS
   and rollback is fast enough. Daily releases with manual smoke
-  (`pnpm --filter @okoro/api smoke`) before promoting.
+  (`pnpm --filter @cerniq/api smoke`) before promoting.
 - **Phase 3 (Workers)**: traffic split via Cloudflare Worker Routes —
   5% canary for 30 min, then 100% on green metrics. Per-route SLI watch:
   `verify_latency_seconds` p99, `verify_total{denial_reason}` per-reason
-  rate, and `okoro_cache_set_failed_total` (the round-4 silent-failure
+  rate, and `cerniq_cache_set_failed_total` (the round-4 silent-failure
   detector). Page on > 0.5% delta over baseline.
 
 ### 8.3 Database migrations
@@ -252,17 +252,17 @@ verification semantics require an ADR.
 
 ## 9. Incident communication
 
-Closes audit finding **A-009**, satisfies SOC 2 CC7.4. OKORO holds
+Closes audit finding **A-009**, satisfies SOC 2 CC7.4. CERNIQ holds
 verification authority for downstream payment flows; incidents are not
 private to us.
 
-| P-tier | Time-to-customer-notify | Mechanism                                                                         |
-| ------ | ----------------------- | --------------------------------------------------------------------------------- |
-| P1     | 4 hours                 | Webhook `okoro.incident.declared` + dashboard banner + email to principal contact |
-| P2     | 24 hours                | Dashboard banner + email                                                          |
-| P3     | Next status-page post   | Status page only                                                                  |
+| P-tier | Time-to-customer-notify | Mechanism                                                                          |
+| ------ | ----------------------- | ---------------------------------------------------------------------------------- |
+| P1     | 4 hours                 | Webhook `cerniq.incident.declared` + dashboard banner + email to principal contact |
+| P2     | 24 hours                | Dashboard banner + email                                                           |
+| P3     | Next status-page post   | Status page only                                                                   |
 
-- **Status page**: `status.okoroapp.com`, sourced from
+- **Status page**: `status.cerniqapp.com`, sourced from
   `incidents.{open,history}.json` published from the management API
   (Statuspage / self-hosted decision pending — see `OPERATOR_DECISIONS.md`
   OD-007 once filed).
@@ -284,7 +284,7 @@ the architect.
 
 - **Redis miss** → fetch from Postgres, populate cache. Normal.
 - **Redis error (timeout, connection refused)** → fetch from Postgres
-  directly. Increment `okoro_cache_set_failed_total` (round-4 metric).
+  directly. Increment `cerniq_cache_set_failed_total` (round-4 metric).
   Operator alert at `> 1/sec sustained` (Redis is silently piling DB
   load).
 - **Postgres miss after Redis miss** → 404 (legitimate).
@@ -431,9 +431,9 @@ contract.
 | Cold (sealed)   | Glacier / Coldline | 7 years → forever   | Legal hold only             |
 
 - **Encryption**: archive files AES-256-GCM with per-month KEK rotated
-  via `infra/kms/rotate-okoro-keys.sh`.
+  via `infra/kms/rotate-cerniq-keys.sh`.
 - **Integrity pin**: each archived month's Merkle root is signed with
-  the OKORO audit-signing key and published to the
+  the CERNIQ audit-signing key and published to the
   `/.well-known/audit-archive-roots.json` endpoint, plus mirrored to a
   third-party notarization (e.g. OpenTimestamps) to constrain insider
   risk on operator-controlled archives.
@@ -446,7 +446,7 @@ contract.
 The conflict — _audit chain is append-only_ vs. _PII must be
 erasable_ — is resolved by **redactable signed payloads** (ADR-0006).
 
-`AuditEvent.okoroSignature` signs over a payload v2 that contains
+`AuditEvent.cerniqSignature` signs over a payload v2 that contains
 **hashed leaves** for free-text and PII columns:
 
 - `actionHash`, `relyingPartyHash`, `requestedAmountHash`,
@@ -490,9 +490,9 @@ contract, not the implementation.
 - **No password storage anywhere.**
 
 The Auth0 bridge (peer's ADR-0009, `modules/auth0/`) brokers the IdP
-trust into OKORO principals — see `FederatedIdentity` row in the
-forthcoming schema. Sessions are OKORO-managed; Auth0 issues the
-identity claim, OKORO issues the session.
+trust into CERNIQ principals — see `FederatedIdentity` row in the
+forthcoming schema. Sessions are CERNIQ-managed; Auth0 issues the
+identity claim, CERNIQ issues the session.
 
 ### 13.2 Session model
 
@@ -510,7 +510,7 @@ API-key-authenticated requests are CSRF-immune (no ambient credential).
 Cookie-authenticated dashboard requests get the full belt + braces:
 
 - Double-submit CSRF token on state-changing requests
-  (`X-OKORO-CSRF`), validated against a session-bound secret.
+  (`X-CERNIQ-CSRF`), validated against a session-bound secret.
 - `Origin` header allow-list validated against the dashboard's known
   origin set (env: `DASHBOARD_ALLOWED_ORIGINS`).
 - `SameSite=Strict` cookie blocks cross-origin cookie transmission
@@ -532,8 +532,8 @@ every worker must be safe under duplicate fire.
 | outbox drain          | `OutboxEvent.id`     | `SELECT ... FOR UPDATE SKIP LOCKED` per ADR-0007     |
 
 Customer webhook endpoints **should** dedup on `Idempotency-Key`; we
-publish the contract in `docs/spec/OKORO_API_SPEC.yaml` § "Webhooks".
-Failure of a customer to dedup does not violate OKORO guarantees.
+publish the contract in `docs/spec/CERNIQ_API_SPEC.yaml` § "Webhooks".
+Failure of a customer to dedup does not violate CERNIQ guarantees.
 
 ---
 
@@ -567,4 +567,4 @@ without context.
 | Post-quantum roadmap   | `docs/POST_QUANTUM_ROADMAP.md`                      |
 | BATE algorithm         | `docs/BATE_ALGORITHM.md`                            |
 | Decision records       | `docs/decisions/0001-0013`                          |
-| Multi-project adoption | `docs/OKORO_AS_BACKBONE.md`                         |
+| Multi-project adoption | `docs/CERNIQ_AS_BACKBONE.md`                        |

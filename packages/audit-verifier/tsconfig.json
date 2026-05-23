@@ -1,5 +1,5 @@
 {
-  "extends": "@okoro/tsconfig/base.json",
+  "extends": "@cerniq/tsconfig/base.json",
   "compilerOptions": {
     "outDir": "./dist",
     "module": "ESNext",

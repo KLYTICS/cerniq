@@ -53,7 +53,13 @@ export function RegisterAgentForm() {
 
   if (!open) {
     return (
-      <button type="button" className="okoro-button" onClick={() => { setOpen(true); }}>
+      <button
+        type="button"
+        className="cerniq-button"
+        onClick={() => {
+          setOpen(true);
+        }}
+      >
         + register agent
       </button>
     );
@@ -61,11 +67,11 @@ export function RegisterAgentForm() {
 
   if (created) {
     return (
-      <div className="okoro-panel" role="status" aria-live="polite">
-        <h2 className="okoro-panel-title">Agent registered</h2>
+      <div className="cerniq-panel" role="status" aria-live="polite">
+        <h2 className="cerniq-panel-title">Agent registered</h2>
         <p className="muted">
-          The agent's public key has been associated with this principal. The Ed25519 private
-          key remains client-side — OKORO never receives it (CLAUDE.md invariant 1).
+          The agent's public key has been associated with this principal. The Ed25519 private key
+          remains client-side — CERNIQ never receives it (CLAUDE.md invariant 1).
         </p>
         <dl className="kv">
           <dt>agent id</dt>
@@ -78,10 +84,13 @@ export function RegisterAgentForm() {
           </dd>
         </dl>
         <div className="form-actions">
-          <a className="okoro-button-ghost" href={`/agents/${encodeURIComponent(created.agentId)}`}>
+          <a
+            className="cerniq-button-ghost"
+            href={`/agents/${encodeURIComponent(created.agentId)}`}
+          >
             open detail →
           </a>
-          <button type="button" className="okoro-button" onClick={reset}>
+          <button type="button" className="cerniq-button" onClick={reset}>
             done
           </button>
         </div>
@@ -90,12 +99,12 @@ export function RegisterAgentForm() {
   }
 
   return (
-    <form className="okoro-panel" action={onSubmit}>
-      <h2 className="okoro-panel-title">Register a new agent</h2>
+    <form className="cerniq-panel" action={onSubmit}>
+      <h2 className="cerniq-panel-title">Register a new agent</h2>
       <p className="muted">
         Provide an Ed25519 public key (base64url). Generate one locally with{' '}
-        <code>okoro agents register --generate-keypair</code> or via{' '}
-        <code>generateKeypair()</code> from <code>@okoro/sdk</code>.
+        <code>cerniq agents register --generate-keypair</code> or via <code>generateKeypair()</code>{' '}
+        from <code>@cerniq/sdk</code>.
       </p>
 
       <label className="field">
@@ -130,16 +139,32 @@ export function RegisterAgentForm() {
 
       <label className="field">
         <span>label (optional)</span>
-        <input name="label" maxLength={200} placeholder="shopper for alice@example.com" autoComplete="off" />
+        <input
+          name="label"
+          maxLength={200}
+          placeholder="shopper for alice@example.com"
+          autoComplete="off"
+        />
       </label>
 
-      {error ? <p className="form-error" role="alert">{error}</p> : null}
+      {error ? (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      ) : null}
 
       <div className="form-actions">
-        <button type="button" className="okoro-button-ghost" onClick={() => { setOpen(false); }} disabled={pending}>
+        <button
+          type="button"
+          className="cerniq-button-ghost"
+          onClick={() => {
+            setOpen(false);
+          }}
+          disabled={pending}
+        >
           cancel
         </button>
-        <button type="submit" className="okoro-button" disabled={pending}>
+        <button type="submit" className="cerniq-button" disabled={pending}>
           {pending ? 'registering…' : 'register'}
         </button>
       </div>

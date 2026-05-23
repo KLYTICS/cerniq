@@ -1,6 +1,10 @@
-import { DENIAL_REASON_PRECEDENCE } from '@okoro/types';
+import { DENIAL_REASON_PRECEDENCE } from '@cerniq/types';
 
-interface ReasonCopy { http: number; meaning: string; retryable: boolean }
+interface ReasonCopy {
+  http: number;
+  meaning: string;
+  retryable: boolean;
+}
 
 const REASON_COPY: Record<string, ReasonCopy> = {
   PLAN_LIMIT_EXCEEDED: {
@@ -62,9 +66,9 @@ const REASON_COPY: Record<string, ReasonCopy> = {
 
 export function DenialPrecedence() {
   return (
-    <div className="my-6 overflow-hidden rounded-lg border border-[var(--okoro-mist)] bg-[var(--okoro-ink)]">
+    <div className="my-6 overflow-hidden rounded-lg border border-[var(--cerniq-mist)] bg-[var(--cerniq-ink)]">
       <table className="w-full text-sm">
-        <thead className="bg-[var(--okoro-steel)] text-xs uppercase tracking-wider text-[var(--okoro-fog)]">
+        <thead className="bg-[var(--cerniq-steel)] text-xs uppercase tracking-wider text-[var(--cerniq-fog)]">
           <tr>
             <th className="px-4 py-3 text-left">#</th>
             <th className="px-4 py-3 text-left">Reason</th>
@@ -77,16 +81,18 @@ export function DenialPrecedence() {
           {DENIAL_REASON_PRECEDENCE.map((reason, idx) => {
             const meta = REASON_COPY[reason];
             return (
-              <tr key={reason} className="border-t border-[var(--okoro-mist)]">
-                <td className="px-4 py-3 font-mono text-[var(--okoro-shadow)]">{idx + 1}</td>
-                <td className="px-4 py-3 font-mono text-[var(--okoro-cyan)]">{reason}</td>
+              <tr key={reason} className="border-t border-[var(--cerniq-mist)]">
+                <td className="px-4 py-3 font-mono text-[var(--cerniq-shadow)]">{idx + 1}</td>
+                <td className="px-4 py-3 font-mono text-[var(--cerniq-cyan)]">{reason}</td>
                 <td className="px-4 py-3 font-mono">{meta?.http ?? '—'}</td>
-                <td className="px-4 py-3 text-[var(--okoro-fog)]">{meta?.meaning ?? 'See SECURITY.md'}</td>
+                <td className="px-4 py-3 text-[var(--cerniq-fog)]">
+                  {meta?.meaning ?? 'See SECURITY.md'}
+                </td>
                 <td className="px-4 py-3">
                   {meta?.retryable ? (
-                    <span className="text-[var(--okoro-pending)]">backoff</span>
+                    <span className="text-[var(--cerniq-pending)]">backoff</span>
                   ) : (
-                    <span className="text-[var(--okoro-denied)]">no</span>
+                    <span className="text-[var(--cerniq-denied)]">no</span>
                   )}
                 </td>
               </tr>
@@ -94,8 +100,11 @@ export function DenialPrecedence() {
           })}
         </tbody>
       </table>
-      <div className="border-t border-[var(--okoro-mist)] bg-[var(--okoro-graphite)] px-4 py-2 text-xs text-[var(--okoro-shadow)]">
-        Live source: <code className="font-mono">packages/types/src/constants.ts → DENIAL_REASON_PRECEDENCE</code>
+      <div className="border-t border-[var(--cerniq-mist)] bg-[var(--cerniq-graphite)] px-4 py-2 text-xs text-[var(--cerniq-shadow)]">
+        Live source:{' '}
+        <code className="font-mono">
+          packages/types/src/constants.ts → DENIAL_REASON_PRECEDENCE
+        </code>
       </div>
     </div>
   );

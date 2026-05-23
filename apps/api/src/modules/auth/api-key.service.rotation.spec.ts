@@ -1,6 +1,10 @@
 import * as bcrypt from 'bcryptjs';
 
-import { AlreadyRotatedError, AuthorizationError, NotFoundError } from '../../common/errors/okoro-error';
+import {
+  AlreadyRotatedError,
+  AuthorizationError,
+  NotFoundError,
+} from '../../common/errors/cerniq-error';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { AppConfigService } from '../../config/config.service';
 import type { AuditService } from '../audit/audit.service';
@@ -41,28 +45,36 @@ function buildHarness(opts: { failTransaction?: boolean } = {}) {
       return row ?? null;
     }),
     findMany: jest.fn(async () => Array.from(rows.values())),
-    create: jest.fn(async ({ data }: { data: Omit<ApiKeyRow, 'id' | 'revokedAt' | 'lastUsedAt' | 'expiresAt'> }) => {
-      const id = `ak_${++createCounter}`;
-      const row: ApiKeyRow = {
-        id,
-        keyHash: data.keyHash,
-        keyPrefix: data.keyPrefix,
-        principalId: data.principalId,
-        scope: data.scope,
-        label: data.label ?? null,
-        revokedAt: null,
-        lastUsedAt: null,
-        expiresAt: null,
-      };
-      rows.set(id, row);
-      return row;
-    }),
-    update: jest.fn(async ({ where, data }: { where: { id: string }; data: Partial<ApiKeyRow> }) => {
-      const row = rows.get(where.id);
-      if (!row) throw new Error('not found');
-      Object.assign(row, data);
-      return row;
-    }),
+    create: jest.fn(
+      async ({
+        data,
+      }: {
+        data: Omit<ApiKeyRow, 'id' | 'revokedAt' | 'lastUsedAt' | 'expiresAt'>;
+      }) => {
+        const id = `ak_${++createCounter}`;
+        const row: ApiKeyRow = {
+          id,
+          keyHash: data.keyHash,
+          keyPrefix: data.keyPrefix,
+          principalId: data.principalId,
+          scope: data.scope,
+          label: data.label ?? null,
+          revokedAt: null,
+          lastUsedAt: null,
+          expiresAt: null,
+        };
+        rows.set(id, row);
+        return row;
+      },
+    ),
+    update: jest.fn(
+      async ({ where, data }: { where: { id: string }; data: Partial<ApiKeyRow> }) => {
+        const row = rows.get(where.id);
+        if (!row) throw new Error('not found');
+        Object.assign(row, data);
+        return row;
+      },
+    ),
   };
 
   const txClient = { apiKey: apiKeyOps };
@@ -99,7 +111,7 @@ async function seedKey(
   rows: Map<string, ApiKeyRow>,
   overrides: Partial<ApiKeyRow> = {},
 ): Promise<ApiKeyRow> {
-  const plaintext = `okoro_sk_${'a'.repeat(26)}`;
+  const plaintext = `cerniq_sk_${'a'.repeat(26)}`;
   const hash = await bcrypt.hash(plaintext, 4);
   const id = overrides.id ?? `ak_seed_${rows.size + 1}`;
   const row: ApiKeyRow = {
@@ -126,8 +138,8 @@ describe('ApiKeyService.rotate — happy path', () => {
 
     const result = await svc.rotate(old.id, 'p_alice');
 
-    expect(result.newKey.plaintext).toMatch(/^okoro_sk_[A-Za-z0-9]+$/);
-    expect(result.newKey.plaintext).toHaveLength('okoro_sk_'.length + 26);
+    expect(result.newKey.plaintext).toMatch(/^cerniq_sk_[A-Za-z0-9]+$/);
+    expect(result.newKey.plaintext).toHaveLength('cerniq_sk_'.length + 26);
     expect(result.newKey.id).not.toBe(old.id);
     expect(result.newKey.expiresAt).toBeNull();
 
@@ -162,11 +174,11 @@ describe('ApiKeyService.rotate — happy path', () => {
 
   it('inherits scope from the calling key (VERIFY_ONLY stays VERIFY_ONLY)', async () => {
     const { svc, rows } = buildHarness();
-    const old = await seedKey(rows, { scope: 'VERIFY_ONLY', keyPrefix: 'okoro_vk_aa' });
+    const old = await seedKey(rows, { scope: 'VERIFY_ONLY', keyPrefix: 'cerniq_vk_aa' });
 
     const result = await svc.rotate(old.id, 'p_alice');
 
-    expect(result.newKey.plaintext.startsWith('okoro_vk_')).toBe(true);
+    expect(result.newKey.plaintext.startsWith('cerniq_vk_')).toBe(true);
     const newRow = rows.get(result.newKey.id)!;
     expect(newRow.scope).toBe('VERIFY_ONLY');
   });
@@ -243,7 +255,7 @@ describe('ApiKeyService.rotate — audit emission', () => {
 
     const result = await svc.rotate(old.id, 'p_alice');
 
-    expect((audit.append as jest.Mock)).toHaveBeenCalledTimes(1);
+    expect(audit.append as jest.Mock).toHaveBeenCalledTimes(1);
     const appendArgs = (audit.append as jest.Mock).mock.calls[0]![0] as Record<string, unknown>;
 
     expect(appendArgs.action).toBe('api_key.rotated');
@@ -260,8 +272,8 @@ describe('ApiKeyService.rotate — audit emission', () => {
     const serialised = JSON.stringify(appendArgs);
     expect(serialised).not.toContain(result.newKey.plaintext);
     expect(serialised.toLowerCase()).not.toContain('plaintext');
-    expect(serialised).not.toContain('okoro_sk_');
-    expect(serialised).not.toContain('okoro_vk_');
+    expect(serialised).not.toContain('cerniq_sk_');
+    expect(serialised).not.toContain('cerniq_vk_');
   });
 
   it('audit append failure surfaces — does not silently swallow', async () => {

@@ -1,7 +1,7 @@
 // Audit chain integrity — CLAUDE.md invariant #3.
 //
 // 1. After N=20 verify cycles the chain extends correctly: every row has a
-//    non-empty signature, every signature verifies under the OKORO audit
+//    non-empty signature, every signature verifies under the CERNIQ audit
 //    public key.
 // 2. Tampering an event payload after-the-fact (we update the `action`
 //    field directly via Prisma — bypassing the no-UPDATE convention to
@@ -69,13 +69,17 @@ describe('e2e: audit chain integrity', () => {
     });
     const res = await http
       .post('/v1/verify')
-      .set('X-OKORO-Verify-Key', verifyKey.apiKey)
+      .set('X-CERNIQ-Verify-Key', verifyKey.apiKey)
       .send({ token, action: 'commerce.purchase', amount, currency: 'USD' });
     expect(res.status).toBe(201);
     expect(res.body.valid).toBe(true);
   }
 
-  async function waitForAuditCount(agentId: string, want: number, timeoutMs = 10_000): Promise<number> {
+  async function waitForAuditCount(
+    agentId: string,
+    want: number,
+    timeoutMs = 10_000,
+  ): Promise<number> {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       const c = await handle.prisma.auditEvent.count({ where: { agentId } });
@@ -94,7 +98,7 @@ describe('e2e: audit chain integrity', () => {
     const config = app.get(AppConfigService);
     principal = await seedPrincipalAndApiKey(handle.prisma, config);
     verifyKey = await seedPrincipalAndApiKey(handle.prisma, config, {
-      email: `vk-chain-${Date.now()}@okoro.test`,
+      email: `vk-chain-${Date.now()}@cerniq.test`,
       scope: 'VERIFY_ONLY',
     });
     chain = new AuditChainUtil();
@@ -123,16 +127,16 @@ describe('e2e: audit chain integrity', () => {
     let prevId: string | null = null;
     let prevSig: string | null = null;
     for (const e of events) {
-      expect(e.okoroSignature.length).toBeGreaterThan(40);
+      expect(e.cerniqSignature.length).toBeGreaterThan(40);
       const payload = toPayload(e);
       const ok = await chain.verify(
         { eventId: e.id, prevEventId: prevId, prevSignatureB64Url: prevSig, payload },
-        e.okoroSignature,
+        e.cerniqSignature,
         publicKeyB64,
       );
       expect(ok).toBe(true);
       prevId = e.id;
-      prevSig = e.okoroSignature;
+      prevSig = e.cerniqSignature;
     }
   }, 30_000);
 
@@ -170,12 +174,12 @@ describe('e2e: audit chain integrity', () => {
       const payload = toPayload(e);
       const ok = await chain.verify(
         { eventId: e.id, prevEventId: prevId, prevSignatureB64Url: prevSig, payload },
-        e.okoroSignature,
+        e.cerniqSignature,
         publicKeyB64,
       );
       if (!ok && firstBrokenAt === null) firstBrokenAt = e.id;
       prevId = e.id;
-      prevSig = e.okoroSignature;
+      prevSig = e.cerniqSignature;
     }
     expect(firstBrokenAt).toBe(target.id);
   });
@@ -211,12 +215,12 @@ describe('e2e: audit chain integrity', () => {
         const payload = toPayload(e);
         const ok = await chain.verify(
           { eventId: e.id, prevEventId: prevId, prevSignatureB64Url: prevSig, payload },
-          e.okoroSignature,
+          e.cerniqSignature,
           publicKeyB64,
         );
         if (!ok) return false;
         prevId = e.id;
-        prevSig = e.okoroSignature;
+        prevSig = e.cerniqSignature;
       }
       return true;
     };
@@ -233,10 +237,10 @@ describe('e2e: audit chain integrity', () => {
       {
         eventId: bFirst.id,
         prevEventId: aLast.id,
-        prevSignatureB64Url: aLast.okoroSignature,
+        prevSignatureB64Url: aLast.cerniqSignature,
         payload: toPayload(bFirst),
       },
-      bFirst.okoroSignature,
+      bFirst.cerniqSignature,
       publicKeyB64,
     );
     expect(crossOk).toBe(false);

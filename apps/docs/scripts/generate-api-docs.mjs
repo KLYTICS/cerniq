@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Generates MDX files under content/docs/api/(generated)/ from the canonical
-// OpenAPI spec at docs/spec/OKORO_API_SPEC.yaml.
+// OpenAPI spec at docs/spec/CERNIQ_API_SPEC.yaml.
 //
 // NOTE — currently disabled pending Round 27 follow-up wiring:
 //   fumadocs-openapi v5 emits MDX that uses `<APIPage document="..." />`

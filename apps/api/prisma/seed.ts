@@ -5,7 +5,7 @@
 // the plaintext keys ONCE (since storage is bcrypt-hashed) — copy them into
 // your `.env` before running e2e tests.
 //
-// Run: pnpm --filter @okoro/api db:seed
+// Run: pnpm --filter @cerniq/api db:seed
 
 import { randomBytes, generateKeyPairSync } from 'node:crypto';
 
@@ -15,18 +15,18 @@ import { ulid } from 'ulid';
 
 const prisma = new PrismaClient();
 
-const SEED_PRINCIPAL_EMAIL = 'dev@okoroapp.com';
+const SEED_PRINCIPAL_EMAIL = 'dev@cerniqapp.com';
 const BCRYPT_COST = 4; // dev-only: keep fast.
 
 async function main(): Promise<void> {
-  console.warn('OKORO — seeding local dev data');
+  console.warn('CERNIQ — seeding local dev data');
 
   const principal = await prisma.principal.upsert({
     where: { email: SEED_PRINCIPAL_EMAIL },
     update: {},
     create: {
       email: SEED_PRINCIPAL_EMAIL,
-      name: 'OKORO local dev',
+      name: 'CERNIQ local dev',
       planTier: 'DEVELOPER',
       emailVerified: true,
     },
@@ -34,8 +34,8 @@ async function main(): Promise<void> {
   console.warn(`  principal: ${principal.id} (${principal.email})`);
 
   // ── API keys (plaintext printed once; only the bcrypt hash persists)
-  const fullKeyPlain = `okoro_sk_${b58(randomBytes(21))}`;
-  const verifyKeyPlain = `okoro_vk_${b58(randomBytes(21))}`;
+  const fullKeyPlain = `cerniq_sk_${b58(randomBytes(21))}`;
+  const verifyKeyPlain = `cerniq_vk_${b58(randomBytes(21))}`;
 
   await prisma.apiKey.upsert({
     where: { keyHash: await bcrypt.hash('seed-marker-full', 4) },
@@ -113,7 +113,7 @@ async function main(): Promise<void> {
     create: {
       name: 'Delta Air Lines (seed)',
       domain: 'delta.com',
-      apiKeyHash: await bcrypt.hash(`okoro_vk_seed_${b58(randomBytes(8))}`, BCRYPT_COST),
+      apiKeyHash: await bcrypt.hash(`cerniq_vk_seed_${b58(randomBytes(8))}`, BCRYPT_COST),
       reportWeight: 1.0,
       verified: true,
       verifiedAt: new Date(),

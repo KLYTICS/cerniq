@@ -1,8 +1,8 @@
 {
-  "name": "@okoro/preflight",
+  "name": "@cerniq/preflight",
   "version": "0.1.0",
   "private": true,
-  "description": "OKORO ship-readiness orchestrator — single go/no-go gate before deploy",
+  "description": "CERNIQ ship-readiness orchestrator — single go/no-go gate before deploy",
   "type": "module",
   "bin": {
     "preflight": "./preflight.ts"

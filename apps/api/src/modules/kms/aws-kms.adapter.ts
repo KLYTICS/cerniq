@@ -2,14 +2,14 @@
 //
 // Why envelope encryption rather than native KMS sign? As of 2026-Q2,
 // AWS KMS does not yet GA EdDSA signing — the SigningAlgorithm enum
-// supports RSASSA, ECDSA, and SM2DSA only. OKORO is Ed25519-only per
+// supports RSASSA, ECDSA, and SM2DSA only. CERNIQ is Ed25519-only per
 // ADR-0002.
 //
 // Pattern (NIST SP 800-57 §6.2.2):
 //   1. Operator generates an Ed25519 keypair offline.
 //   2. KMS Encrypt(plaintext = ed25519 private key, KeyId = master DEK).
 //   3. Ciphertext stored at rest (S3, Secrets Manager, env, etc.).
-//   4. At OKORO startup, KMS Decrypt unwraps the private key into
+//   4. At CERNIQ startup, KMS Decrypt unwraps the private key into
 //      process memory. Memory is zeroed on shutdown.
 //   5. Sign happens locally with `@noble/ed25519` — fast (50µs vs 5-15ms
 //      for round-trip KMS Sign).
@@ -33,10 +33,7 @@ import type {
   KmsAdapter,
   KmsKeyPurpose,
 } from '../../common/crypto/crypto.bootstrap.js';
-import {
-  encodeBase64Url,
-  decodeBase64Url,
-} from '../../common/crypto/ed25519.util.js';
+import { encodeBase64Url, decodeBase64Url } from '../../common/crypto/ed25519.util.js';
 
 import { withKmsSpan } from './kms.spans';
 
@@ -46,7 +43,7 @@ export interface AwsKmsAdapterConfig {
   /**
    * Map of purpose → wrapped-key descriptor. The wrapped ciphertext is
    * KMS-encrypted Ed25519 private key (32 bytes plaintext) base64url'd
-   * for env transport. The kid is what OKORO stamps on signed records.
+   * for env transport. The kid is what CERNIQ stamps on signed records.
    */
   keys: Partial<Record<KmsKeyPurpose, AwsWrappedKey>>;
 }
@@ -113,7 +110,9 @@ export class AwsKmsAdapter implements KmsAdapter {
       }
     }
     this.initialized = true;
-    this.logger.log(`AwsKmsAdapter unwrapped ${this.unwrapped.size} key(s) across ${this.active.size} purpose(s)`);
+    this.logger.log(
+      `AwsKmsAdapter unwrapped ${this.unwrapped.size} key(s) across ${this.active.size} purpose(s)`,
+    );
   }
 
   async getActiveKey(purpose: KmsKeyPurpose): Promise<ActiveSigner> {
@@ -136,11 +135,17 @@ export class AwsKmsAdapter implements KmsAdapter {
     };
   }
 
-  async getKeyByKid(kid: string): Promise<{ kid: string; publicKey: string; algorithm: KeyMetadata['algorithm'] } | null> {
+  async getKeyByKid(
+    kid: string,
+  ): Promise<{ kid: string; publicKey: string; algorithm: KeyMetadata['algorithm'] } | null> {
     if (!this.initialized) await this.init();
     const e = this.unwrapped.get(kid);
     if (!e) return null;
-    return { kid: e.metadata.kid, publicKey: e.metadata.publicKey, algorithm: e.metadata.algorithm };
+    return {
+      kid: e.metadata.kid,
+      publicKey: e.metadata.publicKey,
+      algorithm: e.metadata.algorithm,
+    };
   }
 
   async listKeys(purpose: KmsKeyPurpose): Promise<KeyMetadata[]> {

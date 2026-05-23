@@ -6,28 +6,28 @@
   triggering a build.
 -->
 
-## OKORO preflight — ✅ **READY TO SHIP**
+## CERNIQ preflight — ✅ **READY TO SHIP**
 
 **Result**: 8 pass · 5 warn · 0 fail · 1 skip · exit 1
 **Run**: `feature/something` @ `a1b2c3d`
 
-| Status | ID | Check | Details |
-|---|---|---|---|
-| ✅ | `stack-signature` | stack signature | 142 ts · 69 specs · 18 modules · 14 models · 22 errors |
-| ✅ | `peer-claims` | active peer claims | 4 active (bc67a785, bba1b6c1, c4f241c5, cb622ccf) |
-| ✅ | `tsc-api` | tsc @okoro/api | 0 errors |
-| ⚠️ | `lint-api` | lint @okoro/api | eslint config can't load 'eslint-plugin-security' (env issue, not lint) |
-| ✅ | `migration-immutability` | migration immutability | 4 migrations clean |
-| ✅ | `error-catalog-audit` | error catalog audit | all throws cataloged |
-| ✅ | `cross-package-parity` | cross-package parity tests | 4 files passed |
-| ⚠️ | `env-vars` | env vars | 0/12 set (12 missing — flagged for prod) |
-| ⚠️ | `operator-decisions` | operator decisions | 14 OPEN (OD-003 DECIDED — critical path clear) |
-| ⏭️ | `optional-kms-provider` | optional KMS provider | KMS_PROVIDER unset |
-| ⚠️ | `perf-baseline-freshness` | perf baseline | targets only — no real measurements yet |
-| ⚠️ | `architecture-drift` | architecture drift | audit-retention uses setInterval — Terminal H owes @nestjs/schedule swap |
-| ✅ | `alert-runbook-parity` | alert ↔ runbook parity | 32 runbook refs · all resolve |
-| ✅ | `webhook-cipher-wired` | webhook secret-at-rest | AES-256-GCM cipher wired (round 13) |
-| ✅ | `adr-0014-cascade` | ADR-0014 cascade | 11 reasons (includes TRIAL_EXHAUSTED — ADR-0014 cascade applied) |
+| Status | ID                        | Check                      | Details                                                                  |
+| ------ | ------------------------- | -------------------------- | ------------------------------------------------------------------------ |
+| ✅     | `stack-signature`         | stack signature            | 142 ts · 69 specs · 18 modules · 14 models · 22 errors                   |
+| ✅     | `peer-claims`             | active peer claims         | 4 active (bc67a785, bba1b6c1, c4f241c5, cb622ccf)                        |
+| ✅     | `tsc-api`                 | tsc @cerniq/api            | 0 errors                                                                 |
+| ⚠️     | `lint-api`                | lint @cerniq/api           | eslint config can't load 'eslint-plugin-security' (env issue, not lint)  |
+| ✅     | `migration-immutability`  | migration immutability     | 4 migrations clean                                                       |
+| ✅     | `error-catalog-audit`     | error catalog audit        | all throws cataloged                                                     |
+| ✅     | `cross-package-parity`    | cross-package parity tests | 4 files passed                                                           |
+| ⚠️     | `env-vars`                | env vars                   | 0/12 set (12 missing — flagged for prod)                                 |
+| ⚠️     | `operator-decisions`      | operator decisions         | 14 OPEN (OD-003 DECIDED — critical path clear)                           |
+| ⏭️     | `optional-kms-provider`   | optional KMS provider      | KMS_PROVIDER unset                                                       |
+| ⚠️     | `perf-baseline-freshness` | perf baseline              | targets only — no real measurements yet                                  |
+| ⚠️     | `architecture-drift`      | architecture drift         | audit-retention uses setInterval — Terminal H owes @nestjs/schedule swap |
+| ✅     | `alert-runbook-parity`    | alert ↔ runbook parity     | 32 runbook refs · all resolve                                            |
+| ✅     | `webhook-cipher-wired`    | webhook secret-at-rest     | AES-256-GCM cipher wired (round 13)                                      |
+| ✅     | `adr-0014-cascade`        | ADR-0014 cascade           | 11 reasons (includes TRIAL_EXHAUSTED — ADR-0014 cascade applied)         |
 
 ### Remediation
 

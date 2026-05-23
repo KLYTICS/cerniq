@@ -1,15 +1,15 @@
-// MCP server that wraps a downstream API behind an OKORO verify gate.
+// MCP server that wraps a downstream API behind an CERNIQ verify gate.
 //
 // The MCP tool `your_svc.action` accepts standard tool args plus an
-// `okoro_token` field. On every invocation:
-//   1. Extract okoro_token from tool args.
-//   2. okoro.verify(token, action_kind, payload).
+// `cerniq_token` field. On every invocation:
+//   1. Extract cerniq_token from tool args.
+//   2. cerniq.verify(token, action_kind, payload).
 //   3. On allow: forward to the downstream API.
 //   4. On deny: return MCP tool error with the denialReason.
 //
-// This pairs with peer's @okoro/mcp-server (packages/mcp-server/),
-// which exposes OKORO itself as a set of MCP tools — symmetric: an
-// agent that uses OKORO through MCP gets verified through OKORO via MCP.
+// This pairs with peer's @cerniq/mcp-server (packages/mcp-server/),
+// which exposes CERNIQ itself as a set of MCP tools — symmetric: an
+// agent that uses CERNIQ through MCP gets verified through CERNIQ via MCP.
 //
 // Read examples/ai-platform-tool-call/README.md for the production
 // checklist (tool-scope mapping, token binding, audit cross-link).
@@ -17,18 +17,18 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { Okoro } from '@okoro/sdk';
+import { Cerniq } from '@cerniq/sdk';
 import { randomUUID } from 'node:crypto';
 
-const okoro = new Okoro({
-  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okoroapp.com',
-  verifyKey: requireEnv('OKORO_VERIFY_KEY'),
+const cerniq = new Cerniq({
+  baseUrl: process.env.CERNIQ_API_BASE ?? 'https://api.cerniqapp.com',
+  verifyKey: requireEnv('CERNIQ_VERIFY_KEY'),
 });
 
 const downstream = requireEnv('DOWNSTREAM_API_BASE');
 
 const server = new Server(
-  { name: 'okoro-gated-toolset', version: '0.1.0' },
+  { name: 'cerniq-gated-toolset', version: '0.1.0' },
   { capabilities: { tools: {} } },
 );
 
@@ -38,14 +38,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
       name: 'read_invoice',
-      description: 'Read one invoice from the downstream API. Requires an OKORO token in args.',
+      description: 'Read one invoice from the downstream API. Requires an CERNIQ token in args.',
       inputSchema: {
         type: 'object',
         properties: {
           invoice_id: { type: 'string' },
-          okoro_token: { type: 'string', description: 'JWT signed by the agent' },
+          cerniq_token: { type: 'string', description: 'JWT signed by the agent' },
         },
-        required: ['invoice_id', 'okoro_token'],
+        required: ['invoice_id', 'cerniq_token'],
       },
     },
   ],
@@ -54,12 +54,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 server.setRequestHandler(CallToolRequestSchema, async (req) => {
   const { name, arguments: rawArgs } = req.params;
   const args = (rawArgs ?? {}) as Record<string, unknown>;
-  const token = String(args.okoro_token ?? '');
+  const token = String(args.cerniq_token ?? '');
   if (!token) {
-    return toolError('missing okoro_token in tool arguments');
+    return toolError('missing cerniq_token in tool arguments');
   }
 
-  const verdict = await okoro.verify({
+  const verdict = await cerniq.verify({
     token,
     action: { kind: `tool.${name}`, payload: args },
     requestedAmount: '0',
@@ -69,17 +69,17 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   });
 
   if (!verdict.valid) {
-    return toolError(`denied: ${verdict.denialReason}. OKORO audit event ${verdict.auditEventId}`);
+    return toolError(`denied: ${verdict.denialReason}. CERNIQ audit event ${verdict.auditEventId}`);
   }
 
-  // Forward to the downstream API. Cross-link the OKORO audit id so
-  // the downstream's request log can be joined back to the OKORO chain.
+  // Forward to the downstream API. Cross-link the CERNIQ audit id so
+  // the downstream's request log can be joined back to the CERNIQ chain.
   const resp = await fetch(
     `${downstream}/invoices/${encodeURIComponent(String(args.invoice_id))}`,
     {
       headers: {
-        'X-OKORO-Audit-Event-Id': verdict.auditEventId,
-        'X-OKORO-Agent-Id': verdict.agentId,
+        'X-CERNIQ-Audit-Event-Id': verdict.auditEventId,
+        'X-CERNIQ-Agent-Id': verdict.agentId,
       },
     },
   );
@@ -96,7 +96,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
-process.stderr.write('okoro-gated MCP server ready on stdio\n');
+process.stderr.write('cerniq-gated MCP server ready on stdio\n');
 
 // helpers ---------------------------------------------------------
 

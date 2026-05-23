@@ -1,6 +1,6 @@
-# OKORO — Incident Response Runbook
+# CERNIQ — Incident Response Runbook
 
-> **Audience:** on-call engineers and SREs operating an OKORO deployment.
+> **Audience:** on-call engineers and SREs operating an CERNIQ deployment.
 > **Sister doc:** [`RUNBOOK.md`](./RUNBOOK.md) covers local development
 > and routine operations. THIS doc covers what happens when the alarm
 > goes off.
@@ -38,13 +38,13 @@ same shape:
 ### Detection
 
 - `audit-chain-integrity.yml` GitHub Action fails (nightly cron).
-- `okoro_audit_chain_break_total` Prometheus counter > 0.
-- Slack `#okoro-alerts` posts "OKORO audit chain break detected at row N".
+- `cerniq_audit_chain_break_total` Prometheus counter > 0.
+- Slack `#cerniq-alerts` posts "CERNIQ audit chain break detected at row N".
 - Customer / regulator opens a ticket: "Your audit verifier rejects row N".
 
 ### Severity
 
-**SEV-1.** A chain break is the security claim OKORO exists to make.
+**SEV-1.** A chain break is the security claim CERNIQ exists to make.
 Page the on-call engineer AND the security lead immediately. Do
 **not** reset, mutate, or "fix" any audit row before the security
 lead is on the bridge — the broken row is forensic evidence.
@@ -53,8 +53,8 @@ lead is on the bridge — the broken row is forensic evidence.
 
 ```sh
 # Reproduce the break independently with the public verifier.
-npx @okoro/audit-verifier verify ./export.ndjson \
-  --jwks https://api.okoroapp.com/.well-known/audit-signing-key \
+npx @cerniq/audit-verifier verify ./export.ndjson \
+  --jwks https://api.cerniqapp.com/.well-known/audit-signing-key \
   --no-fail-fast --json > triage.json
 
 # Find the first break.
@@ -73,7 +73,7 @@ Read the `reason` field:
 
 **Tampering / forged insert (SEV-1 security event):**
 
-1. Freeze writes to `AuditEvent` table — set `okoro-api` deployment
+1. Freeze writes to `AuditEvent` table — set `cerniq-api` deployment
    replicas to 0 OR put the API into read-only mode via env flag.
 2. Snapshot the database. Preserve the broken row exactly as-is.
 3. Page security lead. Begin incident-response per
@@ -81,7 +81,7 @@ Read the `reason` field:
 
 **Canonicalization drift (regression bug):**
 
-1. Confirm via `pnpm -F @okoro/types spec-sync` that the canonicalize
+1. Confirm via `pnpm -F @cerniq/types spec-sync` that the canonicalize
    algorithm has not changed.
 2. Compare the broken row's payload bytes vs. the signature bytes —
    the bug is almost always a new field added to `AuditChainPayload`
@@ -94,7 +94,7 @@ Read the `reason` field:
 
 1. Verify `/.well-known/audit-signing-key` lists the kid the broken row references.
 2. If not — the previous KMS rotation didn't publish the new kid.
-   Run `pnpm -F @okoro/api exec tsx scripts/publish-jwks.ts` (or the
+   Run `pnpm -F @cerniq/api exec tsx scripts/publish-jwks.ts` (or the
    equivalent in your KMS adapter).
 3. Re-run the verifier to confirm intactness.
 
@@ -109,7 +109,7 @@ Read the `reason` field:
 
 ## 2. KMS rotation
 
-KMS rotation rotates the OKORO audit signing key (and, in the future,
+KMS rotation rotates the CERNIQ audit signing key (and, in the future,
 JWT signing keys). Rotations are scheduled, not reactive — they
 follow the cadence in `docs/RETENTION_POLICY.md` § Key lifecycle.
 
@@ -130,11 +130,11 @@ driven rotations (jump to § 3).
 
 ```sh
 # 1. Confirm the new key is provisioned in the KMS provider.
-aws kms list-keys --query 'Keys[?contains(KeyId, `okoro-audit`)]'
+aws kms list-keys --query 'Keys[?contains(KeyId, `cerniq-audit`)]'
 # (or the GCP / Vault equivalent)
 
 # 2. Confirm the old key is still listed in JWKS.
-curl -s https://api.okoroapp.com/.well-known/audit-signing-key | jq '.keys[].kid'
+curl -s https://api.cerniqapp.com/.well-known/audit-signing-key | jq '.keys[].kid'
 ```
 
 ### Remediation (the rotation)
@@ -144,15 +144,15 @@ appear in JWKS so in-flight rows remain verifiable.
 
 ```sh
 # 1. Provision the new key in the KMS adapter's expected ARN/path.
-#    Set OKORO_AWS_KMS_AUDIT_KID_NEW=<new-kid> in env.
+#    Set CERNIQ_AWS_KMS_AUDIT_KID_NEW=<new-kid> in env.
 
 # 2. Restart the API. The AuditSignerService picks up the new active
 #    kid; new rows are signed with the new key.
-kubectl rollout restart deployment/okoro-api
+kubectl rollout restart deployment/cerniq-api
 
 # 3. Confirm the JWKS lists BOTH old + new kids for the rotation
 #    window.
-curl -s https://api.okoroapp.com/.well-known/audit-signing-key | jq '.keys'
+curl -s https://api.cerniqapp.com/.well-known/audit-signing-key | jq '.keys'
 
 # 4. After 24h, confirm no in-flight rows still reference the old kid.
 psql -c "SELECT signingKeyId, count(*) FROM \"AuditEvent\"
@@ -184,7 +184,7 @@ procedure is the customer-facing capability that justifies the
 
 - Customer report ("our service was breached").
 - Anomaly fan-out: > N% of a principal's agents flagged in one window.
-- BATE engine emits `okoro.principal.compromised` (M-055 anomaly R-6
+- BATE engine emits `cerniq.principal.compromised` (M-055 anomaly R-6
   if/when shipped).
 
 ### Severity
@@ -199,25 +199,25 @@ authority for the attacker. Run the procedure first, validate after.
 PRINCIPAL_ID=pri_xxx
 
 # 2. Snapshot the current agent list for forensics BEFORE revoking.
-okoro agents list --principal "$PRINCIPAL_ID" --json > snapshot-$(date +%s).json
+cerniq agents list --principal "$PRINCIPAL_ID" --json > snapshot-$(date +%s).json
 ```
 
 ### Remediation
 
 ```sh
-# Bulk revoke via admin endpoint (gated by OKORO_ADMIN_TOKEN).
-curl -X POST https://api.okoroapp.com/v1/admin/principals/$PRINCIPAL_ID/revoke-all \
-     -H "X-OKORO-Admin: $OKORO_ADMIN_TOKEN" \
+# Bulk revoke via admin endpoint (gated by CERNIQ_ADMIN_TOKEN).
+curl -X POST https://api.cerniqapp.com/v1/admin/principals/$PRINCIPAL_ID/revoke-all \
+     -H "X-CERNIQ-Admin: $CERNIQ_ADMIN_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{"reason":"compromise_response","ticketId":"INC-2026-0501"}'
 
 # Confirm zero active agents remain.
-okoro agents list --principal "$PRINCIPAL_ID" --status active --json | jq '.agents | length'
+cerniq agents list --principal "$PRINCIPAL_ID" --status active --json | jq '.agents | length'
 # expected: 0
 
 # Fan webhooks have already fired by this point. Confirm subscribers
-# received `okoro.agent.revoked` events for every revoked agent.
-okoro events tail --principal "$PRINCIPAL_ID" --type okoro.agent.revoked --since 5m
+# received `cerniq.agent.revoked` events for every revoked agent.
+cerniq events tail --principal "$PRINCIPAL_ID" --type cerniq.agent.revoked --since 5m
 ```
 
 ### Post-incident
@@ -234,13 +234,13 @@ okoro events tail --principal "$PRINCIPAL_ID" --type okoro.agent.revoked --since
 
 ## 4. JWKS endpoint outage
 
-Relying parties using `@okoro/verifier-rp` cache the JWKS with stale-
+Relying parties using `@cerniq/verifier-rp` cache the JWKS with stale-
 while-revalidate, so a brief outage is invisible. A multi-hour
 outage breaks new RP cold-starts.
 
 ### Detection
 
-- `okoro_wellknown_uptime` < 99.9% over the rolling 5min window.
+- `cerniq_wellknown_uptime` < 99.9% over the rolling 5min window.
 - Customer reports: "verifier-rp can't fetch JWKS".
 
 ### Severity
@@ -251,27 +251,27 @@ outage breaks new RP cold-starts.
 
 ```sh
 # Verify the endpoint serves correctly from your edge.
-curl -fsSI https://api.okoroapp.com/.well-known/audit-signing-key
+curl -fsSI https://api.cerniqapp.com/.well-known/audit-signing-key
 # Expected: 200, Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 
 # Verify it's not an upstream Railway / Cloudflare issue.
-curl -fsSI https://api.okoroapp.com/health
+curl -fsSI https://api.cerniqapp.com/health
 ```
 
 ### Remediation
 
 ```sh
 # Most outages are caused by the AppConfigService failing to load
-# OKORO_SIGNING_PUBLIC_KEY at boot. Check the logs.
-kubectl logs deployment/okoro-api | grep -i "OKORO_SIGNING"
+# CERNIQ_SIGNING_PUBLIC_KEY at boot. Check the logs.
+kubectl logs deployment/cerniq-api | grep -i "CERNIQ_SIGNING"
 
 # Restart pulls the env from the secret store again. Often resolves
 # transient KMS / Vault outages.
-kubectl rollout restart deployment/okoro-api
+kubectl rollout restart deployment/cerniq-api
 ```
 
 If the outage persists, fall back to the static JWKS published in
-the GitHub repo at `infra/jwks/okoro-audit-jwks.json` (refreshed on
+the GitHub repo at `infra/jwks/cerniq-audit-jwks.json` (refreshed on
 every key rotation). Customers can pin to the GitHub raw URL as a
 backup `--jwks-file` source.
 
@@ -292,7 +292,7 @@ agents serving real-time commerce can't tolerate a slow gate.
 
 ### Detection
 
-- `okoro_verify_latency_seconds` p99 > 0.2 sustained 10min.
+- `cerniq_verify_latency_seconds` p99 > 0.2 sustained 10min.
 - Customer reports: "verify calls timing out".
 
 ### Severity
@@ -314,11 +314,11 @@ p99 spike?
 
 ```sh
 # Active queries > pool size.
-kubectl exec -it $(kubectl get pod -l app=okoro-api -o name | head -1) -- \
+kubectl exec -it $(kubectl get pod -l app=cerniq-api -o name | head -1) -- \
   psql -c "SELECT count(*), state FROM pg_stat_activity GROUP BY state;"
 ```
 
-Resize the connection pool (`OKORO_DB_POOL_MAX`) or scale read
+Resize the connection pool (`CERNIQ_DB_POOL_MAX`) or scale read
 replicas.
 
 ### 5b. Redis latency
@@ -332,7 +332,7 @@ fallback round-trip).
 ### 5c. Cold cache
 
 After a deploy, the agent / policy cache is empty. p99 settles in
-~5 minutes. If it doesn't, check `okoro_cache_miss_ratio` —
+~5 minutes. If it doesn't, check `cerniq_cache_miss_ratio` —
 sustained > 30% means the cache key strategy is broken.
 
 ### 5d. KMS sign latency
@@ -345,7 +345,7 @@ process lifetime).
 ### 5e. BATE BullMQ backpressure
 
 BATE recompute is async — backpressure shouldn't affect verify
-latency directly. If `okoro_bullmq_queue_depth` > 1000 sustained,
+latency directly. If `cerniq_bullmq_queue_depth` > 1000 sustained,
 scale the BateRecomputeWorker concurrency.
 
 ### Post-incident
@@ -358,14 +358,14 @@ scale the BateRecomputeWorker concurrency.
 
 ## 6. Stripe webhook DLQ drain
 
-Stripe webhooks may pile in the DLQ after OKORO-side outages.
+Stripe webhooks may pile in the DLQ after CERNIQ-side outages.
 Draining is safe because every webhook handler is idempotent
 (SETNX-keyed on Stripe `event.id`).
 
 ### Detection
 
-- `okoro_webhook_dlq_depth{source="stripe"} > 0` sustained 1h.
-- Slack: `#okoro-alerts` "Stripe webhook DLQ has N events".
+- `cerniq_webhook_dlq_depth{source="stripe"} > 0` sustained 1h.
+- Slack: `#cerniq-alerts` "Stripe webhook DLQ has N events".
 
 ### Severity
 
@@ -376,25 +376,25 @@ subscription state is drifting (customer reports lost upgrade).
 
 ```sh
 # Drain the DLQ. Idempotency guard prevents double-processing.
-pnpm -F @okoro/api exec tsx scripts/drain-stripe-dlq.ts \
+pnpm -F @cerniq/api exec tsx scripts/drain-stripe-dlq.ts \
   --since "2026-05-04T00:00:00Z" --dry-run
 
 # If dry-run looks correct:
-pnpm -F @okoro/api exec tsx scripts/drain-stripe-dlq.ts \
+pnpm -F @cerniq/api exec tsx scripts/drain-stripe-dlq.ts \
   --since "2026-05-04T00:00:00Z" --apply
 ```
 
 ### Post-incident
 
 - Confirm subscription states are correct in the dashboard.
-- If the original outage was OKORO-side, link the post-mortem to
+- If the original outage was CERNIQ-side, link the post-mortem to
   this drain so the cause/effect is documented.
 
 ---
 
 ## 7. GDPR Art. 17 redaction request
 
-A user invokes their right to erasure. OKORO's audit chain stays
+A user invokes their right to erasure. CERNIQ's audit chain stays
 verifiable through redaction (ADR-0006) — null the PII columns,
 keep the `*Hash` commitments + the signature.
 
@@ -429,14 +429,14 @@ psql -c "SELECT count(*) FROM \"AuditEvent\"
 # but keeps the *Hash columns + the signature, so the chain stays
 # verifiable.
 for EVENT_ID in $(psql -At -c "SELECT id FROM \"AuditEvent\" WHERE \"principalId\" = '$PRINCIPAL_ID';"); do
-  curl -X POST https://api.okoroapp.com/v1/compliance/audit/redact-event \
-       -H "X-OKORO-API-Key: $OKORO_ADMIN_KEY" \
+  curl -X POST https://api.cerniqapp.com/v1/compliance/audit/redact-event \
+       -H "X-CERNIQ-API-Key: $CERNIQ_ADMIN_KEY" \
        -d "{\"eventId\":\"$EVENT_ID\",\"reason\":\"gdpr_art17\",\"ticketId\":\"$TICKET\"}"
 done
 
 # Verify the chain is still intact post-redaction.
-npx @okoro/audit-verifier verify ./export-after-redact.ndjson \
-  --jwks https://api.okoroapp.com/.well-known/audit-signing-key
+npx @cerniq/audit-verifier verify ./export-after-redact.ndjson \
+  --jwks https://api.cerniqapp.com/.well-known/audit-signing-key
 # Expected: ✓ INTACT
 ```
 
@@ -451,7 +451,7 @@ npx @okoro/audit-verifier verify ./export-after-redact.ndjson \
 
 ## 8. New region rollout
 
-Deploying OKORO in a new region (e.g. EU after first US deployment).
+Deploying CERNIQ in a new region (e.g. EU after first US deployment).
 This is the data-residency story documented in `docs/EU_RESIDENCY.md`.
 
 ### Pre-flight checklist
@@ -469,18 +469,18 @@ This is the data-residency story documented in `docs/EU_RESIDENCY.md`.
 
 ```sh
 # 1. Run migrations against the new region's DB.
-DATABASE_URL=$EU_DB_URL pnpm -F @okoro/api prisma migrate deploy
+DATABASE_URL=$EU_DB_URL pnpm -F @cerniq/api prisma migrate deploy
 
 # 2. Boot the region-local API.
-kubectl apply -f infra/k8s/okoro-api-eu-west.yaml
+kubectl apply -f infra/k8s/cerniq-api-eu-west.yaml
 
 # 3. Confirm the genesis audit row was created and is verifiable.
-npx @okoro/audit-verifier verify <(curl -s https://eu.api.okoroapp.com/v1/audit-events/export) \
-  --jwks https://eu.api.okoroapp.com/.well-known/audit-signing-key
+npx @cerniq/audit-verifier verify <(curl -s https://eu.api.cerniqapp.com/v1/audit-events/export) \
+  --jwks https://eu.api.cerniqapp.com/.well-known/audit-signing-key
 
 # 4. Update the customer's principal record to pin region.
-curl -X PATCH https://api.okoroapp.com/v1/admin/principals/$PRINCIPAL_ID \
-     -H "X-OKORO-Admin: $OKORO_ADMIN_TOKEN" \
+curl -X PATCH https://api.cerniqapp.com/v1/admin/principals/$PRINCIPAL_ID \
+     -H "X-CERNIQ-Admin: $CERNIQ_ADMIN_TOKEN" \
      -d '{"region":"eu-west","dataResidency":"eu"}'
 ```
 

@@ -1,7 +1,7 @@
 // Package version exposes build-time version metadata. Values are
 // injected by goreleaser via -ldflags at link time; defaults are
 // development-mode markers so a `go run` invocation surfaces clearly
-// in `okoro --version` output.
+// in `cerniq --version` output.
 package version
 
 // Version is the semver tag. Set via -ldflags "-X .../version.Version=v1.2.3".
@@ -14,7 +14,7 @@ var Commit = "none"
 var BuildDate = "unknown"
 
 // String returns a one-line human-readable identifier suitable for
-// `okoro --version` and User-Agent headers.
+// `cerniq --version` and User-Agent headers.
 func String() string {
 	return Version + " (" + Commit + " · " + BuildDate + ")"
 }
@@ -22,5 +22,5 @@ func String() string {
 // UserAgent returns the User-Agent string the HTTP client uses on every
 // outbound request. Centralizing it here avoids drift across packages.
 func UserAgent() string {
-	return "okoro-cli/" + Version + " (+https://okoroapp.com)"
+	return "cerniq-cli/" + Version + " (+https://cerniqapp.com)"
 }

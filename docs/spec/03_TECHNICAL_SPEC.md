@@ -1,4 +1,4 @@
-# OKORO — Technical Implementation Deep Specification
+# CERNIQ — Technical Implementation Deep Specification
 
 ## Document 03 — Architecture, Data Models, Service Design, Security
 
@@ -14,11 +14,11 @@
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         DEVELOPER PLANE                              │
 │                                                                       │
-│  Dashboard (Next.js)    Docs Site (Mintlify)    SDK (@okoro/sdk)    │
+│  Dashboard (Next.js)    Docs Site (Mintlify)    SDK (@cerniq/sdk)    │
 │       │                       │                       │              │
 │       └───────────────────────┴───────────────────────┘              │
 │                               │                                       │
-│                      OKORO API Gateway                                │
+│                      CERNIQ API Gateway                                │
 │                    (Railway / Cloudflare)                             │
 └───────────────────────────────┬─────────────────────────────────────┘
                                 │
@@ -67,7 +67,7 @@ EDGE LAYER (Phase 3 — Cloudflare Workers):
 ### 1.2 Directory Structure (NestJS Monorepo)
 
 ```
-okoro/
+cerniq/
 ├── apps/
 │   ├── api/                    # NestJS core API
 │   │   ├── src/
@@ -134,7 +134,7 @@ okoro/
 │       ├── components/
 │       └── lib/
 ├── packages/
-│   ├── sdk-ts/                 # @okoro/sdk (TypeScript)
+│   ├── sdk-ts/                 # @cerniq/sdk (TypeScript)
 │   │   ├── src/
 │   │   │   ├── index.ts
 │   │   │   ├── client.ts
@@ -143,8 +143,8 @@ okoro/
 │   │   │   ├── policy.ts
 │   │   │   └── types.ts
 │   │   └── package.json
-│   └── sdk-py/                 # okoro-sdk (Python)
-│       ├── okoro/
+│   └── sdk-py/                 # cerniq-sdk (Python)
+│       ├── cerniq/
 │       │   ├── __init__.py
 │       │   ├── client.py
 │       │   ├── agent.py
@@ -165,7 +165,7 @@ okoro/
 ## SECTION 2 — COMPLETE PRISMA SCHEMA
 
 ```prisma
-// schema.prisma — OKORO v1.0
+// schema.prisma — CERNIQ v1.0
 
 generator client {
   provider = "prisma-client-js"
@@ -205,7 +205,7 @@ model Principal {
 model ApiKey {
   id          String    @id @default(cuid())
   keyHash     String    @unique // bcrypt hash — never store plaintext
-  keyPrefix   String    // First 8 chars for identification: "okoro_sk_xxxx"
+  keyPrefix   String    // First 8 chars for identification: "cerniq_sk_xxxx"
   label       String?
   principalId String
   principal   Principal @relation(fields: [principalId], references: [id], onDelete: Cascade)
@@ -372,7 +372,7 @@ model AuditEvent {
   trustBandAtEvent  TrustBand
 
   // Integrity
-  okoroSignature    String        @db.Text // OKORO signs this record
+  cerniqSignature    String        @db.Text // CERNIQ signs this record
 
   timestamp         DateTime      @default(now())
 
@@ -489,7 +489,7 @@ model WebhookSubscription {
 
   url         String
   secret      String      // HMAC secret for signature verification
-  events      String[]    // ["okoro.agent.trust_score_changed", ...]
+  events      String[]    // ["cerniq.agent.trust_score_changed", ...]
 
   active      Boolean     @default(true)
   createdAt   DateTime    @default(now())
@@ -978,22 +978,22 @@ export class SpendGuardService {
 ## SECTION 4 — SDK DESIGN (TypeScript)
 
 ```typescript
-// @okoro/sdk — index.ts
+// @cerniq/sdk — index.ts
 
-export class Okoro {
-  private readonly config: OkoroConfig;
-  private readonly http: OkoroHttpClient;
+export class Cerniq {
+  private readonly config: CerniqConfig;
+  private readonly http: CerniqHttpClient;
 
   public readonly agent: AgentClient;
   public readonly policy: PolicyClient;
 
-  constructor(config: OkoroConfig) {
+  constructor(config: CerniqConfig) {
     this.config = {
       apiKey: config.apiKey,
-      baseUrl: config.baseUrl ?? 'https://api.okoroapp.com/v1',
+      baseUrl: config.baseUrl ?? 'https://api.cerniqapp.com/v1',
       timeout: config.timeout ?? 5000,
     };
-    this.http = new OkoroHttpClient(this.config);
+    this.http = new CerniqHttpClient(this.config);
     this.agent = new AgentClient(this.http);
     this.policy = new PolicyClient(this.http);
   }
@@ -1005,7 +1005,7 @@ export class Okoro {
 }
 
 export class AgentClient {
-  constructor(private readonly http: OkoroHttpClient) {}
+  constructor(private readonly http: CerniqHttpClient) {}
 
   // Sign an outbound request — the developer calls this before each agent action
   async sign(privateKey: string, policyToken: string, context?: SignContext): Promise<string> {
@@ -1042,12 +1042,12 @@ export class AgentClient {
 //
 // Developer-side (agent builder):
 //
-// import { Okoro } from '@okoro/sdk';
+// import { Cerniq } from '@cerniq/sdk';
 //
-// const okoro = new Okoro({ apiKey: process.env.OKORO_API_KEY });
+// const cerniq = new Cerniq({ apiKey: process.env.CERNIQ_API_KEY });
 //
 // // One-time setup: register agent and create policy
-// const agent = await okoro.agent.register({
+// const agent = await cerniq.agent.register({
 //   publicKey: myEd25519PublicKey,
 //   runtime: 'anthropic',
 //   model: 'claude-sonnet-4-5',
@@ -1055,7 +1055,7 @@ export class AgentClient {
 //   principalId: 'principal_abc123',
 // });
 //
-// const policy = await okoro.policy.create(agent.agentId, {
+// const policy = await cerniq.policy.create(agent.agentId, {
 //   label: 'Buy flights under $500',
 //   scopes: [{
 //     category: 'commerce',
@@ -1066,7 +1066,7 @@ export class AgentClient {
 // });
 //
 // // Before each agent action: sign the request
-// const token = await okoro.agent.sign(myPrivateKey, policy.signedToken, {
+// const token = await cerniq.agent.sign(myPrivateKey, policy.signedToken, {
 //   action: 'commerce.purchase',
 //   amount: 347.00,
 //   currency: 'USD',
@@ -1075,15 +1075,15 @@ export class AgentClient {
 //
 // // Send token with agent request to Delta
 // const response = await fetch('https://api.delta.com/book', {
-//   headers: { 'X-OKORO-Token': token },
+//   headers: { 'X-CERNIQ-Token': token },
 //   body: JSON.stringify({ flight: 'DL401', ... }),
 // });
 //
 // ── RELYING PARTY USAGE (Delta's server):
 //
-// const okoro = new Okoro({ apiKey: process.env.OKORO_VERIFY_KEY });
+// const cerniq = new Cerniq({ apiKey: process.env.CERNIQ_VERIFY_KEY });
 //
-// const result = await okoro.verify(req.headers['x-okoro-token'], {
+// const result = await cerniq.verify(req.headers['x-cerniq-token'], {
 //   action: 'commerce.purchase',
 //   amount: 347.00,
 //   merchantDomain: 'delta.com',
@@ -1110,12 +1110,12 @@ export class AgentClient {
 | Threat             | Description                                   | Mitigation                                                               |
 | ------------------ | --------------------------------------------- | ------------------------------------------------------------------------ |
 | Token theft        | Attacker steals signed token and replays      | JWT `exp` of 60s max; single-use `jti` claim on high-value actions       |
-| Key compromise     | Developer's private key stolen                | Immediate revocation API; OKORO never holds private key                  |
+| Key compromise     | Developer's private key stolen                | Immediate revocation API; CERNIQ never holds private key                 |
 | BATE poisoning     | Attacker floods fake signals to inflate score | Report weight by verified relying party only; rate limiting on reports   |
 | DDoS on verify     | Flood /verify endpoint                        | Cloudflare WAF + rate limiting per API key; edge caching                 |
 | Prompt injection   | Agent is jailbroken into signing bad requests | Policy hard limits enforced server-side; client-side signing is advisory |
 | Principal spoofing | Attacker registers as a legitimate company    | Email verification + optional KYC for BATE bonus                         |
-| Insider threat     | OKORO employee reads audit logs               | Audit records OKORO-signed and tamper-evident; access logged             |
+| Insider threat     | CERNIQ employee reads audit logs              | Audit records CERNIQ-signed and tamper-evident; access logged            |
 | Supply chain       | SDK dependency compromised                    | pinned deps, Sigstore signing of npm packages                            |
 
 ### 5.2 Cryptographic Details
@@ -1139,13 +1139,13 @@ Payload: {
 }
 ```
 
-**Audit record signing:** OKORO signs each AuditEvent with an OKORO-held Ed25519 keypair (separate from the policy-signing keypair so a policy-key compromise does not invalidate the audit chain). Decision rationale and post-quantum migration plan live in `docs/THREAT_MODEL_v2.md` § 4.2 and `docs/POST_QUANTUM_ROADMAP.md`. This allows third parties to verify audit records without OKORO involvement. Public key published at `https://api.okoroapp.com/.well-known/jwks.json` (and the convenience endpoint `https://api.okoroapp.com/.well-known/audit-signing-key`).
+**Audit record signing:** CERNIQ signs each AuditEvent with an CERNIQ-held Ed25519 keypair (separate from the policy-signing keypair so a policy-key compromise does not invalidate the audit chain). Decision rationale and post-quantum migration plan live in `docs/THREAT_MODEL_v2.md` § 4.2 and `docs/POST_QUANTUM_ROADMAP.md`. This allows third parties to verify audit records without CERNIQ involvement. Public key published at `https://api.cerniqapp.com/.well-known/jwks.json` (and the convenience endpoint `https://api.cerniqapp.com/.well-known/audit-signing-key`).
 
-**API key format:** `okoro_sk_[32 random bytes base58]`. Stored as bcrypt hash (cost 12). Only the `okoro_sk_` prefix + first 4 chars stored as `keyPrefix` for identification in dashboards.
+**API key format:** `cerniq_sk_[32 random bytes base58]`. Stored as bcrypt hash (cost 12). Only the `cerniq_sk_` prefix + first 4 chars stored as `keyPrefix` for identification in dashboards.
 
 ### 5.3 Compliance Mapping
 
-| Standard                            | OKORO Coverage                                    | Gap                                    |
+| Standard                            | CERNIQ Coverage                                   | Gap                                    |
 | ----------------------------------- | ------------------------------------------------- | -------------------------------------- |
 | NIST AI Agent Identity (2026 draft) | Agent identity, authorization, auditing           | Prompt injection controls (agent-side) |
 | SOC2 Type II                        | Audit trail, access controls, availability        | Requires 6-month evidence window       |
@@ -1155,4 +1155,4 @@ Payload: {
 
 ---
 
-_Document 03 of 05 | OKORO KLYTICS Internal Suite_
+_Document 03 of 05 | CERNIQ KLYTICS Internal Suite_

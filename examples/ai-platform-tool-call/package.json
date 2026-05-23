@@ -1,8 +1,8 @@
 {
-  "name": "@okoro-examples/ai-platform-tool-call",
+  "name": "@cerniq-examples/ai-platform-tool-call",
   "private": true,
   "version": "0.1.0",
-  "description": "MCP agent → OKORO verify → downstream API",
+  "description": "MCP agent → CERNIQ verify → downstream API",
   "type": "module",
   "scripts": {
     "dev": "tsx src/mcp-server.ts",
@@ -10,11 +10,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@okoro/sdk": "workspace:*",
+    "@cerniq/sdk": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "devDependencies": {
-    "@okoro/tsconfig": "workspace:*",
+    "@cerniq/tsconfig": "workspace:*",
     "@types/node": "^22.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",

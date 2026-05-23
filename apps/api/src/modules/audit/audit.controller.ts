@@ -31,7 +31,7 @@ export class AuditController {
    * Streams one event per line; auditors can pipe through `jq` or similar.
    * The chain signature on each row plus the public key at
    * `/.well-known/audit-signing-key` lets a third party verify integrity
-   * without contacting OKORO at audit-review time.
+   * without contacting CERNIQ at audit-review time.
    *
    * Server-side TTL on the route is the request timeout; we paginate
    * internally in 1k-row chunks so memory use is bounded.
@@ -49,7 +49,7 @@ export class AuditController {
   ): Promise<void> {
     res.setHeader('Content-Type', 'application/x-ndjson');
     res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('X-OKORO-Export-Format', 'ndjson-v1');
+    res.setHeader('X-CERNIQ-Export-Format', 'ndjson-v1');
 
     for await (const row of this.audit.exportStream(auth.principalId, agentId, query)) {
       // Backpressure-aware write — wait for drain if the socket buffer fills.

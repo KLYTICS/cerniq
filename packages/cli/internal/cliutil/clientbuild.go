@@ -15,19 +15,19 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/klytics/okoro/packages/cli/internal/client"
-	"github.com/klytics/okoro/packages/cli/internal/config"
-	"github.com/klytics/okoro/packages/cli/internal/keychain"
+	"github.com/klytics/cerniq/packages/cli/internal/client"
+	"github.com/klytics/cerniq/packages/cli/internal/config"
+	"github.com/klytics/cerniq/packages/cli/internal/keychain"
 )
 
 // ResolveAPIKey applies the documented precedence: flag > env > keychain.
 // Returns "" when no credential is configured anywhere — callers raise
-// ErrNotAuthenticated to drive the "run okoro login" hint.
+// ErrNotAuthenticated to drive the "run cerniq login" hint.
 func ResolveAPIKey(flag string) string {
 	if flag != "" {
 		return flag
 	}
-	if env := os.Getenv("OKORO_API_KEY"); env != "" {
+	if env := os.Getenv("CERNIQ_API_KEY"); env != "" {
 		return env
 	}
 	if k, _ := keychain.Get(keychain.KeyAPIKey); k != "" {
@@ -37,12 +37,12 @@ func ResolveAPIKey(flag string) string {
 }
 
 // ResolveVerifyKey resolves the verify-only key with the same precedence.
-// Used by `okoro verify` when the caller has minted a verify key.
+// Used by `cerniq verify` when the caller has minted a verify key.
 func ResolveVerifyKey(flag string) string {
 	if flag != "" {
 		return flag
 	}
-	if env := os.Getenv("OKORO_VERIFY_KEY"); env != "" {
+	if env := os.Getenv("CERNIQ_VERIFY_KEY"); env != "" {
 		return env
 	}
 	if k, _ := keychain.Get(keychain.KeyVerifyKey); k != "" {
@@ -58,7 +58,7 @@ type BuildOpts struct {
 	APIKeyFlag  string
 	VerifyFlag  string
 	// RequireAuth, when true, surfaces ErrNotAuthenticated if neither key
-	// is configured. Set false for `okoro doctor` (which can run
+	// is configured. Set false for `cerniq doctor` (which can run
 	// unauthenticated to diagnose first-run state).
 	RequireAuth bool
 }
@@ -98,7 +98,7 @@ func RenderJSON(w io.Writer, v any) error {
 }
 
 // SignalContext returns a context that cancels on SIGINT or SIGTERM.
-// Used by `okoro events tail` and any other long-running poll loop —
+// Used by `cerniq events tail` and any other long-running poll loop —
 // Ctrl-C exits cleanly instead of leaving a zombie goroutine.
 func SignalContext(parent context.Context) (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(parent)
@@ -122,7 +122,7 @@ func TimeoutContext() (context.Context, context.CancelFunc) {
 }
 
 // IsAPINotFound returns true when err is a 404 APIError. Used by
-// `okoro agents show` and friends so a missing resource can be
+// `cerniq agents show` and friends so a missing resource can be
 // rendered as a clean message instead of a stacktrace.
 func IsAPINotFound(err error) bool {
 	var ae *client.APIError

@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/klytics/okoro/packages/cli/internal/templates"
-	"github.com/klytics/okoro/packages/cli/internal/ui"
+	"github.com/klytics/cerniq/packages/cli/internal/templates"
+	"github.com/klytics/cerniq/packages/cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -27,15 +27,15 @@ var initCmd = &cobra.Command{
 	Short: "Scaffold a relying-party project from an industry template",
 	Long: `Scaffold a relying-party project from an industry template.
 
-Templates are embedded in the binary so 'okoro init' works offline.
+Templates are embedded in the binary so 'cerniq init' works offline.
 The available industries match OPERATOR_DECISIONS.md OD-011: fintech-
 payments, ai-platform-tool-call, and saas-seat-provisioning. Each
 template is a runnable, tested integration that demonstrates the
 relying-party pattern for that vertical.
 
 Examples:
-  okoro init --industry fintech-payments --dir ./checkout-svc
-  okoro init -i ai-platform-tool-call -d ./agent-runner
+  cerniq init --industry fintech-payments --dir ./checkout-svc
+  cerniq init -i ai-platform-tool-call -d ./agent-runner
 
 Refuses to write into a non-empty directory unless --force is set.`,
 	RunE: runInit,
@@ -59,7 +59,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	src, ok := templates.Get(industry)
 	if !ok {
-		return fmt.Errorf("unknown industry %q — run `okoro init` with no flags to list available templates", industry)
+		return fmt.Errorf("unknown industry %q — run `cerniq init` with no flags to list available templates", industry)
 	}
 
 	abs, err := filepath.Abs(dir)

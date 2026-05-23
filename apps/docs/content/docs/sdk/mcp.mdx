@@ -1,32 +1,32 @@
 ---
-title: MCP server + bridge (@okoro/mcp-server, @okoro/mcp-bridge)
+title: MCP server + bridge (@cerniq/mcp-server, @cerniq/mcp-bridge)
 description: Drop-in MCP integration. Verify every tool call before invocation. Claude Desktop, Cursor, and any MCP-aware client.
 ---
 
-OKORO ships two MCP packages:
+CERNIQ ships two MCP packages:
 
 | Package               | Use it when…                                                                              |
 | --------------------- | ----------------------------------------------------------------------------------------- |
-| `@okoro/mcp-server`   | You're building a new MCP server. Get a verified-by-default tool wrapper API.            |
-| `@okoro/mcp-bridge`   | You already have an MCP server and want to wrap it without rewriting any tool handlers.  |
+| `@cerniq/mcp-server`   | You're building a new MCP server. Get a verified-by-default tool wrapper API.            |
+| `@cerniq/mcp-bridge`   | You already have an MCP server and want to wrap it without rewriting any tool handlers.  |
 
-## `@okoro/mcp-server`
+## `@cerniq/mcp-server`
 
 ### Install
 
 ```bash
-npm install @okoro/mcp-server
+npm install @cerniq/mcp-server
 ```
 
 ### Define verified tools
 
 ```ts
-import { createServer } from '@okoro/mcp-server';
+import { createServer } from '@cerniq/mcp-server';
 
 const server = createServer({
-  okoro: {
-    apiKey: process.env.OKORO_API_KEY!,
-    verifyKey: process.env.OKORO_VERIFY_KEY!,
+  cerniq: {
+    apiKey: process.env.CERNIQ_API_KEY!,
+    verifyKey: process.env.CERNIQ_VERIFY_KEY!,
   },
   tools: [
     {
@@ -53,32 +53,32 @@ server.listen({ stdio: true });
 ```json
 {
   "mcpServers": {
-    "okoro-protected-tools": {
+    "cerniq-protected-tools": {
       "command": "npx",
-      "args": ["@okoro/mcp-server"],
+      "args": ["@cerniq/mcp-server"],
       "env": {
-        "OKORO_API_KEY": "ak_live_...",
-        "OKORO_VERIFY_KEY": "vk_live_..."
+        "CERNIQ_API_KEY": "ak_live_...",
+        "CERNIQ_VERIFY_KEY": "vk_live_..."
       }
     }
   }
 }
 ```
 
-## `@okoro/mcp-bridge`
+## `@cerniq/mcp-bridge`
 
 Wrap an existing MCP server with verification middleware. No tool-handler
 changes required:
 
 ```ts
-import { createMcpBridge } from '@okoro/mcp-bridge';
+import { createMcpBridge } from '@cerniq/mcp-bridge';
 import { myExistingMcpServer } from './my-server';
 
 export default createMcpBridge({
   upstream: myExistingMcpServer,
-  okoro: {
-    apiKey: process.env.OKORO_API_KEY!,
-    verifyKey: process.env.OKORO_VERIFY_KEY!,
+  cerniq: {
+    apiKey: process.env.CERNIQ_API_KEY!,
+    verifyKey: process.env.CERNIQ_VERIFY_KEY!,
   },
   toolActionMap: {
     'send-email': 'send_email',
@@ -88,7 +88,7 @@ export default createMcpBridge({
 ```
 
 The bridge intercepts every tool call, extracts the authority token from
-the request envelope (`_okoro_token`), calls `okoro.verify()`, and only
+the request envelope (`_cerniq_token`), calls `cerniq.verify()`, and only
 forwards to the upstream tool on `allowed: true`. Denials translate to
 structured MCP tool errors that LLMs can interpret.
 
@@ -97,9 +97,9 @@ structured MCP tool errors that LLMs can interpret.
 When either package calls `/v1/verify`, it stamps the relying-party id
 into the resulting audit row. The dashboard's MCP-server list view shows
 recent invocation counts and denial rates per server — see
-[ADR-0008](https://github.com/klytics/okoro/blob/main/docs/decisions/0008-mcp-as-control-plane.md).
+[ADR-0008](https://github.com/klytics/cerniq/blob/main/docs/decisions/0008-mcp-as-control-plane.md).
 
 ## Source
 
-- [`packages/mcp-server/`](https://github.com/klytics/okoro/tree/main/packages/mcp-server)
-- [`packages/mcp-bridge/`](https://github.com/klytics/okoro/tree/main/packages/mcp-bridge)
+- [`packages/mcp-server/`](https://github.com/klytics/cerniq/tree/main/packages/mcp-server)
+- [`packages/mcp-bridge/`](https://github.com/klytics/cerniq/tree/main/packages/mcp-bridge)

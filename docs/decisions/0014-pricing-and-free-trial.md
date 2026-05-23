@@ -27,24 +27,24 @@ trial that funnels developers into it. M-011 cannot ship until both are
 locked.
 
 A companion financial model
-(`docs/finance/OKORO_Financial_Model_v1.xlsx`) was built on 2026-05-05 to
+(`docs/finance/CERNIQ_Financial_Model_v1.xlsx`) was built on 2026-05-05 to
 size the consequences of each candidate combination over a 24-month
 horizon. The companion strategy memo
-(`docs/finance/OKORO_Strategy_Memo_v1.docx`) walks through the rationale
+(`docs/finance/CERNIQ_Strategy_Memo_v1.docx`) walks through the rationale
 in narrative form. This ADR is the binding decision.
 
 ## Decision
 
-OKORO adopts the following pricing surface and free-trial design,
+CERNIQ adopts the following pricing surface and free-trial design,
 encoded in `apps/api/src/modules/billing/plans.ts`:
 
-| Tier        | Price/mo | Verifies included/mo | Overage rate          |
-| ----------- | -------- | -------------------- | --------------------- |
-| Free trial  | $0       | 10,000 (lifetime cap) | n/a — verify returns 402 at cap |
-| Developer   | $49      | 50,000               | $0.0008 / verify      |
-| Team        | $299     | 500,000              | $0.0008 / verify      |
-| Scale       | $1,499   | 5,000,000            | $0.0008 / verify      |
-| Enterprise  | Custom   | Custom               | Negotiated            |
+| Tier       | Price/mo | Verifies included/mo  | Overage rate                    |
+| ---------- | -------- | --------------------- | ------------------------------- |
+| Free trial | $0       | 10,000 (lifetime cap) | n/a — verify returns 402 at cap |
+| Developer  | $49      | 50,000                | $0.0008 / verify                |
+| Team       | $299     | 500,000               | $0.0008 / verify                |
+| Scale      | $1,499   | 5,000,000             | $0.0008 / verify                |
+| Enterprise | Custom   | Custom                | Negotiated                      |
 
 The free trial is **usage-capped, not time-capped**. There is no
 30-day clock. A principal that hits the 10,000-verification cap receives
@@ -70,7 +70,7 @@ pricing, not consumption pricing.
   break-even conversion rate is 0.026% (LTV-based) or 0.69% (one-time
   ARPU-based) against a modeled 18% steady-state — extreme headroom.
 - **Aligns with Persona A's revealed preference.** A 10K-verify cap is
-  enough to integrate OKORO into a real workflow (Persona A's "free tier
+  enough to integrate CERNIQ into a real workflow (Persona A's "free tier
   that lasts long enough to prove value") but not enough to substitute
   for a paid tier indefinitely.
 - **Removes calendar pressure from the developer.** Usage-capped trials
@@ -114,7 +114,7 @@ pricing, not consumption pricing.
 
 ### Alt A — OD-003 default verbatim (Free 1K / Dev $49 / Growth $299)
 
-The 1K free tier is too small to integrate OKORO into a real workflow.
+The 1K free tier is too small to integrate CERNIQ into a real workflow.
 A typical agent integration test exercises ~500 verifications during
 development alone — a 1K cap would force a paywall before the developer
 had tested the production code path. Forecast trial-to-paid conversion
@@ -142,7 +142,7 @@ to a known quantity ($0.05 marginal compute per trial). Rejected.
 Permanent free tiers compress monetization expectations and dilute the
 upgrade trigger. Engineering effort spent maintaining a durable free
 tier (rate-limit isolation, quota carry-over edge cases, billing-page
-"free" branding) is non-trivial. OKORO is too early-stage to absorb
+"free" branding) is non-trivial. CERNIQ is too early-stage to absorb
 this overhead. Reconsider in 18-24 months once the paid funnel is
 proven. Rejected for now.
 
@@ -164,13 +164,13 @@ If pricing or trial design needs to change:
    - `apps/api/src/modules/verify/verify.module.ts` (TRIAL_EXHAUSTED
      wiring + rate-limit)
    - `packages/sdk-ts/src/billing.ts` (public types)
-   - `packages/sdk-py/okoro/billing.py` (public types)
+   - `packages/sdk-py/cerniq/billing.py` (public types)
 2. **Docs** —
    - `docs/SECURITY.md` § Denial Precedence (update or remove
      TRIAL_EXHAUSTED)
    - `docs/spec/04_COMMERCIAL_STRATEGY.md` Part V (tier table)
-   - `docs/finance/OKORO_Strategy_Memo_v1.docx` § 4 (pricing rationale)
-   - `docs/finance/OKORO_Financial_Model_v1.xlsx` Assumptions tab (blue
+   - `docs/finance/CERNIQ_Strategy_Memo_v1.docx` § 4 (pricing rationale)
+   - `docs/finance/CERNIQ_Financial_Model_v1.xlsx` Assumptions tab (blue
      cells for tier prices, verify caps, free-trial cap)
 3. **Customer comms** —
    - Existing paying customers on legacy tiers: grandfathering policy
@@ -195,8 +195,8 @@ If pricing or trial design needs to change:
 - `docs/spec/04_COMMERCIAL_STRATEGY.md` (buyer personas + sales motions)
 - `docs/CAPACITY_PLAN.md` §11 (per-1M-verify marginal cost = $5)
 - `docs/SECURITY.md` § Denial Precedence (TRIAL_EXHAUSTED insertion)
-- `docs/finance/OKORO_Financial_Model_v1.xlsx` (24-month projection)
-- `docs/finance/OKORO_Strategy_Memo_v1.docx` (rationale narrative)
+- `docs/finance/CERNIQ_Financial_Model_v1.xlsx` (24-month projection)
+- `docs/finance/CERNIQ_Strategy_Memo_v1.docx` (rationale narrative)
 - `CLAUDE.md` invariant #6 (denial-precedence change requires API
   minor-version bump)
 - ADR-0006 (audit-event redactability) — relevant because TRIAL_EXHAUSTED

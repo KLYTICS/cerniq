@@ -1,7 +1,7 @@
 // Compliance DTOs — GDPR Art. 17 right-to-erasure on the audit chain.
 //
 // Per ADR-0006 (audit redactability), redaction nulls the *raw* columns
-// while leaving `*Hash` columns and `okoroSignature` intact. A redacted
+// while leaving `*Hash` columns and `cerniqSignature` intact. A redacted
 // event still verifies cryptographically — the verifier hashes the null
 // raw values to the same `null` and compares to the persisted hash. The
 // signature commits to hashes, not to the raw plaintext, so erasure is

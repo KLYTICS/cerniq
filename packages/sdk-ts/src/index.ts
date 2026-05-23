@@ -2,17 +2,17 @@ import { AgentClient, type HandshakeVerified } from './agent.js';
 import { signAgentToken, signHandshake } from './crypto.js';
 import { HttpClient } from './http.js';
 import { PolicyClient } from './policy.js';
-import type { OkoroConfig, SignContext, VerifyResult } from './types.js';
+import type { CerniqConfig, SignContext, VerifyResult } from './types.js';
 
-const DEFAULT_BASE_URL = 'https://api.okoroapp.com';
+const DEFAULT_BASE_URL = 'https://api.cerniqapp.com';
 const DEFAULT_TIMEOUT_MS = 5_000;
 
-export class Okoro {
+export class Cerniq {
   readonly agents: AgentClient;
   readonly policies: PolicyClient;
   private readonly http: HttpClient;
 
-  constructor(config: OkoroConfig = {}) {
+  constructor(config: CerniqConfig = {}) {
     this.http = new HttpClient({
       apiKey: config.apiKey,
       verifyKey: config.verifyKey,
@@ -79,18 +79,18 @@ export class Okoro {
 
 export { generateKeypair, signAgentToken, signHandshake, decodeUnsafe } from './crypto.js';
 export {
-  OkoroError,
-  OkoroAuthenticationError,
-  OkoroAuthorizationError,
-  OkoroNotFoundError,
-  OkoroValidationError,
-  OkoroConflictError,
-  OkoroRateLimitedError,
-  OkoroInternalError,
-  OkoroServiceUnavailableError,
-  OkoroNetworkError,
+  CerniqError,
+  CerniqAuthenticationError,
+  CerniqAuthorizationError,
+  CerniqNotFoundError,
+  CerniqValidationError,
+  CerniqConflictError,
+  CerniqRateLimitedError,
+  CerniqInternalError,
+  CerniqServiceUnavailableError,
+  CerniqNetworkError,
   fromEnvelope,
-  isOkoroErrorRetryable,
+  isCerniqErrorRetryable,
   catalogEntryFor,
 } from './errors.js';
 export { withRetry, parseRetryAfter } from './http.js';

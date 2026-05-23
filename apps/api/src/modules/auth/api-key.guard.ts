@@ -1,4 +1,10 @@
-import { CanActivate, ExecutionContext, Injectable, SetMetadata, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  SetMetadata,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 
@@ -8,7 +14,8 @@ export const IS_PUBLIC_KEY = 'isPublic';
 export const Public = (): MethodDecorator & ClassDecorator => SetMetadata(IS_PUBLIC_KEY, true);
 
 export const VERIFY_KEY_ONLY = 'verifyKeyOnly';
-export const VerifyKeyOnly = (): MethodDecorator & ClassDecorator => SetMetadata(VERIFY_KEY_ONLY, true);
+export const VerifyKeyOnly = (): MethodDecorator & ClassDecorator =>
+  SetMetadata(VERIFY_KEY_ONLY, true);
 
 declare module 'express' {
   interface Request {
@@ -24,7 +31,10 @@ export class ApiKeyGuard implements CanActivate {
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
-    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [ctx.getHandler(), ctx.getClass()]);
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      ctx.getHandler(),
+      ctx.getClass(),
+    ]);
     if (isPublic) return true;
 
     const verifyKeyOnly = this.reflector.getAllAndOverride<boolean>(VERIFY_KEY_ONLY, [
@@ -33,12 +43,15 @@ export class ApiKeyGuard implements CanActivate {
     ]);
 
     const req = ctx.switchToHttp().getRequest<Request>();
-    const headerName = verifyKeyOnly ? 'x-okoro-verify-key' : 'x-okoro-api-key';
+    const headerName = verifyKeyOnly ? 'x-cerniq-verify-key' : 'x-cerniq-api-key';
     const presented = req.headers[headerName];
     const plaintext = Array.isArray(presented) ? presented[0] : presented;
 
     if (!plaintext) {
-      throw new UnauthorizedException({ error: 'MISSING_API_KEY', message: `Header ${headerName} is required.` });
+      throw new UnauthorizedException({
+        error: 'MISSING_API_KEY',
+        message: `Header ${headerName} is required.`,
+      });
     }
 
     const auth = await this.apiKeys.resolve(plaintext);
@@ -52,11 +65,17 @@ export class ApiKeyGuard implements CanActivate {
           message: 'API key has expired. Use the rotated replacement key.',
         });
       }
-      throw new UnauthorizedException({ error: 'INVALID_API_KEY', message: 'API key not recognised.' });
+      throw new UnauthorizedException({
+        error: 'INVALID_API_KEY',
+        message: 'API key not recognised.',
+      });
     }
 
     if (verifyKeyOnly && auth.scope !== 'VERIFY_ONLY' && auth.scope !== 'FULL') {
-      throw new UnauthorizedException({ error: 'WRONG_KEY_SCOPE', message: 'Verify keys required for this endpoint.' });
+      throw new UnauthorizedException({
+        error: 'WRONG_KEY_SCOPE',
+        message: 'Verify keys required for this endpoint.',
+      });
     }
 
     req.auth = auth;

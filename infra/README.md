@@ -1,4 +1,4 @@
-# infra/ — OKORO infrastructure
+# infra/ — CERNIQ infrastructure
 
 Deploy descriptors, container builds, datastore tuning, and observability
 config. Application code lives in `apps/`; this directory is the
@@ -6,14 +6,14 @@ production wrapper around it.
 
 ## Layout
 
-| Directory                          | Purpose                                                        |
-|------------------------------------|----------------------------------------------------------------|
-| `docker/`                          | Production Dockerfiles (`Dockerfile.api`, `Dockerfile.worker`), `.dockerignore`, container healthcheck. The legacy `postgres-init.sql` for local-only docker-compose also lives here. |
-| `railway/`                         | Per-service Railway descriptors: `api.service.json`, `worker.service.json`, `postgres.service.json`, `redis.service.json`. README has the deploy runbook + verify-deployment commands. |
-| `cloudflare/`                      | Phase-3-only edge wrangler template and runbook. NO code (peer owns `workers/cf-verify`). |
-| `postgres/`                        | Production-only init.sql (extensions + roles) and postgresql.conf tuning notes. |
-| `redis/`                           | Hardened production redis.conf. CONFIG-via-network disabled, requirepass placeholder. |
-| `observability/`                   | OpenTelemetry collector pipeline + Grafana dashboard skeletons (real PromQL, datasource bound at provisioning). |
+| Directory        | Purpose                                                                                                                                                                                |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docker/`        | Production Dockerfiles (`Dockerfile.api`, `Dockerfile.worker`), `.dockerignore`, container healthcheck. The legacy `postgres-init.sql` for local-only docker-compose also lives here.  |
+| `railway/`       | Per-service Railway descriptors: `api.service.json`, `worker.service.json`, `postgres.service.json`, `redis.service.json`. README has the deploy runbook + verify-deployment commands. |
+| `cloudflare/`    | Phase-3-only edge wrangler template and runbook. NO code (peer owns `workers/cf-verify`).                                                                                              |
+| `postgres/`      | Production-only init.sql (extensions + roles) and postgresql.conf tuning notes.                                                                                                        |
+| `redis/`         | Hardened production redis.conf. CONFIG-via-network disabled, requirepass placeholder.                                                                                                  |
+| `observability/` | OpenTelemetry collector pipeline + Grafana dashboard skeletons (real PromQL, datasource bound at provisioning).                                                                        |
 
 ## Phase 1 deploy topology (current)
 
@@ -21,13 +21,13 @@ production wrapper around it.
                  Cloudflare (DNS only — Phase 1)
                             │
                             ▼
-                Railway "okoro-api"          (NestJS, public ingress)
+                Railway "cerniq-api"          (NestJS, public ingress)
                             │
                             ├── Railway/Neon Postgres   (DATABASE_URL)
                             └── Railway/Upstash Redis   (REDIS_URL, BullMQ)
                                           ▲
                                           │
-                Railway "okoro-worker"      (BATE, webhooks, audit DLQ)
+                Railway "cerniq-worker"      (BATE, webhooks, audit DLQ)
 ```
 
 Both services use the same Postgres + Redis. Splitting them onto separate
@@ -37,12 +37,12 @@ makes per-deploy rollback granular.
 ## Phase 3 target (post $5K MRR)
 
 ```
-        Cloudflare Workers — okoro-verify-edge   (verify hot path < 80ms p99)
+        Cloudflare Workers — cerniq-verify-edge   (verify hot path < 80ms p99)
               │
               ├── Workers KV: TRUST_SCORE_CACHE, POLICY_CACHE
               └── Durable Objects: SPEND_COUNTER (per-API-key)
                                    │
-                                   └─ origin Railway okoro-api (management surface)
+                                   └─ origin Railway cerniq-api (management surface)
 ```
 
 Phase 3 is gated on the entry checklist in `cloudflare/README.md`.
@@ -54,8 +54,8 @@ Phase 3 is gated on the entry checklist in `cloudflare/README.md`.
 ```sh
 docker compose up -d         # postgres + redis from the repo root file
 pnpm install
-pnpm --filter @okoro/api prisma:migrate
-pnpm tsx scripts/generate-okoro-keys.ts --env > .env.keys
+pnpm --filter @cerniq/api prisma:migrate
+pnpm tsx scripts/generate-cerniq-keys.ts --env > .env.keys
 cat .env.keys >> .env
 shred -u .env.keys 2>/dev/null || rm -P .env.keys 2>/dev/null || rm .env.keys
 pnpm dev
@@ -67,11 +67,11 @@ Follow the runbook in `railway/README.md`. Short version:
 
 ```sh
 railway login
-railway link                     # pick the OKORO project
+railway link                     # pick the CERNIQ project
 # Provision Postgres + Redis plugins from the dashboard.
 # Wire env vars per the matrix in api.service.json + worker.service.json.
-railway up --service okoro-api
-railway up --service okoro-worker
+railway up --service cerniq-api
+railway up --service cerniq-worker
 ```
 
 ### Phase 3 edge (Cloudflare)
@@ -93,8 +93,8 @@ green.
 The fastest "is anything broken" pass after a deploy:
 
 ```sh
-API="https://api.okoro.<your-domain>"
-EDGE="https://okoro.<your-domain>"   # Phase 3 only
+API="https://api.cerniq.<your-domain>"
+EDGE="https://cerniq.<your-domain>"   # Phase 3 only
 
 curl -fsS -o /dev/null -w "live=%{http_code} t=%{time_total}s\n"  "$API/v1/health/live"
 curl -fsS -o /dev/null -w "ready=%{http_code} t=%{time_total}s\n" "$API/v1/health/ready"

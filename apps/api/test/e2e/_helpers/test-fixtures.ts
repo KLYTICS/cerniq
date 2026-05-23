@@ -36,7 +36,7 @@ export async function seedPrincipalAndApiKey(
   config: AppConfigService,
   options: { email?: string; label?: string | null; scope?: 'FULL' | 'VERIFY_ONLY' } = {},
 ): Promise<SeededPrincipal> {
-  const email = options.email ?? `e2e-${randomUUID()}@okoro.test`;
+  const email = options.email ?? `e2e-${randomUUID()}@cerniq.test`;
   const principal = await prisma.principal.create({
     data: { email, name: 'E2E Test', emailVerified: true },
   });
@@ -71,10 +71,7 @@ export async function registerAgentViaApi(
   apiKey: string,
   body: { publicKey: string; runtime: string; label?: string; model?: string },
 ): Promise<SeededAgent> {
-  const res = await http
-    .post('/v1/agents/register')
-    .set('X-OKORO-API-Key', apiKey)
-    .send(body);
+  const res = await http.post('/v1/agents/register').set('X-CERNIQ-API-Key', apiKey).send(body);
   if (res.status !== 201 && res.status !== 200) {
     throw new Error(`registerAgent failed (${res.status}): ${JSON.stringify(res.body)}`);
   }
@@ -99,7 +96,12 @@ export async function createPolicyViaApi(
   body: {
     scopes: {
       category: string;
-      spendLimit?: { currency: string; maxPerTransaction?: number; maxPerDay?: number; maxPerMonth?: number };
+      spendLimit?: {
+        currency: string;
+        maxPerTransaction?: number;
+        maxPerDay?: number;
+        maxPerMonth?: number;
+      };
       allowedDomains?: string[];
       merchantCategories?: string[];
     }[];
@@ -109,7 +111,7 @@ export async function createPolicyViaApi(
 ): Promise<SeededPolicy> {
   const res = await http
     .post(`/v1/agents/${agentId}/policies`)
-    .set('X-OKORO-API-Key', apiKey)
+    .set('X-CERNIQ-API-Key', apiKey)
     .send(body);
   if (res.status !== 201 && res.status !== 200) {
     throw new Error(`createPolicy failed (${res.status}): ${JSON.stringify(res.body)}`);

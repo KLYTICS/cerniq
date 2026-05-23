@@ -1,6 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 export enum AgentRuntimeDto {
   OPENAI = 'OPENAI',
@@ -85,7 +94,9 @@ export class ListAgentsQueryDto {
   @Max(100)
   limit?: number;
 
-  @ApiPropertyOptional({ description: 'Opaque cursor (agent id of the last item in previous page).' })
+  @ApiPropertyOptional({
+    description: 'Opaque cursor (agent id of the last item in previous page).',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(64)
@@ -132,7 +143,8 @@ export class HandshakeChallengeDto {
   agentId!: string;
 
   @ApiProperty({
-    description: 'Cryptographically-random 256-bit nonce, base64url-encoded. Single-use, 5 min TTL.',
+    description:
+      'Cryptographically-random 256-bit nonce, base64url-encoded. Single-use, 5 min TTL.',
   })
   challenge!: string;
 
@@ -140,9 +152,8 @@ export class HandshakeChallengeDto {
   expiresIn!: number;
 
   @ApiProperty({
-    description:
-      'Domain-separator + protocol version. Bumping requires SDK coordination.',
-    example: 'okoro-handshake-v1',
+    description: 'Domain-separator + protocol version. Bumping requires SDK coordination.',
+    example: 'cerniq-handshake-v1',
   })
   protocolVersion!: string;
 
@@ -167,7 +178,9 @@ export class HandshakeStatusDto {
   @ApiProperty()
   agentId!: string;
 
-  @ApiProperty({ description: 'true once the agent has proven private-key possession via /verify-handshake.' })
+  @ApiProperty({
+    description: 'true once the agent has proven private-key possession via /verify-handshake.',
+  })
   verified!: boolean;
 
   @ApiPropertyOptional({ description: 'Server clock at the most recent successful handshake.' })

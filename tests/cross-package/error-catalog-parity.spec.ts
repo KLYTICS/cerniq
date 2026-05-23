@@ -25,7 +25,7 @@ import { ERROR_CATALOG } from '../../apps/api/src/common/errors/error-catalog';
 import { GENERATED_ERROR_CATALOG } from '../../packages/types/src/error-catalog.generated';
 
 const REPO_ROOT = join(__dirname, '..', '..');
-const PY_FILE = join(REPO_ROOT, 'packages', 'sdk-py', 'okoro', 'error_catalog.py');
+const PY_FILE = join(REPO_ROOT, 'packages', 'sdk-py', 'cerniq', 'error_catalog.py');
 
 interface PyEntry {
   code: string;
@@ -63,7 +63,9 @@ function parsePythonCatalog(): Map<string, PyEntry> {
 }
 
 describe('error catalog cross-language parity', () => {
-  const apiCodes = Object.values(ERROR_CATALOG).map((e) => e.code).sort();
+  const apiCodes = Object.values(ERROR_CATALOG)
+    .map((e) => e.code)
+    .sort();
   const tsCodes = Object.keys(GENERATED_ERROR_CATALOG).sort();
 
   it('every API code appears in the TS generated file', () => {
@@ -88,8 +90,12 @@ describe('error catalog cross-language parity', () => {
       const pyEntry = py.get(apiEntry.code);
       expect(tsEntry, `TS missing ${apiEntry.code}`).toBeDefined();
       expect(pyEntry, `Python missing ${apiEntry.code}`).toBeDefined();
-      expect(tsEntry!.httpStatus, `TS httpStatus drift on ${apiEntry.code}`).toBe(apiEntry.httpStatus);
-      expect(pyEntry!.httpStatus, `Python httpStatus drift on ${apiEntry.code}`).toBe(apiEntry.httpStatus);
+      expect(tsEntry!.httpStatus, `TS httpStatus drift on ${apiEntry.code}`).toBe(
+        apiEntry.httpStatus,
+      );
+      expect(pyEntry!.httpStatus, `Python httpStatus drift on ${apiEntry.code}`).toBe(
+        apiEntry.httpStatus,
+      );
     }
   });
 
@@ -99,7 +105,9 @@ describe('error catalog cross-language parity', () => {
       const tsEntry = GENERATED_ERROR_CATALOG[apiEntry.code];
       const pyEntry = py.get(apiEntry.code);
       expect(tsEntry!.retryable, `TS retryable drift on ${apiEntry.code}`).toBe(apiEntry.retryable);
-      expect(pyEntry!.retryable, `Python retryable drift on ${apiEntry.code}`).toBe(apiEntry.retryable);
+      expect(pyEntry!.retryable, `Python retryable drift on ${apiEntry.code}`).toBe(
+        apiEntry.retryable,
+      );
     }
   });
 
@@ -115,7 +123,10 @@ describe('error catalog cross-language parity', () => {
   });
 
   it('generated files carry the @generated header', () => {
-    const ts = readFileSync(join(REPO_ROOT, 'packages', 'types', 'src', 'error-catalog.generated.ts'), 'utf8');
+    const ts = readFileSync(
+      join(REPO_ROOT, 'packages', 'types', 'src', 'error-catalog.generated.ts'),
+      'utf8',
+    );
     const py = readFileSync(PY_FILE, 'utf8');
     expect(ts.split('\n')[0]).toMatch(/@generated/);
     expect(py.split('\n')[0]).toMatch(/@generated/);

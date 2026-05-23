@@ -1,4 +1,4 @@
-# OKORO Tests - Claude contract
+# CERNIQ Tests - Claude contract
 
 This directory owns black-box, parity, cross-package, load, and chaos coverage.
 Tests are product infrastructure: they protect the public contract, denial
@@ -36,7 +36,7 @@ precedence, billing behavior, audit verifiability, and first-customer journey.
 ## Required verification
 
 - Cross-package parity: `pnpm test:parity`
-- E2E harness typecheck: `pnpm --filter @okoro/e2e typecheck`
+- E2E harness typecheck: `pnpm --filter @cerniq/e2e typecheck`
 - E2E tests: `pnpm test:e2e`
 - Root unit sweep: `pnpm test`
 

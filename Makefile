@@ -1,4 +1,4 @@
-# OKORO — top-level dev orchestrator.
+# CERNIQ — top-level dev orchestrator.
 #
 # Goal: clone -> `make dev` -> postgres + redis up, migrations applied,
 # demo data seeded, API on :3000, dashboard on :3001, in under 60 seconds.
@@ -25,7 +25,7 @@ API_URL ?= http://localhost:3000
 # ---------------------------------------------------------------------------
 
 help:  ## show this help
-	@printf "OKORO dev orchestrator\n\n"
+	@printf "CERNIQ dev orchestrator\n\n"
 	@printf "Usage: make <target>\n\n"
 	@printf "Targets:\n"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -74,10 +74,10 @@ migrate: _check-pnpm  ## apply Prisma migrations (requires DATABASE_URL)
 	@if [[ -z "$${DATABASE_URL:-}" ]]; then \
 		echo "make migrate: DATABASE_URL is unset."; \
 		echo "             defaulting to local docker-compose Postgres."; \
-		export DATABASE_URL="postgresql://okoro:okoro@localhost:5432/okoro?schema=public"; \
-		pnpm --filter @okoro/api exec prisma migrate deploy; \
+		export DATABASE_URL="postgresql://cerniq:cerniq@localhost:5432/cerniq?schema=public"; \
+		pnpm --filter @cerniq/api exec prisma migrate deploy; \
 	else \
-		pnpm --filter @okoro/api exec prisma migrate deploy; \
+		pnpm --filter @cerniq/api exec prisma migrate deploy; \
 	fi
 
 # ---------------------------------------------------------------------------
@@ -86,8 +86,8 @@ migrate: _check-pnpm  ## apply Prisma migrations (requires DATABASE_URL)
 # ---------------------------------------------------------------------------
 
 seed: _check-pnpm  ## load demo data (round-14 seed; soft-skips if absent)
-	@if pnpm --filter @okoro/scripts run --if-present seed:demo >/dev/null 2>&1; then \
-		pnpm --filter @okoro/scripts seed:demo; \
+	@if pnpm --filter @cerniq/scripts run --if-present seed:demo >/dev/null 2>&1; then \
+		pnpm --filter @cerniq/scripts seed:demo; \
 	else \
 		echo "make seed: round-14 demo seed not yet present, skipping."; \
 	fi
@@ -120,18 +120,18 @@ typecheck: _check-pnpm  ## run tsc --noEmit across the workspace
 # ---------------------------------------------------------------------------
 
 preflight: _check-pnpm  ## ship-readiness gate (full run; pass ARGS=--fast or ARGS=--prod)
-	@pnpm -F @okoro/api exec tsx $(CURDIR)/tools/preflight/preflight.ts $(ARGS)
+	@pnpm -F @cerniq/api exec tsx $(CURDIR)/tools/preflight/preflight.ts $(ARGS)
 
 preflight-fast: _check-pnpm  ## fast subset (no vitest); for pre-commit
-	@pnpm -F @okoro/api exec tsx $(CURDIR)/tools/preflight/preflight.ts --fast
+	@pnpm -F @cerniq/api exec tsx $(CURDIR)/tools/preflight/preflight.ts --fast
 
 preflight-prod: _check-pnpm  ## production gate — fails on missing prod env vars
-	@pnpm -F @okoro/api exec tsx $(CURDIR)/tools/preflight/preflight.ts --prod
+	@pnpm -F @cerniq/api exec tsx $(CURDIR)/tools/preflight/preflight.ts --prod
 
 # ---------------------------------------------------------------------------
 # doctor — diagnose the developer's machine. Different from preflight (branch
 # shippability) and health (running stack). Doctor answers "is THIS machine
-# ready to run OKORO locally?" — the question on first clone.
+# ready to run CERNIQ locally?" — the question on first clone.
 # Exit 0 green · 1 yellow (warnings) · 2 red (blockers).
 # ---------------------------------------------------------------------------
 

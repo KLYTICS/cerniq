@@ -1,4 +1,4 @@
-# OKORO — Incident Response Playbook
+# CERNIQ — Incident Response Playbook
 
 ## On-Call Procedures, Escalation Paths, and Recovery Runbooks
 
@@ -20,9 +20,9 @@ Every engineer on the on-call rotation must, **before going on call**:
 [ ] Have Railway dashboard access (production project)
 [ ] Have Cloudflare dashboard access
 [ ] Know the DATABASE_URL and REDIS_URL for production (in your secrets manager)
-[ ] Run: okoro doctor --env production  → all green
+[ ] Run: cerniq doctor --env production  → all green
 [ ] Know where SECURITY_RUNBOOK.md is (key rotation procedures)
-[ ] Know the OKORO_ADMIN_TOKEN (in your vault — never written down)
+[ ] Know the CERNIQ_ADMIN_TOKEN (in your vault — never written down)
 [ ] Have the Slack #incidents channel bookmarked
 ```
 
@@ -108,13 +108,13 @@ Post-mortem: [link, due [date]]
 
 ### RB-001: API Completely Down
 
-**Symptoms:** `/health` returning non-200 OR all requests timing out. PagerDuty alert: `okoro_health_down`.
+**Symptoms:** `/health` returning non-200 OR all requests timing out. PagerDuty alert: `cerniq_health_down`.
 
 **Step 1 — Confirm the blast radius**
 
 ```bash
 # Is it DNS / Cloudflare?
-curl -I https://api.okoroapp.com/health
+curl -I https://api.cerniqapp.com/health
 # vs
 curl -I https://[railway-origin-url]/health
 
@@ -227,11 +227,11 @@ WHERE ai.status = 'REVOKED'
 
 ```bash
 # Option A: Enable maintenance mode (returns 503 on all verify calls)
-# Set env var: OKORO_MAINTENANCE_MODE=true
-# Railway: Service → Variables → add OKORO_MAINTENANCE_MODE=true → redeploy
+# Set env var: CERNIQ_MAINTENANCE_MODE=true
+# Railway: Service → Variables → add CERNIQ_MAINTENANCE_MODE=true → redeploy
 
 # Option B: Block specific agent
-okoro admin revoke-agent --id [AGENT_ID] --reason "emergency-p0-incident-[date]"
+cerniq admin revoke-agent --id [AGENT_ID] --reason "emergency-p0-incident-[date]"
 ```
 
 **Step 3 — Root cause the wrong result**
@@ -239,7 +239,7 @@ okoro admin revoke-agent --id [AGENT_ID] --reason "emergency-p0-incident-[date]"
 ```bash
 # Replay the failing verify call against staging
 # Copy the JWT from the audit log
-okoro admin debug-verify --token [JWT] --trace
+cerniq admin debug-verify --token [JWT] --trace
 
 # This runs the full 9-step algorithm with verbose output:
 # Step 1: Agent lookup → [result]
@@ -276,7 +276,7 @@ grep -n "AGENT_NOT_FOUND\|AGENT_REVOKED\|INVALID_SIGNATURE" \
 ```bash
 pnpm tsx scripts/audit-verify-chain.ts \
   --api-base $BASE_URL \
-  --api-key $OKORO_API_KEY \
+  --api-key $CERNIQ_API_KEY \
   --limit 1000 \
   --verbose
 
@@ -316,7 +316,7 @@ psql $DATABASE_URL -c "SELECT * FROM \"AuditEvent\" WHERE id='audit_xyz';" > tam
 
 ```bash
 # Find all principals with audit events after the break point
-okoro admin audit-incident-report \
+cerniq admin audit-incident-report \
   --from [TAMPERED_EVENT_ID] \
   --notify-principals
 ```
@@ -341,7 +341,7 @@ okoro admin audit-incident-report \
 
 # TL;DR:
 # 1. Generate new key pair
-# 2. Update Railway Variables: OKORO_JWT_SIGNING_PRIVATE_KEY / OKORO_AUDIT_SIGNING_PRIVATE_KEY
+# 2. Update Railway Variables: CERNIQ_JWT_SIGNING_PRIVATE_KEY / CERNIQ_AUDIT_SIGNING_PRIVATE_KEY
 # 3. Deploy (triggers restart)
 # 4. Old tokens signed by old key become invalid (expected)
 # 5. Update JWKS endpoint kid
@@ -393,8 +393,8 @@ psql $DATABASE_URL -c "SELECT 1;" 2>&1
 # 5. Redeploy API
 
 # Manual restore (if you have a dump):
-createdb okoro_prod_restored
-pg_restore -d okoro_prod_restored backup.dump
+createdb cerniq_prod_restored
+pg_restore -d cerniq_prod_restored backup.dump
 # Update DATABASE_URL to point to restored DB
 ```
 
@@ -436,13 +436,13 @@ Policy updates in that window: re-apply required
 
 ```bash
 # If active breach: take API offline immediately
-# OKORO_MAINTENANCE_MODE=true → redeploy
+# CERNIQ_MAINTENANCE_MODE=true → redeploy
 
 # Revoke all API keys for affected principal(s)
-okoro admin revoke-all-keys --principal [PRINCIPAL_ID] --reason "security-breach"
+cerniq admin revoke-all-keys --principal [PRINCIPAL_ID] --reason "security-breach"
 
 # Rotate admin token
-openssl rand -hex 32  # → new OKORO_ADMIN_TOKEN
+openssl rand -hex 32  # → new CERNIQ_ADMIN_TOKEN
 # Update Railway Variables immediately
 ```
 
@@ -450,7 +450,7 @@ openssl rand -hex 32  # → new OKORO_ADMIN_TOKEN
 
 ```bash
 # Export all audit events for affected principal
-okoro admin export-audit \
+cerniq admin export-audit \
   --principal [PRINCIPAL_ID] \
   --from [SUSPECTED_START] \
   --format jsonl \
@@ -466,7 +466,7 @@ railway logs --service api --lines 10000 > railway-logs-$(date +%Y%m%d).txt
 **Step 3 — Root cause**
 Common vectors:
 
-- API key leaked in client-side code (check GitHub for `OKORO_API_KEY`)
+- API key leaked in client-side code (check GitHub for `CERNIQ_API_KEY`)
 - CORS misconfiguration (check cors-allowlist.ts)
 - JWT signing key exposed in logs (check Datadog)
 - Admin token in git (check git history)
@@ -518,7 +518,7 @@ redis-cli -u $REDIS_URL SLOWLOG GET 10
 
 ```bash
 # If BATE is the bottleneck: disable trust scoring temporarily
-# OKORO_BATE_ENABLED=false → TRUST_SCORE_TOO_LOW denials won't fire
+# CERNIQ_BATE_ENABLED=false → TRUST_SCORE_TOO_LOW denials won't fire
 # WARNING: this reduces security. Use for < 30 min max.
 
 # If DB is the bottleneck: add read replica, route audit queries there
@@ -532,14 +532,14 @@ redis-cli -u $REDIS_URL SLOWLOG GET 10
 
 ```bash
 # What errors are failing?
-curl -s https://api.okoroapp.com/metrics \
+curl -s https://api.cerniqapp.com/metrics \
   -H "Authorization: Bearer $METRICS_TOKEN" | \
-  grep "okoro_verify_total"
+  grep "cerniq_verify_total"
 
 # Expected output:
-# okoro_verify_total{outcome="approved"} 9823
-# okoro_verify_total{outcome="denied",reason="SPEND_LIMIT_EXCEEDED"} 104
-# okoro_verify_total{outcome="error"} 12   ← THIS should be near 0
+# cerniq_verify_total{outcome="approved"} 9823
+# cerniq_verify_total{outcome="denied",reason="SPEND_LIMIT_EXCEEDED"} 104
+# cerniq_verify_total{outcome="error"} 12   ← THIS should be near 0
 ```
 
 **Step 2 — Check API logs for 5xx errors**
@@ -594,7 +594,7 @@ ORDER BY COUNT(*) DESC;
 
 ```bash
 # 1. Check if their API key exists and is active
-okoro admin keys list --principal [EMAIL]
+cerniq admin keys list --principal [EMAIL]
 
 # 2. Check if their principal is suspended
 psql $DATABASE_URL -c "SELECT id, status FROM \"Principal\" WHERE email='[EMAIL]';"
@@ -606,7 +606,7 @@ WHERE "principalId" = '[PRINCIPAL_ID]'
 ORDER BY "createdAt" DESC;
 
 # 4. If API key is fine but auth fails: check BCRYPT_COST env var
-# If OKORO_API_KEY_BCRYPT_COST changed after their key was created: hashes won't match
+# If CERNIQ_API_KEY_BCRYPT_COST changed after their key was created: hashes won't match
 ```
 
 ---
@@ -683,17 +683,17 @@ File within 24h for P0, 72h for P1. Store in `docs/post-mortems/YYYY-MM-DD-[titl
 
 ### 7.1 Alert Inventory (minimum required before GA)
 
-| Alert Name                 | Condition                                    | Severity | Channel                |
-| -------------------------- | -------------------------------------------- | -------- | ---------------------- |
-| `okoro_api_down`           | `/health` non-200 for 1 min                  | P0       | PagerDuty              |
-| `okoro_verify_error_rate`  | Error rate > 1% for 5 min                    | P0       | PagerDuty              |
-| `okoro_chain_break`        | Audit chain integrity script fails           | P0       | PagerDuty + #incidents |
-| `okoro_verify_latency_p99` | p99 > 500ms for 5 min                        | P1       | PagerDuty              |
-| `okoro_redis_down`         | Redis ping fails for 1 min                   | P1       | PagerDuty              |
-| `okoro_db_connections`     | Connection pool > 80% for 5 min              | P1       | #alerts                |
-| `okoro_spend_overflow`     | Any SPEND_LIMIT_EXCEEDED spike >10x baseline | P1       | #alerts                |
-| `okoro_webhook_backlog`    | OutboxEvent pending > 1000 for 10 min        | P2       | #alerts                |
-| `okoro_verify_latency_p50` | p50 > 100ms for 10 min                       | P2       | #alerts                |
+| Alert Name                  | Condition                                    | Severity | Channel                |
+| --------------------------- | -------------------------------------------- | -------- | ---------------------- |
+| `cerniq_api_down`           | `/health` non-200 for 1 min                  | P0       | PagerDuty              |
+| `cerniq_verify_error_rate`  | Error rate > 1% for 5 min                    | P0       | PagerDuty              |
+| `cerniq_chain_break`        | Audit chain integrity script fails           | P0       | PagerDuty + #incidents |
+| `cerniq_verify_latency_p99` | p99 > 500ms for 5 min                        | P1       | PagerDuty              |
+| `cerniq_redis_down`         | Redis ping fails for 1 min                   | P1       | PagerDuty              |
+| `cerniq_db_connections`     | Connection pool > 80% for 5 min              | P1       | #alerts                |
+| `cerniq_spend_overflow`     | Any SPEND_LIMIT_EXCEEDED spike >10x baseline | P1       | #alerts                |
+| `cerniq_webhook_backlog`    | OutboxEvent pending > 1000 for 10 min        | P2       | #alerts                |
+| `cerniq_verify_latency_p50` | p50 > 100ms for 10 min                       | P2       | #alerts                |
 
 ### 7.2 Key Metrics Dashboards
 
@@ -701,8 +701,8 @@ Maintain in Grafana/Datadog:
 
 **Dashboard 1 — Verify Health**
 
-- `okoro_verify_total` by outcome (approved/denied/error)
-- `okoro_verify_latency_seconds` p50/p99 over time
+- `cerniq_verify_total` by outcome (approved/denied/error)
+- `cerniq_verify_latency_seconds` p50/p99 over time
 - Denial reason breakdown (pie chart, last 1h)
 - Error rate % over time
 
@@ -762,5 +762,5 @@ Last drill date:    ___________
 
 ---
 
-_Playbook version: 1.0 | OKORO Phase 1 GA_  
+_Playbook version: 1.0 | CERNIQ Phase 1 GA_  
 _Next review: after first real incident_

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OKORO — Attestation for the Agentic Era</title>
+<title>CERNIQ — Attestation for the Agentic Era</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -492,7 +492,7 @@
     position: relative;
   }
   .arch-layer.relying { background: rgba(0,180,255,0.08); border: 1px solid rgba(0,180,255,0.2); }
-  .arch-layer.okoro   { background: rgba(19,64,196,0.2); border: 1px solid rgba(19,64,196,0.6); }
+  .arch-layer.cerniq   { background: rgba(19,64,196,0.2); border: 1px solid rgba(19,64,196,0.6); }
   .arch-layer.agent   { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); }
   .arch-arrow {
     text-align: center;
@@ -508,7 +508,7 @@
     min-width: 160px;
   }
   .arch-layer.relying .arch-label { color: var(--circuit-cyan); }
-  .arch-layer.okoro   .arch-label { color: #A5B4FC; }
+  .arch-layer.cerniq   .arch-label { color: #A5B4FC; }
   .arch-layer.agent   .arch-label { color: rgba(255,255,255,0.5); }
   .arch-detail {
     font-size: 13px;
@@ -617,7 +617,7 @@
       <line x1="40" y1="22" x2="52" y2="54" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
       <line x1="32" y1="43" x2="48" y2="43" stroke="#00B4FF" stroke-width="2.5" stroke-linecap="round"/>
     </svg>
-    <span class="nav-logo-name">OKORO</span>
+    <span class="nav-logo-name">CERNIQ</span>
   </a>
   <ul class="nav-links">
     <li><a href="#how-it-works">How It Works</a></li>
@@ -644,7 +644,7 @@
   </h1>
 
   <p class="hero-sub">
-    OKORO is the neutral verification, policy enforcement, and behavioral attestation layer between AI agents and the services they act on. Protocol-neutral. Vendor-neutral. Model-neutral.
+    CERNIQ is the neutral verification, policy enforcement, and behavioral attestation layer between AI agents and the services they act on. Protocol-neutral. Vendor-neutral. Model-neutral.
   </p>
 
   <div class="hero-actions">
@@ -711,13 +711,13 @@
     <div class="eyebrow">The Solution</div>
     <h2 class="section-heading">We are the Switzerland of agent identity</h2>
     <p class="section-body">
-      OKORO holds only public keys. Signs only what it observed. Enforces only the policies you wrote. No vendor lock-in, no model dependency, no protocol constraints.
+      CERNIQ holds only public keys. Signs only what it observed. Enforces only the policies you wrote. No vendor lock-in, no model dependency, no protocol constraints.
     </p>
     <div class="solution-pillars">
       <div class="pillar-card">
         <div class="pillar-icon">🔑</div>
         <div class="pillar-title">Identity Verification</div>
-        <div class="pillar-desc">Register agent public keys. Verify Ed25519 signatures on every action. No private keys enter OKORO — ever.</div>
+        <div class="pillar-desc">Register agent public keys. Verify Ed25519 signatures on every action. No private keys enter CERNIQ — ever.</div>
       </div>
       <div class="pillar-card">
         <div class="pillar-icon">📋</div>
@@ -742,7 +742,7 @@
       <div class="pillar-card">
         <div class="pillar-icon">🌐</div>
         <div class="pillar-title">Protocol Neutral</div>
-        <div class="pillar-desc">Works with any AI model, any orchestration framework, any hosting environment. OKORO is infrastructure, not a platform.</div>
+        <div class="pillar-desc">Works with any AI model, any orchestration framework, any hosting environment. CERNIQ is infrastructure, not a platform.</div>
       </div>
     </div>
   </div>
@@ -752,25 +752,25 @@
 <section id="how-it-works">
   <div class="eyebrow">How It Works</div>
   <h2 class="section-heading">Three steps to verified agent trust</h2>
-  <p class="section-body">From key registration to real-time verification, OKORO sits in the critical path without being in the critical path.</p>
+  <p class="section-body">From key registration to real-time verification, CERNIQ sits in the critical path without being in the critical path.</p>
 
   <div class="steps">
     <div class="step">
       <div class="step-number">1</div>
       <div class="step-title">Register</div>
-      <div class="step-desc">The agent generates an Ed25519 keypair client-side. The public key and policy are registered with OKORO. The private key never leaves the agent.</div>
+      <div class="step-desc">The agent generates an Ed25519 keypair client-side. The public key and policy are registered with CERNIQ. The private key never leaves the agent.</div>
       <div class="step-code">POST /v1/agents</div>
     </div>
     <div class="step">
       <div class="step-number">2</div>
       <div class="step-title">Sign & Act</div>
-      <div class="step-desc">Before each action, the agent signs the request payload with its private key. OKORO issues a short-lived JWT attesting the agent's identity and policy scope.</div>
+      <div class="step-desc">Before each action, the agent signs the request payload with its private key. CERNIQ issues a short-lived JWT attesting the agent's identity and policy scope.</div>
       <div class="step-code">POST /v1/verify</div>
     </div>
     <div class="step">
       <div class="step-number">3</div>
       <div class="step-title">Attest</div>
-      <div class="step-desc">The relying party verifies the JWT. OKORO appends a signed audit event to the chain. BATE updates the agent's trust score asynchronously.</div>
+      <div class="step-desc">The relying party verifies the JWT. CERNIQ appends a signed audit event to the chain. BATE updates the agent's trust score asynchronously.</div>
       <div class="step-code">append AuditEvent</div>
     </div>
   </div>
@@ -781,12 +781,12 @@
   <div class="section-full-inner">
     <div class="eyebrow">Architecture Principles</div>
     <h2 class="section-heading">Non-negotiable invariants</h2>
-    <p class="section-body">These are the architectural guarantees OKORO makes to every relying party. They are published, versioned, and cannot be changed without a major version bump.</p>
+    <p class="section-body">These are the architectural guarantees CERNIQ makes to every relying party. They are published, versioned, and cannot be changed without a major version bump.</p>
     <div class="principles-grid">
       <div class="principle-card">
         <div class="principle-number">01</div>
         <div class="principle-content">
-          <h3>Private keys never enter OKORO</h3>
+          <h3>Private keys never enter CERNIQ</h3>
           <p>Agent private keys are generated client-side. Our database stores public keys only. The SDK is the only surface that touches a private key, and only locally.</p>
         </div>
       </div>
@@ -838,7 +838,7 @@
     </div>
     <div class="trust-box">
       <div class="trust-box-num">0</div>
-      <div class="trust-box-label">Private keys stored in OKORO</div>
+      <div class="trust-box-label">Private keys stored in CERNIQ</div>
     </div>
     <div class="trust-box">
       <div class="trust-box-num">Ed25519</div>
@@ -854,17 +854,17 @@
 <!-- ── ARCHITECTURE ── -->
 <section id="architecture">
   <div class="eyebrow">Architecture</div>
-  <h2 class="section-heading">How OKORO fits in your stack</h2>
-  <p class="section-body">OKORO sits between agents and the services they call. It is the single verification hop that every action passes through.</p>
+  <h2 class="section-heading">How CERNIQ fits in your stack</h2>
+  <p class="section-body">CERNIQ sits between agents and the services they call. It is the single verification hop that every action passes through.</p>
 
   <div class="arch-diagram">
     <div class="arch-layer relying">
       <div class="arch-label">Relying Party</div>
-      <div class="arch-detail">Your API, tool, or service — verifies the OKORO JWT before executing the action</div>
+      <div class="arch-detail">Your API, tool, or service — verifies the CERNIQ JWT before executing the action</div>
     </div>
     <div class="arch-arrow">↑ &nbsp;verify JWT &nbsp;|&nbsp; deny / allow ↓</div>
-    <div class="arch-layer okoro">
-      <div class="arch-label" style="color: #A5B4FC;">⬡ &nbsp;OKORO</div>
+    <div class="arch-layer cerniq">
+      <div class="arch-label" style="color: #A5B4FC;">⬡ &nbsp;CERNIQ</div>
       <div class="arch-detail" style="color: rgba(255,255,255,0.6);">Identity · Policy · BATE scoring · Audit chain · Webhook delivery</div>
     </div>
     <div class="arch-arrow">↑ &nbsp;signed request &nbsp;|&nbsp; attested JWT ↓</div>
@@ -879,8 +879,8 @@
 <div class="cta-section" id="waitlist">
   <div class="cta-bg"></div>
   <h2>Ready to give your agents<br>an identity they can prove?</h2>
-  <p>Join the private preview. Be among the first to deploy OKORO in production.</p>
-  <a href="mailto:eskiessalfonso@gmail.com?subject=OKORO Early Access" class="btn-primary" style="font-size:16px; padding: 16px 40px;">
+  <p>Join the private preview. Be among the first to deploy CERNIQ in production.</p>
+  <a href="mailto:eskiessalfonso@gmail.com?subject=CERNIQ Early Access" class="btn-primary" style="font-size:16px; padding: 16px 40px;">
     Apply for Early Access
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
   </a>
@@ -898,7 +898,7 @@
       <line x1="32" y1="43" x2="48" y2="43" stroke="#00B4FF" stroke-width="2.5" stroke-linecap="round"/>
     </svg>
     <div>
-      <div class="footer-logo-name">OKORO</div>
+      <div class="footer-logo-name">CERNIQ</div>
       <div class="footer-tagline">Attestation for the Agentic Era</div>
     </div>
   </div>
@@ -909,7 +909,7 @@
     <li><a href="#">GitHub</a></li>
     <li><a href="#">Privacy</a></li>
   </ul>
-  <div class="footer-copy">© 2026 OKORO · All rights reserved · Protocol-neutral · Vendor-neutral · Model-neutral</div>
+  <div class="footer-copy">© 2026 CERNIQ · All rights reserved · Protocol-neutral · Vendor-neutral · Model-neutral</div>
 </footer>
 
 </body>

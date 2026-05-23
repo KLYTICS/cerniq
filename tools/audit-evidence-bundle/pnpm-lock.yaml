@@ -8,11 +8,11 @@ importers:
 
   .:
     dependencies:
-      '@okoro/audit-verifier':
+      '@cerniq/audit-verifier':
         specifier: link:../../packages/audit-verifier
         version: link:../../packages/audit-verifier
     devDependencies:
-      '@okoro/tsconfig':
+      '@cerniq/tsconfig':
         specifier: link:../../packages/tsconfig
         version: link:../../packages/tsconfig
       '@types/node':

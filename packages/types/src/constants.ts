@@ -2,15 +2,15 @@
 // Importing the same constant from a worker vs. the API guarantees they
 // agree on enum names, header names, and TTL boundaries.
 
-export const OKORO_HEADER_API_KEY = 'X-OKORO-API-Key' as const;
-export const OKORO_HEADER_VERIFY_KEY = 'X-OKORO-Verify-Key' as const;
-export const OKORO_HEADER_REQUEST_ID = 'X-Request-Id' as const;
-export const OKORO_HEADER_TOKEN = 'X-OKORO-Token' as const;
-export const OKORO_HEADER_SIGNATURE = 'X-OKORO-Signature' as const;
-export const OKORO_HEADER_IDEMPOTENCY = 'Idempotency-Key' as const;
+export const CERNIQ_HEADER_API_KEY = 'X-CERNIQ-API-Key' as const;
+export const CERNIQ_HEADER_VERIFY_KEY = 'X-CERNIQ-Verify-Key' as const;
+export const CERNIQ_HEADER_REQUEST_ID = 'X-Request-Id' as const;
+export const CERNIQ_HEADER_TOKEN = 'X-CERNIQ-Token' as const;
+export const CERNIQ_HEADER_SIGNATURE = 'X-CERNIQ-Signature' as const;
+export const CERNIQ_HEADER_IDEMPOTENCY = 'Idempotency-Key' as const;
 
 // Trust band thresholds — exposed so relying parties can use the same logic
-// OKORO uses, without round-tripping the band classification.
+// CERNIQ uses, without round-tripping the band classification.
 export const TRUST_BAND_THRESHOLDS = {
   PLATINUM: 750,
   VERIFIED: 500,
@@ -40,11 +40,11 @@ export const REDIS_KEY = {
 
 // Webhook event names — clients subscribe to these strings.
 export const WEBHOOK_EVENT = {
-  AGENT_TRUST_SCORE_CHANGED: 'okoro.agent.trust_score_changed',
-  AGENT_ANOMALY_DETECTED: 'okoro.agent.anomaly_detected',
-  AGENT_POLICY_EXPIRED: 'okoro.agent.policy_expired',
-  AGENT_FLAGGED_BY_RELYING_PARTY: 'okoro.agent.flagged_by_relying_party',
-  AGENT_REVOKED: 'okoro.agent.revoked',
+  AGENT_TRUST_SCORE_CHANGED: 'cerniq.agent.trust_score_changed',
+  AGENT_ANOMALY_DETECTED: 'cerniq.agent.anomaly_detected',
+  AGENT_POLICY_EXPIRED: 'cerniq.agent.policy_expired',
+  AGENT_FLAGGED_BY_RELYING_PARTY: 'cerniq.agent.flagged_by_relying_party',
+  AGENT_REVOKED: 'cerniq.agent.revoked',
 } as const;
 
 export type WebhookEvent = (typeof WEBHOOK_EVENT)[keyof typeof WEBHOOK_EVENT];
@@ -57,7 +57,7 @@ export type WebhookEvent = (typeof WEBHOOK_EVENT)[keyof typeof WEBHOOK_EVENT];
 // PLAN_LIMIT_EXCEEDED is listed first because it fires as a billing pre-gate
 // BEFORE the security algorithm chain — it never competes with the 10-step
 // algorithm reasons. Relying parties receiving this code should direct the
-// user to upgrade their OKORO plan, not retry the request.
+// user to upgrade their CERNIQ plan, not retry the request.
 //
 // TRIAL_EXHAUSTED was added 2026-05-05 per ADR-0014 (free-trial design).
 // It sits between SCOPE_NOT_GRANTED and SPEND_LIMIT_EXCEEDED because trial

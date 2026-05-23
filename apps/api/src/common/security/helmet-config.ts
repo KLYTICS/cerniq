@@ -1,4 +1,4 @@
-// OKORO — production-grade Helmet configuration.
+// CERNIQ — production-grade Helmet configuration.
 //
 // `app.use(helmet())` with defaults is good but not enough for an
 // identity gateway that publishes verifiable cryptographic material at
@@ -17,7 +17,7 @@
 //   - x-powered-by: removed (don't advertise Express).
 //
 // Production reference: https://hstspreload.org/ — domains we publish on
-// (api.okoroapp.com) get added to the preload list once HSTS rolls out.
+// (api.cerniqapp.com) get added to the preload list once HSTS rolls out.
 
 import type { HelmetOptions } from 'helmet';
 
@@ -91,9 +91,9 @@ export function buildSecurityTxt(config: {
     `Contact: mailto:${config.contactEmail}`,
     `Expires: ${new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()}`,
     `Preferred-Languages: ${config.preferredLanguages ?? 'en'}`,
-    `Canonical: https://api.okoroapp.com/.well-known/security.txt`,
-    `Policy: https://okoroapp.com/security/policy`,
-    `Acknowledgments: https://okoroapp.com/security/acknowledgments`,
+    `Canonical: https://api.cerniqapp.com/.well-known/security.txt`,
+    `Policy: https://cerniqapp.com/security/policy`,
+    `Acknowledgments: https://cerniqapp.com/security/acknowledgments`,
   ];
   return lines.join('\n') + '\n';
 }

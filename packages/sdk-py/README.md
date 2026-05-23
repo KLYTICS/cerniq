@@ -1,20 +1,20 @@
-# okoro (Python)
+# cerniq (Python)
 
-The official OKORO SDK for Python. OKORO is the neutral verification, policy
+The official CERNIQ SDK for Python. CERNIQ is the neutral verification, policy
 enforcement, and behavioral attestation layer between AI agents and the
 services they act on. Private keys never leave your host — only public keys
-register with OKORO.
+register with CERNIQ.
 
 - Async-first via `httpx`
 - Ed25519 via `cryptography`
-- Bit-identical token format to the TypeScript SDK (`@okoro/sdk`)
+- Bit-identical token format to the TypeScript SDK (`@cerniq/sdk`)
 - Strict typing — `mypy --strict` clean
 - Sync and async surfaces
 
 ## Install
 
 ```bash
-pip install okoro
+pip install cerniq
 ```
 
 Requires Python 3.11+.
@@ -27,15 +27,15 @@ Requires Python 3.11+.
 import asyncio
 import os
 
-from okoro import AsyncOkoro, generate_keypair
+from cerniq import AsyncCerniq, generate_keypair
 
 
 async def main() -> None:
-    # Private key stays on this host — OKORO only sees the public half.
+    # Private key stays on this host — CERNIQ only sees the public half.
     kp = generate_keypair()
 
-    async with AsyncOkoro(api_key=os.environ["OKORO_API_KEY"]) as okoro:
-        agent = await okoro.agents.register(
+    async with AsyncCerniq(api_key=os.environ["CERNIQ_API_KEY"]) as cerniq:
+        agent = await cerniq.agents.register(
             public_key=kp.public_key,
             runtime="anthropic",
             principal_id="principal_acme",
@@ -45,7 +45,7 @@ async def main() -> None:
         # Example agent_id shape: agt_01HZ9YZXM4QT3B7P8WKJD6R5V
         print("registered:", agent.agent_id)
 
-        policy = await okoro.policies.create(
+        policy = await cerniq.policies.create(
             agent.agent_id,
             scopes=[
                 {
@@ -66,7 +66,7 @@ asyncio.run(main())
 ### Sign a per-request agent token
 
 ```python
-from okoro import sign_agent_token
+from cerniq import sign_agent_token
 
 token = sign_agent_token(
     private_key_b64u=kp.private_key,
@@ -87,12 +87,12 @@ token = sign_agent_token(
 ```python
 import asyncio
 
-from okoro import AsyncOkoro
+from cerniq import AsyncCerniq
 
 
 async def check(token: str) -> None:
-    async with AsyncOkoro(verify_key=os.environ["OKORO_VERIFY_KEY"]) as okoro:
-        result = await okoro.verify(
+    async with AsyncCerniq(verify_key=os.environ["CERNIQ_VERIFY_KEY"]) as cerniq:
+        result = await cerniq.verify(
             token,
             action="commerce.purchase",
             amount=347,
@@ -108,15 +108,15 @@ asyncio.run(check("eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9..."))
 
 ### Sync surface
 
-If you don't have an event loop, use `Okoro` (a thin sync wrapper):
+If you don't have an event loop, use `Cerniq` (a thin sync wrapper):
 
 ```python
-from okoro import Okoro, generate_keypair
+from cerniq import Cerniq, generate_keypair
 
 kp = generate_keypair()
 
-with Okoro(api_key="okoro_sk_...") as okoro:
-    agent = okoro.agents.register(
+with Cerniq(api_key="cerniq_sk_...") as cerniq:
+    agent = cerniq.agents.register(
         public_key=kp.public_key,
         runtime="custom",
         principal_id="principal_acme",
@@ -125,18 +125,18 @@ with Okoro(api_key="okoro_sk_...") as okoro:
 
 ## Configuration
 
-| Argument      | Default                       | Notes                                                              |
-| ------------- | ----------------------------- | ------------------------------------------------------------------ |
-| `api_key`     | required for management calls | Header `X-OKORO-API-Key`                                           |
-| `verify_key`  | required only for `verify()`  | Header `X-OKORO-Verify-Key`                                        |
-| `base_url`    | `https://api.okoroapp.com/v1` | Override for sandbox/self-hosted                                   |
-| `timeout_ms`  | `5000`                        | Per-request timeout                                                |
-| `user_agent`  | `okoro-python/<version>`      | Sent on every request                                              |
-| `max_retries` | `3`                           | Exponential backoff (250ms, 500ms, 1000ms) on 5xx + connect errors |
+| Argument      | Default                        | Notes                                                              |
+| ------------- | ------------------------------ | ------------------------------------------------------------------ |
+| `api_key`     | required for management calls  | Header `X-CERNIQ-API-Key`                                          |
+| `verify_key`  | required only for `verify()`   | Header `X-CERNIQ-Verify-Key`                                       |
+| `base_url`    | `https://api.cerniqapp.com/v1` | Override for sandbox/self-hosted                                   |
+| `timeout_ms`  | `5000`                         | Per-request timeout                                                |
+| `user_agent`  | `cerniq-python/<version>`      | Sent on every request                                              |
+| `max_retries` | `3`                            | Exponential backoff (250ms, 500ms, 1000ms) on 5xx + connect errors |
 
 ## Errors
 
-All HTTP failures raise a typed `OkoroError` subclass:
+All HTTP failures raise a typed `CerniqError` subclass:
 
 | Status | Exception          |
 | ------ | ------------------ |
@@ -147,7 +147,7 @@ All HTTP failures raise a typed `OkoroError` subclass:
 | 429    | `RateLimitedError` |
 | 5xx    | `ServerError`      |
 
-`OkoroError` exposes `.status_code`, `.request_id`, `.code`, and `.details`.
+`CerniqError` exposes `.status_code`, `.request_id`, `.code`, and `.details`.
 
 ## License
 

@@ -1,16 +1,16 @@
-# OKORO — Express / Fastify / Hono Integration Guide
+# CERNIQ — Express / Fastify / Hono Integration Guide
 
 ## Protecting Relying-Party APIs with Offline JWT Verification
 
 > **Updated:** 2026-05-04  
-> **Package:** `@okoro/verifier-rp`  
-> **Use this guide** when you're building an API or service that AI agents call, and you want to verify their OKORO identity before processing requests.
+> **Package:** `@cerniq/verifier-rp`  
+> **Use this guide** when you're building an API or service that AI agents call, and you want to verify their CERNIQ identity before processing requests.
 
 ---
 
 ## 1. Overview
 
-`@okoro/verifier-rp` is a drop-in offline verifier for relying parties — services that receive requests from OKORO-verified agents. It:
+`@cerniq/verifier-rp` is a drop-in offline verifier for relying parties — services that receive requests from CERNIQ-verified agents. It:
 
 - Verifies Ed25519 JWT signatures offline (no network call on the hot path)
 - Caches public keys with SWR (stale-while-revalidate) refresh
@@ -25,9 +25,9 @@
 ## 2. Install
 
 ```bash
-npm install @okoro/verifier-rp
+npm install @cerniq/verifier-rp
 # or
-pnpm add @okoro/verifier-rp
+pnpm add @cerniq/verifier-rp
 ```
 
 ---
@@ -38,56 +38,56 @@ pnpm add @okoro/verifier-rp
 
 ```typescript
 import express from 'express';
-import { createExpressMiddleware } from '@okoro/verifier-rp/express';
+import { createExpressMiddleware } from '@cerniq/verifier-rp/express';
 
 const app = express();
 
 // Create the middleware
-const okoroMiddleware = createExpressMiddleware({
-  okoroUrl: 'https://api.okoroapp.com',
-  apiKey: process.env.OKORO_API_KEY!,
+const cerniqMiddleware = createExpressMiddleware({
+  cerniqUrl: 'https://api.cerniqapp.com',
+  apiKey: process.env.CERNIQ_API_KEY!,
 
   // Optional configuration
   requiredScopes: ['payment:read'], // require these scopes on all protected routes
   trustBandMinimum: 'VERIFIED', // reject WATCH/FLAGGED agents
-  tokenHeader: 'x-okoro-token', // default: Authorization: Bearer
-  relyingPartyId: process.env.OKORO_RP_ID, // optional: for analytics
+  tokenHeader: 'x-cerniq-token', // default: Authorization: Bearer
+  relyingPartyId: process.env.CERNIQ_RP_ID, // optional: for analytics
 });
 
 // Apply to specific routes
-app.get('/api/account', okoroMiddleware, (req, res) => {
-  // req.okoro is injected by the middleware:
-  // req.okoro.agentId    — verified agent ID
-  // req.okoro.trustBand  — PLATINUM | VERIFIED | WATCH | FLAGGED
-  // req.okoro.trustScore — 0-1000
-  // req.okoro.scopes     — scopes granted to this token
-  // req.okoro.auditId    — audit event ID for this request
+app.get('/api/account', cerniqMiddleware, (req, res) => {
+  // req.cerniq is injected by the middleware:
+  // req.cerniq.agentId    — verified agent ID
+  // req.cerniq.trustBand  — PLATINUM | VERIFIED | WATCH | FLAGGED
+  // req.cerniq.trustScore — 0-1000
+  // req.cerniq.scopes     — scopes granted to this token
+  // req.cerniq.auditId    — audit event ID for this request
 
   res.json({
-    message: `Hello, agent ${req.okoro.agentId}`,
-    trustBand: req.okoro.trustBand,
+    message: `Hello, agent ${req.cerniq.agentId}`,
+    trustBand: req.cerniq.trustBand,
   });
 });
 
 // Or apply globally
-app.use('/api/agents/*', okoroMiddleware);
+app.use('/api/agents/*', cerniqMiddleware);
 ```
 
 ### 3.2 Per-Route Scope Requirements
 
 ```typescript
-import { createExpressMiddleware } from '@okoro/verifier-rp/express';
+import { createExpressMiddleware } from '@cerniq/verifier-rp/express';
 
 // Create middleware with different scope requirements per route
 const requireRead = createExpressMiddleware({
-  okoroUrl: 'https://api.okoroapp.com',
-  apiKey: process.env.OKORO_API_KEY!,
+  cerniqUrl: 'https://api.cerniqapp.com',
+  apiKey: process.env.CERNIQ_API_KEY!,
   requiredScopes: ['payment:read'],
 });
 
 const requireWrite = createExpressMiddleware({
-  okoroUrl: 'https://api.okoroapp.com',
-  apiKey: process.env.OKORO_API_KEY!,
+  cerniqUrl: 'https://api.cerniqapp.com',
+  apiKey: process.env.CERNIQ_API_KEY!,
   requiredScopes: ['payment:write'],
   trustBandMinimum: 'VERIFIED', // writes require higher trust
 });
@@ -99,9 +99,9 @@ app.post('/api/transfer', requireWrite, transferHandler);
 ### 3.3 Custom Denial Response
 
 ```typescript
-const okoroMiddleware = createExpressMiddleware({
-  okoroUrl: 'https://api.okoroapp.com',
-  apiKey: process.env.OKORO_API_KEY!,
+const cerniqMiddleware = createExpressMiddleware({
+  cerniqUrl: 'https://api.cerniqapp.com',
+  apiKey: process.env.CERNIQ_API_KEY!,
 
   onDenied: (result, req, res) => {
     // Customize the denial response
@@ -122,7 +122,7 @@ const okoroMiddleware = createExpressMiddleware({
     });
 
     // Log for your own metrics
-    metrics.increment('okoro.denied', { reason: result.denialReason });
+    metrics.increment('cerniq.denied', { reason: result.denialReason });
   },
 });
 ```
@@ -133,23 +133,23 @@ const okoroMiddleware = createExpressMiddleware({
 
 ```typescript
 import Fastify from 'fastify';
-import { createFastifyPlugin } from '@okoro/verifier-rp/fastify';
+import { createFastifyPlugin } from '@cerniq/verifier-rp/fastify';
 
 const fastify = Fastify({ logger: true });
 
 // Register as a Fastify plugin
 await fastify.register(createFastifyPlugin, {
-  okoroUrl: 'https://api.okoroapp.com',
-  apiKey: process.env.OKORO_API_KEY!,
+  cerniqUrl: 'https://api.cerniqapp.com',
+  apiKey: process.env.CERNIQ_API_KEY!,
   routePrefix: '/api', // only protect /api/* routes
 });
 
-// Protected route — req.okoro is available after verification
+// Protected route — req.cerniq is available after verification
 fastify.get(
   '/api/data',
   {
     config: {
-      okoro: {
+      cerniq: {
         requiredScopes: ['data:read'],
         trustBandMinimum: 'WATCH', // allow WATCH+ for read operations
       },
@@ -157,13 +157,13 @@ fastify.get(
   },
   async (request, reply) => {
     return {
-      agentId: request.okoro.agentId,
-      data: await fetchData(request.okoro.agentId),
+      agentId: request.cerniq.agentId,
+      data: await fetchData(request.cerniq.agentId),
     };
   },
 );
 
-// Route without OKORO protection (public endpoint)
+// Route without CERNIQ protection (public endpoint)
 fastify.get('/health', async () => ({ status: 'ok' }));
 
 await fastify.listen({ port: 3000 });
@@ -172,10 +172,10 @@ await fastify.listen({ port: 3000 });
 ### 4.1 Fastify Schema Integration
 
 ```typescript
-// Add OKORO context to your Fastify TypeScript types
+// Add CERNIQ context to your Fastify TypeScript types
 declare module 'fastify' {
   interface FastifyRequest {
-    okoro: {
+    cerniq: {
       agentId: string;
       trustBand: 'PLATINUM' | 'VERIFIED' | 'WATCH' | 'FLAGGED';
       trustScore: number;
@@ -190,26 +190,26 @@ declare module 'fastify' {
 
 ## 5. Hono Integration (Edge-Native)
 
-Hono works on Cloudflare Workers, Deno, Bun, and Node.js. `@okoro/verifier-rp` has zero `node:crypto` for exactly this use case:
+Hono works on Cloudflare Workers, Deno, Bun, and Node.js. `@cerniq/verifier-rp` has zero `node:crypto` for exactly this use case:
 
 ```typescript
 import { Hono } from 'hono';
-import { createHonoMiddleware } from '@okoro/verifier-rp/hono';
+import { createHonoMiddleware } from '@cerniq/verifier-rp/hono';
 
 const app = new Hono();
 
-const okoroMiddleware = createHonoMiddleware({
-  okoroUrl: 'https://api.okoroapp.com',
-  apiKey: process.env.OKORO_API_KEY!,
+const cerniqMiddleware = createHonoMiddleware({
+  cerniqUrl: 'https://api.cerniqapp.com',
+  apiKey: process.env.CERNIQ_API_KEY!,
 });
 
-app.use('/api/*', okoroMiddleware);
+app.use('/api/*', cerniqMiddleware);
 
 app.get('/api/quote', async (c) => {
-  const okoro = c.get('okoro'); // injected by middleware
+  const cerniq = c.get('cerniq'); // injected by middleware
   return c.json({
-    agentId: okoro.agentId,
-    quote: await generateQuote(okoro.agentId, okoro.trustBand),
+    agentId: cerniq.agentId,
+    quote: await generateQuote(cerniq.agentId, cerniq.trustBand),
   });
 });
 
@@ -221,14 +221,14 @@ Cloudflare Workers deployment:
 ```typescript
 // worker.ts
 import { Hono } from 'hono';
-import { createHonoMiddleware } from '@okoro/verifier-rp/hono';
+import { createHonoMiddleware } from '@cerniq/verifier-rp/hono';
 
-const app = new Hono<{ Bindings: { OKORO_API_KEY: string } }>();
+const app = new Hono<{ Bindings: { CERNIQ_API_KEY: string } }>();
 
 app.use('/api/*', async (c, next) => {
   const middleware = createHonoMiddleware({
-    okoroUrl: 'https://api.okoroapp.com',
-    apiKey: c.env.OKORO_API_KEY, // from Cloudflare secrets
+    cerniqUrl: 'https://api.cerniqapp.com',
+    apiKey: c.env.CERNIQ_API_KEY, // from Cloudflare secrets
   });
   return middleware(c, next);
 });
@@ -243,11 +243,11 @@ export default app;
 For any HTTP framework:
 
 ```typescript
-import { OkoroVerifier } from '@okoro/verifier-rp';
+import { CerniqVerifier } from '@cerniq/verifier-rp';
 
-const verifier = new OkoroVerifier({
-  okoroUrl: 'https://api.okoroapp.com',
-  apiKey: process.env.OKORO_API_KEY!,
+const verifier = new CerniqVerifier({
+  cerniqUrl: 'https://api.cerniqapp.com',
+  apiKey: process.env.CERNIQ_API_KEY!,
   // Warm up JWKS cache at startup (optional but recommended)
   prefetchJwks: true,
 });
@@ -269,7 +269,7 @@ async function verifyRequest(
   });
 
   if (!result.approved) {
-    throw new Error(`OKORO denied: ${result.denialReason}`);
+    throw new Error(`CERNIQ denied: ${result.denialReason}`);
   }
 
   return result; // { agentId, trustBand, trustScore, scopes, auditEventId }
@@ -284,18 +284,18 @@ Sometimes the relying party knows the spend amount better than the agent does. U
 
 ```typescript
 // In your handler, after the operation completes
-app.post('/api/execute-trade', okoroMiddleware, async (req, res) => {
+app.post('/api/execute-trade', cerniqMiddleware, async (req, res) => {
   const { ticker, quantity } = req.body;
 
   // Execute the trade
   const tradeResult = await tradingService.execute({ ticker, quantity });
 
-  // Report actual spend back to OKORO (out-of-band, doesn't block response)
+  // Report actual spend back to CERNIQ (out-of-band, doesn't block response)
   await verifier.reportSpend({
-    agentId: req.okoro.agentId,
+    agentId: req.cerniq.agentId,
     amount: tradeResult.totalCost,
     currency: 'USD',
-    operationId: req.okoro.auditEventId, // link to audit event
+    operationId: req.cerniq.auditEventId, // link to audit event
   });
 
   res.json({ success: true, trade: tradeResult });
@@ -310,12 +310,12 @@ Keep your relying party's revocation cache fresh:
 
 ```typescript
 import { createHmac } from 'crypto';
-import type { OkoroVerifier } from '@okoro/verifier-rp';
+import type { CerniqVerifier } from '@cerniq/verifier-rp';
 
-function createWebhookHandler(verifier: OkoroVerifier, webhookSecret: string) {
+function createWebhookHandler(verifier: CerniqVerifier, webhookSecret: string) {
   return async (req: express.Request, res: express.Response) => {
     // 1. Verify HMAC signature
-    const sig = req.headers['x-okoro-signature'] as string;
+    const sig = req.headers['x-cerniq-signature'] as string;
     const expected = createHmac('sha256', webhookSecret)
       .update((req as any).rawBody) // requires rawBody middleware
       .digest('hex');
@@ -329,7 +329,7 @@ function createWebhookHandler(verifier: OkoroVerifier, webhookSecret: string) {
     // 2. Handle revocation
     if (event.type === 'agent.revoked') {
       await verifier.invalidateAgent(event.data.agentId);
-      console.log(`[OKORO] Revoked agent ${event.data.agentId} — cache cleared`);
+      console.log(`[CERNIQ] Revoked agent ${event.data.agentId} — cache cleared`);
     }
 
     if (event.type === 'policy.updated') {
@@ -342,22 +342,22 @@ function createWebhookHandler(verifier: OkoroVerifier, webhookSecret: string) {
 
 // Register webhook handler
 app.post(
-  '/webhooks/okoro',
+  '/webhooks/cerniq',
   express.raw({ type: 'application/json' }), // preserve rawBody for HMAC
   (req, res, next) => {
     (req as any).rawBody = req.body;
     req.body = JSON.parse(req.body.toString());
     next();
   },
-  createWebhookHandler(verifier, process.env.OKORO_WEBHOOK_SECRET!),
+  createWebhookHandler(verifier, process.env.CERNIQ_WEBHOOK_SECRET!),
 );
 ```
 
 Register the webhook:
 
 ```bash
-okoro webhooks create \
-  --url https://your-api.com/webhooks/okoro \
+cerniq webhooks create \
+  --url https://your-api.com/webhooks/cerniq \
   --events agent.revoked policy.updated \
   --description "My relying party webhook"
 ```
@@ -367,7 +367,7 @@ okoro webhooks create \
 ## 9. TypeScript Types Reference
 
 ```typescript
-import type { VerifyOutcome, TrustBand, DenialReason } from '@okoro/verifier-rp';
+import type { VerifyOutcome, TrustBand, DenialReason } from '@cerniq/verifier-rp';
 
 // Successful verify result
 interface ApprovedResult {
@@ -417,9 +417,9 @@ The verifier-rp is designed for high-frequency use:
 At 1000 RPS on a single Node.js process, verifier-rp adds ~1ms median latency.
 
 ```typescript
-const verifier = new OkoroVerifier({
-  okoroUrl: 'https://api.okoroapp.com',
-  apiKey: process.env.OKORO_API_KEY!,
+const verifier = new CerniqVerifier({
+  cerniqUrl: 'https://api.cerniqapp.com',
+  apiKey: process.env.CERNIQ_API_KEY!,
 
   // Tune for high throughput
   jwksCacheTtlMs: 5 * 60 * 1000, // 5 minutes
@@ -430,4 +430,4 @@ const verifier = new OkoroVerifier({
 
 ---
 
-_Express/Fastify/Hono integration guide version: 1.0 | OKORO Phase 1_
+_Express/Fastify/Hono integration guide version: 1.0 | CERNIQ Phase 1_

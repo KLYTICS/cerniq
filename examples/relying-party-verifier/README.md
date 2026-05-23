@@ -1,7 +1,7 @@
 # relying-party-verifier
 
 Demonstrates the relying-party (RP) integration pattern: a service that
-**consumes** OKORO verify results to decide whether to honor an inbound
+**consumes** CERNIQ verify results to decide whether to honor an inbound
 agent request. This is the side of the handshake the merchant, API, or
 data service writes — distinct from the agent operator side (`node-quickstart`).
 
@@ -11,10 +11,10 @@ data service writes — distinct from the agent operator side (`node-quickstart`
    Agent (with private key)            Your service (this example)
    ─────────────────────────           ────────────────────────────
    1. signs a per-request token   →    2. POST /api/checkout
-                                              X-OKORO-Token: <jwt>
+                                              X-CERNIQ-Token: <jwt>
                                               { amount, currency, ... }
-                                       3. calls okoro.verify(token, ctx)
-                                       4. OKORO API returns valid + scope
+                                       3. calls cerniq.verify(token, ctx)
+                                       4. CERNIQ API returns valid + scope
                                           + trust + (denialReason if denied)
    ←── 200 allowed / 402 denied ──     5. responds based on the decision
 ```
@@ -29,13 +29,13 @@ three.
 
 ```sh
 pnpm install
-OKORO_API_BASE=http://localhost:4000 \
-  OKORO_VERIFY_KEY=okoro_vk_... \
+CERNIQ_API_BASE=http://localhost:4000 \
+  CERNIQ_VERIFY_KEY=cerniq_vk_... \
   pnpm tsx src/server.ts
 ```
 
-`OKORO_VERIFY_KEY` should be a verify-only key (`okoro_vk_…`). Production RPs
-must NOT use a full-management key (`okoro_sk_…`); the SDK's verify path will
+`CERNIQ_VERIFY_KEY` should be a verify-only key (`cerniq_vk_…`). Production RPs
+must NOT use a full-management key (`cerniq_sk_…`); the SDK's verify path will
 work with either, but the management key has too much power for a service
 edge.
 
@@ -45,12 +45,12 @@ In one terminal, run the server. In another:
 
 ```sh
 # 1. generate an agent + policy + token via the operator CLI
-pnpm --filter @okoro/scripts run okoro -- agent register --runtime CUSTOM
-pnpm --filter @okoro/scripts run okoro -- policy create --agent <agentId> \
+pnpm --filter @cerniq/scripts run cerniq -- agent register --runtime CUSTOM
+pnpm --filter @cerniq/scripts run cerniq -- policy create --agent <agentId> \
   --scope commerce --max-per-tx 100 --expires-in 30d
 
 # 2. sign a token and call the RP
-TOKEN=$(pnpm --filter @okoro/scripts run okoro -- verify \
+TOKEN=$(pnpm --filter @cerniq/scripts run cerniq -- verify \
   --agent <agentId> --policy <policyId> --action commerce.purchase \
   --amount 49 --domain example.com --json | jq -r '.tokenSentToServer // empty')
 
@@ -58,7 +58,7 @@ TOKEN=$(pnpm --filter @okoro/scripts run okoro -- verify \
 
 curl -X POST http://localhost:3001/api/checkout \
   -H "Content-Type: application/json" \
-  -H "X-OKORO-Token: $TOKEN" \
+  -H "X-CERNIQ-Token: $TOKEN" \
   -d '{"amount": 49, "currency": "USD", "merchantDomain": "example.com"}'
 ```
 

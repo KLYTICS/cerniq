@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Regenerates the @okoro/sdk TypeScript reference under
+// Regenerates the @cerniq/sdk TypeScript reference under
 // content/docs/sdk/(generated)/typescript/ via TypeDoc + typedoc-plugin-markdown.
 //
 // The (generated) route segment is gitignored — the source of truth is
@@ -13,19 +13,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const appRoot = resolve(__dirname, '..');
 
-const child = spawn(
-  'typedoc',
-  ['--options', resolve(appRoot, 'typedoc.json')],
-  {
-    cwd: appRoot,
-    stdio: 'inherit',
-    shell: true,
-  },
-);
+const child = spawn('typedoc', ['--options', resolve(appRoot, 'typedoc.json')], {
+  cwd: appRoot,
+  stdio: 'inherit',
+  shell: true,
+});
 
 child.on('exit', (code) => {
   if (code === 0) {
-    console.log('[docs] SDK TypeScript reference regenerated under content/docs/sdk/(generated)/typescript');
+    console.log(
+      '[docs] SDK TypeScript reference regenerated under content/docs/sdk/(generated)/typescript',
+    );
     process.exit(0);
     return;
   }

@@ -9,5 +9,5 @@ export default defineConfig({
   clean: true,
   treeshake: true,
   target: 'es2022',
-  external: ['@okoro/sdk', '@okoro/types', '@modelcontextprotocol/sdk'],
+  external: ['@cerniq/sdk', '@cerniq/types', '@modelcontextprotocol/sdk'],
 });

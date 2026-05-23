@@ -1,5 +1,5 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "display": "OKORO Base",
+  "display": "CERNIQ Base",
   "extends": "../../tsconfig.base.json"
 }

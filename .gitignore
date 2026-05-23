@@ -48,10 +48,10 @@ tmp/
 
 # Dev seed artifacts (scripts/seed-dev.ts) — both copies of the agent
 # private key. NEVER commit; rotate via `pnpm seed:dev -- --reset`.
-# Both names tracked: `.okoro-dev-key.txt` is the post-rename canonical
+# Both names tracked: `.cerniq-dev-key.txt` is the post-rename canonical
 # name; `.aegis-dev-key.txt` is the legacy name still present on
 # developer machines that pre-date the 2026-05-22 rename.
-.okoro-dev-key.txt
+.cerniq-dev-key.txt
 .aegis-dev-key.txt
 .local/keys/
 

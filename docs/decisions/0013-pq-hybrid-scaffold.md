@@ -10,17 +10,18 @@
 `docs/POST_QUANTUM_ROADMAP.md` lays out a three-phase migration from
 Ed25519 to NIST PQ standards (FIPS 204 ML-DSA, FIPS 205 SLH-DSA). Phase
 α is hybrid (classical + PQ in parallel) and triggers when:
+
 1. NIST/IETF finalize hybrid JWT alg names AND
 2. A stable JS/TS implementation of ML-DSA-65 ships.
 
 As of 2026-05, condition 2 is GA: `@noble/post-quantum` v1.0 ships
-ML-DSA implementations audited by Cure53. Condition 1 is *almost* GA:
+ML-DSA implementations audited by Cure53. Condition 1 is _almost_ GA:
 `draft-ietf-cose-hybrid-pq-jwt-04` (April 2026) is on track for IETF
 consensus by Q3 2026.
 
 The conservative path is to wait for both. The defensible path — and
-what an enterprise security review will ask about — is to *scaffold
-now*, behind a feature flag, so we can flip the switch the day the
+what an enterprise security review will ask about — is to _scaffold
+now_, behind a feature flag, so we can flip the switch the day the
 draft becomes RFC. Customers in regulated industries (defense,
 financial, healthcare) need to attest "we have a PQ migration plan
 that doesn't require a fork lift." A scaffold answers that.
@@ -32,7 +33,7 @@ that doesn't require a fork lift." A scaffold answers that.
    `verifyHybrid(msg, sig, classicalPub, pqPub)`. Internally it
    concatenates an Ed25519 signature and an ML-DSA-65 signature with
    an explicit length prefix.
-2. **Feature flag `OKORO_HYBRID_PQ_ENABLED` (default off).** When off,
+2. **Feature flag `CERNIQ_HYBRID_PQ_ENABLED` (default off).** When off,
    no hybrid signatures are produced or required; the system runs as
    pure Ed25519. When on, all newly-signed audit events are hybrid; old
    events remain pure Ed25519 (verifiable as long as old audit signing
@@ -41,8 +42,8 @@ that doesn't require a fork lift." A scaffold answers that.
    - `alg = "EdDSA"` — pure Ed25519 (today's default).
    - `alg = "EdDSA+ML-DSA-65"` — hybrid (post-flip).
    - `alg = "ML-DSA-65"` — pure PQ (Phase β, deferred).
-   These names are OKORO-internal until IETF assigns canonical names;
-   we map at the SDK boundary when those land.
+     These names are CERNIQ-internal until IETF assigns canonical names;
+     we map at the SDK boundary when those land.
 4. **Hybrid signature format** (binary, used for audit events; JWT
    variant uses base64url of the same bytes):
    ```
@@ -66,12 +67,13 @@ that doesn't require a fork lift." A scaffold answers that.
    - Tamper detection: flip a byte in classical → fail. Flip a byte in
      PQ → fail. Wrong PQ key, right classical → fail.
    - Length-prefix robustness: malformed lengths → throw, not silent.
-   We do NOT yet ship integration tests through the verify hot path —
-   that's M-035, post flag-flip.
+     We do NOT yet ship integration tests through the verify hot path —
+     that's M-035, post flag-flip.
 
 ## Consequences
 
 ### Positive
+
 - Enterprise security review has a real answer: "PQ migration plan is
   scaffolded, behind a flag, ready to enable when standards finalize."
 - "Harvest now, decrypt later" mitigation is documented and auditable.
@@ -80,6 +82,7 @@ that doesn't require a fork lift." A scaffold answers that.
   24 months. Marketing-defensible technical claim.
 
 ### Negative
+
 - ML-DSA-65 signatures are 3293 bytes vs Ed25519's 64. Hybrid audit
   events grow by ~5 KB each. With current 100 events/sec target, that's
   ~30 GB/year of additional storage per principal. Mitigation: audit
@@ -90,6 +93,7 @@ that doesn't require a fork lift." A scaffold answers that.
 - Scaffold cost: ~200 LOC + tests. Cheap insurance.
 
 ### Neutral
+
 - Dependency: `@noble/post-quantum` v1.x, locked at install time.
   Audited by Cure53; same curve provider as our Ed25519 stack.
 - Flag default stays off until: IETF hybrid JWT RFC published AND
@@ -100,19 +104,23 @@ that doesn't require a fork lift." A scaffold answers that.
 ## Alternatives considered
 
 ### Alt A: Wait until Phase α triggers fire (no scaffold)
+
 Rejected: enterprise review answers benefit from "scaffolded today" vs
 "will scaffold when standards finalize." Cost-benefit favors scaffolding.
 
 ### Alt B: Skip hybrid, go pure ML-DSA at Phase α
+
 Rejected: hybrid is the IETF-recommended migration path. Pure-PQ before
 ML-DSA libraries are battle-tested in production is courageous.
 
 ### Alt C: SLH-DSA (SPHINCS+) instead of ML-DSA
+
 SLH-DSA is more conservative cryptographically (hash-based, no algebraic
 structure to attack) but has 30-50 KB signatures. Untenable for hot-path
 JWTs. Roadmap reserves SLH-DSA for chain-of-chains archival only.
 
 ### Alt D: Falcon / FN-DSA
+
 NIST finalized but not yet published as FIPS. Smaller signatures than
 ML-DSA, faster verify, but trickier constant-time implementation. Wait.
 

@@ -1,47 +1,47 @@
 ---
-title: OKORO for security engineers
-audience: app-sec, infra-sec, AI-security teams reviewing OKORO as a control
+title: CERNIQ for security engineers
+audience: app-sec, infra-sec, AI-security teams reviewing CERNIQ as a control
 last-reviewed: 2026-05-02
 ---
 
-# OKORO for security engineers — what's enforced and what isn't
+# CERNIQ for security engineers — what's enforced and what isn't
 
-OKORO is a _cryptographic gate_ for agent actions. It supplies what an
+CERNIQ is a _cryptographic gate_ for agent actions. It supplies what an
 identity / authorization / audit substrate should: per-agent identity
 rooted in Ed25519, scoped policy as signed JWT, append-only audit chain
-signed by OKORO, and a behavioral trust score that the relying party
+signed by CERNIQ, and a behavioral trust score that the relying party
 sets thresholds against. Nothing else.
 
-## What OKORO enforces
+## What CERNIQ enforces
 
 - **Identity is cryptographic, not asserted.** Every agent's private
-  key lives client-side; OKORO holds only the public key. A compromised
-  OKORO database does not compromise agents.
+  key lives client-side; CERNIQ holds only the public key. A compromised
+  CERNIQ database does not compromise agents.
 - **Policy is bounded and revocable.** Policies are signed JWTs with
   scope, spend cap, domain allow-list, TTL. Revocation is immediate
   via Redis-backed revocation cache — a relying party verifying online
   sees revocation in <1s.
 - **Denial precedence is fixed.** The 9 reasons (CLAUDE.md invariant 6) are ordered so RPs always get the _most-restrictive_ reason on
   any request that fails multiple checks. Operators learn one ladder.
-- **Audit is append-only and signed.** Hash-chained, OKORO-signed,
+- **Audit is append-only and signed.** Hash-chained, CERNIQ-signed,
   exportable as NDJSON for SOC2 / FINRA / COSSEC evidence. Tamper
   detection is a unit test (`audit-chain.util.spec.ts`).
 - **Spend is atomic.** Redis `INCRBY` with Lua-fallback ensures no
   TOCTOU race between two concurrent verify calls under the same
   policy spend cap.
 
-## What OKORO does NOT enforce
+## What CERNIQ does NOT enforce
 
 These are explicit non-goals (see `CLAUDE.md` and
-`docs/OKORO_AS_BACKBONE.md` § 8):
+`docs/CERNIQ_AS_BACKBONE.md` § 8):
 
-- **Agent runtime.** OKORO does not invoke LLMs, evaluate prompts, or
+- **Agent runtime.** CERNIQ does not invoke LLMs, evaluate prompts, or
   inspect tool calls beyond the verify shape. Agent runtime security
   is the relying party's responsibility.
-- **Network-layer protection.** OKORO is L7 only. Run your relying
-  party behind a WAF / rate-limiter; OKORO's throttler protects OKORO
+- **Network-layer protection.** CERNIQ is L7 only. Run your relying
+  party behind a WAF / rate-limiter; CERNIQ's throttler protects CERNIQ
   itself, not the RP.
-- **Data plane.** OKORO does not see the actual data the agent acts
+- **Data plane.** CERNIQ does not see the actual data the agent acts
   on. A successful `verify` says "this agent was authorized for this
   shape of action"; it does not say "this transaction is correct."
 - **Anomaly detection beyond rules-based v1.** ML anomaly detection
@@ -65,10 +65,10 @@ Read in this order:
 - **One curve, one library.** Ed25519 (stdlib) + `jose` (TS) /
   `go-jose` (Go) / `python-jose` (Py). No alternates, no homegrown
   signing.
-- **No private keys in OKORO.** This is invariant 1. The dashboard
+- **No private keys in CERNIQ.** This is invariant 1. The dashboard
   cannot show one because none exists server-side.
 - **JWKS at `/.well-known/jwks.json`** — always-on, public, cached
-  for 1h. Supports RP offline verification when OKORO is briefly
+  for 1h. Supports RP offline verification when CERNIQ is briefly
   unreachable.
 - **Key rotation:** ADR-0011 + `M-023` AwsKmsAdapter. The KMS-backed
   rotation lifecycle keeps `kid` history queryable for audit-chain
@@ -88,7 +88,7 @@ Read in this order:
 ## Reporting a security issue
 
 - Public issues: do **not** open a GitHub issue. Email
-  security@okoroapp.com with PGP-encrypted details.
+  security@cerniqapp.com with PGP-encrypted details.
 - The default response window is 72 hours. Coordinated disclosure
   follows the 90-day standard.
 

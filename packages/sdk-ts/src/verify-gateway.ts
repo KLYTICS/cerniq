@@ -1,4 +1,4 @@
-// VerifyGateway — relying-party scaling wrapper around `Okoro.verify`.
+// VerifyGateway — relying-party scaling wrapper around `Cerniq.verify`.
 //
 // Three primitives, composed in order on every call:
 //   1. Cache lookup       — collapses repeat verifies of the same
@@ -9,7 +9,7 @@
 //                           serve cached-stale (operator-configurable)
 //                           so a degraded API does not melt the caller.
 //
-// Additive only. The existing `Okoro` class is unchanged. Relying parties
+// Additive only. The existing `Cerniq` class is unchanged. Relying parties
 // opt in by wrapping their existing client.
 //
 // Portability: zero Node-only imports. Runs unchanged in Node 20+,
@@ -22,10 +22,10 @@ import {
   type VerifyCache,
   type VerifyCacheContext,
 } from './cache.js';
-import { OkoroError, OkoroServiceUnavailableError } from './errors.js';
+import { CerniqError, CerniqServiceUnavailableError } from './errors.js';
 import type { VerifyResult } from './types.js';
 
-import type { Okoro } from './index.js';
+import type { Cerniq } from './index.js';
 
 export type BreakerState = 'closed' | 'open' | 'half-open';
 
@@ -48,7 +48,7 @@ export interface VerifyGatewayOptions {
   breakerCooldownMs?: number;
   /**
    * Behavior when the breaker is `open`:
-   *   - 'fail-fast' (default): throw `OkoroServiceUnavailableError` immediately.
+   *   - 'fail-fast' (default): throw `CerniqServiceUnavailableError` immediately.
    *   - 'serve-stale': return any cached entry regardless of expiry.
    *     Marks `result` with `_stale: true` via observability hook.
    */
@@ -76,7 +76,7 @@ export interface VerifyGatewayHooks {
   onCoalesce?: (key: string, inflightCount: number) => void;
   onBreakerStateChange?: (from: BreakerState, to: BreakerState) => void;
   onStale?: (key: string, result: VerifyResult) => void;
-  onError?: (err: OkoroError) => void;
+  onError?: (err: CerniqError) => void;
 }
 
 const DEFAULT_MAX_TTL_MS = 60_000;
@@ -84,7 +84,7 @@ const DEFAULT_BREAKER_THRESHOLD = 5;
 const DEFAULT_BREAKER_COOLDOWN_MS = 5_000;
 
 export class VerifyGateway {
-  private readonly okoro: Okoro;
+  private readonly cerniq: Cerniq;
   private readonly cache: VerifyCache;
   private readonly maxTtlMs: number;
   private readonly negativeTtlMs: number;
@@ -100,7 +100,7 @@ export class VerifyGateway {
   // Approximate concurrent-waiter count per key, for the onCoalesce hook.
   private readonly inflightWaiters = new Map<string, number>();
 
-  // Breaker state. `consecutiveFailures` increments on OkoroError;
+  // Breaker state. `consecutiveFailures` increments on CerniqError;
   // `openedAt` is set when we trip; we revert to half-open after the
   // cooldown, then to closed on the next success.
   private breaker: BreakerState = 'closed';
@@ -119,8 +119,8 @@ export class VerifyGateway {
   private staleServed = 0;
   private breakerTrips = 0;
 
-  constructor(okoro: Okoro, opts: VerifyGatewayOptions = {}) {
-    this.okoro = okoro;
+  constructor(cerniq: Cerniq, opts: VerifyGatewayOptions = {}) {
+    this.cerniq = cerniq;
     this.now = opts.now ?? Date.now;
     this.cache = opts.cache ?? new MemoryVerifyCache({ now: this.now });
     this.maxTtlMs = opts.maxTtlMs ?? DEFAULT_MAX_TTL_MS;
@@ -138,7 +138,7 @@ export class VerifyGateway {
 
   /**
    * Verify a token through the cache + single-flight + breaker stack.
-   * Identical signature to `Okoro.verify` so this is a drop-in replacement.
+   * Identical signature to `Cerniq.verify` so this is a drop-in replacement.
    */
   async verify(token: string, ctx: VerifyCacheContext = {}): Promise<VerifyResult> {
     const key = buildCacheKey(token, ctx);
@@ -203,7 +203,7 @@ export class VerifyGateway {
     ctx: VerifyCacheContext,
   ): Promise<VerifyResult> {
     try {
-      const result = await this.okoro.verify(token, ctx);
+      const result = await this.cerniq.verify(token, ctx);
       this.recordSuccess();
 
       const ttlMs = this.computeTtlMs(result);
@@ -212,9 +212,7 @@ export class VerifyGateway {
         // the same second don't all stampede 30 seconds later. Server
         // TTL is the ceiling — we only ever shorten, never extend.
         const jittered = Math.floor(ttlMs * (1 - this.randomJitterFactor()));
-        await Promise.resolve(
-          this.cache.set(key, { result, expiresAt: this.now() + jittered }),
-        );
+        await Promise.resolve(this.cache.set(key, { result, expiresAt: this.now() + jittered }));
       }
       return result;
     } catch (err) {
@@ -228,7 +226,10 @@ export class VerifyGateway {
     if (result.valid) return clampTtlMs(result.ttl, this.maxTtlMs);
     // Denials only cached if operator explicitly opted in.
     if (this.negativeTtlMs <= 0) return 0;
-    return Math.min(this.negativeTtlMs, clampTtlMs(result.ttl, this.maxTtlMs) || this.negativeTtlMs);
+    return Math.min(
+      this.negativeTtlMs,
+      clampTtlMs(result.ttl, this.maxTtlMs) || this.negativeTtlMs,
+    );
   }
 
   private recordSuccess(): void {
@@ -238,7 +239,7 @@ export class VerifyGateway {
   }
 
   private recordFailure(err: unknown): void {
-    if (!(err instanceof OkoroError)) return;
+    if (!(err instanceof CerniqError)) return;
     this.safeHook('onError', err);
     this.consecutiveFailures += 1;
     if (this.consecutiveFailures >= this.breakerThreshold && this.breaker === 'closed') {
@@ -277,8 +278,8 @@ export class VerifyGateway {
       this.safeHook('onStale', key, cached.result);
       return cached.result;
     }
-    throw new OkoroServiceUnavailableError(
-      'OKORO verify gateway breaker is open — upstream is failing.',
+    throw new CerniqServiceUnavailableError(
+      'CERNIQ verify gateway breaker is open — upstream is failing.',
       503,
       undefined,
     );
@@ -320,10 +321,7 @@ export class VerifyGateway {
   // without losing per-hook type safety at call sites; only the four
   // narrow `safeHook(...)` callers above produce arguments and they
   // each match the corresponding hook signature.
-  private safeHook(
-    name: keyof VerifyGatewayHooks,
-    ...args: unknown[]
-  ): void {
+  private safeHook(name: keyof VerifyGatewayHooks, ...args: unknown[]): void {
     const hook = this.hooks[name];
     if (typeof hook !== 'function') return;
     try {

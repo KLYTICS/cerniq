@@ -1,6 +1,6 @@
-// Zod schemas — the single source of truth for OKORO request/response shapes.
+// Zod schemas — the single source of truth for CERNIQ request/response shapes.
 //
-// These mirror docs/spec/OKORO_API_SPEC.yaml. When the OpenAPI spec changes,
+// These mirror docs/spec/CERNIQ_API_SPEC.yaml. When the OpenAPI spec changes,
 // update here first; both the API DTOs and the SDK derive from these.
 //
 // Why Zod over plain TS interfaces: it gives us runtime validation in the
@@ -29,15 +29,30 @@ export const PublicKeyB64UrlSchema = z
 // Compact JWS / JWT — three base64url segments separated by dots.
 export const JwtTokenSchema = z
   .string()
-  .regex(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, 'must be a compact JWT (header.payload.signature)');
+  .regex(
+    /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/,
+    'must be a compact JWT (header.payload.signature)',
+  );
 
 // ── Enums ────────────────────────────────────────────────────────
 
-export const AgentRuntimeSchema = z.enum(['openai', 'anthropic', 'google', 'huggingface', 'custom']);
+export const AgentRuntimeSchema = z.enum([
+  'openai',
+  'anthropic',
+  'google',
+  'huggingface',
+  'custom',
+]);
 export const AgentStatusSchema = z.enum(['pending_verification', 'active', 'suspended', 'revoked']);
 export const TrustBandSchema = z.enum(['PLATINUM', 'VERIFIED', 'WATCH', 'FLAGGED']);
 export const PolicyStatusSchema = z.enum(['active', 'expired', 'revoked']);
-export const PolicyCategorySchema = z.enum(['commerce', 'data-read', 'data-write', 'communication', 'scheduling']);
+export const PolicyCategorySchema = z.enum([
+  'commerce',
+  'data-read',
+  'data-write',
+  'communication',
+  'scheduling',
+]);
 // Currency codes — extended in 2026 Q2 audit (a4814df0 / type_design).
 // The original USD/EUR/GBP closed enum was a public-API liability:
 // ACP merchants in 2026 routinely accept JPY/CAD/AUD/BRL plus stablecoins
@@ -48,7 +63,17 @@ export const PolicyCategorySchema = z.enum(['commerce', 'data-read', 'data-write
 // Public-API stability: adding values here is non-breaking; removing
 // values is breaking. Renames forbidden — the enum value IS the wire
 // format.
-export const FIAT_CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'BRL', 'CHF', 'MXN'] as const;
+export const FIAT_CURRENCIES = [
+  'USD',
+  'EUR',
+  'GBP',
+  'JPY',
+  'CAD',
+  'AUD',
+  'BRL',
+  'CHF',
+  'MXN',
+] as const;
 export const STABLECOIN_CURRENCIES = ['USDC', 'PYUSD', 'USDT', 'EURC'] as const;
 export const CurrencySchema = z.enum([...FIAT_CURRENCIES, ...STABLECOIN_CURRENCIES]);
 
@@ -82,7 +107,8 @@ export const SpendLimitSchema = z
     maxPerMonth: z.number().positive().finite().optional(),
   })
   .refine(
-    (v) => v.maxPerTransaction !== undefined || v.maxPerDay !== undefined || v.maxPerMonth !== undefined,
+    (v) =>
+      v.maxPerTransaction !== undefined || v.maxPerDay !== undefined || v.maxPerMonth !== undefined,
     'At least one of maxPerTransaction / maxPerDay / maxPerMonth must be set.',
   );
 
@@ -157,7 +183,7 @@ export const HandshakeChallengeResponseSchema = z.object({
   /** base64url-encoded 256-bit nonce. Single-use, 5 min TTL. */
   challenge: z.string().min(40).max(64),
   expiresIn: z.number().int().positive(),
-  protocolVersion: z.literal('okoro-handshake-v1'),
+  protocolVersion: z.literal('cerniq-handshake-v1'),
   /** UTF-8 string the SDK signs verbatim. */
   message: z.string(),
 });
@@ -165,7 +191,7 @@ export const HandshakeChallengeResponseSchema = z.object({
 export const HandshakeVerifiedResponseSchema = z.object({
   agentId: AgentIdSchema,
   verifiedAt: IsoDateTimeSchema,
-  protocolVersion: z.literal('okoro-handshake-v1'),
+  protocolVersion: z.literal('cerniq-handshake-v1'),
   trustScore: z.number().int().min(0).max(1000),
   recordTtlSeconds: z.number().int().positive(),
 });
@@ -174,7 +200,7 @@ export const HandshakeStatusResponseSchema = z.object({
   agentId: AgentIdSchema,
   verified: z.boolean(),
   verifiedAt: IsoDateTimeSchema.optional(),
-  protocolVersion: z.literal('okoro-handshake-v1').optional(),
+  protocolVersion: z.literal('cerniq-handshake-v1').optional(),
 });
 
 // ── Policy ───────────────────────────────────────────────────────
@@ -237,10 +263,9 @@ export const VerifyResponseSchema = z
   // ADR-0004 + verify.algorithm.ts. Static-type discriminated union is kept
   // out of the wire shape for backward compatibility; consumers wanting the
   // narrowed type use the `isVerifyApproved` / `isVerifyDenied` guards below.
-  .refine(
-    (r) => (r.valid ? r.denialReason === null : r.denialReason !== null),
-    { message: 'valid=true requires denialReason=null; valid=false requires denialReason set' },
-  )
+  .refine((r) => (r.valid ? r.denialReason === null : r.denialReason !== null), {
+    message: 'valid=true requires denialReason=null; valid=false requires denialReason set',
+  })
   .refine(
     (r) => !r.valid || (r.agentId !== null && r.principalId !== null && r.trustBand !== null),
     { message: 'valid=true requires agentId, principalId, and trustBand to be non-null' },
@@ -336,7 +361,7 @@ export type VerifyDenied = VerifyResponse & {
  * Use this in SDK consumer code to access `agentId`, `principalId`, and
  * `trustBand` as non-nullable strings without `!` assertions:
  *
- *   const result = await okoro.verify(token);
+ *   const result = await cerniq.verify(token);
  *   if (isVerifyApproved(result)) {
  *     fulfilOrder(result.agentId, result.principalId);
  *   } else {

@@ -1,11 +1,11 @@
-# OKORO — Network egress policies
+# CERNIQ — Network egress policies
 
-> Direction: **outbound** — OKORO API / worker → external services.
+> Direction: **outbound** — CERNIQ API / worker → external services.
 > See [`ingress.md`](./ingress.md) for inbound.
 
 ## Summary
 
-OKORO reaches a small, named set of external services in production. The
+CERNIQ reaches a small, named set of external services in production. The
 list is short on purpose: every new outbound destination is a new
 supply-chain risk. Webhooks are the one exception — those URLs are
 **user-controlled**, which makes them an SSRF risk by default and the
@@ -13,14 +13,14 @@ single most important egress concern in this document.
 
 ## Allowed destinations
 
-| Destination                | Purpose                                  | Endpoint                                | Trust     |
-|----------------------------|------------------------------------------|-----------------------------------------|-----------|
-| Postgres (Railway internal)| Application data (incl. audit chain)     | Railway private DNS, port 5432          | Trusted   |
-| Redis (Railway internal)   | Cache + BullMQ queues                    | Railway private DNS, port 6379          | Trusted   |
-| Stripe                     | Billing + Stripe webhooks (dual-direction) | `api.stripe.com:443`                    | Trusted   |
-| Sentry                     | Error + performance telemetry            | `sentry.io:443` and project subdomain   | Trusted   |
-| OpenTelemetry collector    | Traces + metrics                         | OTLP/HTTP, operator-configured endpoint | Trusted   |
-| Customer webhooks          | Event delivery                           | **operator-supplied URL per subscription** | **Untrusted** |
+| Destination                 | Purpose                                    | Endpoint                                   | Trust         |
+| --------------------------- | ------------------------------------------ | ------------------------------------------ | ------------- |
+| Postgres (Railway internal) | Application data (incl. audit chain)       | Railway private DNS, port 5432             | Trusted       |
+| Redis (Railway internal)    | Cache + BullMQ queues                      | Railway private DNS, port 6379             | Trusted       |
+| Stripe                      | Billing + Stripe webhooks (dual-direction) | `api.stripe.com:443`                       | Trusted       |
+| Sentry                      | Error + performance telemetry              | `sentry.io:443` and project subdomain      | Trusted       |
+| OpenTelemetry collector     | Traces + metrics                           | OTLP/HTTP, operator-configured endpoint    | Trusted       |
+| Customer webhooks           | Event delivery                             | **operator-supplied URL per subscription** | **Untrusted** |
 
 Anything not on this list should be denied or alerted on. In Phase 3, an
 outbound proxy + DNS pinning enforces that programmatically; in v1 it's
@@ -39,7 +39,7 @@ is a confused deputy that will happily make requests to:
 - `http://[::1]/...`, `http://[fc00::1]/...` — IPv6 link-local / ULA.
 - `http://api.stripe.com/...` — pretending to be a trusted destination, in case any internal logic compares URLs by string.
 
-Any one of these is enough to read OKORO internals or pivot.
+Any one of these is enough to read CERNIQ internals or pivot.
 
 ### Required mitigations (defense in depth)
 
@@ -57,31 +57,31 @@ Any one of these is enough to read OKORO internals or pivot.
    time and to private at delivery time, so we re-resolve and re-check.
 3. **Per-call timeout** — already 5 s per attempt. Keep it.
 4. **Response body cap** — already 2 KiB; do not increase.
-5. **HMAC signature** — `X-OKORO-Signature: t=<ts>,v1=<hmac-sha256>`.
+5. **HMAC signature** — `X-CERNIQ-Signature: t=<ts>,v1=<hmac-sha256>`.
    This protects the receiver, not us, but completes the model.
 
 ### Disallowed IP ranges (refuse at subscribe AND at delivery)
 
-| CIDR                    | Why                                                  |
-|-------------------------|------------------------------------------------------|
-| `0.0.0.0/8`             | "this network"                                       |
-| `10.0.0.0/8`            | RFC 1918 private                                     |
-| `100.64.0.0/10`         | CGNAT                                                |
-| `127.0.0.0/8`           | loopback                                             |
-| `169.254.0.0/16`        | link-local incl. cloud metadata service              |
-| `172.16.0.0/12`         | RFC 1918 private                                     |
-| `192.0.0.0/24`          | IETF assignments                                     |
-| `192.0.2.0/24`          | TEST-NET-1                                           |
-| `192.168.0.0/16`        | RFC 1918 private                                     |
-| `198.18.0.0/15`         | benchmarking                                         |
-| `198.51.100.0/24`       | TEST-NET-2                                           |
-| `203.0.113.0/24`        | TEST-NET-3                                           |
-| `224.0.0.0/4`           | multicast                                            |
-| `240.0.0.0/4`           | reserved                                             |
-| `::1/128`               | IPv6 loopback                                        |
-| `fc00::/7`              | IPv6 unique-local                                    |
-| `fe80::/10`             | IPv6 link-local                                      |
-| `::ffff:0:0/96`         | IPv4-mapped IPv6 (close the IPv4-via-IPv6 hole)      |
+| CIDR              | Why                                             |
+| ----------------- | ----------------------------------------------- |
+| `0.0.0.0/8`       | "this network"                                  |
+| `10.0.0.0/8`      | RFC 1918 private                                |
+| `100.64.0.0/10`   | CGNAT                                           |
+| `127.0.0.0/8`     | loopback                                        |
+| `169.254.0.0/16`  | link-local incl. cloud metadata service         |
+| `172.16.0.0/12`   | RFC 1918 private                                |
+| `192.0.0.0/24`    | IETF assignments                                |
+| `192.0.2.0/24`    | TEST-NET-1                                      |
+| `192.168.0.0/16`  | RFC 1918 private                                |
+| `198.18.0.0/15`   | benchmarking                                    |
+| `198.51.100.0/24` | TEST-NET-2                                      |
+| `203.0.113.0/24`  | TEST-NET-3                                      |
+| `224.0.0.0/4`     | multicast                                       |
+| `240.0.0.0/4`     | reserved                                        |
+| `::1/128`         | IPv6 loopback                                   |
+| `fc00::/7`        | IPv6 unique-local                               |
+| `fe80::/10`       | IPv6 link-local                                 |
+| `::ffff:0:0/96`   | IPv4-mapped IPv6 (close the IPv4-via-IPv6 hole) |
 
 > **Status of the SSRF check in code today**: not yet implemented. The
 > webhook delivery worker

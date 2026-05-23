@@ -48,7 +48,9 @@ describe('e2e: denial precedence', () => {
   let verifyKey: SeededPrincipal;
 
   // Helper: POST /v1/verify and return the response body (with denialReason).
-  const verify = async (body: VerifyBody): Promise<{
+  const verify = async (
+    body: VerifyBody,
+  ): Promise<{
     status: number;
     valid: boolean;
     denialReason: string | null;
@@ -56,7 +58,7 @@ describe('e2e: denial precedence', () => {
   }> => {
     const res = await http
       .post('/v1/verify')
-      .set('X-OKORO-Verify-Key', verifyKey.apiKey)
+      .set('X-CERNIQ-Verify-Key', verifyKey.apiKey)
       .send(body);
     return {
       status: res.status,
@@ -75,7 +77,7 @@ describe('e2e: denial precedence', () => {
     const config = app.get(AppConfigService);
     principal = await seedPrincipalAndApiKey(handle.prisma, config);
     verifyKey = await seedPrincipalAndApiKey(handle.prisma, config, {
-      email: `vk-precedence-${Date.now()}@okoro.test`,
+      email: `vk-precedence-${Date.now()}@cerniq.test`,
       scope: 'VERIFY_ONLY',
     });
   });
@@ -108,7 +110,7 @@ describe('e2e: denial precedence', () => {
 
     await http
       .delete(`/v1/agents/${seeded.agentId}`)
-      .set('X-OKORO-API-Key', principal.apiKey)
+      .set('X-CERNIQ-API-Key', principal.apiKey)
       .expect(204);
 
     const goodToken = await signAgentToken(keys.privateKey, {
@@ -157,7 +159,7 @@ describe('e2e: denial precedence', () => {
     });
     await http
       .delete(`/v1/agents/${seeded.agentId}/policies/${policy.policyId}`)
-      .set('X-OKORO-API-Key', principal.apiKey)
+      .set('X-CERNIQ-API-Key', principal.apiKey)
       .expect(204);
 
     const token = await signAgentToken(keys.privateKey, {
@@ -200,7 +202,7 @@ describe('e2e: denial precedence', () => {
     expect(r.denialReason).toBe('POLICY_EXPIRED');
   });
 
-  test('SCOPE_NOT_GRANTED when action category doesn\'t match policy scopes', async () => {
+  test("SCOPE_NOT_GRANTED when action category doesn't match policy scopes", async () => {
     const keys = await generateAgentKeypair();
     const seeded = await registerAgentViaApi(http, principal.apiKey, {
       publicKey: keys.publicKeyB64Url,

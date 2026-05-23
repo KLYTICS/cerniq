@@ -17,7 +17,10 @@ export function b64uEncode(bytes: Uint8Array): string {
 
 export function b64uDecode(s: string): Uint8Array {
   if (typeof Buffer !== 'undefined') return Uint8Array.from(Buffer.from(s, 'base64url'));
-  const padded = s.replace(/-/g, '+').replace(/_/g, '/').padEnd(s.length + ((4 - (s.length % 4)) % 4), '=');
+  const padded = s
+    .replace(/-/g, '+')
+    .replace(/_/g, '/')
+    .padEnd(s.length + ((4 - (s.length % 4)) % 4), '=');
   const bin = atob(padded);
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
@@ -28,7 +31,7 @@ const HEADER_B64 = b64uEncode(enc.encode(JSON.stringify({ alg: 'EdDSA', typ: 'JW
 
 /**
  * Generate a fresh Ed25519 keypair. Both halves are returned in base64url
- * (32 bytes each). Persist the private key client-side; OKORO never receives it.
+ * (32 bytes each). Persist the private key client-side; CERNIQ never receives it.
  */
 export async function generateKeypair(): Promise<{ publicKey: string; privateKey: string }> {
   const priv = ed.utils.randomPrivateKey();
@@ -74,18 +77,15 @@ export async function signAgentToken(
  * Sign a handshake challenge issued by `POST /v1/agents/:id/challenge`.
  *
  * The server returns a `message` string of the form
- * `okoro-handshake-v1::{agentId}::{challenge}`. Sign those exact UTF-8 bytes
+ * `cerniq-handshake-v1::{agentId}::{challenge}`. Sign those exact UTF-8 bytes
  * with the agent's Ed25519 private key and post the resulting signature back
  * to `POST /v1/agents/:id/verify-handshake` to prove proof-of-possession.
  *
- * Domain separation: the `okoro-handshake-v1::` prefix prevents this signature
- * from being meaningful in any other OKORO sub-protocol (verify-token JWTs sign
+ * Domain separation: the `cerniq-handshake-v1::` prefix prevents this signature
+ * from being meaningful in any other CERNIQ sub-protocol (verify-token JWTs sign
  * different bytes), so the same private key is safe to use for both flows.
  */
-export async function signHandshake(
-  privateKeyB64u: string,
-  message: string,
-): Promise<string> {
+export async function signHandshake(privateKeyB64u: string, message: string): Promise<string> {
   const sig = await ed.signAsync(enc.encode(message), b64uDecode(privateKeyB64u));
   return b64uEncode(sig);
 }

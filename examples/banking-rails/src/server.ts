@@ -1,25 +1,25 @@
-// Treasury API — OKORO verify gate in front of a programmable-banking
+// Treasury API — CERNIQ verify gate in front of a programmable-banking
 // action. The merchant (or in this vertical, the treasury team) layers
-// OKORO over their bank adapter (Modern Treasury, Increase, Mercury,
+// CERNIQ over their bank adapter (Modern Treasury, Increase, Mercury,
 // or direct ISO 20022 to a sponsor bank).
 //
 // Inbound /api/instruct carries:
-//   - okoroToken: agent identity + policy + trust
+//   - cerniqToken: agent identity + policy + trust
 //   - instruction: the rail-agnostic payment shape (see iso20022-shape)
 //
-// We gate the agent first, then submit to the (mock) bank rail. OKORO
+// We gate the agent first, then submit to the (mock) bank rail. CERNIQ
 // signs an audit event regardless of rail outcome — even if the bank
 // rejects, you have a tamper-evident record of the agent's attempt.
 //
 // Why this matters: agent-driven money movement is the highest-stakes
-// OKORO surface. A leaked credential moving funds via wire is
+// CERNIQ surface. A leaked credential moving funds via wire is
 // unrecoverable. The combination of (a) Ed25519 identity, (b) scoped
 // policy with spend caps, (c) BATE trust score gating high-value
 // rails, and (d) signed audit chain is the entire defence-in-depth
 // story for treasury automation.
 
 import express, { type Request, type Response } from 'express';
-import { Okoro } from '@okoro/sdk';
+import { Cerniq } from '@cerniq/sdk';
 
 import type {
   PaymentInstruction,
@@ -28,9 +28,9 @@ import type {
   RailType,
 } from './iso20022-shape.js';
 
-const okoro = new Okoro({
-  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okoroapp.com',
-  verifyKey: requireEnv('OKORO_VERIFY_KEY'),
+const cerniq = new Cerniq({
+  baseUrl: process.env.CERNIQ_API_BASE ?? 'https://api.cerniqapp.com',
+  verifyKey: requireEnv('CERNIQ_VERIFY_KEY'),
 });
 
 const TREASURY_DOMAIN = requireEnv('TREASURY_DOMAIN');
@@ -54,7 +54,7 @@ const app = express();
 app.use(express.json({ limit: '64kb' }));
 
 interface InstructBody {
-  okoroToken: string;
+  cerniqToken: string;
   instruction: PaymentInstruction;
 }
 
@@ -69,11 +69,11 @@ app.post('/api/instruct', async (req: Request, res: Response) => {
     });
   }
 
-  const { okoroToken, instruction } = body;
+  const { cerniqToken, instruction } = body;
   const minTrust = RAIL_MIN_TRUST[instruction.rail] ?? 700;
 
-  const verdict = await okoro.verify({
-    token: okoroToken,
+  const verdict = await cerniq.verify({
+    token: cerniqToken,
     action: { kind: 'banking.payment', payload: instruction },
     requestedAmount: (instruction.amount / 100).toFixed(2),
     requestedDomain: instruction.creditor.identifier, // bind scope to counterparty
@@ -87,11 +87,11 @@ app.post('/api/instruct', async (req: Request, res: Response) => {
       allowed: false,
       endToEndId: instruction.endToEndId,
       auditEventId: verdict.auditEventId,
-      okoroDenialReason: verdict.denialReason ?? undefined,
+      cerniqDenialReason: verdict.denialReason ?? undefined,
     });
   }
 
-  // OKORO approved — submit to the bank rail. In production this is
+  // CERNIQ approved — submit to the bank rail. In production this is
   // a Modern Treasury client.payments.create() call (or Increase, or
   // direct pacs.008 to your sponsor bank). The mock below shows the
   // shape; swapping to a real adapter is a 1-file change.
@@ -99,7 +99,7 @@ app.post('/api/instruct', async (req: Request, res: Response) => {
 
   if (!submit.accepted) {
     // The bank refused (malformed routing, insufficient funds, etc.).
-    // We still have an OKORO audit row — the agent's INTENT to make
+    // We still have an CERNIQ audit row — the agent's INTENT to make
     // this payment is recorded even though the bank wouldn't deliver.
     return respond(res, 502, {
       allowed: false,
@@ -127,8 +127,8 @@ app.listen(port, () => {
 function validateInstruct(b: unknown): string | null {
   if (!b || typeof b !== 'object') return 'missing_body';
   const o = b as Record<string, unknown>;
-  if (typeof o.okoroToken !== 'string' || (o.okoroToken as string).split('.').length !== 3)
-    return 'okoroToken_invalid';
+  if (typeof o.cerniqToken !== 'string' || (o.cerniqToken as string).split('.').length !== 3)
+    return 'cerniqToken_invalid';
   const inst = o.instruction as PaymentInstruction | undefined;
   if (!inst) return 'instruction_missing';
   if (typeof inst.endToEndId !== 'string' || inst.endToEndId.length === 0)
@@ -148,7 +148,7 @@ function respond(res: Response, status: number, body: InstructResponse): Respons
 // Increase, Mercury, or direct ISO 20022 SOAP / SFTP to a sponsor.
 async function submitToBank(inst: PaymentInstruction): Promise<BankSubmitVerdict> {
   // Refuse same-day wires after 4pm ET (a real cutoff). Demonstrates
-  // a bank-side denial that is NOT an OKORO denial — you can see
+  // a bank-side denial that is NOT an CERNIQ denial — you can see
   // the two rejection paths in the response shape.
   const hourEt = new Date().getUTCHours() - 4;
   if (inst.rail === 'wire' && hourEt >= 16) {

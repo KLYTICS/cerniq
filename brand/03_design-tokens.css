@@ -1,11 +1,11 @@
 /* ============================================================================
-   OKORO Design Tokens v1.0
+   CERNIQ Design Tokens v1.0
    ----------------------------------------------------------------------------
    Direction: Cinematic Immersive
    Philosophy: Verified Light — a near-black canvas with a single beam of
    cyan-violet light that becomes the emotional center of every screen.
 
-   Drop this file into any HTML/Tailwind/CSS-in-JS project. All OKORO surfaces
+   Drop this file into any HTML/Tailwind/CSS-in-JS project. All CERNIQ surfaces
    should derive from these variables. Do not introduce off-token colors,
    spacing, or motion curves without updating this file.
    ============================================================================ */
@@ -16,160 +16,160 @@
   /* --------------------------------------------------------------------------
      COLOR — Canvas (the void)
      -------------------------------------------------------------------------- */
-  --okoro-obsidian:  #050714;  /* deepest base, page bg */
-  --okoro-ink:       #0B1020;  /* default surface */
-  --okoro-steel:     #161D33;  /* elevated surface */
-  --okoro-graphite:  #1F2740;  /* subtle inset */
-  --okoro-mist:      #2B3554;  /* borders, dividers */
+  --cerniq-obsidian:  #050714;  /* deepest base, page bg */
+  --cerniq-ink:       #0B1020;  /* default surface */
+  --cerniq-steel:     #161D33;  /* elevated surface */
+  --cerniq-graphite:  #1F2740;  /* subtle inset */
+  --cerniq-mist:      #2B3554;  /* borders, dividers */
 
   /* COLOR — Text (the voice) */
-  --okoro-halo:      #F4F6FF;  /* primary text */
-  --okoro-fog:       #A8B0CC;  /* secondary text */
-  --okoro-shadow:    #6B7494;  /* tertiary, placeholder */
-  --okoro-echo:      #3F4869;  /* de-emphasized */
+  --cerniq-halo:      #F4F6FF;  /* primary text */
+  --cerniq-fog:       #A8B0CC;  /* secondary text */
+  --cerniq-shadow:    #6B7494;  /* tertiary, placeholder */
+  --cerniq-echo:      #3F4869;  /* de-emphasized */
 
   /* COLOR — Signal (the brand) */
-  --okoro-cyan:           #5BE0FF;
-  --okoro-cyan-soft:      rgba(91, 224, 255, 0.16);
-  --okoro-violet:         #8B6BFF;
-  --okoro-violet-soft:    rgba(139, 107, 255, 0.16);
-  --okoro-magenta:        #FF5BD0;  /* aurora terminal — gradient only */
+  --cerniq-cyan:           #5BE0FF;
+  --cerniq-cyan-soft:      rgba(91, 224, 255, 0.16);
+  --cerniq-violet:         #8B6BFF;
+  --cerniq-violet-soft:    rgba(139, 107, 255, 0.16);
+  --cerniq-magenta:        #FF5BD0;  /* aurora terminal — gradient only */
 
   /* COLOR — Status (the verdicts) */
-  --okoro-verified:       #4CFFA8;
-  --okoro-verified-soft:  rgba(76, 255, 168, 0.14);
-  --okoro-denied:         #FF5470;
-  --okoro-denied-soft:    rgba(255, 84, 112, 0.14);
-  --okoro-pending:        #FFB86B;
-  --okoro-pending-soft:   rgba(255, 184, 107, 0.14);
+  --cerniq-verified:       #4CFFA8;
+  --cerniq-verified-soft:  rgba(76, 255, 168, 0.14);
+  --cerniq-denied:         #FF5470;
+  --cerniq-denied-soft:    rgba(255, 84, 112, 0.14);
+  --cerniq-pending:        #FFB86B;
+  --cerniq-pending-soft:   rgba(255, 184, 107, 0.14);
 
   /* COLOR — Gradients (the signature lights) */
-  --okoro-gradient-aurora:
+  --cerniq-gradient-aurora:
     linear-gradient(135deg, #5BE0FF 0%, #8B6BFF 50%, #FF5BD0 100%);
-  --okoro-gradient-aurora-soft:
+  --cerniq-gradient-aurora-soft:
     linear-gradient(135deg, rgba(91,224,255,0.18) 0%, rgba(139,107,255,0.18) 50%, rgba(255,91,208,0.12) 100%);
-  --okoro-gradient-void:
+  --cerniq-gradient-void:
     radial-gradient(ellipse at top, #0B1020 0%, #050714 60%);
-  --okoro-gradient-beam:
+  --cerniq-gradient-beam:
     linear-gradient(180deg, transparent 0%, rgba(91,224,255,0.6) 50%, transparent 100%);
 
   /* --------------------------------------------------------------------------
      TYPOGRAPHY
      -------------------------------------------------------------------------- */
-  --okoro-font-display: "Inter Tight", "Inter", system-ui, -apple-system, sans-serif;
-  --okoro-font-body:    "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --okoro-font-serif:   "Instrument Serif", "Newsreader", Georgia, serif;
-  --okoro-font-mono:    "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
+  --cerniq-font-display: "Inter Tight", "Inter", system-ui, -apple-system, sans-serif;
+  --cerniq-font-body:    "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --cerniq-font-serif:   "Instrument Serif", "Newsreader", Georgia, serif;
+  --cerniq-font-mono:    "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
 
-  --okoro-fs-display-xl: 112px;
-  --okoro-fs-display:    80px;
-  --okoro-fs-h1:         56px;
-  --okoro-fs-h2:         40px;
-  --okoro-fs-h3:         28px;
-  --okoro-fs-h4:         22px;
-  --okoro-fs-body-lg:    18px;
-  --okoro-fs-body:       16px;
-  --okoro-fs-body-sm:    14px;
-  --okoro-fs-caption:    12px;
-  --okoro-fs-eyebrow:    11px;
-  --okoro-fs-mono:       14px;
-  --okoro-fs-mono-sm:    12px;
+  --cerniq-fs-display-xl: 112px;
+  --cerniq-fs-display:    80px;
+  --cerniq-fs-h1:         56px;
+  --cerniq-fs-h2:         40px;
+  --cerniq-fs-h3:         28px;
+  --cerniq-fs-h4:         22px;
+  --cerniq-fs-body-lg:    18px;
+  --cerniq-fs-body:       16px;
+  --cerniq-fs-body-sm:    14px;
+  --cerniq-fs-caption:    12px;
+  --cerniq-fs-eyebrow:    11px;
+  --cerniq-fs-mono:       14px;
+  --cerniq-fs-mono-sm:    12px;
 
-  --okoro-lh-tight:    1.04;
-  --okoro-lh-snug:     1.15;
-  --okoro-lh-normal:   1.5;
-  --okoro-lh-relaxed:  1.6;
+  --cerniq-lh-tight:    1.04;
+  --cerniq-lh-snug:     1.15;
+  --cerniq-lh-normal:   1.5;
+  --cerniq-lh-relaxed:  1.6;
 
-  --okoro-tracking-tight:  -0.04em;
-  --okoro-tracking-snug:   -0.025em;
-  --okoro-tracking-normal: 0;
-  --okoro-tracking-wide:   0.16em;   /* eyebrow */
+  --cerniq-tracking-tight:  -0.04em;
+  --cerniq-tracking-snug:   -0.025em;
+  --cerniq-tracking-normal: 0;
+  --cerniq-tracking-wide:   0.16em;   /* eyebrow */
 
   /* --------------------------------------------------------------------------
      SPACING — 8pt base
      -------------------------------------------------------------------------- */
-  --okoro-space-0:  0;
-  --okoro-space-1:  4px;
-  --okoro-space-2:  8px;
-  --okoro-space-3:  12px;
-  --okoro-space-4:  16px;
-  --okoro-space-5:  20px;
-  --okoro-space-6:  24px;
-  --okoro-space-8:  32px;
-  --okoro-space-10: 40px;
-  --okoro-space-12: 48px;
-  --okoro-space-16: 64px;
-  --okoro-space-20: 80px;
-  --okoro-space-24: 96px;
-  --okoro-space-32: 128px;
-  --okoro-space-40: 160px;
-  --okoro-space-48: 192px;
+  --cerniq-space-0:  0;
+  --cerniq-space-1:  4px;
+  --cerniq-space-2:  8px;
+  --cerniq-space-3:  12px;
+  --cerniq-space-4:  16px;
+  --cerniq-space-5:  20px;
+  --cerniq-space-6:  24px;
+  --cerniq-space-8:  32px;
+  --cerniq-space-10: 40px;
+  --cerniq-space-12: 48px;
+  --cerniq-space-16: 64px;
+  --cerniq-space-20: 80px;
+  --cerniq-space-24: 96px;
+  --cerniq-space-32: 128px;
+  --cerniq-space-40: 160px;
+  --cerniq-space-48: 192px;
 
   /* --------------------------------------------------------------------------
      RADII
      -------------------------------------------------------------------------- */
-  --okoro-radius-xs:     4px;
-  --okoro-radius-sm:     8px;
-  --okoro-radius-md:     12px;
-  --okoro-radius-lg:     16px;
-  --okoro-radius-xl:     24px;
-  --okoro-radius-pill:   999px;
-  --okoro-radius-circle: 50%;
+  --cerniq-radius-xs:     4px;
+  --cerniq-radius-sm:     8px;
+  --cerniq-radius-md:     12px;
+  --cerniq-radius-lg:     16px;
+  --cerniq-radius-xl:     24px;
+  --cerniq-radius-pill:   999px;
+  --cerniq-radius-circle: 50%;
 
   /* --------------------------------------------------------------------------
      SHADOWS — separation + signature glow
      -------------------------------------------------------------------------- */
-  --okoro-elev-1: 0 1px 2px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04);
-  --okoro-elev-2: 0 4px 16px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
-  --okoro-elev-3: 0 16px 48px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06);
-  --okoro-elev-4: 0 32px 96px rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
+  --cerniq-elev-1: 0 1px 2px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04);
+  --cerniq-elev-2: 0 4px 16px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
+  --cerniq-elev-3: 0 16px 48px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06);
+  --cerniq-elev-4: 0 32px 96px rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
 
-  --okoro-glow-cyan:   0 0 0 1px rgba(91,224,255,0.3), 0 0 24px rgba(91,224,255,0.18);
-  --okoro-glow-violet: 0 0 0 1px rgba(139,107,255,0.3), 0 0 24px rgba(139,107,255,0.18);
-  --okoro-glow-aurora: 0 0 0 1px rgba(139,107,255,0.25), 0 0 40px rgba(91,224,255,0.15), 0 0 80px rgba(139,107,255,0.12);
-  --okoro-inset-stroke: inset 0 0 0 1px rgba(255,255,255,0.06);
+  --cerniq-glow-cyan:   0 0 0 1px rgba(91,224,255,0.3), 0 0 24px rgba(91,224,255,0.18);
+  --cerniq-glow-violet: 0 0 0 1px rgba(139,107,255,0.3), 0 0 24px rgba(139,107,255,0.18);
+  --cerniq-glow-aurora: 0 0 0 1px rgba(139,107,255,0.25), 0 0 40px rgba(91,224,255,0.15), 0 0 80px rgba(139,107,255,0.12);
+  --cerniq-inset-stroke: inset 0 0 0 1px rgba(255,255,255,0.06);
 
   /* --------------------------------------------------------------------------
      MOTION — one curve
      -------------------------------------------------------------------------- */
-  --okoro-ease:        cubic-bezier(0.16, 1, 0.3, 1);   /* signature */
-  --okoro-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --cerniq-ease:        cubic-bezier(0.16, 1, 0.3, 1);   /* signature */
+  --cerniq-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 
-  --okoro-dur-instant: 80ms;
-  --okoro-dur-fast:    160ms;
-  --okoro-dur-base:    240ms;
-  --okoro-dur-slow:    480ms;
-  --okoro-dur-cinema:  800ms;
+  --cerniq-dur-instant: 80ms;
+  --cerniq-dur-fast:    160ms;
+  --cerniq-dur-base:    240ms;
+  --cerniq-dur-slow:    480ms;
+  --cerniq-dur-cinema:  800ms;
 
   /* --------------------------------------------------------------------------
      LAYOUT
      -------------------------------------------------------------------------- */
-  --okoro-container-narrow:  640px;
-  --okoro-container-default: 1120px;
-  --okoro-container-wide:    1320px;
-  --okoro-container-full:    1536px;
+  --cerniq-container-narrow:  640px;
+  --cerniq-container-default: 1120px;
+  --cerniq-container-wide:    1320px;
+  --cerniq-container-full:    1536px;
 
-  --okoro-z-base:    0;
-  --okoro-z-raised:  10;
-  --okoro-z-sticky:  100;
-  --okoro-z-header:  200;
-  --okoro-z-overlay: 800;
-  --okoro-z-modal:   900;
-  --okoro-z-toast:   1000;
-  --okoro-z-tooltip: 1100;
+  --cerniq-z-base:    0;
+  --cerniq-z-raised:  10;
+  --cerniq-z-sticky:  100;
+  --cerniq-z-header:  200;
+  --cerniq-z-overlay: 800;
+  --cerniq-z-modal:   900;
+  --cerniq-z-toast:   1000;
+  --cerniq-z-tooltip: 1100;
 }
 
 /* ============================================================================
    BASE — apply to <body>
    ============================================================================ */
-.okoro-root,
-body.okoro {
-  background: var(--okoro-obsidian);
-  background-image: var(--okoro-gradient-void);
-  color: var(--okoro-halo);
-  font-family: var(--okoro-font-body);
-  font-size: var(--okoro-fs-body);
-  line-height: var(--okoro-lh-relaxed);
+.cerniq-root,
+body.cerniq {
+  background: var(--cerniq-obsidian);
+  background-image: var(--cerniq-gradient-void);
+  color: var(--cerniq-halo);
+  font-family: var(--cerniq-font-body);
+  font-size: var(--cerniq-fs-body);
+  line-height: var(--cerniq-lh-relaxed);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -177,8 +177,8 @@ body.okoro {
 /* ============================================================================
    UTILITY — text gradient helper for the aurora
    ============================================================================ */
-.okoro-text-aurora {
-  background: var(--okoro-gradient-aurora);
+.cerniq-text-aurora {
+  background: var(--cerniq-gradient-aurora);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -188,11 +188,11 @@ body.okoro {
 /* ============================================================================
    FOCUS — cyan ring for keyboard users
    ============================================================================ */
-.okoro-root :focus-visible,
-body.okoro :focus-visible {
-  outline: 2px solid var(--okoro-cyan);
+.cerniq-root :focus-visible,
+body.cerniq :focus-visible {
+  outline: 2px solid var(--cerniq-cyan);
   outline-offset: 2px;
-  border-radius: var(--okoro-radius-xs);
+  border-radius: var(--cerniq-radius-xs);
 }
 
 /* ============================================================================

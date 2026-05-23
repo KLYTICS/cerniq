@@ -1,4 +1,4 @@
-# OKORO — Testing Strategy
+# CERNIQ — Testing Strategy
 
 ## Unit, Integration, E2E, Load, Chaos, and Property Testing
 
@@ -10,7 +10,7 @@
 
 ## 1. Testing Philosophy
 
-OKORO tests must answer one question: **"Would a user be approved who should be denied, or denied who should be approved?"**
+CERNIQ tests must answer one question: **"Would a user be approved who should be denied, or denied who should be approved?"**
 
 Everything flows from that. We have zero tolerance for false approvals. A missed denial is a security failure. A false denial is an availability failure. Both are P0.
 
@@ -24,7 +24,7 @@ Everything flows from that. We have zero tolerance for false approvals. A missed
    /--------\      Unit (pure functions — crypto, BATE, algorithm)
 ```
 
-The middle tier is the most valuable for OKORO. Pure function unit tests validate logic. Integration tests validate the DB/Redis wiring. E2E tests validate the full contract.
+The middle tier is the most valuable for CERNIQ. Pure function unit tests validate logic. Integration tests validate the DB/Redis wiring. E2E tests validate the full contract.
 
 ---
 
@@ -52,7 +52,7 @@ The middle tier is the most valuable for OKORO. Pure function unit tests validat
 - `bate.scorer.ts` (every signal type, every band boundary)
 - `bate.anomaly.ts` (every rule: R-1 through R-5)
 - Every Zod schema in `packages/types`
-- Every `OkoroError` subclass
+- Every `CerniqError` subclass
 - `audit-chain.ts` (signing, verification, tamper detection)
 
 **With exceptions documented:**
@@ -70,7 +70,7 @@ Every crypto function requires a paired `.spec.ts`. No exceptions.
 describe('ed25519', () => {
   it('round-trips: sign → verify with same key', async () => {
     const { privateKey, publicKey } = await generateKeyPair();
-    const message = new TextEncoder().encode('hello okoro');
+    const message = new TextEncoder().encode('hello cerniq');
     const sig = await sign(message, privateKey);
     expect(await verify(sig, message, publicKey)).toBe(true);
   });
@@ -512,7 +512,7 @@ export const options = {
   },
 };
 
-const BASE_URL = __ENV.BASE_URL || 'https://api.okoroapp.com/v1';
+const BASE_URL = __ENV.BASE_URL || 'https://api.cerniqapp.com/v1';
 const API_KEY = __ENV.API_KEY;
 
 export default function () {
@@ -542,7 +542,7 @@ Run against staging before every GA milestone:
 
 ```bash
 k6 run tests/load/verify.js \
-  -e BASE_URL=https://staging.api.okoroapp.com/v1 \
+  -e BASE_URL=https://staging.api.cerniqapp.com/v1 \
   -e API_KEY=$STAGING_API_KEY
 
 # Expected results for Phase 1 GA:
@@ -733,7 +733,7 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_PASSWORD: test
-          POSTGRES_DB: okoro_test
+          POSTGRES_DB: cerniq_test
       redis:
         image: redis:7
     steps:
@@ -809,12 +809,12 @@ afterAll(async () => {
   await prisma.principal.delete({ where: { id: testPrincipalId } });
 
   // Clean Redis keys for this principal
-  const keys = await redis.keys(`okoro:*:${testPrincipalId}:*`);
+  const keys = await redis.keys(`cerniq:*:${testPrincipalId}:*`);
   if (keys.length > 0) await redis.del(...keys);
 });
 ```
 
 ---
 
-_Testing strategy version: 1.0 | OKORO Phase 1_  
+_Testing strategy version: 1.0 | CERNIQ Phase 1_  
 _Next review: after first 50K verify calls in production_

@@ -35,7 +35,7 @@ export function CheckoutButton({ planTier, label }: Props) {
 
   return (
     <>
-      <button type="button" className="okoro-button" disabled={pending} onClick={onClick}>
+      <button type="button" className="cerniq-button" disabled={pending} onClick={onClick}>
         {pending ? 'Opening Stripe…' : label}
       </button>
       {error ? (

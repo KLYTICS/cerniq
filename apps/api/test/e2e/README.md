@@ -1,13 +1,14 @@
 # `apps/api/test/e2e` — full-stack integration suite
 
 End-to-end tests that boot the real `AppModule`, talk to a real Postgres
-+ Redis, and exercise transactions across **multiple endpoints in one
-narrative** — never a single endpoint in isolation.
+
+- Redis, and exercise transactions across **multiple endpoints in one
+  narrative** — never a single endpoint in isolation.
 
 ## Running
 
 ```bash
-pnpm --filter @okoro/api test:e2e
+pnpm --filter @cerniq/api test:e2e
 ```
 
 The existing `test:e2e` script is
@@ -22,7 +23,7 @@ The existing `test:e2e` script is
 > `<name>.e2e.spec.ts` (with a dot). Two options to run them today:
 >
 > 1. Pass an explicit pattern:
->    `pnpm --filter @okoro/api test:e2e -- "test/e2e/.*\\.e2e\\.spec\\.ts$"`
+>    `pnpm --filter @cerniq/api test:e2e -- "test/e2e/.*\\.e2e\\.spec\\.ts$"`
 > 2. Add a sibling `*.e2e-spec.ts` re-export, e.g.
 >    `full-flow.e2e-spec.ts → export * from './full-flow.e2e.spec'`.
 >
@@ -34,13 +35,13 @@ The existing `test:e2e` script is
 ## Required infrastructure
 
 - **Postgres 16** at `DATABASE_URL` (defaulted to
-  `postgresql://okoro:okoro@localhost:5432/okoro_test?schema=public` by
+  `postgresql://cerniq:cerniq@localhost:5432/cerniq_test?schema=public` by
   `apps/api/test/setup-env.ts`).
 - **Redis 7** at `REDIS_URL` (defaulted to `redis://localhost:6379`).
 - Both are provided by the repo-root `docker-compose.yml`.
 
 Schema migrations run automatically when `RUN_MIGRATIONS=1` is set; for
-local iteration assume `pnpm --filter @okoro/api prisma:deploy` has been
+local iteration assume `pnpm --filter @cerniq/api prisma:deploy` has been
 run once.
 
 Between specs the helper truncates these tables in dependency order:
@@ -72,18 +73,18 @@ ApiKey, RelyingParty, Principal
 
 ## Known limits (tracked)
 
-| Tracker | Limit                                                                         |
-| ------- | ----------------------------------------------------------------------------- |
-| M-019   | `AuditEvent` lacks a `correlationId` / `txId` column. The                     |
-|         | "txId echoed into audit row" assertion in `correlation.e2e.spec.ts` is        |
-|         | `test.skip()`'d until the migration lands.                                    |
-| M-007   | BATE recompute is async (BullMQ). Tests poll up to 5 s for trustScore         |
-|         | changes; if the worker is offline the assertion in `full-flow.e2e.spec.ts`    |
-|         | falls back to "report accepted (202)" without forcing a score change.        |
-| M-020   | `TRUST_SCORE_TOO_LOW` and `ANOMALY_FLAGGED` are not yet checked inside        |
-|         | `verify.algorithm.ts` (the precedence enum exists in `packages/types` but     |
-|         | the algorithm lacks the gate). Those two cases in                             |
-|         | `denial-precedence.e2e.spec.ts` `test.skip()` with this tracker.              |
-| M-019   | Verify response payload doesn't return `auditEventId`. The                    |
-|         | "approved request links to an audit row" assertion uses `GET /audit` to      |
-|         | join instead of trusting the response (no fabricated assertion).              |
+| Tracker | Limit                                                                      |
+| ------- | -------------------------------------------------------------------------- |
+| M-019   | `AuditEvent` lacks a `correlationId` / `txId` column. The                  |
+|         | "txId echoed into audit row" assertion in `correlation.e2e.spec.ts` is     |
+|         | `test.skip()`'d until the migration lands.                                 |
+| M-007   | BATE recompute is async (BullMQ). Tests poll up to 5 s for trustScore      |
+|         | changes; if the worker is offline the assertion in `full-flow.e2e.spec.ts` |
+|         | falls back to "report accepted (202)" without forcing a score change.      |
+| M-020   | `TRUST_SCORE_TOO_LOW` and `ANOMALY_FLAGGED` are not yet checked inside     |
+|         | `verify.algorithm.ts` (the precedence enum exists in `packages/types` but  |
+|         | the algorithm lacks the gate). Those two cases in                          |
+|         | `denial-precedence.e2e.spec.ts` `test.skip()` with this tracker.           |
+| M-019   | Verify response payload doesn't return `auditEventId`. The                 |
+|         | "approved request links to an audit row" assertion uses `GET /audit` to    |
+|         | join instead of trusting the response (no fabricated assertion).           |

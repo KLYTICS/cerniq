@@ -1,5 +1,5 @@
 {
-  "extends": "@okoro/tsconfig/library.json",
+  "extends": "@cerniq/tsconfig/library.json",
   "compilerOptions": {
     "rootDir": "./src",
     "outDir": "./dist"

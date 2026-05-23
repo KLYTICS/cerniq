@@ -1,6 +1,6 @@
-# OKORO — Post-quantum cryptographic migration roadmap
+# CERNIQ — Post-quantum cryptographic migration roadmap
 
-> OKORO's identity layer is built on Ed25519. Ed25519 is **classically
+> CERNIQ's identity layer is built on Ed25519. Ed25519 is **classically
 > secure** but vulnerable to a sufficiently large quantum computer
 > (Shor's algorithm breaks it in polynomial time on a Cryptographically
 > Relevant Quantum Computer / CRQC). Estimates of CRQC arrival range from
@@ -11,10 +11,10 @@
 
 ## 1. The threat model
 
-- **"Harvest now, decrypt later"** — adversary records OKORO-signed
+- **"Harvest now, decrypt later"** — adversary records CERNIQ-signed
   tokens / audit chains today, intends to forge or impersonate when CRQC
-  is available. Mitigation: OKORO tokens are short-lived (60s TTL) so
-  *replay* is bounded; *forgery* of past tokens is meaningless once
+  is available. Mitigation: CERNIQ tokens are short-lived (60s TTL) so
+  _replay_ is bounded; _forgery_ of past tokens is meaningless once
   expired. Audit chains are different — those need to remain
   cryptographically verifiable for **7 years** (per OPERATOR_DECISIONS
   OD-004).
@@ -27,14 +27,14 @@
 NIST finalized the following post-quantum signature standards (FIPS 204
 & 205, August 2024):
 
-| Algorithm | NIST name | Use case in OKORO |
-|---|---|---|
-| **ML-DSA-65** (CRYSTALS-Dilithium 3) | FIPS 204 | Audit chain signatures (replaces Ed25519 in `AuditChainUtil`) |
-| **ML-DSA-44** (Dilithium 2) | FIPS 204 | Policy token issuance (replaces Ed25519 JWT) |
-| **SLH-DSA-128s** (SPHINCS+ small) | FIPS 205 | Long-term archival signature (audit-chain-of-chains for >7y retention) |
+| Algorithm                            | NIST name | Use case in CERNIQ                                                     |
+| ------------------------------------ | --------- | ---------------------------------------------------------------------- |
+| **ML-DSA-65** (CRYSTALS-Dilithium 3) | FIPS 204  | Audit chain signatures (replaces Ed25519 in `AuditChainUtil`)          |
+| **ML-DSA-44** (Dilithium 2)          | FIPS 204  | Policy token issuance (replaces Ed25519 JWT)                           |
+| **SLH-DSA-128s** (SPHINCS+ small)    | FIPS 205  | Long-term archival signature (audit-chain-of-chains for >7y retention) |
 
 We **do not** plan to use ML-KEM (FIPS 203) — that's a KEM, not a
-signature, and OKORO doesn't do key-exchange in the hot path.
+signature, and CERNIQ doesn't do key-exchange in the hot path.
 
 ## 3. Migration phases
 
@@ -63,7 +63,7 @@ big-tech adoption likely 2027-2029).
 
 - Verify path stops accepting classical-only Ed25519.
 - Old audit entries: only the SLH-DSA-128s attestation is verifier-of-record.
-- OKORO classical signing keys are revoked and JWKS publishes a final
+- CERNIQ classical signing keys are revoked and JWKS publishes a final
   rotation.
 
 **Trigger**: Either operator-initiated (compliance pressure) or NIST
@@ -73,19 +73,19 @@ publishes a formal sunset for Ed25519 in regulated contexts.
 
 ### Library choices
 
-| Phase | Algorithm | Library | Status (2026 Q2) |
-|---|---|---|---|
-| α | ML-DSA-65 | `@noble/post-quantum` (Paul Miller) | available, audited |
-| α | hybrid JWS | needs custom impl on top of `jose` v6 | TBD — track [draft-ietf-cose-hybrid-pq-jwt](https://datatracker.ietf.org/doc/draft-ietf-cose-hybrid-pq-jwt/) |
-| β | SLH-DSA-128s | `@noble/post-quantum` | available |
+| Phase | Algorithm    | Library                               | Status (2026 Q2)                                                                                             |
+| ----- | ------------ | ------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| α     | ML-DSA-65    | `@noble/post-quantum` (Paul Miller)   | available, audited                                                                                           |
+| α     | hybrid JWS   | needs custom impl on top of `jose` v6 | TBD — track [draft-ietf-cose-hybrid-pq-jwt](https://datatracker.ietf.org/doc/draft-ietf-cose-hybrid-pq-jwt/) |
+| β     | SLH-DSA-128s | `@noble/post-quantum`                 | available                                                                                                    |
 
 ### Token shape (Phase α)
 
 ```jsonc
 {
-  "alg": "EdDSA+ML-DSA-65",       // hybrid
+  "alg": "EdDSA+ML-DSA-65", // hybrid
   "typ": "JWT",
-  "kid": "ed25519-2027-q3+pqc-2027-q3"
+  "kid": "ed25519-2027-q3+pqc-2027-q3",
 }
 ```
 
@@ -95,13 +95,13 @@ signature segment becomes a length-prefixed concatenation.
 
 ### `algoVersion` claim (already planned for Phase 1)
 
-We will add `algoVersion: "v1"` to every OKORO-issued token starting in
+We will add `algoVersion: "v1"` to every CERNIQ-issued token starting in
 Phase 1 so Phase α can be cleanly distinguished without breaking
 backward-compat parsers. Verifiers reject unknown `algoVersion` values.
 
 ## 5. Audit-chain re-attestation (the hard part)
 
-The audit chain's prev-hash includes the *signature* of the previous
+The audit chain's prev-hash includes the _signature_ of the previous
 event. A purely-additive PQC migration is therefore impossible without a
 mechanism to attest pre-α events.
 
@@ -112,7 +112,7 @@ mechanism to attest pre-α events.
   ML-DSA-65 signature over `(merkle_root_of_chain_segment, segment_id, signed_at)`.
 - Verifiers check: (a) the original Ed25519 chain is internally
   consistent, AND (b) the AuditAttestation is valid against the current
-  OKORO PQC public key.
+  CERNIQ PQC public key.
 - This means a CRQC-equipped adversary who wants to forge pre-α history
   must also forge a valid PQC AuditAttestation — a quadratic problem.
 
@@ -126,6 +126,7 @@ mechanism to attest pre-α events.
 ## 6. Decision triggers (revisit dates)
 
 This document is reviewed:
+
 - Every February 1 (post-NIST winter releases)
 - Every August 1 (post-Black Hat / DEFCON disclosures)
 - On any of: NIST publishes Ed25519 deprecation guidance, a JS PQC
@@ -151,4 +152,4 @@ This document is reviewed:
 - [CNSA 2.0 — Commercial National Security Algorithm Suite](https://media.defense.gov/2022/Sep/07/2003071834/-1/-1/0/CSA_CNSA_2.0_ALGORITHMS_.PDF)
 - [draft-ietf-cose-hybrid-pq-jwt](https://datatracker.ietf.org/doc/draft-ietf-cose-hybrid-pq-jwt/)
 - [@noble/post-quantum](https://github.com/paulmillr/noble-post-quantum)
-- OKORO internal: `docs/SECURITY.md`, `docs/decisions/0002-non-custodial-key-policy.md`
+- CERNIQ internal: `docs/SECURITY.md`, `docs/decisions/0002-non-custodial-key-policy.md`

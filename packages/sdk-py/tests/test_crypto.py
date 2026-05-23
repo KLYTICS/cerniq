@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from okoro import (
+from cerniq import (
     Keypair,
     b64u_decode,
     b64u_encode,

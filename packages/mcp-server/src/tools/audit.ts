@@ -1,12 +1,12 @@
-import type { Okoro } from '@okoro/sdk';
+import type { Cerniq } from '@cerniq/sdk';
 
 import type { ToolDefinition } from './registry.js';
 
-export function registerAuditTool(okoro: Okoro, registry: Map<string, ToolDefinition>): void {
-  registry.set('okoro.audit.search', {
-    name: 'okoro.audit.search',
+export function registerAuditTool(cerniq: Cerniq, registry: Map<string, ToolDefinition>): void {
+  registry.set('cerniq.audit.search', {
+    name: 'cerniq.audit.search',
     description:
-      'Search this principal\'s audit events. Read-only; principals cannot read other principals\' ' +
+      "Search this principal's audit events. Read-only; principals cannot read other principals' " +
       'audit logs. Each event carries a hash-chain signature verifiable against the JWKS at ' +
       '/.well-known/audit-signing-key (ADR-0011).',
     inputSchema: {
@@ -24,15 +24,15 @@ export function registerAuditTool(okoro: Okoro, registry: Map<string, ToolDefini
     },
     handler: async (args) => {
       // SDK surface for audit search lands in M-021 (sdk-ts extension).
-      // Until then this tool calls the REST API directly via okoro.http.
+      // Until then this tool calls the REST API directly via cerniq.http.
       const params = new URLSearchParams();
       for (const [k, v] of Object.entries(args)) {
         if (v === undefined || v === null) continue;
         params.set(k.replace(/_/g, ''), typeof v === 'string' ? v : JSON.stringify(v));
       }
-      // @ts-expect-error - http accessor available on Okoro client per
+      // @ts-expect-error - http accessor available on Cerniq client per
       // packages/sdk-ts/src/index.ts; types lag by one publish cycle.
-      return await okoro.http.get(`/v1/audit-events?${params.toString()}`);
+      return await cerniq.http.get(`/v1/audit-events?${params.toString()}`);
     },
   });
 }

@@ -1,31 +1,31 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: okoro-postgres
+    container_name: cerniq-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: okoro
-      POSTGRES_PASSWORD: okoro
-      POSTGRES_DB: okoro
+      POSTGRES_USER: cerniq
+      POSTGRES_PASSWORD: cerniq
+      POSTGRES_DB: cerniq
     ports:
       - '5432:5432'
     volumes:
-      - okoro_pg_data:/var/lib/postgresql/data
+      - cerniq_pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U okoro -d okoro']
+      test: ['CMD-SHELL', 'pg_isready -U cerniq -d cerniq']
       interval: 5s
       timeout: 5s
       retries: 10
 
   redis:
     image: redis:7-alpine
-    container_name: okoro-redis
+    container_name: cerniq-redis
     restart: unless-stopped
     command: ['redis-server', '--appendonly', 'yes', '--maxmemory-policy', 'allkeys-lru']
     ports:
       - '6379:6379'
     volumes:
-      - okoro_redis_data:/data
+      - cerniq_redis_data:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -33,5 +33,5 @@ services:
       retries: 10
 
 volumes:
-  okoro_pg_data:
-  okoro_redis_data:
+  cerniq_pg_data:
+  cerniq_redis_data:

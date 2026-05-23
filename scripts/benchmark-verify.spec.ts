@@ -169,11 +169,13 @@ function buildClock(): () => number {
 
 describe('doOneVerify', () => {
   it('captures latency around fetch and reports status', async () => {
-    const fakeFetch = vi.fn(async () => new Response('{}', { status: 200 })) as unknown as typeof fetch;
+    const fakeFetch = vi.fn(
+      async () => new Response('{}', { status: 200 }),
+    ) as unknown as typeof fetch;
     const now = buildClock();
     const r = await doOneVerify(0, {
       apiUrl: 'http://localhost:3000',
-      apiKey: 'okoro_sk_test',
+      apiKey: 'cerniq_sk_test',
       agentId: 'maria/checkout-bot',
       token: '',
       fetchImpl: fakeFetch,
@@ -191,7 +193,7 @@ describe('doOneVerify', () => {
     }) as unknown as typeof fetch;
     const r = await doOneVerify(7, {
       apiUrl: 'http://localhost:3000',
-      apiKey: 'okoro_sk_test',
+      apiKey: 'cerniq_sk_test',
       agentId: 'maria/checkout-bot',
       token: '',
       fetchImpl: fakeFetch,
@@ -233,7 +235,7 @@ describe('runBench', () => {
     // straddles exactly two ticks so latency is exactly 1ms.
     const result = await runBench({
       apiUrl: 'http://localhost:3000',
-      apiKey: 'okoro_sk_test',
+      apiKey: 'cerniq_sk_test',
       agentId: 'maria/checkout-bot',
       token: '',
       total: 5,
@@ -252,13 +254,15 @@ describe('runBench', () => {
   });
 
   it('writes JSON to disk when an output path is provided', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'okoro-bench-'));
+    const dir = mkdtempSync(join(tmpdir(), 'cerniq-bench-'));
     const outPath = join(dir, 'result.json');
     try {
-      const fakeFetch = vi.fn(async () => new Response('{}', { status: 200 })) as unknown as typeof fetch;
+      const fakeFetch = vi.fn(
+        async () => new Response('{}', { status: 200 }),
+      ) as unknown as typeof fetch;
       const result = await runBench({
         apiUrl: 'http://localhost:3000',
-        apiKey: 'okoro_sk_test',
+        apiKey: 'cerniq_sk_test',
         agentId: 'maria/checkout-bot',
         token: '',
         total: 3,

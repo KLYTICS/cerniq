@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from okoro._http import HttpClient, _parse_retry_after
-from okoro.error_catalog import GENERATED_ERROR_CATALOG
+from cerniq._http import HttpClient, _parse_retry_after
+from cerniq.error_catalog import GENERATED_ERROR_CATALOG
 
 
 class _FakeResponse:

@@ -4,7 +4,7 @@
 //
 // Used by:
 //   - Dashboard wizard (GET status to render checklist)
-//   - `okoro doctor` CLI (GET status to render "you haven't done X yet")
+//   - `cerniq doctor` CLI (GET status to render "you haven't done X yet")
 //   - Service-internal hooks (agent.create / policy.create / verify
 //     success / kms.configure call markStep() to roll up the funnel)
 
@@ -99,7 +99,7 @@ export class OnboardingService {
       // an analytics table.
       update: {
         [step]: true,
-        ...(await this.shouldSetTimestamp(principalId, step) ? { [tsCol]: new Date() } : {}),
+        ...((await this.shouldSetTimestamp(principalId, step)) ? { [tsCol]: new Date() } : {}),
       },
     });
   }

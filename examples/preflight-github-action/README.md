@@ -1,4 +1,4 @@
-# `examples/preflight-github-action/` — wire OKORO preflight to GitHub Actions
+# `examples/preflight-github-action/` — wire CERNIQ preflight to GitHub Actions
 
 > Drop-in CI integration for the `tools/preflight/` ship-readiness gate.
 > Runs on every PR + push, posts a sticky comment with the JSON output,
@@ -14,7 +14,7 @@
 - **Hard gate on exit 2** — gating failures (tsc, lint, migration
   immutability, parity drift, etc.) block merge.
 - **Soft gate on exit 1** — warnings (env vars, operator decisions,
-  architecture drift) fail the job *visibly* but don't auto-block; the
+  architecture drift) fail the job _visibly_ but don't auto-block; the
   PR description must include `acknowledged warnings:` for branch
   protection rules to allow merge.
 - **Fast path** — pre-commit checks run `--fast` (no vitest); CI
@@ -24,18 +24,18 @@
 
 ## Files in this example
 
-| Path | Purpose |
-|---|---|
-| `.github/workflows/preflight.yml` | Workflow you copy to your repo |
-| `comment-template.md` | The sticky-comment Markdown template |
-| `README.md` | This file |
+| Path                              | Purpose                              |
+| --------------------------------- | ------------------------------------ |
+| `.github/workflows/preflight.yml` | Workflow you copy to your repo       |
+| `comment-template.md`             | The sticky-comment Markdown template |
+| `README.md`                       | This file                            |
 
 ---
 
 ## Install
 
 ```bash
-# From the OKORO repo root
+# From the CERNIQ repo root
 mkdir -p .github/workflows
 cp examples/preflight-github-action/.github/workflows/preflight.yml \
    .github/workflows/preflight.yml
@@ -62,12 +62,12 @@ exit 1.
 
 ## Behavior matrix
 
-| preflight exit | GH job status | Sticky comment | Branch protection |
-|---|---|---|---|
-| 0 (pass) | ✅ green | "READY TO SHIP" | merge allowed |
-| 1 (warn) | ❌ failed | "SHIP WITH CARE — N warnings" + table | merge blocked unless `acked: warnings` label OR PR description contains `acknowledged warnings:` |
-| 2 (fail) | ❌ failed | "DO NOT SHIP — N gating failures" + table + remediation hints | merge blocked unconditionally |
-| 3 (internal error) | ❌ failed | "preflight tool errored — investigate" | merge blocked |
+| preflight exit     | GH job status | Sticky comment                                                | Branch protection                                                                                |
+| ------------------ | ------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 0 (pass)           | ✅ green      | "READY TO SHIP"                                               | merge allowed                                                                                    |
+| 1 (warn)           | ❌ failed     | "SHIP WITH CARE — N warnings" + table                         | merge blocked unless `acked: warnings` label OR PR description contains `acknowledged warnings:` |
+| 2 (fail)           | ❌ failed     | "DO NOT SHIP — N gating failures" + table + remediation hints | merge blocked unconditionally                                                                    |
+| 3 (internal error) | ❌ failed     | "preflight tool errored — investigate"                        | merge blocked                                                                                    |
 
 ---
 

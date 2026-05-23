@@ -1,27 +1,27 @@
 ---
-title: Relying-party verifier (@okoro/verifier-rp)
-description: Offline OKORO token + audit-chain verification. JWKS-cached. Express, Fastify, Hono, and edge-runtime adapters.
+title: Relying-party verifier (@cerniq/verifier-rp)
+description: Offline CERNIQ token + audit-chain verification. JWKS-cached. Express, Fastify, Hono, and edge-runtime adapters.
 ---
 
-`@okoro/verifier-rp` is the package merchants and downstream services ship
-when they want to verify OKORO tokens **without** a network round-trip to
-OKORO on the hot path. It validates the token's EdDSA signature against
-the JWKS published at `/.well-known/okoro-jwks.json`, with a small in-
+`@cerniq/verifier-rp` is the package merchants and downstream services ship
+when they want to verify CERNIQ tokens **without** a network round-trip to
+CERNIQ on the hot path. It validates the token's EdDSA signature against
+the JWKS published at `/.well-known/cerniq-jwks.json`, with a small in-
 memory revocation cache (`/status` poll + invalidation hook).
 
 ## Install
 
 ```bash
-npm install @okoro/verifier-rp
+npm install @cerniq/verifier-rp
 ```
 
 ## Quickstart
 
 ```ts
-import { OkoroVerifier } from '@okoro/verifier-rp';
+import { CerniqVerifier } from '@cerniq/verifier-rp';
 
-const verifier = new OkoroVerifier({
-  jwksUri: 'https://api.okoroapp.com/.well-known/okoro-jwks.json',
+const verifier = new CerniqVerifier({
+  jwksUri: 'https://api.cerniqapp.com/.well-known/cerniq-jwks.json',
   getAgentPublicKey: async (agentId) => {
     // The RP supplies how to resolve agent public keys. Typically:
     // - a DB lookup if you've cached agent registration callbacks
@@ -40,9 +40,9 @@ if (!result.allowed) {
 
 Offline verification cannot enforce:
 
-- **Spend limits** — relies on OKORO's atomic counter
+- **Spend limits** — relies on CERNIQ's atomic counter
 - **Trust scores** — relies on BATE recomputation
-- **Real-time anomaly detection** — relies on OKORO signal ingestion
+- **Real-time anomaly detection** — relies on CERNIQ signal ingestion
 
 Design your policy scopes accordingly: hard limits (action allow-list,
 TTL, signature, scope) are offline-enforceable; soft limits (spend, trust,
@@ -75,16 +75,16 @@ Drop-in middleware for the most common frameworks:
 
 ```ts
 // Express
-import { expressOkoro } from '@okoro/verifier-rp/express';
-app.use('/api', expressOkoro(verifier));
+import { expressCerniq } from '@cerniq/verifier-rp/express';
+app.use('/api', expressCerniq(verifier));
 
 // Fastify
-import { fastifyOkoro } from '@okoro/verifier-rp/fastify';
-await app.register(fastifyOkoro, { verifier });
+import { fastifyCerniq } from '@cerniq/verifier-rp/fastify';
+await app.register(fastifyCerniq, { verifier });
 
 // Hono (edge-runtime safe)
-import { honoOkoro } from '@okoro/verifier-rp/hono';
-app.use('/api/*', honoOkoro(verifier));
+import { honoCerniq } from '@cerniq/verifier-rp/hono';
+app.use('/api/*', honoCerniq(verifier));
 ```
 
 All adapters are tree-shakeable subpath exports — importing one does not
@@ -92,4 +92,4 @@ bring in the others.
 
 ## Source
 
-[`packages/verifier-rp/`](https://github.com/klytics/okoro/tree/main/packages/verifier-rp)
+[`packages/verifier-rp/`](https://github.com/klytics/cerniq/tree/main/packages/verifier-rp)

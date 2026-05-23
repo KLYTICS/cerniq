@@ -1,8 +1,8 @@
 #!/usr/bin/env -S node --import=tsx
 /**
- * OKORO — `pnpm bench:verify` — verify hot-path latency baseline.
+ * CERNIQ — `pnpm bench:verify` — verify hot-path latency baseline.
  *
- * Issues N concurrent verify requests against a running OKORO API, captures
+ * Issues N concurrent verify requests against a running CERNIQ API, captures
  * per-request latency, and emits exact percentiles (p50/p95/p99/p99.9) plus
  * a PASS/FAIL line per percentile vs the SLO targets in
  * `apps/api/src/modules/billing/plans.ts`.
@@ -17,8 +17,8 @@
  *   - The API must be reachable at `--api-url` (default `http://localhost:3000`).
  *
  * USAGE
- *   pnpm --filter @okoro/scripts bench:verify \
- *     --api-key  okoro_sk_xxx \
+ *   pnpm --filter @cerniq/scripts bench:verify \
+ *     --api-key  cerniq_sk_xxx \
  *     --concurrency 20 --total 5000 \
  *     --output    apps/api/perf-baseline.json
  *
@@ -34,7 +34,7 @@
  *     connection-pool warm-up isn't counted as user-visible latency.
  *   - The script uses `fetch`; no NestJS bootstrap, no Prisma. It's
  *     intentionally something an SRE can run from a laptop against any
- *     OKORO deployment that exposes `/v1/verify`.
+ *     CERNIQ deployment that exposes `/v1/verify`.
  */
 
 import { writeFile } from 'node:fs/promises';
@@ -58,7 +58,9 @@ export interface SloTarget {
   readonly p99_ms: number;
 }
 
-export const SLO_TARGETS: Readonly<Record<'FREE' | 'DEVELOPER' | 'GROWTH' | 'ENTERPRISE', SloTarget>> = Object.freeze({
+export const SLO_TARGETS: Readonly<
+  Record<'FREE' | 'DEVELOPER' | 'GROWTH' | 'ENTERPRISE', SloTarget>
+> = Object.freeze({
   FREE: { p50_ms: 100, p95_ms: 200, p99_ms: 250 },
   DEVELOPER: { p50_ms: 80, p95_ms: 150, p99_ms: 200 },
   GROWTH: { p50_ms: 50, p95_ms: 100, p99_ms: 120 },
@@ -162,7 +164,8 @@ export async function runBoundedConcurrency<T>(
   concurrency: number,
   worker: (index: number) => Promise<T>,
 ): Promise<T[]> {
-  if (total < 0 || !Number.isFinite(total)) throw new Error(`total must be a non-negative finite integer (got ${total})`);
+  if (total < 0 || !Number.isFinite(total))
+    throw new Error(`total must be a non-negative finite integer (got ${total})`);
   if (concurrency < 1 || !Number.isFinite(concurrency)) {
     throw new Error(`concurrency must be a positive integer (got ${concurrency})`);
   }
@@ -218,7 +221,10 @@ export interface DoOneVerifyArgs {
  * of HTTP status; only network/transport errors set `ok=false`. A 4xx that
  * comes back fast is still a real measurement of the hot path.
  */
-export async function doOneVerify(idx: number, args: DoOneVerifyArgs): Promise<VerifyAttemptResult> {
+export async function doOneVerify(
+  idx: number,
+  args: DoOneVerifyArgs,
+): Promise<VerifyAttemptResult> {
   const body = JSON.stringify({
     token: args.token,
     action: 'stripe.charge',
@@ -233,7 +239,7 @@ export async function doOneVerify(idx: number, args: DoOneVerifyArgs): Promise<V
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-okoro-api-key': args.apiKey,
+        'x-cerniq-api-key': args.apiKey,
       },
       body,
     });
@@ -340,11 +346,13 @@ export function renderHumanTable(result: BenchResult): string {
   const lines: string[] = [];
   lines.push('');
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  lines.push(' OKORO verify hot-path benchmark');
+  lines.push(' CERNIQ verify hot-path benchmark');
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   lines.push(`  api          : ${result.options.apiUrl}`);
   lines.push(`  agent        : ${result.options.agentId}`);
-  lines.push(`  total        : ${result.options.total} (warmup ${result.options.warmup} discarded)`);
+  lines.push(
+    `  total        : ${result.options.total} (warmup ${result.options.warmup} discarded)`,
+  );
   lines.push(`  concurrency  : ${result.options.concurrency}`);
   lines.push(`  tier         : ${result.options.tier}`);
   lines.push('');
@@ -396,12 +404,20 @@ async function main(): Promise<void> {
   const program = new Command();
   program
     .name('benchmark-verify')
-    .description('Latency baseline for the OKORO /v1/verify hot path against a running API.')
+    .description('Latency baseline for the CERNIQ /v1/verify hot path against a running API.')
     .addOption(new Option('--concurrency <n>', 'in-flight requests').default('10'))
-    .addOption(new Option('--total <n>', 'measured request count (excludes warmup)').default('1000'))
-    .addOption(new Option('--api-url <url>', 'OKORO API base URL').default(env.OKORO_API_URL ?? 'http://localhost:3000'))
-    .addOption(new Option('--api-key <key>', 'principal API key (or set OKORO_API_KEY)'))
-    .addOption(new Option('--agent-id <id>', 'agent label to verify against').default('maria/checkout-bot'))
+    .addOption(
+      new Option('--total <n>', 'measured request count (excludes warmup)').default('1000'),
+    )
+    .addOption(
+      new Option('--api-url <url>', 'CERNIQ API base URL').default(
+        env.CERNIQ_API_URL ?? 'http://localhost:3000',
+      ),
+    )
+    .addOption(new Option('--api-key <key>', 'principal API key (or set CERNIQ_API_KEY)'))
+    .addOption(
+      new Option('--agent-id <id>', 'agent label to verify against').default('maria/checkout-bot'),
+    )
     .addOption(new Option('--warmup <n>', 'warmup requests, discarded from stats').default('100'))
     .addOption(new Option('--output <path>', 'write JSON result to this path for diffing'))
     .addOption(
@@ -410,9 +426,10 @@ async function main(): Promise<void> {
         .default('FREE'),
     )
     .addOption(
-      new Option('--token <jwt>', 'agent-signed JWT to send (defaults to empty string for hot-path-only timing)').default(
-        '',
-      ),
+      new Option(
+        '--token <jwt>',
+        'agent-signed JWT to send (defaults to empty string for hot-path-only timing)',
+      ).default(''),
     );
 
   try {
@@ -423,9 +440,9 @@ async function main(): Promise<void> {
   }
   const opts = program.opts<CliOpts>();
 
-  const apiKey = opts.apiKey ?? env.OKORO_API_KEY;
+  const apiKey = opts.apiKey ?? env.CERNIQ_API_KEY;
   if (!apiKey) {
-    stderr.write('--api-key (or OKORO_API_KEY env) is required\n');
+    stderr.write('--api-key (or CERNIQ_API_KEY env) is required\n');
     exit(2);
   }
 

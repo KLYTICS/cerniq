@@ -1,5 +1,5 @@
 // Error catalog — single source of truth for runtime metadata about every
-// thrown error class in the OKORO API.
+// thrown error class in the CERNIQ API.
 //
 // Why this exists:
 //   - Operators and SDK authors need a stable contract: "what does HTTP 402
@@ -12,7 +12,7 @@
 //     thrown class name has an entry below.
 //
 // Pattern: registry keyed by the JS class name (constructor.name). This
-// avoids forcing every error class to extend OkoroError (CircuitOpenError
+// avoids forcing every error class to extend CerniqError (CircuitOpenError
 // in common/resilience does not — it's framework-agnostic on purpose) and
 // it keeps ESLint happy without abstract statics or decorator metadata.
 //
@@ -33,7 +33,15 @@ export interface ErrorCatalogEntry {
   /** Customer-safe message. NEVER includes internals, key material, or stack data. */
   customerMessage: string;
   /** Coarse classification used by ops dashboards. */
-  category: 'auth' | 'validation' | 'policy' | 'rate_limit' | 'billing' | 'crypto' | 'transient' | 'internal';
+  category:
+    | 'auth'
+    | 'validation'
+    | 'policy'
+    | 'rate_limit'
+    | 'billing'
+    | 'crypto'
+    | 'transient'
+    | 'internal';
 }
 
 /**
@@ -44,13 +52,13 @@ export interface ErrorCatalogEntry {
  * audit script will fail CI until both halves are present.
  */
 export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object.freeze({
-  // --- existing OkoroError subclasses (apps/api/src/common/errors/okoro-error.ts) ---
+  // --- existing CerniqError subclasses (apps/api/src/common/errors/cerniq-error.ts) ---
 
   AuthenticationError: {
     code: 'auth_required',
     httpStatus: 401,
     retryable: false,
-    customerMessage: 'Authentication required. Provide a valid OKORO API key.',
+    customerMessage: 'Authentication required. Provide a valid CERNIQ API key.',
     category: 'auth',
   },
 
@@ -129,7 +137,7 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     category: 'transient',
   },
 
-  // --- non-OkoroError throwers we still want cataloged ---
+  // --- non-CerniqError throwers we still want cataloged ---
   // CircuitOpenError lives in common/resilience and intentionally extends
   // the plain Error to keep the breaker framework-agnostic. The filter
   // still maps it to a customer-safe 503 via this entry.
@@ -246,14 +254,15 @@ const INTERNAL_FALLBACK: ErrorCatalogEntry = {
  */
 export function getCatalogEntry(error: unknown): ErrorCatalogEntry | null {
   if (!(error instanceof Error)) return null;
-  // Prefer the static `catalogKey` discriminator on OkoroError subclasses —
+  // Prefer the static `catalogKey` discriminator on CerniqError subclasses —
   // it survives bundler name-mangling (tsup minify) which would otherwise
   // collapse `error.constructor.name` to "a"/"b"/... and silently route
   // every error through INTERNAL_FALLBACK. See peer review F-06.
-  // Fall back to constructor.name for non-OkoroError throwers like the
+  // Fall back to constructor.name for non-CerniqError throwers like the
   // resilience module's CircuitOpenError.
   const ctor = error.constructor as { catalogKey?: string; name: string };
-  const key = typeof ctor.catalogKey === 'string' && ctor.catalogKey !== '' ? ctor.catalogKey : ctor.name;
+  const key =
+    typeof ctor.catalogKey === 'string' && ctor.catalogKey !== '' ? ctor.catalogKey : ctor.name;
   return ERROR_CATALOG[key] ?? null;
 }
 
@@ -263,7 +272,7 @@ export function isRetryable(error: unknown): boolean {
   return entry?.retryable ?? false;
 }
 
-/** What the global exception filter serializes for OkoroError responses. */
+/** What the global exception filter serializes for CerniqError responses. */
 export interface ClientErrorPayload {
   code: string;
   message: string;
@@ -284,7 +293,11 @@ export function toClientPayload(error: unknown, retryAfterSeconds?: number): Cli
     message: entry.customerMessage,
     retryable: entry.retryable,
   };
-  if (retryAfterSeconds !== undefined && Number.isFinite(retryAfterSeconds) && retryAfterSeconds >= 0) {
+  if (
+    retryAfterSeconds !== undefined &&
+    Number.isFinite(retryAfterSeconds) &&
+    retryAfterSeconds >= 0
+  ) {
     payload.retryAfter = Math.floor(retryAfterSeconds);
   }
   return payload;

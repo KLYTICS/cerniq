@@ -1,4 +1,4 @@
-// OkoroVerifier — the public entry point for the relying-party verifier.
+// CerniqVerifier — the public entry point for the relying-party verifier.
 //
 // Verification algorithm (fail-fast, in order):
 //   1. Parse compact JWS.
@@ -25,7 +25,7 @@ import { RevocationCache } from './revocation-cache.js';
 import { checkScopeAndSpend } from './scope-check.js';
 import type { JwksKey } from './types.js';
 import type {
-  OkoroVerifierConfig,
+  CerniqVerifierConfig,
   AgentStatusSnapshot,
   DenialReason,
   ReplayCache,
@@ -36,33 +36,33 @@ import type {
   VerifyOutcomeSuccess,
 } from './types.js';
 
-const DEFAULT_BASE_URL = 'https://api.okoroapp.com/v1';
+const DEFAULT_BASE_URL = 'https://api.cerniqapp.com/v1';
 const DEFAULT_JWKS_TTL = 3600;
 const DEFAULT_REVOCATION_TTL = 30;
 const DEFAULT_REPLAY_MAX = 10_000;
 const DEFAULT_SKEW_SECONDS = 5;
 
-export class OkoroVerifier {
+export class CerniqVerifier {
   private readonly config: Required<
-    Omit<OkoroVerifierConfig, 'replayCache' | 'fetch' | 'logger'>
+    Omit<CerniqVerifierConfig, 'replayCache' | 'fetch' | 'logger'>
   > & {
     replayCache: ReplayCache;
     fetchImpl: typeof globalThis.fetch;
-    logger: OkoroVerifierConfig['logger'];
+    logger: CerniqVerifierConfig['logger'];
   };
 
   private readonly jwksClient: JwksClient;
   private readonly revocationCache: RevocationCache;
 
-  constructor(config: OkoroVerifierConfig) {
+  constructor(config: CerniqVerifierConfig) {
     // type-rationale: runtime JS callers can pass undefined/null despite the type.
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (typeof config !== 'object' || config === null) {
-      throw new ConfigError('OkoroVerifier: config object is required');
+      throw new ConfigError('CerniqVerifier: config object is required');
     }
     if (typeof config.getAgentPublicKey !== 'function') {
       throw new ConfigError(
-        'OkoroVerifier: getAgentPublicKey callback is required. ' +
+        'CerniqVerifier: getAgentPublicKey callback is required. ' +
           'Supply a function (agentId) => Promise<Uint8Array> that resolves the agent public key. ' +
           'See README "Resolving agent keys".',
       );
@@ -70,7 +70,7 @@ export class OkoroVerifier {
     const fetchImpl = config.fetch ?? globalThis.fetch;
     if (typeof fetchImpl !== 'function') {
       throw new ConfigError(
-        'OkoroVerifier: no fetch implementation available. Pass `fetch: customFetch` or run on a runtime with global fetch.',
+        'CerniqVerifier: no fetch implementation available. Pass `fetch: customFetch` or run on a runtime with global fetch.',
       );
     }
 
@@ -112,7 +112,7 @@ export class OkoroVerifier {
 
   /**
    * Drop the cached revocation status for an agent. Call this from your
-   * webhook handler when OKORO notifies you of `okoro.agent.revoked`.
+   * webhook handler when CERNIQ notifies you of `cerniq.agent.revoked`.
    */
   invalidateAgent(agentId: string): void {
     this.revocationCache.invalidate(agentId);

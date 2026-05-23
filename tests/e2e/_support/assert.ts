@@ -1,11 +1,11 @@
 /**
  * Domain-specific assertion helpers. Vitest's `expect` is fine for
- * primitives; these give us readable failures for the OKORO-specific
+ * primitives; these give us readable failures for the CERNIQ-specific
  * shapes that recur across many tests.
  */
 
 import { expect } from 'vitest';
-import type { DenialReason, VerifyResult } from '@okoro/sdk';
+import type { DenialReason, VerifyResult } from '@cerniq/sdk';
 
 export function assertVerifyApproved(result: VerifyResult, ctx: { agentId?: string } = {}): void {
   expect(
@@ -18,10 +18,7 @@ export function assertVerifyApproved(result: VerifyResult, ctx: { agentId?: stri
 }
 
 export function assertVerifyDenied(result: VerifyResult, expected: DenialReason): void {
-  expect(
-    result.valid,
-    `expected denial=${expected}, but verify was approved`,
-  ).toBe(false);
+  expect(result.valid, `expected denial=${expected}, but verify was approved`).toBe(false);
   expect(
     result.denialReason,
     `expected denial=${expected}, got ${String(result.denialReason)}`,
@@ -33,7 +30,9 @@ export function assertVerifyDenied(result: VerifyResult, expected: DenialReason)
  * because audit writes may be asynchronous on the API side.
  */
 export async function assertAuditEvent(
-  fetchEvents: () => Promise<{ events: Array<{ eventId: string; decision?: string; decisionReason?: string | null }> }>,
+  fetchEvents: () => Promise<{
+    events: Array<{ eventId: string; decision?: string; decisionReason?: string | null }>;
+  }>,
   predicate: (e: { decision?: string; decisionReason?: string | null }) => boolean,
   opts: { timeoutMs?: number; intervalMs?: number } = {},
 ): Promise<void> {

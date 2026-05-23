@@ -1,26 +1,26 @@
 // Fastify integration. Two surfaces:
 //
-//   1. `attachOkoroGuard(fastify, opts)` — wires a preHandler hook on the
+//   1. `attachCerniqGuard(fastify, opts)` — wires a preHandler hook on the
 //      passed instance. Use this from your bootstrap code; it bypasses
 //      Fastify's plugin encapsulation, so the hook applies to every route
 //      registered on that instance.
 //
-//   2. `okoroFastifyPlugin` — a plain async plugin you can pass to
+//   2. `cerniqFastifyPlugin` — a plain async plugin you can pass to
 //      `fastify.register`. We don't depend on `fastify-plugin`; that means
 //      registering at the root scope works as expected, but if you nest the
 //      plugin inside `register(...)` you must wrap it with `fastify-plugin`
-//      yourself to break encapsulation. For most users `attachOkoroGuard`
+//      yourself to break encapsulation. For most users `attachCerniqGuard`
 //      is the simpler path and works without that footgun.
 
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 
 import type { VerifyContext, VerifyOptions, VerifyOutcomeSuccess } from '../types.js';
-import type { OkoroVerifier } from '../verifier.js';
+import type { CerniqVerifier } from '../verifier.js';
 
-const DEFAULT_HEADER = 'x-okoro-token';
+const DEFAULT_HEADER = 'x-cerniq-token';
 
 export interface FastifyGuardOptions {
-  verifier: OkoroVerifier;
+  verifier: CerniqVerifier;
   headerName?: string;
   attachTo?: string;
   requiredScope?: string;
@@ -30,7 +30,7 @@ export interface FastifyGuardOptions {
 
 function buildHandler(opts: FastifyGuardOptions) {
   const headerName = (opts.headerName ?? DEFAULT_HEADER).toLowerCase();
-  const attachTo = opts.attachTo ?? 'okoro';
+  const attachTo = opts.attachTo ?? 'cerniq';
 
   return async (req: FastifyRequest, reply: FastifyReply): Promise<void> => {
     const raw = req.headers[headerName];
@@ -55,13 +55,13 @@ function buildHandler(opts: FastifyGuardOptions) {
 }
 
 /**
- * Attach the OKORO preHandler to a Fastify instance. Use this in your
+ * Attach the CERNIQ preHandler to a Fastify instance. Use this in your
  * bootstrap; it does not introduce a sub-scope so the hook applies to every
  * route registered on `fastify`.
  */
-export function attachOkoroGuard(fastify: FastifyInstance, opts: FastifyGuardOptions): void {
+export function attachCerniqGuard(fastify: FastifyInstance, opts: FastifyGuardOptions): void {
   if (!opts?.verifier) {
-    throw new TypeError('attachOkoroGuard: options.verifier is required');
+    throw new TypeError('attachCerniqGuard: options.verifier is required');
   }
   fastify.addHook('preHandler', buildHandler(opts));
 }
@@ -69,14 +69,14 @@ export function attachOkoroGuard(fastify: FastifyInstance, opts: FastifyGuardOpt
 /**
  * Plain plugin for `fastify.register`. Note that Fastify's encapsulation
  * means the hook only applies inside the plugin's scope unless you wrap it
- * with `fastify-plugin`. For most users `attachOkoroGuard` is simpler.
+ * with `fastify-plugin`. For most users `attachCerniqGuard` is simpler.
  */
-export const okoroFastifyPlugin: FastifyPluginAsync<FastifyGuardOptions> = async (
+export const cerniqFastifyPlugin: FastifyPluginAsync<FastifyGuardOptions> = async (
   fastify: FastifyInstance,
   opts: FastifyGuardOptions,
 ) => {
   if (!opts?.verifier) {
-    throw new TypeError('okoroFastifyPlugin: options.verifier is required');
+    throw new TypeError('cerniqFastifyPlugin: options.verifier is required');
   }
   fastify.addHook('preHandler', buildHandler(opts));
 };
@@ -93,7 +93,7 @@ async function sendDenied(
   }
   await reply
     .code(401)
-    .send({ error: 'OKORO_VERIFICATION_FAILED', reason, ...(detail ? { detail } : {}) });
+    .send({ error: 'CERNIQ_VERIFICATION_FAILED', reason, ...(detail ? { detail } : {}) });
 }
 
-export const fastifyPlugin = okoroFastifyPlugin;
+export const fastifyPlugin = cerniqFastifyPlugin;

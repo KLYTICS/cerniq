@@ -10,11 +10,11 @@ import (
 
 func TestVerify_PrefersVerifyKeyHeader(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.Header.Get("X-OKORO-Verify-Key"); got != "vk_relying_party" {
-			t.Errorf("X-OKORO-Verify-Key: %q", got)
+		if got := r.Header.Get("X-CERNIQ-Verify-Key"); got != "vk_relying_party" {
+			t.Errorf("X-CERNIQ-Verify-Key: %q", got)
 		}
-		if got := r.Header.Get("X-OKORO-API-Key"); got != "" {
-			t.Errorf("X-OKORO-API-Key set when verify key present: %q", got)
+		if got := r.Header.Get("X-CERNIQ-API-Key"); got != "" {
+			t.Errorf("X-CERNIQ-API-Key set when verify key present: %q", got)
 		}
 		_ = json.NewEncoder(w).Encode(VerifyResponse{
 			Valid:      true,
@@ -39,8 +39,8 @@ func TestVerify_PrefersVerifyKeyHeader(t *testing.T) {
 
 func TestVerify_FallsBackToAPIKeyWhenNoVerifyKey(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.Header.Get("X-OKORO-API-Key"); got != "sk_management" {
-			t.Errorf("X-OKORO-API-Key fallback missing: %q", got)
+		if got := r.Header.Get("X-CERNIQ-API-Key"); got != "sk_management" {
+			t.Errorf("X-CERNIQ-API-Key fallback missing: %q", got)
 		}
 		_ = json.NewEncoder(w).Encode(VerifyResponse{Valid: false})
 	}))

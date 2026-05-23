@@ -1,4 +1,5 @@
-# OKORO — Master Engineering Handoff
+# CERNIQ — Master Engineering Handoff
+
 ## FAANG-Level State Analysis, GTM Mapping & Terminal Coordination Protocol
 
 > **Classification:** INTERNAL · ENGINEERING · CONFIDENTIAL  
@@ -29,33 +30,33 @@
 
 ## 1. Executive State Summary
 
-OKORO is the neutral verification, policy enforcement, and behavioral attestation layer between AI agents and the services they act on. We hold only public keys, sign only what we observed, and are protocol-vendor-model neutral.
+CERNIQ is the neutral verification, policy enforcement, and behavioral attestation layer between AI agents and the services they act on. We hold only public keys, sign only what we observed, and are protocol-vendor-model neutral.
 
 **As of 2026-05-04 (10 engineering rounds complete), the codebase is:**
 
-| Layer | Status | Notes |
-|---|---|---|
-| Agent Identity (Layer 1) | ✅ Shipped | Full CRUD, Ed25519, challenge-response, IDP federation |
-| Policy Engine (Layer 2) | ✅ Shipped | JWT-signed policies, BuiltIn + Cedar + OPA pluggable engines |
-| BATE Trust Scoring (Layer 3) | ✅ Core shipped, anomaly live | Scorer kernel + 5 anomaly rules + DPoP signals; weights pending OD-001 |
-| Audit Chain (Layer 4) | ✅ Shipped | Append-only hash chain, GDPR-safe redaction, KMS signing |
-| Verify Hot Path | ✅ Shipped + portable | 9-step algorithm, framework-free, portable to CF Workers |
-| TypeScript SDK (`@okoro/sdk`) | ✅ Shipped | Agents, policies, verify, sign/verify crypto |
-| Python SDK (`okoro`) | ✅ Shipped (70 tests) | AsyncOkoro + sync wrapper, pydantic v2, mypy strict |
-| Relying-Party Verifier (`@okoro/verifier-rp`) | ✅ Shipped (58 tests) | Offline JWT verify, JWKS SWR cache, Express/Fastify/Hono adapters |
-| CF Worker Edge Verify | ✅ Shipped (shadow mode) | KV cache, full denial-precedence, shadow ↔ origin comparison |
-| Go CLI (`okoro`) | ✅ Core shipped | agents/policy/verify/events/report subcommands, `--json` mode |
-| MCP Server (`@okoro/mcp-server`) | ✅ Scaffolded | Tools wired to SDK; bin + README |
-| MCP Bridge (`@okoro/mcp-bridge`) | ✅ Scaffolded | `wrap()` one-liner for any MCP server |
-| E2E Test Harness | ✅ Shipped (15 suites) | Denial-precedence, replay, TOCTOU spend race, revocation |
-| KMS Adapters | ✅ Shipped | AWS KMS, GCP Cloud KMS, HashiCorp Vault Transit |
-| Auth0 IDP Bridge | ✅ Shipped | IdpAdapter interface, Auth0/Clerk/WorkOS adapters |
-| Onboarding Tracker | ✅ Shipped | 7-step activation funnel, server-persisted, backfill cron |
-| Dashboard (Next.js) | 🟡 Scaffold only | Directory structure exists; full UI not wired |
-| Billing (Stripe) | 🔴 Open | plans.ts exists with defaults; Stripe webhooks not wired |
-| CLI Device-Code OAuth | 🟡 Gated | `internal/oauth/devicecode.go` stubbed; endpoint not yet live |
-| `/.well-known/audit-signing-key` | 🔴 Open | Public JWKS endpoint for audit chain (M-016) |
-| Docs Site | 🔴 Open | Content written in `docs/personas/`; site not scaffolded |
+| Layer                                          | Status                        | Notes                                                                  |
+| ---------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------- |
+| Agent Identity (Layer 1)                       | ✅ Shipped                    | Full CRUD, Ed25519, challenge-response, IDP federation                 |
+| Policy Engine (Layer 2)                        | ✅ Shipped                    | JWT-signed policies, BuiltIn + Cedar + OPA pluggable engines           |
+| BATE Trust Scoring (Layer 3)                   | ✅ Core shipped, anomaly live | Scorer kernel + 5 anomaly rules + DPoP signals; weights pending OD-001 |
+| Audit Chain (Layer 4)                          | ✅ Shipped                    | Append-only hash chain, GDPR-safe redaction, KMS signing               |
+| Verify Hot Path                                | ✅ Shipped + portable         | 9-step algorithm, framework-free, portable to CF Workers               |
+| TypeScript SDK (`@cerniq/sdk`)                 | ✅ Shipped                    | Agents, policies, verify, sign/verify crypto                           |
+| Python SDK (`cerniq`)                          | ✅ Shipped (70 tests)         | AsyncCerniq + sync wrapper, pydantic v2, mypy strict                   |
+| Relying-Party Verifier (`@cerniq/verifier-rp`) | ✅ Shipped (58 tests)         | Offline JWT verify, JWKS SWR cache, Express/Fastify/Hono adapters      |
+| CF Worker Edge Verify                          | ✅ Shipped (shadow mode)      | KV cache, full denial-precedence, shadow ↔ origin comparison           |
+| Go CLI (`cerniq`)                              | ✅ Core shipped               | agents/policy/verify/events/report subcommands, `--json` mode          |
+| MCP Server (`@cerniq/mcp-server`)              | ✅ Scaffolded                 | Tools wired to SDK; bin + README                                       |
+| MCP Bridge (`@cerniq/mcp-bridge`)              | ✅ Scaffolded                 | `wrap()` one-liner for any MCP server                                  |
+| E2E Test Harness                               | ✅ Shipped (15 suites)        | Denial-precedence, replay, TOCTOU spend race, revocation               |
+| KMS Adapters                                   | ✅ Shipped                    | AWS KMS, GCP Cloud KMS, HashiCorp Vault Transit                        |
+| Auth0 IDP Bridge                               | ✅ Shipped                    | IdpAdapter interface, Auth0/Clerk/WorkOS adapters                      |
+| Onboarding Tracker                             | ✅ Shipped                    | 7-step activation funnel, server-persisted, backfill cron              |
+| Dashboard (Next.js)                            | 🟡 Scaffold only              | Directory structure exists; full UI not wired                          |
+| Billing (Stripe)                               | 🔴 Open                       | plans.ts exists with defaults; Stripe webhooks not wired               |
+| CLI Device-Code OAuth                          | 🟡 Gated                      | `internal/oauth/devicecode.go` stubbed; endpoint not yet live          |
+| `/.well-known/audit-signing-key`               | 🔴 Open                       | Public JWKS endpoint for audit chain (M-016)                           |
+| Docs Site                                      | 🔴 Open                       | Content written in `docs/personas/`; site not scaffolded               |
 
 **Overall completion against Phase 1 MVP spec: ~82%**  
 **Blocking gaps before first paying customer: 4 items** (see §8)
@@ -66,7 +67,7 @@ OKORO is the neutral verification, policy enforcement, and behavioral attestatio
 
 OpenAI and Stripe launched the Agentic Commerce Protocol (ACP) in 2025 — a payment rail for agent transactions. **ACP solves the payment leg.** It does not solve: who is the agent, is it authorized by a real human, has its behavior been trustworthy across sessions, can a relying party independently verify the claim in <100ms. Every existing solution (Auth0, Okta, Prefactor, Entro) is either platform-tied, commerce-specific, or enterprise-only.
 
-**OKORO fills that gap as the neutral, developer-first trust and verification layer.** We plug into the emerging agentic commerce stack ACP-compatible by design. The wedge is not theoretical — MCP is now the universal tool-call shape for every major LLM host (Claude Desktop, Cursor, Cline, OpenAI Responses API). `packages/mcp-bridge` gives any MCP server a cryptographic identity gate in one `wrap()` call. Every MCP server in the wild is a candidate OKORO relying party. That distribution moat builds itself.
+**CERNIQ fills that gap as the neutral, developer-first trust and verification layer.** We plug into the emerging agentic commerce stack ACP-compatible by design. The wedge is not theoretical — MCP is now the universal tool-call shape for every major LLM host (Claude Desktop, Cursor, Cline, OpenAI Responses API). `packages/mcp-bridge` gives any MCP server a cryptographic identity gate in one `wrap()` call. Every MCP server in the wild is a candidate CERNIQ relying party. That distribution moat builds itself.
 
 ---
 
@@ -75,20 +76,23 @@ OpenAI and Stripe launched the Agentic Commerce Protocol (ACP) in 2025 — a pay
 > Reading order for new terminals: newest last. The commit log has 4 major commits; the SESSION_HANDOFF.md tracks 10 rounds of work from multiple parallel sessions.
 
 ### Round 1–3 (Foundation) — sid=foundation
-- Initial OKORO scaffold: NestJS monorepo, Prisma schema v1, pnpm workspaces
+
+- Initial CERNIQ scaffold: NestJS monorepo, Prisma schema v1, pnpm workspaces
 - `packages/types`: Zod schemas as single source of truth
 - `apps/api/src/modules/{identity,policy,verify,auth,audit}`: core CRUD + hot path
 - `apps/api/src/common/crypto/{ed25519,jwt}.util.ts`: noble/ed25519, jose EdDSA
-- `packages/sdk-ts`: OkoroClient, sign/verify, typed errors
+- `packages/sdk-ts`: CerniqClient, sign/verify, typed errors
 
 ### Round 4–5 (Security & Audit) — sid=a9198691
-- **Python SDK** (M-015): 24 files, 70 tests, AsyncOkoro + sync, mypy --strict, pydantic v2
-- **`@okoro/verifier-rp`** (M-016): 34 files, 58 tests, property tests via fast-check, Express/Fastify/Hono adapters, replay LRU, revocation cache, offline Ed25519 — zero node:crypto (edge-ready)
+
+- **Python SDK** (M-015): 24 files, 70 tests, AsyncCerniq + sync, mypy --strict, pydantic v2
+- **`@cerniq/verifier-rp`** (M-016): 34 files, 58 tests, property tests via fast-check, Express/Fastify/Hono adapters, replay LRU, revocation cache, offline Ed25519 — zero node:crypto (edge-ready)
 - **E2E test harness** (M-017): 15 numbered test suites (01_health → 15_idempotency), TOCTOU spend race, denial-precedence property test, k6 load script
 - **Threat Model v2** (M-018): 965 lines, 31 STRIDE threats, EdDSA reconciliation, GDPR audit-chain redactability design
 - **Architecture Audit**: 22 findings — Critical 1 / High 5 / Medium 8 / Low 6 / Info 2
 
 ### Round 6 (Loop-Closure + Typecheck Green) — sid=3e2203ee
+
 - Fixed all 8 typecheck errors across auth0/mcp modules
 - **OutboxWorker**: ADR-0007 transactional outbox drainer (7 tests, handler-registry pattern, 2 Prometheus metrics)
 - **`.github/workflows/audit-chain-integrity.yml`**: nightly chain integrity verification + Slack alert on break
@@ -96,6 +100,7 @@ OpenAI and Stripe launched the Agentic Commerce Protocol (ACP) in 2025 — a pay
 - Final state: API typecheck green, 260/260 tests passing
 
 ### Round 7 (Enterprise Backbone ADRs) — sid=enterprise-backbone-arch
+
 - **ADRs 0008–0013** committed: MCP control-plane, Auth0 bridge, DPoP replay prevention, KMS-backed key rotation, pluggable policy engine, PQ hybrid scaffold
 - **MCP module**: `mcp.controller.ts`, `mcp.service.ts`, `mcp.dto.ts` — MCP server CRUD
 - **Auth0 module**: Full IdpAdapter interface, Auth0 adapter, Clerk adapter, WorkOS adapter
@@ -106,7 +111,7 @@ OpenAI and Stripe launched the Agentic Commerce Protocol (ACP) in 2025 — a pay
 - **CF Worker m1**: `workers/cf-verify/` — edge verify skeleton with shadow-mode
 - **Industry quickstarts**: `examples/ai-platform-tool-call/` reference integration
 - **Onboarding**: `PrincipalOnboarding` model, 7-step one-way ratchet, `GET+PATCH /v1/me/onboarding`
-- **Deep-canon docs**: `FAILURE_MODES.md`, `CAPACITY_PLAN.md`, `RETENTION_POLICY.md`, `OKORO_AS_BACKBONE.md`, `DID_METHOD.md`, `POST_QUANTUM_ROADMAP.md`, `EU_RESIDENCY.md`, `COMPLIANCE.md`
+- **Deep-canon docs**: `FAILURE_MODES.md`, `CAPACITY_PLAN.md`, `RETENTION_POLICY.md`, `CERNIQ_AS_BACKBONE.md`, `DID_METHOD.md`, `POST_QUANTUM_ROADMAP.md`, `EU_RESIDENCY.md`, `COMPLIANCE.md`
 - **Persona docs**: `docs/personas/{developer,security,sre,auditor}.md`
 - **Industry quickstarts doc**: `docs/INDUSTRY_QUICKSTARTS.md`
 - Schema migration: 6 migrations covering RLS, audit redactability, enterprise backbone fields, IdP federation, onboarding tracker
@@ -114,17 +119,19 @@ OpenAI and Stripe launched the Agentic Commerce Protocol (ACP) in 2025 — a pay
 - `OPERATOR_DECISIONS.md`: 16 open decisions tracked with defaults, due dates, module blocking map
 
 ### Round 8–9 (CF Worker + WASM Specs + Adoption Surface) — sid=3e2203ee + sid=a9198691
-- **CF Worker m2** (M-044): KV cache adapter (agent + policy + per-day spend), full ADR-0004 denial-precedence at edge, shadow-mode with divergence telemetry (`X-OKORO-Edge-Divergence` header)
+
+- **CF Worker m2** (M-044): KV cache adapter (agent + policy + per-day spend), full ADR-0004 denial-precedence at edge, shadow-mode with divergence telemetry (`X-CERNIQ-Edge-Divergence` header)
 - **Edge verify spec** (M-048): 16-branch denial-precedence sweep, shadow spec
 - **WASM evaluator specs** (M-046): Cedar-WASM + OPA-WASM spec tests with fake-injected modules
 - **WorkOS + Onboarding specs** (M-047)
 - **OnboardingBackfill + admin endpoints** (M-053)
 - **`app.module.ts` wired** (M-050): all 8 new modules imported (KMS, PolicyEngine, Auth0, Clerk, WorkOS, MCP, Compliance, Onboarding)
-- **Go CLI — agents/policy/verify/events/report** (M-040c): Real wiring replacing stubs, hand-rolled HTTP client with `--json` mode, denial-precedence in canonical order, `okoro events tail/export` (streaming NDJSON, Ctrl-C clean exit)
+- **Go CLI — agents/policy/verify/events/report** (M-040c): Real wiring replacing stubs, hand-rolled HTTP client with `--json` mode, denial-precedence in canonical order, `cerniq events tail/export` (streaming NDJSON, Ctrl-C clean exit)
 - **CLI release infra** (M-040b partial): `.goreleaser.yaml`, `scripts/install/install.sh`, CLI CI workflow, `CHANGELOG.md`, `docs/RELEASE_NOTES_TEMPLATE.md`, `docs/CLI_SECURITY.md`
 - **`vitest.workspace.ts`** (M-025): cross-package SDK↔API JWT parity test at root
 
 ### Round 10 (FAANG Gap Closure) — sid=3e2203ee
+
 - **AuditSignerService** (M-051): KMS → env → ephemeral priority chain, `signRaw` + `getActiveKid`; audit.service now stamps `signingKeyId` on every appended row — KMS rotation end-to-end works
 - **Cloud KMS production boot** (M-052): `kms.module.ts` factories (`buildAws`/`buildGcp`/`buildVault`) — no more `throw` at boot; SDKs lazy-loaded
 - **OTel `initTracing()`** (M-054): Called BEFORE `NestFactory.create()`; SIGTERM/SIGINT drain handlers
@@ -144,7 +151,7 @@ Principal              — tenant (email, planTier, IDP federation, policyEngine
   └─ ApiKey            — FULL | VERIFY_ONLY scope, bcrypt-hashed
   └─ AgentIdentity     — Ed25519 pubkey, status, trustScore, trustBand
       └─ AgentPolicy   — scoped JWT (signedToken), spend limits, expiresAt
-      └─ AuditEvent    — hash chain row (prev_hash + OKORO sig)
+      └─ AuditEvent    — hash chain row (prev_hash + CERNIQ sig)
       └─ BateSignal    — 14 signal types including DPoP
       └─ TrustScoreHistory
   └─ WebhookSubscription + WebhookDelivery
@@ -161,22 +168,22 @@ AgentDelegation        — Phase 3; table exists
 
 ### 4.2 API Surface (`apps/api/src/modules/`)
 
-| Module | Endpoints | Status |
-|---|---|---|
-| `identity` | POST/GET/LIST/REVOKE /v1/agents | ✅ Shipped |
-| `policy` | POST/GET/LIST/REVOKE /v1/policies | ✅ Shipped |
-| `verify` | POST /v1/verify | ✅ Shipped (pure algorithm) |
-| `audit` | GET /v1/audit-events, NDJSON export | ✅ Shipped (export endpoint TBD) |
-| `auth` | ApiKeyGuard, FULL + VERIFY_ONLY scopes | ✅ Shipped |
-| `bate` | Signal ingest, scorer, anomaly detector, BullMQ worker | ✅ Core; wiring gap (§8) |
-| `webhooks` | Subscriptions + delivery worker + DLQ | ✅ Delivery worker; subscribe endpoint TBD |
-| `health` | GET /health, GET /ready, GET /metrics | ✅ Shipped |
-| `auth0` | IdpAdapter (Auth0 + Clerk + WorkOS) | ✅ Shipped |
-| `mcp` | POST/GET/DELETE /v1/mcp-servers | ✅ Shipped |
-| `compliance` | POST /v1/compliance/audit/redact-event | ✅ Shipped |
-| `onboarding` | GET/PATCH /v1/me/onboarding | ✅ Shipped |
-| `billing` | Stripe plan tiers, usage metering | 🔴 Open (M-011) |
-| `wellknown` | GET /.well-known/audit-signing-key | 🔴 Open (M-016) |
+| Module       | Endpoints                                              | Status                                     |
+| ------------ | ------------------------------------------------------ | ------------------------------------------ |
+| `identity`   | POST/GET/LIST/REVOKE /v1/agents                        | ✅ Shipped                                 |
+| `policy`     | POST/GET/LIST/REVOKE /v1/policies                      | ✅ Shipped                                 |
+| `verify`     | POST /v1/verify                                        | ✅ Shipped (pure algorithm)                |
+| `audit`      | GET /v1/audit-events, NDJSON export                    | ✅ Shipped (export endpoint TBD)           |
+| `auth`       | ApiKeyGuard, FULL + VERIFY_ONLY scopes                 | ✅ Shipped                                 |
+| `bate`       | Signal ingest, scorer, anomaly detector, BullMQ worker | ✅ Core; wiring gap (§8)                   |
+| `webhooks`   | Subscriptions + delivery worker + DLQ                  | ✅ Delivery worker; subscribe endpoint TBD |
+| `health`     | GET /health, GET /ready, GET /metrics                  | ✅ Shipped                                 |
+| `auth0`      | IdpAdapter (Auth0 + Clerk + WorkOS)                    | ✅ Shipped                                 |
+| `mcp`        | POST/GET/DELETE /v1/mcp-servers                        | ✅ Shipped                                 |
+| `compliance` | POST /v1/compliance/audit/redact-event                 | ✅ Shipped                                 |
+| `onboarding` | GET/PATCH /v1/me/onboarding                            | ✅ Shipped                                 |
+| `billing`    | Stripe plan tiers, usage metering                      | 🔴 Open (M-011)                            |
+| `wellknown`  | GET /.well-known/audit-signing-key                     | 🔴 Open (M-016)                            |
 
 ### 4.3 Verify Hot Path — The Crown Jewel
 
@@ -205,19 +212,21 @@ Step 9  → ANOMALY_FLAGGED  (hard-flag check)
 `bate.scorer.ts` — pure `explain(input): ScoringExplanation` function. Deterministic. Replayable against historical signal streams.
 
 `bate.weights.ts` — current defaults (`WEIGHTS_VERSION = 'v1.1.0-dpop-2026-05-02'`):
-- CLEAN_TRANSACTION: +1/occurrence (capped +20/window)  
-- FRAUD_REPORT: severity-weighted (−25 LOW → −500 CRITICAL) × RP weight (0.25–1.5×)  
-- VELOCITY_ANOMALY: −50 (capped −200)  
-- POLICY_VIOLATION_ATTEMPT: −75 (capped −300)  
-- AGENT_DPOP_REPLAY_ATTEMPT: −200 (capped −600, can single-handedly drop PLATINUM to WATCH)  
-- Age bonus: +0.5/day, capped at +100 (@ 200 days)  
+
+- CLEAN_TRANSACTION: +1/occurrence (capped +20/window)
+- FRAUD_REPORT: severity-weighted (−25 LOW → −500 CRITICAL) × RP weight (0.25–1.5×)
+- VELOCITY_ANOMALY: −50 (capped −200)
+- POLICY_VIOLATION_ATTEMPT: −75 (capped −300)
+- AGENT_DPOP_REPLAY_ATTEMPT: −200 (capped −600, can single-handedly drop PLATINUM to WATCH)
+- Age bonus: +0.5/day, capped at +100 (@ 200 days)
 
 `bate.anomaly.ts` — 5 rules live (R-1 velocity, R-2 geo, R-3 spend CV, R-4 failed-verify spike, R-5 delegation depth). **Not yet wired into BateService.worker** — see §8, gap G-3.
 
 ### 4.5 Audit Chain
 
 Every `AuditEvent` carries:
-- `okoroSignature` — `sign(prev_sig || RFC8785_canonical(payload))`
+
+- `cerniqSignature` — `sign(prev_sig || RFC8785_canonical(payload))`
 - `signingKeyId` — stamped from `AuditSignerService.getActiveKid()` (KMS-aware since Round 10)
 - `*Hash` columns — SHA-256 commitments so GDPR Art.17 erasure can null PII without breaking the chain
 - `payloadVersion: 2` — verifiers branch on this
@@ -227,39 +236,43 @@ The chain is verifiable offline by anyone with the public key. `/.well-known/aud
 ### 4.6 SDK Surface
 
 **TypeScript** (`packages/sdk-ts`):
+
 ```typescript
-const okoro = new OkoroClient({ apiKey: '...' });
-const { agentId, privateKey } = await okoro.agents.register({ runtime: 'ANTHROPIC', publicKey });
-const { policyId } = await okoro.policies.create({ agentId, scopes: [...], expiresAt });
+const cerniq = new CerniqClient({ apiKey: '...' });
+const { agentId, privateKey } = await cerniq.agents.register({ runtime: 'ANTHROPIC', publicKey });
+const { policyId } = await cerniq.policies.create({ agentId, scopes: [...], expiresAt });
 const token = sign(privateKey, { action: 'commerce.purchase', amount: 450, policyId, agentId });
-const result = await okoro.verify(token, { action: 'commerce.purchase', amount: 450 });
+const result = await cerniq.verify(token, { action: 'commerce.purchase', amount: 450 });
 ```
 
 **Python** (`packages/sdk-py`):
+
 ```python
-async with AsyncOkoro(api_key="...") as okoro:
-    agent = await okoro.agents.register(runtime="anthropic", public_key=pubkey)
-    policy = await okoro.policies.create(agent_id=agent.agent_id, scopes=[...])
+async with AsyncCerniq(api_key="...") as cerniq:
+    agent = await cerniq.agents.register(runtime="anthropic", public_key=pubkey)
+    policy = await cerniq.policies.create(agent_id=agent.agent_id, scopes=[...])
     token = sign(private_key, action="commerce.purchase", amount=450, policy_id=policy.policy_id)
-    result = await okoro.verify(token, action="commerce.purchase", amount=450)
+    result = await cerniq.verify(token, action="commerce.purchase", amount=450)
 ```
 
 **Relying-party verifier** (`packages/verifier-rp`):
+
 ```typescript
 // Drop-in for any Express/Fastify/Hono server — offline JWT verify
-const verifier = new OkoroVerifier({
+const verifier = new CerniqVerifier({
   getAgentPublicKey: async (agentId) => fetchKeyFromCache(agentId),
 });
-app.use('/api/protected', okoroMiddleware(verifier));
+app.use('/api/protected', cerniqMiddleware(verifier));
 ```
 
 **Go CLI** (`packages/cli`):
+
 ```sh
-okoro agents register --runtime anthropic --label "my-bot" --generate-keypair
-okoro policy create --agent-id <id> --scope commerce --max-per-txn 500
-okoro verify <token> --action commerce.purchase --amount 450 --merchant-domain delta.com
-okoro events tail --agent-id <id>   # streaming, Ctrl-C clean
-okoro report --agent-id <id> --type fraud --severity HIGH
+cerniq agents register --runtime anthropic --label "my-bot" --generate-keypair
+cerniq policy create --agent-id <id> --scope commerce --max-per-txn 500
+cerniq verify <token> --action commerce.purchase --amount 450 --merchant-domain delta.com
+cerniq events tail --agent-id <id>   # streaming, Ctrl-C clean
+cerniq report --agent-id <id> --type fraud --severity HIGH
 ```
 
 ---
@@ -270,45 +283,46 @@ okoro report --agent-id <id> --type fraud --severity HIGH
 
 Deliverables from `docs/spec/01_MASTER.md`:
 
-| Deliverable | Status |
-|---|---|
-| OKORO_MASTER.md | ✅ `docs/spec/01_MASTER.md` (607 lines) |
-| OpenAPI spec | ✅ `docs/spec/OKORO_API_SPEC.yaml` |
-| Agent identity data model | ✅ `apps/api/prisma/schema.prisma` |
-| Policy schema v1 | ✅ Prisma + Zod in `packages/types` |
-| BATE scoring algorithm | ✅ `docs/BATE_ALGORITHM.md` + `bate.scorer.ts` |
-| SDK API surface (TS types) | ✅ `packages/sdk-ts/src/types.ts` |
-| Legal entity research | ✅ Documented in master spec |
+| Deliverable                | Status                                         |
+| -------------------------- | ---------------------------------------------- |
+| CERNIQ_MASTER.md           | ✅ `docs/spec/01_MASTER.md` (607 lines)        |
+| OpenAPI spec               | ✅ `docs/spec/CERNIQ_API_SPEC.yaml`            |
+| Agent identity data model  | ✅ `apps/api/prisma/schema.prisma`             |
+| Policy schema v1           | ✅ Prisma + Zod in `packages/types`            |
+| BATE scoring algorithm     | ✅ `docs/BATE_ALGORITHM.md` + `bate.scorer.ts` |
+| SDK API surface (TS types) | ✅ `packages/sdk-ts/src/types.ts`              |
+| Legal entity research      | ✅ Documented in master spec                   |
 
 ### Phase 1 — MVP (Post CERNIQ Gate 1) 🟡 ~82% COMPLETE
 
 Target: first paying developer customer. Exit criteria: 10 agents, 1 RP integration, $500 MRR.
 
-| Deliverable | Status | Module |
-|---|---|---|
-| Agent registration API | ✅ | M-003 |
-| Ed25519 keypair, DID-compatible | ✅ | M-002/003 |
-| Policy engine (create/revoke/check) | ✅ | M-004 |
-| Verification endpoint (<200ms) | ✅ | M-005 |
-| Audit log v1 | ✅ | M-006 |
-| TypeScript SDK | ✅ | M-001 |
-| Python SDK | ✅ | M-015 |
-| Relying-party verifier | ✅ | M-016 |
-| Developer dashboard (basic) | 🟡 Scaffold | M-012 |
-| Free + Developer billing (Stripe) | 🔴 Open | M-011 |
-| Health + metrics | ✅ | M-010 |
-| Auth (API keys, bcrypt) | ✅ | M-009 |
-| Webhooks | 🟡 Worker shipped; subscribe endpoint TBD | M-008 |
-| Go CLI | ✅ Core commands | M-027/040c |
-| E2E test harness | ✅ 15 suites | M-017 |
-| CF Worker edge (Phase 1: passthrough) | ✅ Shadow mode | M-013 |
-| MCP server package | ✅ Scaffold | M-021 |
+| Deliverable                           | Status                                    | Module     |
+| ------------------------------------- | ----------------------------------------- | ---------- |
+| Agent registration API                | ✅                                        | M-003      |
+| Ed25519 keypair, DID-compatible       | ✅                                        | M-002/003  |
+| Policy engine (create/revoke/check)   | ✅                                        | M-004      |
+| Verification endpoint (<200ms)        | ✅                                        | M-005      |
+| Audit log v1                          | ✅                                        | M-006      |
+| TypeScript SDK                        | ✅                                        | M-001      |
+| Python SDK                            | ✅                                        | M-015      |
+| Relying-party verifier                | ✅                                        | M-016      |
+| Developer dashboard (basic)           | 🟡 Scaffold                               | M-012      |
+| Free + Developer billing (Stripe)     | 🔴 Open                                   | M-011      |
+| Health + metrics                      | ✅                                        | M-010      |
+| Auth (API keys, bcrypt)               | ✅                                        | M-009      |
+| Webhooks                              | 🟡 Worker shipped; subscribe endpoint TBD | M-008      |
+| Go CLI                                | ✅ Core commands                          | M-027/040c |
+| E2E test harness                      | ✅ 15 suites                              | M-017      |
+| CF Worker edge (Phase 1: passthrough) | ✅ Shadow mode                            | M-013      |
+| MCP server package                    | ✅ Scaffold                               | M-021      |
 
 **Blocking items before first paying customer (see §8 for detail):**
+
 1. `/.well-known/audit-signing-key` — relying parties can't verify audit chains offline without this
 2. Stripe billing module (M-011) — needed for Free → paid tier
 3. Dashboard login + API key UI — developer onboarding path
-4. Webhook subscription endpoints — customers need `okoro.agent.revoked` events
+4. Webhook subscription endpoints — customers need `cerniq.agent.revoked` events
 
 ### Phase 2 — BATE Engine (Post $500 MRR) 🟢 EARLY
 
@@ -326,63 +340,66 @@ CF Worker KV-cached edge verify with shadow-mode is shipped. KMS adapters (AWS/G
 
 The Model Context Protocol is now the universal tool-call wire format. Every major LLM host speaks MCP:
 
-| Host | MCP Support |
-|---|---|
-| Claude Desktop | Native `stdio` |
-| Cursor | Native `streamable-http` |
-| Cline (VS Code) | Native `stdio` |
-| OpenAI Responses API | `tool` calls → MCP shim |
-| Continue.dev | Native `stdio` |
-| Any LangChain/CrewAI agent | MCP wrapper |
+| Host                       | MCP Support              |
+| -------------------------- | ------------------------ |
+| Claude Desktop             | Native `stdio`           |
+| Cursor                     | Native `streamable-http` |
+| Cline (VS Code)            | Native `stdio`           |
+| OpenAI Responses API       | `tool` calls → MCP shim  |
+| Continue.dev               | Native `stdio`           |
+| Any LangChain/CrewAI agent | MCP wrapper              |
 
 **What MCP does NOT carry: verified agent identity.**
 
-`packages/mcp-bridge` gives any MCP server OKORO verification in one line:
+`packages/mcp-bridge` gives any MCP server CERNIQ verification in one line:
+
 ```typescript
-export default okoroBridge.wrap(myMcpServer);
+export default cerniqBridge.wrap(myMcpServer);
 ```
 
 This is the shortest path to adoption in the industry. An MCP server author adds one line and gets:
+
 - Cryptographic identity for every agent that calls their tools
 - Policy-gated permissions (scope, spend limit, domain)
 - Behavioral trust score on every call
 - Signed audit trail of every tool invocation
 - Instant revocation (zero TTL wait)
 
-**Distribution flywheel:** Claude Desktop has ~millions of active users. Every popular MCP server (GitHub, Stripe, Linear, Notion, etc.) that adopts `@okoro/mcp-bridge` becomes a relying party that drives developer signups. Our `@okoro/mcp-server` turns any Claude Desktop installation into a management console for OKORO identities — `npx @okoro/mcp-server` in your Claude config is the first install trigger.
+**Distribution flywheel:** Claude Desktop has ~millions of active users. Every popular MCP server (GitHub, Stripe, Linear, Notion, etc.) that adopts `@cerniq/mcp-bridge` becomes a relying party that drives developer signups. Our `@cerniq/mcp-server` turns any Claude Desktop installation into a management console for CERNIQ identities — `npx @cerniq/mcp-server` in your Claude config is the first install trigger.
 
 ### 6.2 ACP Compatibility — How We Plug Into Stripe's Rail
 
 From `docs/spec/01_MASTER.md` §3.4:
 
 ```
-ACP Flow with OKORO:
+ACP Flow with CERNIQ:
 
 1. User grants agent permission (ACP step)
 2. Agent gets SPT from Stripe (ACP step)
 3. Agent calls merchant API with:
-   { spt: "stripe_spt_xxx", okoroToken: "okoro_signed_xxx" }
+   { spt: "stripe_spt_xxx", cerniqToken: "cerniq_signed_xxx" }
 4. Merchant calls:
    - Stripe: "Is this SPT valid for $450?"
-   - OKORO:  "Is this agent trusted at score >500 with commerce scope?"
+   - CERNIQ:  "Is this agent trusted at score >500 with commerce scope?"
 5. Both confirm → transaction approved
 ```
 
-OKORO is **additive to ACP**. Stripe handles payment authorization; we handle agent authorization. The merchant that adopts ACP without OKORO has no way to distinguish a trustworthy agent from a compromised one. We are the missing layer Stripe explicitly left to implementers.
+CERNIQ is **additive to ACP**. Stripe handles payment authorization; we handle agent authorization. The merchant that adopts ACP without CERNIQ has no way to distinguish a trustworthy agent from a compromised one. We are the missing layer Stripe explicitly left to implementers.
 
-Concretely, our `examples/fintech-payments/` quickstart (M-040e) demonstrates this pattern end-to-end: Express checkout server, `okoro.verify()` gate before Stripe charge, denial-precedence walk-through for all 9 denial reasons.
+Concretely, our `examples/fintech-payments/` quickstart (M-040e) demonstrates this pattern end-to-end: Express checkout server, `cerniq.verify()` gate before Stripe charge, denial-precedence walk-through for all 9 denial reasons.
 
 ### 6.3 The BATE Trust Score is the Credit Score for Agents
 
 The BATE engine is the highest-value, most defensible component. No competitor has built this.
 
-**Network effect:** Trust score compounds in value over time. An agent with a 900-point OKORO score at 200 days old has demonstrated 200 days of clean behavior across real relying parties. This history cannot be transferred to a competing platform. This is the same moat as credit scores — FICO took decades to build, but once it existed, every lender required it.
+**Network effect:** Trust score compounds in value over time. An agent with a 900-point CERNIQ score at 200 days old has demonstrated 200 days of clean behavior across real relying parties. This history cannot be transferred to a competing platform. This is the same moat as credit scores — FICO took decades to build, but once it existed, every lender required it.
 
 **Signal flywheel:** More relying parties → more signals → better anomaly detection → more confident approvals at higher spend limits → more relying parties adopt. The flywheel starts the moment the first RP calls `/v1/verify` and reports signals back via `/v1/agents/:id/report`.
 
 **Current signal coverage:**
+
 - 14 signal types live in `BateSignalType` enum
-- 5 anomaly rules (R-1..R-5) in `bate.anomaly.ts`  
+- 5 anomaly rules (R-1..R-5) in `bate.anomaly.ts`
 - DPoP replay attempt signal maps directly to credential exfiltration detection
 - Weight caps prevent single-signal gaming (fraud report cap = 500/window)
 - Age cohort correction prevents gaming via churn-and-re-register
@@ -391,7 +408,7 @@ The BATE engine is the highest-value, most defensible component. No competitor h
 
 The append-only, signed audit chain is the compliance moat.
 
-**For developers:** SOC2 evidence is automatic. Every `okoro.verify()` call produces a tamper-evident log entry. Running `okoro audit export` produces the NDJSON SOC2 artifact. No other agent identity platform does this.
+**For developers:** SOC2 evidence is automatic. Every `cerniq.verify()` call produces a tamper-evident log entry. Running `cerniq audit export` produces the NDJSON SOC2 artifact. No other agent identity platform does this.
 
 **For enterprises:** GDPR Art.17 compliance is solved at the design level. Raw PII columns are nullable; `*Hash` commitment columns keep the chain intact after erasure. The redaction event itself is logged as a chain entry. This is `docs/decisions/0006-audit-redactability.md` in practice, and it means European enterprise customers can sign a DPA with confidence.
 
@@ -401,7 +418,8 @@ The append-only, signed audit chain is the compliance moat.
 
 From the master spec: "Stripe is Stripe. Auth0 is Okta. Both carry platform baggage. A Delta Air Lines or Chase Bank will not route all agent verification through OpenAI's infrastructure — their compliance teams won't allow it."
 
-OKORO's neutrality is not a feature, it's an architectural commitment:
+CERNIQ's neutrality is not a feature, it's an architectural commitment:
+
 - **Crypto neutrality**: Ed25519 (`@noble/ed25519`), one curve, one library. No vendor-specific crypto.
 - **Platform neutrality**: The verify algorithm runs on NestJS, Cloudflare Workers, or any JS runtime — same code via `VerifyPorts` interface.
 - **Engine neutrality**: Builtin, Cedar, OPA — operator chooses. Same denial enum, same audit chain.
@@ -416,13 +434,13 @@ OKORO's neutrality is not a feature, it's an architectural commitment:
 
 22 findings reviewed. **Severity breakdown:**
 
-| Severity | Total | Closed | Deferred | Open |
-|---|---|---|---|---|
-| Critical | 1 | 1 (A-001, EdDSA/RSA reconciliation) | 0 | 0 |
-| High | 5 | 5 (A-002..A-006, all promoted to deep-canon docs) | 0 | 0 |
-| Medium | 8 | 4 | 2 | 2 |
-| Low | 6 | 2 | 2 | 2 |
-| Info | 2 | 1 | 1 | 0 |
+| Severity | Total | Closed                                            | Deferred | Open |
+| -------- | ----- | ------------------------------------------------- | -------- | ---- |
+| Critical | 1     | 1 (A-001, EdDSA/RSA reconciliation)               | 0        | 0    |
+| High     | 5     | 5 (A-002..A-006, all promoted to deep-canon docs) | 0        | 0    |
+| Medium   | 8     | 4                                                 | 2        | 2    |
+| Low      | 6     | 2                                                 | 2        | 2    |
+| Info     | 2     | 1                                                 | 1        | 0    |
 
 **All Critical and High findings are closed.** Deep-canon docs provide SOC2-auditor-level evidence for each.
 
@@ -430,45 +448,45 @@ OKORO's neutrality is not a feature, it's an architectural commitment:
 
 13 ADRs committed (`docs/decisions/0001–0013`):
 
-| ADR | Decision | Code Expression |
-|---|---|---|
-| 0001 | cuid for IDs | `schema.prisma @default(cuid())` |
-| 0002 | Ed25519 only | `bate.weights.ts`, `crypto.util.ts` |
-| 0003 | Portable verify path | `verify.algorithm.ts` + `VerifyPorts` |
-| 0004 | Denial precedence public API | 9-step order, locked by `spec-sync.yml` CI |
-| 0005 | Audit chain canonicalization | RFC 8785 JCS in `audit-chain.util.ts` |
-| 0006 | Audit redactability | `*Hash` columns + nullable PII |
-| 0007 | Transactional outbox | `OutboxEvent` + `outbox.worker.ts` |
-| 0008 | MCP as control plane | `mcp.module.ts` + `@okoro/mcp-bridge` + `@okoro/mcp-server` |
-| 0009 | Auth0 bridge (IDP abstraction) | `IdpAdapter` + 3 implementations |
-| 0010 | DPoP replay prevention | `dpop.util.ts` + `AGENT_DPOP_REPLAY_ATTEMPT` signal |
-| 0011 | Key rotation via KMS | `KmsModule` + `AuditSignerService` (KMS → env → ephemeral) |
-| 0012 | Pluggable policy engine | `PolicyEngine` interface + Builtin/Cedar/OPA |
-| 0013 | PQ hybrid scaffold | `pq.util.ts` ML-DSA-65 behind `OKORO_HYBRID_PQ_ENABLED` flag |
+| ADR  | Decision                       | Code Expression                                               |
+| ---- | ------------------------------ | ------------------------------------------------------------- |
+| 0001 | cuid for IDs                   | `schema.prisma @default(cuid())`                              |
+| 0002 | Ed25519 only                   | `bate.weights.ts`, `crypto.util.ts`                           |
+| 0003 | Portable verify path           | `verify.algorithm.ts` + `VerifyPorts`                         |
+| 0004 | Denial precedence public API   | 9-step order, locked by `spec-sync.yml` CI                    |
+| 0005 | Audit chain canonicalization   | RFC 8785 JCS in `audit-chain.util.ts`                         |
+| 0006 | Audit redactability            | `*Hash` columns + nullable PII                                |
+| 0007 | Transactional outbox           | `OutboxEvent` + `outbox.worker.ts`                            |
+| 0008 | MCP as control plane           | `mcp.module.ts` + `@cerniq/mcp-bridge` + `@cerniq/mcp-server` |
+| 0009 | Auth0 bridge (IDP abstraction) | `IdpAdapter` + 3 implementations                              |
+| 0010 | DPoP replay prevention         | `dpop.util.ts` + `AGENT_DPOP_REPLAY_ATTEMPT` signal           |
+| 0011 | Key rotation via KMS           | `KmsModule` + `AuditSignerService` (KMS → env → ephemeral)    |
+| 0012 | Pluggable policy engine        | `PolicyEngine` interface + Builtin/Cedar/OPA                  |
+| 0013 | PQ hybrid scaffold             | `pq.util.ts` ML-DSA-65 behind `CERNIQ_HYBRID_PQ_ENABLED` flag |
 
 ### 7.3 CLAUDE.md Invariant Compliance
 
-| Invariant | Status | Where |
-|---|---|---|
-| #1 Private keys never enter OKORO | ✅ | SDK generates locally; only pubkey sent |
-| #2 Verify hot path is portable | ✅ | `verify.algorithm.ts` + `VerifyPorts` |
-| #3 Audit log append-only + signed | ✅ | `audit.service.append()` only; `AuditSignerService` |
-| #4 No silent failures | ✅ | Spend Redis error → ANOMALY_FLAGGED (fail-closed) |
-| #5 Multi-tenant isolation | ✅ | `principalId` on every query; RLS migrations |
-| #6 Denial precedence is fixed | ✅ | Locked by ADR-0004 + `spec-sync.yml` CI enforcement |
+| Invariant                          | Status | Where                                               |
+| ---------------------------------- | ------ | --------------------------------------------------- |
+| #1 Private keys never enter CERNIQ | ✅     | SDK generates locally; only pubkey sent             |
+| #2 Verify hot path is portable     | ✅     | `verify.algorithm.ts` + `VerifyPorts`               |
+| #3 Audit log append-only + signed  | ✅     | `audit.service.append()` only; `AuditSignerService` |
+| #4 No silent failures              | ✅     | Spend Redis error → ANOMALY_FLAGGED (fail-closed)   |
+| #5 Multi-tenant isolation          | ✅     | `principalId` on every query; RLS migrations        |
+| #6 Denial precedence is fixed      | ✅     | Locked by ADR-0004 + `spec-sync.yml` CI enforcement |
 
 ### 7.4 Test Coverage
 
-| Layer | Tests | Quality |
-|---|---|---|
-| API unit (Jest) | 260+ passing | Spec-tested per module |
-| Crypto specs | Paired `.spec.ts` for every crypto utility | CLAUDE.md requirement |
-| E2E harness | 15 suites (vitest) | Black-box, denial-precedence + TOCTOU |
-| CF Worker edge | 16-branch denial sweep + shadow spec | Bit-for-bit parity with origin |
-| Python SDK | 70 tests (pytest) | mypy --strict, ruff clean |
-| RP Verifier | 58 tests + property tests (fast-check) | Edge runtime ready |
-| Cross-package | SDK↔API JWT parity test | `vitest.workspace.ts` |
-| BATE anomaly | 14 specs (R-1..R-5 each) | warn/crit/skip-on-small-sample |
+| Layer           | Tests                                      | Quality                               |
+| --------------- | ------------------------------------------ | ------------------------------------- |
+| API unit (Jest) | 260+ passing                               | Spec-tested per module                |
+| Crypto specs    | Paired `.spec.ts` for every crypto utility | CLAUDE.md requirement                 |
+| E2E harness     | 15 suites (vitest)                         | Black-box, denial-precedence + TOCTOU |
+| CF Worker edge  | 16-branch denial sweep + shadow spec       | Bit-for-bit parity with origin        |
+| Python SDK      | 70 tests (pytest)                          | mypy --strict, ruff clean             |
+| RP Verifier     | 58 tests + property tests (fast-check)     | Edge runtime ready                    |
+| Cross-package   | SDK↔API JWT parity test                    | `vitest.workspace.ts`                 |
+| BATE anomaly    | 14 specs (R-1..R-5 each)                   | warn/crit/skip-on-small-sample        |
 
 ---
 
@@ -481,6 +499,7 @@ These are listed in descending order of blocking impact on first-customer readin
 **Why critical:** Without this endpoint, relying parties cannot verify the audit chain offline. This is the SOC2 artifact verifiability story. Every enterprise customer will ask "how do I verify your audit logs independently?" — the answer is: hit this URL.
 
 **What to build:**
+
 ```
 GET /.well-known/audit-signing-key
 → { keys: [{ kty: "OKP", crv: "Ed25519", x: "<b64url>", kid: "<id>", use: "sig" }] }
@@ -503,6 +522,7 @@ No auth required
 **Current state:** `apps/api/src/modules/billing/plans.ts` defines plan tiers and `plans.spec.ts` has unit tests. Zero Stripe integration code.
 
 **What to build:**
+
 - `stripe.service.ts` — customer create, subscription create/update, usage record reporting
 - `billing.controller.ts` — `POST /v1/billing/webhook` (Stripe signature verification)
 - `billing.module.ts` — wire Stripe client from env
@@ -521,6 +541,7 @@ No auth required
 **Current state:** `bate.anomaly.ts` is a pure function returning signal array. `bate.service.ts` processes signals via BullMQ but does not call the detector.
 
 **What to wire:**
+
 ```typescript
 // In bate.service.ts processSignal():
 const anomalySignals = detectAnomalies(recentSignals, thresholds);
@@ -535,15 +556,16 @@ Coordinate with the peer who holds the `bate.service.ts` path before editing.
 
 ### G-4 🟠 HIGH — Webhook Subscription Management Endpoints
 
-**Why high:** Customers need `okoro.agent.revoked` events. Without subscribe endpoints, the WebhookDelivery worker ships events but nobody can register to receive them.
+**Why high:** Customers need `cerniq.agent.revoked` events. Without subscribe endpoints, the WebhookDelivery worker ships events but nobody can register to receive them.
 
 **Current state:** `WebhookSubscription` and `WebhookDelivery` models exist. `webhook.delivery.spec.ts` ships. The **subscribe CRUD API is not implemented**.
 
 **What to build:**
+
 - `POST /v1/webhooks` — create subscription (url, secret, events[])
 - `GET /v1/webhooks` — list subscriptions (principal-scoped)
 - `DELETE /v1/webhooks/:id` — remove subscription
-- HMAC-SHA256 `X-OKORO-Signature: t=<ts>,v1=<sig>` on every delivery (Stripe parity)
+- HMAC-SHA256 `X-CERNIQ-Signature: t=<ts>,v1=<sig>` on every delivery (Stripe parity)
 - OD-005 default: 8 retry attempts before DLQ
 
 ---
@@ -555,6 +577,7 @@ Coordinate with the peer who holds the `bate.service.ts` path before editing.
 **Current state:** `apps/dashboard/` directory scaffolded with Next.js App Router structure. No pages implemented. Auth0 module is live on the API side.
 
 **Priority pages (in order):**
+
 1. Login via Auth0 (`/auth/login`, `/auth/callback`)
 2. API key management (`/settings/api-keys`) — create, label, revoke, show prefix
 3. Onboarding checklist (`/onboarding`) — maps to `PrincipalOnboarding` 7 steps
@@ -567,7 +590,7 @@ Bloomberg-density layout (per operator preference in `CLAUDE.md`): MetricStrip h
 
 **Why medium:** The `spec-sync.yml` CI workflow references this script on job 1 but the file doesn't exist. The denial-precedence job (job 3) runs without it.
 
-**What to build:** Walk `OKORO_API_SPEC.yaml` request/response schemas and check they have a corresponding Zod schema in `packages/types/src/schemas.ts`. Fail on missing or shape-mismatched schemas.
+**What to build:** Walk `CERNIQ_API_SPEC.yaml` request/response schemas and check they have a corresponding Zod schema in `packages/types/src/schemas.ts`. Fail on missing or shape-mismatched schemas.
 
 ---
 
@@ -581,9 +604,9 @@ Bloomberg-density layout (per operator preference in `CLAUDE.md`): MetricStrip h
 
 ### G-8 🟡 MEDIUM — OpenAPI Denial-Reason Enum Order Fix
 
-**Why medium:** `OKORO_API_SPEC.yaml` lines 572–581 list denial reasons alphabetically. CLAUDE.md invariant #6 mandates canonical precedence order. The CLI renders canonical; the spec must match for client code generators.
+**Why medium:** `CERNIQ_API_SPEC.yaml` lines 572–581 list denial reasons alphabetically. CLAUDE.md invariant #6 mandates canonical precedence order. The CLI renders canonical; the spec must match for client code generators.
 
-**Fix:** Reorder the denial enum in `OKORO_API_SPEC.yaml` to match `AGENT_NOT_FOUND → AGENT_REVOKED → INVALID_SIGNATURE → POLICY_REVOKED → POLICY_EXPIRED → SCOPE_NOT_GRANTED → SPEND_LIMIT_EXCEEDED → TRUST_SCORE_TOO_LOW → ANOMALY_FLAGGED`.
+**Fix:** Reorder the denial enum in `CERNIQ_API_SPEC.yaml` to match `AGENT_NOT_FOUND → AGENT_REVOKED → INVALID_SIGNATURE → POLICY_REVOKED → POLICY_EXPIRED → SCOPE_NOT_GRANTED → SPEND_LIMIT_EXCEEDED → TRUST_SCORE_TOO_LOW → ANOMALY_FLAGGED`.
 
 ---
 
@@ -591,17 +614,18 @@ Bloomberg-density layout (per operator preference in `CLAUDE.md`): MetricStrip h
 
 **What:** `@Cron` decorators on `OnboardingBackfill` require `@nestjs/schedule` module to be imported in `app.module.ts`. Currently the cron fires via admin endpoint only.
 
-**Fix:** `pnpm add @nestjs/schedule -F @okoro/api` + add `ScheduleModule.forRoot()` to `app.module.ts` imports.
+**Fix:** `pnpm add @nestjs/schedule -F @cerniq/api` + add `ScheduleModule.forRoot()` to `app.module.ts` imports.
 
 ---
 
 ### G-10 🟢 LOW — Manual OTel Spans on Critical Paths
 
 `initTracing()` covers auto-instrumentation (HTTP, PG, Redis). Manual spans needed for:
-- `okoro.verify.algorithm` — the core hot path
-- `okoro.audit.chain.append` — audit write latency
-- `okoro.kms.<provider>.<op>` — KMS latency visibility
-- `okoro.policy.engine.<id>.eval` — engine latency
+
+- `cerniq.verify.algorithm` — the core hot path
+- `cerniq.audit.chain.append` — audit write latency
+- `cerniq.kms.<provider>.<op>` — KMS latency visibility
+- `cerniq.policy.engine.<id>.eval` — engine latency
 
 Add `tracer.startActiveSpan(...)` calls in the relevant files. Non-blocking for first customer.
 
@@ -611,14 +635,14 @@ Add `tracer.startActiveSpan(...)` calls in the relevant files. Non-blocking for 
 
 All 16 open decisions are in `OPERATOR_DECISIONS.md`. **Priority for operator review:**
 
-| ID | Decision | Blocks | Urgency |
-|---|---|---|---|
-| OD-001 | BATE scoring weights (confirm or override defaults in `bate.weights.ts`) | M-007 full ship | Before public launch |
-| OD-002 | Cold-start trust accelerator policy (KYC-only → start at 650 is current default) | M-007 cold-start | Before public launch |
-| OD-003 | Pricing tier hard gates (Free 1K vs. 10K; Developer $49 vs. $29) | M-011 Stripe | Before billing ships |
-| OD-006 | `/v1/verify` rate-limit FREE tier (10 req/sec + burst 20 is current default) | M-005 throttle | Before public beta |
-| OD-013 | Default policy engine per principal (`builtin` is default; confirm) | Customer Cedar/OPA quickstart | Before marketing claims |
-| OD-005 | Webhook delivery max attempts before DLQ (8 is default, Stripe parity) | M-008 | Before webhooks ship |
+| ID     | Decision                                                                         | Blocks                        | Urgency                 |
+| ------ | -------------------------------------------------------------------------------- | ----------------------------- | ----------------------- |
+| OD-001 | BATE scoring weights (confirm or override defaults in `bate.weights.ts`)         | M-007 full ship               | Before public launch    |
+| OD-002 | Cold-start trust accelerator policy (KYC-only → start at 650 is current default) | M-007 cold-start              | Before public launch    |
+| OD-003 | Pricing tier hard gates (Free 1K vs. 10K; Developer $49 vs. $29)                 | M-011 Stripe                  | Before billing ships    |
+| OD-006 | `/v1/verify` rate-limit FREE tier (10 req/sec + burst 20 is current default)     | M-005 throttle                | Before public beta      |
+| OD-013 | Default policy engine per principal (`builtin` is default; confirm)              | Customer Cedar/OPA quickstart | Before marketing claims |
+| OD-005 | Webhook delivery max attempts before DLQ (8 is default, Stripe parity)           | M-008                         | Before webhooks ship    |
 
 The remaining 10 ODs are either: (a) locked defaults that ship if silent, (b) reserved peer-owned (OD-008), or (c) milestone-triggered (OD-004, OD-007, OD-014).
 
@@ -630,8 +654,8 @@ The remaining 10 ODs are either: (a) locked defaults that ship if silent, (b) re
 
 These are hardwired into `CLAUDE.md`. Every PR touching the relevant paths must explicitly verify these:
 
-**INVARIANT 1 — Private keys never enter OKORO.**  
-The SDK generates keypairs client-side. `generateKeypair()` returns `{ privateKey, publicKey }`. Only `publicKey` is sent to the API. The `@okoro/sdk` crypto functions and the Go CLI's `--generate-keypair` flag both enforce this. Never add a private key field to any API endpoint.
+**INVARIANT 1 — Private keys never enter CERNIQ.**  
+The SDK generates keypairs client-side. `generateKeypair()` returns `{ privateKey, publicKey }`. Only `publicKey` is sent to the API. The `@cerniq/sdk` crypto functions and the Go CLI's `--generate-keypair` flag both enforce this. Never add a private key field to any API endpoint.
 
 **INVARIANT 2 — The verify hot path is portable.**  
 `apps/api/src/modules/verify/algorithm/verify.algorithm.ts` and everything it imports must have zero NestJS / Prisma / ioredis / Node-specific imports. If you add an import to `verify.algorithm.ts`, the new import must also be free of those dependencies. The CI will catch it at build time for the CF Worker — `workers/cf-verify/` imports the algorithm directly.
@@ -646,7 +670,7 @@ If Redis is down during spend check → fail closed with ANOMALY_FLAGGED, not a 
 Every service method takes `principalId` as the first argument. Every Prisma query includes `where: { principalId }` or an equivalent. RLS provides a belt to the suspenders. Never expose data from one tenant to another.
 
 **INVARIANT 6 — Denial precedence is fixed and ordered.**  
-`AGENT_NOT_FOUND → AGENT_REVOKED → INVALID_SIGNATURE → POLICY_REVOKED → POLICY_EXPIRED → SCOPE_NOT_GRANTED → SPEND_LIMIT_EXCEEDED → TRUST_SCORE_TOO_LOW → ANOMALY_FLAGGED`. The `spec-sync.yml` CI job 3 validates this is byte-identical across `verify.algorithm.ts`, `packages/verifier-rp/src/types.ts`, and `OKORO_API_SPEC.yaml`. Do not change without an ADR + API version bump.
+`AGENT_NOT_FOUND → AGENT_REVOKED → INVALID_SIGNATURE → POLICY_REVOKED → POLICY_EXPIRED → SCOPE_NOT_GRANTED → SPEND_LIMIT_EXCEEDED → TRUST_SCORE_TOO_LOW → ANOMALY_FLAGGED`. The `spec-sync.yml` CI job 3 validates this is byte-identical across `verify.algorithm.ts`, `packages/verifier-rp/src/types.ts`, and `CERNIQ_API_SPEC.yaml`. Do not change without an ADR + API version bump.
 
 ---
 
@@ -657,7 +681,7 @@ This codebase runs with multiple parallel Claude sessions. Coordination is via `
 ### Before you touch any file:
 
 1. **Read `WORK_BOARD.md`** — check status of every module in your intended path.
-2. **Run `claude-peers claim okoro <module-id>`** — flip STATUS to `claimed by <sid>`.
+2. **Run `claude-peers claim cerniq <module-id>`** — flip STATUS to `claimed by <sid>`.
 3. **Check conflict zones** — `apps/api/src/modules/bate/bate.service.ts`, `apps/api/src/app.module.ts`, `apps/api/prisma/schema.prisma`, `docs/SECURITY.md`, `docs/ARCHITECTURE.md` are SHARED files. Coordinate before claiming.
 4. **Stay in your paths** — each module lists its owned paths. Use `claude-peers msg` to negotiate cross-boundary touches.
 5. **On completion** — append to `docs/SESSION_HANDOFF.md` (newest at top), release claim.
@@ -668,17 +692,17 @@ All claims from Rounds 6–10 released. The board is open.
 
 ### High-value next sessions to run in parallel:
 
-| Session A | Session B | Session C |
-|---|---|---|
+| Session A                                                              | Session B                                                            | Session C                                                  |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------- |
 | G-1: `/.well-known/audit-signing-key` (M-016) — 1 new module, ~200 LOC | G-2: Stripe billing (M-011) — `billing.service.ts` + webhook handler | G-5: Dashboard login + API key UI — Auth0 + settings pages |
-| **Paths:** `apps/api/src/modules/wellknown/**` | **Paths:** `apps/api/src/modules/billing/**` | **Paths:** `apps/dashboard/**` |
-| **No conflicts** | **No conflicts** | **No conflicts** |
+| **Paths:** `apps/api/src/modules/wellknown/**`                         | **Paths:** `apps/api/src/modules/billing/**`                         | **Paths:** `apps/dashboard/**`                             |
+| **No conflicts**                                                       | **No conflicts**                                                     | **No conflicts**                                           |
 
 ---
 
 ## 12. The Path to Gate 1: $500 MRR Sprint
 
-Gate 1 condition: first paying developer customer, demonstrable `okoro.verify()` integration in production.
+Gate 1 condition: first paying developer customer, demonstrable `cerniq.verify()` integration in production.
 
 **Sprint checklist (estimated 2–3 sessions):**
 
@@ -694,10 +718,11 @@ Gate 1 condition: first paying developer customer, demonstrable `okoro.verify()`
 ```
 
 **Already done that most competitors haven't started:**
+
 - ✅ Pure portable verify algorithm (CF Workers ready)
 - ✅ Signed audit chain (SOC2 artifact ready)
 - ✅ TypeScript + Python SDKs
-- ✅ Drop-in RP verifier (`@okoro/verifier-rp`)
+- ✅ Drop-in RP verifier (`@cerniq/verifier-rp`)
 - ✅ Go CLI with `--json` mode (CI-scriptable)
 - ✅ MCP server + bridge (distribution wedge)
 - ✅ KMS key rotation (enterprise-ready)
@@ -718,7 +743,7 @@ This bar is non-negotiable per `CLAUDE.md` §Quality bar:
 [ ] No `any` without a // type-rationale: prefix comment
 [ ] noUncheckedIndexedAccess respected (don't widen at apps/api level)
 [ ] Every new public service method has a unit test OR // untestable: <reason>
-[ ] Errors are OkoroError subclasses from apps/api/src/common/errors/
+[ ] Errors are CerniqError subclasses from apps/api/src/common/errors/
 [ ] Constants live in packages/types/src/constants.ts, not in service files
 [ ] No Math.random() in production code paths
 [ ] Crypto code has a paired .spec.ts — NO exceptions
@@ -734,6 +759,6 @@ This bar is non-negotiable per `CLAUDE.md` §Quality bar:
 
 ---
 
-*Document generated: 2026-05-04 | Based on: git log (4 commits), SESSION_HANDOFF.md (10 rounds), WORK_BOARD.md (56 modules), OPERATOR_DECISIONS.md (16 decisions), source scan (200+ files)*  
-*Maintained in: `docs/MASTER_ENGINEERING_HANDOFF.md`*  
-*Next review: after Gate 1 ($500 MRR)*
+_Document generated: 2026-05-04 | Based on: git log (4 commits), SESSION_HANDOFF.md (10 rounds), WORK_BOARD.md (56 modules), OPERATOR_DECISIONS.md (16 decisions), source scan (200+ files)_  
+_Maintained in: `docs/MASTER_ENGINEERING_HANDOFF.md`_  
+_Next review: after Gate 1 ($500 MRR)_

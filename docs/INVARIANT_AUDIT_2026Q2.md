@@ -1,5 +1,5 @@
 ---
-title: OKORO — Invariant audit (2026 Q2)
+title: CERNIQ — Invariant audit (2026 Q2)
 audited-on: 2026-05-21
 auditor: sid=busy-khorana-7281c7 (autonomous, read-only)
 scope: 3 of 8 CLAUDE.md invariants
@@ -7,7 +7,7 @@ result: PASS (3/3)
 follow-up: schedule remaining 5 invariants on next audit pass
 ---
 
-# OKORO — Invariant audit (2026 Q2)
+# CERNIQ — Invariant audit (2026 Q2)
 
 This is a focused, evidence-gathering audit of three of the eight
 architecture invariants from the root `CLAUDE.md`. It complements the
@@ -20,14 +20,14 @@ expansion (M-040 … M-056, two-week sprint with ~50 modules landing).
 
 ## TL;DR
 
-| # | Invariant | Result | Surface audited |
-| - | --------- | ------ | --------------- |
-| 5 | Multi-tenant isolation by `principalId` | ✅ PASS | 140+ Prisma operations across 26 service files |
-| 4 | No silent failures / no fabricated data | ✅ PASS | verify, audit, billing, policy-engine, KMS, webhooks, edge-verify, IdP adapters |
-| 8 | Public SDKs and verifier packages runtime-portable | ✅ PASS | `@okoro/sdk`, `@okoro/verifier-rp`, `workers/cf-verify`, `@okoro/mcp-bridge` |
+| #   | Invariant                                          | Result  | Surface audited                                                                 |
+| --- | -------------------------------------------------- | ------- | ------------------------------------------------------------------------------- |
+| 5   | Multi-tenant isolation by `principalId`            | ✅ PASS | 140+ Prisma operations across 26 service files                                  |
+| 4   | No silent failures / no fabricated data            | ✅ PASS | verify, audit, billing, policy-engine, KMS, webhooks, edge-verify, IdP adapters |
+| 8   | Public SDKs and verifier packages runtime-portable | ✅ PASS | `@cerniq/sdk`, `@cerniq/verifier-rp`, `workers/cf-verify`, `@cerniq/mcp-bridge` |
 
 **Not audited this pass** (next session):
-1 (private keys never enter OKORO), 2 (verify hot path remains portable),
+1 (private keys never enter CERNIQ), 2 (verify hot path remains portable),
 3 (audit events append-only and signed), 6 (denial precedence stable),
 7 (contracts generated or centrally owned).
 
@@ -42,9 +42,9 @@ expansion (M-040 … M-056, two-week sprint with ~50 modules landing).
 
 ## Invariant 5 — Multi-tenant isolation by `principalId`
 
-> *"Multi-tenant isolation is by `principalId` on every query and mutation.
+> _"Multi-tenant isolation is by `principalId` on every query and mutation.
 > The API key guard establishes the principal; services carry that boundary
-> all the way to Prisma calls, cache keys, queues, and webhooks."*
+> all the way to Prisma calls, cache keys, queues, and webhooks."_
 > — `CLAUDE.md`
 
 ### Result: PASS
@@ -61,34 +61,35 @@ These are the **alternative isolation primitives** that justify a query
 not carrying `principalId` directly. Future reviewers should treat this
 table as the canonical map.
 
-| # | Category | Where | Alternative primitive |
-| - | -------- | ----- | --------------------- |
-| 1 | Transactional outbox per ADR-0007 | `apps/api/src/modules/outbox/outbox.service.ts` | `principalId` in the row payload; isolation enforced at worker dispatch time. Atomic with the originating transaction. |
-| 2 | Public readiness | `apps/api/src/modules/health/health.controller.ts` | No tenant data exposed; operator observability only. |
-| 3 | Verify hot-path agent/policy lookup | `apps/api/src/modules/verify/verify.service.ts` (lines 379, 428) | Cryptographic proof-of-possession via JWT signature — the JWT is the isolation primitive, principalId comes from the verified token claims. |
-| 4 | Spend-guard aggregates | `apps/api/src/modules/verify/spend-guard.service.ts` | Scoped by `(agentId, policyId)` both JWT-proven upstream. |
-| 5 | API key lookup | `apps/api/src/modules/auth/api-key.service.ts` | Lookup is BY secret hash (the authentication method); principalId is the **result** of the lookup, not an input. |
-| 6 | Stripe webhook reconciliation | `apps/api/src/modules/billing/stripe.service.ts` | Principal lookups by `customer_id` / `subscription_id` after HMAC signature verification gates the entire webhook handler. |
-| 7 | IdP first-touch principal creation | `apps/api/src/modules/idp-{auth0,clerk,workos}/*.adapter.ts` | Lookup by `(idpProvider, idpOrganizationId)`; only creates a *new* principal on first encounter. |
-| 8 | Background sweeps with per-tenant fan-out | `apps/api/src/modules/compliance/audit-retention.service.ts`, `apps/api/src/modules/policy/policy.expiry.worker.ts`, `apps/api/src/modules/onboarding/onboarding.backfill.ts` | Global read intentionally selects across all principals, then per-tenant dispatch (webhooks, audit purge, onboarding-step reconcile). |
+| #   | Category                                  | Where                                                                                                                                                                         | Alternative primitive                                                                                                                       |
+| --- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Transactional outbox per ADR-0007         | `apps/api/src/modules/outbox/outbox.service.ts`                                                                                                                               | `principalId` in the row payload; isolation enforced at worker dispatch time. Atomic with the originating transaction.                      |
+| 2   | Public readiness                          | `apps/api/src/modules/health/health.controller.ts`                                                                                                                            | No tenant data exposed; operator observability only.                                                                                        |
+| 3   | Verify hot-path agent/policy lookup       | `apps/api/src/modules/verify/verify.service.ts` (lines 379, 428)                                                                                                              | Cryptographic proof-of-possession via JWT signature — the JWT is the isolation primitive, principalId comes from the verified token claims. |
+| 4   | Spend-guard aggregates                    | `apps/api/src/modules/verify/spend-guard.service.ts`                                                                                                                          | Scoped by `(agentId, policyId)` both JWT-proven upstream.                                                                                   |
+| 5   | API key lookup                            | `apps/api/src/modules/auth/api-key.service.ts`                                                                                                                                | Lookup is BY secret hash (the authentication method); principalId is the **result** of the lookup, not an input.                            |
+| 6   | Stripe webhook reconciliation             | `apps/api/src/modules/billing/stripe.service.ts`                                                                                                                              | Principal lookups by `customer_id` / `subscription_id` after HMAC signature verification gates the entire webhook handler.                  |
+| 7   | IdP first-touch principal creation        | `apps/api/src/modules/idp-{auth0,clerk,workos}/*.adapter.ts`                                                                                                                  | Lookup by `(idpProvider, idpOrganizationId)`; only creates a _new_ principal on first encounter.                                            |
+| 8   | Background sweeps with per-tenant fan-out | `apps/api/src/modules/compliance/audit-retention.service.ts`, `apps/api/src/modules/policy/policy.expiry.worker.ts`, `apps/api/src/modules/onboarding/onboarding.backfill.ts` | Global read intentionally selects across all principals, then per-tenant dispatch (webhooks, audit purge, onboarding-step reconcile).       |
 
 ### Why this matters
 
 A single missed `principalId` in a list-style endpoint can leak every
-tenant's data. The audit's discipline was: if the auditor couldn't *see*
+tenant's data. The audit's discipline was: if the auditor couldn't _see_
 the guard that establishes the principal, flag it. All flags resolved
 to one of the 8 intentionally-unscoped categories above.
 
 ## Invariant 4 — No silent failures / no fabricated data
 
-> *"Downstream failure must be visible in the response, logs, metrics, or
+> _"Downstream failure must be visible in the response, logs, metrics, or
 > audit trail as appropriate. Never hide an error behind an empty list,
-> fake score, stub policy, or synthetic success."*
+> fake score, stub policy, or synthetic success."_
 > — `CLAUDE.md`
 
 ### Result: PASS
 
 All critical paths exhibit one of these acceptable patterns:
+
 1. **Re-throw** (audit chain append, KMS sign primary path)
 2. **Fail-closed** (replay cache, trial gate, verify algorithm on port errors → `ServiceUnavailableError` → `ANOMALY_FLAGGED` denial)
 3. **Log visibly + fail-open** (usage guard for billing, with explicit
@@ -114,6 +115,7 @@ trade-off documented at the call site.
 ### Absence of critical anti-patterns
 
 The audit specifically searched for and did NOT find:
+
 - Empty catch blocks `catch (e) {}`
 - `.catch(() => ...)` returning `[]` or `{ valid: true }` on security paths
 - `try { ... } catch { return defaultTrustScore }` style fallback-to-safe
@@ -123,20 +125,20 @@ The audit specifically searched for and did NOT find:
 
 ## Invariant 8 — SDKs and verifier packages runtime-portable
 
-> *"Public SDKs and verifier packages must stay runtime-portable. Do not
-> add Node-only APIs to browser, edge, or relying-party surfaces."*
+> _"Public SDKs and verifier packages must stay runtime-portable. Do not
+> add Node-only APIs to browser, edge, or relying-party surfaces."_
 > — `CLAUDE.md`
 
 ### Result: PASS
 
 Verified across the four runtime-portable packages:
 
-| Package | Crypto primitive | HTTP primitive | Portability |
-| ------- | ---------------- | -------------- | ----------- |
-| `@okoro/sdk` (sdk-ts) | `@noble/ed25519` + `@noble/hashes` (pure-JS) | `globalThis.fetch`, injected via config | Browser, edge, Node 18+ |
-| `@okoro/verifier-rp` | `@noble/ed25519` + `@noble/hashes` | `globalThis.fetch` (required config field) | Browser, CF Worker, Vercel Edge, Deno Deploy, Node 18+ |
-| `workers/cf-verify` | `crypto.subtle.{importKey,verify}` (Web Crypto) | Native CF Worker | V8 isolate (Workers) |
-| `@okoro/mcp-bridge` | None (wrapper) | None (wrapper) | Runtime-agnostic |
+| Package                | Crypto primitive                                | HTTP primitive                             | Portability                                            |
+| ---------------------- | ----------------------------------------------- | ------------------------------------------ | ------------------------------------------------------ |
+| `@cerniq/sdk` (sdk-ts) | `@noble/ed25519` + `@noble/hashes` (pure-JS)    | `globalThis.fetch`, injected via config    | Browser, edge, Node 18+                                |
+| `@cerniq/verifier-rp`  | `@noble/ed25519` + `@noble/hashes`              | `globalThis.fetch` (required config field) | Browser, CF Worker, Vercel Edge, Deno Deploy, Node 18+ |
+| `workers/cf-verify`    | `crypto.subtle.{importKey,verify}` (Web Crypto) | Native CF Worker                           | V8 isolate (Workers)                                   |
+| `@cerniq/mcp-bridge`   | None (wrapper)                                  | None (wrapper)                             | Runtime-agnostic                                       |
 
 ### Gated portability patterns
 
@@ -157,7 +159,7 @@ imports outside framework adapters, ungated `Buffer` access, ungated
 
 ### M-016 commitment held
 
-`@okoro/verifier-rp`'s explicit promise (M-016) to support edge runtimes
+`@cerniq/verifier-rp`'s explicit promise (M-016) to support edge runtimes
 via the Hono adapter is verified. Customers shipping the verifier in a
 Next.js edge function or Cloudflare Worker will not encounter
 "Module not found: Can't resolve 'crypto'" at build time.
@@ -167,19 +169,19 @@ Next.js edge function or Cloudflare Worker will not encounter
 This audit is one slice. Five invariants remain unverified by live audit
 this quarter. They are scheduled for the next pass:
 
-| # | Invariant | Suggested audit approach |
-| - | --------- | ------------------------ |
-| 1 | Private keys never enter OKORO | grep API/dashboard/workers for private-key types; verify no DB column, env var, or log field carries private bytes. |
-| 2 | `/v1/verify` hot path remains portable | Verify the worker's edge-verify and the API's verify-algorithm share the same pure decision module; no NestJS-only imports in `verify.algorithm.ts`. |
-| 3 | Audit events append-only and signed | grep `prisma.auditEvent.{update,delete}` in non-test code; should be zero. Verify the redact path nulls fields without touching hashes. |
-| 6 | Denial precedence stable | Already enforced by spec-sync gate (post-PR #32). Confirm by running the gate on a deliberate enum-reorder PR. |
-| 7 | Contracts generated or centrally owned | Spot-check that `packages/types`, OpenAPI YAML, and generated SDK types agree (the parity gate covers most of this — confirm the gate covers webhook payloads and well-known endpoints too). |
+| #   | Invariant                              | Suggested audit approach                                                                                                                                                                     |
+| --- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Private keys never enter CERNIQ        | grep API/dashboard/workers for private-key types; verify no DB column, env var, or log field carries private bytes.                                                                          |
+| 2   | `/v1/verify` hot path remains portable | Verify the worker's edge-verify and the API's verify-algorithm share the same pure decision module; no NestJS-only imports in `verify.algorithm.ts`.                                         |
+| 3   | Audit events append-only and signed    | grep `prisma.auditEvent.{update,delete}` in non-test code; should be zero. Verify the redact path nulls fields without touching hashes.                                                      |
+| 6   | Denial precedence stable               | Already enforced by spec-sync gate (post-PR #32). Confirm by running the gate on a deliberate enum-reorder PR.                                                                               |
+| 7   | Contracts generated or centrally owned | Spot-check that `packages/types`, OpenAPI YAML, and generated SDK types agree (the parity gate covers most of this — confirm the gate covers webhook payloads and well-known endpoints too). |
 
 ## Operator action
 
 None required. This audit is informational evidence that the load-bearing
 invariants hold post-M-056 churn. If a customer or auditor asks for proof
-that OKORO enforces tenant isolation, fails honestly, or runs in their
+that CERNIQ enforces tenant isolation, fails honestly, or runs in their
 edge runtime, this document is the citeable artifact.
 
 If a future change is suspected of violating any of these three invariants,

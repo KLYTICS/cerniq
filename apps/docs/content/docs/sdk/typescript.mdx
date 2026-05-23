@@ -1,5 +1,5 @@
 ---
-title: TypeScript SDK (@okoro/sdk)
+title: TypeScript SDK (@cerniq/sdk)
 description: Browser- and edge-safe TypeScript SDK. Cryptographic identity, scoped policies, and the verify hot path.
 ---
 
@@ -8,11 +8,11 @@ description: Browser- and edge-safe TypeScript SDK. Cryptographic identity, scop
 ## Install
 
 ```bash
-npm install @okoro/sdk
+npm install @cerniq/sdk
 # or
-pnpm add @okoro/sdk
+pnpm add @cerniq/sdk
 # or
-yarn add @okoro/sdk
+yarn add @cerniq/sdk
 ```
 
 ## Runtime requirements
@@ -24,51 +24,51 @@ yarn add @okoro/sdk
 
 ```ts
 import {
-  Okoro,            // primary client class
+  Cerniq,            // primary client class
   generateKeypair,  // mint Ed25519 keypair locally (private key never leaves your process)
   sign,             // sign an authority token with a private key
   type DenialReason,
   DENIAL_REASON_PRECEDENCE,
-} from '@okoro/sdk';
+} from '@cerniq/sdk';
 
-const okoro = new Okoro({ apiKey: process.env.OKORO_API_KEY! });
+const cerniq = new Cerniq({ apiKey: process.env.CERNIQ_API_KEY! });
 
-await okoro.agents.register({ /* … */ });
-await okoro.policies.create({ /* … */ });
-await okoro.verify(token);
+await cerniq.agents.register({ /* … */ });
+await cerniq.policies.create({ /* … */ });
+await cerniq.verify(token);
 ```
 
 ## Auto-generated reference
 
-The full type-level reference for `@okoro/sdk` — every class, method,
+The full type-level reference for `@cerniq/sdk` — every class, method,
 parameter, return type, and JSDoc comment — is regenerated from
-[`packages/sdk-ts/src/`](https://github.com/klytics/okoro/tree/main/packages/sdk-ts/src)
+[`packages/sdk-ts/src/`](https://github.com/klytics/cerniq/tree/main/packages/sdk-ts/src)
 on every dev and build cycle via [TypeDoc](https://typedoc.org/).
 
 Browse it under `/docs/sdk/(generated)/typescript/` once `pnpm install`
 and the predev hook have populated the workspace.
 
-- [Okoro client class](/docs/sdk/typescript/classes/Okoro)
+- [Cerniq client class](/docs/sdk/typescript/classes/Cerniq)
 - [generateKeypair function](/docs/sdk/typescript/functions/generateKeypair)
 - [sign function](/docs/sdk/typescript/functions/sign)
 - [DenialReason type](/docs/sdk/typescript/types/DenialReason)
 
 If those links 404, the TypeDoc step has not run in this environment.
-Run `pnpm --filter @okoro/docs sdk:generate` to populate locally.
+Run `pnpm --filter @cerniq/docs sdk:generate` to populate locally.
 
 ## Common recipes
 
 | Need                                    | Recipe                                                                                                  |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Verify in a browser without a backend   | Use `@okoro/sdk` directly in the client bundle — it's WebCrypto-only.                                   |
+| Verify in a browser without a backend   | Use `@cerniq/sdk` directly in the client bundle — it's WebCrypto-only.                                   |
 | Verify in an edge function              | Same; no `node:crypto` is imported.                                                                     |
-| Verify **offline** (no OKORO round-trip) | Use `@okoro/verifier-rp` instead (see [verifier-rp](/docs/sdk/verifier-rp)).                            |
-| Subscribe to lifecycle webhooks         | `okoro.webhooks.subscriptions.create({ url, events })` — see [Webhooks API](/docs/api/webhooks).        |
-| Export audit chain for SOC2 evidence    | `okoro.audit.export({ format: 'ndjson' })` — see [Audit API](/docs/api/audit).                          |
+| Verify **offline** (no CERNIQ round-trip) | Use `@cerniq/verifier-rp` instead (see [verifier-rp](/docs/sdk/verifier-rp)).                            |
+| Subscribe to lifecycle webhooks         | `cerniq.webhooks.subscriptions.create({ url, events })` — see [Webhooks API](/docs/api/webhooks).        |
+| Export audit chain for SOC2 evidence    | `cerniq.audit.export({ format: 'ndjson' })` — see [Audit API](/docs/api/audit).                          |
 
 ## Error handling
 
-Every method throws a typed `OkoroError` subclass on failure. Common shapes:
+Every method throws a typed `CerniqError` subclass on failure. Common shapes:
 
 | Class                | When                                                          |
 | -------------------- | ------------------------------------------------------------- |

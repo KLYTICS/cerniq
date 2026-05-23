@@ -9,7 +9,7 @@
 //     concurrent enqueues — only one job per agent is in flight.
 //   - The worker reads the agent + recent signals, computes the score,
 //     persists `TrustScoreHistory`, invalidates Redis, and (if the band
-//     changed) emits an `okoro.agent.trust_score_changed` webhook.
+//     changed) emits an `cerniq.agent.trust_score_changed` webhook.
 //   - G-3: After scoring, BateAnomalyDetector runs over the same window.
 //     Any emitted anomaly signals are persisted directly (bypasses BateService
 //     to avoid circular DI) and a follow-up recompute is enqueued so the
@@ -28,7 +28,7 @@ import { WebhooksService } from '../webhooks/webhooks.service';
 import { BateAnomalyDetector, type DetectorWindow } from './bate.anomaly';
 import { BateScorer } from './bate.scorer';
 
-export const BATE_QUEUE = 'okoro.bate';
+export const BATE_QUEUE = 'cerniq.bate';
 
 interface RecomputeJobData {
   agentId: string;
@@ -63,9 +63,9 @@ export class BateRecomputeWorker implements OnModuleInit, OnModuleDestroy {
       connection: this.connection.duplicate(),
       concurrency: 4, // recompute is DB-heavy; don't pile on
     });
-    this.worker.on('failed', (job, err) =>
-      { this.logger.warn(`BATE recompute job failed agent=${job?.data.agentId}: ${err?.message}`); },
-    );
+    this.worker.on('failed', (job, err) => {
+      this.logger.warn(`BATE recompute job failed agent=${job?.data.agentId}: ${err?.message}`);
+    });
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -111,7 +111,9 @@ export class BateRecomputeWorker implements OnModuleInit, OnModuleDestroy {
     // Look up relying-party weights for any sources that appear as fraud
     // reports — so a verified RP's report counts heavier than an unknown one.
     const sources = new Set(
-      recentSignals.filter((s) => s.signalType === 'RELYING_PARTY_FRAUD_REPORT').map((s) => s.source),
+      recentSignals
+        .filter((s) => s.signalType === 'RELYING_PARTY_FRAUD_REPORT')
+        .map((s) => s.source),
     );
     const relyingPartyWeights: Record<string, number> = {};
     if (sources.size > 0) {
@@ -234,7 +236,11 @@ export class BateRecomputeWorker implements OnModuleInit, OnModuleDestroy {
           agentId: data.agentId,
           score: newScore,
           band: newBand,
-          reason: explanation.contributors.map((c) => `${c.kind}:${c.delta}`).join(',').slice(0, 200) || 'recompute',
+          reason:
+            explanation.contributors
+              .map((c) => `${c.kind}:${c.delta}`)
+              .join(',')
+              .slice(0, 200) || 'recompute',
           ...(data.triggerSignalId ? { signalId: data.triggerSignalId } : {}),
         },
       }),
@@ -246,7 +252,7 @@ export class BateRecomputeWorker implements OnModuleInit, OnModuleDestroy {
     if (newBand !== oldBand) {
       await this.webhooks.enqueue(
         {
-          type: 'okoro.agent.trust_score_changed',
+          type: 'cerniq.agent.trust_score_changed',
           data: {
             agentId: data.agentId,
             score: newScore,

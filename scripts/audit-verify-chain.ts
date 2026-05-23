@@ -1,13 +1,13 @@
 #!/usr/bin/env -S node --import=tsx
 /**
- * OKORO — audit-chain offline verifier.
+ * CERNIQ — audit-chain offline verifier.
  *
- * Reads `AuditEvent` rows from `DATABASE_URL`, fetches the OKORO public
+ * Reads `AuditEvent` rows from `DATABASE_URL`, fetches the CERNIQ public
  * key from a configurable JWKS endpoint (default `/.well-known/jwks.json`
- * on `OKORO_API_BASE`), and verifies every chain link.
+ * on `CERNIQ_API_BASE`), and verifies every chain link.
  *
  * This is the third-party-verifier path. Auditors / restore drills run
- * it with just DATABASE_URL + JWKS URL — no OKORO source code is
+ * it with just DATABASE_URL + JWKS URL — no CERNIQ source code is
  * required to rebuild the chain.
  *
  * Output:
@@ -56,12 +56,9 @@ export function decodeB64Url(s: string): Uint8Array {
 }
 
 /** sha256 chain link — genesis variant when both prev are null. */
-export function prevHash(
-  prevEventId: string | null,
-  prevSignatureB64Url: string | null,
-): Buffer {
+export function prevHash(prevEventId: string | null, prevSignatureB64Url: string | null): Buffer {
   if (prevEventId === null && prevSignatureB64Url === null) {
-    return createHash('sha256').update('OKORO-AUDIT-GENESIS-v1').digest();
+    return createHash('sha256').update('CERNIQ-AUDIT-GENESIS-v1').digest();
   }
   if (prevEventId === null || prevSignatureB64Url === null) {
     throw new Error('prev id and signature must both be set or both be null');
@@ -125,7 +122,7 @@ export interface AuditEventRow {
   requestedAmountHash: string | null;
   policySnapshotHash: string | null;
   payloadVersion: number;
-  okoroSignature: string;
+  cerniqSignature: string;
 }
 
 export function rebuildPayload(row: AuditEventRow): Record<string, unknown> {
@@ -190,7 +187,7 @@ export async function verifyChain(
       const prev = prevHash(prevId, prevSig);
       const canonical = enc.encode(canonicalize(rebuildPayload(row)));
       const message = Buffer.concat([prev, canonical]);
-      const sig = decodeB64Url(row.okoroSignature);
+      const sig = decodeB64Url(row.cerniqSignature);
       ok = await ed.verifyAsync(sig, message, pub);
       if (!ok) reason = 'signature failed';
     } catch (err) {
@@ -205,7 +202,7 @@ export async function verifyChain(
       firstBreakReason = reason ?? 'unknown';
     }
     prevId = row.id;
-    prevSig = row.okoroSignature;
+    prevSig = row.cerniqSignature;
   }
 
   return { totalEvents: rows.length, passed, firstBreakAt, firstBreakReason };
@@ -217,10 +214,13 @@ async function main(): Promise<void> {
   const program = new Command();
   program
     .name('audit-verify-chain')
-    .description('Offline verifier for the OKORO audit chain — for SOC2 auditors and restore drills.')
+    .description(
+      'Offline verifier for the CERNIQ audit chain — for SOC2 auditors and restore drills.',
+    )
     .addOption(
-      new Option('--api-base <url>', 'OKORO API base URL — used for JWKS fetch')
-        .default(env.OKORO_API_BASE ?? 'http://localhost:4000'),
+      new Option('--api-base <url>', 'CERNIQ API base URL — used for JWKS fetch').default(
+        env.CERNIQ_API_BASE ?? 'http://localhost:4000',
+      ),
     )
     .addOption(
       new Option('--jwks <url>', 'override JWKS URL (otherwise <api-base>/.well-known/jwks.json)'),
@@ -228,7 +228,9 @@ async function main(): Promise<void> {
     .addOption(new Option('--agent <id>', 'verify only events for this agentId'))
     .addOption(new Option('--principal <id>', 'verify only events for this principalId'))
     .addOption(
-      new Option('--limit <n>', 'cap number of events walked').argParser((v) => Number.parseInt(v, 10)),
+      new Option('--limit <n>', 'cap number of events walked').argParser((v) =>
+        Number.parseInt(v, 10),
+      ),
     )
     .addOption(new Option('--json', 'machine-readable JSON output').default(false))
     .parse(argv);
@@ -275,7 +277,9 @@ async function main(): Promise<void> {
       if (opts.json) return;
       const tag = ok ? 'PASS' : 'FAIL';
       const suffix = reason ? ` — ${reason}` : '';
-      stdout.write(`${tag}  [${String(idx + 1).padStart(5, ' ')}] ${row.id} ${row.timestamp.toISOString()}${suffix}\n`);
+      stdout.write(
+        `${tag}  [${String(idx + 1).padStart(5, ' ')}] ${row.id} ${row.timestamp.toISOString()}${suffix}\n`,
+      );
     });
 
     if (opts.json) {
@@ -296,7 +300,8 @@ async function main(): Promise<void> {
 
 // Only run when invoked directly, not when imported by the spec.
 const isMain =
-  argv[1] && (argv[1].endsWith('audit-verify-chain.ts') || argv[1].endsWith('audit-verify-chain.js'));
+  argv[1] &&
+  (argv[1].endsWith('audit-verify-chain.ts') || argv[1].endsWith('audit-verify-chain.js'));
 if (isMain) {
   main().catch((err) => {
     stderr.write(`fatal: ${(err as Error).message}\n`);

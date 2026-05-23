@@ -1,7 +1,7 @@
 // Manual OTel span wrapper for KMS adapter operations.
 //
 // Each adapter's `sign` / `getActiveKey` callback wraps its KMS round-trip
-// in a span named `okoro.kms.<provider>.<op>`. Latency, error rate, and
+// in a span named `cerniq.kms.<provider>.<op>`. Latency, error rate, and
 // `kid` distribution are queryable per-provider in the trace store.
 //
 // Why a sibling helper rather than calling `withSpan` directly: the
@@ -26,7 +26,7 @@ export async function withKmsSpan<T>(
   purpose: KmsKeyPurpose | undefined,
   fn: () => Promise<T>,
 ): Promise<T> {
-  return await withSpan(`okoro.kms.${provider}.${op}`, fn, {
+  return await withSpan(`cerniq.kms.${provider}.${op}`, fn, {
     'kms.provider': provider,
     'kms.op': op,
     kid,

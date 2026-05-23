@@ -4,23 +4,23 @@ description: From zero to first verify in under five minutes. Browser- and edge-
 ---
 
 ```ts
-import { Okoro, generateKeypair, sign } from '@okoro/sdk';
+import { Cerniq, generateKeypair, sign } from '@cerniq/sdk';
 
-const okoro = new Okoro({ apiKey: process.env.OKORO_API_KEY! });
+const cerniq = new Cerniq({ apiKey: process.env.CERNIQ_API_KEY! });
 
 // 1. Mint an agent keypair. The private key never leaves your process —
-//    OKORO only ever sees the public key.
+//    CERNIQ only ever sees the public key.
 const { publicKey, privateKey } = await generateKeypair();
 
-// 2. Register the agent. OKORO stores only the public key.
-const agent = await okoro.agents.register({
+// 2. Register the agent. CERNIQ stores only the public key.
+const agent = await cerniq.agents.register({
   publicKey,
   label: 'checkout-bot',
 });
 
 // 3. Issue a scoped, short-lived policy. TTL is bounded between 30s and 60s
-//    on the server — see TOKEN_TTL_MAX_SECONDS in @okoro/types.
-const policy = await okoro.policies.create({
+//    on the server — see TOKEN_TTL_MAX_SECONDS in @cerniq/types.
+const policy = await cerniq.policies.create({
   agentId: agent.id,
   scope: { actions: ['charge'], spendLimitUsd: 500 },
   ttlSeconds: 60,
@@ -36,13 +36,13 @@ const token = await sign(privateKey, {
 
 // 5. Verify before performing the action. The verify call returns a typed
 //    denial reason if the request fails any step in the precedence chain.
-const result = await okoro.verify(token);
+const result = await cerniq.verify(token);
 if (!result.allowed) {
   console.error(`denied: ${result.denialReason}`);
   process.exit(1);
 }
 
-// 6. Now perform the actual action — OKORO has signed an audit row noting
+// 6. Now perform the actual action — CERNIQ has signed an audit row noting
 //    the allow decision under the agent + policy.
 await chargeCard(49);
 ```
@@ -50,13 +50,13 @@ await chargeCard(49);
 ## What happens on the wire
 
 Every `verify` call is a single round-trip. Offline verification — useful for
-edge environments or relying parties that want zero OKORO dependency in the
-hot path — is available via `@okoro/verifier-rp`, which validates the same
-token against the JWKS published at `/.well-known/okoro-jwks.json`.
+edge environments or relying parties that want zero CERNIQ dependency in the
+hot path — is available via `@cerniq/verifier-rp`, which validates the same
+token against the JWKS published at `/.well-known/cerniq-jwks.json`.
 
 ## Failure modes
 
 When `verify` denies, the result carries a single `denialReason` from the
 [wire contract](/docs/concepts/denial-precedence). The first failure wins —
-OKORO does not list every issue. Relying-party SDKs build retry, escalation,
+CERNIQ does not list every issue. Relying-party SDKs build retry, escalation,
 and logging logic on this exact precedence order.

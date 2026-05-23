@@ -8,7 +8,7 @@ import (
 )
 
 // AgentsRegister wires POST /v1/agents/register. The caller supplies a
-// base64url-encoded Ed25519 public key — OKORO never sees the private
+// base64url-encoded Ed25519 public key — CERNIQ never sees the private
 // half (CLAUDE.md invariant 1).
 func (c *Client) AgentsRegister(ctx context.Context, in *AgentRegisterRequest) (*AgentRegisterResponse, error) {
 	req, err := c.req(ctx, http.MethodPost, "/v1/agents/register", in)

@@ -3,27 +3,27 @@ title: Security architect
 description: Threat model, cryptographic posture, key rotation, audit chain, and the trust boundary.
 ---
 
-OKORO is a verification layer — its security posture is the product.
+CERNIQ is a verification layer — its security posture is the product.
 
 ## Trust boundary
 
-| What OKORO holds                          | What OKORO does NOT hold                          |
+| What CERNIQ holds                          | What CERNIQ does NOT hold                          |
 | ----------------------------------------- | ------------------------------------------------- |
 | Agent **public** keys (Ed25519 / EdDSA)   | Agent private keys (live and die in your process) |
 | Hash-chained, signed `AuditEvent` rows    | Cleartext PII inside `decisionReason` (hashed)    |
 | Per-principal API keys (bcrypt-hashed)    | Customer credentials of any kind                  |
 | Webhook subscriber URLs + HMAC secrets    | Anything passed in policy `metadata` cleartext at rest if encrypted-DEK is configured |
 
-A breach of the OKORO datastore yields signed public history and bcrypt
+A breach of the CERNIQ datastore yields signed public history and bcrypt
 hashes — by design.
 
 ## Cryptographic posture
 
 - **Curve**: Ed25519 (EdDSA). Audited utility, single library, browser/edge-safe.
 - **Audit chain**: prev-hash + EdDSA signature using a KMS-resident or env-provided audit key. `signingKeyId` stamped on every row.
-- **Key rotation**: JWKS publishes current + previous keys during cutover. See [`docs/SECURITY.md` § Key Rotation](https://github.com/klytics/okoro/blob/main/docs/SECURITY.md).
-- **Post-quantum**: PQ hybrid (ml_dsa65) scaffold landed in `apps/api/src/common/crypto/pq.util.ts`. Flag-gated via `OKORO_HYBRID_PQ_ENABLED`; trigger criteria in [`docs/decisions/0013-pq-hybrid-scaffold.md`](https://github.com/klytics/okoro/blob/main/docs/decisions/0013-pq-hybrid-scaffold.md).
-- **DPoP**: optional proof-of-possession step on the verify path. Flag-gated via `OKORO_DPOP_REQUIRED`. See [`docs/decisions/0010-dpop-replay-prevention.md`](https://github.com/klytics/okoro/blob/main/docs/decisions/0010-dpop-replay-prevention.md).
+- **Key rotation**: JWKS publishes current + previous keys during cutover. See [`docs/SECURITY.md` § Key Rotation](https://github.com/klytics/cerniq/blob/main/docs/SECURITY.md).
+- **Post-quantum**: PQ hybrid (ml_dsa65) scaffold landed in `apps/api/src/common/crypto/pq.util.ts`. Flag-gated via `CERNIQ_HYBRID_PQ_ENABLED`; trigger criteria in [`docs/decisions/0013-pq-hybrid-scaffold.md`](https://github.com/klytics/cerniq/blob/main/docs/decisions/0013-pq-hybrid-scaffold.md).
+- **DPoP**: optional proof-of-possession step on the verify path. Flag-gated via `CERNIQ_DPOP_REQUIRED`. See [`docs/decisions/0010-dpop-replay-prevention.md`](https://github.com/klytics/cerniq/blob/main/docs/decisions/0010-dpop-replay-prevention.md).
 
 ## Verify hot path
 
@@ -53,6 +53,6 @@ and classifies it into bands. Policies use bands directly via
 
 ## Further reading
 
-- [`docs/THREAT_MODEL_v2.md`](https://github.com/klytics/okoro/blob/main/docs/THREAT_MODEL_v2.md) — full STRIDE analysis (31 threats)
-- [`docs/ARCHITECTURE_AUDIT.md`](https://github.com/klytics/okoro/blob/main/docs/ARCHITECTURE_AUDIT.md) — 22 findings with severity
-- [`docs/SECURITY.md`](https://github.com/klytics/okoro/blob/main/docs/SECURITY.md) — operator-facing security guide
+- [`docs/THREAT_MODEL_v2.md`](https://github.com/klytics/cerniq/blob/main/docs/THREAT_MODEL_v2.md) — full STRIDE analysis (31 threats)
+- [`docs/ARCHITECTURE_AUDIT.md`](https://github.com/klytics/cerniq/blob/main/docs/ARCHITECTURE_AUDIT.md) — 22 findings with severity
+- [`docs/SECURITY.md`](https://github.com/klytics/cerniq/blob/main/docs/SECURITY.md) — operator-facing security guide

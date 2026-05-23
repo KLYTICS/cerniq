@@ -24,7 +24,7 @@ Signals are weighted. The default rule-based v1 weights are:
 | `POLICY_VIOLATION_ATTEMPT`   | `-100` | Tried to act outside scope                       |
 
 These are interim weights pending operator decision OD-001 — see
-[OPERATOR_DECISIONS.md](https://github.com/klytics/okoro/blob/main/OPERATOR_DECISIONS.md).
+[OPERATOR_DECISIONS.md](https://github.com/klytics/cerniq/blob/main/OPERATOR_DECISIONS.md).
 
 ## Cold start
 
@@ -38,7 +38,7 @@ PLATINUM (`>= 750`).
 `scope.minimumTrustBand` on a policy enforces a band floor at verify time:
 
 ```ts
-const policy = await okoro.policies.create({
+const policy = await cerniq.policies.create({
   agentId,
   scope: {
     actions: ['charge'],
@@ -55,7 +55,7 @@ and a transient anomaly may resolve before the next attempt.
 
 ## When bands change, you get told
 
-Crossing a band threshold emits an `okoro.agent.trust_score_changed`
+Crossing a band threshold emits an `cerniq.agent.trust_score_changed`
 webhook to all subscribers. See [webhooks](/docs/concepts/webhooks).
 
 ## Anomaly detector rules
@@ -70,4 +70,4 @@ Rule-based v1:
 | R-4   | Failed-verify spike — burst of denials in a short window     |
 | R-5   | Delegation chain depth — agent acting on behalf of agent-of-agent |
 
-The full algorithm lives at [`docs/BATE_ALGORITHM.md`](https://github.com/klytics/okoro/blob/main/docs/BATE_ALGORITHM.md).
+The full algorithm lives at [`docs/BATE_ALGORITHM.md`](https://github.com/klytics/cerniq/blob/main/docs/BATE_ALGORITHM.md).

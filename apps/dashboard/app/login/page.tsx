@@ -14,10 +14,12 @@ import type { ReactElement } from 'react';
 import { buildLoginHref, safeRedirect } from '../../lib/safe-redirect';
 
 export const metadata: Metadata = {
-  title: 'Sign in · OKORO',
+  title: 'Sign in · CERNIQ',
 };
 
-interface LoginSearchParams { redirect?: string | string[] }
+interface LoginSearchParams {
+  redirect?: string | string[];
+}
 
 export default async function LoginPage({
   searchParams,
@@ -31,12 +33,12 @@ export default async function LoginPage({
   const showRedirectNotice = validatedRedirect !== '/';
 
   return (
-    <section className="okoro-page">
-      <header className="okoro-page-header">
+    <section className="cerniq-page">
+      <header className="cerniq-page-header">
         <h1>Sign in</h1>
         <p className="muted">
-          OKORO uses Auth0 for human identity (ADR-0009). Click through to your
-          organization&apos;s tenant.
+          CERNIQ uses Auth0 for human identity (ADR-0009). Click through to your organization&apos;s
+          tenant.
         </p>
       </header>
       {showRedirectNotice ? (
@@ -45,13 +47,13 @@ export default async function LoginPage({
         </p>
       ) : null}
       <p>
-        <a className="okoro-button" href={loginHref}>
+        <a className="cerniq-button" href={loginHref}>
           Continue with Auth0 →
         </a>
       </p>
       <p className="muted">
-        First time here? Your administrator must invite your email to the
-        Auth0 organization mapped to your OKORO principal.
+        First time here? Your administrator must invite your email to the Auth0 organization mapped
+        to your CERNIQ principal.
       </p>
     </section>
   );

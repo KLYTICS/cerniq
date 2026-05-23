@@ -1,4 +1,4 @@
-# OKORO — Architecture audit (review of `docs/ARCHITECTURE.md`)
+# CERNIQ — Architecture audit (review of `docs/ARCHITECTURE.md`)
 
 > **Purpose:** focused review of `docs/ARCHITECTURE.md` against
 > `CLAUDE.md`, `docs/THREAT_MODEL.md`, `docs/THREAT_MODEL_v2.md`,
@@ -42,8 +42,8 @@ Low 6 · Info 2.
 - **Severity:** Critical (consistency / auditor-visible)
 - **Section:** ARCHITECTURE.md L168–183 ("The audit chain")
 - **Observation:** ARCHITECTURE.md L172 says "we sign … with the
-  OKORO Ed25519 key." `docs/THREAT_MODEL.md` L21 says
-  "Audit records are RSA-4096 signed by OKORO" and L44 lists
+  CERNIQ Ed25519 key." `docs/THREAT_MODEL.md` L21 says
+  "Audit records are RSA-4096 signed by CERNIQ" and L44 lists
   RSA-4096 / SHA-256 in the cryptographic-choices table. An external
   auditor reading both will flag the contradiction immediately.
 - **Recommendation:** Adopt the v2 reconciliation
@@ -137,7 +137,7 @@ Low 6 · Info 2.
 - **Severity:** High
 - **Section:** ARCHITECTURE.md (no current section)
 - **Observation:** EU AI Act applicability and SOC 2 do not require
-  GDPR compliance per se, but OKORO will sign EU developers as
+  GDPR compliance per se, but CERNIQ will sign EU developers as
   customers. There is no documented "delete tenant" flow. Audit logs
   cannot be deleted (CLAUDE.md invariant 3) — but they can be
   pseudonymized: replace `principalId` and free-text fields with
@@ -209,13 +209,13 @@ Low 6 · Info 2.
 - **Section:** ARCHITECTURE.md (none)
 - **Observation:** SOC 2 CC7.4 requires documented external
   communication of incidents. v1 THREAT_MODEL.md L78 mentions
-  "Status page live at status.okoroapp.com" as an acceptance gate but
+  "Status page live at status.cerniqapp.com" as an acceptance gate but
   does not connect it to architecture. ARCHITECTURE.md is silent.
 - **Recommendation:** Add §9 ("Incident communication"):
-  - status.okoroapp.com powered by Statuspage / Atlassian or
+  - status.cerniqapp.com powered by Statuspage / Atlassian or
     self-hosted (operator decision pending).
   - SLA for customer notification: 4h for P1, 24h for P2.
-  - Mechanism: webhook event `okoro.incident.declared` +
+  - Mechanism: webhook event `cerniq.incident.declared` +
     dashboard banner + email to principal contacts.
   - Linked to RUNBOOK §incident-comm.
 
@@ -233,7 +233,7 @@ Low 6 · Info 2.
   - Phase 1: Railway proxy is the perimeter. Per-IP throttling at the
     NestJS layer via `@nestjs/throttler` keyTracker on the
     `x-forwarded-for` header (with a documented spoofing caveat).
-  - Phase 3: CF in front of `api.okoroapp.com` and the verify edge.
+  - Phase 3: CF in front of `api.cerniqapp.com` and the verify edge.
     Managed rules: OWASP CRS, Cloudflare-managed bots, WAF custom
     rule for `/verify` body schema.
   - Document which rule sets to enable + the false-positive review
@@ -317,7 +317,7 @@ Low 6 · Info 2.
   request-token can produce the same `valid: true` response for the
   duration of the cache TTL — at first glance that seems to allow
   replay. The fix is in the verifier-rp library (Layer 2 jti) and the
-  OKORO-side jti set (Layer 3, THREAT_MODEL_v2 §7.3). But the
+  CERNIQ-side jti set (Layer 3, THREAT_MODEL_v2 §7.3). But the
   ARCHITECTURE.md text doesn't surface this interaction.
 - **Recommendation:** Either:
   - Remove the verify-result cache (tokens are 30–60s, the cache TTL
@@ -374,7 +374,7 @@ Low 6 · Info 2.
   - This way, "right to erasure" can null out free-text columns
     while the chain still verifies. Auditors verifying integrity do
     not see the original text but see that the hash matches what
-    OKORO attested at the time.
+    CERNIQ attested at the time.
   - Document the policy explicitly: "Audit chain is integrity-
     preserving; PII is recoverable until redaction."
 
@@ -578,12 +578,12 @@ cadence in each canon doc.
 - `docs/THREAT_MODEL.md` (79 lines, v1)
 - `docs/THREAT_MODEL_v2.md` (this audit's companion deliverable)
 - `CLAUDE.md` (157 lines)
-- `docs/spec/OKORO_API_SPEC.yaml` (sampled L1–200)
+- `docs/spec/CERNIQ_API_SPEC.yaml` (sampled L1–200)
 - `docs/spec/03_TECHNICAL_SPEC.md` (sampled L1–150)
 - `docs/BATE_ALGORITHM.md` (192 lines)
 - `packages/types/src/schemas.ts` (236 lines)
 - `packages/types/src/constants.ts` (66 lines)
 - `packages/types/src/errors.ts` (27 lines)
 - `packages/sdk-ts/src/crypto.ts` (85 lines)
-- `/Users/money/Downloads/files (7)/okoro-server.js` (693 lines, v1
+- `/Users/money/Downloads/files (7)/cerniq-server.js` (693 lines, v1
   prototype, post-mortemed in THREAT_MODEL_v2 §11)

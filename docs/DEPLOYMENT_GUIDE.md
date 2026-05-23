@@ -1,8 +1,8 @@
-# OKORO — Production Deployment Guide
+# CERNIQ — Production Deployment Guide
 
 ## Railway Origin + Cloudflare Workers Edge + Redis + PostgreSQL
 
-> **Audience:** DevOps / SRE / Platform engineers deploying OKORO for the first time or managing ongoing deployments.  
+> **Audience:** DevOps / SRE / Platform engineers deploying CERNIQ for the first time or managing ongoing deployments.  
 > **Covers:** Railway (origin API), Cloudflare Workers (edge verify), PostgreSQL 16, Redis 7, environment configuration, secrets management, zero-downtime migration, health verification.
 
 ---
@@ -43,7 +43,7 @@ Internet
 
 - [Railway](https://railway.app) account (Hobby or Pro plan)
 - [Cloudflare](https://cloudflare.com) account (Workers Paid plan — $5/month, needed for KV storage)
-- Domain (e.g., `okoroapp.com`) with DNS on Cloudflare
+- Domain (e.g., `cerniqapp.com`) with DNS on Cloudflare
 
 ### Required tools
 
@@ -72,7 +72,7 @@ pnpm add -g prisma
 
 ```bash
 # Create a new Railway project
-railway init okoro-production
+railway init cerniq-production
 
 # Add PostgreSQL plugin
 railway add postgresql
@@ -212,18 +212,18 @@ DATABASE_URL=postgresql://user:pass@host:5432/dbname
 # Redis
 REDIS_URL=redis://:password@host:6379
 
-# OKORO signing keys (Ed25519, base64url-encoded)
-# Generate with: npx tsx scripts/generate-okoro-keys.ts
-OKORO_AUDIT_PRIVATE_KEY=<base64url-encoded 32-byte Ed25519 private key>
-OKORO_AUDIT_PUBLIC_KEY=<base64url-encoded 32-byte Ed25519 public key>
-OKORO_JWT_SIGNING_KEY=<base64url-encoded 32-byte Ed25519 private key>
-OKORO_JWT_VERIFICATION_KEY=<base64url-encoded 32-byte Ed25519 public key>
+# CERNIQ signing keys (Ed25519, base64url-encoded)
+# Generate with: npx tsx scripts/generate-cerniq-keys.ts
+CERNIQ_AUDIT_PRIVATE_KEY=<base64url-encoded 32-byte Ed25519 private key>
+CERNIQ_AUDIT_PUBLIC_KEY=<base64url-encoded 32-byte Ed25519 public key>
+CERNIQ_JWT_SIGNING_KEY=<base64url-encoded 32-byte Ed25519 private key>
+CERNIQ_JWT_VERIFICATION_KEY=<base64url-encoded 32-byte Ed25519 public key>
 
 # API key encryption
-OKORO_API_KEY_BCRYPT_COST=12       # 4 in test, 12 in prod
+CERNIQ_API_KEY_BCRYPT_COST=12       # 4 in test, 12 in prod
 
 # Admin token (for internal admin endpoints)
-OKORO_ADMIN_TOKEN=<random 32-byte hex>
+CERNIQ_ADMIN_TOKEN=<random 32-byte hex>
 
 # Application
 NODE_ENV=production
@@ -235,76 +235,76 @@ LOG_LEVEL=info                       # debug | info | warn | error
 
 ```bash
 # DPoP (RFC 9449) — require DPoP proofs on verify calls
-OKORO_DPOP_REQUIRED=false            # default: false (v1.0 optional, v1.1 will require)
+CERNIQ_DPOP_REQUIRED=false            # default: false (v1.0 optional, v1.1 will require)
 
 # Post-quantum hybrid signatures
-OKORO_HYBRID_PQ_ENABLED=false        # default: false (see OD-014)
+CERNIQ_HYBRID_PQ_ENABLED=false        # default: false (see OD-014)
 
 # Policy engines available to principals
-OKORO_POLICY_ENGINES=builtin         # builtin | builtin,cedar | builtin,cedar,opa
+CERNIQ_POLICY_ENGINES=builtin         # builtin | builtin,cedar | builtin,cedar,opa
 
 # BATE feature flag
-OKORO_BATE_ENABLED=true              # default: true
+CERNIQ_BATE_ENABLED=true              # default: true
 
 # Edge Worker feature flag (shadows origin when SHADOW, serves edge when LIVE)
-OKORO_EDGE_VERIFY_ENABLED=false      # default: false until shadow validation passes
+CERNIQ_EDGE_VERIFY_ENABLED=false      # default: false until shadow validation passes
 
 # Onboarding backfill cron schedule
-OKORO_ONBOARDING_BACKFILL_CRON="*/5 * * * *"  # default: every 5 minutes
+CERNIQ_ONBOARDING_BACKFILL_CRON="*/5 * * * *"  # default: every 5 minutes
 ```
 
 ### 4.3 Optional — Observability
 
 ```bash
 # OpenTelemetry
-OKORO_OTEL_ENABLED=true
-OKORO_OTEL_SERVICE_NAME=okoro-api
-OKORO_OTEL_EXPORTER=otlp            # otlp | jaeger | zipkin | console
+CERNIQ_OTEL_ENABLED=true
+CERNIQ_OTEL_SERVICE_NAME=cerniq-api
+CERNIQ_OTEL_EXPORTER=otlp            # otlp | jaeger | zipkin | console
 OTEL_EXPORTER_OTLP_ENDPOINT=https://your-collector:4318
-OKORO_OTEL_TRACE_SAMPLE_RATE=0.1    # 10% sampling in prod
+CERNIQ_OTEL_TRACE_SAMPLE_RATE=0.1    # 10% sampling in prod
 
 # Prometheus metrics endpoint
-OKORO_METRICS_ENABLED=true
-OKORO_METRICS_PATH=/metrics         # default
-OKORO_METRICS_AUTH_TOKEN=<token>    # optional bearer token for /metrics
+CERNIQ_METRICS_ENABLED=true
+CERNIQ_METRICS_PATH=/metrics         # default
+CERNIQ_METRICS_AUTH_TOKEN=<token>    # optional bearer token for /metrics
 ```
 
 ### 4.4 Optional — KMS (Enterprise)
 
 ```bash
 # Choose ONE provider: local | aws | gcp | vault
-OKORO_KMS_PROVIDER=local            # default (uses env keys above)
+CERNIQ_KMS_PROVIDER=local            # default (uses env keys above)
 
 # --- AWS KMS ---
-OKORO_KMS_PROVIDER=aws
-OKORO_AWS_KMS_AUDIT_KID=kid-audit-v1
-OKORO_AWS_KMS_AUDIT_WRAPPED=<base64-envelope-encrypted-privkey>
-OKORO_AWS_KMS_AUDIT_PUB=<base64url-pubkey>
+CERNIQ_KMS_PROVIDER=aws
+CERNIQ_AWS_KMS_AUDIT_KID=kid-audit-v1
+CERNIQ_AWS_KMS_AUDIT_WRAPPED=<base64-envelope-encrypted-privkey>
+CERNIQ_AWS_KMS_AUDIT_PUB=<base64url-pubkey>
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=<key>
 AWS_SECRET_ACCESS_KEY=<secret>
 
 # --- GCP Cloud KMS ---
-OKORO_KMS_PROVIDER=gcp
-OKORO_GCP_KMS_KEY_VERSION_NAME=projects/p/locations/l/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1
+CERNIQ_KMS_PROVIDER=gcp
+CERNIQ_GCP_KMS_KEY_VERSION_NAME=projects/p/locations/l/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 
 # --- HashiCorp Vault ---
-OKORO_KMS_PROVIDER=vault
+CERNIQ_KMS_PROVIDER=vault
 VAULT_ADDR=https://vault.internal:8200
 VAULT_TOKEN=<vault-token>
-OKORO_VAULT_AUDIT_KEY_NAME=okoro-audit
+CERNIQ_VAULT_AUDIT_KEY_NAME=cerniq-audit
 ```
 
 ### 4.5 Optional — Identity Providers
 
 ```bash
 # Default IdP (auth0 | clerk | workos)
-OKORO_IDP_PROVIDER=auth0
+CERNIQ_IDP_PROVIDER=auth0
 
 # Auth0
 AUTH0_DOMAIN=your-tenant.auth0.com
-AUTH0_AUDIENCE=https://api.okoroapp.com/v1
+AUTH0_AUDIENCE=https://api.cerniqapp.com/v1
 AUTH0_CLIENT_ID=<client-id>
 AUTH0_CLIENT_SECRET=<client-secret>
 
@@ -327,11 +327,11 @@ STRIPE_PRICE_ID_DEVELOPER=price_...
 STRIPE_PRICE_ID_GROWTH=price_...
 
 # Webhook signing secret (for outbound webhooks to customers)
-OKORO_WEBHOOK_SIGNING_SECRET=<random 32-byte hex>
+CERNIQ_WEBHOOK_SIGNING_SECRET=<random 32-byte hex>
 
 # Webhook delivery config
-OKORO_WEBHOOK_MAX_ATTEMPTS=8        # default: 8
-OKORO_WEBHOOK_INITIAL_DELAY_MS=1000 # default: 1s, doubles each retry
+CERNIQ_WEBHOOK_MAX_ATTEMPTS=8        # default: 8
+CERNIQ_WEBHOOK_INITIAL_DELAY_MS=1000 # default: 1s, doubles each retry
 ```
 
 ---
@@ -342,7 +342,7 @@ OKORO_WEBHOOK_INITIAL_DELAY_MS=1000 # default: 1s, doubles each retry
 
 ```bash
 # Link local repo to Railway project
-railway link okoro-production
+railway link cerniq-production
 
 # Deploy the API service
 railway up \
@@ -354,7 +354,7 @@ railway logs --service api --tail
 
 # Get the service URL
 railway status
-# API URL: https://okoro-production-api.up.railway.app
+# API URL: https://cerniq-production-api.up.railway.app
 ```
 
 ### 5.2 Railway Configuration (`railway.json`)
@@ -364,7 +364,7 @@ railway status
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "pnpm install --frozen-lockfile && pnpm -F @okoro/api build"
+    "buildCommand": "pnpm install --frozen-lockfile && pnpm -F @cerniq/api build"
   },
   "deploy": {
     "startCommand": "node apps/api/dist/main.js",
@@ -404,28 +404,28 @@ Railway supports rolling deploys. To enable:
 
 ```bash
 # Create KV namespaces for edge cache
-wrangler kv:namespace create "OKORO_AGENT_CACHE"
-wrangler kv:namespace create "OKORO_POLICY_CACHE"
-wrangler kv:namespace create "OKORO_SPEND_CACHE"
+wrangler kv:namespace create "CERNIQ_AGENT_CACHE"
+wrangler kv:namespace create "CERNIQ_POLICY_CACHE"
+wrangler kv:namespace create "CERNIQ_SPEND_CACHE"
 
 # Note the IDs output by each command
-# OKORO_AGENT_CACHE: id = "abc123..."
-# OKORO_POLICY_CACHE: id = "def456..."
-# OKORO_SPEND_CACHE: id = "ghi789..."
+# CERNIQ_AGENT_CACHE: id = "abc123..."
+# CERNIQ_POLICY_CACHE: id = "def456..."
+# CERNIQ_SPEND_CACHE: id = "ghi789..."
 ```
 
 ### 6.2 Configure `wrangler.toml`
 
 ```toml
 # workers/cf-verify/wrangler.toml
-name = "okoro-verify"
+name = "cerniq-verify"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 
 [env.production]
-name = "okoro-verify-production"
+name = "cerniq-verify-production"
 routes = [
-  { pattern = "api.okoroapp.com/v1/verify", zone_name = "okoroapp.com" }
+  { pattern = "api.cerniqapp.com/v1/verify", zone_name = "cerniqapp.com" }
 ]
 
 [[kv_namespaces]]
@@ -441,8 +441,8 @@ binding = "SPEND_CACHE"
 id = "ghi789..."
 
 [vars]
-OKORO_ORIGIN_URL = "https://okoro-production-api.up.railway.app"
-OKORO_EDGE_VERIFY_MODE = "shadow"   # shadow | live | off
+CERNIQ_ORIGIN_URL = "https://cerniq-production-api.up.railway.app"
+CERNIQ_EDGE_VERIFY_MODE = "shadow"   # shadow | live | off
                                      # Start with shadow to validate parity
 ```
 
@@ -458,11 +458,11 @@ pnpm install
 wrangler deploy --env production
 
 # Verify deployment
-curl -X POST https://api.okoroapp.com/v1/verify \
+curl -X POST https://api.cerniqapp.com/v1/verify \
   -H "Content-Type: application/json" \
   -d '{"token": "test"}' \
   -v
-# Should see: X-OKORO-Edge-Divergence: edge-forward:no-edge-decision (shadow mode)
+# Should see: X-CERNIQ-Edge-Divergence: edge-forward:no-edge-decision (shadow mode)
 ```
 
 ### 6.4 Shadow Mode → Live Promotion
@@ -475,7 +475,7 @@ wrangler tail --env production 2>&1 | grep "Divergence"
 
 # When divergence < 0.1% over 48h, promote to live:
 # In wrangler.toml:
-# OKORO_EDGE_VERIFY_MODE = "live"
+# CERNIQ_EDGE_VERIFY_MODE = "live"
 wrangler deploy --env production
 
 # Live mode: edge serves <30ms responses; only forwards on cache miss
@@ -490,22 +490,22 @@ Never use development keys in production. Generate fresh keys:
 ```bash
 cd apps/api
 
-# Generate all OKORO signing keys
-pnpm tsx scripts/generate-okoro-keys.ts
+# Generate all CERNIQ signing keys
+pnpm tsx scripts/generate-cerniq-keys.ts
 
 # Output:
 # ══════════════════════════════════════════════════════
-# OKORO Production Key Generation
+# CERNIQ Production Key Generation
 # Generated: 2026-05-04T14:32:00Z
 # ══════════════════════════════════════════════════════
 #
 # JWT Signing Key (Ed25519)
-# Private: 4a3bf...  ← SET AS OKORO_JWT_SIGNING_KEY
-# Public:  9f2cd...  ← SET AS OKORO_JWT_VERIFICATION_KEY
+# Private: 4a3bf...  ← SET AS CERNIQ_JWT_SIGNING_KEY
+# Public:  9f2cd...  ← SET AS CERNIQ_JWT_VERIFICATION_KEY
 #
 # Audit Signing Key (Ed25519)
-# Private: 7e1ad...  ← SET AS OKORO_AUDIT_PRIVATE_KEY
-# Public:  3c8fg...  ← SET AS OKORO_AUDIT_PUBLIC_KEY
+# Private: 7e1ad...  ← SET AS CERNIQ_AUDIT_PRIVATE_KEY
+# Public:  3c8fg...  ← SET AS CERNIQ_AUDIT_PUBLIC_KEY
 #
 # ⚠️  These keys are shown ONCE. Store in a secrets manager.
 # ⚠️  The audit key determines chain verifiability — rotate carefully.
@@ -521,7 +521,7 @@ pnpm tsx scripts/generate-okoro-keys.ts
 After deployment, run through this checklist:
 
 ```bash
-export BASE=https://api.okoroapp.com/v1
+export BASE=https://api.cerniqapp.com/v1
 
 # 1. Liveness check (no auth)
 curl $BASE/../health
@@ -529,30 +529,30 @@ curl $BASE/../health
 
 # 2. Readiness check (DB + Redis ping)
 curl $BASE/../ready \
-  -H "X-OKORO-Admin: $OKORO_ADMIN_TOKEN"
+  -H "X-CERNIQ-Admin: $CERNIQ_ADMIN_TOKEN"
 # { "status": "ready", "db": "ok", "redis": "ok" }
 
 # 3. Metrics endpoint
 curl $BASE/../metrics \
-  -H "Authorization: Bearer $OKORO_METRICS_AUTH_TOKEN" | head -30
+  -H "Authorization: Bearer $CERNIQ_METRICS_AUTH_TOKEN" | head -30
 
 # 4. Full E2E smoke test
 cd tests/e2e
-OKORO_API_BASE=$BASE \
-OKORO_API_KEY=sk_live_... \
+CERNIQ_API_BASE=$BASE \
+CERNIQ_API_KEY=sk_live_... \
 pnpm vitest run 01_health 02_principal 03_agent
 
 # 5. Verify audit chain integrity
 pnpm tsx scripts/audit-verify-chain.ts \
   --api-base $BASE \
-  --api-key $OKORO_API_KEY \
+  --api-key $CERNIQ_API_KEY \
   --principal-id <your-principal-id> \
   --limit 100
 
 # 6. Edge Worker health
-curl -X POST https://api.okoroapp.com/v1/verify \
+curl -X POST https://api.cerniqapp.com/v1/verify \
   -H "Content-Type: application/json" \
-  -H "X-OKORO-Verify-Key: vk_live_..." \
+  -H "X-CERNIQ-Verify-Key: vk_live_..." \
   -d '{"token": "eyJhbGciOiJFZERTQSJ9.test.sig"}' \
 # Should return 403 with denialReason: INVALID_SIGNATURE (not a 500)
 ```
@@ -563,16 +563,16 @@ curl -X POST https://api.okoroapp.com/v1/verify \
 
 ```bash
 # 1. In Cloudflare DNS, add CNAME:
-# api.okoroapp.com → okoro-production-api.up.railway.app
+# api.cerniqapp.com → cerniq-production-api.up.railway.app
 
 # 2. Railway: add custom domain
-railway domain add api.okoroapp.com --service api
+railway domain add api.cerniqapp.com --service api
 
 # 3. Cloudflare: SSL mode = Full (strict)
-# Cloudflare → okoroapp.com → SSL/TLS → Full (strict)
+# Cloudflare → cerniqapp.com → SSL/TLS → Full (strict)
 
 # 4. Verify TLS
-curl -v https://api.okoroapp.com/health 2>&1 | grep "SSL connection"
+curl -v https://api.cerniqapp.com/health 2>&1 | grep "SSL connection"
 # * SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384
 ```
 

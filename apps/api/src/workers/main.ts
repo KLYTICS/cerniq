@@ -1,4 +1,4 @@
-// OKORO BullMQ worker entrypoint.
+// CERNIQ BullMQ worker entrypoint.
 //
 // Audit a42f05bc deploy-readiness blocker B3 fix: `infra/docker/Dockerfile.worker`
 // and `infra/railway/worker.service.json` both `CMD ["dist/workers/main.js"]`
@@ -38,7 +38,7 @@ async function bootstrap(): Promise<void> {
   app.enableShutdownHooks();
 
   const log = app.get(Logger);
-  log.log('OKORO worker process started');
+  log.log('CERNIQ worker process started');
 
   // Graceful shutdown — Railway sends SIGTERM 30s before forcibly killing.
   // BullMQ workers acknowledge in-flight jobs back to the queue when
@@ -60,11 +60,12 @@ async function bootstrap(): Promise<void> {
   // Keep the event loop alive. The BullMQ workers register their own
   // intervals via NestJS `OnModuleInit` (when the queue modules ship).
   // For now this is a heartbeat that surfaces in logs.
-  setInterval(() => { log.debug('worker heartbeat'); }, 60_000).unref();
+  setInterval(() => {
+    log.debug('worker heartbeat');
+  }, 60_000).unref();
 }
 
 bootstrap().catch((err: unknown) => {
-   
   console.error('worker bootstrap failed:', err);
   process.exit(1);
 });

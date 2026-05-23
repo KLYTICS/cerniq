@@ -3,9 +3,16 @@ import type { PolicyEvaluationInput } from './engine.interface';
 
 function baseInput(over: Partial<PolicyEvaluationInput> = {}): PolicyEvaluationInput {
   return {
-    agent: { id: 'agt_1', status: 'ACTIVE', trustScore: 700, trustBand: 'VERIFIED', principalId: 'p_1' },
+    agent: {
+      id: 'agt_1',
+      status: 'ACTIVE',
+      trustScore: 700,
+      trustBand: 'VERIFIED',
+      principalId: 'p_1',
+    },
     policy: {
-      id: 'pol_1', status: 'ACTIVE',
+      id: 'pol_1',
+      status: 'ACTIVE',
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
       scopes: [],
       // Cedar engines stash the compiled artifact on the policy snapshot.
@@ -37,12 +44,12 @@ describe('CedarPolicyEngine', () => {
     expect(r.decision).toBe('APPROVE');
   });
 
-  it('denies when Cedar Denies, mapping okoro.deny_reason obligation', async () => {
+  it('denies when Cedar Denies, mapping cerniq.deny_reason obligation', async () => {
     const engine = new CedarPolicyEngine(
       new FakeEvaluator({
         decision: 'Deny',
         diagnostics: { reason: 'merchant_not_in_allowlist' },
-        obligations: [{ kind: 'okoro.deny_reason', data: { reason: 'SCOPE_NOT_GRANTED' } }],
+        obligations: [{ kind: 'cerniq.deny_reason', data: { reason: 'SCOPE_NOT_GRANTED' } }],
       }),
     );
     const r = await engine.evaluate(baseInput());
@@ -53,7 +60,7 @@ describe('CedarPolicyEngine', () => {
     }
   });
 
-  it('falls back to SCOPE_NOT_GRANTED when Cedar Denies without okoro.deny_reason', async () => {
+  it('falls back to SCOPE_NOT_GRANTED when Cedar Denies without cerniq.deny_reason', async () => {
     const engine = new CedarPolicyEngine(new FakeEvaluator({ decision: 'Deny' }));
     const r = await engine.evaluate(baseInput());
     if (r.decision === 'DENY') expect(r.denialReason).toBe('SCOPE_NOT_GRANTED');
@@ -63,7 +70,7 @@ describe('CedarPolicyEngine', () => {
     const engine = new CedarPolicyEngine(
       new FakeEvaluator({
         decision: 'Deny',
-        obligations: [{ kind: 'okoro.deny_reason', data: { reason: 'COMPLETELY_MADE_UP' } }],
+        obligations: [{ kind: 'cerniq.deny_reason', data: { reason: 'COMPLETELY_MADE_UP' } }],
       }),
     );
     const r = await engine.evaluate(baseInput());
@@ -71,7 +78,9 @@ describe('CedarPolicyEngine', () => {
   });
 
   it('maps Cedar evaluation errors to POLICY_REVOKED with diagnostic', async () => {
-    const engine = new CedarPolicyEngine(new FakeEvaluator(new Error('cedar parse: unbalanced paren')));
+    const engine = new CedarPolicyEngine(
+      new FakeEvaluator(new Error('cedar parse: unbalanced paren')),
+    );
     const r = await engine.evaluate(baseInput());
     if (r.decision === 'DENY') {
       expect(r.denialReason).toBe('POLICY_REVOKED');
@@ -81,7 +90,9 @@ describe('CedarPolicyEngine', () => {
 
   it('fails closed when no compiled artifact present', async () => {
     const engine = new CedarPolicyEngine(new FakeEvaluator({ decision: 'Allow' }));
-    const policy = baseInput().policy as PolicyEvaluationInput['policy'] & { compiledArtifact?: unknown };
+    const policy = baseInput().policy as PolicyEvaluationInput['policy'] & {
+      compiledArtifact?: unknown;
+    };
     policy.compiledArtifact = undefined;
     const r = await engine.evaluate({ ...baseInput(), policy });
     if (r.decision === 'DENY') {
@@ -92,10 +103,12 @@ describe('CedarPolicyEngine', () => {
 
   it('still applies the spend gate after a Cedar Allow', async () => {
     const engine = new CedarPolicyEngine(new FakeEvaluator({ decision: 'Allow' }));
-    const r = await engine.evaluate(baseInput({
-      amount: '600.00',
-      spend: { windowSpend: '0.00', limit: '500.00', currency: 'USD' },
-    }));
+    const r = await engine.evaluate(
+      baseInput({
+        amount: '600.00',
+        spend: { windowSpend: '0.00', limit: '500.00', currency: 'USD' },
+      }),
+    );
     if (r.decision === 'DENY') expect(r.denialReason).toBe('SPEND_LIMIT_EXCEEDED');
   });
 });

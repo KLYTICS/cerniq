@@ -1,7 +1,7 @@
-# OKORO — KMS / key management (operator-facing)
+# CERNIQ — KMS / key management (operator-facing)
 
-> OKORO holds **only public keys for agents** (`CLAUDE.md` invariant #1).
-> The keys this directory governs are **OKORO's own service signing keys**:
+> CERNIQ holds **only public keys for agents** (`CLAUDE.md` invariant #1).
+> The keys this directory governs are **CERNIQ's own service signing keys**:
 > the Ed25519 keypair used to sign audit-chain events and to back the
 > JWKS published at `/.well-known/audit-signing-key`.
 
@@ -9,19 +9,19 @@
 
 - [`README.md`](./README.md) — this file.
 - [`rotation-runbook.md`](./rotation-runbook.md) — the quarterly rotation ceremony.
-- [`rotate-okoro-keys.sh`](./rotate-okoro-keys.sh) — the driver script (dry-run by default).
+- [`rotate-cerniq-keys.sh`](./rotate-cerniq-keys.sh) — the driver script (dry-run by default).
 
-The actual keypair generator is [`../../scripts/generate-okoro-keys.ts`](../../scripts/generate-okoro-keys.ts).
+The actual keypair generator is [`../../scripts/generate-cerniq-keys.ts`](../../scripts/generate-cerniq-keys.ts).
 This directory does **not** re-implement key generation — the rotation
 runbook drives the existing script.
 
 ## Where keys live
 
-| Environment | Storage                                                                     | How to access                                                                          |
-|-------------|-----------------------------------------------------------------------------|-----------------------------------------------------------------------------------------|
-| Production  | Railway secrets (encrypted at rest, scoped per service).                    | `railway variables` — only the operator and the deploy pipeline have access.            |
-| Staging     | Railway secrets in the staging project.                                     | Same as prod, separate project.                                                         |
-| Dev         | `./.local/keys/okoro-signing.env` — produced by `pnpm --filter @okoro/scripts run keys`. | Mode 0600. Listed in `.gitignore`. NEVER copied into a prod env.                        |
+| Environment | Storage                                                                                    | How to access                                                                |
+| ----------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| Production  | Railway secrets (encrypted at rest, scoped per service).                                   | `railway variables` — only the operator and the deploy pipeline have access. |
+| Staging     | Railway secrets in the staging project.                                                    | Same as prod, separate project.                                              |
+| Dev         | `./.local/keys/cerniq-signing.env` — produced by `pnpm --filter @cerniq/scripts run keys`. | Mode 0600. Listed in `.gitignore`. NEVER copied into a prod env.             |
 
 The disk path `./.local/keys/` is the **only** place a private key may
 appear on a developer machine. Production keys must never land on disk
@@ -35,7 +35,7 @@ served with a 1-day cache) — see
 ## How to rotate
 
 Quarterly. Full ceremony in [`rotation-runbook.md`](./rotation-runbook.md).
-Driver: [`rotate-okoro-keys.sh`](./rotate-okoro-keys.sh) — dry-run unless
+Driver: [`rotate-cerniq-keys.sh`](./rotate-cerniq-keys.sh) — dry-run unless
 `--execute` is passed; never pushes secrets without operator confirmation.
 
 The cipher passphrase that protects pgBackRest backups
@@ -45,7 +45,7 @@ ceremony — the runbook calls it out as step 8.
 
 ## Cross-references
 
-- `CLAUDE.md` — invariant #1 (private keys never enter OKORO) and #3 (audit chain).
+- `CLAUDE.md` — invariant #1 (private keys never enter CERNIQ) and #3 (audit chain).
 - `docs/SECURITY.md` § 4 — key handling rules.
 - `docs/THREAT_MODEL.md` row T8 (insider read of audit logs) and T9 (SDK supply-chain).
 - `docs/DR_RUNBOOK.md` — "key compromise" disaster playbook.

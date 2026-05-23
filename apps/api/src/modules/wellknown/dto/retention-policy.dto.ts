@@ -8,20 +8,22 @@ import { ApiProperty } from '@nestjs/swagger';
  * This is part of the I-9.5 discovery surface: stable, additive-only
  * within a major `spec_version`. Removing or renaming a key is a
  * breaking change requiring an ADR + 90-day notice (mirrors the
- * OkoroConfigurationDto contract).
+ * CerniqConfigurationDto contract).
  *
  * The body is computed in-process from `getPlan(tier)` for every
  * `PlanTier` enum value. The endpoint never hits the database.
  */
 export class RetentionPolicyTierDto {
   @ApiProperty({
-    description: 'Audit log retention window in days for this tier. Mirrors PlanDefinition.auditRetentionDays.',
+    description:
+      'Audit log retention window in days for this tier. Mirrors PlanDefinition.auditRetentionDays.',
     example: 30,
   })
   audit_retention_days!: number;
 
   @ApiProperty({
-    description: 'How OKORO enforces retention — redactions preserve audit chain hashes; events are never deleted.',
+    description:
+      'How CERNIQ enforces retention — redactions preserve audit chain hashes; events are never deleted.',
     example: 'redact-not-delete',
   })
   redaction_method!: 'redact-not-delete';
@@ -35,14 +37,15 @@ export class RetentionPolicyTierDto {
 
 export class RetentionPolicyOperationalDto {
   @ApiProperty({
-    description: 'How often the retention worker scans for events past their retention window. Default 86400 (1 day).',
+    description:
+      'How often the retention worker scans for events past their retention window. Default 86400 (1 day).',
     example: 86400,
   })
   retention_run_interval_seconds!: number;
 
   @ApiProperty({
     description: 'Env var operators can set to override the worker interval (in milliseconds).',
-    example: 'OKORO_AUDIT_RETENTION_INTERVAL_MS',
+    example: 'CERNIQ_AUDIT_RETENTION_INTERVAL_MS',
   })
   configurable_via_env!: string;
 }
@@ -55,7 +58,8 @@ export class RetentionPolicyDto {
   spec_version!: string;
 
   @ApiProperty({
-    description: 'ISO-8601 generation timestamp. Captured per request — informational, not a cache validator.',
+    description:
+      'ISO-8601 generation timestamp. Captured per request — informational, not a cache validator.',
     example: '2026-05-05T12:34:56.789Z',
   })
   generated_at!: string;
@@ -69,7 +73,8 @@ export class RetentionPolicyDto {
   tiers!: Record<string, RetentionPolicyTierDto>;
 
   @ApiProperty({
-    description: 'Human-readable guarantees OKORO makes about retention enforcement and chain integrity.',
+    description:
+      'Human-readable guarantees CERNIQ makes about retention enforcement and chain integrity.',
     example: [
       'Redactions preserve audit chain hashes — chain remains verifiable post-redaction.',
       'Each redaction emits a meta-event in the chain (audit-of-audit).',

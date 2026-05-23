@@ -1,9 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fc from 'fast-check';
-import type { Okoro, DenialReason } from '@okoro/sdk';
-import { DENIAL_REASON_PRECEDENCE } from '@okoro/types';
+import type { Cerniq, DenialReason } from '@cerniq/sdk';
+import { DENIAL_REASON_PRECEDENCE } from '@cerniq/types';
 import { makeSdk, readConfig } from '../_support/client';
-import { SCOPES, createAgent, createPolicy, futureIso, signTokenFor, tamperToken } from '../_support/fixtures';
+import {
+  SCOPES,
+  createAgent,
+  createPolicy,
+  futureIso,
+  signTokenFor,
+  tamperToken,
+} from '../_support/fixtures';
 
 /**
  * Property: when multiple denial conditions hold simultaneously, the API
@@ -38,7 +45,7 @@ function expectedReasonFor(c: Conditions): DenialReason | null {
 }
 
 describe('property · denial precedence', () => {
-  let sdk: Okoro;
+  let sdk: Cerniq;
   const created: string[] = [];
 
   beforeAll(() => {
@@ -89,7 +96,11 @@ describe('property · denial precedence', () => {
           };
           // At least two must hold to make the test meaningful.
           const setBits =
-            +c.agentRevoked + +c.invalidSignature + +c.policyRevoked + +c.scopeMismatch + +c.spendOver;
+            +c.agentRevoked +
+            +c.invalidSignature +
+            +c.policyRevoked +
+            +c.scopeMismatch +
+            +c.spendOver;
           if (setBits < 2) return;
 
           const agent = await createAgent(sdk);
@@ -101,7 +112,11 @@ describe('property · denial precedence', () => {
             [
               c.scopeMismatch
                 ? SCOPES.dataRead(['read:calendar']) // a token claiming commerce will mismatch
-                : SCOPES.commerce({ maxPerTransaction: 50, maxPerDay: 100, allowedDomains: ['delta.com'] }),
+                : SCOPES.commerce({
+                    maxPerTransaction: 50,
+                    maxPerDay: 100,
+                    allowedDomains: ['delta.com'],
+                  }),
             ],
             { expiresAt: futureIso(60 * 60) },
           );

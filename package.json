@@ -1,16 +1,16 @@
 {
-  "name": "okoro",
+  "name": "cerniq",
   "version": "0.1.0",
   "private": true,
-  "description": "OKORO — Agent Gateway & Identity Stack. Neutral cryptographic identity, policy enforcement, behavioral attestation, and audit rails for AI agents.",
+  "description": "CERNIQ — Agent Gateway & Identity Stack. Neutral cryptographic identity, policy enforcement, behavioral attestation, and audit rails for AI agents.",
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/KLYTICS/okoro.git"
+    "url": "git+https://github.com/KLYTICS/cerniq.git"
   },
-  "homepage": "https://github.com/KLYTICS/okoro#readme",
+  "homepage": "https://github.com/KLYTICS/cerniq#readme",
   "bugs": {
-    "url": "https://github.com/KLYTICS/okoro/issues"
+    "url": "https://github.com/KLYTICS/cerniq/issues"
   },
   "author": "KLYTICS LLC <ops@klytics.io>",
   "engines": {
@@ -20,30 +20,30 @@
   "packageManager": "pnpm@9.12.3",
   "scripts": {
     "build": "pnpm -r run build",
-    "dev": "pnpm --filter @okoro/api dev",
-    "dev:dashboard": "pnpm --filter @okoro/dashboard dev",
+    "dev": "pnpm --filter @cerniq/api dev",
+    "dev:dashboard": "pnpm --filter @cerniq/dashboard dev",
     "db:up": "docker compose up -d postgres redis",
     "db:down": "docker compose down",
-    "db:migrate": "pnpm --filter @okoro/api prisma:migrate",
-    "db:generate": "pnpm --filter @okoro/api prisma:generate",
-    "db:reset": "pnpm --filter @okoro/api prisma:reset",
+    "db:migrate": "pnpm --filter @cerniq/api prisma:migrate",
+    "db:generate": "pnpm --filter @cerniq/api prisma:generate",
+    "db:reset": "pnpm --filter @cerniq/api prisma:reset",
     "test": "pnpm -r run test",
-    "test:e2e": "pnpm --filter @okoro/api test:e2e",
-    "test:parity": "pnpm --filter @okoro/e2e run test:parity",
+    "test:e2e": "pnpm --filter @cerniq/api test:e2e",
+    "test:parity": "pnpm --filter @cerniq/e2e run test:parity",
     "test:cross-package": "pnpm test:parity",
-    "doctor": "pnpm --filter @okoro/scripts run doctor",
-    "doctor:full": "pnpm --filter @okoro/scripts run doctor:full",
+    "doctor": "pnpm --filter @cerniq/scripts run doctor",
+    "doctor:full": "pnpm --filter @cerniq/scripts run doctor:full",
     "lint": "pnpm -r run lint",
     "typecheck": "pnpm -r run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
     "clean": "pnpm -r exec rm -rf dist .next .turbo node_modules/.cache",
-    "seed:dev": "pnpm --filter @okoro/scripts seed",
-    "gen:error-catalog": "pnpm -F @okoro/types exec tsx ../../scripts/generate-error-catalog.ts",
-    "gen:denial-reason": "pnpm -F @okoro/scripts exec tsx ./generate-denial-reason.ts",
-    "check:openapi-zod": "pnpm -F @okoro/types exec tsx scripts/check-openapi-zod-parity.ts",
-    "check:openapi-prisma": "pnpm -F @okoro/api exec tsx scripts/check-openapi-prisma-parity.ts",
-    "check:migrations": "pnpm -F @okoro/scripts exec tsx check-migration-immutability.ts",
+    "seed:dev": "pnpm --filter @cerniq/scripts seed",
+    "gen:error-catalog": "pnpm -F @cerniq/types exec tsx ../../scripts/generate-error-catalog.ts",
+    "gen:denial-reason": "pnpm -F @cerniq/scripts exec tsx ./generate-denial-reason.ts",
+    "check:openapi-zod": "pnpm -F @cerniq/types exec tsx scripts/check-openapi-zod-parity.ts",
+    "check:openapi-prisma": "pnpm -F @cerniq/api exec tsx scripts/check-openapi-prisma-parity.ts",
+    "check:migrations": "pnpm -F @cerniq/scripts exec tsx check-migration-immutability.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:openapi-zod && pnpm check:openapi-prisma && pnpm check:migrations"
   },
   "devDependencies": {

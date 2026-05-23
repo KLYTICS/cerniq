@@ -9,7 +9,7 @@ name: Audit-chain integrity
 #   - manual workflow_dispatch with optional environment override
 #   - on-deploy via repository_dispatch event "deployed-staging"
 #
-# Exit semantics: pnpm --filter @okoro/scripts audit-verify-chain returns
+# Exit semantics: pnpm --filter @cerniq/scripts audit-verify-chain returns
 #   0  chain intact
 #   1  chain break detected
 #   2  usage error
@@ -57,7 +57,7 @@ jobs:
       # READ-ONLY replica role; the script does not write but defense in
       # depth means we connect with no write grant.
       DATABASE_URL: ${{ secrets.AUDIT_DB_READONLY_URL }}
-      OKORO_API_BASE: ${{ secrets.OKORO_API_BASE }}
+      CERNIQ_API_BASE: ${{ secrets.CERNIQ_API_BASE }}
 
     steps:
       - uses: actions/checkout@v4
@@ -90,7 +90,7 @@ jobs:
           # `--limit` keeps cron runs bounded. Manual production runs can
           # remove it via re-running with `workflow_dispatch`.
           pnpm tsx audit-verify-chain.ts \
-            --api-base "$OKORO_API_BASE" \
+            --api-base "$CERNIQ_API_BASE" \
             --json \
             --limit 100000 \
             | tee /tmp/audit-verify/result.json
@@ -109,7 +109,7 @@ jobs:
         with:
           payload: |
             {
-              "text": ":rotating_light: OKORO audit chain integrity check FAILED for *${{ github.event.inputs.environment || 'staging' }}* — see workflow run ${{ github.run_id }}. Open the `result.json` artifact for the first-break index + reason."
+              "text": ":rotating_light: CERNIQ audit chain integrity check FAILED for *${{ github.event.inputs.environment || 'staging' }}* — see workflow run ${{ github.run_id }}. Open the `result.json` artifact for the first-break index + reason."
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_INCIDENT_WEBHOOK }}

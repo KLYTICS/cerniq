@@ -1,11 +1,11 @@
 // Package config loads and persists the CLI's user-scoped settings.
 //
-// The config file lives at $XDG_CONFIG_HOME/okoro/config.toml (typically
-// ~/.config/okoro/config.toml). It holds non-secret state: base URL,
+// The config file lives at $XDG_CONFIG_HOME/cerniq/config.toml (typically
+// ~/.config/cerniq/config.toml). It holds non-secret state: base URL,
 // default principal email, last-used profile name. Secrets — API keys,
 // device-flow refresh tokens — live in the OS keychain, not on disk.
 //
-// File format is TOML for human-editable diff-friendliness; the OKORO
+// File format is TOML for human-editable diff-friendliness; the CERNIQ
 // monorepo otherwise uses JSON for wire payloads (Zod-validated) and
 // YAML for OpenAPI. TOML is reserved for human-curated CLI settings,
 // matching the conventions of the other Klytics-stack tools.
@@ -20,40 +20,40 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-// DefaultBaseURL is the production OKORO API host. CLI users override
-// it via --base-url, OKORO_BASE_URL, or the `base_url` config field.
-const DefaultBaseURL = "https://api.okoroapp.com"
+// DefaultBaseURL is the production CERNIQ API host. CLI users override
+// it via --base-url, CERNIQ_BASE_URL, or the `base_url` config field.
+const DefaultBaseURL = "https://api.cerniqapp.com"
 
 // Config is the on-disk shape. Field tags match snake_case TOML keys.
 type Config struct {
-	// BaseURL is the OKORO API host the CLI talks to.
+	// BaseURL is the CERNIQ API host the CLI talks to.
 	BaseURL string `toml:"base_url,omitempty"`
 
 	// DefaultProfile names which keychain credential entry to use when
-	// the user has multiple OKORO principals on the same machine.
+	// the user has multiple CERNIQ principals on the same machine.
 	DefaultProfile string `toml:"default_profile,omitempty"`
 
-	// PrincipalEmail is cosmetic — surfaced in `okoro whoami` so the
+	// PrincipalEmail is cosmetic — surfaced in `cerniq whoami` so the
 	// user sees which account is active without round-tripping the API.
 	// Authoritative answer always comes from /v1/me.
 	PrincipalEmail string `toml:"principal_email,omitempty"`
 }
 
 // Path returns the absolute path to the config file. Honors --config
-// override and XDG_CONFIG_HOME; falls back to ~/.config/okoro on POSIX
-// and %AppData%\okoro on Windows.
+// override and XDG_CONFIG_HOME; falls back to ~/.config/cerniq on POSIX
+// and %AppData%\cerniq on Windows.
 func Path(override string) (string, error) {
 	if override != "" {
 		return override, nil
 	}
-	if env := os.Getenv("OKORO_CONFIG"); env != "" {
+	if env := os.Getenv("CERNIQ_CONFIG"); env != "" {
 		return env, nil
 	}
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return "", fmt.Errorf("resolve user config dir: %w", err)
 	}
-	return filepath.Join(dir, "okoro", "config.toml"), nil
+	return filepath.Join(dir, "cerniq", "config.toml"), nil
 }
 
 // Load reads the config from disk. A missing file is not an error —
@@ -107,7 +107,7 @@ func (c *Config) ResolveBaseURL(flag string) string {
 	if flag != "" {
 		return flag
 	}
-	if env := os.Getenv("OKORO_BASE_URL"); env != "" {
+	if env := os.Getenv("CERNIQ_BASE_URL"); env != "" {
 		return env
 	}
 	if c.BaseURL != "" {

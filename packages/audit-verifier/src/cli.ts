@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// OKORO audit-verifier CLI.
+// CERNIQ audit-verifier CLI.
 //
-//   okoro-audit-verify verify <export.ndjson> [options]
+//   cerniq-audit-verify verify <export.ndjson> [options]
 //
 // Options:
 //   --jwks <url>           Fetch JWKS from URL (HTTPS).
@@ -16,11 +16,11 @@
 //   2  argument / IO error
 //
 // Examples:
-//   okoro-audit-verify verify ./export.ndjson \
-//     --jwks https://api.okoroapp.com/.well-known/audit-signing-key
+//   cerniq-audit-verify verify ./export.ndjson \
+//     --jwks https://api.cerniqapp.com/.well-known/audit-signing-key
 //
-//   okoro-audit-verify verify ./export.ndjson \
-//     --jwks-file ./okoro-audit-jwks.json --json > report.json
+//   cerniq-audit-verify verify ./export.ndjson \
+//     --jwks-file ./cerniq-audit-jwks.json --json > report.json
 
 import { readFile } from 'node:fs/promises';
 import { argv, exit, stdout, stderr } from 'node:process';
@@ -47,7 +47,7 @@ function parseArgs(input: string[]): CliArgs {
   }
   const ndjsonPath = input[1];
   if (!ndjsonPath || ndjsonPath.startsWith('--')) {
-    fail('missing NDJSON path: okoro-audit-verify verify <path>', 2);
+    fail('missing NDJSON path: cerniq-audit-verify verify <path>', 2);
   }
   const get = (flag: string): string | undefined => {
     const idx = input.indexOf(flag);
@@ -106,7 +106,7 @@ async function main(): Promise<number> {
 
 function printHumanReport(report: ChainReport): void {
   const tag = report.valid ? '✓ INTACT' : '✗ BROKEN';
-  stdout.write(`OKORO audit chain — ${tag}\n`);
+  stdout.write(`CERNIQ audit chain — ${tag}\n`);
   stdout.write('─'.repeat(60) + '\n');
   stdout.write(`rows verified : ${report.totalRows}\n`);
   stdout.write(`signing keys  : ${report.signingKeys.join(', ') || '(none)'}\n`);
@@ -126,7 +126,7 @@ function printHumanReport(report: ChainReport): void {
 }
 
 function fail(msg: string, code: number): never {
-  stderr.write(`okoro-audit-verify: ${msg}\n`);
+  stderr.write(`cerniq-audit-verify: ${msg}\n`);
   exit(code);
 }
 
@@ -134,7 +134,7 @@ main()
   .then((code) => exit(code))
   .catch((err: unknown) => {
     stderr.write(
-      `okoro-audit-verify: fatal — ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`,
+      `cerniq-audit-verify: fatal — ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`,
     );
     exit(2);
   });

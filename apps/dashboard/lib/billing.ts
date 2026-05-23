@@ -15,8 +15,8 @@
 import 'server-only';
 
 import {
-  OkoroApiError,
-  OkoroAuthMissingError,
+  CerniqApiError,
+  CerniqAuthMissingError,
   getPlanSummary,
   type PlanSummary,
 } from './api-client';
@@ -41,20 +41,20 @@ export async function loadPlan(): Promise<PlanLoad> {
     const plan = await getPlanSummary();
     return { ok: true, plan };
   } catch (err) {
-    if (err instanceof OkoroAuthMissingError) {
+    if (err instanceof CerniqAuthMissingError) {
       return {
         ok: false,
         code: err.code,
-        message: 'Set OKORO_DASHBOARD_API_KEY to populate billing.',
+        message: 'Set CERNIQ_DASHBOARD_API_KEY to populate billing.',
       };
     }
-    if (err instanceof OkoroApiError) {
+    if (err instanceof CerniqApiError) {
       return { ok: false, code: err.code, message: err.message };
     }
     return {
       ok: false,
       code: 'UNKNOWN',
-      message: 'Unexpected error contacting OKORO API.',
+      message: 'Unexpected error contacting CERNIQ API.',
     };
   }
 }

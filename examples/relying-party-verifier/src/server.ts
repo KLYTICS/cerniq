@@ -1,13 +1,13 @@
 /**
- * OKORO — relying-party verifier example.
+ * CERNIQ — relying-party verifier example.
  *
- * Demonstrates the *other side* of the OKORO handshake: a service that
- * receives an OKORO-signed request from an AI agent and decides whether to
+ * Demonstrates the *other side* of the CERNIQ handshake: a service that
+ * receives an CERNIQ-signed request from an AI agent and decides whether to
  * honor it. The pattern is generic — checkout, data access, comms, etc.
  *
  * Wire:
  *   POST /api/checkout
- *     headers: X-OKORO-Token: <signed jwt the agent presented>
+ *     headers: X-CERNIQ-Token: <signed jwt the agent presented>
  *     body:    { amount, currency, merchantDomain }
  *
  *   → 200 { allowed: true,  agentId, scopes, trustBand }
@@ -19,22 +19,22 @@
  * agent's *policy* didn't allow the action.
  *
  * Run:
- *   OKORO_VERIFY_KEY=okoro_vk_... pnpm tsx src/server.ts
+ *   CERNIQ_VERIFY_KEY=cerniq_vk_... pnpm tsx src/server.ts
  */
 
 import express, { Request, Response } from 'express';
-import { Okoro } from '@okoro/sdk';
+import { Cerniq } from '@cerniq/sdk';
 
 const PORT = Number(process.env.PORT ?? '3001');
-const API_BASE = process.env.OKORO_API_BASE ?? 'http://localhost:4000';
-const VERIFY_KEY = process.env.OKORO_VERIFY_KEY ?? process.env.OKORO_API_KEY;
+const API_BASE = process.env.CERNIQ_API_BASE ?? 'http://localhost:4000';
+const VERIFY_KEY = process.env.CERNIQ_VERIFY_KEY ?? process.env.CERNIQ_API_KEY;
 
 if (!VERIFY_KEY) {
-  console.error('OKORO_VERIFY_KEY (or OKORO_API_KEY) is required.');
+  console.error('CERNIQ_VERIFY_KEY (or CERNIQ_API_KEY) is required.');
   process.exit(2);
 }
 
-const okoro = new Okoro({ apiKey: VERIFY_KEY, baseUrl: API_BASE });
+const cerniq = new Cerniq({ apiKey: VERIFY_KEY, baseUrl: API_BASE });
 
 const DESCRIPTIONS: Readonly<Record<string, string>> = Object.freeze({
   AGENT_NOT_FOUND: 'Unknown agent.',
@@ -52,9 +52,9 @@ const app = express();
 app.use(express.json());
 
 app.post('/api/checkout', async (req: Request, res: Response) => {
-  const token = req.header('X-OKORO-Token');
+  const token = req.header('X-CERNIQ-Token');
   if (!token) {
-    res.status(400).json({ allowed: false, error: 'missing X-OKORO-Token header' });
+    res.status(400).json({ allowed: false, error: 'missing X-CERNIQ-Token header' });
     return;
   }
   const body = req.body as
@@ -62,7 +62,7 @@ app.post('/api/checkout', async (req: Request, res: Response) => {
     | undefined;
 
   try {
-    const result = await okoro.verify(token, {
+    const result = await cerniq.verify(token, {
       action: body?.action ?? 'commerce.purchase',
       amount: body?.amount,
       currency: body?.currency,
@@ -108,5 +108,5 @@ app.get('/health', (_req: Request, res: Response) => {
 
 app.listen(PORT, () => {
   console.log(`relying-party-verifier listening on http://localhost:${PORT}`);
-  console.log(`  OKORO API: ${API_BASE}`);
+  console.log(`  CERNIQ API: ${API_BASE}`);
 });

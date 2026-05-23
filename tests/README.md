@@ -1,6 +1,6 @@
-# `@okoro/e2e` — black-box integration tests
+# `@cerniq/e2e` — black-box integration tests
 
-Full-stack tests that drive the live OKORO API over HTTP. Built to:
+Full-stack tests that drive the live CERNIQ API over HTTP. Built to:
 
 1. catch regressions in the public contract (API spec, denial precedence,
    audit chain, spend math),
@@ -9,24 +9,24 @@ Full-stack tests that drive the live OKORO API over HTTP. Built to:
 3. be runnable in two modes — green-locally and skip-cleanly-in-CI.
 
 This package is intentionally separated from `apps/api/test/` (Jest, white
-box) — these tests must work against any conforming OKORO deployment, not
+box) — these tests must work against any conforming CERNIQ deployment, not
 just the in-tree NestJS one.
 
 ## 30-second quickstart
 
 ```bash
 # terminal A — bring the platform up
-cd /path/to/okoro
+cd /path/to/cerniq
 pnpm install
 pnpm db:up && pnpm dev
 
 # terminal B — seed a dev key, then run the suite
-pnpm tsx scripts/seed-dev.ts                  # emits OKORO_E2E_API_KEY=...
-export OKORO_E2E_URL=http://localhost:3000
-export OKORO_E2E_API_KEY=okoro_sk_...
+pnpm tsx scripts/seed-dev.ts                  # emits CERNIQ_E2E_API_KEY=...
+export CERNIQ_E2E_URL=http://localhost:3000
+export CERNIQ_E2E_API_KEY=cerniq_sk_...
 
 # Option A — workspace mode (after adding `tests` to pnpm-workspace.yaml):
-pnpm --filter @okoro/e2e test
+pnpm --filter @cerniq/e2e test
 
 # Option B — direct invocation, no workspace edit needed:
 cd tests && pnpm install && pnpm exec vitest run
@@ -76,12 +76,12 @@ tests/
 
 ## Environment variables
 
-| var                       | required | default                    | use                                              |
-|---------------------------|----------|----------------------------|--------------------------------------------------|
-| `OKORO_E2E_URL`           | no       | `http://localhost:3000`    | base url of the API                              |
-| `OKORO_E2E_API_KEY`       | yes      | —                          | management key (`okoro_sk_…`); enables ops       |
-| `OKORO_E2E_VERIFY_KEY`    | no       | falls back to api key      | dedicated verify-only key (`okoro_vk_…`)         |
-| `OKORO_E2E_API_KEY_2`     | no       | —                          | second principal's key (cross-tenant tests)      |
+| var                     | required | default                 | use                                         |
+| ----------------------- | -------- | ----------------------- | ------------------------------------------- |
+| `CERNIQ_E2E_URL`        | no       | `http://localhost:3000` | base url of the API                         |
+| `CERNIQ_E2E_API_KEY`    | yes      | —                       | management key (`cerniq_sk_…`); enables ops |
+| `CERNIQ_E2E_VERIFY_KEY` | no       | falls back to api key   | dedicated verify-only key (`cerniq_vk_…`)   |
+| `CERNIQ_E2E_API_KEY_2`  | no       | —                       | second principal's key (cross-tenant tests) |
 
 ## Skipped tests + soft-skips
 
@@ -94,7 +94,7 @@ A test will run today only if the operator has:
 
 - started Postgres + Redis (`pnpm db:up`),
 - started the API (`pnpm dev`),
-- exported `OKORO_E2E_API_KEY` for a real principal.
+- exported `CERNIQ_E2E_API_KEY` for a real principal.
 
 ## Adding tests
 

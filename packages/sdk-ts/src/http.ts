@@ -1,18 +1,18 @@
-import type { ErrorCatalogEntry } from '@okoro/types';
+import type { ErrorCatalogEntry } from '@cerniq/types';
 
 import {
-  OkoroAuthenticationError,
-  OkoroAuthorizationError,
-  OkoroConflictError,
-  OkoroError,
-  OkoroInternalError,
-  OkoroNetworkError,
-  OkoroNotFoundError,
-  OkoroRateLimitedError,
-  OkoroServiceUnavailableError,
-  OkoroValidationError,
+  CerniqAuthenticationError,
+  CerniqAuthorizationError,
+  CerniqConflictError,
+  CerniqError,
+  CerniqInternalError,
+  CerniqNetworkError,
+  CerniqNotFoundError,
+  CerniqRateLimitedError,
+  CerniqServiceUnavailableError,
+  CerniqValidationError,
   catalogEntryFor,
-  isOkoroErrorRetryable,
+  isCerniqErrorRetryable,
 } from './errors.js';
 
 export interface HttpClientConfig {
@@ -29,7 +29,7 @@ export interface RequestOptions {
   body?: unknown;
   query?: Record<string, unknown>;
   /**
-   * If true, the request is sent with the verify-only key (`X-OKORO-Verify-Key`).
+   * If true, the request is sent with the verify-only key (`X-CERNIQ-Verify-Key`).
    * Required for `/v1/verify` calls — the management key has too much power and
    * relying parties should never see it.
    */
@@ -41,11 +41,11 @@ export interface RetryOptions {
   /** Hard ceiling on attempts (including the first). Default: 3. */
   maxAttempts?: number;
   /** Hook for tests / observability — fires before each backoff sleep. */
-  onRetry?: (info: { attempt: number; delayMs: number; error: OkoroError }) => void;
+  onRetry?: (info: { attempt: number; delayMs: number; error: CerniqError }) => void;
   /** Override the sleep implementation (for tests). */
   sleep?: (ms: number) => Promise<void>;
   /** Override the Retry-After header reader (for tests). */
-  getRetryAfter?: (err: OkoroError) => number | undefined;
+  getRetryAfter?: (err: CerniqError) => number | undefined;
 }
 
 export class HttpClient {
@@ -73,8 +73,8 @@ export class HttpClient {
     if (!key) {
       throw new Error(
         useVerifyKey
-          ? 'OKORO verifyKey is required for verify() calls.'
-          : 'OKORO apiKey is required for management calls.',
+          ? 'CERNIQ verifyKey is required for verify() calls.'
+          : 'CERNIQ apiKey is required for management calls.',
       );
     }
 
@@ -88,13 +88,15 @@ export class HttpClient {
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      [useVerifyKey ? 'X-OKORO-Verify-Key' : 'X-OKORO-API-Key']: key,
-      'X-OKORO-Sdk': '@okoro/sdk@0.1.0',
+      [useVerifyKey ? 'X-CERNIQ-Verify-Key' : 'X-CERNIQ-API-Key']: key,
+      'X-CERNIQ-Sdk': '@cerniq/sdk@0.1.0',
     };
     if (this.userAgent) headers['User-Agent'] = this.userAgent;
 
     const ctrl = new AbortController();
-    const timer = setTimeout(() => { ctrl.abort(); }, this.timeoutMs);
+    const timer = setTimeout(() => {
+      ctrl.abort();
+    }, this.timeoutMs);
     try {
       const res = await this.fetchFn(url.toString(), {
         method: opts.method,
@@ -112,7 +114,8 @@ export class HttpClient {
         const message =
           typeof payload === 'string'
             ? payload
-            : (payload as { message?: string } | null)?.message ?? `OKORO request failed (${res.status})`;
+            : ((payload as { message?: string } | null)?.message ??
+              `CERNIQ request failed (${res.status})`);
         const requestId = res.headers.get('x-request-id') ?? undefined;
         const details = typeof payload === 'object' && payload !== null ? payload : undefined;
         // Capture Retry-After for the retry wrapper before throwing.
@@ -120,29 +123,32 @@ export class HttpClient {
         const catalogCode = extractCatalogCodeFromBody(payload);
         switch (res.status) {
           case 400:
-            throw new OkoroValidationError(message, 400, requestId, details, catalogCode);
+            throw new CerniqValidationError(message, 400, requestId, details, catalogCode);
           case 401:
-            throw new OkoroAuthenticationError(message, 401, requestId, details, catalogCode);
+            throw new CerniqAuthenticationError(message, 401, requestId, details, catalogCode);
           case 403:
-            throw new OkoroAuthorizationError(message, 403, requestId, details, catalogCode);
+            throw new CerniqAuthorizationError(message, 403, requestId, details, catalogCode);
           case 404:
-            throw new OkoroNotFoundError(message, 404, requestId, details, catalogCode);
+            throw new CerniqNotFoundError(message, 404, requestId, details, catalogCode);
           case 409:
-            throw new OkoroConflictError(message, 409, requestId, details, catalogCode);
+            throw new CerniqConflictError(message, 409, requestId, details, catalogCode);
           case 429:
-            throw new OkoroRateLimitedError(message, 429, requestId, details, catalogCode);
+            throw new CerniqRateLimitedError(message, 429, requestId, details, catalogCode);
           case 503:
-            throw new OkoroServiceUnavailableError(message, 503, requestId, details, catalogCode);
+            throw new CerniqServiceUnavailableError(message, 503, requestId, details, catalogCode);
           default:
-            throw new OkoroInternalError(message, res.status, requestId, details, catalogCode);
+            throw new CerniqInternalError(message, res.status, requestId, details, catalogCode);
         }
       }
       this.lastRetryAfterSeconds = undefined;
       return payload as T;
     } catch (err) {
-      // Network / abort errors — wrap so callers can `instanceof OkoroError`.
+      // Network / abort errors — wrap so callers can `instanceof CerniqError`.
       if (err instanceof Error && err.name === 'AbortError') {
-        throw new OkoroNetworkError(`Request to ${url.toString()} timed out after ${this.timeoutMs}ms`, err);
+        throw new CerniqNetworkError(
+          `Request to ${url.toString()} timed out after ${this.timeoutMs}ms`,
+          err,
+        );
       }
       throw err;
     } finally {
@@ -163,10 +169,14 @@ export class HttpClient {
    *   - on_retry_after_header: honor Retry-After (seconds or HTTP date),
    *     capped at 60s
    *
-   * Network-layer failures (OkoroNetworkError) are treated as exponential
+   * Network-layer failures (CerniqNetworkError) are treated as exponential
    * with the same schedule, since transport errors carry no catalog code.
    */
-  async requestWithRetry<T>(path: string, opts: RequestOptions, retryOpts: RetryOptions = {}): Promise<T> {
+  async requestWithRetry<T>(
+    path: string,
+    opts: RequestOptions,
+    retryOpts: RetryOptions = {},
+  ): Promise<T> {
     return await withRetry(() => this.request<T>(path, opts), {
       ...retryOpts,
       getRetryAfter: retryOpts.getRetryAfter ?? (() => this.lastRetryAfterSeconds),
@@ -185,7 +195,7 @@ const EXPONENTIAL_SCHEDULE_MS: readonly number[] = [100, 400, 1600];
 const defaultSleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Catalog-driven retry. Wraps any thrown OkoroError, decides whether to
+ * Catalog-driven retry. Wraps any thrown CerniqError, decides whether to
  * retry based on `catalogEntryFor(err).backoff`, and sleeps the catalog-
  * specified amount.
  */
@@ -201,16 +211,16 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
       return await fn();
     } catch (err) {
       lastError = err;
-      if (!(err instanceof OkoroError)) throw err;
+      if (!(err instanceof CerniqError)) throw err;
       if (attempt >= maxAttempts) throw err;
-      if (!isOkoroErrorRetryable(err)) throw err;
+      if (!isCerniqErrorRetryable(err)) throw err;
 
       const entry = catalogEntryFor(err);
       const delayMs = nextDelayMs({
         attempt,
         entry,
-        retryAfterSeconds: err instanceof OkoroError ? getRetryAfter?.(err) : undefined,
-        isNetwork: err instanceof OkoroNetworkError,
+        retryAfterSeconds: err instanceof CerniqError ? getRetryAfter?.(err) : undefined,
+        isNetwork: err instanceof CerniqNetworkError,
       });
       if (delayMs === null) throw err; // backoff says "do not retry"
       onRetry?.({ attempt, delayMs, error: err });
@@ -241,7 +251,11 @@ export function nextDelayMs(input: NextDelayInput): number | null {
   if (backoff === 'linear') return scheduleAt(LINEAR_SCHEDULE_MS, attempt);
   if (backoff === 'exponential') return jittered(scheduleAt(EXPONENTIAL_SCHEDULE_MS, attempt));
   // backoff is now narrowed to 'on_retry_after_header'.
-  if (retryAfterSeconds === undefined || !Number.isFinite(retryAfterSeconds) || retryAfterSeconds < 0) {
+  if (
+    retryAfterSeconds === undefined ||
+    !Number.isFinite(retryAfterSeconds) ||
+    retryAfterSeconds < 0
+  ) {
     // Server said "honor Retry-After" but didn't send one — fall back
     // to a conservative linear schedule so we don't hammer.
     return scheduleAt(LINEAR_SCHEDULE_MS, attempt);

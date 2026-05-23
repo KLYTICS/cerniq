@@ -54,10 +54,11 @@ export class Auth0Adapter implements IdpAdapter {
     if (!header.alg || !ALLOWED_ALGS.has(header.alg) || !header.kid) return null;
 
     // Issuer + audience check — these come from operator config.
-    const expectedIss = this.config.auth0Issuer; // e.g. https://okoro.us.auth0.com/
-    const expectedAud = this.config.auth0Audience; // e.g. https://api.okoro.dev
+    const expectedIss = this.config.auth0Issuer; // e.g. https://cerniq.us.auth0.com/
+    const expectedAud = this.config.auth0Audience; // e.g. https://api.cerniq.dev
     if (claims.iss !== expectedIss) return null;
-    if (Array.isArray(claims.aud) ? !claims.aud.includes(expectedAud) : claims.aud !== expectedAud) return null;
+    if (Array.isArray(claims.aud) ? !claims.aud.includes(expectedAud) : claims.aud !== expectedAud)
+      return null;
     if (typeof claims.exp !== 'number' || claims.exp * 1000 < Date.now()) return null;
 
     const jwk = await this.getJwk(header.kid);
@@ -67,10 +68,14 @@ export class Auth0Adapter implements IdpAdapter {
     // structurally, but lacks the `[index: string]: unknown` signature node:crypto
     // requires. The cast is safe — `createPublicKey` reads `kty/n/e` and ignores
     // the rest, and we've already validated `kty: 'RSA'` upstream.
-    const pubKey = createPublicKey({ key: jwk as unknown as import('node:crypto').JsonWebKey, format: 'jwk' });
+    const pubKey = createPublicKey({
+      key: jwk as unknown as import('node:crypto').JsonWebKey,
+      format: 'jwk',
+    });
     const data = Buffer.from(`${headerB64}.${payloadB64}`, 'utf8');
     const sig = Buffer.from(sigB64, 'base64url');
-    const algoOid = header.alg === 'RS512' ? 'RSA-SHA512' : header.alg === 'RS384' ? 'RSA-SHA384' : 'RSA-SHA256';
+    const algoOid =
+      header.alg === 'RS512' ? 'RSA-SHA512' : header.alg === 'RS384' ? 'RSA-SHA384' : 'RSA-SHA256';
     if (!verifyAsymmetric(algoOid, data, pubKey, sig)) return null;
 
     return {
@@ -82,13 +87,15 @@ export class Auth0Adapter implements IdpAdapter {
             ? claims.organization
             : '',
       idpDomain:
-        typeof claims['https://okoro.dev/domain'] === 'string'
-          ? claims['https://okoro.dev/domain']
+        typeof claims['https://cerniq.dev/domain'] === 'string'
+          ? claims['https://cerniq.dev/domain']
           : '',
       email: typeof claims.email === 'string' ? claims.email : '',
       emailVerified: Boolean(claims.email_verified),
       name: typeof claims.name === 'string' ? claims.name : null,
-      roles: Array.isArray(claims['https://okoro.dev/roles']) ? (claims['https://okoro.dev/roles'] as string[]) : [],
+      roles: Array.isArray(claims['https://cerniq.dev/roles'])
+        ? (claims['https://cerniq.dev/roles'] as string[])
+        : [],
       mfaSatisfied: Array.isArray(claims.amr) && (claims.amr as string[]).includes('mfa'),
       rawClaims: claims,
     };
@@ -109,7 +116,10 @@ export class Auth0Adapter implements IdpAdapter {
     });
     if (existing) return { principalId: existing.id, created: false };
 
-    const fingerprint = createHash('sha256').update(`auth0:${args.idpOrganizationId}`).digest('hex').slice(0, 12);
+    const fingerprint = createHash('sha256')
+      .update(`auth0:${args.idpOrganizationId}`)
+      .digest('hex')
+      .slice(0, 12);
     const principal = await this.prisma.principal.create({
       data: {
         id: `p_a0_${fingerprint}`,

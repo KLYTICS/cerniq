@@ -1,17 +1,17 @@
 {
-  "name": "@okoro/verifier-rp",
+  "name": "@cerniq/verifier-rp",
   "version": "0.1.0",
-  "description": "OKORO — relying-party offline verifier. Drop-in middleware for Express, Fastify, Hono, and edge runtimes.",
+  "description": "CERNIQ — relying-party offline verifier. Drop-in middleware for Express, Fastify, Hono, and edge runtimes.",
   "license": "MIT",
-  "author": "OKORO Labs <hello@okoroapp.com>",
-  "homepage": "https://okoroapp.com/verifier-rp",
+  "author": "CERNIQ Labs <hello@cerniqapp.com>",
+  "homepage": "https://cerniqapp.com/verifier-rp",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/klytics/okoro.git",
+    "url": "git+https://github.com/klytics/cerniq.git",
     "directory": "packages/verifier-rp"
   },
   "bugs": {
-    "url": "https://github.com/klytics/okoro/issues"
+    "url": "https://github.com/klytics/cerniq/issues"
   },
   "type": "module",
   "main": "dist/index.cjs",
@@ -91,7 +91,7 @@
     "node": ">=18"
   },
   "keywords": [
-    "okoro",
+    "cerniq",
     "agent",
     "verifier",
     "relying-party",

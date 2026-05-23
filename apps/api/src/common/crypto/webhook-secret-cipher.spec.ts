@@ -1,11 +1,13 @@
 import { randomBytes } from 'node:crypto';
 
 import type { AppConfigService } from '../../config/config.service';
-import { InternalError } from '../errors/okoro-error';
+import { InternalError } from '../errors/cerniq-error';
 
 import { WebhookSecretCipher } from './webhook-secret-cipher';
 
-function stubConfig(opts: { dekB64?: string; nodeEnv?: 'development' | 'production' | 'test' } = {}): AppConfigService {
+function stubConfig(
+  opts: { dekB64?: string; nodeEnv?: 'development' | 'production' | 'test' } = {},
+): AppConfigService {
   // type-rationale: we stub only the two fields WebhookSecretCipher reads.
   // A full AppConfigService would force exporting the Zod schema purely for
   // tests; this narrow shape keeps the spec close to the actual contract.
@@ -124,18 +126,22 @@ describe('WebhookSecretCipher', () => {
 
   describe('boot-time DEK handling', () => {
     it('throws in production when DEK is missing', () => {
-      expect(() => new WebhookSecretCipher(stubConfig({ nodeEnv: 'production' }))).toThrow(InternalError);
+      expect(() => new WebhookSecretCipher(stubConfig({ nodeEnv: 'production' }))).toThrow(
+        InternalError,
+      );
     });
 
     it('generates an ephemeral DEK and warns in development', () => {
       // eslint-disable-next-line @typescript-eslint/no-require-imports -- Late-bound to avoid jest mock hoisting interactions; static import causes the spy to wire up on the wrong prototype.
-      const warn = jest.spyOn(require('@nestjs/common').Logger.prototype, 'warn').mockImplementation(() => undefined);
+      const warn = jest
+        .spyOn(require('@nestjs/common').Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
       try {
         const cipher = new WebhookSecretCipher(stubConfig({ nodeEnv: 'development' }));
         expect(warn).toHaveBeenCalled();
         const msg = warn.mock.calls[0]?.[0];
         expect(typeof msg).toBe('string');
-        expect(msg).toContain('OKORO_WEBHOOK_SECRET_DEK_B64');
+        expect(msg).toContain('CERNIQ_WEBHOOK_SECRET_DEK_B64');
         // Sanity: the cipher with its ephemeral key still round-trips.
         expect(cipher.decrypt(cipher.encrypt('x'))).toBe('x');
       } finally {
@@ -145,7 +151,9 @@ describe('WebhookSecretCipher', () => {
 
     it('rejects a DEK that is not 32 bytes', () => {
       const shortDek = randomBytes(16).toString('base64');
-      expect(() => new WebhookSecretCipher(stubConfig({ dekB64: shortDek }))).toThrow(InternalError);
+      expect(() => new WebhookSecretCipher(stubConfig({ dekB64: shortDek }))).toThrow(
+        InternalError,
+      );
     });
   });
 });

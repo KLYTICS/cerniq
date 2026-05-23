@@ -1,5 +1,5 @@
 ---
-title: OKORO — Docs Site Design Prompts
+title: CERNIQ — Docs Site Design Prompts
 audience: design AI tools, contract designers, in-repo Cursor sessions
 last-reviewed: 2026-05-08
 prerequisites: read `docs/design/00_BRAND_FOUNDATION.md` first
@@ -8,17 +8,17 @@ prerequisites: read `docs/design/00_BRAND_FOUNDATION.md` first
 # 03 — Docs Site Prompts
 
 The docs site is where developers turn intent into code. Stripe and
-Cloudflare set the bar; OKORO aims for that bar from day one.
+Cloudflare set the bar; CERNIQ aims for that bar from day one.
 
-The docs subdomain (`docs.okoro.dev`) is a separate surface from
+The docs subdomain (`docs.cerniq.dev`) is a separate surface from
 marketing — different IA, different layout, different focus on
-density and search. It must, however, share the OKORO Brand Foundation
+density and search. It must, however, share the CERNIQ Brand Foundation
 exactly so the developer experience reads as one product.
 
 ## Information architecture
 
 ```
-docs.okoro.dev/
+docs.cerniq.dev/
 ├── /                          Landing — quickstart, popular pages, search front-and-center
 ├── /quickstart                10-minute path from zero to first verified call
 ├── /concepts/
@@ -28,10 +28,10 @@ docs.okoro.dev/
 │   ├── /audit                 The chain, canonicalization, integrity verification
 │   └── /denials               The 10 reasons in fixed order, with examples for each
 ├── /sdks/
-│   ├── /typescript            @okoro/sdk reference + cookbook
-│   ├── /python                okoro (PyPI) reference + cookbook
-│   ├── /go                    @okoro/go (post-launch)
-│   └── /rust                  @okoro/rust (post-launch)
+│   ├── /typescript            @cerniq/sdk reference + cookbook
+│   ├── /python                cerniq (PyPI) reference + cookbook
+│   ├── /go                    @cerniq/go (post-launch)
+│   └── /rust                  @cerniq/rust (post-launch)
 ├── /api/
 │   ├── /authentication        API key types, scopes, rotation
 │   ├── /agents                CRUD + signing key management
@@ -73,7 +73,7 @@ docs.okoro.dev/
   pages are partially generated from the OpenAPI spec.
 - **Search:** Algolia DocSearch (free for OSS docs).
 - **Code blocks:** Shiki for syntax highlighting. Custom transformer
-  applies the OKORO bold-italic on `okoro.\w+` and SDK-specific tokens.
+  applies the CERNIQ bold-italic on `cerniq.\w+` and SDK-specific tokens.
 - **API reference:** generated from `apps/api`'s OpenAPI export at build
   time. The `/api/*` pages are MDX wrappers around generated tables, not
   hand-written prose.
@@ -85,10 +85,10 @@ docs.okoro.dev/
 ### A.1 Docs landing page
 
 ```
-Build the docs.okoro.dev landing page. Stack: Next.js App Router +
+Build the docs.cerniq.dev landing page. Stack: Next.js App Router +
 Tailwind + shadcn/ui (or Nextra if the tool supports it).
 
-Follow the OKORO Brand Foundation v1 (slate neutrals + okoro-500 #06B6D4
+Follow the CERNIQ Brand Foundation v1 (slate neutrals + cerniq-500 #06B6D4
 brand, Inter + JetBrains Mono, Cloudflare/Auth0 visual lane, security-
 forward but developer-first, no gradients on text). Light mode default
 on docs (matches Stripe/Cloudflare convention); dark-mode toggle in
@@ -100,7 +100,7 @@ Layout:
   icon
 - Below header: a single-column hero, 480px tall, centered content,
   max-width 720px:
-  - Eyebrow "OKORO docs" (text-xs all-caps slate-500)
+  - Eyebrow "CERNIQ docs" (text-xs all-caps slate-500)
   - h1 "Verify your first agent in 10 minutes." (text-5xl tracking-tight)
   - Lede (text-lg slate-600): "Quickstart, full SDK + API references,
     and the integration patterns we recommend for production. Start
@@ -142,7 +142,7 @@ Build the canonical docs content page layout. Three columns on desktop
 Left col (240px, sticky-on-scroll, scroll-overflow-y):
 - Section header (e.g. "Concepts") — text-xs all-caps slate-500
 - Tree of pages with active highlighting; nested 2 levels max
-- Active item: okoro-500 left border 2px, slate-900 text, slate-50 bg
+- Active item: cerniq-500 left border 2px, slate-900 text, slate-50 bg
   (light mode)
 - Hover: slate-700 text, slate-100 bg
 
@@ -156,11 +156,11 @@ Center col (max-width 720px, flex-grow):
   · p (text-base slate-700, 24px line-height, max-width 64ch)
   · ul/ol (slate-700, 8px gap between items)
   · code (inline) — JetBrains Mono 14px, slate-100 bg, 4px x-padding,
-    okoro-700 text
+    cerniq-700 text
   · pre (code blocks) — see Brand Foundation §10 treatment, with
     language label header strip + copy button + the bold-italic on
-    OKORO-specific calls
-  · blockquote — left okoro-500 4px border, 16px padding, slate-50 bg
+    CERNIQ-specific calls
+  · blockquote — left cerniq-500 4px border, 16px padding, slate-50 bg
   · table — full width, slate-200 borders, header row text-xs all-caps
   · img — rounded-md, 1px slate-200 border
   · custom components: <Callout type="info|warn|danger">, <Steps>,
@@ -173,7 +173,7 @@ Center col (max-width 720px, flex-grow):
 
 Right col (240px, sticky):
 - "On this page" — auto-generated TOC of h2 + h3 headings
-- Active heading highlighted in okoro-500
+- Active heading highlighted in cerniq-500
 - Below TOC: "Last updated 3 days ago", "View on GitHub" link
 
 Mobile (<1024px): single column, left nav becomes a Sheet that slides
@@ -208,7 +208,7 @@ The page is two-pane on desktop ≥1280px:
 Structure (for example, /api/verify):
 
 1. Endpoint header strip:
-   - Method badge (POST in okoro-500 bg) + path "/v1/verify" in mono
+   - Method badge (POST in cerniq-500 bg) + path "/v1/verify" in mono
    - Right side: small "Try it" button that opens an in-page console
      (see below)
 2. h1 "Verify an agent action"
@@ -255,18 +255,18 @@ Layout: single column, max-width 720px, centered.
 
 Structure:
 1. h1 "Quickstart" with a "10 minutes" pill badge next to it
-2. Lede: "By the end of this guide, you'll have an OKORO agent
+2. Lede: "By the end of this guide, you'll have an CERNIQ agent
    identity, a policy, and a successful verify call."
 3. <Callout type="info"> Prerequisites: macOS or Linux, Node 20+ or
-   Python 3.11+, a free OKORO account.
+   Python 3.11+, a free CERNIQ account.
 4. <Tabs labels={['TypeScript','Python','curl']}>
    ...content varies per language tab; preserve the choice across the
    whole page.
 5. <Steps>
-   1. Install the CLI — `curl -fsSL https://get.okoro.dev/install.sh | sh`
+   1. Install the CLI — `curl -fsSL https://get.cerniq.dev/install.sh | sh`
       Below: a callout "Why a CLI?" with a one-paragraph rationale.
-   2. Authenticate — `okoro login --device-code`
-   3. Run okoro doctor — full expected output as a code block, with
+   2. Authenticate — `cerniq login --device-code`
+   3. Run cerniq doctor — full expected output as a code block, with
       annotations explaining what each line means.
    4. Register your first agent — code sample showing the SDK or curl
       call, plus the response.
@@ -275,12 +275,12 @@ Structure:
    6. Sign and verify — code sample showing client-side signing and
       the verify call.
 6. <Callout type="success">  "You did it. Your first audit event is
-   visible at https://app.okoro.dev/audit."
+   visible at https://app.cerniq.dev/audit."
 7. "Next steps" — 4 link cards: Concepts/Identity, Concepts/Policies,
    Guides/First-relying-party, API/Verify
 
 Every code block uses the Brand Foundation §10 treatment, with the
-OKORO-specific calls in bold-italic.
+CERNIQ-specific calls in bold-italic.
 
 Output the page MDX + any custom components needed.
 ```
@@ -292,9 +292,9 @@ Output the page MDX + any custom components needed.
 ### B.1 Docs site — three core templates
 
 ```
-Design the OKORO docs.okoro.dev site in Figma. Light mode default with
+Design the CERNIQ docs.cerniq.dev site in Figma. Light mode default with
 a designed dark-mode variant. Audience: developers; this is the most
-DX-critical surface in the entire OKORO system.
+DX-critical surface in the entire CERNIQ system.
 
 References (visual lane):
 - Stripe docs (search-first, code-rich, sober)
@@ -321,15 +321,15 @@ Beyond templates, design these specific screens:
   exists in v2 but not v1
 - Mobile sheet nav (left nav as bottom sheet)
 - Code-sample component in 4 states: default, copy-clicked (with
-  tooltip "Copied!"), language-tab switching, OKORO-call highlight
-  hover (tooltip explains "This is an OKORO-specific SDK call")
+  tooltip "Copied!"), language-tab switching, CERNIQ-call highlight
+  hover (tooltip explains "This is an CERNIQ-specific SDK call")
 
 Component library:
 - All custom MDX components above
 - Code-sample component with language label, filename, copy button,
-  line numbers (toggleable), OKORO-call highlight, light + dark
+  line numbers (toggleable), CERNIQ-call highlight, light + dark
 - Method badge (GET, POST, PUT, DELETE) with semantic-aligned colors:
-  · GET: okoro-500
+  · GET: cerniq-500
   · POST: emerald-500
   · PUT/PATCH: amber-500
   · DELETE: rose-500
@@ -344,10 +344,10 @@ variables.
 ## C. Designer brief (long-form)
 
 ```
-PROJECT: OKORO Docs Site v1 (docs.okoro.dev)
-CONTEXT: OKORO is a verification + attestation infrastructure for AI
+PROJECT: CERNIQ Docs Site v1 (docs.cerniq.dev)
+CONTEXT: CERNIQ is a verification + attestation infrastructure for AI
 agents. The docs site is the single most DX-critical surface — it
-converts "I read about OKORO" into "I shipped a verified call." We
+converts "I read about CERNIQ" into "I shipped a verified call." We
 benchmark against Stripe and Cloudflare.
 
 DELIVERABLES (v1 launch):
@@ -387,7 +387,7 @@ ANTI-REFERENCES:
 KEY VISUAL ANCHORS:
 1. Search box dominates the landing — bigger than any CTA.
 2. Code samples are the visual hero of every content page — the bold-
-   italic on OKORO-specific calls is the brand's typographic signature.
+   italic on CERNIQ-specific calls is the brand's typographic signature.
 3. The denial-precedence ladder reappears in /reference/denial-
    precedence and is the docs' security-narrative centerpiece.
 
@@ -407,7 +407,7 @@ PROCESS:
 - Week 4: empty/error states, polish, DEV-mode handoff.
 
 SUCCESS METRIC:
-A developer who has never used OKORO lands on /quickstart, gets to
+A developer who has never used CERNIQ lands on /quickstart, gets to
 a successful verify in <12 minutes, and rates the experience 9+/10
 in our 5-question post-quickstart survey.
 
@@ -425,20 +425,20 @@ PRIMARY POINT OF CONTACT: [fill in]
 Goal: scaffold the docs site at apps/docs using Nextra v3 on Next.js 16.
 
 Read first:
-- /Users/money/Desktop/OKORO/CLAUDE.md
-- /Users/money/Desktop/OKORO/docs/design/00_BRAND_FOUNDATION.md
-- /Users/money/Desktop/OKORO/docs/design/03_DOCS_SITE_PROMPTS.md
+- /Users/money/Desktop/CERNIQ/CLAUDE.md
+- /Users/money/Desktop/CERNIQ/docs/design/00_BRAND_FOUNDATION.md
+- /Users/money/Desktop/CERNIQ/docs/design/03_DOCS_SITE_PROMPTS.md
 
 Tasks:
-1. Create apps/docs/ as a pnpm workspace package, name "@okoro/docs".
+1. Create apps/docs/ as a pnpm workspace package, name "@cerniq/docs".
 2. Install Nextra v3 with the docs theme. Match Next 16 + React 19
    versions from apps/dashboard.
-3. Override the Nextra theme: replace its primary color with okoro-500
+3. Override the Nextra theme: replace its primary color with cerniq-500
    via theme.config.tsx; replace its fonts with Inter + JetBrains Mono;
    adjust the sidebar typography to match the Brand Foundation §5.
-4. Set up Shiki with a custom transformer that wraps `okoro.\w+`,
+4. Set up Shiki with a custom transformer that wraps `cerniq.\w+`,
    `agent.sign`, `agent.verify`, and the package import lines
-   (`from "@okoro/sdk"`) in <span class="okoro-call"> for the bold-
+   (`from "@cerniq/sdk"`) in <span class="cerniq-call"> for the bold-
    italic treatment. Add the CSS in app globals.
 5. Add Algolia DocSearch placeholders (env vars only — actual
    indexing is post-launch).
@@ -454,12 +454,12 @@ Tasks:
    denial-precedence — it is a public API contract.
 8. Build the API reference auto-generation:
    - Add scripts/build-api-ref.ts that reads
-     apps/api/openapi.json (run `pnpm --filter @okoro/api openapi:export`
+     apps/api/openapi.json (run `pnpm --filter @cerniq/api openapi:export`
      first if missing) and emits MDX files under
      apps/docs/content/api/ — one per endpoint.
    - Each emitted MDX uses ApiEndpoint, ApiTable, and a Tabs block
      with TypeScript / Python / curl examples.
-9. Run `pnpm --filter @okoro/docs dev` on port 3002 (3000 = dashboard,
+9. Run `pnpm --filter @cerniq/docs dev` on port 3002 (3000 = dashboard,
    3001 = marketing).
 10. Update WORK_BOARD.md and docs/SESSION_HANDOFF.md.
 
@@ -486,7 +486,7 @@ Tasks:
 1. The console renders a form built from the endpoint's request schema
    (passed in as a prop, derived from OpenAPI at build time).
 2. As the user edits the form, the right-side code sample updates in
-   3 languages (TypeScript using @okoro/sdk, Python using the okoro
+   3 languages (TypeScript using @cerniq/sdk, Python using the cerniq
    PyPI package, curl).
 3. The Run button calls the endpoint with the user's session API key
    if they're logged in to docs (we'll integrate with a future docs
@@ -522,7 +522,7 @@ Tasks:
 3. The modal styling must match the Brand Foundation, not Algolia's
    default. Override via the @docsearch/react custom-theming hooks.
 4. Results display: section name (text-xs all-caps), title, snippet
-   with matched query highlighted in okoro-500.
+   with matched query highlighted in cerniq-500.
 5. Recent searches and starred pages are stored in localStorage.
 6. Empty state: "No results — try a less specific query, or open
    /sitemap to browse all pages." with a link.
@@ -579,6 +579,6 @@ right buckets. Run the flavors in this order:
 3. Engineering wires search (D.3) and the API console (D.2) in week 2.
 4. Content team ports existing /docs/ into MDX (D.4, weeks 2–3).
 5. AI UI prompts (A) are not the right path for docs at all — they
-   produce one-off pages, but docs is a *system* of pages governed
+   produce one-off pages, but docs is a _system_ of pages governed
    by templates. Skip A entirely for docs unless prototyping a new
    custom component.

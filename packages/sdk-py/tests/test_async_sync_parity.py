@@ -6,7 +6,7 @@ from typing import Any
 
 import respx
 
-from okoro import Okoro, AsyncOkoro
+from cerniq import Cerniq, AsyncCerniq
 
 
 def test_sync_agents_get_matches_async(
@@ -14,7 +14,7 @@ def test_sync_agents_get_matches_async(
 ) -> None:
     with respx.mock(base_url=base_url, assert_all_called=False) as router:
         router.get("/agents/agt_x").respond(200, json=sample_agent_record)
-        with Okoro(api_key=api_key, base_url=base_url) as sync_client:
+        with Cerniq(api_key=api_key, base_url=base_url) as sync_client:
             sync_agent = sync_client.agents.get("agt_x")
 
     assert sync_agent.agent_id == sample_agent_record["agentId"]
@@ -38,13 +38,13 @@ def test_sync_and_async_produce_same_dump(
 
     with respx.mock(base_url=base_url, assert_all_called=False) as router:
         router.get("/agents/agt_x").respond(200, json=sample_agent_record)
-        with Okoro(api_key=api_key, base_url=base_url) as sync_client:
+        with Cerniq(api_key=api_key, base_url=base_url) as sync_client:
             sync_dump = sync_client.agents.get("agt_x").model_dump(by_alias=True, mode="json")
 
     async def _async_path() -> dict[str, Any]:
         async with respx.mock(base_url=base_url, assert_all_called=False) as router:
             router.get("/agents/agt_x").respond(200, json=sample_agent_record)
-            async with AsyncOkoro(api_key=api_key, base_url=base_url) as async_client:
+            async with AsyncCerniq(api_key=api_key, base_url=base_url) as async_client:
                 rec = await async_client.agents.get("agt_x")
                 return rec.model_dump(by_alias=True, mode="json")
 
@@ -68,7 +68,7 @@ def test_sync_verify(api_key: str, verify_key: str, base_url: str) -> None:
     }
     with respx.mock(base_url=base_url, assert_all_called=False) as router:
         router.post("/verify").respond(200, json=body)
-        with Okoro(
+        with Cerniq(
             api_key=api_key, verify_key=verify_key, base_url=base_url
         ) as client:
             res = client.verify("eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.x.y", action="commerce.purchase")

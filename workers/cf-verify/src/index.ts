@@ -1,4 +1,4 @@
-// OKORO verify hot path — Cloudflare Worker (Phase 3).
+// CERNIQ verify hot path — Cloudflare Worker (Phase 3).
 //
 // Status: SCAFFOLD ONLY. Do not deploy until Phase 3 is unlocked.
 //
@@ -16,21 +16,27 @@
 // propagates to the edge in <60s by KV TTL — and immediately by the origin
 // fallback when KV is stale and the agent is revoked.
 
-import type { VerifyRequest, VerifyResponse } from '@okoro/types';
+import type { VerifyRequest, VerifyResponse } from '@cerniq/types';
 
 import { edgeVerify } from './edge-verify';
 import { makeKvCache } from './kv-cache';
-import { shadowMode, compareVerifyResponses, divergenceHeader, recordDivergence, type AnalyticsEngineLike } from './shadow';
+import {
+  shadowMode,
+  compareVerifyResponses,
+  divergenceHeader,
+  recordDivergence,
+  type AnalyticsEngineLike,
+} from './shadow';
 
 interface Env {
   TRUST_KV: KVNamespace;
-  OKORO_ORIGIN_URL: string;
-  OKORO_VERIFY_TIMEOUT_MS: string;
-  OKORO_FALLBACK_API_KEY: string;
+  CERNIQ_ORIGIN_URL: string;
+  CERNIQ_VERIFY_TIMEOUT_MS: string;
+  CERNIQ_FALLBACK_API_KEY: string;
   /** Set "true" to enable the KV-cache edge verify (Phase 3 m2). Defaults off. */
-  OKORO_EDGE_VERIFY_ENABLED?: string;
+  CERNIQ_EDGE_VERIFY_ENABLED?: string;
   /** Set "true" to enable shadow comparison without serving edge results. */
-  OKORO_EDGE_VERIFY_SHADOW_MODE?: string;
+  CERNIQ_EDGE_VERIFY_SHADOW_MODE?: string;
   RATE_LIMITER: DurableObjectNamespace;
   /** Optional Workers Analytics Engine binding for divergence telemetry. */
   CF_VERIFY_DIVERGENCE?: AnalyticsEngineLike;
@@ -62,9 +68,12 @@ export default {
 
     let body: VerifyRequest;
     try {
-      body = (await req.json());
+      body = await req.json();
     } catch {
-      return Response.json({ error: 'INVALID_REQUEST', message: 'Body must be JSON.' }, { status: 400 });
+      return Response.json(
+        { error: 'INVALID_REQUEST', message: 'Body must be JSON.' },
+        { status: 400 },
+      );
     }
 
     // Phase 3 milestone 2 — three-mode rollout: off / shadow / live.
@@ -78,7 +87,7 @@ export default {
           status: 200,
           headers: {
             'Content-Type': 'application/json',
-            'X-OKORO-Edge': result.response.valid ? 'edge-allow' : 'edge-deny',
+            'X-CERNIQ-Edge': result.response.valid ? 'edge-allow' : 'edge-deny',
           },
         });
       }
@@ -96,17 +105,21 @@ export default {
       // Don't try to read origin body twice — clone for parsing, return original.
       let originParsed: VerifyResponse | null = null;
       try {
-        originParsed = (await originResp.clone().json());
+        originParsed = await originResp.clone().json();
       } catch {
         originParsed = null;
       }
       let header = 'agree';
       if (edgeResult.outcome === 'forward' || !edgeResult.response) {
         header = divergenceHeader({ edgeForwarded: true });
-        recordDivergence(env.CF_VERIFY_DIVERGENCE, { edgeForwarded: true }, {
-          agentId: originParsed?.agentId ?? null,
-          denialReason: originParsed?.denialReason ?? null,
-        });
+        recordDivergence(
+          env.CF_VERIFY_DIVERGENCE,
+          { edgeForwarded: true },
+          {
+            agentId: originParsed?.agentId ?? null,
+            denialReason: originParsed?.denialReason ?? null,
+          },
+        );
       } else if (originParsed) {
         const report = compareVerifyResponses(edgeResult.response, originParsed);
         header = divergenceHeader(report);
@@ -117,8 +130,8 @@ export default {
       }
       // Reconstruct response so we can append headers cleanly.
       const headers = new Headers(originResp.headers);
-      headers.set('X-OKORO-Edge-Divergence', header);
-      headers.set('X-OKORO-Edge', 'shadow');
+      headers.set('X-CERNIQ-Edge-Divergence', header);
+      headers.set('X-CERNIQ-Edge', 'shadow');
       return new Response(originResp.body, { status: originResp.status, headers });
     }
 
@@ -127,32 +140,44 @@ export default {
   },
 };
 
-async function forwardToOrigin(env: Env, body: VerifyRequest, ctx: ExecutionContext): Promise<Response> {
-  const url = `${env.OKORO_ORIGIN_URL.replace(/\/+$/, '')}/v1/verify`;
-  const timeoutMs = parseInt(env.OKORO_VERIFY_TIMEOUT_MS, 10);
+async function forwardToOrigin(
+  env: Env,
+  body: VerifyRequest,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  const url = `${env.CERNIQ_ORIGIN_URL.replace(/\/+$/, '')}/v1/verify`;
+  const timeoutMs = parseInt(env.CERNIQ_VERIFY_TIMEOUT_MS, 10);
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => { controller.abort(); }, Number.isFinite(timeoutMs) ? timeoutMs : 1500);
+  const timeoutId = setTimeout(
+    () => {
+      controller.abort();
+    },
+    Number.isFinite(timeoutMs) ? timeoutMs : 1500,
+  );
 
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-OKORO-Verify-Key': env.OKORO_FALLBACK_API_KEY,
-        'X-OKORO-Edge-Forward': '1',
+        'X-CERNIQ-Verify-Key': env.CERNIQ_FALLBACK_API_KEY,
+        'X-CERNIQ-Edge-Forward': '1',
       },
       body: JSON.stringify(body),
       signal: controller.signal,
     });
     return new Response(await res.text(), {
       status: res.status,
-      headers: { 'Content-Type': 'application/json', 'X-OKORO-Edge': 'forward' },
+      headers: { 'Content-Type': 'application/json', 'X-CERNIQ-Edge': 'forward' },
     });
   } catch (err) {
     ctx.waitUntil(Promise.resolve()); // suppress unused-arg warning
-     
+
     console.error('cf-verify origin fallback failed:', (err as Error).message);
-    return Response.json({ ...NOT_IMPLEMENTED, denialReason: 'AGENT_NOT_FOUND' as const }, { status: 503 });
+    return Response.json(
+      { ...NOT_IMPLEMENTED, denialReason: 'AGENT_NOT_FOUND' as const },
+      { status: 503 },
+    );
   } finally {
     clearTimeout(timeoutId);
   }

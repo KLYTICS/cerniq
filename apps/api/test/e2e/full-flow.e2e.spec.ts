@@ -53,10 +53,10 @@ describe('e2e: full transaction flow', () => {
     await handle.close();
   });
 
-  test('1. principal + API key issued (key starts with okoro_sk_)', async () => {
+  test('1. principal + API key issued (key starts with cerniq_sk_)', async () => {
     const config = app.get(AppConfigService);
     principal = await seedPrincipalAndApiKey(handle.prisma, config);
-    expect(principal.apiKey.startsWith('okoro_sk_')).toBe(true);
+    expect(principal.apiKey.startsWith('cerniq_sk_')).toBe(true);
     expect(principal.principalId).toMatch(/^[a-z0-9]+$/i);
   });
 
@@ -71,7 +71,7 @@ describe('e2e: full transaction flow', () => {
 
     const res = await http
       .get(`/v1/agents/${agent.agentId}`)
-      .set('X-OKORO-API-Key', principal.apiKey);
+      .set('X-CERNIQ-API-Key', principal.apiKey);
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('ACTIVE');
@@ -94,7 +94,10 @@ describe('e2e: full transaction flow', () => {
 
     const parts = policy.signedToken.split('.');
     expect(parts).toHaveLength(3);
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) as Record<string, unknown>;
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) as Record<
+      string,
+      unknown
+    >;
     expect(payload.sub).toBe(agent.agentId);
     expect(payload.pid).toBe(policy.policyId);
   });
@@ -122,16 +125,13 @@ describe('e2e: full transaction flow', () => {
     });
 
     const token = (agent as unknown as { _token: string })._token;
-    const res = await http
-      .post('/v1/verify')
-      .set('X-OKORO-Verify-Key', verifyKey.apiKey)
-      .send({
-        token,
-        action: 'commerce.purchase',
-        amount: 50,
-        currency: 'USD',
-        merchantDomain: 'merchant.example.com',
-      });
+    const res = await http.post('/v1/verify').set('X-CERNIQ-Verify-Key', verifyKey.apiKey).send({
+      token,
+      action: 'commerce.purchase',
+      amount: 50,
+      currency: 'USD',
+      merchantDomain: 'merchant.example.com',
+    });
 
     expect(res.status).toBe(201);
     expect(res.body.valid).toBe(true);
@@ -147,7 +147,7 @@ describe('e2e: full transaction flow', () => {
     for (let i = 0; i < 10; i += 1) {
       const res = await http
         .get(`/v1/agents/${agent.agentId}/audit`)
-        .set('X-OKORO-API-Key', principal.apiKey);
+        .set('X-CERNIQ-API-Key', principal.apiKey);
       expect(res.status).toBe(200);
       count = res.body.count;
       approved = res.body.events.find((e: { decision: string }) => e.decision === 'APPROVED');
@@ -162,7 +162,7 @@ describe('e2e: full transaction flow', () => {
   test('7. relying-party-style report (self-report false_positive) → 202', async () => {
     const res = await http
       .post(`/v1/agents/${agent.agentId}/report`)
-      .set('X-OKORO-API-Key', principal.apiKey)
+      .set('X-CERNIQ-API-Key', principal.apiKey)
       .send({
         eventType: 'false_positive',
         severity: 'low',
@@ -180,7 +180,7 @@ describe('e2e: full transaction flow', () => {
     for (let i = 0; i < 25; i += 1) {
       const res = await http
         .get(`/v1/agents/${agent.agentId}`)
-        .set('X-OKORO-API-Key', principal.apiKey);
+        .set('X-CERNIQ-API-Key', principal.apiKey);
       expect(res.status).toBe(200);
       final = { trustScore: res.body.trustScore, lastSeenAt: res.body.lastSeenAt };
       if (final.lastSeenAt || final.trustScore !== initialTrustScore) break;
@@ -196,14 +196,14 @@ describe('e2e: full transaction flow', () => {
   test('9. audit chain extended after report+verify cycle', async () => {
     const res = await http
       .get(`/v1/agents/${agent.agentId}/audit`)
-      .set('X-OKORO-API-Key', principal.apiKey);
+      .set('X-CERNIQ-API-Key', principal.apiKey);
     expect(res.status).toBe(200);
     expect(res.body.count).toBeGreaterThanOrEqual(firstAuditCount);
   });
 
-  test('10. audit chain integrity verifies under OKORO public key', async () => {
+  test('10. audit chain integrity verifies under CERNIQ public key', async () => {
     // Audit chain is signed with the AuditService's key (may be a separate
-    // ephemeral key in dev — distinct from the OKORO_SIGNING_PUBLIC_KEY at
+    // ephemeral key in dev — distinct from the CERNIQ_SIGNING_PUBLIC_KEY at
     // /.well-known). Pull the public half from the service directly so we
     // verify the same key that signed.
     const auditSvc = app.get(AuditService);
@@ -237,12 +237,12 @@ describe('e2e: full transaction flow', () => {
       };
       const ok = await chain.verify(
         { eventId: e.id, prevEventId: prevId, prevSignatureB64Url: prevSig, payload },
-        e.okoroSignature,
+        e.cerniqSignature,
         publicKeyB64,
       );
       expect(ok).toBe(true);
       prevId = e.id;
-      prevSig = e.okoroSignature;
+      prevSig = e.cerniqSignature;
     }
   });
 });

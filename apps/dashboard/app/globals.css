@@ -1,4 +1,4 @@
-/* OKORO dashboard — Bloomberg-density base. Phase 1 is intentionally austere;
+/* CERNIQ dashboard — Bloomberg-density base. Phase 1 is intentionally austere;
    no card grids, no pastel chrome. Data-first. */
 
 :root {
@@ -30,7 +30,7 @@ a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 code, .mono { font-family: var(--mono); }
 
-.okoro-header {
+.cerniq-header {
   display: flex;
   align-items: center;
   gap: 24px;
@@ -40,15 +40,15 @@ code, .mono { font-family: var(--mono); }
   position: sticky;
   top: 0;
 }
-.okoro-logo {
+.cerniq-logo {
   font-family: var(--mono);
   font-weight: 700;
   letter-spacing: 0.18em;
   color: var(--accent);
 }
-.okoro-header nav { display: flex; gap: 18px; }
-.okoro-header nav a { color: var(--text-dim); }
-.okoro-header nav a:hover { color: var(--text); text-decoration: none; }
+.cerniq-header nav { display: flex; gap: 18px; }
+.cerniq-header nav a { color: var(--text-dim); }
+.cerniq-header nav a:hover { color: var(--text); text-decoration: none; }
 
 main { padding: 24px; max-width: 1280px; margin: 0 auto; }
 
@@ -100,9 +100,9 @@ h2 { font-size: 14px; margin: 24px 0 8px; color: var(--text-dim); text-transform
 ul { padding-left: 18px; }
 
 /* ── MCP page (M-028) — Bloomberg-density additions ──────────────── */
-.okoro-page-header { margin-bottom: 16px; }
-.okoro-page-header h1 { margin: 0 0 4px; font-size: 18px; font-weight: 500; }
-.okoro-page-header p { margin: 0; }
+.cerniq-page-header { margin-bottom: 16px; }
+.cerniq-page-header h1 { margin: 0 0 4px; font-size: 18px; font-weight: 500; }
+.cerniq-page-header p { margin: 0; }
 
 .metric-strip dt { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
 .metric-strip dd { font-family: var(--mono); font-size: 22px; font-weight: 500; margin: 0; }
@@ -126,9 +126,9 @@ ul { padding-left: 18px; }
 .data-empty.error { border-color: #5a2222; color: #e15555; }
 
 /* ── G-5 dashboard surface — forms, buttons, panels ───────────────── */
-.okoro-page-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.cerniq-page-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 
-.okoro-button, .okoro-button-ghost {
+.cerniq-button, .cerniq-button-ghost {
   display: inline-block;
   padding: 6px 12px;
   font-family: var(--mono);
@@ -141,26 +141,26 @@ ul { padding-left: 18px; }
   text-decoration: none;
   border-radius: 2px;
 }
-.okoro-button:hover { background: rgba(110, 231, 255, 0.08); text-decoration: none; }
-.okoro-button:disabled { opacity: 0.5; cursor: not-allowed; }
-.okoro-button-ghost {
+.cerniq-button:hover { background: rgba(110, 231, 255, 0.08); text-decoration: none; }
+.cerniq-button:disabled { opacity: 0.5; cursor: not-allowed; }
+.cerniq-button-ghost {
   border-color: var(--border);
   color: var(--text-dim);
 }
-.okoro-button-ghost:hover { color: var(--text); border-color: var(--text-dim); background: var(--bg-elev); }
+.cerniq-button-ghost:hover { color: var(--text); border-color: var(--text-dim); background: var(--bg-elev); }
 
-.okoro-panel {
+.cerniq-panel {
   border: 1px solid var(--border);
   background: var(--bg-elev);
   padding: 16px 20px;
   margin: 16px 0 24px;
   max-width: 640px;
 }
-.okoro-panel-title { font-size: 14px; margin: 0 0 4px; font-weight: 600; color: var(--text); text-transform: none; letter-spacing: 0; }
-.okoro-panel .field { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
-.okoro-panel .field span { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
-.okoro-panel .field input,
-.okoro-panel .field select {
+.cerniq-panel-title { font-size: 14px; margin: 0 0 4px; font-weight: 600; color: var(--text); text-transform: none; letter-spacing: 0; }
+.cerniq-panel .field { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
+.cerniq-panel .field span { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+.cerniq-panel .field input,
+.cerniq-panel .field select {
   padding: 6px 8px;
   font-family: var(--mono);
   font-size: 12px;
@@ -169,8 +169,8 @@ ul { padding-left: 18px; }
   color: var(--text);
   border-radius: 2px;
 }
-.okoro-panel .field input:focus,
-.okoro-panel .field select:focus { outline: 1px solid var(--accent); outline-offset: 0; }
+.cerniq-panel .field input:focus,
+.cerniq-panel .field select:focus { outline: 1px solid var(--accent); outline-offset: 0; }
 .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
 .form-error { color: var(--danger); font-size: 12px; margin-top: 12px; }
 .form-warning { color: var(--warn); font-size: 12px; margin: 8px 0; }
@@ -260,8 +260,8 @@ ul { padding-left: 18px; }
   outline-offset: 1px;
   border-radius: 2px;
 }
-.okoro-button:focus-visible,
-.okoro-button-ghost:focus-visible,
+.cerniq-button:focus-visible,
+.cerniq-button-ghost:focus-visible,
 .mini-btn:focus-visible,
 .kbd-trigger:focus-visible {
   box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
@@ -286,20 +286,20 @@ body {
 .mono, code { letter-spacing: -0.005em; }
 
 /* ── Header — responsive collapse + Cmd-K trigger ──────────────────── */
-.okoro-header {
+.cerniq-header {
   z-index: 40;
   backdrop-filter: blur(8px);
   background: color-mix(in srgb, var(--bg-elev) 85%, transparent);
 }
-.okoro-header-spacer { flex: 1; }
-.okoro-header nav a {
+.cerniq-header-spacer { flex: 1; }
+.cerniq-header nav a {
   padding: 6px 8px;
   border-radius: 2px;
   position: relative;
   transition: color 0.12s ease, background 0.12s ease;
 }
-.okoro-header nav a[data-active='true'] { color: var(--text); }
-.okoro-header nav a[data-active='true']::after {
+.cerniq-header nav a[data-active='true'] { color: var(--text); }
+.cerniq-header nav a[data-active='true']::after {
   content: '';
   position: absolute;
   inset: auto 8px -13px 8px;
@@ -343,9 +343,9 @@ body {
 .status-dot-crit  { background: var(--danger); color: var(--danger); }
 .status-dot-muted { background: var(--text-dim); color: var(--text-dim); }
 .status-dot-pulse {
-  animation: okoro-pulse 1.6s ease-in-out infinite;
+  animation: cerniq-pulse 1.6s ease-in-out infinite;
 }
-@keyframes okoro-pulse {
+@keyframes cerniq-pulse {
   0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 14%, transparent); }
   50%      { box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 22%, transparent); }
 }
@@ -414,7 +414,7 @@ body {
   align-items: flex-start;
   justify-content: center;
   padding-top: 12vh;
-  animation: okoro-fade 0.12s ease-out;
+  animation: cerniq-fade 0.12s ease-out;
 }
 .cmdk-shell {
   width: min(640px, calc(100vw - 32px));
@@ -423,7 +423,7 @@ body {
   border-radius: 6px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(110, 231, 255, 0.08);
   overflow: hidden;
-  animation: okoro-pop 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: cerniq-pop 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .cmdk-input {
   width: 100%;
@@ -514,7 +514,7 @@ body {
   font-size: 12px;
   color: var(--text);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  animation: okoro-toast-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: cerniq-toast-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .toast[data-tone='ok']   { border-left-color: var(--ok); }
 .toast[data-tone='warn'] { border-left-color: var(--warn); }
@@ -532,7 +532,7 @@ body {
   line-height: 1;
 }
 .toast .toast-close:hover { color: var(--text); }
-.toast[data-leaving='true'] { animation: okoro-toast-out 0.16s ease-in forwards; }
+.toast[data-leaving='true'] { animation: cerniq-toast-out 0.16s ease-in forwards; }
 
 /* ── Skeleton loader ───────────────────────────────────────────────── */
 .skeleton {
@@ -544,7 +544,7 @@ body {
     var(--border) 100%
   );
   background-size: 200% 100%;
-  animation: okoro-shimmer 1.4s ease-in-out infinite;
+  animation: cerniq-shimmer 1.4s ease-in-out infinite;
   border-radius: 2px;
   height: 12px;
   vertical-align: middle;
@@ -561,7 +561,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: okoro-fade 0.12s ease-out;
+  animation: cerniq-fade 0.12s ease-out;
   padding: 24px;
 }
 .help-shell {
@@ -570,7 +570,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 20px 22px;
-  animation: okoro-pop 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: cerniq-pop 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .help-shell h2 { margin-top: 0; color: var(--text); }
 .help-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; font-size: 12px; }
@@ -580,22 +580,22 @@ body {
 .help-shell .muted { font-size: 11px; margin-top: 12px; }
 
 /* ── Animations + reduced motion ───────────────────────────────────── */
-@keyframes okoro-fade {
+@keyframes cerniq-fade {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-@keyframes okoro-pop {
+@keyframes cerniq-pop {
   from { opacity: 0; transform: translateY(-4px) scale(0.985); }
   to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
-@keyframes okoro-toast-in {
+@keyframes cerniq-toast-in {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-@keyframes okoro-toast-out {
+@keyframes cerniq-toast-out {
   to { opacity: 0; transform: translateY(8px); }
 }
-@keyframes okoro-shimmer {
+@keyframes cerniq-shimmer {
   0%   { background-position: 100% 0; }
   100% { background-position: -100% 0; }
 }
@@ -617,15 +617,15 @@ body {
   .metric-strip { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 720px) {
-  .okoro-header { padding: 10px 14px; gap: 12px; flex-wrap: wrap; }
-  .okoro-header nav { gap: 8px; flex-wrap: wrap; }
-  .okoro-header nav a { padding: 4px 6px; font-size: 12px; }
+  .cerniq-header { padding: 10px 14px; gap: 12px; flex-wrap: wrap; }
+  .cerniq-header nav { gap: 8px; flex-wrap: wrap; }
+  .cerniq-header nav a { padding: 4px 6px; font-size: 12px; }
   .kbd-trigger { display: none; }
   main { padding: 12px; }
   h1 { font-size: 18px; }
   .metric-strip { grid-template-columns: repeat(2, 1fr); }
   .metric-value, .metric-strip dd { font-size: 18px; }
-  .okoro-page-header-row { flex-direction: column; align-items: stretch; }
+  .cerniq-page-header-row { flex-direction: column; align-items: stretch; }
   .data-table { font-size: 11px; }
   .data-table th, .data-table td { padding: 6px 8px; }
   /* Horizontal scroll for wide tables on phones — keep density rather than truncate. */
@@ -646,7 +646,7 @@ body {
   justify-content: space-between;
   gap: 16px;
 }
-.handshake-panel-head .okoro-panel-title { margin: 0; }
+.handshake-panel-head .cerniq-panel-title { margin: 0; }
 .handshake-paths {
   display: grid;
   gap: 12px;

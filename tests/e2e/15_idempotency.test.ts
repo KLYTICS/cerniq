@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import type { Okoro } from '@okoro/sdk';
+import type { Cerniq } from '@cerniq/sdk';
 import { RawClient, makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, futureIso } from './_support/fixtures';
 
@@ -13,7 +13,7 @@ import { SCOPES, createAgent, futureIso } from './_support/fixtures';
  * cleanest "creates a row" endpoint with a deterministic response shape.
  */
 describe('15 · idempotency', () => {
-  let sdk: Okoro;
+  let sdk: Cerniq;
   let raw: RawClient;
   const cleanup: string[] = [];
 
@@ -66,10 +66,15 @@ describe('15 · idempotency', () => {
       { idempotencyKey: key },
     );
 
-    if (second.status === 409 && (second.body as { error?: string }).error === 'IDEMPOTENCY_CONFLICT') {
+    if (
+      second.status === 409 &&
+      (second.body as { error?: string }).error === 'IDEMPOTENCY_CONFLICT'
+    ) {
       // Conflict means the *body* differs from the first — should not happen
       // here. Surface as failure.
-      throw new Error('IDEMPOTENCY_CONFLICT on identical body — server-side body comparison is wrong.');
+      throw new Error(
+        'IDEMPOTENCY_CONFLICT on identical body — server-side body comparison is wrong.',
+      );
     }
 
     expect([200, 201]).toContain(second.status);

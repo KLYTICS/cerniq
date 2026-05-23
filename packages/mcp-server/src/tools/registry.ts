@@ -1,18 +1,18 @@
-// Tool registry — every OKORO-as-MCP tool is registered here. The names
+// Tool registry — every CERNIQ-as-MCP tool is registered here. The names
 // are the public API of this package (ADR-0008 §2). They MAY NOT be
-// renamed without an ADR + minor version bump on the OKORO API spec.
+// renamed without an ADR + minor version bump on the CERNIQ API spec.
 
 export const TOOL_NAMES = [
-  'okoro.verify',
-  'okoro.agents.create',
-  'okoro.agents.get',
-  'okoro.agents.list',
-  'okoro.agents.revoke',
-  'okoro.policies.create',
-  'okoro.policies.get',
-  'okoro.policies.list',
-  'okoro.policies.revoke',
-  'okoro.audit.search',
+  'cerniq.verify',
+  'cerniq.agents.create',
+  'cerniq.agents.get',
+  'cerniq.agents.list',
+  'cerniq.agents.revoke',
+  'cerniq.policies.create',
+  'cerniq.policies.get',
+  'cerniq.policies.list',
+  'cerniq.policies.revoke',
+  'cerniq.audit.search',
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];

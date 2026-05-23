@@ -1,22 +1,22 @@
 # KMS module
 
-Implements ADR-0011: every cryptographically signed record in OKORO
+Implements ADR-0011: every cryptographically signed record in CERNIQ
 (audit events, policy JWTs, webhook bodies) flows through a `KmsAdapter`.
 Adapters never expose private key material — all signing happens
 through `sign(msg)`.
 
 ## Adapters
 
-| Adapter | Pattern | Sign latency | When to pick |
-|---|---|---|---|
-| `InMemoryKmsAdapter` | env-held keypair | ~50 µs | dev, single-region prod, OSS distros |
-| `AwsKmsAdapter` | envelope encryption | ~50 µs (post-unwrap) | AWS-native deployments until KMS GAs `EDDSA` |
-| `GcpKmsAdapter` | native `EC_SIGN_ED25519` | ~10–20 ms | GCP-native; HSM-backed |
-| `VaultTransitAdapter` | native `transit/sign ed25519` | ~5–15 ms | self-hosted / sovereign |
+| Adapter               | Pattern                       | Sign latency         | When to pick                                 |
+| --------------------- | ----------------------------- | -------------------- | -------------------------------------------- |
+| `InMemoryKmsAdapter`  | env-held keypair              | ~50 µs               | dev, single-region prod, OSS distros         |
+| `AwsKmsAdapter`       | envelope encryption           | ~50 µs (post-unwrap) | AWS-native deployments until KMS GAs `EDDSA` |
+| `GcpKmsAdapter`       | native `EC_SIGN_ED25519`      | ~10–20 ms            | GCP-native; HSM-backed                       |
+| `VaultTransitAdapter` | native `transit/sign ed25519` | ~5–15 ms             | self-hosted / sovereign                      |
 
 ## Selection
 
-`OKORO_KMS_PROVIDER` env: `in-memory` (default) | `aws` | `gcp` | `vault`.
+`CERNIQ_KMS_PROVIDER` env: `in-memory` (default) | `aws` | `gcp` | `vault`.
 
 The cloud-adapter wiring (which SDK client to construct, which keys to
 register) is intentionally NOT in `kms.module.ts` — it lives in

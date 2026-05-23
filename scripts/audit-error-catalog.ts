@@ -14,7 +14,7 @@
  * NOTE: We deliberately whitelist NestJS-native HttpException subclasses
  * (NotFoundException, ForbiddenException, etc.) — they are framework-issued
  * and the global filter handles them generically. The audit only enforces
- * coverage for OKORO-owned `*Error` classes.
+ * coverage for CERNIQ-owned `*Error` classes.
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -38,7 +38,15 @@ interface ErrorCatalogEntry {
   retryable: boolean;
   backoff?: 'none' | 'linear' | 'exponential' | 'on_retry_after_header';
   customerMessage: string;
-  category: 'auth' | 'validation' | 'policy' | 'rate_limit' | 'billing' | 'crypto' | 'transient' | 'internal';
+  category:
+    | 'auth'
+    | 'validation'
+    | 'policy'
+    | 'rate_limit'
+    | 'billing'
+    | 'crypto'
+    | 'transient'
+    | 'internal';
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -127,7 +135,9 @@ async function loadCatalog(): Promise<Readonly<Record<string, ErrorCatalogEntry>
   // without `allowImportingTsExtensions`, while tsx still resolves the
   // .ts source on disk at run-time.
   const specifier = '../apps/api/src/common/errors/error-catalog.ts';
-  const mod = (await import(specifier)) as { ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> };
+  const mod = (await import(specifier)) as {
+    ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>>;
+  };
   return mod.ERROR_CATALOG;
 }
 
@@ -162,7 +172,9 @@ async function main(): Promise<number> {
         ).padEnd(5)} category=${entry.category}\n`,
       );
     }
-    process.stdout.write(`\n=== Thrown classes found in apps/api/src (${thrownClassNames.size}) ===\n`);
+    process.stdout.write(
+      `\n=== Thrown classes found in apps/api/src (${thrownClassNames.size}) ===\n`,
+    );
     for (const name of [...thrownClassNames].sort()) {
       const tag = cataloged.has(name)
         ? 'CATALOG'
@@ -183,7 +195,9 @@ async function main(): Promise<number> {
     process.stderr.write('Uncataloged error classes thrown in apps/api/src:\n');
     for (const name of uncataloged.sort()) {
       const sample = findings.find((f) => f.className === name);
-      const where = sample ? `${sample.file.replace(REPO_ROOT + '/', '')}:${sample.line}` : '(unknown)';
+      const where = sample
+        ? `${sample.file.replace(REPO_ROOT + '/', '')}:${sample.line}`
+        : '(unknown)';
       process.stderr.write(`  - ${name}  (first seen at ${where})\n`);
     }
     process.stderr.write(
@@ -201,7 +215,9 @@ async function main(): Promise<number> {
 main().then(
   (code) => process.exit(code),
   (err) => {
-    process.stderr.write(`audit-error-catalog: fatal: ${err instanceof Error ? err.message : String(err)}\n`);
+    process.stderr.write(
+      `audit-error-catalog: fatal: ${err instanceof Error ? err.message : String(err)}\n`,
+    );
     process.exit(2);
   },
 );

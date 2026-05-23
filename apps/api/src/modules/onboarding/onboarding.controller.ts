@@ -1,4 +1,13 @@
-import { Body, Controller, ForbiddenException, Get, HttpCode, Patch, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  HttpCode,
+  Patch,
+  Post,
+  Req,
+} from '@nestjs/common';
 import type { Request } from 'express';
 
 import { OnboardingBackfill, type BackfillReport } from './onboarding.backfill';
@@ -16,7 +25,7 @@ import { OnboardingService } from './onboarding.service';
  * Service-internal hooks (agent.create, policy.create, verify success,
  * kms.configure) write directly via OnboardingService.markStep — they
  * don't go through HTTP. The HTTP surface exists for the dashboard
- * wizard and the `okoro doctor` CLI.
+ * wizard and the `cerniq doctor` CLI.
  */
 @Controller('v1/me/onboarding')
 export class OnboardingController {
@@ -42,9 +51,9 @@ export class OnboardingController {
 
   /**
    * Admin-only: trigger an immediate backfill pass and return the
-   * report. Used by `okoro-cli onboarding backfill` and by ops staff
+   * report. Used by `cerniq-cli onboarding backfill` and by ops staff
    * rebuilding the activation funnel after an outage. Gated by
-   * `X-OKORO-Admin` header == `OKORO_ADMIN_TOKEN` env.
+   * `X-CERNIQ-Admin` header == `CERNIQ_ADMIN_TOKEN` env.
    */
   @Post('admin/backfill')
   @HttpCode(200)
@@ -53,7 +62,7 @@ export class OnboardingController {
     return await this.backfill.run();
   }
 
-  /** Last completed backfill report — drives `okoro doctor` heuristics. */
+  /** Last completed backfill report — drives `cerniq doctor` heuristics. */
   @Get('admin/backfill/last')
   lastReport(@Req() req: Request): BackfillReport | { ranAt: null } {
     this.assertAdmin(req);
@@ -61,8 +70,8 @@ export class OnboardingController {
   }
 
   private assertAdmin(req: Request): void {
-    const expected = process.env.OKORO_ADMIN_TOKEN;
-    const provided = req.headers['x-okoro-admin'];
+    const expected = process.env.CERNIQ_ADMIN_TOKEN;
+    const provided = req.headers['x-cerniq-admin'];
     if (!expected || provided !== expected) {
       throw new ForbiddenException('admin_token_invalid');
     }

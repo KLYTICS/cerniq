@@ -1,4 +1,4 @@
-# Contributing to OKORO
+# Contributing to CERNIQ
 
 > Internal-only repo today. This document also serves as the bar for any
 > future external contributors when the SDK + docs site go public.
@@ -25,11 +25,11 @@ pnpm dev                # API + dashboard concurrently
 ## Commit conventions
 
 - **Conventional commits**, enforced by `commitlint`: `feat(verify): cache
-  agent record for 60s in Redis`.
+agent record for 60s in Redis`.
 - Allowed types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`,
   `ci`, `chore`, `revert`, `security`.
 - Subject ≤ 100 chars, lowercase preferred (`subject-case: never upper`).
-- Body explains *why*, not *what* — the diff is the *what*.
+- Body explains _why_, not _what_ — the diff is the _what_.
 
 ## Branch model
 
@@ -51,21 +51,21 @@ pnpm dev                # API + dashboard concurrently
 
 ## Quality gates (local + CI)
 
-| Gate | Local | CI |
-|------|-------|-----|
-| Lint | `pnpm lint` | required |
-| Typecheck | `pnpm typecheck` | required |
-| Unit tests | `pnpm test` | required |
-| E2E tests | `pnpm test:e2e` | required (DB+Redis services) |
-| Build | `pnpm build` | required |
-| Secrets scan | (pre-commit hook) | gitleaks step |
-| Dep audit | `pnpm audit` | weekly job |
+| Gate         | Local             | CI                           |
+| ------------ | ----------------- | ---------------------------- |
+| Lint         | `pnpm lint`       | required                     |
+| Typecheck    | `pnpm typecheck`  | required                     |
+| Unit tests   | `pnpm test`       | required                     |
+| E2E tests    | `pnpm test:e2e`   | required (DB+Redis services) |
+| Build        | `pnpm build`      | required                     |
+| Secrets scan | (pre-commit hook) | gitleaks step                |
+| Dep audit    | `pnpm audit`      | weekly job                   |
 
 ## Code style
 
 - TypeScript strict mode is non-negotiable. `any` requires a `// type-rationale:` comment justifying it.
 - No fabricated data, no Math.random in production paths, no fallback values for observability.
-- Errors are typed (`OkoroError` subclasses), not strings.
+- Errors are typed (`CerniqError` subclasses), not strings.
 - Public methods on services have a `.spec.ts` (or `// untestable: <reason>`).
 - Crypto code requires a paired `.spec.ts`. No exceptions.
 
@@ -73,7 +73,7 @@ pnpm dev                # API + dashboard concurrently
 
 - Changesets: `pnpm changeset` to record a versioned change.
 - The CI release workflow opens a PR with version bumps; merging that PR
-  publishes any `@okoro/sdk` / `@okoro/types` changes to npm.
+  publishes any `@cerniq/sdk` / `@cerniq/types` changes to npm.
 - The API and dashboard deploy on merge to `main` via Railway.
 
 ## Threat-model checklist for any change touching auth, audit, or verify

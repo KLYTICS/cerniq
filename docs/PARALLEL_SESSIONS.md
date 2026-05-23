@@ -1,4 +1,4 @@
-# OKORO — Concurrent Session Protocol
+# CERNIQ — Concurrent Session Protocol
 
 > **Reality:** several Claude sessions and contractors regularly work in this
 > repo at the same time. The audit chain in `docs/SESSION_HANDOFF.md` shows
@@ -10,7 +10,7 @@
 
 ## 1. The four-rule contract
 
-1. **Claim before you write.** Run `claude-peers claim okoro <module-id>` before
+1. **Claim before you write.** Run `claude-peers claim cerniq <module-id>` before
    editing files outside the trivial-doc-fix scope. Other sessions see your
    claim via `claude-peers status`.
 2. **Stay in your paths.** Each module ticket in `WORK_BOARD.md` lists the file
@@ -32,14 +32,14 @@
 Some files are touched by every session — they're the natural rendezvous point
 and need conflict-free coordination:
 
-| File | Why it's shared | Protocol |
-| --- | --- | --- |
-| `apps/api/src/app.module.ts` | Every new module registers here | Each session leaves a one-line "add to imports" note in their handoff entry. The coordinator session batches them into a single edit. |
-| `apps/api/src/config/config.schema.ts` | Every new env var declared here | Same — leave a note, coordinator merges. Use unique sections so concurrent edits don't conflict. |
-| `apps/api/prisma/schema.prisma` | Every schema change | Migrations are forward-only (see `IMMUTABILITY.md`). Two sessions adding migrations on the same day is fine — directory names are timestamp-prefixed. |
-| `apps/api/src/common/observability/metrics.service.ts` | New Prometheus counters | Append-only; just add at the bottom of the class and the registry block. |
-| `WORK_BOARD.md` | The claim ledger | One session at a time, transactional via `claude-peers claim`. |
-| `docs/SESSION_HANDOFF.md` | The history | Newest at top; never edit peer entries (correct via a NEW entry that references theirs). |
+| File                                                   | Why it's shared                 | Protocol                                                                                                                                              |
+| ------------------------------------------------------ | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/src/app.module.ts`                           | Every new module registers here | Each session leaves a one-line "add to imports" note in their handoff entry. The coordinator session batches them into a single edit.                 |
+| `apps/api/src/config/config.schema.ts`                 | Every new env var declared here | Same — leave a note, coordinator merges. Use unique sections so concurrent edits don't conflict.                                                      |
+| `apps/api/prisma/schema.prisma`                        | Every schema change             | Migrations are forward-only (see `IMMUTABILITY.md`). Two sessions adding migrations on the same day is fine — directory names are timestamp-prefixed. |
+| `apps/api/src/common/observability/metrics.service.ts` | New Prometheus counters         | Append-only; just add at the bottom of the class and the registry block.                                                                              |
+| `WORK_BOARD.md`                                        | The claim ledger                | One session at a time, transactional via `claude-peers claim`.                                                                                        |
+| `docs/SESSION_HANDOFF.md`                              | The history                     | Newest at top; never edit peer entries (correct via a NEW entry that references theirs).                                                              |
 
 ---
 
@@ -47,9 +47,9 @@ and need conflict-free coordination:
 
 ```sh
 claude-peers status                        # Who's working in this repo right now
-claude-peers claim okoro <module-id> \
+claude-peers claim cerniq <module-id> \
   --note "<what you'll do>" --ttl 7200     # Acquire a claim (2h TTL)
-claude-peers release okoro:<module-id>     # Release when done
+claude-peers release cerniq:<module-id>     # Release when done
 claude-peers msg <session-id> "<text>"     # Talk to a peer
 claude-peers inbox                         # Read messages addressed to you
 claude-peers heartbeat                     # Refresh your TTL during long work
@@ -120,7 +120,7 @@ never got committed. The default posture:
 
 ## 7. Trust but verify
 
-A session's SESSION_HANDOFF entry is what they *intended* to do. The actual
+A session's SESSION_HANDOFF entry is what they _intended_ to do. The actual
 state of the repo is the source of truth. Before assuming a previous session
 landed something you depend on:
 
@@ -137,12 +137,14 @@ Memory-only assumptions about peer work age fast. The codebase doesn't lie.
 ## 8. When the protocol fails
 
 Symptoms:
+
 - Two sessions both land migrations targeting the same column
 - A coordinator file (`app.module.ts`) gets reverted in a merge
 - Tests pass locally but fail in CI because a peer's uncommitted file
   isn't in the workflow's clone
 
 Recovery:
+
 - The most recent committed state is canon. Reset uncommitted work that
   conflicts; re-apply your changes on top.
 - If two migrations conflict, merge them into a third "fixup" migration

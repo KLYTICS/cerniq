@@ -1,23 +1,23 @@
 {
-  "name": "@okoro/mcp-bridge",
+  "name": "@cerniq/mcp-bridge",
   "version": "0.1.0",
-  "description": "OKORO verification middleware for any MCP (Model Context Protocol) server. Wraps an MCP transport so every tool call carries a verified OKORO agent identity.",
+  "description": "CERNIQ verification middleware for any MCP (Model Context Protocol) server. Wraps an MCP transport so every tool call carries a verified CERNIQ agent identity.",
   "license": "MIT",
-  "author": "OKORO Labs <hello@okoroapp.com>",
-  "homepage": "https://okoroapp.com/mcp",
+  "author": "CERNIQ Labs <hello@cerniqapp.com>",
+  "homepage": "https://cerniqapp.com/mcp",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/klytics/okoro.git",
+    "url": "git+https://github.com/klytics/cerniq.git",
     "directory": "packages/mcp-bridge"
   },
   "bugs": {
-    "url": "https://github.com/klytics/okoro/issues"
+    "url": "https://github.com/klytics/cerniq/issues"
   },
   "engines": {
     "node": ">=20.11.0"
   },
   "keywords": [
-    "okoro",
+    "cerniq",
     "mcp",
     "model-context-protocol",
     "agent-identity",
@@ -51,12 +51,12 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@okoro/sdk": "workspace:*",
-    "@okoro/types": "workspace:*",
+    "@cerniq/sdk": "workspace:*",
+    "@cerniq/types": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "devDependencies": {
-    "@okoro/tsconfig": "workspace:*",
+    "@cerniq/tsconfig": "workspace:*",
     "tsup": "^8.3.5",
     "typescript": "^5.6.3",
     "vitest": "^2.1.8"

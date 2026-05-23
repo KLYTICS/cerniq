@@ -1,5 +1,5 @@
 // KmsModule — selects and registers the active `KmsAdapter` per
-// `OKORO_KMS_PROVIDER` env (`in-memory`|`aws`|`gcp`|`vault`).
+// `CERNIQ_KMS_PROVIDER` env (`in-memory`|`aws`|`gcp`|`vault`).
 //
 // The selected adapter is registered with `setKmsAdapter()` at module
 // init so any code that calls `getKmsAdapter()` from
@@ -35,7 +35,6 @@ import { AwsKmsAdapter, type KmsClientLike } from './aws-kms.adapter';
 import { GcpKmsAdapter, type GcpKmsClientLike } from './gcp-kms.adapter';
 import { VaultTransitAdapter, type VaultClientLike } from './vault-transit.adapter';
 
-
 /**
  * Adapt MetricsService to the framework-free `BreakerMetricsSink` shape so
  * `wrapWithBreaker` stays NestJS-free and reusable from edge runtimes.
@@ -45,18 +44,17 @@ import { VaultTransitAdapter, type VaultClientLike } from './vault-transit.adapt
 function metricsSink(metrics: MetricsService | null): BreakerMetricsSink | undefined {
   if (!metrics) return undefined;
   return {
-    setState: (name, numeric) =>
-      { metrics.circuitBreakerStateGauge.set({ breaker: name }, numeric); },
-    recordTrip: (name) =>
-      { metrics.circuitBreakerTripsTotal.inc({ breaker: name }); },
+    setState: (name, numeric) => {
+      metrics.circuitBreakerStateGauge.set({ breaker: name }, numeric);
+    },
+    recordTrip: (name) => {
+      metrics.circuitBreakerTripsTotal.inc({ breaker: name });
+    },
   };
 }
 
 /** Build a configured breaker with optional metric wiring under a stable name. */
-function makeBreaker<T>(
-  name: string,
-  sink: BreakerMetricsSink | undefined,
-): CircuitBreaker<T> {
+function makeBreaker<T>(name: string, sink: BreakerMetricsSink | undefined): CircuitBreaker<T> {
   return new CircuitBreaker<T>({
     name,
     failureThreshold: 5,
@@ -71,7 +69,7 @@ function makeBreaker<T>(
   });
 }
 
-const ACTIVE_KMS_ADAPTER = 'OKORO_ACTIVE_KMS_ADAPTER';
+const ACTIVE_KMS_ADAPTER = 'CERNIQ_ACTIVE_KMS_ADAPTER';
 
 const kmsAdapterProvider: Provider = {
   provide: ACTIVE_KMS_ADAPTER,
@@ -94,7 +92,7 @@ const kmsAdapterProvider: Provider = {
       case 'vault':
         return await buildVault(config, metrics);
       default:
-        throw new Error(`Unknown OKORO_KMS_PROVIDER: ${provider}`);
+        throw new Error(`Unknown CERNIQ_KMS_PROVIDER: ${provider}`);
     }
   },
 };
@@ -112,11 +110,11 @@ const kmsAdapterProvider: Provider = {
 // operator commits to a cloud provider):
 //
 //   AWS:    AWS_REGION
-//           OKORO_AWS_KMS_AUDIT_KID, OKORO_AWS_KMS_AUDIT_WRAPPED, OKORO_AWS_KMS_AUDIT_PUB
-//   GCP:    OKORO_GCP_KMS_AUDIT_KID, OKORO_GCP_KMS_AUDIT_RESOURCE, OKORO_GCP_KMS_AUDIT_PUB
-//   Vault:  OKORO_VAULT_ADDR, OKORO_VAULT_TOKEN
-//           OKORO_VAULT_AUDIT_KID, OKORO_VAULT_AUDIT_TRANSIT_NAME,
-//           OKORO_VAULT_AUDIT_VERSION, OKORO_VAULT_AUDIT_PUB
+//           CERNIQ_AWS_KMS_AUDIT_KID, CERNIQ_AWS_KMS_AUDIT_WRAPPED, CERNIQ_AWS_KMS_AUDIT_PUB
+//   GCP:    CERNIQ_GCP_KMS_AUDIT_KID, CERNIQ_GCP_KMS_AUDIT_RESOURCE, CERNIQ_GCP_KMS_AUDIT_PUB
+//   Vault:  CERNIQ_VAULT_ADDR, CERNIQ_VAULT_TOKEN
+//           CERNIQ_VAULT_AUDIT_KID, CERNIQ_VAULT_AUDIT_TRANSIT_NAME,
+//           CERNIQ_VAULT_AUDIT_VERSION, CERNIQ_VAULT_AUDIT_PUB
 //
 // Operators wire any subset of (AUDIT, JWT, WEBHOOK) purposes; absent
 // purposes will fail loud at sign-time if used.
@@ -127,17 +125,18 @@ async function buildAws(
   metrics: MetricsService | null,
 ): Promise<KmsAdapter> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { KMSClient, DecryptCommand } = require('@aws-sdk/client-kms') as typeof import('@aws-sdk/client-kms');
+  const { KMSClient, DecryptCommand } =
+    require('@aws-sdk/client-kms') as typeof import('@aws-sdk/client-kms');
   const region = (config as unknown as { awsRegion?: string }).awsRegion;
-  if (!region) throw new Error('AWS_REGION required for OKORO_KMS_PROVIDER=aws');
+  if (!region) throw new Error('AWS_REGION required for CERNIQ_KMS_PROVIDER=aws');
   const client = new KMSClient({ region });
 
-  const cfg = (config as unknown as Record<string, string | undefined>);
-  const auditKid = cfg.okoroAwsKmsAuditKid;
-  const auditWrapped = cfg.okoroAwsKmsAuditWrapped;
-  const auditPub = cfg.okoroAwsKmsAuditPub;
+  const cfg = config as unknown as Record<string, string | undefined>;
+  const auditKid = cfg.cerniqAwsKmsAuditKid;
+  const auditWrapped = cfg.cerniqAwsKmsAuditWrapped;
+  const auditPub = cfg.cerniqAwsKmsAuditPub;
   if (!auditKid || !auditWrapped || !auditPub) {
-    throw new Error('AwsKmsAdapter: OKORO_AWS_KMS_AUDIT_{KID,WRAPPED,PUB} all required');
+    throw new Error('AwsKmsAdapter: CERNIQ_AWS_KMS_AUDIT_{KID,WRAPPED,PUB} all required');
   }
 
   // Single breaker per adapter instance — closure-captured by the decrypt
@@ -187,23 +186,23 @@ async function buildGcp(
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { KeyManagementServiceClient } = require('@google-cloud/kms') as {
     KeyManagementServiceClient: new () => {
-      asymmetricSign(req: { name: string; data: Uint8Array }): Promise<[{ signature?: Uint8Array | string | null }]>;
+      asymmetricSign(req: {
+        name: string;
+        data: Uint8Array;
+      }): Promise<[{ signature?: Uint8Array | string | null }]>;
     };
   };
   const client = new KeyManagementServiceClient();
 
-  const cfg = (config as unknown as Record<string, string | undefined>);
-  const auditKid = cfg.okoroGcpKmsAuditKid;
-  const auditResource = cfg.okoroGcpKmsAuditResource;
-  const auditPub = cfg.okoroGcpKmsAuditPub;
+  const cfg = config as unknown as Record<string, string | undefined>;
+  const auditKid = cfg.cerniqGcpKmsAuditKid;
+  const auditResource = cfg.cerniqGcpKmsAuditResource;
+  const auditPub = cfg.cerniqGcpKmsAuditPub;
   if (!auditKid || !auditResource || !auditPub) {
-    throw new Error('GcpKmsAdapter: OKORO_GCP_KMS_AUDIT_{KID,RESOURCE,PUB} all required');
+    throw new Error('GcpKmsAdapter: CERNIQ_GCP_KMS_AUDIT_{KID,RESOURCE,PUB} all required');
   }
 
-  const signBreaker = makeBreaker<{ signature: Uint8Array }>(
-    'kms.gcp.sign',
-    metricsSink(metrics),
-  );
+  const signBreaker = makeBreaker<{ signature: Uint8Array }>('kms.gcp.sign', metricsSink(metrics));
   const adapter = new GcpKmsAdapter(
     {
       keys: {
@@ -235,15 +234,17 @@ async function buildVault(
   config: AppConfigService,
   metrics: MetricsService | null,
 ): Promise<KmsAdapter> {
-  const cfg = (config as unknown as Record<string, string | undefined>);
-  const addr = cfg.okoroVaultAddr;
-  const token = cfg.okoroVaultToken;
-  const auditKid = cfg.okoroVaultAuditKid;
-  const transitName = cfg.okoroVaultAuditTransitName;
-  const auditVersionStr = cfg.okoroVaultAuditVersion;
-  const auditPub = cfg.okoroVaultAuditPub;
+  const cfg = config as unknown as Record<string, string | undefined>;
+  const addr = cfg.cerniqVaultAddr;
+  const token = cfg.cerniqVaultToken;
+  const auditKid = cfg.cerniqVaultAuditKid;
+  const transitName = cfg.cerniqVaultAuditTransitName;
+  const auditVersionStr = cfg.cerniqVaultAuditVersion;
+  const auditPub = cfg.cerniqVaultAuditPub;
   if (!addr || !token || !auditKid || !transitName || !auditVersionStr || !auditPub) {
-    throw new Error('VaultTransitAdapter: OKORO_VAULT_{ADDR,TOKEN,AUDIT_KID,AUDIT_TRANSIT_NAME,AUDIT_VERSION,AUDIT_PUB} all required');
+    throw new Error(
+      'VaultTransitAdapter: CERNIQ_VAULT_{ADDR,TOKEN,AUDIT_KID,AUDIT_TRANSIT_NAME,AUDIT_VERSION,AUDIT_PUB} all required',
+    );
   }
   const auditVersion = Number.parseInt(auditVersionStr, 10);
 
@@ -309,7 +310,8 @@ async function buildInMemory(config: AppConfigService): Promise<InMemoryKmsAdapt
   const adapter = new InMemoryKmsAdapter();
 
   // Audit signing key — read from env if present, else generate ephemeral.
-  const auditPriv = (config as unknown as { auditEd25519PrivateB64?: string }).auditEd25519PrivateB64;
+  const auditPriv = (config as unknown as { auditEd25519PrivateB64?: string })
+    .auditEd25519PrivateB64;
   const auditPub = (config as unknown as { auditEd25519PublicB64?: string }).auditEd25519PublicB64;
   const isProd = (config as unknown as { nodeEnv?: string }).nodeEnv === 'production';
 

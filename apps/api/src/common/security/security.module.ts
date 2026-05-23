@@ -1,4 +1,4 @@
-// OKORO — security hardening module.
+// CERNIQ — security hardening module.
 //
 // Wraps the cors / request-limits / helmet / trust-proxy primitives into
 // a single import. Wired in main.ts via:

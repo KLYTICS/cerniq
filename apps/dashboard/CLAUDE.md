@@ -1,4 +1,4 @@
-# OKORO Dashboard - Claude contract
+# CERNIQ Dashboard - Claude contract
 
 This directory owns the Next.js operator/developer surface. It is part of the
 security product, not a marketing microsite. Build dense, calm, operational UI
@@ -12,7 +12,7 @@ MCP servers, and webhooks without ambiguity.
   decorative card grids.
 - Server components are the default. Use client components only for interaction,
   effects, optimistic UI, or browser APIs.
-- Dashboard assumptions must come from `@okoro/types`, API discovery endpoints,
+- Dashboard assumptions must come from `@cerniq/types`, API discovery endpoints,
   or colocated typed adapters. Do not hand-copy enums without a parity test.
 - Never expose API keys, webhook secrets, private keys, bearer tokens, or raw
   customer payloads in the UI.
@@ -37,7 +37,7 @@ MCP servers, and webhooks without ambiguity.
 - SSR-fetch platform state when freshness matters; use documented fallbacks only
   when offline build/render behavior requires them.
 - Pricing is the canonical example: `resolvePricing()` should prefer
-  `/.well-known/pricing.json` via `OKORO_API_BASE_URL`, expose provenance, and
+  `/.well-known/pricing.json` via `CERNIQ_API_BASE_URL`, expose provenance, and
   fall back only with a visible reason.
 - If a page mirrors API constants, add or update a parity test in `tests/`.
 - Server actions must validate inputs and return typed results. Do not leak stack
@@ -51,8 +51,8 @@ MCP servers, and webhooks without ambiguity.
 
 ## Required verification
 
-- Dashboard typecheck: `pnpm --filter @okoro/dashboard typecheck`
-- Dashboard build for broad UI/router changes: `pnpm --filter @okoro/dashboard build`
+- Dashboard typecheck: `pnpm --filter @cerniq/dashboard typecheck`
+- Dashboard build for broad UI/router changes: `pnpm --filter @cerniq/dashboard build`
 - Cross-package parity when API/dashboard contracts meet: `pnpm test:parity`
 
 For visual work, run the local dev server and inspect the changed route in a

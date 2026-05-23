@@ -6,7 +6,7 @@
 
 ## Context
 
-OKORO spans an HTTP API (NestJS), a developer dashboard (Next.js), a
+CERNIQ spans an HTTP API (NestJS), a developer dashboard (Next.js), a
 public TypeScript SDK, a future Python SDK, a future Cloudflare Worker
 for the edge verify path, and shared types/configs. These artifacts
 share a contract (`packages/types`) and we want one PR to be able to
@@ -29,6 +29,7 @@ the root.
 ## Consequences
 
 ### Positive
+
 - Atomic PRs across API + SDK + dashboard.
 - Zero learning cost — pnpm + `pnpm -r` is the operator's existing
   muscle memory.
@@ -38,6 +39,7 @@ the root.
   latest local version of its peers.
 
 ### Negative
+
 - No remote build cache. CI builds everything from scratch on each run.
   At repo size today this is < 90 s; we revisit when it crosses 5 min.
 - No task graph awareness. `pnpm -r build` runs in topological order
@@ -46,22 +48,26 @@ the root.
   edges.
 
 ### Neutral
+
 - Adopting Turborepo or Nx later is mechanical (add `turbo.json`,
   prefix scripts) and reversible.
 
 ## Alternatives considered
 
 ### Alt A: Turborepo from day one
+
 Strictly better build performance once the repo grows. Rejected for
 Phase 1: extra config surface, extra dependency, no measurable benefit
 at current size, operator has no Turborepo muscle memory yet.
 
 ### Alt B: Multi-repo (one repo per artifact)
+
 Stronger version-isolation for the public SDK. Rejected: makes
 contract changes a multi-PR ceremony, which kills development
 velocity in the foundation phase. Reconsider when the SDK reaches v1.
 
 ### Alt C: Nx
+
 Closer to Turborepo with stronger task graph. Rejected for the same
 reasons as Turborepo plus a heavier opinion footprint.
 
@@ -72,7 +78,7 @@ mirroring the current `pnpm -r` scripts and update CI to call
 `turbo run`. Reversible in one commit, no source-code changes.
 
 Splitting to multi-repo: each `packages/*` and `apps/*` becomes its
-own repo with a published version of `@okoro/types`. Affects every
+own repo with a published version of `@cerniq/types`. Affects every
 PR workflow; do not undertake without an SDK v1 line in the sand.
 
 ## References

@@ -25,8 +25,6 @@ import { ReplayCacheService } from './replay-cache.service';
 import { SpendGuardService } from './spend-guard.service';
 import { type VerifyRequestDto, type VerifyResponseDto } from './verify.dto';
 
-
-
 interface CachedAgent {
   id: string;
   publicKey: string;
@@ -50,7 +48,7 @@ interface CachedPolicy {
  * The actual decision logic lives in `algorithm/verify.algorithm.ts` and
  * is framework-free so the Cloudflare Worker (Phase 3) can import it
  * unchanged. This class implements the `VerifyPorts` contract using
- * Prisma + Redis + the OKORO audit/BATE/spend services.
+ * Prisma + Redis + the CERNIQ audit/BATE/spend services.
  *
  * Gate order (outer to inner):
  *   G-2: UsageGuardService — plan-tier monthly quota (billing gate, fails-open)
@@ -105,7 +103,7 @@ export class VerifyService {
     if (!quota.allowed) {
       this.logger.warn(
         `verify DENIED=PLAN_LIMIT_EXCEEDED principal=${relyingPartyPrincipalId} ` +
-        `plan=${quota.planTier} quota=${quota.monthlyQuota}`,
+          `plan=${quota.planTier} quota=${quota.monthlyQuota}`,
       );
       this.metrics.verifyTotal.inc({ decision: 'DENIED', denial_reason: 'PLAN_LIMIT_EXCEEDED' });
       return {
@@ -176,16 +174,16 @@ export class VerifyService {
         return await this.audit.append(event);
       },
       ingestSignal: (signal: BateSignalInput) => {
-        void this.bate
-          .ingestSignal(signal)
-          .catch((err) => { this.logger.error(`bate.ingestSignal failed: ${(err as Error).message}`); });
+        void this.bate.ingestSignal(signal).catch((err) => {
+          this.logger.error(`bate.ingestSignal failed: ${(err as Error).message}`);
+        });
       },
       touchAgent: (agentId) => {
         void this.touchAgent(agentId).catch((err) => {
           // Best-effort write — but we must NOT swallow silently
           // (CLAUDE.md invariant #4 + audit T-5). Persistent failures
           // surface as `lastSeenAt` going stale on the dashboard plus
-          // an elevated `okoro_cache_set_failed_total{op="touch_agent"}`.
+          // an elevated `cerniq_cache_set_failed_total{op="touch_agent"}`.
           this.logger.warn(`touchAgent failed agent=${agentId}: ${(err as Error).message}`);
           this.metrics.cacheSetFailedTotal.inc({ op: 'touch_agent' });
         });
@@ -202,15 +200,15 @@ export class VerifyService {
     // Span attrs are filled from the algorithm result via setActiveSpanAttributes
     // below — DTO doesn't carry agent.id/policy.id (they're inside the token).
     const result = await withSpan(
-      'okoro.verify.algorithm',
+      'cerniq.verify.algorithm',
       // type-rationale: VerifyRequestDto is a NestJS DTO class; spreading it
       // intentionally converts to a plain object that the algorithm consumes.
       // eslint-disable-next-line @typescript-eslint/no-misused-spread
       () => verifyAlgorithm({ ...dto, relyingPartyPrincipalId }, ports),
       {
         'principal.id': relyingPartyPrincipalId,
-        'okoro.feature.bate': this.config.enableBate,
-        'okoro.verify.action': dto.action,
+        'cerniq.feature.bate': this.config.enableBate,
+        'cerniq.verify.action': dto.action,
       },
     );
 
@@ -273,7 +271,7 @@ export class VerifyService {
     };
     // Cache miss → durable read succeeded → cache set is best-effort but
     // must be observable (H-3 fix). Failures bump
-    // `okoro_cache_set_failed_total{op="agent"}` so a Redis flap is alarm-able
+    // `cerniq_cache_set_failed_total{op="agent"}` so a Redis flap is alarm-able
     // before it cascades into Postgres saturation.
     await this.redis.set(cacheKey, value, 60).catch((err) => {
       this.logger.warn(`agent cache set failed agent=${agentId}: ${(err as Error).message}`);
@@ -311,7 +309,10 @@ export class VerifyService {
       expiresAt: policy.expiresAt.toISOString(),
       scopes: policy.scopes as unknown as PolicySnapshot['scopes'],
     };
-    const ttl = Math.min(30, Math.max(0, Math.floor((policy.expiresAt.getTime() - Date.now()) / 1000)));
+    const ttl = Math.min(
+      30,
+      Math.max(0, Math.floor((policy.expiresAt.getTime() - Date.now()) / 1000)),
+    );
     if (ttl > 0) {
       await this.redis.set(cacheKey, value, ttl).catch((err) => {
         this.logger.warn(`policy cache set failed policy=${policyId}: ${(err as Error).message}`);
@@ -328,7 +329,11 @@ export class VerifyService {
     await this.redis.set(seenKey, Date.now(), 60);
     await this.prisma.agentIdentity.update({
       where: { id: agentId },
-      data: { lastSeenAt: new Date(), verifyCount: { increment: 1 }, verifyCountDay: { increment: 1 } },
+      data: {
+        lastSeenAt: new Date(),
+        verifyCount: { increment: 1 },
+        verifyCountDay: { increment: 1 },
+      },
     });
   }
 }

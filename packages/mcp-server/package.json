@@ -1,21 +1,21 @@
 {
-  "name": "@okoro/mcp-server",
+  "name": "@cerniq/mcp-server",
   "version": "0.1.0",
-  "description": "OKORO exposed as an MCP server. Lets Claude Desktop / Cursor / any MCP host call OKORO verify, agents, policies, and audit tools natively.",
+  "description": "CERNIQ exposed as an MCP server. Lets Claude Desktop / Cursor / any MCP host call CERNIQ verify, agents, policies, and audit tools natively.",
   "type": "module",
   "license": "MIT",
-  "author": "OKORO Labs <hello@okoroapp.com>",
-  "homepage": "https://okoroapp.com/mcp",
+  "author": "CERNIQ Labs <hello@cerniqapp.com>",
+  "homepage": "https://cerniqapp.com/mcp",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/klytics/okoro.git",
+    "url": "git+https://github.com/klytics/cerniq.git",
     "directory": "packages/mcp-server"
   },
   "bugs": {
-    "url": "https://github.com/klytics/okoro/issues"
+    "url": "https://github.com/klytics/cerniq/issues"
   },
   "keywords": [
-    "okoro",
+    "cerniq",
     "mcp",
     "model-context-protocol",
     "claude-desktop",
@@ -33,7 +33,7 @@
     }
   },
   "bin": {
-    "okoro-mcp": "./dist/bin.js"
+    "cerniq-mcp": "./dist/bin.js"
   },
   "files": [
     "dist",
@@ -50,13 +50,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@okoro/sdk": "workspace:*",
-    "@okoro/types": "workspace:*",
+    "@cerniq/sdk": "workspace:*",
+    "@cerniq/types": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@okoro/tsconfig": "workspace:*",
+    "@cerniq/tsconfig": "workspace:*",
     "tsup": "^8.3.5",
     "typescript": "^5.6.3",
     "vitest": "^2.1.5"

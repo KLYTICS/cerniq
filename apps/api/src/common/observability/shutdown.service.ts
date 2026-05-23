@@ -1,4 +1,4 @@
-// Centralized SIGTERM coordinator for OKORO.
+// Centralized SIGTERM coordinator for CERNIQ.
 //
 // Why this exists:
 // Today, a Railway redeploy fires SIGTERM at the API. NestJS 11 turns that
@@ -21,11 +21,7 @@
 // is enough for observability — the operator can decide whether to bump
 // the timeout next deploy.
 
-import {
-  Injectable,
-  Logger,
-  OnApplicationShutdown,
-} from '@nestjs/common';
+import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 
 export type DrainFn = () => Promise<void>;
 
@@ -50,9 +46,7 @@ export class ShutdownService implements OnApplicationShutdown {
   private readonly drains: RegisteredDrain[] = [];
   private shuttingDown = false;
 
-  constructor(
-    private readonly gracefulShutdownTimeoutMs: number = DEFAULT_GRACEFUL_SHUTDOWN_MS,
-  ) {}
+  constructor(private readonly gracefulShutdownTimeoutMs: number = DEFAULT_GRACEFUL_SHUTDOWN_MS) {}
 
   /**
    * Register a drain hook. Call from `onModuleInit` of any module that has
@@ -64,9 +58,7 @@ export class ShutdownService implements OnApplicationShutdown {
    */
   register(name: string, drainFn: DrainFn): void {
     if (this.shuttingDown) {
-      this.logger.warn(
-        `register('${name}') called after shutdown began — drain will not run`,
-      );
+      this.logger.warn(`register('${name}') called after shutdown began — drain will not run`);
       return;
     }
     this.drains.push({ name, fn: drainFn });
@@ -83,9 +75,7 @@ export class ShutdownService implements OnApplicationShutdown {
     if (this.shuttingDown) return;
     this.shuttingDown = true;
     const sig = signal ?? 'unknown';
-    this.logger.log(
-      `shutdown signal=${sig} — draining ${this.drains.length} hook(s)`,
-    );
+    this.logger.log(`shutdown signal=${sig} — draining ${this.drains.length} hook(s)`);
 
     const results = await Promise.all(this.drains.map((d) => this.runOne(d)));
 
@@ -120,9 +110,7 @@ export class ShutdownService implements OnApplicationShutdown {
       const durationMs = Date.now() - started;
       clearTimeout(timeoutHandle);
       const status: DrainResult['status'] = timedOut ? 'slow' : 'ok';
-      this.logger.log(
-        `drain name=${d.name} durationMs=${durationMs} status=${status}`,
-      );
+      this.logger.log(`drain name=${d.name} durationMs=${durationMs} status=${status}`);
       return { name: d.name, durationMs, status };
     } catch (err) {
       const durationMs = Date.now() - started;

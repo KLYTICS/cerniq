@@ -12,7 +12,7 @@
     "rootDir": "./",
     "baseUrl": "../",
     "paths": {
-      "@okoro/api/*": ["src/*"]
+      "@cerniq/api/*": ["src/*"]
     }
   },
   "include": ["./**/*.ts"],

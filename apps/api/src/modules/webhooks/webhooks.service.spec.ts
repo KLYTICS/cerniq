@@ -44,30 +44,36 @@ function makePrisma() {
 
   const prisma = {
     webhookSubscription: {
-      create: jest.fn(async ({ data }: { data: Omit<SubRow, 'id' | 'active'> & { active?: boolean } }) => {
-        const row: SubRow = { id: `sub_${++subSeq}`, active: true, ...data };
-        subs.push(row);
-        return row;
-      }),
+      create: jest.fn(
+        async ({ data }: { data: Omit<SubRow, 'id' | 'active'> & { active?: boolean } }) => {
+          const row: SubRow = { id: `sub_${++subSeq}`, active: true, ...data };
+          subs.push(row);
+          return row;
+        },
+      ),
       deleteMany: jest.fn(async ({ where }: { where: { id: string; principalId: string } }) => {
         const idx = subs.findIndex((s) => s.id === where.id && s.principalId === where.principalId);
         if (idx !== -1) subs.splice(idx, 1);
         return { count: idx !== -1 ? 1 : 0 };
       }),
       findMany: jest.fn(async ({ where }: { where: Partial<SubRow> }) => {
-        return subs.filter((s) =>
-          (!where.principalId || s.principalId === where.principalId) &&
-          (!where.active || s.active === where.active) &&
-          (!where.events || s.events.some((e) => (where.events as unknown as { has: string }).has === e)),
+        return subs.filter(
+          (s) =>
+            (!where.principalId || s.principalId === where.principalId) &&
+            (!where.active || s.active === where.active) &&
+            (!where.events ||
+              s.events.some((e) => (where.events as unknown as { has: string }).has === e)),
         );
       }),
     },
     webhookDelivery: {
-      create: jest.fn(async ({ data }: { data: { subscriptionId: string; event: string; payload: unknown } }) => {
-        const row: DeliveryRow = { id: `del_${++delSeq}`, ...data };
-        deliveries.push(row);
-        return row;
-      }),
+      create: jest.fn(
+        async ({ data }: { data: { subscriptionId: string; event: string; payload: unknown } }) => {
+          const row: DeliveryRow = { id: `del_${++delSeq}`, ...data };
+          deliveries.push(row);
+          return row;
+        },
+      ),
     },
     $transaction: jest.fn(async (ops: Promise<DeliveryRow>[]) => await Promise.all(ops)),
   };
@@ -96,11 +102,7 @@ function makeService() {
   const { prisma, subs, deliveries } = makePrisma();
   const cipher = makeCipher();
   const delivery = makeDelivery();
-  const svc = new WebhooksService(
-    prisma as unknown as PrismaService,
-    delivery,
-    cipher,
-  );
+  const svc = new WebhooksService(prisma as unknown as PrismaService, delivery, cipher);
   return { svc, prisma, subs, deliveries, cipher, delivery };
 }
 
@@ -110,7 +112,9 @@ describe('WebhooksService', () => {
   describe('subscribe()', () => {
     it('returns an id and a one-time plaintext whsec_ secret', async () => {
       const { svc } = makeService();
-      const result = await svc.subscribe('prn_A', 'https://example.com/wh', ['okoro.agent.revoked']);
+      const result = await svc.subscribe('prn_A', 'https://example.com/wh', [
+        'cerniq.agent.revoked',
+      ]);
       expect(result.id).toMatch(/^sub_/);
       expect(result.secret).toMatch(/^whsec_/);
     });
@@ -119,7 +123,9 @@ describe('WebhooksService', () => {
       const { svc, prisma, cipher } = makeService();
       const { secret } = await svc.subscribe('prn_A', 'https://example.com/wh', ['*']);
       expect(cipher.encrypt).toHaveBeenCalledWith(secret);
-      const createCall = (prisma.webhookSubscription.create as jest.Mock).mock.calls[0][0] as { data: SubRow };
+      const createCall = (prisma.webhookSubscription.create as jest.Mock).mock.calls[0][0] as {
+        data: SubRow;
+      };
       expect(createCall.data.secret).toBe(`enc:${secret}`);
     });
 
@@ -162,15 +168,15 @@ describe('WebhooksService', () => {
       const { svc, subs } = makeService();
       const { id: bId } = await svc.subscribe('prn_B', 'https://b.com/wh', ['*']);
       await svc.unsubscribe('prn_A', bId); // A tries to delete B's sub
-      expect(subs).toHaveLength(1);         // B's sub still exists
+      expect(subs).toHaveLength(1); // B's sub still exists
     });
   });
 
   describe('list()', () => {
     it('returns only subscriptions for the given principalId', async () => {
       const { svc } = makeService();
-      await svc.subscribe('prn_A', 'https://a.com/wh', ['okoro.agent.revoked']);
-      await svc.subscribe('prn_B', 'https://b.com/wh', ['okoro.agent.trust_score_changed']);
+      await svc.subscribe('prn_A', 'https://a.com/wh', ['cerniq.agent.revoked']);
+      await svc.subscribe('prn_B', 'https://b.com/wh', ['cerniq.agent.trust_score_changed']);
       const list = await svc.list('prn_A');
       expect(list).toHaveLength(1);
       expect(list[0].url).toBe('https://a.com/wh');
@@ -185,9 +191,14 @@ describe('WebhooksService', () => {
 
     it('maps Prisma rows to { id, url, events, active } shape', async () => {
       const { svc } = makeService();
-      const { id } = await svc.subscribe('prn_A', 'https://a.com/wh', ['okoro.agent.revoked']);
+      const { id } = await svc.subscribe('prn_A', 'https://a.com/wh', ['cerniq.agent.revoked']);
       const list = await svc.list('prn_A');
-      expect(list[0]).toMatchObject({ id, url: 'https://a.com/wh', events: ['okoro.agent.revoked'], active: true });
+      expect(list[0]).toMatchObject({
+        id,
+        url: 'https://a.com/wh',
+        events: ['cerniq.agent.revoked'],
+        active: true,
+      });
     });
   });
 
@@ -195,20 +206,46 @@ describe('WebhooksService', () => {
     it('creates a WebhookDelivery row for each matching active subscription', async () => {
       const { svc, subs, deliveries, prisma } = makeService();
       // Manually insert active subs with matching event
-      subs.push({ id: 'sub_1', principalId: 'prn_A', url: 'https://a.com/wh', events: ['okoro.agent.revoked'], active: true, secret: 'x' });
+      subs.push({
+        id: 'sub_1',
+        principalId: 'prn_A',
+        url: 'https://a.com/wh',
+        events: ['cerniq.agent.revoked'],
+        active: true,
+        secret: 'x',
+      });
       (prisma.webhookSubscription.findMany as jest.Mock).mockResolvedValueOnce([subs[0]]);
-      (prisma.webhookDelivery.create as jest.Mock).mockResolvedValueOnce({ id: 'del_1', subscriptionId: 'sub_1', event: 'okoro.agent.revoked', payload: {} });
+      (prisma.webhookDelivery.create as jest.Mock).mockResolvedValueOnce({
+        id: 'del_1',
+        subscriptionId: 'sub_1',
+        event: 'cerniq.agent.revoked',
+        payload: {},
+      });
 
-      await svc.enqueue({ type: 'okoro.agent.revoked', data: { agentId: 'agt_1' } }, 'prn_A');
+      await svc.enqueue({ type: 'cerniq.agent.revoked', data: { agentId: 'agt_1' } }, 'prn_A');
 
-      expect(deliveries.length + (prisma.webhookDelivery.create as jest.Mock).mock.calls.length).toBeGreaterThan(0);
+      expect(
+        deliveries.length + (prisma.webhookDelivery.create as jest.Mock).mock.calls.length,
+      ).toBeGreaterThan(0);
     });
 
     it('calls delivery.enqueue for each persisted delivery row', async () => {
       const { svc, subs, delivery, prisma } = makeService();
-      subs.push({ id: 'sub_1', principalId: 'prn_A', url: 'https://a.com/wh', events: ['evt'], active: true, secret: 'x' });
+      subs.push({
+        id: 'sub_1',
+        principalId: 'prn_A',
+        url: 'https://a.com/wh',
+        events: ['evt'],
+        active: true,
+        secret: 'x',
+      });
       (prisma.webhookSubscription.findMany as jest.Mock).mockResolvedValueOnce([subs[0]]);
-      (prisma.webhookDelivery.create as jest.Mock).mockResolvedValueOnce({ id: 'del_99', subscriptionId: 'sub_1', event: 'evt', payload: {} });
+      (prisma.webhookDelivery.create as jest.Mock).mockResolvedValueOnce({
+        id: 'del_99',
+        subscriptionId: 'sub_1',
+        event: 'evt',
+        payload: {},
+      });
       (prisma.$transaction as jest.Mock).mockResolvedValueOnce([{ id: 'del_99' }]);
 
       await svc.enqueue({ type: 'evt', data: {} }, 'prn_A');
@@ -219,13 +256,15 @@ describe('WebhooksService', () => {
     it('does nothing when no active subscription matches the event', async () => {
       const { svc, prisma, delivery } = makeService();
       (prisma.webhookSubscription.findMany as jest.Mock).mockResolvedValueOnce([]);
-      await svc.enqueue({ type: 'okoro.agent.revoked', data: {} }, 'prn_A');
+      await svc.enqueue({ type: 'cerniq.agent.revoked', data: {} }, 'prn_A');
       expect(delivery.enqueue).not.toHaveBeenCalled();
     });
 
     it('swallows errors — never throws on delivery failure', async () => {
       const { svc, prisma } = makeService();
-      (prisma.webhookSubscription.findMany as jest.Mock).mockRejectedValueOnce(new Error('DB down'));
+      (prisma.webhookSubscription.findMany as jest.Mock).mockRejectedValueOnce(
+        new Error('DB down'),
+      );
       await expect(svc.enqueue({ type: 'evt', data: {} }, 'prn_A')).resolves.toBeUndefined();
     });
   });

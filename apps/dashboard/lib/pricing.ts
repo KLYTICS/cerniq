@@ -52,7 +52,7 @@ export interface PublicTier {
 }
 
 /** Email used for Enterprise "Contact us" mailto. */
-export const SALES_EMAIL = 'sales@okoroapp.com';
+export const SALES_EMAIL = 'sales@cerniqapp.com';
 
 export const PRICING_TIERS: readonly PublicTier[] = Object.freeze([
   {
@@ -129,7 +129,7 @@ export const PRICING_TIERS: readonly PublicTier[] = Object.freeze([
     webhooks: true,
     sla: 'Custom',
     ctaLabel: 'Contact us',
-    ctaHref: `mailto:${SALES_EMAIL}?subject=OKORO%20Enterprise%20inquiry`,
+    ctaHref: `mailto:${SALES_EMAIL}?subject=CERNIQ%20Enterprise%20inquiry`,
   },
 ]);
 

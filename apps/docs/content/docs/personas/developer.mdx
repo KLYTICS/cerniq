@@ -1,11 +1,11 @@
 ---
 title: Developer
-description: Build with OKORO. SDKs, quickstarts, MCP integration, recipes.
+description: Build with CERNIQ. SDKs, quickstarts, MCP integration, recipes.
 ---
 
 If you're integrating an AI agent with a service that performs real-world
 actions — charging cards, provisioning seats, calling APIs, writing files —
-OKORO is the verification layer between the two.
+CERNIQ is the verification layer between the two.
 
 <SdkVersionBadges />
 
@@ -13,9 +13,9 @@ OKORO is the verification layer between the two.
 
 1. **Install** the SDK for your language — see badges above.
 2. **Mint a keypair** with `generateKeypair()`. Private key stays in your process.
-3. **Register the agent** via `okoro.agents.register({ publicKey })`. OKORO only ever sees the public key.
-4. **Issue a scoped policy** with `okoro.policies.create({ scope, ttlSeconds })`.
-5. **Verify before acting** with `await okoro.verify(token)` — if `allowed === false`, do not perform the action.
+3. **Register the agent** via `cerniq.agents.register({ publicKey })`. CERNIQ only ever sees the public key.
+4. **Issue a scoped policy** with `cerniq.policies.create({ scope, ttlSeconds })`.
+5. **Verify before acting** with `await cerniq.verify(token)` — if `allowed === false`, do not perform the action.
 
 Full walkthroughs:
 
@@ -28,16 +28,16 @@ Full walkthroughs:
 
 | Method                          | Purpose                                  |
 | ------------------------------- | ---------------------------------------- |
-| `okoro.agents.register(input)`  | Register a new agent public key          |
-| `okoro.agents.list()`           | List agents owned by this principal      |
-| `okoro.agents.show(id)`         | Inspect a single agent                   |
-| `okoro.agents.revoke(id)`       | Revoke an agent (irreversible)           |
-| `okoro.policies.create(input)`  | Issue a scoped, signed policy            |
-| `okoro.policies.list()`         | List active policies                     |
-| `okoro.policies.revoke(id)`     | Revoke a policy                          |
-| `okoro.verify(token)`           | The verify hot path                      |
-| `okoro.audit.list(params)`      | Paginated audit-event reader             |
-| `okoro.audit.export(params)`    | NDJSON streaming export for SOC2 evidence |
+| `cerniq.agents.register(input)`  | Register a new agent public key          |
+| `cerniq.agents.list()`           | List agents owned by this principal      |
+| `cerniq.agents.show(id)`         | Inspect a single agent                   |
+| `cerniq.agents.revoke(id)`       | Revoke an agent (irreversible)           |
+| `cerniq.policies.create(input)`  | Issue a scoped, signed policy            |
+| `cerniq.policies.list()`         | List active policies                     |
+| `cerniq.policies.revoke(id)`     | Revoke a policy                          |
+| `cerniq.verify(token)`           | The verify hot path                      |
+| `cerniq.audit.list(params)`      | Paginated audit-event reader             |
+| `cerniq.audit.export(params)`    | NDJSON streaming export for SOC2 evidence |
 
 Both TypeScript and Python SDKs preserve byte-identical JWT shapes — see
 the [denial precedence](/docs/concepts/denial-precedence) page for the wire
@@ -47,7 +47,7 @@ contract relying parties build retry logic on.
 
 | Need                                                   | Read                                                                                  |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| Verify offline (no network round-trip in the hot path) | [`@okoro/verifier-rp`](https://github.com/klytics/okoro/tree/main/packages/verifier-rp) |
+| Verify offline (no network round-trip in the hot path) | [`@cerniq/verifier-rp`](https://github.com/klytics/cerniq/tree/main/packages/verifier-rp) |
 | Subscribe to lifecycle events                          | [Webhooks concept](/docs/concepts/webhooks)                                           |
-| Integrate with Claude Desktop / MCP                    | [`@okoro/mcp-server`](https://github.com/klytics/okoro/tree/main/packages/mcp-server) |
-| Add OKORO to a LangChain agent                         | [`examples/ai-platform-tool-call`](https://github.com/klytics/okoro/tree/main/examples/ai-platform-tool-call) |
+| Integrate with Claude Desktop / MCP                    | [`@cerniq/mcp-server`](https://github.com/klytics/cerniq/tree/main/packages/mcp-server) |
+| Add CERNIQ to a LangChain agent                         | [`examples/ai-platform-tool-call`](https://github.com/klytics/cerniq/tree/main/examples/ai-platform-tool-call) |

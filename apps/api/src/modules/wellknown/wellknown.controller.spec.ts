@@ -12,9 +12,9 @@ const FIXED_ROTATED_AT = '2026-01-01T00:00:00.000Z';
 
 function buildService(): WellknownService {
   const config = {
-    okoroSigningPublicKey: ZERO_KEY_B64,
-    okoroSigningKeyRotatedAt: FIXED_ROTATED_AT,
-    apiBaseUrl: 'https://api.okoroapp.com',
+    cerniqSigningPublicKey: ZERO_KEY_B64,
+    cerniqSigningKeyRotatedAt: FIXED_ROTATED_AT,
+    apiBaseUrl: 'https://api.cerniqapp.com',
   } as unknown as AppConfigService;
   const svc = new WellknownService(config);
   svc.onModuleInit();
@@ -53,7 +53,7 @@ describe('WellknownController', () => {
       expect(out!.publicKey).toBe(ZERO_KEY_B64);
       expect(out!.algorithm).toBe('EdDSA');
       expect(out!.curve).toBe('Ed25519');
-      expect(out!.issuer).toBe('https://okoroapp.com');
+      expect(out!.issuer).toBe('https://cerniqapp.com');
       expect(out!.purpose).toBe('audit-event-signing');
       expect(out!.rotatedAt).toBe(FIXED_ROTATED_AT);
       expect(headers.etag).toBe(`"${svc.getKid()}"`);
@@ -173,7 +173,7 @@ describe('WellknownController', () => {
     });
   });
 
-  describe('GET /.well-known/okoro-configuration', () => {
+  describe('GET /.well-known/cerniq-configuration', () => {
     it('returns the full discovery doc with stable schema', () => {
       const svc = buildService();
       const ctl = new WellknownController(svc);
@@ -181,16 +181,16 @@ describe('WellknownController', () => {
 
       const out = ctl.configuration(res);
 
-      expect(out.issuer).toBe('https://api.okoroapp.com');
+      expect(out.issuer).toBe('https://api.cerniqapp.com');
       expect(out.spec_version).toBe('1.0.0');
-      expect(out.jwks_uri).toBe('https://api.okoroapp.com/.well-known/jwks.json');
+      expect(out.jwks_uri).toBe('https://api.cerniqapp.com/.well-known/jwks.json');
       expect(out.audit_signing_key_uri).toBe(
-        'https://api.okoroapp.com/.well-known/audit-signing-key',
+        'https://api.cerniqapp.com/.well-known/audit-signing-key',
       );
-      expect(out.security_txt).toBe('https://api.okoroapp.com/.well-known/security.txt');
-      expect(out.llms_txt).toBe('https://api.okoroapp.com/.well-known/llms.txt');
-      expect(out.endpoints.verify).toBe('https://api.okoroapp.com/v1/verify');
-      expect(out.endpoints.billing_webhook).toBe('https://api.okoroapp.com/v1/billing/webhook');
+      expect(out.security_txt).toBe('https://api.cerniqapp.com/.well-known/security.txt');
+      expect(out.llms_txt).toBe('https://api.cerniqapp.com/.well-known/llms.txt');
+      expect(out.endpoints.verify).toBe('https://api.cerniqapp.com/v1/verify');
+      expect(out.endpoints.billing_webhook).toBe('https://api.cerniqapp.com/v1/billing/webhook');
       expect(out.supported_algorithms).toEqual(['EdDSA']);
       expect(out.supported_curves).toEqual(['Ed25519']);
       expect(out.trust_bands).toEqual(['FLAGGED', 'WATCH', 'VERIFIED', 'PLATINUM']);
@@ -220,17 +220,17 @@ describe('WellknownController', () => {
       const ctl = new WellknownController(svc);
       const out = ctl.configuration(fakeResponse().res);
 
-      expect(out.sdks.typescript).toBe('@okoro/sdk');
-      expect(out.sdks.python).toBe('okoro');
-      expect(out.sdks.verifier_rp).toBe('@okoro/verifier-rp');
-      expect(out.sdks.mcp_bridge).toBe('@okoro/mcp-bridge');
-      expect(out.sdks.mcp_server).toBe('@okoro/mcp-server');
+      expect(out.sdks.typescript).toBe('@cerniq/sdk');
+      expect(out.sdks.python).toBe('cerniq');
+      expect(out.sdks.verifier_rp).toBe('@cerniq/verifier-rp');
+      expect(out.sdks.mcp_bridge).toBe('@cerniq/mcp-bridge');
+      expect(out.sdks.mcp_server).toBe('@cerniq/mcp-server');
     });
 
     it('falls back to canonical issuer when apiBaseUrl is unset', () => {
       const config = {
-        okoroSigningPublicKey: ZERO_KEY_B64,
-        okoroSigningKeyRotatedAt: FIXED_ROTATED_AT,
+        cerniqSigningPublicKey: ZERO_KEY_B64,
+        cerniqSigningKeyRotatedAt: FIXED_ROTATED_AT,
         apiBaseUrl: undefined,
       } as unknown as AppConfigService;
       const svc = new WellknownService(config);
@@ -238,7 +238,7 @@ describe('WellknownController', () => {
       const ctl = new WellknownController(svc);
       const out = ctl.configuration(fakeResponse().res);
 
-      expect(out.issuer).toBe('https://okoroapp.com');
+      expect(out.issuer).toBe('https://cerniqapp.com');
     });
   });
 
@@ -250,10 +250,10 @@ describe('WellknownController', () => {
 
       const out = ctl.securityTxt(res);
 
-      expect(out).toContain('Contact: mailto:security@okoroapp.com');
+      expect(out).toContain('Contact: mailto:security@cerniqapp.com');
       expect(out).toMatch(/Expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
       expect(out).toContain('Preferred-Languages: en');
-      expect(out).toContain('Canonical: https://api.okoroapp.com/.well-known/security.txt');
+      expect(out).toContain('Canonical: https://api.cerniqapp.com/.well-known/security.txt');
       expect(out).toContain('Policy:');
       expect(headers['content-type']).toMatch(/text\/plain/);
     });
@@ -280,12 +280,12 @@ describe('WellknownController', () => {
 
       const out = ctl.llmsTxt(res);
 
-      expect(out).toContain('# OKORO — Agent Gateway & Identity Stack');
-      expect(out).toContain('https://api.okoroapp.com/.well-known/okoro-configuration');
-      expect(out).toContain('POST https://api.okoroapp.com/v1/verify');
-      expect(out).toContain('npm install @okoro/sdk');
-      expect(out).toContain('pip install okoro');
-      expect(out).toContain('npm install @okoro/verifier-rp');
+      expect(out).toContain('# CERNIQ — Agent Gateway & Identity Stack');
+      expect(out).toContain('https://api.cerniqapp.com/.well-known/cerniq-configuration');
+      expect(out).toContain('POST https://api.cerniqapp.com/v1/verify');
+      expect(out).toContain('npm install @cerniq/sdk');
+      expect(out).toContain('pip install cerniq');
+      expect(out).toContain('npm install @cerniq/verifier-rp');
       expect(out).toContain('AGENT_NOT_FOUND → AGENT_REVOKED → INVALID_SIGNATURE');
       expect(headers['content-type']).toMatch(/text\/markdown/);
     });
@@ -305,7 +305,7 @@ describe('WellknownController', () => {
       expect(out.guarantees).toHaveLength(3);
       expect(out.guarantees[0]).toContain('chain remains verifiable');
       expect(out.operational.retention_run_interval_seconds).toBe(86_400);
-      expect(out.operational.configurable_via_env).toBe('OKORO_AUDIT_RETENTION_INTERVAL_MS');
+      expect(out.operational.configurable_via_env).toBe('CERNIQ_AUDIT_RETENTION_INTERVAL_MS');
       expect(headers['content-type']).toMatch(/application\/json/);
       expect(headers['cache-control']).toBeUndefined();
       // Cache-Control comes from a Nest @Header decorator — fakeResponse only
@@ -353,25 +353,25 @@ describe('WellknownController', () => {
     });
   });
 
-  describe('okoro-configuration advertises retention-policy.json', () => {
+  describe('cerniq-configuration advertises retention-policy.json', () => {
     it('exposes retention_policy_uri pointing at the new well-known endpoint', () => {
       const svc = buildService();
       const ctl = new WellknownController(svc);
       const out = ctl.configuration(fakeResponse().res);
 
       expect(out.retention_policy_uri).toBe(
-        'https://api.okoroapp.com/.well-known/retention-policy.json',
+        'https://api.cerniqapp.com/.well-known/retention-policy.json',
       );
     });
   });
 
-  describe('okoro-configuration advertises pricing.json', () => {
+  describe('cerniq-configuration advertises pricing.json', () => {
     it('exposes pricing_uri pointing at the new well-known endpoint', () => {
       const svc = buildService();
       const ctl = new WellknownController(svc);
       const out = ctl.configuration(fakeResponse().res);
 
-      expect(out.pricing_uri).toBe('https://api.okoroapp.com/.well-known/pricing.json');
+      expect(out.pricing_uri).toBe('https://api.cerniqapp.com/.well-known/pricing.json');
     });
   });
 

@@ -5,7 +5,7 @@
 import { CircuitOpenError } from '../resilience/circuit-breaker.js';
 
 import {
-  OkoroError,
+  CerniqError,
   AlreadyRotatedError,
   AuthenticationError,
   AuthorizationError,
@@ -17,7 +17,7 @@ import {
   ServiceUnavailableError,
   TrialExhaustedError,
   ValidationError,
-} from './okoro-error.js';
+} from './cerniq-error.js';
 import {
   ERROR_CATALOG,
   getCatalogEntry,
@@ -42,9 +42,16 @@ describe('ERROR_CATALOG', () => {
       expect(typeof entry.retryable).toBe('boolean');
       expect(typeof entry.customerMessage).toBe('string');
       expect(entry.customerMessage.length).toBeGreaterThan(0);
-      expect(['auth', 'validation', 'policy', 'rate_limit', 'billing', 'crypto', 'transient', 'internal']).toContain(
-        entry.category,
-      );
+      expect([
+        'auth',
+        'validation',
+        'policy',
+        'rate_limit',
+        'billing',
+        'crypto',
+        'transient',
+        'internal',
+      ]).toContain(entry.category);
       if (entry.backoff !== undefined) {
         expect(['none', 'linear', 'exponential', 'on_retry_after_header']).toContain(entry.backoff);
       }
@@ -64,7 +71,7 @@ describe('ERROR_CATALOG', () => {
       /stack trace/i,
       /\bundefined\b/,
       /\bnull\b/,
-      /okoro_[a-z0-9]+/i,
+      /cerniq_[a-z0-9]+/i,
       /whsec_[a-z0-9]+/i,
       /sk_[a-z0-9]+/i,
       /at\s+\S+\s+\(/, // JS stack frame "at fn (file:line)"
@@ -81,7 +88,7 @@ describe('ERROR_CATALOG', () => {
 });
 
 describe('getCatalogEntry', () => {
-  it('returns the right entry for a known OkoroError subclass', () => {
+  it('returns the right entry for a known CerniqError subclass', () => {
     const err = new NotFoundError('Agent');
     const entry = getCatalogEntry(err);
     expect(entry).not.toBeNull();
@@ -89,7 +96,7 @@ describe('getCatalogEntry', () => {
     expect(entry?.httpStatus).toBe(404);
   });
 
-  it('resolves every existing OkoroError subclass that is constructible here', () => {
+  it('resolves every existing CerniqError subclass that is constructible here', () => {
     const cases: [Error, string][] = [
       [new AuthenticationError(), 'auth_required'],
       [new AuthorizationError(), 'forbidden'],
@@ -109,7 +116,7 @@ describe('getCatalogEntry', () => {
     }
   });
 
-  it('returns null for non-Okoro JS errors', () => {
+  it('returns null for non-Cerniq JS errors', () => {
     expect(getCatalogEntry(new TypeError('nope'))).toBeNull();
     expect(getCatalogEntry(new RangeError('nope'))).toBeNull();
   });
@@ -123,7 +130,7 @@ describe('getCatalogEntry', () => {
 });
 
 describe('catalogKey discriminator (F-06 minification safety)', () => {
-  // Each OkoroError subclass must declare a static `catalogKey` whose
+  // Each CerniqError subclass must declare a static `catalogKey` whose
   // string value matches the un-minified class name. This is what survives
   // a tsup production build of the SDK after class names are mangled to
   // single letters.
@@ -157,7 +164,7 @@ describe('catalogKey discriminator (F-06 minification safety)', () => {
   });
 
   it('CircuitOpenError still resolves via constructor.name fallback', () => {
-    // CircuitOpenError doesn't extend OkoroError, but it has its own
+    // CircuitOpenError doesn't extend CerniqError, but it has its own
     // static catalogKey too, so it survives minification as well.
     const err = new CircuitOpenError('demo');
     const entry = getCatalogEntry(err);
@@ -168,16 +175,18 @@ describe('catalogKey discriminator (F-06 minification safety)', () => {
     expect(getCatalogEntry(err)?.code).toBe('upstream_unavailable');
   });
 
-  it('hard-fails any OkoroError subclass that forgets to override catalogKey', () => {
+  it('hard-fails any CerniqError subclass that forgets to override catalogKey', () => {
     // Reproduce a developer omitting the static override. The base
     // catalogKey defaults to '' and the constructor must throw.
-    class BrokenError extends OkoroError {
+    class BrokenError extends CerniqError {
       readonly code = 'INTERNAL' as const;
       constructor() {
         super(500, 'broken');
       }
     }
-    expect(() => new BrokenError()).toThrow(/OkoroError subclass missing static catalogKey: BrokenError/);
+    expect(() => new BrokenError()).toThrow(
+      /CerniqError subclass missing static catalogKey: BrokenError/,
+    );
   });
 });
 
@@ -221,10 +230,10 @@ describe('toClientPayload', () => {
   });
 
   it('falls back to internal_error for uncataloged errors and never leaks internals', () => {
-    const payload = toClientPayload(new TypeError('okoro_secret_key=foo'));
+    const payload = toClientPayload(new TypeError('cerniq_secret_key=foo'));
     expect(payload.code).toBe('internal_error');
     expect(payload.retryable).toBe(true);
-    expect(payload.message).not.toContain('okoro_secret_key');
+    expect(payload.message).not.toContain('cerniq_secret_key');
     expect(payload.message).not.toContain('TypeError');
   });
 

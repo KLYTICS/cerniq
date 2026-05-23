@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import type { Okoro } from '@okoro/sdk';
+import type { Cerniq } from '@cerniq/sdk';
 import { RawClient, makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixtures';
 import { pollUntil } from './_support/retry';
@@ -21,7 +21,7 @@ interface AuditLog {
 }
 
 describe('10 · audit chain', () => {
-  let sdk: Okoro;
+  let sdk: Cerniq;
   let raw: RawClient;
   const cleanup: string[] = [];
 
@@ -47,8 +47,16 @@ describe('10 · audit chain', () => {
     const policy = await createPolicy(sdk, agent.agentId, [SCOPES.commerce()]);
 
     // Generate three verifies (mix of approved + denied).
-    const t1 = await signTokenFor(agent, policy.policyId, { action: 'commerce.purchase', amount: 5, currency: 'USD' });
-    const t2 = await signTokenFor(agent, policy.policyId, { action: 'commerce.purchase', amount: 5, currency: 'USD' });
+    const t1 = await signTokenFor(agent, policy.policyId, {
+      action: 'commerce.purchase',
+      amount: 5,
+      currency: 'USD',
+    });
+    const t2 = await signTokenFor(agent, policy.policyId, {
+      action: 'commerce.purchase',
+      amount: 5,
+      currency: 'USD',
+    });
     const t3 = await signTokenFor(agent, policy.policyId, { action: 'data-read' }); // wrong category → denied
     await sdk.verify(t1, { action: 'commerce.purchase', amount: 5, currency: 'USD' });
     await sdk.verify(t2, { action: 'commerce.purchase', amount: 5, currency: 'USD' });
@@ -81,7 +89,11 @@ describe('10 · audit chain', () => {
     const agent = await createAgent(sdk);
     cleanup.push(agent.agentId);
     const policy = await createPolicy(sdk, agent.agentId, [SCOPES.commerce()]);
-    const tok = await signTokenFor(agent, policy.policyId, { action: 'commerce.purchase', amount: 1, currency: 'USD' });
+    const tok = await signTokenFor(agent, policy.policyId, {
+      action: 'commerce.purchase',
+      amount: 1,
+      currency: 'USD',
+    });
     await sdk.verify(tok, { action: 'commerce.purchase', amount: 1, currency: 'USD' });
 
     const r = await raw.get<{ valid: boolean }>(`/v1/agents/${agent.agentId}/audit/verify`);

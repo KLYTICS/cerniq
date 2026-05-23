@@ -1,5 +1,5 @@
 ---
-title: OKORO — Agent Role Briefs
+title: CERNIQ — Agent Role Briefs
 audience: every Claude session, every human contributor; mandatory at session-start
 last-reviewed: 2026-05-08
 status: source-of-truth — v1
@@ -7,7 +7,7 @@ status: source-of-truth — v1
 
 # 02 — Agent Role Briefs
 
-> An "agent" in this document is the *role* a contributor is occupying
+> An "agent" in this document is the _role_ a contributor is occupying
 > for a given task — not whether the contributor is human or a Claude
 > session. The same person can be Architect at 9am and Reviewer at 11am
 > on different tasks; the same Claude session can be Implementer for
@@ -24,10 +24,10 @@ status: source-of-truth — v1
 - Every session opens by reading this file's row for the role being
   occupied. The row is short by design — read it.
 - A claim on `WORK_BOARD.md` declares both the module and the role
-  (`claude-peers claim okoro M-XYZ --role implementer --note "..."`).
+  (`claude-peers claim cerniq M-XYZ --role implementer --note "..."`).
 - A handoff in `docs/SESSION_HANDOFF.md` declares the role transition
   if any (e.g. "Implementer→Reviewer for self-review on M-XYZ").
-- The role brief defines the *minimum* expectations. Departmental
+- The role brief defines the _minimum_ expectations. Departmental
   charters in `01_DEPARTMENT_CHARTERS.md` add department-specific bars.
 
 ---
@@ -58,6 +58,7 @@ responsibilities and bar.
 **One-line.** Decides the shape of the thing before it is built.
 
 **Context bundle (read at session start).**
+
 - `CLAUDE.md` end-to-end.
 - `docs/execution/00_OPERATING_SYSTEM.md`.
 - `docs/execution/03_TASK_LIFECYCLE.md` § Thinking + Planning stages.
@@ -67,15 +68,17 @@ responsibilities and bar.
 - The module's `WORK_BOARD.md` entry and any blocking ADRs.
 
 **Tool allowlist.**
+
 - Read: everything.
 - Write: `docs/decisions/` (new ADRs), `docs/spec/` (extending specs),
   the module's design doc if any, `WORK_BOARD.md` (claim), `docs/
-  SESSION_HANDOFF.md` (handoff entries).
+SESSION_HANDOFF.md` (handoff entries).
 - Forbidden without role transition: editing implementation code in
   `apps/`, `packages/`, `workers/`. Architects propose; Implementers
   build. The transition is explicit.
 
 **Mandatory deliverables for non-trivial work.**
+
 - An ADR in `docs/decisions/` titled `NNNN-<short-slug>.md`,
   following the canonical template (`docs/decisions/0000-template.md`).
   Includes: context, decision, consequences (positive + negative + neutral),
@@ -89,6 +92,7 @@ responsibilities and bar.
   Compliance approval.
 
 **Success criteria.**
+
 - The Implementer who picks up the work can build it without
   re-deciding any architectural question.
 - The Reviewer can gate the result against the ADR — does the
@@ -97,6 +101,7 @@ responsibilities and bar.
   the choice was made.
 
 **Escalation paths.**
+
 - If a decision touches a `CLAUDE.md` invariant: stop, write the ADR,
   request Operator + Security review before proceeding.
 - If a decision affects the public API: stop, write the ADR, tag
@@ -106,6 +111,7 @@ responsibilities and bar.
   the ADR, Security has veto.
 
 **Anti-patterns.**
+
 - Implementing while Architecting. The decision is unstable until the
   ADR is written; building on unstable decisions creates rework.
 - Writing the ADR after the fact. Backfilled ADRs are documented
@@ -121,6 +127,7 @@ responsibilities and bar.
 **One-line.** Builds the thing the Architect specified.
 
 **Context bundle.**
+
 - `CLAUDE.md`.
 - `docs/execution/00_OPERATING_SYSTEM.md`.
 - `docs/execution/03_TASK_LIFECYCLE.md` § Implementing stage.
@@ -133,6 +140,7 @@ responsibilities and bar.
 - The `docs/design/` files relevant to any UI surface.
 
 **Tool allowlist.**
+
 - Read: everything.
 - Write: code in the modules claimed on `WORK_BOARD.md`, tests for
   those modules, the affected `docs/` if scope-appropriate (e.g.
@@ -143,6 +151,7 @@ responsibilities and bar.
   `CLAUDE.md` or `docs/SECURITY.md` (Operator + Security own).
 
 **Mandatory deliverables.**
+
 - Code that compiles, typechecks strict, lints clean, and clears the
   test bar (see `04_QUALITY_GATES.md`).
 - Tests covering the new behavior. Crypto code requires a paired
@@ -158,6 +167,7 @@ responsibilities and bar.
   Round 23 entry is the reference example).
 
 **Success criteria.**
+
 - A Reviewer can approve the PR against the gates in
   `04_QUALITY_GATES.md` without asking implementation-detail questions.
 - Tests caught the bug you might have introduced; you didn't catch them
@@ -166,6 +176,7 @@ responsibilities and bar.
   without context loss.
 
 **Escalation paths.**
+
 - If the ADR is ambiguous: stop, request Architect clarification via
   `claude-peers msg <holder> "..."` or open an issue. Do NOT guess.
 - If implementation reveals the ADR is wrong: stop, write a follow-up
@@ -174,6 +185,7 @@ responsibilities and bar.
   stop, surface it, do not auto-fix.
 
 **Anti-patterns.**
+
 - Editing files outside the module claim. Even a "tiny" edit to a file
   in another module breaks the parallel-session contract.
 - Skipping tests because "it's obvious." The bar is the test, not the
@@ -190,6 +202,7 @@ responsibilities and bar.
 **One-line.** Approves merges. The bar.
 
 **Context bundle.**
+
 - `CLAUDE.md`.
 - `docs/execution/00_OPERATING_SYSTEM.md`.
 - `docs/execution/04_QUALITY_GATES.md` end-to-end (this is the
@@ -199,6 +212,7 @@ responsibilities and bar.
 - The PR's tests.
 
 **Tool allowlist.**
+
 - Read: everything.
 - Write: PR comments, suggestions, the merge button.
 - Forbidden: pushing commits to the PR branch. The Implementer
@@ -206,6 +220,7 @@ responsibilities and bar.
   if both parties agree, recorded in PR conversation.)
 
 **Mandatory deliverables.**
+
 - An approval, request-for-changes, or block, with reasoning.
 - A walk-through of the gates in `04_QUALITY_GATES.md`. Each gate
   receives an explicit pass/fail in the PR comments.
@@ -215,14 +230,16 @@ responsibilities and bar.
   that the invariant is preserved or that an ADR exists overriding it.
 
 **Success criteria.**
+
 - A `git blame` six months from now traces a problem to either
   (a) a missing test the Reviewer should have caught, in which case
   the Reviewer process improves; or (b) a deliberate decision in an
   ADR, in which case the audit trail is intact.
-- Reviewer is *not* a rubber stamp — average review takes long enough
+- Reviewer is _not_ a rubber stamp — average review takes long enough
   to read the diff and run the tests locally.
 
 **Escalation paths.**
+
 - If the PR violates a `CLAUDE.md` invariant: block. Do not approve
   with comments — the bar is non-negotiable.
 - If the PR is correct but the ADR is wrong: approve the PR if the
@@ -231,6 +248,7 @@ responsibilities and bar.
 - If unsure about a Compliance implication: tag Compliance agent.
 
 **Anti-patterns.**
+
 - Approving without running tests locally for non-trivial changes.
 - "LGTM" with no specific gate confirmation. The audit trail needs
   more than approval; it needs reasoning.
@@ -246,6 +264,7 @@ responsibilities and bar.
 precedence questions.
 
 **Context bundle.**
+
 - `CLAUDE.md` invariants 1, 3, 6 (private keys, audit chain, denial
   precedence).
 - `docs/SECURITY.md` end-to-end.
@@ -257,6 +276,7 @@ precedence questions.
   ADR-0010 DPoP, ADR-0013 PQ hybrid).
 
 **Tool allowlist.**
+
 - Read: everything (especially crypto code, audit chain code, every
   PR touching either).
 - Write: PR review comments and approvals/blocks; threat model
@@ -266,6 +286,7 @@ precedence questions.
   followed.
 
 **Mandatory deliverables.**
+
 - Approval or block on every PR that touches:
   - `apps/api/src/common/crypto/*`
   - `packages/sdk-*/src/crypto*` or signing code
@@ -282,6 +303,7 @@ precedence questions.
   - The paired `.spec.ts` exists and runs
 
 **Success criteria.**
+
 - A penetration test six months from now does not find a bug Security
   should have caught at PR review.
 - The audit chain remains tamper-detectable in O(n) for the lifetime
@@ -290,6 +312,7 @@ precedence questions.
   Security does not have to write a new control description on demand.
 
 **Escalation paths.**
+
 - If a PR violates a security invariant and the Implementer pushes
   back: escalate to the Operator. Security veto stands.
 - If a customer questionnaire asks about a control that does not exist
@@ -298,6 +321,7 @@ precedence questions.
   `docs/INCIDENT_RESPONSE.md` process.
 
 **Anti-patterns.**
+
 - Approving crypto code without running the spec locally.
 - Treating threat-model updates as "nice to have." They are part of the
   S-1 data room.
@@ -311,12 +335,14 @@ precedence questions.
 **One-line.** The veto on visual and UX surfaces.
 
 **Context bundle.**
+
 - `docs/design/00_BRAND_FOUNDATION.md` end-to-end.
 - The relevant `docs/design/01_*` through `05_*` for the surface.
 - `01_DEPARTMENT_CHARTERS.md` § Design.
 - Any prior visual work in the same surface (look at recent commits).
 
 **Tool allowlist.**
+
 - Read: everything visual + the surfaces under review.
 - Write: design files in Figma, design assets in `packages/ui-brand`,
   PR review comments on visual changes, updates to
@@ -326,6 +352,7 @@ precedence questions.
   Designers approve the visual outcome; Implementers wire it.
 
 **Mandatory deliverables.**
+
 - Approval or change-request on every PR that touches a visual
   surface (`apps/marketing`, `apps/dashboard`, `apps/docs`,
   `packages/ui-brand`).
@@ -336,6 +363,7 @@ precedence questions.
   is blocked.
 
 **Success criteria.**
+
 - Public surfaces clear Lighthouse ≥95 (≥98 for docs).
 - WCAG 2.2 AA holds across every shipped page.
 - Brand foundation tokens are the only color source. If a violation
@@ -345,6 +373,7 @@ precedence questions.
   hierarchy, type, density.)
 
 **Escalation paths.**
+
 - Brand-foundation change request: write an ADR, get Operator
   approval.
 - A11y regression in shipped code: file a P0, block further visual
@@ -353,6 +382,7 @@ precedence questions.
   proposes.
 
 **Anti-patterns.**
+
 - Approving visual changes without screen-reader pass.
 - Letting "we'll fix it later" hardcoded hex pass review. There is no
   later — there is the next sprint, where it has multiplied.
@@ -366,6 +396,7 @@ precedence questions.
 **One-line.** The bar for public-facing prose.
 
 **Context bundle.**
+
 - `CLAUDE.md` (because docs that contradict invariants are bugs).
 - `docs/personas/*.md`.
 - `docs/design/03_DOCS_SITE_PROMPTS.md`.
@@ -375,6 +406,7 @@ precedence questions.
   § 2).
 
 **Tool allowlist.**
+
 - Read: everything.
 - Write: `docs/`, `apps/docs/content/`, `apps/marketing/content/` (when
   copy is canonicalized there), README files in packages, JSDoc/
@@ -384,6 +416,7 @@ precedence questions.
   is wrong, escalate to the relevant department.
 
 **Mandatory deliverables.**
+
 - Documentation for every shipped feature within 7 days of merge.
 - Updates to affected concept pages, API reference, and integration
   guides.
@@ -392,6 +425,7 @@ precedence questions.
 - Migration guides for any breaking change.
 
 **Success criteria.**
+
 - A developer in `docs/personas/developer.md`'s shoes reaches success
   using docs alone, no help required.
 - Doc lints pass (markdownlint, link-checker, every code sample is
@@ -400,6 +434,7 @@ precedence questions.
   builder-respectful.
 
 **Escalation paths.**
+
 - If the technical truth is wrong: file an issue in the relevant
   module, do NOT publish docs that perpetuate the bug.
 - If voice contradicts design: design wins; Documenter aligns.
@@ -407,13 +442,14 @@ precedence questions.
   evidence of doc inadequacy.
 
 **Anti-patterns.**
+
 - Paraphrasing technical specifics. The 10 denial reasons, the
   `<80ms` claim, the Ed25519 algorithm — these come from canonical
   sources verbatim or not at all.
 - Publishing speculative roadmap items as fact in customer-facing
   docs.
-- Documentation that tells the reader what OKORO *will* do; documentation
-  describes what OKORO *does* unless explicitly bracketed.
+- Documentation that tells the reader what CERNIQ _will_ do; documentation
+  describes what CERNIQ _does_ unless explicitly bracketed.
 
 ---
 
@@ -423,13 +459,15 @@ precedence questions.
 pre-IPO institutional muscle.
 
 **Context bundle.**
+
 - `01_DEPARTMENT_CHARTERS.md` § Compliance & Risk.
 - `docs/COMPLIANCE.md`, `docs/COMPLIANCE_BUNDLE.md`.
 - `docs/EU_RESIDENCY.md`, `docs/RETENTION_POLICY.md`.
-- The status of every control claim OKORO makes externally.
+- The status of every control claim CERNIQ makes externally.
 - `05_PUBLIC_COMPANY_READINESS.md` (this OS).
 
 **Tool allowlist.**
+
 - Read: everything.
 - Write: `docs/COMPLIANCE*`, the control mapping, sub-processor list,
   DPA template, contract-exception register.
@@ -437,6 +475,7 @@ pre-IPO institutional muscle.
   evidence pointer is mandatory before the claim ships externally.
 
 **Mandatory deliverables.**
+
 - Every customer-facing compliance claim has a control mapping and
   an evidence pointer.
 - Every change to the threat surface has a corresponding control
@@ -447,12 +486,14 @@ pre-IPO institutional muscle.
 - Pre-audit dry-runs quarterly.
 
 **Success criteria.**
+
 - A SOC2 auditor arriving without notice can find every piece of
   required evidence in <30 minutes from the data room.
 - No customer compliance claim has been overstated.
 - The status table in `docs/COMPLIANCE.md` is honest at all times.
 
 **Escalation paths.**
+
 - If a customer claim is overstated: stop, file a correction, notify
   affected customers within 72 hours, document the correction.
 - If an audit finding requires architectural change: ADR via
@@ -460,6 +501,7 @@ pre-IPO institutional muscle.
 - If a regulator engages: route to Legal + Operator.
 
 **Anti-patterns.**
+
 - "Aspirational" compliance status. The status field is binary at
   the granularity it presents (In place / In progress / Roadmap).
 - Single-source compliance claims (a claim only in marketing copy
@@ -476,6 +518,7 @@ pre-IPO institutional muscle.
 artifacts investors and the board consume.
 
 **Context bundle.**
+
 - `01_DEPARTMENT_CHARTERS.md` § Investor Relations.
 - `05_PUBLIC_COMPANY_READINESS.md`.
 - The current investor deck in `docs/design/05_PITCH_DECK_PROMPTS.md`.
@@ -483,6 +526,7 @@ artifacts investors and the board consume.
 - Every department's monthly metrics.
 
 **Tool allowlist.**
+
 - Read: everything.
 - Write: investor deck artifacts, monthly board updates, data room
   index, KPI dashboard, partnership memos.
@@ -491,6 +535,7 @@ artifacts investors and the board consume.
   Legal sign-off; quoting metrics without a source link.
 
 **Mandatory deliverables.**
+
 - Monthly board update within 7 days of month close, structured per
   the canonical board-update template (see
   `05_PUBLIC_COMPANY_READINESS.md` § board update).
@@ -501,12 +546,14 @@ artifacts investors and the board consume.
 - KPI dashboard refresh quarterly, reconciled to source systems.
 
 **Success criteria.**
+
 - An investor due-diligence partner can reach what they need from the
   data room without back-and-forth.
 - A board member asking about a metric gets a number with a source link.
-- A prospective acquirer finds OKORO S-1-ready in 24 months.
+- A prospective acquirer finds CERNIQ S-1-ready in 24 months.
 
 **Escalation paths.**
+
 - If an investor asks for confidential customer data: route to Legal +
   Customer (the customer's permission is required).
 - If a metric in the deck is questioned: pull the source, reconcile,
@@ -516,6 +563,7 @@ artifacts investors and the board consume.
   the assumption, or remove it.
 
 **Anti-patterns.**
+
 - Decks that change between sends without versioning. Every deck send
   is a saved artifact.
 - Numbers without sources. Even if the source is "Stripe export
@@ -550,7 +598,7 @@ transitions roles re-reads the new role's context bundle.
 
 ## Multi-role sessions and segregation of duties
 
-Some humans hold multiple roles. The operator at OKORO today plausibly
+Some humans hold multiple roles. The operator at CERNIQ today plausibly
 holds Architect, Reviewer, and IR roles simultaneously. This is normal
 in a small company.
 
@@ -560,6 +608,7 @@ duties is the IPO-bar discipline that prevents an entire class of
 control failure.
 
 In practice, for a small team:
+
 - Operator-as-Architect writes the ADR. A Claude session as Reviewer
   approves it.
 - Claude session as Implementer ships the code. Another Claude session
@@ -576,16 +625,16 @@ the audit failure.
 
 ## Quick reference
 
-| Role | Reads first | Writes principally | Cannot |
-|---|---|---|---|
-| Architect | CLAUDE.md, ADRs, ARCHITECTURE | docs/decisions/ | Implement code |
-| Implementer | ADR, module, tests | apps/, packages/ | Write ADRs |
-| Reviewer | gates doc, PR diff | PR comments | Push commits to PR |
-| Security | SECURITY.md, threat model | crypto reviews, threat model | Override invariants without ADR |
-| Designer | brand foundation, surface file | design files, ui-brand | Edit implementation code |
-| Documenter | code, persona docs | docs/, apps/docs/ | Change technical truth |
-| Compliance | COMPLIANCE.md, controls | control mapping, evidence | Make unsourced compliance claims |
-| IR | board update template, KPIs | board updates, deck | Quote metrics without source |
+| Role        | Reads first                    | Writes principally           | Cannot                           |
+| ----------- | ------------------------------ | ---------------------------- | -------------------------------- |
+| Architect   | CLAUDE.md, ADRs, ARCHITECTURE  | docs/decisions/              | Implement code                   |
+| Implementer | ADR, module, tests             | apps/, packages/             | Write ADRs                       |
+| Reviewer    | gates doc, PR diff             | PR comments                  | Push commits to PR               |
+| Security    | SECURITY.md, threat model      | crypto reviews, threat model | Override invariants without ADR  |
+| Designer    | brand foundation, surface file | design files, ui-brand       | Edit implementation code         |
+| Documenter  | code, persona docs             | docs/, apps/docs/            | Change technical truth           |
+| Compliance  | COMPLIANCE.md, controls        | control mapping, evidence    | Make unsourced compliance claims |
+| IR          | board update template, KPIs    | board updates, deck          | Quote metrics without source     |
 
 Print this. Tape it next to the RACI from
 `01_DEPARTMENT_CHARTERS.md`. These two pages are the operating system

@@ -1,8 +1,8 @@
 {
-  "name": "@okoro/postman",
+  "name": "@cerniq/postman",
   "version": "0.1.0",
   "private": true,
-  "description": "OKORO Postman v2.1 collection + validator. Drop-in for Postman, Insomnia, or any v2.1-compatible client.",
+  "description": "CERNIQ Postman v2.1 collection + validator. Drop-in for Postman, Insomnia, or any v2.1-compatible client.",
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@okoro/types": "workspace:*"
+    "@cerniq/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

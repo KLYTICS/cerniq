@@ -22,15 +22,10 @@ import { sha512 } from '@noble/hashes/sha512';
 import { describe, expect, it, beforeAll } from 'vitest';
 
 import { AuditChainUtil } from '../../apps/api/src/common/crypto/audit-chain.util';
-import {
-  encodeBase64Url as apiEncodeBase64Url,
-} from '../../apps/api/src/common/crypto/ed25519.util';
+import { encodeBase64Url as apiEncodeBase64Url } from '../../apps/api/src/common/crypto/ed25519.util';
 import { verifyChain } from '../../packages/audit-verifier/src/chain';
 import { encodeBase64Url as verifierEncodeBase64Url } from '../../packages/audit-verifier/src/canonical';
-import type {
-  AuditEventRow,
-  JwksDocument,
-} from '../../packages/audit-verifier/src/types';
+import type { AuditEventRow, JwksDocument } from '../../packages/audit-verifier/src/types';
 import type {
   AuditChainPayload,
   AuditChainPayloadInput,
@@ -67,7 +62,11 @@ function basePayloadInput(seed: number): AuditChainPayloadInput {
   };
 }
 
-async function generateKeypair(): Promise<{ priv: Uint8Array; pub: Uint8Array; pubB64Url: string }> {
+async function generateKeypair(): Promise<{
+  priv: Uint8Array;
+  pub: Uint8Array;
+  pubB64Url: string;
+}> {
   const priv = ed.utils.randomPrivateKey();
   const pub = await ed.getPublicKeyAsync(priv);
   return { priv, pub, pubB64Url: apiEncodeBase64Url(pub) };
@@ -111,14 +110,21 @@ async function signRow(
 
 // ── The parity test ──────────────────────────────────────────────────
 
-describe('audit-chain parity — API signer ↔ @okoro/audit-verifier', () => {
+describe('audit-chain parity — API signer ↔ @cerniq/audit-verifier', () => {
   it('verifier accepts an API-signed 5-row chain', async () => {
     const { priv, pubB64Url } = await generateKeypair();
     const rows: AuditEventRow[] = [];
     let prevEventId: string | null = null;
     let prevSignature: string | null = null;
     for (let i = 0; i < 5; i++) {
-      const built = await signRow(util, priv, `evt_${i}`, prevEventId, prevSignature, basePayloadInput(i));
+      const built = await signRow(
+        util,
+        priv,
+        `evt_${i}`,
+        prevEventId,
+        prevSignature,
+        basePayloadInput(i),
+      );
       rows.push(built.apiRow);
       prevEventId = built.apiRow.eventId;
       prevSignature = built.apiRow.signature;
@@ -150,8 +156,8 @@ describe('audit-chain parity — API signer ↔ @okoro/audit-verifier', () => {
     // either originally-absent OR redacted-via-GDPR-Art-17 values).
     const { priv, pubB64Url } = await generateKeypair();
     const input = basePayloadInput(7);
-    input.action = null;        // simulate redacted action field
-    input.relyingParty = null;  // simulate redacted RP field
+    input.action = null; // simulate redacted action field
+    input.relyingParty = null; // simulate redacted RP field
     const built = await signRow(util, priv, 'evt_redacted', null, null, input);
     const jwks: JwksDocument = {
       keys: [{ kty: 'OKP', crv: 'Ed25519', x: pubB64Url, kid: KID, use: 'sig' }],
@@ -170,7 +176,14 @@ describe('audit-chain parity — API signer ↔ @okoro/audit-verifier', () => {
     let prevEventId: string | null = null;
     let prevSignature: string | null = null;
     for (let i = 0; i < 3; i++) {
-      const built = await signRow(util, priv, `evt_${i}`, prevEventId, prevSignature, basePayloadInput(i));
+      const built = await signRow(
+        util,
+        priv,
+        `evt_${i}`,
+        prevEventId,
+        prevSignature,
+        basePayloadInput(i),
+      );
       rows.push(built.apiRow);
       prevEventId = built.apiRow.eventId;
       prevSignature = built.apiRow.signature;
@@ -191,9 +204,9 @@ describe('audit-chain parity — API signer ↔ @okoro/audit-verifier', () => {
     const samples: Uint8Array[] = [
       new Uint8Array([0]),
       new Uint8Array([0xff]),
-      new Uint8Array([0xfb, 0xff, 0xbf]),         // bytes that map to + and / in base64
-      new Uint8Array(32).fill(0x42),               // realistic Ed25519-key-shape
-      new Uint8Array(64).fill(0xab),               // realistic signature-shape
+      new Uint8Array([0xfb, 0xff, 0xbf]), // bytes that map to + and / in base64
+      new Uint8Array(32).fill(0x42), // realistic Ed25519-key-shape
+      new Uint8Array(64).fill(0xab), // realistic signature-shape
     ];
     for (const bytes of samples) {
       expect(verifierEncodeBase64Url(bytes)).toBe(apiEncodeBase64Url(bytes));

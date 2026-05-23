@@ -13,16 +13,16 @@
 //
 // Usage:
 //   AGENT_ID=agt_… POLICY_ID=pol_… PRIV_FILE=…/dev-agent.private \
-//   POOL_SIZE=2000 OUT=/tmp/okoro-token-pool.txt \
+//   POOL_SIZE=2000 OUT=/tmp/cerniq-token-pool.txt \
 //   node tests/load/mint-token-pool.mjs
 
-import { signAgentToken } from '/Users/money/Desktop/OKORO/packages/sdk-ts/dist/index.mjs';
+import { signAgentToken } from '/Users/money/Desktop/CERNIQ/packages/sdk-ts/dist/index.mjs';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const AGENT_ID = process.env.AGENT_ID;
 const POLICY_ID = process.env.POLICY_ID;
 const PRIV_FILE = process.env.PRIV_FILE;
-const OUT = process.env.OUT ?? '/tmp/okoro-token-pool.txt';
+const OUT = process.env.OUT ?? '/tmp/cerniq-token-pool.txt';
 const POOL_SIZE = Number(process.env.POOL_SIZE ?? 2000);
 
 if (!AGENT_ID || !POLICY_ID || !PRIV_FILE) {

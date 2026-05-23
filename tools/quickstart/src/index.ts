@@ -1,8 +1,8 @@
-// OKORO quickstart — your first verify in 30 seconds.
+// CERNIQ quickstart — your first verify in 30 seconds.
 //
 // What this script does, end to end:
 //   1. Generate a fresh Ed25519 keypair (client-side, never sent).
-//   2. Register the agent with OKORO — only the public key transits.
+//   2. Register the agent with CERNIQ — only the public key transits.
 //   3. Create a scoped policy with a $500 commerce cap.
 //   4. Sign a per-request token (still client-side).
 //   5. Call /v1/verify with the token + the action context.
@@ -10,26 +10,26 @@
 //
 // What this script DOESN'T do (deliberately):
 //   - Persist the keypair. The whole point of "private keys never
-//     enter OKORO" is the agent owns the private key. We print it
+//     enter CERNIQ" is the agent owns the private key. We print it
 //     once so you can rerun, but nothing is saved.
 //   - Cover the denial branches. See examples/fintech-payments/
 //     src/walk-denials.ts for that.
 //
 // Required env:
-//   OKORO_API_BASE     base URL (e.g. https://api.okoroapp.com)
-//   OKORO_API_KEY      management key (okoro_sk_…) for the registration
+//   CERNIQ_API_BASE     base URL (e.g. https://api.cerniqapp.com)
+//   CERNIQ_API_KEY      management key (cerniq_sk_…) for the registration
 //
 // Optional:
-//   OKORO_VERIFY_KEY   verify-only key (okoro_vk_…) for the verify call.
-//                      Falls back to OKORO_API_KEY if absent — fine for
+//   CERNIQ_VERIFY_KEY   verify-only key (cerniq_vk_…) for the verify call.
+//                      Falls back to CERNIQ_API_KEY if absent — fine for
 //                      a quickstart, NOT fine for production where the
 //                      verify edge should never see a management key.
 
-import { Okoro, generateKeypair, signAgentToken } from '@okoro/sdk';
+import { Cerniq, generateKeypair, signAgentToken } from '@cerniq/sdk';
 
-const API_BASE = process.env.OKORO_API_BASE ?? 'https://api.okoroapp.com';
-const API_KEY = requireEnv('OKORO_API_KEY');
-const VERIFY_KEY = process.env.OKORO_VERIFY_KEY ?? API_KEY;
+const API_BASE = process.env.CERNIQ_API_BASE ?? 'https://api.cerniqapp.com';
+const API_KEY = requireEnv('CERNIQ_API_KEY');
+const VERIFY_KEY = process.env.CERNIQ_VERIFY_KEY ?? API_KEY;
 
 async function main(): Promise<number> {
   step('1', 'Generate Ed25519 keypair (client-side; private never sent)');
@@ -39,19 +39,19 @@ async function main(): Promise<number> {
     `     privateKey ${kp.privateKey.slice(0, 16)}…  (truncated; never persisted)\n`,
   );
 
-  step('2', 'Register the agent with OKORO — public key only');
-  const okoroMgmt = new Okoro({ baseUrl: API_BASE, apiKey: API_KEY });
-  const agent = await okoroMgmt.agents.register({
+  step('2', 'Register the agent with CERNIQ — public key only');
+  const cerniqMgmt = new Cerniq({ baseUrl: API_BASE, apiKey: API_KEY });
+  const agent = await cerniqMgmt.agents.register({
     publicKey: kp.publicKey,
     runtime: 'CUSTOM',
-    label: 'okoro-quickstart',
+    label: 'cerniq-quickstart',
   });
   process.stderr.write(`     agentId    ${agent.agentId}\n`);
   process.stderr.write(`     trustScore ${agent.trustScore}\n`);
 
   step('3', 'Create a scoped policy ($500 per-tx commerce cap)');
   const expiresAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
-  const policy = await okoroMgmt.policies.create(agent.agentId, {
+  const policy = await cerniqMgmt.policies.create(agent.agentId, {
     scopes: [
       {
         category: 'commerce',
@@ -75,8 +75,8 @@ async function main(): Promise<number> {
   process.stderr.write(`     token      ${token.slice(0, 60)}…  (truncated)\n`);
 
   step('5', 'Call /v1/verify with the token + action context');
-  const okoroRp = new Okoro({ baseUrl: API_BASE, verifyKey: VERIFY_KEY });
-  const verdict = await okoroRp.verify(token, {
+  const cerniqRp = new Cerniq({ baseUrl: API_BASE, verifyKey: VERIFY_KEY });
+  const verdict = await cerniqRp.verify(token, {
     action: 'commerce.purchase',
     amount: 49,
     currency: 'USD',
@@ -119,12 +119,14 @@ function requireEnv(name: string): string {
     process.stderr.write(`quickstart: ${name} env is required\n`);
     process.stderr.write('\n');
     process.stderr.write('Quick setup:\n');
-    process.stderr.write('  1. Boot OKORO locally: cd /path/to/okoro && pnpm db:up && pnpm dev\n');
+    process.stderr.write(
+      '  1. Boot CERNIQ locally: cd /path/to/cerniq && pnpm db:up && pnpm dev\n',
+    );
     process.stderr.write(
       '  2. Mint an API key (see docs/RUNBOOK.md § "Issuing the first API key")\n',
     );
     process.stderr.write(
-      '  3. OKORO_API_BASE=http://localhost:4000 OKORO_API_KEY=okoro_sk_… pnpm start\n',
+      '  3. CERNIQ_API_BASE=http://localhost:4000 CERNIQ_API_KEY=cerniq_sk_… pnpm start\n',
     );
     process.exit(2);
   }

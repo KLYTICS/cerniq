@@ -3,17 +3,17 @@
  *
  * Both `generate-changelog.ts` and `publish-dry-run.ts` need to know:
  *  - which packages live in the workspace
- *  - which of those are publishable as `@okoro/*`
+ *  - which of those are publishable as `@cerniq/*`
  *  - the path tokens that map an arbitrary text fragment to a package
  *
  * Keeping this in one place is what lets the changelog generator and the
- * publish gate stay in lockstep when a new SDK ships (e.g. `@okoro/cli`).
+ * publish gate stay in lockstep when a new SDK ships (e.g. `@cerniq/cli`).
  */
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import * as path from 'node:path';
 
-export interface OkoroPackageManifest {
+export interface CerniqPackageManifest {
   /** Absolute path to the package directory. */
   readonly dir: string;
   /** Absolute path to the package.json file. */
@@ -41,7 +41,7 @@ export interface FindPackagesOptions {
    * `pnpm-workspace.yaml` is found.
    */
   readonly repoRoot?: string;
-  /** Restrict to publishable `@okoro/*` only. Default: false. */
+  /** Restrict to publishable `@cerniq/*` only. Default: false. */
   readonly publishableOnly?: boolean;
 }
 
@@ -58,9 +58,7 @@ export function findRepoRoot(start: string = process.cwd()): string {
     if (parent === cur) break;
     cur = parent;
   }
-  throw new Error(
-    `findRepoRoot: could not locate pnpm-workspace.yaml above ${start}`,
-  );
+  throw new Error(`findRepoRoot: could not locate pnpm-workspace.yaml above ${start}`);
 }
 
 /**
@@ -70,11 +68,11 @@ export function findRepoRoot(start: string = process.cwd()): string {
  * Stable: results are sorted by `name` ascending so downstream output is
  * deterministic across machines and runs.
  */
-export function findOkoroPackages(
+export function findCerniqPackages(
   options: FindPackagesOptions = {},
-): readonly OkoroPackageManifest[] {
+): readonly CerniqPackageManifest[] {
   const repoRoot = options.repoRoot ?? findRepoRoot();
-  const out: OkoroPackageManifest[] = [];
+  const out: CerniqPackageManifest[] = [];
 
   const candidateRoots = [
     path.join(repoRoot, 'packages'),
@@ -98,13 +96,10 @@ export function findOkoroPackages(
       if (!existsSync(manifestPath)) continue;
       let raw: Record<string, unknown>;
       try {
-        raw = JSON.parse(readFileSync(manifestPath, 'utf-8')) as Record<
-          string,
-          unknown
-        >;
+        raw = JSON.parse(readFileSync(manifestPath, 'utf-8')) as Record<string, unknown>;
       } catch (err) {
         throw new Error(
-          `findOkoroPackages: failed to parse ${manifestPath}: ${(err as Error).message}`,
+          `findCerniqPackages: failed to parse ${manifestPath}: ${(err as Error).message}`,
         );
       }
       const name = typeof raw.name === 'string' ? raw.name : '';
@@ -136,9 +131,7 @@ export function findOkoroPackages(
   out.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
   if (options.publishableOnly) {
-    return out.filter(
-      (p) => !p.private && p.name.startsWith('@okoro/'),
-    );
+    return out.filter((p) => !p.private && p.name.startsWith('@cerniq/'));
   }
   return out;
 }
@@ -147,15 +140,15 @@ export function findOkoroPackages(
  * SDK-package allowlist used by the changelog generator's default mode.
  * These are the packages that customers actually install. Adding a new
  * SDK? Update this list AND the publish-dry-run will pick it up
- * automatically via `findOkoroPackages({ publishableOnly: true })`.
+ * automatically via `findCerniqPackages({ publishableOnly: true })`.
  */
 export const SDK_PACKAGE_NAMES: readonly string[] = [
-  '@okoro/sdk',
-  '@okoro/types',
-  '@okoro/verifier-rp',
+  '@cerniq/sdk',
+  '@cerniq/types',
+  '@cerniq/verifier-rp',
   // sdk-py lives in the workspace but isn't an npm package; it has its
   // own CHANGELOG written by the same generator under packages/sdk-py/.
-  'okoro-py',
+  'cerniq-py',
 ];
 
 /**
@@ -164,13 +157,13 @@ export const SDK_PACKAGE_NAMES: readonly string[] = [
  * package's changelog.
  */
 export const PACKAGE_ALIASES: Readonly<Record<string, string>> = {
-  'sdk-ts': '@okoro/sdk',
-  '@okoro/sdk-ts': '@okoro/sdk',
-  sdk: '@okoro/sdk',
-  types: '@okoro/types',
-  'verifier-rp': '@okoro/verifier-rp',
-  'sdk-py': 'okoro-py',
-  python: 'okoro-py',
+  'sdk-ts': '@cerniq/sdk',
+  '@cerniq/sdk-ts': '@cerniq/sdk',
+  sdk: '@cerniq/sdk',
+  types: '@cerniq/types',
+  'verifier-rp': '@cerniq/verifier-rp',
+  'sdk-py': 'cerniq-py',
+  python: 'cerniq-py',
 };
 
 /** Resolve a user-provided package alias to its canonical name. */
@@ -184,10 +177,10 @@ export function resolvePackageAlias(input: string): string {
  * can render packages in their canonical workspace order.
  */
 export function packagesTouchedByText(
-  packages: readonly OkoroPackageManifest[],
+  packages: readonly CerniqPackageManifest[],
   text: string,
-): readonly OkoroPackageManifest[] {
-  const hit: OkoroPackageManifest[] = [];
+): readonly CerniqPackageManifest[] {
+  const hit: CerniqPackageManifest[] = [];
   for (const pkg of packages) {
     for (const tok of pkg.pathTokens) {
       if (tok.length < 3) continue; // avoid 1-char false positives
@@ -202,12 +195,12 @@ export function packagesTouchedByText(
 
 /**
  * Special-case: the sdk-py package directory is `packages/sdk-py/` but
- * its publishable name is `okoro` on PyPI. We keep an internal canonical
- * name `okoro-py` so the same code path works for changelog buckets.
+ * its publishable name is `cerniq` on PyPI. We keep an internal canonical
+ * name `cerniq-py` so the same code path works for changelog buckets.
  */
 export function pythonPackageManifest(
-  packages: readonly OkoroPackageManifest[],
-): OkoroPackageManifest | undefined {
+  packages: readonly CerniqPackageManifest[],
+): CerniqPackageManifest | undefined {
   return packages.find((p) => p.dir.endsWith('/sdk-py'));
 }
 

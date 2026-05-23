@@ -5,7 +5,7 @@
  *
  * Why this exists
  * ───────────────
- * Releases are not commits. OKORO sessions land work in batches, and the
+ * Releases are not commits. CERNIQ sessions land work in batches, and the
  * canonical record of "what shipped" is `docs/SESSION_HANDOFF.md`. This
  * script lifts that prose into Keep-A-Changelog-formatted CHANGELOG.md
  * files inside each publishable package, bucketed by which package the
@@ -29,8 +29,8 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import * as path from 'node:path';
 
 import {
-  OkoroPackageManifest,
-  findOkoroPackages,
+  CerniqPackageManifest,
+  findCerniqPackages,
   findRepoRoot,
   packagesTouchedByText,
   pythonPackageManifest,
@@ -63,7 +63,7 @@ export interface SessionEntry {
 }
 
 export interface PackageBucket {
-  readonly pkg: OkoroPackageManifest;
+  readonly pkg: CerniqPackageManifest;
   readonly entries: readonly SessionEntry[];
 }
 
@@ -190,7 +190,7 @@ export function filterEntriesSince(
 
 export function bucketEntriesByPackage(
   entries: readonly SessionEntry[],
-  packages: readonly OkoroPackageManifest[],
+  packages: readonly CerniqPackageManifest[],
 ): readonly PackageBucket[] {
   // Map name → entries (preserve order).
   const byName = new Map<string, SessionEntry[]>();
@@ -236,15 +236,12 @@ export function defaultGitRunner(repoRoot: string): GitRunner {
  * Read commits since `since` (or all of HEAD's history if undefined). We
  * use a `--name-only` listing so we can map each commit to packages.
  */
-export function readGitCommits(
-  runner: GitRunner,
-  since: string | undefined,
-): readonly GitCommit[] {
+export function readGitCommits(runner: GitRunner, since: string | undefined): readonly GitCommit[] {
   const args = [
     'log',
     '--no-merges',
     '--date=short',
-    "--pretty=format:%H%x09%cd%x09%s",
+    '--pretty=format:%H%x09%cd%x09%s',
     '--name-only',
   ];
   if (since) args.push(`--since=${since}`);
@@ -272,7 +269,7 @@ export function readGitCommits(
 
 export function bucketCommitsByPackage(
   commits: readonly GitCommit[],
-  packages: readonly OkoroPackageManifest[],
+  packages: readonly CerniqPackageManifest[],
 ): readonly PackageBucket[] {
   const byName = new Map<string, SessionEntry[]>();
   for (const pkg of packages) byName.set(pkg.name, []);
@@ -309,9 +306,7 @@ export function renderChangelog(bucket: PackageBucket): string {
   const lines: string[] = [];
   lines.push('# Changelog');
   lines.push('');
-  lines.push(
-    'All notable changes to this package are documented here. The format follows',
-  );
+  lines.push('All notable changes to this package are documented here. The format follows');
   lines.push(
     '[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this package adheres to',
   );
@@ -327,18 +322,14 @@ export function renderChangelog(bucket: PackageBucket): string {
     arr.push(e);
     byDate.set(e.date, arr);
   }
-  const dates = Array.from(byDate.keys()).sort((a, b) =>
-    a < b ? 1 : a > b ? -1 : 0,
-  );
+  const dates = Array.from(byDate.keys()).sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
 
   for (const date of dates) {
     const dateEntries = byDate.get(date) ?? [];
     // Stable sub-order: by heading asc.
     const sorted = dateEntries
       .slice()
-      .sort((a, b) =>
-        a.heading < b.heading ? -1 : a.heading > b.heading ? 1 : 0,
-      );
+      .sort((a, b) => (a.heading < b.heading ? -1 : a.heading > b.heading ? 1 : 0));
     lines.push(`### ${date}`);
     lines.push('');
     for (const entry of sorted) {
@@ -351,7 +342,12 @@ export function renderChangelog(bucket: PackageBucket): string {
     }
     lines.push('');
   }
-  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
+  return (
+    lines
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trimEnd() + '\n'
+  );
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -403,10 +399,10 @@ export function run(flags: CliFlags, depsIn?: Partial<RunDeps>): RunResult {
   const deps: RunDeps = { ...defaultRunDeps(repoRoot), ...depsIn };
 
   // 1. Discover packages — only the ones we actually publish.
-  const allPackages = findOkoroPackages({ repoRoot });
+  const allPackages = findCerniqPackages({ repoRoot });
   const sdkAllowlist = new Set(SDK_PACKAGE_NAMES);
   let packages = allPackages.filter((p) => sdkAllowlist.has(p.name));
-  // Always include sdk-py (its npm name is `okoro-py` synthetic).
+  // Always include sdk-py (its npm name is `cerniq-py` synthetic).
   const py = pythonPackageManifest(allPackages);
   if (py && !packages.includes(py)) packages = [...packages, py];
 
@@ -416,7 +412,7 @@ export function run(flags: CliFlags, depsIn?: Partial<RunDeps>): RunResult {
       (p) =>
         p.name === target ||
         p.dir.endsWith(`/${flags.packageFilter}`) ||
-        (target === 'okoro-py' && p.dir.endsWith('/sdk-py')),
+        (target === 'cerniq-py' && p.dir.endsWith('/sdk-py')),
     );
     if (candidates.length === 0) {
       throw new Error(
@@ -428,8 +424,7 @@ export function run(flags: CliFlags, depsIn?: Partial<RunDeps>): RunResult {
   }
 
   // 2. Parse SESSION_HANDOFF.md.
-  const handoffPath =
-    flags.handoffPath ?? path.join(repoRoot, 'docs', 'SESSION_HANDOFF.md');
+  const handoffPath = flags.handoffPath ?? path.join(repoRoot, 'docs', 'SESSION_HANDOFF.md');
   const handoffText = deps.readFile(handoffPath) ?? '';
   const allEntries = parseSessionHandoff(handoffText);
   const filtered = filterEntriesSince(allEntries, flags.since);
@@ -447,8 +442,7 @@ export function run(flags: CliFlags, depsIn?: Partial<RunDeps>): RunResult {
   const written: { path: string; bytes: number; created: boolean }[] = [];
   for (const bucket of buckets) {
     const content = renderChangelog(bucket);
-    const targetPath =
-      flags.out ?? path.join(bucket.pkg.dir, 'CHANGELOG.md');
+    const targetPath = flags.out ?? path.join(bucket.pkg.dir, 'CHANGELOG.md');
     const existing = deps.readFile(targetPath);
     if (flags.dryRun) {
       deps.log(makeDiffPreview(targetPath, content, existing));
@@ -468,9 +462,7 @@ export function run(flags: CliFlags, depsIn?: Partial<RunDeps>): RunResult {
   }
 
   if (buckets.length === 0) {
-    deps.log(
-      `no changelog entries found${flags.since ? ` since ${flags.since}` : ''}`,
-    );
+    deps.log(`no changelog entries found${flags.since ? ` since ${flags.since}` : ''}`);
   }
 
   return { buckets, written, usedFallback };
@@ -485,8 +477,7 @@ const isMain = (() => {
   try {
     const argv1 = process.argv[1];
     if (!argv1) return false;
-    return argv1.endsWith('generate-changelog.ts') ||
-      argv1.endsWith('generate-changelog.js');
+    return argv1.endsWith('generate-changelog.ts') || argv1.endsWith('generate-changelog.js');
   } catch {
     return false;
   }

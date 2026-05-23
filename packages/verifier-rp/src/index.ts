@@ -1,6 +1,6 @@
-// Public exports for @okoro/verifier-rp.
+// Public exports for @cerniq/verifier-rp.
 
-export { OkoroVerifier } from './verifier.js';
+export { CerniqVerifier } from './verifier.js';
 export { JwksClient } from './jwks.js';
 export { JwksMemoryCache } from './jwks-cache.js';
 export { MemoryReplayCache } from './replay-cache.js';
@@ -24,9 +24,9 @@ export type { VerifyErrorCode } from './errors.js';
 export { b64uEncode, b64uDecode } from './_internal/b64u.js';
 
 export type {
-  OkoroVerifierConfig,
-  OkoroJwtClaims,
-  OkoroJwtHeader,
+  CerniqVerifierConfig,
+  CerniqJwtClaims,
+  CerniqJwtHeader,
   AgentStatusSnapshot,
   AgentStatusValue,
   DenialReason,

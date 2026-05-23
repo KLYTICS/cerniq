@@ -52,7 +52,7 @@ single line to the `LoggerModule.forRootAsync` block:
 pinoHttp: {
   // ... existing config
   customProps: () => ({
-    service: 'okoro-api',
+    service: 'cerniq-api',
     txId: CorrelationContext.current()?.txId,
   }),
   genReqId: (req) =>

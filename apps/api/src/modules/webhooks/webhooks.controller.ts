@@ -1,11 +1,11 @@
 // G-4: Webhook subscription endpoints — subscribe, list, unsubscribe.
 //
 // These are the management-plane endpoints relying parties use to register
-// callback URLs so OKORO can push events (trust_score_changed, agent_revoked,
+// callback URLs so CERNIQ can push events (trust_score_changed, agent_revoked,
 // anomaly_flagged, etc.) rather than requiring them to poll.
 //
 // Design:
-//   - Standard key-auth (x-okoro-api-key). Verify-only keys are NOT
+//   - Standard key-auth (x-cerniq-api-key). Verify-only keys are NOT
 //     permitted here; subscriptions are management operations.
 //   - principalId from auth context scopes all operations — a principal
 //     can only see and delete their own subscriptions (invariant #5).
@@ -16,16 +16,7 @@
 //   - Unsubscribe is idempotent: deleting a non-existent subscription
 //     returns 204 (no error) so retries are safe.
 
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { IsArray, IsString, IsUrl, MaxLength } from 'class-validator';
 
@@ -38,8 +29,8 @@ import { WebhooksService } from './webhooks.service';
 
 export class CreateWebhookSubscriptionDto {
   @ApiProperty({
-    description: 'HTTPS endpoint OKORO will POST webhook events to. Must be publicly reachable.',
-    example: 'https://api.example.com/webhooks/okoro',
+    description: 'HTTPS endpoint CERNIQ will POST webhook events to. Must be publicly reachable.',
+    example: 'https://api.example.com/webhooks/cerniq',
   })
   @IsString()
   @IsUrl({ require_tld: true, protocols: ['https'] })
@@ -49,9 +40,9 @@ export class CreateWebhookSubscriptionDto {
   @ApiProperty({
     description:
       'Event types to subscribe to. Use "*" for all events or list specific types ' +
-      '(e.g. "okoro.agent.trust_score_changed", "okoro.agent.revoked", "okoro.anomaly.detected").',
+      '(e.g. "cerniq.agent.trust_score_changed", "cerniq.agent.revoked", "cerniq.anomaly.detected").',
     type: [String],
-    example: ['okoro.agent.trust_score_changed', 'okoro.agent.revoked'],
+    example: ['cerniq.agent.trust_score_changed', 'cerniq.agent.revoked'],
   })
   @IsArray()
   @IsString({ each: true })
@@ -66,7 +57,7 @@ export class WebhookSubscriptionCreatedDto {
   @ApiProperty({
     description:
       'HMAC signing secret (whsec_ prefix). Shown ONCE — store it securely. ' +
-      'OKORO signs every delivery with `X-Okoro-Signature: t=<ts>,v1=<hmac>` ' +
+      'CERNIQ signs every delivery with `X-Cerniq-Signature: t=<ts>,v1=<hmac>` ' +
       'using HMAC-SHA256 keyed with this secret. Verify it on every inbound request.',
     example: 'whsec_aBcDeFgHiJkLmNoPqRsTuVwX',
   })
@@ -109,7 +100,7 @@ export class WebhooksController {
       'Creates a new webhook subscription scoped to the calling principal. ' +
       'The returned `secret` (whsec_ prefixed) must be stored immediately — ' +
       'it is shown only once and used to verify HMAC signatures on incoming ' +
-      'deliveries. OKORO retries failed deliveries up to 5 times with ' +
+      'deliveries. CERNIQ retries failed deliveries up to 5 times with ' +
       'exponential back-off (1 s → 2 s → 4 s → 8 s → 16 s) before moving ' +
       'the delivery to the dead-letter queue.',
   })
@@ -148,10 +139,7 @@ export class WebhooksController {
       'In-flight deliveries already queued may still arrive at the target URL ' +
       'for a brief window after deletion. This operation is idempotent.',
   })
-  async unsubscribe(
-    @Auth() auth: AuthenticatedKey,
-    @Param('id') id: string,
-  ): Promise<void> {
+  async unsubscribe(@Auth() auth: AuthenticatedKey, @Param('id') id: string): Promise<void> {
     await this.webhooks.unsubscribe(auth.principalId, id);
   }
 }

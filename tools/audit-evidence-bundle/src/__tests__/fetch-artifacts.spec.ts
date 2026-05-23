@@ -21,8 +21,7 @@ interface MockRoute {
 }
 
 function bodyToStream(body: Uint8Array | string): ReadableStream<Uint8Array> {
-  const bytes =
-    typeof body === 'string' ? new TextEncoder().encode(body) : body;
+  const bytes = typeof body === 'string' ? new TextEncoder().encode(body) : body;
   return new ReadableStream<Uint8Array>({
     start(ctl) {
       // Chunk the bytes into a few pieces so the streaming path exercises
@@ -79,7 +78,7 @@ const cli: BundleCliOptions = {
   from: '2026-01-01',
   to: '2026-04-30',
   output: '/tmp/x.tar.gz',
-  apiBase: 'https://okoro.test',
+  apiBase: 'https://cerniq.test',
   apiKey: 'sk_test',
   verifyOnly: false,
   includeReadme: true,
@@ -88,7 +87,7 @@ const cli: BundleCliOptions = {
 describe('fetchAllArtifacts', () => {
   let workDir: string;
   beforeEach(async () => {
-    workDir = await mkdtemp(join(tmpdir(), 'okoro-fetch-test-'));
+    workDir = await mkdtemp(join(tmpdir(), 'cerniq-fetch-test-'));
   });
   afterEach(async () => {
     await rm(workDir, { recursive: true, force: true });
@@ -108,8 +107,8 @@ describe('fetchAllArtifacts', () => {
           }),
       },
       {
-        match: (u) => u.endsWith('/okoro-configuration'),
-        respond: () => jsonResponse({ issuer: 'https://okoro.test' }),
+        match: (u) => u.endsWith('/cerniq-configuration'),
+        respond: () => jsonResponse({ issuer: 'https://cerniq.test' }),
       },
       {
         match: (u) => u.endsWith('/retention-policy.json'),
@@ -117,7 +116,7 @@ describe('fetchAllArtifacts', () => {
       },
       {
         match: (u) => u.endsWith('/security.txt'),
-        respond: () => new Response('Contact: security@okoro.test\n', { status: 200 }),
+        respond: () => new Response('Contact: security@cerniq.test\n', { status: 200 }),
       },
     ]);
 
@@ -127,7 +126,7 @@ describe('fetchAllArtifacts', () => {
     expect(result.redactedRowCount).toBe(2);
     expect(result.retentionPolicyAvailable).toBe(false);
     expect(result.retentionPolicy).toBeNull();
-    expect(result.securityTxt).toContain('security@okoro.test');
+    expect(result.securityTxt).toContain('security@cerniq.test');
 
     // SHA256 must equal the canonical hash of the body bytes.
     const expectedSha = createHash('sha256').update(NDJSON).digest('hex');
@@ -137,9 +136,13 @@ describe('fetchAllArtifacts', () => {
     expect(onDisk).toBe(NDJSON);
 
     // The export URL must use the agent-id when one is supplied.
-    expect(adapter.calls.some((u) => u.includes('/agents/agt_test/audit/export.ndjson'))).toBe(true);
+    expect(adapter.calls.some((u) => u.includes('/agents/agt_test/audit/export.ndjson'))).toBe(
+      true,
+    );
     // And must include the from/to query params.
-    expect(adapter.calls.some((u) => u.includes('from=2026-01-01') && u.includes('to=2026-04-30'))).toBe(true);
+    expect(
+      adapter.calls.some((u) => u.includes('from=2026-01-01') && u.includes('to=2026-04-30')),
+    ).toBe(true);
   });
 
   it('surfaces a 5xx on a required endpoint (no silent failure)', async () => {
@@ -153,7 +156,7 @@ describe('fetchAllArtifacts', () => {
         respond: () => new Response('boom', { status: 503 }),
       },
       {
-        match: (u) => u.endsWith('/okoro-configuration'),
+        match: (u) => u.endsWith('/cerniq-configuration'),
         respond: () => jsonResponse({}),
       },
       {
@@ -185,7 +188,7 @@ describe('fetchAllArtifacts', () => {
         respond: () => jsonResponse({ keys: [] }),
       },
       {
-        match: (u) => u.endsWith('/okoro-configuration'),
+        match: (u) => u.endsWith('/cerniq-configuration'),
         respond: () => jsonResponse({}),
       },
       {

@@ -3,15 +3,15 @@ requires = ["hatchling>=1.24"]
 build-backend = "hatchling.build"
 
 [project]
-name = "okoro"
+name = "cerniq"
 version = "0.1.0"
-description = "OKORO — neutral identity & verification layer for AI agents (Python SDK)."
+description = "CERNIQ — neutral identity & verification layer for AI agents (Python SDK)."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
-authors = [{ name = "KLYTICS LLC", email = "dev@okoroapp.com" }]
+authors = [{ name = "KLYTICS LLC", email = "dev@cerniqapp.com" }]
 keywords = [
-    "okoro",
+    "cerniq",
     "agent",
     "identity",
     "verification",
@@ -50,17 +50,17 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://okoroapp.com"
-Documentation = "https://docs.okoroapp.com"
-Repository = "https://github.com/klytics/okoro"
-Issues = "https://github.com/klytics/okoro/issues"
+Homepage = "https://cerniqapp.com"
+Documentation = "https://docs.cerniqapp.com"
+Repository = "https://github.com/klytics/cerniq"
+Issues = "https://github.com/klytics/cerniq/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["okoro"]
+packages = ["cerniq"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "/okoro",
+    "/cerniq",
     "/tests",
     "/README.md",
     "/LICENSE",
@@ -94,7 +94,7 @@ ignore = [
 "tests/*" = ["B011", "S101"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["okoro"]
+known-first-party = ["cerniq"]
 
 # ───────── Mypy ─────────
 [tool.mypy]
@@ -125,7 +125,7 @@ asyncio_mode = "auto"
 addopts = "-ra --strict-markers"
 
 [tool.coverage.run]
-source = ["okoro"]
+source = ["cerniq"]
 branch = true
 
 [tool.coverage.report]

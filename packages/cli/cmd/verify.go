@@ -6,15 +6,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/klytics/okoro/packages/cli/internal/client"
-	"github.com/klytics/okoro/packages/cli/internal/cliutil"
-	"github.com/klytics/okoro/packages/cli/internal/ui"
+	"github.com/klytics/cerniq/packages/cli/internal/client"
+	"github.com/klytics/cerniq/packages/cli/internal/cliutil"
+	"github.com/klytics/cerniq/packages/cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 
 func init() {
 	verifyCmd.Flags().String("token", "",
-		"OKORO-issued JWT to verify (required if not passed positionally)")
+		"CERNIQ-issued JWT to verify (required if not passed positionally)")
 	verifyCmd.Flags().String("action", "", "action being attempted (e.g. commerce.purchase)")
 	verifyCmd.Flags().Float64("amount", 0, "amount being authorized")
 	verifyCmd.Flags().String("currency", "", "currency code (USD|EUR|GBP)")
@@ -23,7 +23,7 @@ func init() {
 	verifyCmd.Flags().StringSlice("context", nil,
 		"key=value pairs of additional verification context (repeatable)")
 	verifyCmd.Flags().String("verify-key", "",
-		"verify-only key (X-OKORO-Verify-Key); falls back to env OKORO_VERIFY_KEY then keychain")
+		"verify-only key (X-CERNIQ-Verify-Key); falls back to env CERNIQ_VERIFY_KEY then keychain")
 	rootCmd.AddCommand(verifyCmd)
 }
 
@@ -31,7 +31,7 @@ var verifyCmd = &cobra.Command{
 	Use:   "verify [token]",
 	Short: "POST /v1/verify and render the result with denial precedence",
 	Args:  cobra.MaximumNArgs(1),
-	Long: `Verify an OKORO-issued token by round-tripping POST /v1/verify.
+	Long: `Verify an CERNIQ-issued token by round-tripping POST /v1/verify.
 
 The CLI uses your verify-only key when one is configured (preferred for
 relying parties — least privilege), falling back to the management API
@@ -39,10 +39,10 @@ key. The output renders the canonical 9-reason denial precedence from
 CLAUDE.md invariant 6, NOT the alphabetical order in the OpenAPI enum.
 
 Examples:
-  okoro verify eyJhbGciOi...                              # smoke check
-  okoro verify --token "$T" --action commerce.purchase \
+  cerniq verify eyJhbGciOi...                              # smoke check
+  cerniq verify --token "$T" --action commerce.purchase \
                --amount 450 --currency USD --merchant-domain delta.com
-  okoro verify "$T" --json | jq '.denialReason'`,
+  cerniq verify "$T" --json | jq '.denialReason'`,
 	RunE: runVerify,
 }
 
@@ -136,7 +136,7 @@ func runVerify(cmd *cobra.Command, args []string) error {
 	if hint := denialHint(resp.DenialReason); hint != "" {
 		ui.Row(w, "next step", hint)
 	}
-	// Non-zero exit so shell pipelines can branch on `okoro verify ...`.
+	// Non-zero exit so shell pipelines can branch on `cerniq verify ...`.
 	return errors.New("verify denied")
 }
 
@@ -149,15 +149,15 @@ func denialHint(reason *client.DenialReason) string {
 	}
 	switch *reason {
 	case client.DenialAgentNotFound:
-		return "agent ID does not exist; check `okoro agents register` output"
+		return "agent ID does not exist; check `cerniq agents register` output"
 	case client.DenialAgentRevoked:
 		return "agent was revoked — irreversible; register a fresh agent"
 	case client.DenialInvalidSignature:
-		return "token signature does not match agent's public key; re-mint via `okoro policy create`"
+		return "token signature does not match agent's public key; re-mint via `cerniq policy create`"
 	case client.DenialPolicyRevoked:
 		return "policy was revoked since the token was minted; mint a fresh policy"
 	case client.DenialPolicyExpired:
-		return "policy TTL elapsed; `okoro policy create` again with a longer --ttl"
+		return "policy TTL elapsed; `cerniq policy create` again with a longer --ttl"
 	case client.DenialScopeNotGranted:
 		return "the action/merchant is outside the policy scope; widen --scope or --allowed-domains"
 	case client.DenialSpendLimitExceeded:
@@ -165,7 +165,7 @@ func denialHint(reason *client.DenialReason) string {
 	case client.DenialTrustScoreTooLow:
 		return "BATE trust score is below the relying party's threshold; review recent fraud reports"
 	case client.DenialAnomalyFlagged:
-		return "BATE anomaly engine flagged this transaction; investigate via `okoro events <agentId>`"
+		return "BATE anomaly engine flagged this transaction; investigate via `cerniq events <agentId>`"
 	}
 	return ""
 }

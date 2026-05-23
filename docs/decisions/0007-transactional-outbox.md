@@ -12,7 +12,7 @@ The 2026-Q2 silent-failure audit found three vectors where the verify
 hot path fired-and-forgot critical durable writes:
 
 1. **Audit on denied verify** — `verify.service.ts:107` had `.catch(() =>
-   undefined)`. Fixed in CRIT-3 wiring (audit append is now awaited
+undefined)`. Fixed in CRIT-3 wiring (audit append is now awaited
    inside the algorithm).
 2. **Spend record on approved verify** — Postgres write was racing with
    Redis increment in `Promise.all`. Fixed in audit ae59f056 (Postgres
@@ -126,7 +126,7 @@ migration; existing rows on the BullMQ side are not touched.
   `prisma.$transaction` with `pg_advisory_xact_lock` (ADR-0005 +
   audit-fix work). The chain is durable in-tx.
 - Cross-region replication of the outbox — handled by Postgres's own
-  WAL replication; no OKORO-side work.
+  WAL replication; no CERNIQ-side work.
 
 ## References
 

@@ -3,7 +3,9 @@ import prompts from 'prompts';
 import { writeCredentials, credentialsPath, readCredentials } from '../credentials.js';
 import { info, ok, warn } from '../output.js';
 
-export async function bootstrap(opts: { apiKey?: string; baseUrl?: string; force?: boolean } = {}): Promise<void> {
+export async function bootstrap(
+  opts: { apiKey?: string; baseUrl?: string; force?: boolean } = {},
+): Promise<void> {
   const existing = await readCredentials();
   if (existing && !opts.force) {
     warn(`Credentials already exist at ${credentialsPath()}. Use --force to overwrite.`);
@@ -11,12 +13,17 @@ export async function bootstrap(opts: { apiKey?: string; baseUrl?: string; force
   }
 
   let apiKey = opts.apiKey;
-  let baseUrl = opts.baseUrl ?? 'https://api.okoro.dev';
+  let baseUrl = opts.baseUrl ?? 'https://api.cerniq.dev';
 
   if (!apiKey) {
     const r = await prompts([
-      { type: 'password', name: 'apiKey', message: 'OKORO API key (okoro_live_… or okoro_test_…)', validate: (s) => s.length > 8 || 'too short' },
-      { type: 'text', name: 'baseUrl', message: 'OKORO base URL', initial: baseUrl },
+      {
+        type: 'password',
+        name: 'apiKey',
+        message: 'CERNIQ API key (cerniq_live_… or cerniq_test_…)',
+        validate: (s) => s.length > 8 || 'too short',
+      },
+      { type: 'text', name: 'baseUrl', message: 'CERNIQ base URL', initial: baseUrl },
     ]);
     apiKey = r.apiKey;
     baseUrl = r.baseUrl ?? baseUrl;
@@ -28,5 +35,5 @@ export async function bootstrap(opts: { apiKey?: string; baseUrl?: string; force
 
   await writeCredentials({ apiKey, baseUrl });
   ok(`Credentials written to ${credentialsPath()}`);
-  info('Run `okoro whoami` to verify.');
+  info('Run `cerniq whoami` to verify.');
 }

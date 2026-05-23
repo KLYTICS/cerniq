@@ -8,12 +8,12 @@
 
 CLI_DIR := packages/cli
 
-cli-build:  ## build the okoro CLI for the host platform
-	cd $(CLI_DIR) && go build -o okoro -ldflags "-s -w \
-		-X github.com/klytics/okoro/packages/cli/internal/version.Version=dev \
-		-X github.com/klytics/okoro/packages/cli/internal/version.Commit=$$(git rev-parse --short HEAD 2>/dev/null || echo none) \
-		-X github.com/klytics/okoro/packages/cli/internal/version.BuildDate=$$(date -u +%Y-%m-%dT%H:%M:%SZ)" .
-	@echo "→ $(CLI_DIR)/okoro"
+cli-build:  ## build the cerniq CLI for the host platform
+	cd $(CLI_DIR) && go build -o cerniq -ldflags "-s -w \
+		-X github.com/klytics/cerniq/packages/cli/internal/version.Version=dev \
+		-X github.com/klytics/cerniq/packages/cli/internal/version.Commit=$$(git rev-parse --short HEAD 2>/dev/null || echo none) \
+		-X github.com/klytics/cerniq/packages/cli/internal/version.BuildDate=$$(date -u +%Y-%m-%dT%H:%M:%SZ)" .
+	@echo "→ $(CLI_DIR)/cerniq"
 
 cli-test:  ## run go test ./... on the CLI module
 	cd $(CLI_DIR) && go test ./...
@@ -26,8 +26,8 @@ cli-snapshot:  ## cross-compile a snapshot release without publishing
 	goreleaser release --snapshot --clean
 
 cli-install: cli-build  ## install the CLI to /usr/local/bin (requires sudo on POSIX)
-	install -m 0755 $(CLI_DIR)/okoro /usr/local/bin/okoro
+	install -m 0755 $(CLI_DIR)/cerniq /usr/local/bin/cerniq
 
 cli-clean:  ## remove built artifacts
-	cd $(CLI_DIR) && rm -f okoro
+	cd $(CLI_DIR) && rm -f cerniq
 	rm -rf dist

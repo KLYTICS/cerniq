@@ -1,5 +1,5 @@
 // Output helpers — colored stderr for status, plain stdout for data so
-// CLI output is pipe-friendly (`okoro agents list | jq ...`).
+// CLI output is pipe-friendly (`cerniq agents list | jq ...`).
 
 import kleur from 'kleur';
 
@@ -27,9 +27,7 @@ export function emitTable(rows: Record<string, unknown>[], columns?: string[]): 
     return;
   }
   const cols = columns ?? Object.keys(first);
-  const widths = cols.map((c) =>
-    Math.max(c.length, ...rows.map((r) => stringify(r[c]).length)),
-  );
+  const widths = cols.map((c) => Math.max(c.length, ...rows.map((r) => stringify(r[c]).length)));
   const sep = widths.map((w) => '─'.repeat(w)).join('  ');
   process.stdout.write(cols.map((c, i) => c.padEnd(widths[i] ?? 0)).join('  ') + '\n');
   process.stdout.write(sep + '\n');

@@ -14,17 +14,14 @@ import { describe, expect, it } from 'vitest';
 import crypto from 'node:crypto';
 import { buildEvent, signStripeEvent, tamperSignature } from './stripe';
 
-const SECRET = 'whsec_test_okoro_e2e_only';
+const SECRET = 'whsec_test_cerniq_e2e_only';
 
 describe('_support/stripe.ts · signStripeEvent', () => {
   it('matches the hand-replicated HMAC-SHA256 of `<ts>.<body>`', () => {
     const body = '{"hello":"world"}';
     const ts = 1_700_000_000;
     const got = signStripeEvent(body, SECRET, ts);
-    const expectedSig = crypto
-      .createHmac('sha256', SECRET)
-      .update(`${ts}.${body}`)
-      .digest('hex');
+    const expectedSig = crypto.createHmac('sha256', SECRET).update(`${ts}.${body}`).digest('hex');
     expect(got).toBe(`t=${ts},v1=${expectedSig}`);
   });
 

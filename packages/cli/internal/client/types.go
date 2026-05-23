@@ -1,12 +1,12 @@
-// Package client wire types — projections of the OKORO API spec at
-// docs/spec/OKORO_API_SPEC.yaml. Hand-rolled rather than generated:
+// Package client wire types — projections of the CERNIQ API spec at
+// docs/spec/CERNIQ_API_SPEC.yaml. Hand-rolled rather than generated:
 // at 8 endpoints the maintenance burden of a code-gen step in the
 // install path (`go install …@latest`) outweighs the value. If the
 // surface grows past ~20 endpoints, switch to oapi-codegen — the
 // per-endpoint methods in agents.go / policies.go / verify.go /
 // audit.go / report.go are designed to map 1:1 onto its output.
 //
-//go:generate echo "regen plan: oapi-codegen -package api -generate types,client -o internal/api/api.gen.go ../../docs/spec/OKORO_API_SPEC.yaml"
+//go:generate echo "regen plan: oapi-codegen -package api -generate types,client -o internal/api/api.gen.go ../../docs/spec/CERNIQ_API_SPEC.yaml"
 package client
 
 import "time"

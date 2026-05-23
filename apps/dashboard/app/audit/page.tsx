@@ -6,8 +6,8 @@
 import type { Metadata } from 'next';
 
 import {
-  OkoroApiError,
-  OkoroAuthMissingError,
+  CerniqApiError,
+  CerniqAuthMissingError,
   listAgents,
   listAudit,
   type AgentRow,
@@ -17,7 +17,7 @@ import { authConfigured } from '../../lib/auth';
 import { fmtNum, fmtPct, relativeTime, shortId } from '../../lib/format';
 
 export const metadata: Metadata = {
-  title: 'Audit · OKORO',
+  title: 'Audit · CERNIQ',
 };
 
 const MAX_AGENT_FANOUT = 50;
@@ -37,16 +37,20 @@ interface Result {
   agentsWithErrors: number;
 }
 
-async function fetchAggregatedAudit(): Promise<Result | { error: { code: string; message: string } }> {
+async function fetchAggregatedAudit(): Promise<
+  Result | { error: { code: string; message: string } }
+> {
   let agentList;
   try {
     agentList = await listAgents({ limit: MAX_AGENT_FANOUT });
   } catch (err) {
-    if (err instanceof OkoroAuthMissingError) {
-      return { error: { code: err.code, message: 'Set OKORO_DASHBOARD_API_KEY to populate this view.' } };
+    if (err instanceof CerniqAuthMissingError) {
+      return {
+        error: { code: err.code, message: 'Set CERNIQ_DASHBOARD_API_KEY to populate this view.' },
+      };
     }
-    if (err instanceof OkoroApiError) return { error: { code: err.code, message: err.message } };
-    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting OKORO API.' } };
+    if (err instanceof CerniqApiError) return { error: { code: err.code, message: err.message } };
+    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting CERNIQ API.' } };
   }
 
   const combined: CombinedRow[] = [];
@@ -67,7 +71,9 @@ async function fetchAggregatedAudit(): Promise<Result | { error: { code: string;
   }
   await Promise.all(Array.from({ length: FANOUT_CONCURRENCY }, () => worker()));
 
-  combined.sort((a, b) => new Date(b.event.timestamp).getTime() - new Date(a.event.timestamp).getTime());
+  combined.sort(
+    (a, b) => new Date(b.event.timestamp).getTime() - new Date(a.event.timestamp).getTime(),
+  );
 
   return {
     rows: combined.slice(0, RENDER_LIMIT),
@@ -81,19 +87,21 @@ export default async function AuditPage() {
   const data = await fetchAggregatedAudit();
 
   return (
-    <section className="okoro-page">
-      <header className="okoro-page-header">
+    <section className="cerniq-page">
+      <header className="cerniq-page-header">
         <h1>Audit</h1>
         <p className="muted">
-          Recent verify decisions across all your agents. Each row is signed and chained
-          (CLAUDE.md invariant 3) — the public key at <code>/.well-known/audit-signing-key</code>
+          Recent verify decisions across all your agents. Each row is signed and chained (CLAUDE.md
+          invariant 3) — the public key at <code>/.well-known/audit-signing-key</code>
           lets external auditors verify integrity offline.
         </p>
       </header>
 
       {!authConfigured() ? (
         <div className="data-empty">
-          <p>Set <code>OKORO_DASHBOARD_API_KEY</code> to populate this view.</p>
+          <p>
+            Set <code>CERNIQ_DASHBOARD_API_KEY</code> to populate this view.
+          </p>
         </div>
       ) : 'error' in data ? (
         <div className="data-empty error" role="alert">
@@ -121,7 +129,11 @@ function AuditBody({ data }: { data: Result }) {
         <Metric label="approved" value={fmtNum(approved)} tone="ok" />
         <Metric label="denied" value={fmtNum(denied)} tone={denied > 0 ? 'crit' : 'muted'} />
         <Metric label="flagged" value={fmtNum(flagged)} tone={flagged > 0 ? 'warn' : 'muted'} />
-        <Metric label="denial rate" value={fmtPct(denialRate)} tone={denialRate > 1 ? 'warn' : 'ok'} />
+        <Metric
+          label="denial rate"
+          value={fmtPct(denialRate)}
+          tone={denialRate > 1 ? 'warn' : 'ok'}
+        />
       </dl>
 
       {data.agentsWithErrors > 0 ? (
@@ -142,42 +154,46 @@ function AuditBody({ data }: { data: Result }) {
         </div>
       ) : (
         <div className="table-scroll">
-        <table className="data-table dense" aria-label="Recent verify decisions">
-          <thead>
-            <tr>
-              <th>when</th>
-              <th>agent</th>
-              <th>decision</th>
-              <th>reason</th>
-              <th>policy</th>
-              <th className="num">amount</th>
-              <th>domain</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.rows.map(({ event, agent }) => (
-              <tr key={event.id}>
-                <td className="dim">{relativeTime(event.timestamp)}</td>
-                <td className="mono">
-                  <a href={`/agents/${encodeURIComponent(agent.agentId)}`}>
-                    {shortId(agent.agentId, 6, 4)}
-                  </a>
-                </td>
-                <td>
-                  <span className={`badge badge-${decisionTone(event.decision)}`}>{event.decision}</span>
-                </td>
-                <td className="mono dim">{event.decisionReason ?? '–'}</td>
-                <td className="mono dim">{event.policyId ? shortId(event.policyId, 6, 4) : '–'}</td>
-                <td className="num mono">
-                  {event.amount !== null && event.amount !== undefined
-                    ? `${event.amount} ${event.currency ?? ''}`
-                    : '–'}
-                </td>
-                <td className="dim">{event.domain ?? '–'}</td>
+          <table className="data-table dense" aria-label="Recent verify decisions">
+            <thead>
+              <tr>
+                <th>when</th>
+                <th>agent</th>
+                <th>decision</th>
+                <th>reason</th>
+                <th>policy</th>
+                <th className="num">amount</th>
+                <th>domain</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.rows.map(({ event, agent }) => (
+                <tr key={event.id}>
+                  <td className="dim">{relativeTime(event.timestamp)}</td>
+                  <td className="mono">
+                    <a href={`/agents/${encodeURIComponent(agent.agentId)}`}>
+                      {shortId(agent.agentId, 6, 4)}
+                    </a>
+                  </td>
+                  <td>
+                    <span className={`badge badge-${decisionTone(event.decision)}`}>
+                      {event.decision}
+                    </span>
+                  </td>
+                  <td className="mono dim">{event.decisionReason ?? '–'}</td>
+                  <td className="mono dim">
+                    {event.policyId ? shortId(event.policyId, 6, 4) : '–'}
+                  </td>
+                  <td className="num mono">
+                    {event.amount !== null && event.amount !== undefined
+                      ? `${event.amount} ${event.currency ?? ''}`
+                      : '–'}
+                  </td>
+                  <td className="dim">{event.domain ?? '–'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </>
@@ -191,7 +207,15 @@ function decisionTone(decision: string): 'ok' | 'warn' | 'crit' | 'muted' {
   return 'muted';
 }
 
-function Metric({ label, value, tone }: { label: string; value: string; tone?: 'ok' | 'warn' | 'crit' | 'muted' }) {
+function Metric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: 'ok' | 'warn' | 'crit' | 'muted';
+}) {
   return (
     <div className={`metric ${tone ? `metric-${tone}` : ''}`}>
       <dt>{label}</dt>

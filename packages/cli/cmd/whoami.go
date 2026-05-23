@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/klytics/okoro/packages/cli/internal/client"
-	"github.com/klytics/okoro/packages/cli/internal/config"
-	"github.com/klytics/okoro/packages/cli/internal/keychain"
-	"github.com/klytics/okoro/packages/cli/internal/ui"
+	"github.com/klytics/cerniq/packages/cli/internal/client"
+	"github.com/klytics/cerniq/packages/cli/internal/config"
+	"github.com/klytics/cerniq/packages/cli/internal/keychain"
+	"github.com/klytics/cerniq/packages/cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -46,7 +46,7 @@ configured or when the credential is rejected.`,
 		if err != nil {
 			var apiErr *client.APIError
 			if errors.As(err, &apiErr) && apiErr.IsUnauthorized() {
-				return errors.New("credential rejected — run `okoro login` to refresh")
+				return errors.New("credential rejected — run `cerniq login` to refresh")
 			}
 			return err
 		}
@@ -66,14 +66,14 @@ configured or when the credential is rejected.`,
 	},
 }
 
-// resolveAPIKey applies precedence: --api-key flag > OKORO_API_KEY env
+// resolveAPIKey applies precedence: --api-key flag > CERNIQ_API_KEY env
 // > OS keychain. Centralizes the lookup so every subcommand gets the
 // same answer.
 func resolveAPIKey() string {
 	if flagAPIKey != "" {
 		return flagAPIKey
 	}
-	if env := getEnv("OKORO_API_KEY"); env != "" {
+	if env := getEnv("CERNIQ_API_KEY"); env != "" {
 		return env
 	}
 	v, _ := keychain.Get(keychain.KeyAPIKey)

@@ -1,9 +1,9 @@
 // Package templates exposes the embedded industry-vertical scaffolds
-// that `okoro init --industry <name>` writes onto disk.
+// that `cerniq init --industry <name>` writes onto disk.
 //
 // Each template is a directory tree under templates/<name>/ at build
 // time. The contents are embedded into the binary via go:embed so
-// `okoro init` works without network access — important for the
+// `cerniq init` works without network access — important for the
 // air-gapped / restricted-egress environments the operator's enterprise
 // targets care about.
 //
@@ -13,7 +13,7 @@
 //   3. The go:embed directive picks it up automatically.
 //
 // The description list is the single source of truth surfaced by
-// `okoro init` with no --industry flag.
+// `cerniq init` with no --industry flag.
 package templates
 
 import (
@@ -28,8 +28,8 @@ var trees embed.FS
 // descriptions maps template name → one-line description shown in the
 // menu. Keep entries one short sentence each — the menu is dense.
 var descriptions = map[string]string{
-	"fintech-payments":        "Stripe-style checkout server with OKORO verify gate before authorization",
-	"ai-platform-tool-call":   "MCP agent → OKORO verify → downstream API (pairs with @okoro/mcp-server)",
+	"fintech-payments":        "Stripe-style checkout server with CERNIQ verify gate before authorization",
+	"ai-platform-tool-call":   "MCP agent → CERNIQ verify → downstream API (pairs with @cerniq/mcp-server)",
 	"saas-seat-provisioning":  "SCIM-flavored agent provisioning + per-seat policies + audit slice export",
 }
 

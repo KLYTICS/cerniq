@@ -1,5 +1,5 @@
 /**
- * OKORO — verify hot path load test (k6).
+ * CERNIQ — verify hot path load test (k6).
  *
  * Proves the < 200 ms p99 budget claimed in docs/ARCHITECTURE.md and
  * the WORK_BOARD M-005 acceptance criterion.
@@ -10,9 +10,9 @@
  *   k6 run apps/api/test/load/verify.k6.js
  *
  *   # Staging
- *   OKORO_BASE_URL=https://api.staging.okoroapp.com \
- *     OKORO_VERIFY_KEY=$STAGING_VERIFY_KEY \
- *     OKORO_FIXTURE_TOKEN=$STAGING_FIXTURE_TOKEN \
+ *   CERNIQ_BASE_URL=https://api.staging.cerniqapp.com \
+ *     CERNIQ_VERIFY_KEY=$STAGING_VERIFY_KEY \
+ *     CERNIQ_FIXTURE_TOKEN=$STAGING_FIXTURE_TOKEN \
  *     k6 run apps/api/test/load/verify.k6.js
  *
  *   # Custom budget (e.g. CF Worker Phase 3 target)
@@ -20,9 +20,9 @@
  *
  * Pre-requisites:
  *   - A seeded fixture agent + policy whose signed token is exported
- *     as OKORO_FIXTURE_TOKEN. Generate with:
+ *     as CERNIQ_FIXTURE_TOKEN. Generate with:
  *       pnpm tsx apps/api/scripts/seed-dev.ts --emit-token
- *   - A verify-only API key (X-OKORO-Verify-Key) with quota.
+ *   - A verify-only API key (X-CERNIQ-Verify-Key) with quota.
  *
  * Stages: ramp 0→50 RPS over 30 s, hold 50 RPS for 60 s, ramp to 200
  * RPS over 30 s, hold 200 RPS for 60 s, drain.
@@ -38,21 +38,21 @@ import http from 'k6/http';
 import { check, fail } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
 
-const BASE_URL = __ENV.OKORO_BASE_URL || 'http://localhost:4000';
-const VERIFY_KEY = __ENV.OKORO_VERIFY_KEY || '';
-const FIXTURE_TOKEN = __ENV.OKORO_FIXTURE_TOKEN || '';
+const BASE_URL = __ENV.CERNIQ_BASE_URL || 'http://localhost:4000';
+const VERIFY_KEY = __ENV.CERNIQ_VERIFY_KEY || '';
+const FIXTURE_TOKEN = __ENV.CERNIQ_FIXTURE_TOKEN || '';
 const P99_BUDGET_MS = parseInt(__ENV.P99_BUDGET_MS || '200', 10);
-const FIXTURE_DOMAIN = __ENV.OKORO_FIXTURE_DOMAIN || 'delta.com';
-const FIXTURE_AMOUNT = parseFloat(__ENV.OKORO_FIXTURE_AMOUNT || '47.00');
+const FIXTURE_DOMAIN = __ENV.CERNIQ_FIXTURE_DOMAIN || 'delta.com';
+const FIXTURE_AMOUNT = parseFloat(__ENV.CERNIQ_FIXTURE_AMOUNT || '47.00');
 
-if (!VERIFY_KEY) fail('OKORO_VERIFY_KEY env var required');
-if (!FIXTURE_TOKEN) fail('OKORO_FIXTURE_TOKEN env var required');
+if (!VERIFY_KEY) fail('CERNIQ_VERIFY_KEY env var required');
+if (!FIXTURE_TOKEN) fail('CERNIQ_FIXTURE_TOKEN env var required');
 
 // ── Custom metrics ──────────────────────────────────────────────────
-const verifyApprovals = new Counter('okoro_verify_approvals');
-const verifyDenials = new Counter('okoro_verify_denials');
-const verifyDenialRate = new Rate('okoro_verify_denial_rate');
-const verifyServerLatency = new Trend('okoro_verify_server_latency_ms', true);
+const verifyApprovals = new Counter('cerniq_verify_approvals');
+const verifyDenials = new Counter('cerniq_verify_denials');
+const verifyDenialRate = new Rate('cerniq_verify_denial_rate');
+const verifyServerLatency = new Trend('cerniq_verify_server_latency_ms', true);
 
 // ── Stages ──────────────────────────────────────────────────────────
 export const options = {
@@ -75,7 +75,7 @@ export const options = {
   thresholds: {
     [`http_req_duration{endpoint:verify}`]: [`p(99)<${P99_BUDGET_MS}`],
     http_req_failed: ['rate<0.001'], // < 0.1%
-    okoro_verify_denial_rate: ['rate<0.001'], // ditto
+    cerniq_verify_denial_rate: ['rate<0.001'], // ditto
   },
   noConnectionReuse: false,
   discardResponseBodies: false,
@@ -94,7 +94,7 @@ export default function () {
   const params = {
     headers: {
       'Content-Type': 'application/json',
-      'X-OKORO-Verify-Key': VERIFY_KEY,
+      'X-CERNIQ-Verify-Key': VERIFY_KEY,
     },
     tags: { endpoint: 'verify' },
   };
@@ -141,7 +141,7 @@ export function handleSummary(data) {
 
   const stdout = [
     '\n──────────────────────────────────────────────',
-    `OKORO verify hot path — load test`,
+    `CERNIQ verify hot path — load test`,
     `Base URL: ${BASE_URL}`,
     `p99 budget: ${P99_BUDGET_MS} ms`,
     `──────────────────────────────────────────────`,
@@ -149,8 +149,8 @@ export function handleSummary(data) {
     `  median: ${med} ms`,
     `  p95:    ${p95} ms`,
     `  p99:    ${p99} ms   ← ${p99 !== null && p99 < P99_BUDGET_MS ? 'PASS' : 'FAIL'}`,
-    `Approvals: ${data.metrics.okoro_verify_approvals?.values.count ?? 0}`,
-    `Denials:   ${data.metrics.okoro_verify_denials?.values.count ?? 0}`,
+    `Approvals: ${data.metrics.cerniq_verify_approvals?.values.count ?? 0}`,
+    `Denials:   ${data.metrics.cerniq_verify_denials?.values.count ?? 0}`,
     `HTTP errors: ${data.metrics.http_req_failed?.values.passes ?? 0} ` +
       `(rate ${(data.metrics.http_req_failed?.values.rate ?? 0).toFixed(4)})`,
     `──────────────────────────────────────────────\n`,

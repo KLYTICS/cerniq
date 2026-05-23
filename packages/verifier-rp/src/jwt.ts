@@ -6,7 +6,7 @@ import * as ed from '@noble/ed25519';
 import { sha512 } from '@noble/hashes/sha2';
 
 import { b64uDecode, b64uDecodeJson } from './_internal/b64u.js';
-import type { OkoroJwtClaims, OkoroJwtHeader } from './types.js';
+import type { CerniqJwtClaims, CerniqJwtHeader } from './types.js';
 
 // `@noble/ed25519` defers SHA-512 to the host. Wire up the synchronous helper
 // once at module load — matches sdk-ts/crypto.ts so signing and verification
@@ -14,8 +14,8 @@ import type { OkoroJwtClaims, OkoroJwtHeader } from './types.js';
 ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
 
 export interface ParsedJws {
-  header: OkoroJwtHeader;
-  claims: OkoroJwtClaims;
+  header: CerniqJwtHeader;
+  claims: CerniqJwtClaims;
   /** Raw bytes of "${headerB64}.${payloadB64}" — the signed input. */
   signingInput: Uint8Array;
   /** Raw signature bytes. */
@@ -32,7 +32,7 @@ function isHeaderLike(s: string): boolean {
   return s.length > 0 && HEADER_LIKE.test(s);
 }
 
-function isOkoroJwtHeader(value: unknown): value is OkoroJwtHeader {
+function isCerniqJwtHeader(value: unknown): value is CerniqJwtHeader {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Record<string, unknown>;
   if (v.alg !== 'EdDSA') return false;
@@ -41,7 +41,7 @@ function isOkoroJwtHeader(value: unknown): value is OkoroJwtHeader {
   return true;
 }
 
-function isOkoroJwtClaims(value: unknown): value is OkoroJwtClaims {
+function isCerniqJwtClaims(value: unknown): value is CerniqJwtClaims {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Record<string, unknown>;
   if (typeof v.sub !== 'string' || v.sub.length === 0) return false;
@@ -82,8 +82,8 @@ export function parseCompactJws(token: string): ParsedJws | null {
   } catch {
     return null;
   }
-  if (!isOkoroJwtHeader(header)) return null;
-  if (!isOkoroJwtClaims(claims)) return null;
+  if (!isCerniqJwtHeader(header)) return null;
+  if (!isCerniqJwtClaims(claims)) return null;
 
   let signature: Uint8Array;
   try {

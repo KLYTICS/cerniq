@@ -1,23 +1,23 @@
 {
-  "name": "@okoro/types",
+  "name": "@cerniq/types",
   "version": "0.1.0",
-  "description": "Shared API contract types and Zod schemas for OKORO — single source of truth across API, SDK, and dashboard.",
+  "description": "Shared API contract types and Zod schemas for CERNIQ — single source of truth across API, SDK, and dashboard.",
   "license": "MIT",
-  "author": "OKORO Labs <hello@okoroapp.com>",
-  "homepage": "https://okoroapp.com",
+  "author": "CERNIQ Labs <hello@cerniqapp.com>",
+  "homepage": "https://cerniqapp.com",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/klytics/okoro.git",
+    "url": "git+https://github.com/klytics/cerniq.git",
     "directory": "packages/types"
   },
   "bugs": {
-    "url": "https://github.com/klytics/okoro/issues"
+    "url": "https://github.com/klytics/cerniq/issues"
   },
   "engines": {
     "node": ">=20.11.0"
   },
   "keywords": [
-    "okoro",
+    "cerniq",
     "agent-identity",
     "zod",
     "schemas",
@@ -63,7 +63,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@okoro/tsconfig": "workspace:*",
+    "@cerniq/tsconfig": "workspace:*",
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",

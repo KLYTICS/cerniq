@@ -1,31 +1,31 @@
 ---
 title: AI platform — MCP tool calls
-description: Gate every MCP tool invocation through okoro.verify. Works with Claude Desktop, Cursor, and any MCP-aware client.
+description: Gate every MCP tool invocation through cerniq.verify. Works with Claude Desktop, Cursor, and any MCP-aware client.
 ---
 
 Full runnable example:
-[`examples/ai-platform-tool-call/`](https://github.com/klytics/okoro/tree/main/examples/ai-platform-tool-call).
+[`examples/ai-platform-tool-call/`](https://github.com/klytics/cerniq/tree/main/examples/ai-platform-tool-call).
 
 ## The pattern
 
-MCP tool calls are the natural early-adopter wedge for OKORO:
+MCP tool calls are the natural early-adopter wedge for CERNIQ:
 
 1. The LLM picks a tool to call.
 2. The MCP server receives the call.
 3. **Before invoking the downstream API**, the MCP server calls
-   `okoro.verify()` with a token signed by the agent's keypair.
+   `cerniq.verify()` with a token signed by the agent's keypair.
 4. If the verify fails, the MCP server returns a structured tool error to
    the LLM — which will see it as a regular tool failure and retry or escalate.
 
-## Wiring via `@okoro/mcp-server`
+## Wiring via `@cerniq/mcp-server`
 
 ```ts
-import { createServer } from '@okoro/mcp-server';
+import { createServer } from '@cerniq/mcp-server';
 
 const server = createServer({
-  okoro: {
-    apiKey: process.env.OKORO_API_KEY!,
-    verifyKey: process.env.OKORO_VERIFY_KEY!,
+  cerniq: {
+    apiKey: process.env.CERNIQ_API_KEY!,
+    verifyKey: process.env.CERNIQ_VERIFY_KEY!,
   },
   tools: [
     {
@@ -33,7 +33,7 @@ const server = createServer({
       description: 'Send a transactional email',
       verifyAction: 'send_email',
       handler: async (args, { verifyToken }) => {
-        // verifyToken was already verified by the OKORO MCP server
+        // verifyToken was already verified by the CERNIQ MCP server
         // wrapper — your handler runs only on `allowed = true`.
         await emailService.send(args);
         return { sent: true };
@@ -57,12 +57,12 @@ Add this entry to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "okoro-protected-tools": {
+    "cerniq-protected-tools": {
       "command": "npx",
-      "args": ["@okoro/mcp-server"],
+      "args": ["@cerniq/mcp-server"],
       "env": {
-        "OKORO_API_KEY": "ak_live_...",
-        "OKORO_VERIFY_KEY": "vk_live_..."
+        "CERNIQ_API_KEY": "ak_live_...",
+        "CERNIQ_VERIFY_KEY": "vk_live_..."
       }
     }
   }
@@ -72,5 +72,5 @@ Add this entry to your `claude_desktop_config.json`:
 ## MCP-bridge alternative
 
 If you already have an MCP server you'd rather not rewrite, wrap it with
-[`@okoro/mcp-bridge`](https://github.com/klytics/okoro/tree/main/packages/mcp-bridge)
+[`@cerniq/mcp-bridge`](https://github.com/klytics/cerniq/tree/main/packages/mcp-bridge)
 instead — same verify wrapping, zero changes to your existing tool handlers.

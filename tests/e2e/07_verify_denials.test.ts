@@ -1,7 +1,14 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import type { Okoro } from '@okoro/sdk';
+import type { Cerniq } from '@cerniq/sdk';
 import { makeSdk, readConfig } from './_support/client';
-import { SCOPES, createAgent, createPolicy, signTokenFor, tamperToken, futureIso } from './_support/fixtures';
+import {
+  SCOPES,
+  createAgent,
+  createPolicy,
+  signTokenFor,
+  tamperToken,
+  futureIso,
+} from './_support/fixtures';
 import { assertVerifyDenied } from './_support/assert';
 
 /**
@@ -19,7 +26,7 @@ import { assertVerifyDenied } from './_support/assert';
  *   ANOMALY_FLAGGED
  */
 describe('07 · verify denials (all 9 reasons)', () => {
-  let sdk: Okoro;
+  let sdk: Cerniq;
   const cleanup: string[] = [];
 
   beforeAll(() => {
@@ -42,12 +49,20 @@ describe('07 · verify denials (all 9 reasons)', () => {
     const real = await createAgent(sdk);
     cleanup.push(real.agentId);
     const policy = await createPolicy(sdk, real.agentId, [SCOPES.commerce()]);
-    const token = await signTokenFor({ ...real, agentId: 'agt_does_not_exist_xyz' }, policy.policyId, {
+    const token = await signTokenFor(
+      { ...real, agentId: 'agt_does_not_exist_xyz' },
+      policy.policyId,
+      {
+        action: 'commerce.purchase',
+        amount: 10,
+        currency: 'USD',
+      },
+    );
+    const result = await sdk.verify(token, {
       action: 'commerce.purchase',
       amount: 10,
       currency: 'USD',
     });
-    const result = await sdk.verify(token, { action: 'commerce.purchase', amount: 10, currency: 'USD' });
     assertVerifyDenied(result, 'AGENT_NOT_FOUND');
   });
 
@@ -55,9 +70,17 @@ describe('07 · verify denials (all 9 reasons)', () => {
     const agent = await createAgent(sdk);
     cleanup.push(agent.agentId);
     const policy = await createPolicy(sdk, agent.agentId, [SCOPES.commerce()]);
-    const token = await signTokenFor(agent, policy.policyId, { action: 'commerce.purchase', amount: 10, currency: 'USD' });
+    const token = await signTokenFor(agent, policy.policyId, {
+      action: 'commerce.purchase',
+      amount: 10,
+      currency: 'USD',
+    });
     await sdk.agents.revoke(agent.agentId);
-    const result = await sdk.verify(token, { action: 'commerce.purchase', amount: 10, currency: 'USD' });
+    const result = await sdk.verify(token, {
+      action: 'commerce.purchase',
+      amount: 10,
+      currency: 'USD',
+    });
     assertVerifyDenied(result, 'AGENT_REVOKED');
   });
 
@@ -65,9 +88,17 @@ describe('07 · verify denials (all 9 reasons)', () => {
     const agent = await createAgent(sdk);
     cleanup.push(agent.agentId);
     const policy = await createPolicy(sdk, agent.agentId, [SCOPES.commerce()]);
-    const token = await signTokenFor(agent, policy.policyId, { action: 'commerce.purchase', amount: 10, currency: 'USD' });
+    const token = await signTokenFor(agent, policy.policyId, {
+      action: 'commerce.purchase',
+      amount: 10,
+      currency: 'USD',
+    });
     const bad = tamperToken(token);
-    const result = await sdk.verify(bad, { action: 'commerce.purchase', amount: 10, currency: 'USD' });
+    const result = await sdk.verify(bad, {
+      action: 'commerce.purchase',
+      amount: 10,
+      currency: 'USD',
+    });
     assertVerifyDenied(result, 'INVALID_SIGNATURE');
   });
 
@@ -75,9 +106,17 @@ describe('07 · verify denials (all 9 reasons)', () => {
     const agent = await createAgent(sdk);
     cleanup.push(agent.agentId);
     const policy = await createPolicy(sdk, agent.agentId, [SCOPES.commerce()]);
-    const token = await signTokenFor(agent, policy.policyId, { action: 'commerce.purchase', amount: 10, currency: 'USD' });
+    const token = await signTokenFor(agent, policy.policyId, {
+      action: 'commerce.purchase',
+      amount: 10,
+      currency: 'USD',
+    });
     await sdk.policies.revoke(agent.agentId, policy.policyId);
-    const result = await sdk.verify(token, { action: 'commerce.purchase', amount: 10, currency: 'USD' });
+    const result = await sdk.verify(token, {
+      action: 'commerce.purchase',
+      amount: 10,
+      currency: 'USD',
+    });
     assertVerifyDenied(result, 'POLICY_REVOKED');
   });
 
@@ -85,10 +124,20 @@ describe('07 · verify denials (all 9 reasons)', () => {
     const agent = await createAgent(sdk);
     cleanup.push(agent.agentId);
     // Create with a near-future expiry, then wait for it to elapse.
-    const policy = await createPolicy(sdk, agent.agentId, [SCOPES.commerce()], { expiresAt: futureIso(2) });
-    const token = await signTokenFor(agent, policy.policyId, { action: 'commerce.purchase', amount: 10, currency: 'USD' });
+    const policy = await createPolicy(sdk, agent.agentId, [SCOPES.commerce()], {
+      expiresAt: futureIso(2),
+    });
+    const token = await signTokenFor(agent, policy.policyId, {
+      action: 'commerce.purchase',
+      amount: 10,
+      currency: 'USD',
+    });
     await new Promise((r) => setTimeout(r, 2_500));
-    const result = await sdk.verify(token, { action: 'commerce.purchase', amount: 10, currency: 'USD' });
+    const result = await sdk.verify(token, {
+      action: 'commerce.purchase',
+      amount: 10,
+      currency: 'USD',
+    });
     // Some impls return INVALID_SIGNATURE first if exp claim hits before policy check;
     // contract per CLAUDE.md is POLICY_EXPIRED at this layer.
     assertVerifyDenied(result, 'POLICY_EXPIRED');
@@ -98,8 +147,16 @@ describe('07 · verify denials (all 9 reasons)', () => {
     const agent = await createAgent(sdk);
     cleanup.push(agent.agentId);
     const policy = await createPolicy(sdk, agent.agentId, [SCOPES.dataRead(['read:calendar'])]);
-    const token = await signTokenFor(agent, policy.policyId, { action: 'commerce.purchase', amount: 10, currency: 'USD' });
-    const result = await sdk.verify(token, { action: 'commerce.purchase', amount: 10, currency: 'USD' });
+    const token = await signTokenFor(agent, policy.policyId, {
+      action: 'commerce.purchase',
+      amount: 10,
+      currency: 'USD',
+    });
+    const result = await sdk.verify(token, {
+      action: 'commerce.purchase',
+      amount: 10,
+      currency: 'USD',
+    });
     assertVerifyDenied(result, 'SCOPE_NOT_GRANTED');
   });
 
@@ -190,8 +247,16 @@ describe('07 · verify denials (all 9 reasons)', () => {
     }
     if (band !== 'FLAGGED') return; // BATE signal worker not yet propagating — skip.
 
-    const token = await signTokenFor(agent, policy.policyId, { action: 'commerce.purchase', amount: 10, currency: 'USD' });
-    const result = await sdk.verify(token, { action: 'commerce.purchase', amount: 10, currency: 'USD' });
+    const token = await signTokenFor(agent, policy.policyId, {
+      action: 'commerce.purchase',
+      amount: 10,
+      currency: 'USD',
+    });
+    const result = await sdk.verify(token, {
+      action: 'commerce.purchase',
+      amount: 10,
+      currency: 'USD',
+    });
     expect(result.valid).toBe(false);
     expect(['ANOMALY_FLAGGED', 'TRUST_SCORE_TOO_LOW']).toContain(result.denialReason);
   });

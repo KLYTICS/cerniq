@@ -7,7 +7,7 @@ import { McpMetricStrip } from './components/McpMetricStrip';
 import { McpServerTable } from './components/McpServerTable';
 
 export const metadata: Metadata = {
-  title: 'MCP servers · OKORO',
+  title: 'MCP servers · CERNIQ',
 };
 
 interface McpServerSummary {
@@ -33,14 +33,14 @@ interface McpServerListResponse {
 async function fetchMcpServers(): Promise<McpServerListResponse> {
   // The dashboard runs server-side here; we hit the API directly.
   // Auth via per-request session cookie wired in M-020.
-  const baseUrl = process.env.OKORO_API_BASE_URL ?? 'http://localhost:4000';
-  const apiKey = process.env.OKORO_DASHBOARD_API_KEY ?? '';
+  const baseUrl = process.env.CERNIQ_API_BASE_URL ?? 'http://localhost:4000';
+  const apiKey = process.env.CERNIQ_DASHBOARD_API_KEY ?? '';
   if (!apiKey) {
     return { servers: [], total: 0 };
   }
   try {
     const res = await fetch(`${baseUrl}/v1/mcp-servers`, {
-      headers: { 'X-OKORO-API-Key': apiKey, accept: 'application/json' },
+      headers: { 'X-CERNIQ-API-Key': apiKey, accept: 'application/json' },
       cache: 'no-store',
     });
     if (!res.ok) return { servers: [], total: 0 };
@@ -58,12 +58,12 @@ export default async function McpServersPage() {
   const active = data.servers.filter((s) => s.status === 'ACTIVE').length;
 
   return (
-    <section className="okoro-page">
-      <header className="okoro-page-header">
+    <section className="cerniq-page">
+      <header className="cerniq-page-header">
         <h1>MCP servers</h1>
         <p className="muted">
           Trusted MCP servers registered to your principal. Each row is a relying party that calls
-          OKORO for tool-call verification via <code>@okoro/mcp-bridge</code>.
+          CERNIQ for tool-call verification via <code>@cerniq/mcp-bridge</code>.
         </p>
       </header>
 

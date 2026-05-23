@@ -6,7 +6,7 @@
 
 ## Context
 
-The OKORO spec (`docs/spec/01_MASTER.md` § 2.2) uses ULIDs for `agentId`,
+The CERNIQ spec (`docs/spec/01_MASTER.md` § 2.2) uses ULIDs for `agentId`,
 `policyId`, etc. Prisma's `@id @default(cuid())` is the canonical Prisma
 shortcut. The two diverge:
 
@@ -14,6 +14,7 @@ shortcut. The two diverge:
 - **CUID2**: 24 chars, base36, randomly distributed (not time-sortable).
 
 The spec calls for ULIDs because:
+
 1. Public IDs benefit from time-sort for support / debugging.
 2. Index locality on time-sorted IDs improves Postgres B-tree performance for "recent activity" queries (audit log scans).
 3. The verify hot-path benefits from monotonic IDs in the agent token's `jti`.
@@ -34,7 +35,7 @@ For audit events specifically, we additionally store a ULID in `jti` /
   that runs in app code (which we'd have to thread carefully through every
   raw query).
 - The spec mentions ULID-shaped public IDs (`agt_01HZ9YZXM4QT3B7P8WKJD6R5V`)
-  but that's the *display format*, not necessarily the storage format.
+  but that's the _display format_, not necessarily the storage format.
   We can produce that display format from a CUID-keyed row by adding a
   `publicId` column.
 - Switching DB-level keys later requires a migration that's straightforward

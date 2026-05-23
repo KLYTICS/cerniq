@@ -1,11 +1,11 @@
 {
   "mcpServers": {
-    "your-svc-via-okoro": {
+    "your-svc-via-cerniq": {
       "command": "pnpm",
-      "args": ["tsx", "/path/to/okoro/examples/ai-platform-tool-call/src/mcp-server.ts"],
+      "args": ["tsx", "/path/to/cerniq/examples/ai-platform-tool-call/src/mcp-server.ts"],
       "env": {
-        "OKORO_API_BASE": "https://api.okoroapp.com",
-        "OKORO_VERIFY_KEY": "okoro_vk_REPLACE_ME",
+        "CERNIQ_API_BASE": "https://api.cerniqapp.com",
+        "CERNIQ_VERIFY_KEY": "cerniq_vk_REPLACE_ME",
         "DOWNSTREAM_API_BASE": "https://api.your-svc.example.com",
         "MIN_TRUST_SCORE": "600"
       }

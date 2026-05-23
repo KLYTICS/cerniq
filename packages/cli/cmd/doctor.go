@@ -12,11 +12,11 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/klytics/okoro/packages/cli/internal/client"
-	"github.com/klytics/okoro/packages/cli/internal/config"
-	"github.com/klytics/okoro/packages/cli/internal/plugin"
-	"github.com/klytics/okoro/packages/cli/internal/ui"
-	"github.com/klytics/okoro/packages/cli/internal/version"
+	"github.com/klytics/cerniq/packages/cli/internal/client"
+	"github.com/klytics/cerniq/packages/cli/internal/config"
+	"github.com/klytics/cerniq/packages/cli/internal/plugin"
+	"github.com/klytics/cerniq/packages/cli/internal/ui"
+	"github.com/klytics/cerniq/packages/cli/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -65,7 +65,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		{
 			name: "binary metadata",
 			run: func(_ context.Context) checkResult {
-				return ok("okoro " + version.String() + " (" + runtime.GOOS + "/" + runtime.GOARCH + ")")
+				return ok("cerniq " + version.String() + " (" + runtime.GOOS + "/" + runtime.GOARCH + ")")
 			},
 		},
 		{
@@ -73,7 +73,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 			run: func(_ context.Context) checkResult {
 				p, err := config.Path(flagConfig)
 				if err != nil {
-					return errCheck("could not resolve config path: "+err.Error(), "set --config or OKORO_CONFIG")
+					return errCheck("could not resolve config path: "+err.Error(), "set --config or CERNIQ_CONFIG")
 				}
 				return ok("path = " + p)
 			},
@@ -82,7 +82,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 			name: "base URL configured",
 			run: func(_ context.Context) checkResult {
 				if _, err := url.ParseRequestURI(baseURL); err != nil {
-					return errCheck("invalid base URL "+baseURL, "set --base-url or run `okoro login --base-url ...`")
+					return errCheck("invalid base URL "+baseURL, "set --base-url or run `cerniq login --base-url ...`")
 				}
 				return ok(baseURL)
 			},
@@ -91,7 +91,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 			name: "credential present",
 			run: func(_ context.Context) checkResult {
 				if resolveAPIKey() == "" {
-					return warn("no credential configured", "run `okoro login --api-key okoro_sk_...`")
+					return warn("no credential configured", "run `cerniq login --api-key cerniq_sk_...`")
 				}
 				return ok("found in keychain or env")
 			},
@@ -125,7 +125,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 				if err != nil {
 					var apiErr *client.APIError
 					if errors.As(err, &apiErr) && apiErr.IsUnauthorized() {
-						return errCheck("credential rejected (HTTP "+fmt.Sprint(apiErr.Status)+")", "run `okoro login` to refresh")
+						return errCheck("credential rejected (HTTP "+fmt.Sprint(apiErr.Status)+")", "run `cerniq login` to refresh")
 					}
 					return errCheck(err.Error(), "")
 				}
@@ -206,7 +206,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 			run: func(_ context.Context) checkResult {
 				_, err := exec.LookPath("git")
 				if err != nil {
-					return warn("git not on PATH", "git is needed for `okoro init` template fetching")
+					return warn("git not on PATH", "git is needed for `cerniq init` template fetching")
 				}
 				return ok("git on PATH")
 			},
@@ -218,7 +218,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	out := cmd.OutOrStdout()
 	if !flagJSON {
 		ui.AutoDisable(out)
-		ui.Heading(out, "okoro doctor")
+		ui.Heading(out, "cerniq doctor")
 	}
 	for _, c := range checks {
 		start := time.Now()

@@ -10,7 +10,7 @@
 // principal A and principal B can use the same idempotency key without
 // collision.
 
-import { OKORO_HEADER_IDEMPOTENCY } from '@okoro/types';
+import { CERNIQ_HEADER_IDEMPOTENCY } from '@cerniq/types';
 import {
   type CallHandler,
   type ExecutionContext,
@@ -20,7 +20,6 @@ import {
 import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
 import { type Observable, of, tap } from 'rxjs';
-
 
 import type { AuthenticatedKey } from '../../modules/auth/api-key.service';
 
@@ -47,7 +46,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
 
     const req = ctx.switchToHttp().getRequest<RequestWithAuth>();
     const res = ctx.switchToHttp().getResponse<Response>();
-    const headerName = OKORO_HEADER_IDEMPOTENCY.toLowerCase();
+    const headerName = CERNIQ_HEADER_IDEMPOTENCY.toLowerCase();
     const key = req.headers[headerName];
     const idempotencyKey = Array.isArray(key) ? key[0] : key;
     if (!idempotencyKey) return next.handle();

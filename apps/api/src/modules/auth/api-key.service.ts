@@ -3,7 +3,11 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 
-import { AlreadyRotatedError, NotFoundError, AuthorizationError } from '../../common/errors/okoro-error';
+import {
+  AlreadyRotatedError,
+  NotFoundError,
+  AuthorizationError,
+} from '../../common/errors/cerniq-error';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { AppConfigService } from '../../config/config.service';
@@ -65,15 +69,22 @@ export class ApiKeyService {
    * Generate a fresh API key for a principal. Returns the plaintext exactly
    * once; only the bcrypt hash is persisted.
    *
-   * Format: `okoro_sk_<26 char base58-ish>` (verify keys: `okoro_vk_…`).
+   * Format: `cerniq_sk_<26 char base58-ish>` (verify keys: `cerniq_vk_…`).
    */
-  async issue(principalId: string, label: string | null, scope: AuthenticatedKey['scope'] = 'FULL'): Promise<{
+  async issue(
+    principalId: string,
+    label: string | null,
+    scope: AuthenticatedKey['scope'] = 'FULL',
+  ): Promise<{
     apiKeyId: string;
     plaintextKey: string;
     keyPrefix: string;
   }> {
-    const prefix = scope === 'VERIFY_ONLY' ? 'okoro_vk_' : 'okoro_sk_';
-    const random = randomBytes(24).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 26);
+    const prefix = scope === 'VERIFY_ONLY' ? 'cerniq_vk_' : 'cerniq_sk_';
+    const random = randomBytes(24)
+      .toString('base64url')
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .slice(0, 26);
     const plaintext = `${prefix}${random}`;
     const keyPrefix = plaintext.slice(0, 12); // For dashboard display only.
 
@@ -104,7 +115,10 @@ export class ApiKeyService {
    * instead of the more confusing `invalid_api_key`.
    */
   async resolve(plaintext: string): Promise<AuthenticatedKey | null> {
-    if (!plaintext || (!plaintext.startsWith('okoro_sk_') && !plaintext.startsWith('okoro_vk_'))) {
+    if (
+      !plaintext ||
+      (!plaintext.startsWith('cerniq_sk_') && !plaintext.startsWith('cerniq_vk_'))
+    ) {
       return null;
     }
 
@@ -132,7 +146,6 @@ export class ApiKeyService {
     });
 
     for (const c of candidates) {
-       
       const ok = await bcrypt.compare(plaintext, c.keyHash);
       if (ok) {
         const resolved: AuthenticatedKey = {
@@ -142,14 +155,16 @@ export class ApiKeyService {
         };
         // Write-through to cache. Don't await — hot path.
         if (this.redis) {
-          this.redis
-            .set(cacheKey(plaintext), resolved, AUTH_CACHE_TTL_SECONDS)
-            .catch((err) => { this.logger.warn(`auth cache set failed: ${(err as Error).message}`); });
+          this.redis.set(cacheKey(plaintext), resolved, AUTH_CACHE_TTL_SECONDS).catch((err) => {
+            this.logger.warn(`auth cache set failed: ${(err as Error).message}`);
+          });
         }
         // Update lastUsedAt — fire and forget.
         this.prisma.apiKey
           .update({ where: { id: c.id }, data: { lastUsedAt: new Date() } })
-          .catch((err: unknown) => { this.logger.warn(`apiKey lastUsedAt update failed: ${(err as Error).message}`); });
+          .catch((err: unknown) => {
+            this.logger.warn(`apiKey lastUsedAt update failed: ${(err as Error).message}`);
+          });
         return resolved;
       }
     }
@@ -158,7 +173,9 @@ export class ApiKeyService {
     if (this.redis) {
       this.redis
         .set(negCacheKey(plaintext), { tombstone: true }, AUTH_NEG_CACHE_TTL_SECONDS)
-        .catch((err) => { this.logger.warn(`auth neg-cache set failed: ${(err as Error).message}`); });
+        .catch((err) => {
+          this.logger.warn(`auth neg-cache set failed: ${(err as Error).message}`);
+        });
     }
     return null;
   }
@@ -189,7 +206,10 @@ export class ApiKeyService {
    * runs at most once per failed auth attempt.
    */
   async isExpired(plaintext: string): Promise<boolean> {
-    if (!plaintext || (!plaintext.startsWith('okoro_sk_') && !plaintext.startsWith('okoro_vk_'))) {
+    if (
+      !plaintext ||
+      (!plaintext.startsWith('cerniq_sk_') && !plaintext.startsWith('cerniq_vk_'))
+    ) {
       return false;
     }
     const keyPrefix = plaintext.slice(0, 12);
@@ -203,7 +223,6 @@ export class ApiKeyService {
       select: { keyHash: true },
     });
     for (const c of candidates) {
-       
       const ok = await bcrypt.compare(plaintext, c.keyHash);
       if (ok) return true;
     }
@@ -274,8 +293,11 @@ export class ApiKeyService {
 
     // Step 2: mint plaintext (NOT Math.random — crypto.randomBytes).
     const scope: AuthenticatedKey['scope'] = calling.scope;
-    const prefix = scope === 'VERIFY_ONLY' ? 'okoro_vk_' : 'okoro_sk_';
-    const random = randomBytes(24).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 26);
+    const prefix = scope === 'VERIFY_ONLY' ? 'cerniq_vk_' : 'cerniq_sk_';
+    const random = randomBytes(24)
+      .toString('base64url')
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .slice(0, 26);
     const plaintext = `${prefix}${random}`;
     const keyPrefix = plaintext.slice(0, 12);
     const hash = await bcrypt.hash(plaintext, this.config.apiKeyBcryptCost);

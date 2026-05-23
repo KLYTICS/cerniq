@@ -18,7 +18,7 @@ function makeMetrics(): jest.Mocked<Pick<MetricsService, 'render'>> {
   return {
     render: jest.fn().mockResolvedValue({
       contentType: 'text/plain; version=0.0.4; charset=utf-8',
-      body: '# HELP okoro_verify_total Total verifications\nokoro_verify_total 42\n',
+      body: '# HELP cerniq_verify_total Total verifications\ncerniq_verify_total 42\n',
     }),
   };
 }
@@ -58,7 +58,7 @@ describe('MetricsController', () => {
       const res = makeRes();
       await controller.render(res);
       const body = (res.send as jest.Mock).mock.calls[0]?.[0] as string;
-      expect(body).toContain('okoro_verify_total');
+      expect(body).toContain('cerniq_verify_total');
     });
 
     it('does NOT call res.end separately (res.send handles it)', async () => {

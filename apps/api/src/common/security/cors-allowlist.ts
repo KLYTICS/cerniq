@@ -1,10 +1,10 @@
-// OKORO — strict CORS allow-list.
+// CERNIQ — strict CORS allow-list.
 //
 // Default Nest CORS with `origin: '*'` is convenient but wide. Production
 // must:
 //
 //   1. Explicitly allow only the domains we publish (dashboard, docs site,
-//      *.okoroapp.com for our own properties).
+//      *.cerniqapp.com for our own properties).
 //   2. Reflect the requesting Origin only when it appears in the allow-list,
 //      so a browser CORS preflight from any other host fails.
 //   3. Deny `credentials: true` when origin is the wildcard
@@ -27,11 +27,11 @@ import type { Request } from 'express';
 export interface CorsConfig {
   /**
    * Comma-separated list of allowed origins for management-plane endpoints
-   * (anything that uses cookies / X-OKORO-API-Key). Public verify-key
+   * (anything that uses cookies / X-CERNIQ-API-Key). Public verify-key
    * endpoints get `*` regardless.
    *
    * Examples:
-   *   `https://app.okoroapp.com,https://docs.okoroapp.com`
+   *   `https://app.cerniqapp.com,https://docs.cerniqapp.com`
    *   `*` (development only)
    */
   managementOrigins: string;
@@ -76,12 +76,12 @@ export function buildCorsDelegate(config: CorsConfig): CorsOptionsDelegate<Reque
         methods: ['GET', 'POST', 'OPTIONS'],
         allowedHeaders: [
           'Content-Type',
-          'X-OKORO-Verify-Key',
-          'X-OKORO-API-Key',
+          'X-CERNIQ-Verify-Key',
+          'X-CERNIQ-API-Key',
           'Idempotency-Key',
           'X-Request-Id',
         ],
-        exposedHeaders: ['X-Request-Id', 'X-OKORO-Trace-Id'],
+        exposedHeaders: ['X-Request-Id', 'X-CERNIQ-Trace-Id'],
         maxAge: 86_400, // 24h preflight cache
       };
       callback(null, opts);
@@ -98,13 +98,13 @@ export function buildCorsDelegate(config: CorsConfig): CorsOptionsDelegate<Reque
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: [
         'Content-Type',
-        'X-OKORO-API-Key',
+        'X-CERNIQ-API-Key',
         'Authorization',
         'Idempotency-Key',
         'X-Request-Id',
         'X-CSRF-Token',
       ],
-      exposedHeaders: ['X-Request-Id', 'X-OKORO-Trace-Id'],
+      exposedHeaders: ['X-Request-Id', 'X-CERNIQ-Trace-Id'],
       maxAge: 600, // 10 min preflight cache (shorter for management to react to allow-list changes faster)
     };
     callback(null, opts);

@@ -1,5 +1,5 @@
 # =============================================================================
-# OKORO — Cloudflare Workers wrangler template (Phase 3 edge verify)
+# CERNIQ — Cloudflare Workers wrangler template (Phase 3 edge verify)
 # =============================================================================
 # This is a TEMPLATE. The peer Claude session owns workers/cf-verify/src/*.
 # This file is the deployment skeleton — `name`, `compatibility_date`, KV
@@ -17,12 +17,12 @@
 #   - verify hot path is framework-free (verify.algorithm.ts has zero
 #     @nestjs / @prisma / bullmq imports)
 #   - origin verify p99 baseline measured (the Grafana dashboard at
-#     infra/observability/grafana-dashboards/okoro-verify-latency.json
+#     infra/observability/grafana-dashboards/cerniq-verify-latency.json
 #     gives us this number)
 #   - operator has approved the Cloudflare Workers Paid plan ($5/mo)
 # =============================================================================
 
-name = "okoro-verify-edge"
+name = "cerniq-verify-edge"
 main = "src/index.ts"
 
 # `compatibility_date` controls the Workers runtime semver. Bumping this is a
@@ -42,15 +42,15 @@ compatibility_flags = ["nodejs_compat"]
 # verify-adjacent endpoints stay at the origin until traffic + correctness
 # data justify moving them. The route pattern below is intentionally narrow.
 #
-# Operator: replace `okoro.<domain>` with the production hostname. The
+# Operator: replace `cerniq.<domain>` with the production hostname. The
 # zone_name must match a zone you own in this Cloudflare account.
 # -----------------------------------------------------------------------------
 [[routes]]
-pattern = "okoro.<your-domain>/v1/verify"
+pattern = "cerniq.<your-domain>/v1/verify"
 zone_name = "<your-domain>"
 
 [[routes]]
-pattern = "okoro.<your-domain>/v1/agents/*/status"
+pattern = "cerniq.<your-domain>/v1/agents/*/status"
 zone_name = "<your-domain>"
 
 # -----------------------------------------------------------------------------
@@ -92,8 +92,8 @@ preview_id = "<set in CI>"
 # Public, non-secret env vars
 # -----------------------------------------------------------------------------
 [vars]
-OKORO_ENV = "production"
-ORIGIN_API_BASE = "https://api.okoro.<your-domain>"
+CERNIQ_ENV = "production"
+ORIGIN_API_BASE = "https://api.cerniq.<your-domain>"
 # How fresh KV entries must be before the worker falls back to the origin.
 # 90s gives the BATE worker a generous window to push updates after a
 # trust-score recompute (see ARCHITECTURE § 4).
@@ -131,7 +131,7 @@ cpu_ms = 50
 # -----------------------------------------------------------------------------
 [[analytics_engine_datasets]]
 binding = "VERIFY_ANALYTICS"
-dataset = "okoro_verify_events"
+dataset = "cerniq_verify_events"
 
 # -----------------------------------------------------------------------------
 # Builds — the peer owns the build tooling. Default `wrangler deploy` runs
@@ -139,5 +139,5 @@ dataset = "okoro_verify_events"
 # that file lands.
 # -----------------------------------------------------------------------------
 [build]
-command = "pnpm --filter @okoro/cf-verify build"
+command = "pnpm --filter @cerniq/cf-verify build"
 cwd = "../.."

@@ -19,9 +19,9 @@ Install k6 (`brew install k6`), seed a fixture, then run:
 # 1. Boot the stack
 docker compose up -d
 pnpm install
-pnpm --filter @okoro/api prisma:migrate
+pnpm --filter @cerniq/api prisma:migrate
 pnpm tsx apps/api/scripts/seed-dev.ts --emit-token > .env.fixture
-source .env.fixture                          # exports OKORO_FIXTURE_TOKEN + OKORO_VERIFY_KEY
+source .env.fixture                          # exports CERNIQ_FIXTURE_TOKEN + CERNIQ_VERIFY_KEY
 pnpm dev                                     # in another shell
 
 # 2. Run the test
@@ -31,9 +31,9 @@ k6 run apps/api/test/load/verify.k6.js
 ## Running against staging
 
 ```sh
-OKORO_BASE_URL=https://api.staging.okoroapp.com \
-  OKORO_VERIFY_KEY=$STAGING_VERIFY_KEY \
-  OKORO_FIXTURE_TOKEN=$STAGING_FIXTURE_TOKEN \
+CERNIQ_BASE_URL=https://api.staging.cerniqapp.com \
+  CERNIQ_VERIFY_KEY=$STAGING_VERIFY_KEY \
+  CERNIQ_FIXTURE_TOKEN=$STAGING_FIXTURE_TOKEN \
   k6 run apps/api/test/load/verify.k6.js
 ```
 
@@ -43,9 +43,9 @@ Same as staging but with the edge URL and a tighter budget:
 
 ```sh
 P99_BUDGET_MS=80 \
-  OKORO_BASE_URL=https://okoro.okoroapp.com \
-  OKORO_VERIFY_KEY=$EDGE_VERIFY_KEY \
-  OKORO_FIXTURE_TOKEN=$STAGING_FIXTURE_TOKEN \
+  CERNIQ_BASE_URL=https://cerniq.cerniqapp.com \
+  CERNIQ_VERIFY_KEY=$EDGE_VERIFY_KEY \
+  CERNIQ_FIXTURE_TOKEN=$STAGING_FIXTURE_TOKEN \
   k6 run apps/api/test/load/verify.k6.js
 ```
 

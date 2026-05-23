@@ -1,9 +1,9 @@
 apiVersion: 1
 
 providers:
-  - name: okoro
+  - name: cerniq
     orgId: 1
-    folder: 'OKORO'
+    folder: 'CERNIQ'
     type: file
     disableDeletion: true
     editable: true

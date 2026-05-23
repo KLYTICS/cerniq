@@ -12,7 +12,7 @@
 // keep one regression guard ("FREE tier never fires PLAN_LIMIT_EXCEEDED").
 //
 // Hot path design:
-//   - Redis INCR on `okoro:usage:{principalId}:{monthKey}` is the fast
+//   - Redis INCR on `cerniq:usage:{principalId}:{monthKey}` is the fast
 //     path. The counter auto-expires at start of next month (plus 1-day
 //     buffer to survive DST edge cases).
 //   - On Redis miss (first call of the month or after Redis eviction) we
@@ -58,8 +58,8 @@ function secondsUntilEndOfMonth(): number {
 export class UsageGuardService {
   private readonly logger = new Logger(UsageGuardService.name);
 
-  private readonly USAGE_PREFIX = 'okoro:usage';
-  private readonly PLAN_PREFIX = 'okoro:plan';
+  private readonly USAGE_PREFIX = 'cerniq:usage';
+  private readonly PLAN_PREFIX = 'cerniq:plan';
   /** Cache the principal's planTier for 5 minutes to avoid DB reads on every call. */
   private readonly PLAN_CACHE_TTL = 300;
 
@@ -112,7 +112,8 @@ export class UsageGuardService {
         });
         monthCount = count;
         // Seed the Redis counter so subsequent calls are fast.
-        await this.redis.raw()
+        await this.redis
+          .raw()
           .multi()
           .set(usageKey, String(count))
           .expire(usageKey, secondsUntilEndOfMonth())
@@ -133,9 +134,10 @@ export class UsageGuardService {
       allowed: result.allowed,
       remaining: result.remaining,
       planTier,
-      monthlyQuota: plan.monthlyVerifyQuota === Number.POSITIVE_INFINITY
-        ? -1  // sentinel: unlimited
-        : plan.monthlyVerifyQuota,
+      monthlyQuota:
+        plan.monthlyVerifyQuota === Number.POSITIVE_INFINITY
+          ? -1 // sentinel: unlimited
+          : plan.monthlyVerifyQuota,
       reason: result.reason,
     };
   }
@@ -160,7 +162,8 @@ export class UsageGuardService {
   incrementUsage(principalId: string): void {
     const mk = monthKey();
     const usageKey = `${this.USAGE_PREFIX}:${principalId}:${mk}`;
-    void this.redis.raw()
+    void this.redis
+      .raw()
       .multi()
       .incr(usageKey)
       // Re-set TTL on increment so the key doesn't expire mid-month if it
@@ -189,9 +192,11 @@ export class UsageGuardService {
         // by the same `.catch` below.
         void this.maybeRecordOverage(principalId, post);
       })
-      .catch((err) =>
-        { this.logger.warn(`UsageGuardService: increment failed for principal=${principalId}: ${(err as Error).message}`); },
-      );
+      .catch((err) => {
+        this.logger.warn(
+          `UsageGuardService: increment failed for principal=${principalId}: ${(err as Error).message}`,
+        );
+      });
   }
 
   /**
@@ -203,10 +208,7 @@ export class UsageGuardService {
    * Defence-in-depth: explicit FREE-tier short-circuit per CLAUDE.md
    * invariant 2 — TrialService owns the FREE gate, never UsageGuard.
    */
-  private async maybeRecordOverage(
-    principalId: string,
-    postIncrementCount: number,
-  ): Promise<void> {
+  private async maybeRecordOverage(principalId: string, postIncrementCount: number): Promise<void> {
     if (!this.stripe) return;
     let planTier: PlanTier;
     try {

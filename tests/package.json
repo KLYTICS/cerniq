@@ -1,8 +1,8 @@
 {
-  "name": "@okoro/e2e",
+  "name": "@cerniq/e2e",
   "version": "0.1.0",
   "private": true,
-  "description": "OKORO — black-box end-to-end test harness. Drives the live API over HTTP using @okoro/sdk + @okoro/types.",
+  "description": "CERNIQ — black-box end-to-end test harness. Drives the live API over HTTP using @cerniq/sdk + @cerniq/types.",
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
@@ -13,13 +13,13 @@
     "load": "k6 run load/verify.js"
   },
   "dependencies": {
-    "@okoro/sdk": "link:../packages/sdk-ts",
-    "@okoro/types": "link:../packages/types",
+    "@cerniq/sdk": "link:../packages/sdk-ts",
+    "@cerniq/types": "link:../packages/types",
     "@noble/ed25519": "^2.1.0",
     "@noble/hashes": "^1.5.0"
   },
   "devDependencies": {
-    "@okoro/tsconfig": "link:../packages/tsconfig",
+    "@cerniq/tsconfig": "link:../packages/tsconfig",
     "@types/node": "^20.14.0",
     "fast-check": "^3.23.1",
     "typescript": "^5.6.3",

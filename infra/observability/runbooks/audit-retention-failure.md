@@ -3,16 +3,17 @@
 ## Alert
 
 - **Names**: `AuditRetentionTickMissed` (warning),
-  `AuditRetentionRedactStalled` (critical) — *both not yet emitted; flip
-  on metric land per round 15 backlog*.
-- **Group**: `okoro.compliance`
-- **File**: `infra/observability/alerts/okoro.rules.yml`
+  `AuditRetentionRedactStalled` (critical) — _both not yet emitted; flip
+  on metric land per round 15 backlog_.
+- **Group**: `cerniq.compliance`
+- **File**: `infra/observability/alerts/cerniq.rules.yml`
 - **Source**: round-15 retention surface — `apps/api/src/modules/compliance/audit-retention.service.ts`, `scripts/run-audit-retention.ts`.
 
 ## Symptom
 
 One or more of:
-1. `okoro_audit_retention_events_redacted_total` flat for > 25 hours when traffic is normal (the cron skipped — round 15 default is 24h interval).
+
+1. `cerniq_audit_retention_events_redacted_total` flat for > 25 hours when traffic is normal (the cron skipped — round 15 default is 24h interval).
 2. `runOnce()` invocation throws midway through a principal's batch — partial redaction state.
 3. A principal's `AuditEvent` rows older than `Principal.planTier`'s `auditRetentionDays` cutoff still exist with `redactedAt IS NULL`.
 4. The retention service's `getStatus()` reports the last tick was > 25h ago.
@@ -28,9 +29,9 @@ One or more of:
 1. **Confirm the symptom — when did retention last fire?**
 
    ```promql
-   max(okoro_audit_retention_events_redacted_total) by (instance)
+   max(cerniq_audit_retention_events_redacted_total) by (instance)
    # If flat for > 25h, the tick missed. Pair with:
-   sum(rate(okoro_audit_retention_events_redacted_total[1d]))
+   sum(rate(cerniq_audit_retention_events_redacted_total[1d]))
    ```
 
    Or programmatically via the service's `getStatus()`:
@@ -38,7 +39,7 @@ One or more of:
    ```bash
    # Connect to a running API and call the introspection endpoint
    # (round 15 may not have exposed it yet — check compliance.module.ts)
-   railway logs -s okoro-api | rg -F 'audit-retention' | tail -30
+   railway logs -s cerniq-api | rg -F 'audit-retention' | tail -30
    ```
 
 2. **Check for stalled redaction state (mid-batch crash).**
@@ -83,12 +84,12 @@ One or more of:
 4. **Inspect the service interval handle.**
 
    ```bash
-   railway run -s okoro-api -- node -e "
+   railway run -s cerniq-api -- node -e "
      const { AuditRetentionService } = require('./dist/modules/compliance/audit-retention.service');
      // The service may not be inspectable this way without the running NestJS context.
      // Better path: tail logs for the 'audit-retention: tick' log line.
    "
-   railway logs -s okoro-api | rg -F 'audit-retention' | tail -10
+   railway logs -s cerniq-api | rg -F 'audit-retention' | tail -10
    ```
 
 ## Mitigate
@@ -96,9 +97,9 @@ One or more of:
 - **Cron skipped (no errors)**: trigger a manual run via the operator CLI, dry-run first to confirm scope:
 
   ```bash
-  pnpm --filter @okoro/scripts run audit-retention -- --dry-run
-  pnpm --filter @okoro/scripts run audit-retention   # commit
-  pnpm --filter @okoro/scripts run audit-retention -- --principal-id=<id>  # narrow
+  pnpm --filter @cerniq/scripts run audit-retention -- --dry-run
+  pnpm --filter @cerniq/scripts run audit-retention   # commit
+  pnpm --filter @cerniq/scripts run audit-retention -- --principal-id=<id>  # narrow
   ```
 
   Exit codes: 0 = clean, 1 = errors during run, 2 = config issue, 3 = nothing to do.
@@ -113,16 +114,16 @@ One or more of:
 
 - After the gap is closed, audit how it happened. Common causes:
   - A deploy SIGTERM'd the API process mid-tick and the new replica didn't start a tick on time (could be a 24h gap if the deploy lands right after a tick).
-  - The `OKORO_AUDIT_RETENTION_INTERVAL_MS` env var was changed to something unreasonable (e.g., 31 days because someone confused ms and days).
+  - The `CERNIQ_AUDIT_RETENTION_INTERVAL_MS` env var was changed to something unreasonable (e.g., 31 days because someone confused ms and days).
   - A migration changed the `Principal.planTier` enum but `auditRetentionDays` lookup wasn't updated (drift between `plans.ts` and the service).
-- Add or verify the alert: a flat `okoro_audit_retention_events_redacted_total` for > 25h with traffic flowing.
+- Add or verify the alert: a flat `cerniq_audit_retention_events_redacted_total` for > 25h with traffic flowing.
 - After Terminal H lands `@nestjs/schedule`, this runbook's "Mitigate" section can drop the manual interval-management notes — `@Cron` makes it framework-lifecycle managed.
 
 ## Verify recovery
 
 ```promql
 # Counter must increment within 25h after the first incident-time tick.
-increase(okoro_audit_retention_events_redacted_total[26h]) > 0
+increase(cerniq_audit_retention_events_redacted_total[26h]) > 0
 ```
 
 Plus the SQL query in Diagnose step 2 returns zero rows for the affected principals.

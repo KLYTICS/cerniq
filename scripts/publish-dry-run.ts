@@ -2,7 +2,7 @@
 /**
  * publish-dry-run.ts — pre-flight gate for `npm publish`.
  *
- * Runs `npm pack --dry-run --json` for every public `@okoro/*` package
+ * Runs `npm pack --dry-run --json` for every public `@cerniq/*` package
  * and asserts:
  *   - the tarball excludes test/dev/secret artefacts
  *   - the tarball includes README, LICENSE, and the entrypoints declared
@@ -24,8 +24,8 @@ import * as path from 'node:path';
 import { promisify } from 'node:util';
 
 import {
-  OkoroPackageManifest,
-  findOkoroPackages,
+  CerniqPackageManifest,
+  findCerniqPackages,
   findRepoRoot,
   isValidSemver,
 } from './lib/package-introspect.js';
@@ -72,9 +72,7 @@ export interface NpmPackOutput {
 }
 
 /** Adapter so tests can stub the npm pack invocation. */
-export type PackRunner = (
-  cwd: string,
-) => Promise<{ stdout: string; stderr: string }>;
+export type PackRunner = (cwd: string) => Promise<{ stdout: string; stderr: string }>;
 
 export interface CliFlags {
   readonly packageFilter?: string;
@@ -89,13 +87,13 @@ export interface CliFlags {
 // ──────────────────────────────────────────────────────────────────────
 
 const USAGE = `\
-publish-dry-run — verify every public @okoro/* package is publish-clean.
+publish-dry-run — verify every public @cerniq/* package is publish-clean.
 
 Usage:
   pnpm publish:dry-run [--all] [--package <name>] [--strict] [--json]
 
 Flags:
-  --all              Run against every public @okoro/* package (default)
+  --all              Run against every public @cerniq/* package (default)
   --package <name>   Restrict to one package by name
   --strict           Treat warnings as failures
   --json             Emit machine-readable JSON to stdout
@@ -144,26 +142,17 @@ export function parseNpmPackOutput(stdout: string): NpmPackOutput {
       const parsed: unknown = JSON.parse(trimmed);
       const arr = Array.isArray(parsed) ? parsed : [parsed];
       const first = arr[0];
-      if (
-        first &&
-        typeof first === 'object' &&
-        'files' in (first as Record<string, unknown>)
-      ) {
+      if (first && typeof first === 'object' && 'files' in (first as Record<string, unknown>)) {
         const files = (first as { files: unknown }).files;
         if (Array.isArray(files)) {
           const out: NpmPackEntry[] = [];
           for (const f of files) {
-            if (
-              f &&
-              typeof f === 'object' &&
-              'path' in (f as Record<string, unknown>)
-            ) {
+            if (f && typeof f === 'object' && 'path' in (f as Record<string, unknown>)) {
               const obj = f as { path: unknown; size?: unknown };
               if (typeof obj.path === 'string') {
                 out.push({
                   path: obj.path,
-                  size:
-                    typeof obj.size === 'number' ? obj.size : undefined,
+                  size: typeof obj.size === 'number' ? obj.size : undefined,
                 });
               }
             }
@@ -212,11 +201,7 @@ export function defaultPackRunner(): PackRunner {
       timeout: 60_000,
       maxBuffer: 16 * 1024 * 1024,
     };
-    const { stdout, stderr } = await execFileAsync(
-      'npm',
-      ['pack', '--dry-run', '--json'],
-      opts,
-    );
+    const { stdout, stderr } = await execFileAsync('npm', ['pack', '--dry-run', '--json'], opts);
     return {
       stdout: typeof stdout === 'string' ? stdout : stdout.toString(),
       stderr: typeof stderr === 'string' ? stderr : stderr.toString(),
@@ -315,7 +300,7 @@ export interface CheckPackageDeps {
 }
 
 export async function checkPackage(
-  pkg: OkoroPackageManifest,
+  pkg: CerniqPackageManifest,
   deps: CheckPackageDeps,
 ): Promise<PackageReport> {
   const checks: Check[] = [];
@@ -323,12 +308,7 @@ export async function checkPackage(
 
   // ───── manifest checks (synchronous, always run) ─────
   const m = pkg.raw;
-  const required: ReadonlyArray<keyof typeof m> = [
-    'name',
-    'version',
-    'description',
-    'license',
-  ];
+  const required: ReadonlyArray<keyof typeof m> = ['name', 'version', 'description', 'license'];
   for (const k of required) {
     if (!m[k as string] || typeof m[k as string] !== 'string') {
       checks.push({
@@ -368,7 +348,7 @@ export async function checkPackage(
     const r = (repo as { url?: unknown }).url;
     if (typeof r === 'string') repoUrl = r;
   }
-  if (/okoro/i.test(repoUrl)) {
+  if (/cerniq/i.test(repoUrl)) {
     checks.push({
       id: 'manifest.repository',
       level: 'pass',
@@ -378,7 +358,7 @@ export async function checkPackage(
     checks.push({
       id: 'manifest.repository',
       level: 'fail',
-      message: `repository.url missing or doesn't reference an okoro repo (got: ${repoUrl || '<unset>'})`,
+      message: `repository.url missing or doesn't reference an cerniq repo (got: ${repoUrl || '<unset>'})`,
     });
   }
 
@@ -550,9 +530,7 @@ export async function checkPackage(
   checks.push({
     id: 'require.manifest',
     level: hasManifest ? 'pass' : 'fail',
-    message: hasManifest
-      ? 'package.json present'
-      : 'package.json missing from tarball',
+    message: hasManifest ? 'package.json present' : 'package.json missing from tarball',
   });
 
   // entrypoint files (main, module, types, exports.*)
@@ -669,9 +647,7 @@ export function renderHumanReport(
     }
   }
   lines.push('');
-  lines.push(
-    `summary: ${totals.passed} pass · ${totals.warned} warn · ${totals.failed} fail`,
-  );
+  lines.push(`summary: ${totals.passed} pass · ${totals.warned} warn · ${totals.failed} fail`);
   return lines.join('\n') + '\n';
 }
 
@@ -706,7 +682,7 @@ export async function run(
     log: depsIn.log ?? ((s) => process.stdout.write(s.endsWith('\n') ? s : `${s}\n`)),
   };
 
-  let packages = findOkoroPackages({ repoRoot, publishableOnly: true });
+  let packages = findCerniqPackages({ repoRoot, publishableOnly: true });
   if (flags.packageFilter) {
     packages = packages.filter((p) => p.name === flags.packageFilter);
     if (packages.length === 0) {
@@ -770,8 +746,7 @@ const isMain = (() => {
   try {
     const argv1 = process.argv[1];
     if (!argv1) return false;
-    return argv1.endsWith('publish-dry-run.ts') ||
-      argv1.endsWith('publish-dry-run.js');
+    return argv1.endsWith('publish-dry-run.ts') || argv1.endsWith('publish-dry-run.js');
   } catch {
     return false;
   }

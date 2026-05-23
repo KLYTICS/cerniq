@@ -6,7 +6,7 @@
 
 import { Logger } from '@nestjs/common';
 
-import { ServiceUnavailableError, ValidationError } from '../../common/errors/okoro-error';
+import { ServiceUnavailableError, ValidationError } from '../../common/errors/cerniq-error';
 
 import { StripeService, type StripeEvent, type StripeFactory } from './stripe.service';
 
@@ -225,8 +225,8 @@ describe('StripeService', () => {
         svc.createCheckoutSession({
           principalId: 'p1',
           planTier: 'DEVELOPER',
-          successUrl: 'https://okoro.test/ok',
-          cancelUrl: 'https://okoro.test/no',
+          successUrl: 'https://cerniq.test/ok',
+          cancelUrl: 'https://cerniq.test/no',
         }),
       ).rejects.toBeInstanceOf(ServiceUnavailableError);
     });
@@ -247,8 +247,8 @@ describe('StripeService', () => {
         svc.createCheckoutSession({
           principalId: 'p1',
           planTier: 'FREE',
-          successUrl: 'https://okoro.test/ok',
-          cancelUrl: 'https://okoro.test/no',
+          successUrl: 'https://cerniq.test/ok',
+          cancelUrl: 'https://cerniq.test/no',
         }),
       ).rejects.toBeInstanceOf(ValidationError);
     });
@@ -269,8 +269,8 @@ describe('StripeService', () => {
         svc.createCheckoutSession({
           principalId: 'p1',
           planTier: 'ENTERPRISE',
-          successUrl: 'https://okoro.test/ok',
-          cancelUrl: 'https://okoro.test/no',
+          successUrl: 'https://cerniq.test/ok',
+          cancelUrl: 'https://cerniq.test/no',
         }),
       ).rejects.toBeInstanceOf(ValidationError);
     });
@@ -280,7 +280,7 @@ describe('StripeService', () => {
         principals: [
           {
             id: 'p1',
-            email: 'erwin@okoro.test',
+            email: 'erwin@cerniq.test',
             planTier: 'FREE',
             stripeCustomerId: null,
             stripeSubscriptionId: null,
@@ -291,8 +291,8 @@ describe('StripeService', () => {
       const out = await svc.createCheckoutSession({
         principalId: 'p1',
         planTier: 'DEVELOPER',
-        successUrl: 'https://okoro.test/ok',
-        cancelUrl: 'https://okoro.test/no',
+        successUrl: 'https://cerniq.test/ok',
+        cancelUrl: 'https://cerniq.test/no',
       });
       expect(out.url).toBe('https://stripe.test/checkout/cs_test_1');
       expect(fakeStripe.customers.create).toHaveBeenCalledTimes(1);
@@ -301,7 +301,7 @@ describe('StripeService', () => {
       expect(sessionArgs.client_reference_id).toBe('p1');
       expect(sessionArgs.line_items[0].price).toBe('price_dev');
       // Customer id persisted on the principal.
-      expect(prisma.rows.get('p1')?.stripeCustomerId).toBe('cus_for_erwin@okoro.test');
+      expect(prisma.rows.get('p1')?.stripeCustomerId).toBe('cus_for_erwin@cerniq.test');
     });
 
     it('reuses existing principal.stripeCustomerId', async () => {
@@ -309,7 +309,7 @@ describe('StripeService', () => {
         principals: [
           {
             id: 'p1',
-            email: 'erwin@okoro.test',
+            email: 'erwin@cerniq.test',
             planTier: 'FREE',
             stripeCustomerId: 'cus_existing',
             stripeSubscriptionId: null,
@@ -320,8 +320,8 @@ describe('StripeService', () => {
       await svc.createCheckoutSession({
         principalId: 'p1',
         planTier: 'DEVELOPER',
-        successUrl: 'https://okoro.test/ok',
-        cancelUrl: 'https://okoro.test/no',
+        successUrl: 'https://cerniq.test/ok',
+        cancelUrl: 'https://cerniq.test/no',
       });
       expect(fakeStripe.customers.create).not.toHaveBeenCalled();
       const sessionArgs = fakeStripe.checkout.sessions.create.mock.calls[0][0];
@@ -367,7 +367,7 @@ describe('StripeService', () => {
         principals: [
           {
             id: 'p1',
-            email: 'erwin@okoro.test',
+            email: 'erwin@cerniq.test',
             planTier: 'FREE',
             stripeCustomerId: null,
             stripeSubscriptionId: null,
@@ -683,11 +683,11 @@ describe('StripeService', () => {
           },
         ],
       });
-      const out = await svc.createPortalSession('p1', 'https://app.okoroapp.com/billing/back');
+      const out = await svc.createPortalSession('p1', 'https://app.cerniqapp.com/billing/back');
       expect(out.url).toBe('https://billing.stripe.test/p/cus_existing');
       expect(fakeStripe.billingPortal.sessions.create).toHaveBeenCalledWith({
         customer: 'cus_existing',
-        return_url: 'https://app.okoroapp.com/billing/back',
+        return_url: 'https://app.cerniqapp.com/billing/back',
       });
     });
 
@@ -704,7 +704,7 @@ describe('StripeService', () => {
         ],
       });
       await expect(
-        svc.createPortalSession('p1', 'https://app.okoroapp.com/back'),
+        svc.createPortalSession('p1', 'https://app.cerniqapp.com/back'),
       ).rejects.toBeInstanceOf(ValidationError);
     });
 
@@ -722,7 +722,7 @@ describe('StripeService', () => {
         ],
       });
       await expect(
-        svc.createPortalSession('p1', 'https://app.okoroapp.com/back'),
+        svc.createPortalSession('p1', 'https://app.cerniqapp.com/back'),
       ).rejects.toBeInstanceOf(ServiceUnavailableError);
     });
   });

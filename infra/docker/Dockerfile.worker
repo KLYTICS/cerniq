@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # ---------------------------------------------------------------------------
-# OKORO — BATE / webhook worker image
+# CERNIQ — BATE / webhook worker image
 # ---------------------------------------------------------------------------
 # Same source, same node_modules, same image surface as Dockerfile.api.
 # The only difference is ENTRYPOINT: this container runs the BullMQ worker
@@ -58,9 +58,9 @@ FROM deps AS build
 COPY tsconfig.base.json ./
 COPY packages/ packages/
 COPY apps/api/ apps/api/
-RUN pnpm --filter @okoro/api prisma:generate \
- && pnpm --filter @okoro/api build
-RUN pnpm --filter @okoro/api --prod deploy /deploy/worker \
+RUN pnpm --filter @cerniq/api prisma:generate \
+ && pnpm --filter @cerniq/api build
+RUN pnpm --filter @cerniq/api --prod deploy /deploy/worker \
  && cp -r apps/api/dist /deploy/worker/dist \
  && cp -r apps/api/prisma /deploy/worker/prisma
 

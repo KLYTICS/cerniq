@@ -8,14 +8,14 @@ importers:
 
   .:
     dependencies:
-      '@okoro/sdk':
+      '@cerniq/sdk':
         specifier: link:../packages/sdk-ts
         version: link:../packages/sdk-ts
-      '@okoro/types':
+      '@cerniq/types':
         specifier: link:../packages/types
         version: link:../packages/types
     devDependencies:
-      '@okoro/tsconfig':
+      '@cerniq/tsconfig':
         specifier: link:../packages/tsconfig
         version: link:../packages/tsconfig
       '@types/node':

@@ -4,7 +4,7 @@ export const baseOptions: BaseLayoutProps = {
   nav: {
     title: (
       <span className="font-semibold tracking-tight">
-        OKORO <span className="text-[var(--okoro-fog)] font-normal">Docs</span>
+        CERNIQ <span className="text-[var(--cerniq-fog)] font-normal">Docs</span>
       </span>
     ),
     url: '/',
@@ -13,6 +13,6 @@ export const baseOptions: BaseLayoutProps = {
     { text: 'Quickstart', url: '/docs', active: 'nested-url' },
     { text: 'Concepts', url: '/docs/concepts/denial-precedence', active: 'nested-url' },
     { text: 'API', url: '/docs/api/agents', active: 'nested-url' },
-    { text: 'GitHub', url: 'https://github.com/klytics/okoro', external: true },
+    { text: 'GitHub', url: 'https://github.com/klytics/cerniq', external: true },
   ],
 };

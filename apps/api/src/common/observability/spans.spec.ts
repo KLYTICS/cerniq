@@ -29,7 +29,7 @@ describe('withSpan', () => {
   });
 
   it('runs fn and ends the span on success', async () => {
-    const result = await withSpan('okoro.test.ok', async () => 'value', {
+    const result = await withSpan('cerniq.test.ok', async () => 'value', {
       'agent.id': 'agt_1',
       'policy.id': 'pol_2',
     });
@@ -42,7 +42,7 @@ describe('withSpan', () => {
   });
 
   it('skips undefined attribute values without setting them on the span', async () => {
-    await withSpan('okoro.test.ok', async () => undefined, {
+    await withSpan('cerniq.test.ok', async () => undefined, {
       'agent.id': 'agt_1',
       'policy.id': undefined,
     });
@@ -54,7 +54,7 @@ describe('withSpan', () => {
     const boom = new Error('boom');
     boom.name = 'CustomError';
     await expect(
-      withSpan('okoro.test.fail', async () => {
+      withSpan('cerniq.test.fail', async () => {
         throw boom;
       }),
     ).rejects.toBe(boom);
@@ -78,13 +78,15 @@ describe('setActiveSpanAttributes', () => {
 
   it('is a no-op when no active span', () => {
     getActiveSpanSpy = jest.spyOn(trace, 'getActiveSpan').mockReturnValue(undefined);
-    expect(() => { setActiveSpanAttributes({ 'agent.id': 'agt_1' }); }).not.toThrow();
+    expect(() => {
+      setActiveSpanAttributes({ 'agent.id': 'agt_1' });
+    }).not.toThrow();
   });
 
   it('sets attributes on the active span and skips undefined', () => {
     const span = { setAttribute: jest.fn() } as unknown as ReturnType<typeof trace.getActiveSpan>;
     getActiveSpanSpy = jest.spyOn(trace, 'getActiveSpan').mockReturnValue(span);
-    setActiveSpanAttributes({ 'agent.id': 'agt_1', 'policy.id': undefined, 'decision': 'APPROVED' });
+    setActiveSpanAttributes({ 'agent.id': 'agt_1', 'policy.id': undefined, decision: 'APPROVED' });
     expect(span!.setAttribute).toHaveBeenCalledWith('agent.id', 'agt_1');
     expect(span!.setAttribute).toHaveBeenCalledWith('decision', 'APPROVED');
     expect(span!.setAttribute).not.toHaveBeenCalledWith('policy.id', expect.anything());

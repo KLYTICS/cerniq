@@ -1,12 +1,12 @@
-# OKORO — Partner Onboarding
+# CERNIQ — Partner Onboarding
 
 > **Audience:** integration engineers at partner companies who have
-> just signed an OKORO contract and want to be in production within
+> just signed an CERNIQ contract and want to be in production within
 > 2 weeks.
 > **Classification:** PUBLIC · ENGINEERING
 > **Last updated:** 2026-05-05
 
-This is the opinionated path. There are many ways to integrate OKORO;
+This is the opinionated path. There are many ways to integrate CERNIQ;
 this document picks the one that gets you to "first verified
 production transaction" fastest with the lowest blast radius if
 something goes wrong.
@@ -17,20 +17,20 @@ something goes wrong.
 
 ### 1. Pick the matching example
 
-| Your product is…                                  | Start with                                              |
-|---------------------------------------------------|---------------------------------------------------------|
-| A merchant taking payments via Stripe ACP         | [`examples/acp-bridge/`](../examples/acp-bridge/)        |
-| A merchant taking payments via any other PSP      | [`examples/fintech-payments/`](../examples/fintech-payments/) |
-| A treasury / banking automation team              | [`examples/banking-rails/`](../examples/banking-rails/)  |
-| An AI platform / agentic app                      | [`examples/ai-platform-tool-call/`](../examples/ai-platform-tool-call/) |
-| A SaaS provisioning agents per customer           | [`examples/saas-seat-provisioning/`](../examples/saas-seat-provisioning/) |
-| Something else / not sure                         | [`examples/relying-party-verifier/`](../examples/relying-party-verifier/) |
+| Your product is…                             | Start with                                                                |
+| -------------------------------------------- | ------------------------------------------------------------------------- |
+| A merchant taking payments via Stripe ACP    | [`examples/acp-bridge/`](../examples/acp-bridge/)                         |
+| A merchant taking payments via any other PSP | [`examples/fintech-payments/`](../examples/fintech-payments/)             |
+| A treasury / banking automation team         | [`examples/banking-rails/`](../examples/banking-rails/)                   |
+| An AI platform / agentic app                 | [`examples/ai-platform-tool-call/`](../examples/ai-platform-tool-call/)   |
+| A SaaS provisioning agents per customer      | [`examples/saas-seat-provisioning/`](../examples/saas-seat-provisioning/) |
+| Something else / not sure                    | [`examples/relying-party-verifier/`](../examples/relying-party-verifier/) |
 
-### 2. Run the quickstart against your OKORO deployment
+### 2. Run the quickstart against your CERNIQ deployment
 
 ```sh
 cd tools/quickstart
-OKORO_API_BASE=<your-okoro-url> OKORO_API_KEY=okoro_sk_… pnpm start
+CERNIQ_API_BASE=<your-cerniq-url> CERNIQ_API_KEY=cerniq_sk_… pnpm start
 ```
 
 You should see `✓ APPROVED` within ~5 seconds. If you see anything
@@ -51,27 +51,27 @@ writing code.
 
 ### Decision 1: Key custody — who holds the agent's private key?
 
-**Where:** the agent itself. OKORO holds public keys only (invariant
+**Where:** the agent itself. CERNIQ holds public keys only (invariant
 1). The question is: where on YOUR side does the private key live?
 
-| Option                                     | Best for                                | Trade-off                            |
-|--------------------------------------------|------------------------------------------|--------------------------------------|
-| Per-process secret (env var)               | Single-binary agent, low ceremony        | Compromised host = compromised key   |
-| KMS-wrapped at rest, decrypted in memory   | Multi-region, multi-instance agents      | Adds KMS latency to first sign       |
-| HSM (YubiHSM, Nitro Enclave)               | Treasury / wires / regulated data        | Highest security, highest ops cost   |
-| Per-user key (browser-side)                | Consumer-facing agents                   | Cross-device sync becomes a UX problem |
+| Option                                   | Best for                            | Trade-off                              |
+| ---------------------------------------- | ----------------------------------- | -------------------------------------- |
+| Per-process secret (env var)             | Single-binary agent, low ceremony   | Compromised host = compromised key     |
+| KMS-wrapped at rest, decrypted in memory | Multi-region, multi-instance agents | Adds KMS latency to first sign         |
+| HSM (YubiHSM, Nitro Enclave)             | Treasury / wires / regulated data   | Highest security, highest ops cost     |
+| Per-user key (browser-side)              | Consumer-facing agents              | Cross-device sync becomes a UX problem |
 
 The example code uses the env-var pattern for clarity. Production:
-pick KMS-wrapped at minimum. OKORO does NOT prescribe a key custody
+pick KMS-wrapped at minimum. CERNIQ does NOT prescribe a key custody
 solution — your security team owns this.
 
 ### Decision 2: Trust score floor per action
 
-The `minTrustScore` parameter on `okoro.verify()` is your risk knob.
+The `minTrustScore` parameter on `cerniq.verify()` is your risk knob.
 Set it per **action class**, not globally.
 
 | Action class                | Suggested floor | Reasoning                          |
-|-----------------------------|-----------------|------------------------------------|
+| --------------------------- | --------------- | ---------------------------------- |
 | Read-only data fetch        | 400             | Reversible / low-stakes            |
 | Standard commerce purchase  | 700             | The default in our examples        |
 | High-ticket commerce (>$1K) | 800             | One step above default             |
@@ -103,15 +103,15 @@ regardless of policy lifetime — it's the replay defence.
 
 You should subscribe to AT LEAST these:
 
-- `okoro.agent.revoked` — drop the agent's session within seconds.
-- `okoro.agent.policy_expired` — refresh the policy on cue.
-- `okoro.agent.anomaly_detected` — log + page if your action class
+- `cerniq.agent.revoked` — drop the agent's session within seconds.
+- `cerniq.agent.policy_expired` — refresh the policy on cue.
+- `cerniq.agent.anomaly_detected` — log + page if your action class
   is high-stakes.
 
 Subscribe via `POST /v1/webhooks` (see
 [`apps/api/src/modules/webhooks/webhooks.controller.ts`](../apps/api/src/modules/webhooks/webhooks.controller.ts)).
 The signing secret is shown once. Store it securely; verify HMAC on
-every inbound delivery (Stripe-style: `X-OKORO-Signature: t=…,v1=…`).
+every inbound delivery (Stripe-style: `X-CERNIQ-Signature: t=…,v1=…`).
 
 ---
 
@@ -124,35 +124,35 @@ inbound request
     ↓
 [ pre-validation ]      ← shape / range / format
     ↓
-[ okoro.verify ]        ← cheap; identity errors dominate
+[ cerniq.verify ]        ← cheap; identity errors dominate
     ↓
 [ underlying system ]   ← Stripe / Modern Treasury / Plaid / etc.
     ↓
-[ persist + audit ]     ← join OKORO auditEventId to your system id
+[ persist + audit ]     ← join CERNIQ auditEventId to your system id
     ↓
 [ respond ]
 ```
 
-OKORO first, underlying system second. OKORO is cheaper and
+CERNIQ first, underlying system second. CERNIQ is cheaper and
 identity errors dominate denials in agent traffic — failing fast
 saves a network round-trip and an SPT slot per rejected request.
 
 ### Pattern: idempotency end-to-end
 
-Use the OKORO jti as your underlying-system idempotency key:
+Use the CERNIQ jti as your underlying-system idempotency key:
 
 ```ts
-const verdict = await okoro.verify({
-  token: okoroToken,
+const verdict = await cerniq.verify({
+  token: cerniqToken,
   // ...
-  jti: requestIdempotencyKey, // your dedupe key — also the OKORO replay key
+  jti: requestIdempotencyKey, // your dedupe key — also the CERNIQ replay key
 });
 if (!verdict.valid) return deny(verdict.denialReason);
 
 const charge = await stripe.charges.create({
   // ...
   idempotency_key: verdict.jti, // SAME key — single source of truth
-  metadata: { okoro_audit_event_id: verdict.auditEventId },
+  metadata: { cerniq_audit_event_id: verdict.auditEventId },
 });
 ```
 
@@ -161,11 +161,12 @@ This is documented in [`docs/INTEGRATION_PATTERNS.md` § 11](./INTEGRATION_PATTE
 ### Pattern: storing the audit-event-id
 
 ```sql
-ALTER TABLE charges ADD COLUMN okoro_audit_event_id TEXT;
-CREATE INDEX charges_okoro_audit_event_id_idx ON charges(okoro_audit_event_id);
+ALTER TABLE charges ADD COLUMN cerniq_audit_event_id TEXT;
+CREATE INDEX charges_cerniq_audit_event_id_idx ON charges(cerniq_audit_event_id);
 ```
 
-Storing the OKORO auditEventId next to your row makes:
+Storing the CERNIQ auditEventId next to your row makes:
+
 - Reconciliation a 1-line SQL JOIN.
 - Forensic investigation answer "which agent did this?" instantly.
 - Regulator queries "show me the agent identity for charge X" trivial.
@@ -177,11 +178,11 @@ Storing the OKORO auditEventId next to your row makes:
 ### Wire the reconciler
 
 ```sh
-# Daily cron — joins OKORO audit events to your charges and surfaces
+# Daily cron — joins CERNIQ audit events to your charges and surfaces
 # the four mismatch classes.
-0 2 * * *  cd /opt/okoro/reconciliation && pnpm cli \
-             --okoro okoro-export.ndjson --psp charges-export.ndjson --json \
-             > /var/log/okoro-recon-$(date +%Y%m%d).json
+0 2 * * *  cd /opt/cerniq/reconciliation && pnpm cli \
+             --cerniq cerniq-export.ndjson --psp charges-export.ndjson --json \
+             > /var/log/cerniq-recon-$(date +%Y%m%d).json
 ```
 
 See [`examples/reconciliation/`](../examples/reconciliation/). Treat
@@ -191,24 +192,24 @@ gate-bypass signal.
 ### Wire the audit verifier
 
 ```sh
-# Weekly cron — independently confirm OKORO's audit chain is intact.
-# This is YOUR independent verification of OKORO's compliance claim.
-0 3 * * 0  npx @okoro/audit-verifier verify $(latest-export) \
-             --jwks https://<your-okoro-url>/.well-known/audit-signing-key \
-             --json > /var/log/okoro-chain-$(date +%Y%m%d).json
+# Weekly cron — independently confirm CERNIQ's audit chain is intact.
+# This is YOUR independent verification of CERNIQ's compliance claim.
+0 3 * * 0  npx @cerniq/audit-verifier verify $(latest-export) \
+             --jwks https://<your-cerniq-url>/.well-known/audit-signing-key \
+             --json > /var/log/cerniq-chain-$(date +%Y%m%d).json
 ```
 
-If the verifier ever rejects, your OKORO deployment has a chain
+If the verifier ever rejects, your CERNIQ deployment has a chain
 break. SEV-1; see
 [`docs/INCIDENT_RUNBOOK.md` § 1](./INCIDENT_RUNBOOK.md#1-chain-integrity-break).
 
 ### Wire the BATE feedback loop
 
 When your reconciler flags a `reversed` row, report it back to
-OKORO:
+CERNIQ:
 
 ```ts
-await okoro.report({
+await cerniq.report({
   agentId,
   eventType: bateFeedback === 'fraud_confirmed' ? 'fraud_confirmed' : 'false_positive',
   severity: 'high',
@@ -228,42 +229,48 @@ reliability.
 Before you flip the feature flag in production:
 
 ### Security
+
 - [ ] Agent private keys are NOT in env vars in production
-- [ ] Verify-only key (`okoro_vk_…`) on the verify edge, not a management key
+- [ ] Verify-only key (`cerniq_vk_…`) on the verify edge, not a management key
 - [ ] HMAC verification on every inbound webhook
 - [ ] Token TTL ≤ 60 seconds
 - [ ] Trust-score floors set per action class
 
 ### Observability
-- [ ] OKORO auditEventId persisted on every action row
+
+- [ ] CERNIQ auditEventId persisted on every action row
 - [ ] Reconciliation cron scheduled (daily for high-volume, weekly otherwise)
 - [ ] Audit-verifier cron scheduled (weekly)
 - [ ] Alerting on `denied_present` reconciliation rows
 
 ### Integration
-- [ ] `okoro.verify` is checked BEFORE the underlying system call
-- [ ] `okoro jti` is reused as the underlying system's idempotency key
+
+- [ ] `cerniq.verify` is checked BEFORE the underlying system call
+- [ ] `cerniq jti` is reused as the underlying system's idempotency key
 - [ ] Webhook subscriptions: agent.revoked + policy.expired
 - [ ] BATE feedback loop wired (chargebacks → fraud_confirmed)
 
 ### Compliance
+
 - [ ] [`docs/COMPLIANCE_BUNDLE.md`](./COMPLIANCE_BUNDLE.md) reviewed by your security team
 - [ ] DPA signed (if EU customers)
 - [ ] BAA signed (if HIPAA in scope; out-of-band)
 - [ ] Audit-verifier added to your auditor's evidence kit
 
 ### Operational
+
 - [ ] On-call rotation knows where [`docs/INCIDENT_RUNBOOK.md`](./INCIDENT_RUNBOOK.md) lives
-- [ ] PagerDuty / Opsgenie has the OKORO-related alert routing rules
+- [ ] PagerDuty / Opsgenie has the CERNIQ-related alert routing rules
 - [ ] Trust-score floors documented in your config repo
 
 ---
 
 ## When to ask for help
 
-Tag #okoro in your shared slack / send a support ticket.
+Tag #cerniq in your shared slack / send a support ticket.
 
 **Send these in your first message:**
+
 - The example you're starting from.
 - Your vertical / use case (1 sentence).
 - The decision-table answers above (key custody, trust floor, policy
@@ -277,20 +284,20 @@ exchange.
 
 ## What we won't help with (and where to go instead)
 
-| Question                              | Goes to                           |
-|---------------------------------------|-----------------------------------|
-| "Which PSP should we use?"            | Your finance team                 |
-| "How do we handle 3DS?"               | Your PSP's documentation          |
-| "Is this AML-compliant?"              | Your compliance officer           |
-| "Can OKORO hold our private keys?"    | No (invariant 1). KMS is the answer. |
-| "Can OKORO log raw card numbers?"     | No (PCI scope). Audit chain commits to hashes. |
-| "How do we federate Auth0 → OKORO?"   | [`docs/INTEGRATION_PATTERNS.md` § 8](./INTEGRATION_PATTERNS.md#8-identity-providers-auth0-clerk-workos) |
+| Question                             | Goes to                                                                                                 |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| "Which PSP should we use?"           | Your finance team                                                                                       |
+| "How do we handle 3DS?"              | Your PSP's documentation                                                                                |
+| "Is this AML-compliant?"             | Your compliance officer                                                                                 |
+| "Can CERNIQ hold our private keys?"  | No (invariant 1). KMS is the answer.                                                                    |
+| "Can CERNIQ log raw card numbers?"   | No (PCI scope). Audit chain commits to hashes.                                                          |
+| "How do we federate Auth0 → CERNIQ?" | [`docs/INTEGRATION_PATTERNS.md` § 8](./INTEGRATION_PATTERNS.md#8-identity-providers-auth0-clerk-workos) |
 
 ---
 
 ## Reference
 
-- [`AGENT_BRIEFING.md`](./AGENT_BRIEFING.md) — for engineers who'll touch the OKORO codebase
+- [`AGENT_BRIEFING.md`](./AGENT_BRIEFING.md) — for engineers who'll touch the CERNIQ codebase
 - [`MASTER_ENGINEERING_HANDOFF.md`](./MASTER_ENGINEERING_HANDOFF.md) — the architectural big picture
 - [`INTEGRATION_PATTERNS.md`](./INTEGRATION_PATTERNS.md) — full integration playbook
 - [`COMPLIANCE_BUNDLE.md`](./COMPLIANCE_BUNDLE.md) — controls map

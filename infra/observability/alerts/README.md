@@ -1,14 +1,14 @@
-# OKORO — Alert philosophy + how to add a rule
+# CERNIQ — Alert philosophy + how to add a rule
 
 This directory holds the Prometheus rule file that defines every alert
-that pages or notifies the OKORO on-call rotation. There is exactly one
-rule file (`okoro.rules.yml`); split it later when it crosses ~30 alerts.
+that pages or notifies the CERNIQ on-call rotation. There is exactly one
+rule file (`cerniq.rules.yml`); split it later when it crosses ~30 alerts.
 
 ## Philosophy — what gets an alert
 
 We page on **symptoms users can feel**, not on causes.
 
-A rule belongs in `okoro.rules.yml` only if a "yes" answer to all four
+A rule belongs in `cerniq.rules.yml` only if a "yes" answer to all four
 of the questions below holds:
 
 1. **Does it map to a real failure mode a customer or auditor would
@@ -32,11 +32,11 @@ weekly metric review — not an alert.
 
 ## Severity ladder
 
-| Severity   | Routing                                            | First-touch SLA | Examples                                                                 |
-| ---------- | -------------------------------------------------- | --------------- | ------------------------------------------------------------------------ |
-| `critical` | PagerDuty page → on-call phone                     | 5 min           | SLO breach, audit chain break, error budget fast-burn                    |
-| `warning`  | PagerDuty notify (no page) → Slack `#okoro-oncall` | 30 min          | SLO warning thresholds, DLQ spikes, cache hit rate (when exporter ships) |
-| `info`     | Slack `#okoro-ops` only                            | business hours  | Cache utilisation, queue depth trends, baseline drift                    |
+| Severity   | Routing                                             | First-touch SLA | Examples                                                                 |
+| ---------- | --------------------------------------------------- | --------------- | ------------------------------------------------------------------------ |
+| `critical` | PagerDuty page → on-call phone                      | 5 min           | SLO breach, audit chain break, error budget fast-burn                    |
+| `warning`  | PagerDuty notify (no page) → Slack `#cerniq-oncall` | 30 min          | SLO warning thresholds, DLQ spikes, cache hit rate (when exporter ships) |
+| `info`     | Slack `#cerniq-ops` only                            | business hours  | Cache utilisation, queue depth trends, baseline drift                    |
 
 The PagerDuty escalation contact is **OD-007 (TBD operator decision)** —
 runbooks reference it as `${ESCALATION_CONTACT}`.
@@ -46,7 +46,7 @@ runbooks reference it as `${ESCALATION_CONTACT}`.
 Every alert must carry:
 
 - `severity`: `critical` | `warning` | `info`
-- `team`: `okoro-oncall` (used by Alertmanager to route to the right
+- `team`: `cerniq-oncall` (used by Alertmanager to route to the right
   PagerDuty service — there's only one team today; the label exists so
   it can fan out cleanly later).
 - `surface`: `verify` | `audit` | `bate` | `webhooks` | `cache` | `platform`
@@ -73,13 +73,13 @@ Optional:
 - `runbook` — repo-relative path, e.g.
   `infra/observability/runbooks/verify-latency-slo-breach.md`.
 - `runbook_url` — absolute URL, e.g.
-  `https://docs.okoroapp.com/runbooks/verify-latency-slo-breach`.
+  `https://docs.cerniqapp.com/runbooks/verify-latency-slo-breach`.
   Convention: filename without `.md` suffix.
 
 ## Recording rules
 
-Pre-aggregated SLI series live in the `okoro.recording` group at the
-top of `okoro.rules.yml`. Burn-rate alerts read those series directly
+Pre-aggregated SLI series live in the `cerniq.recording` group at the
+top of `cerniq.rules.yml`. Burn-rate alerts read those series directly
 instead of re-deriving the same query — change the SLI definition in
 one place, not three. If you find yourself copy-pasting a 5-line PromQL
 expression into a third alert, promote it to a recording rule first.
@@ -88,7 +88,7 @@ expression into a third alert, promote it to a recording rule first.
 
 1. **Pick or create the runbook.**
    `cp infra/observability/runbooks/_template.md
- infra/observability/runbooks/<my-alert>.md` — wait, no template
+infra/observability/runbooks/<my-alert>.md` — wait, no template
    today; copy `error-budget-burn.md`, it's the closest to the
    skeleton. Fill **every** section. No "TBD" except for
    `${ESCALATION_CONTACT}` (which is genuinely OD-007 pending).
@@ -97,10 +97,10 @@ expression into a third alert, promote it to a recording rule first.
    If it doesn't, either add the emitter first or ship the alert as
    `expr: vector(0) > 1` with a `# tracked: <module>` comment.
 3. **Add the alert.** Place it in the matching group
-   (`okoro.<surface>`). Use an existing alert as your template.
+   (`cerniq.<surface>`). Use an existing alert as your template.
    Follow the label + annotation contract above.
 4. **Test the PromQL.** Either:
-   - Local: `promtool check rules infra/observability/alerts/okoro.rules.yml`
+   - Local: `promtool check rules infra/observability/alerts/cerniq.rules.yml`
    - Hosted: paste the `expr` into the Prometheus expression browser
      and confirm it evaluates without parse errors and returns the
      expected ballpark value during normal traffic.
@@ -108,10 +108,10 @@ expression into a third alert, promote it to a recording rule first.
 ## Anti-patterns we have already seen and rejected
 
 - **Mirroring dashboard PromQL verbatim.** The Grafana dashboard at
-  `infra/observability/grafana-dashboards/okoro-verify-latency.json`
-  references several metric names (`okoro_verify_denials_total`,
-  `okoro_bullmq_waiting_jobs`, `okoro_cache_hits_total`,
-  `okoro_bate_recompute_lag_seconds_bucket`) that the API does **not**
+  `infra/observability/grafana-dashboards/cerniq-verify-latency.json`
+  references several metric names (`cerniq_verify_denials_total`,
+  `cerniq_bullmq_waiting_jobs`, `cerniq_cache_hits_total`,
+  `cerniq_bate_recompute_lag_seconds_bucket`) that the API does **not**
   emit. The dashboard is wrong; the code in `metrics.service.ts` wins.
   Fixing the dashboard is M-020.
 - **Threshold on raw counters.** `rate()` first, every time.

@@ -1,4 +1,5 @@
-# OKORO — Database Operations Guide
+# CERNIQ — Database Operations Guide
+
 ## Migrations, Backups, RLS, Partitioning, and AuditEvent Maintenance
 
 > **Owner:** Engineering Lead  
@@ -105,6 +106,7 @@ Before any migration to production:
 ```
 
 **Dangerous patterns — always review with engineering lead:**
+
 - `ALTER TABLE ... ADD COLUMN ... NOT NULL` without default on large table (table lock)
 - `CREATE INDEX` without `CONCURRENTLY` on large table (table lock)
 - `ALTER TABLE ... DROP COLUMN` (data loss, irreversible)
@@ -140,15 +142,15 @@ RLS is the last line of defense for multi-tenant isolation. Even if application 
 
 ```sql
 -- Verify RLS is enabled on all core tables
-SELECT 
-  schemaname, 
-  tablename, 
+SELECT
+  schemaname,
+  tablename,
   rowsecurity,
   CASE WHEN rowsecurity THEN '✓' ELSE '✗ MISSING' END as status
-FROM pg_tables 
+FROM pg_tables
 WHERE schemaname = 'public'
   AND tablename IN (
-    'AgentIdentity', 'AgentPolicy', 'AuditEvent', 
+    'AgentIdentity', 'AgentPolicy', 'AuditEvent',
     'BateSignal', 'SpendRecord', 'WebhookSubscription',
     'WebhookDelivery', 'TrustScoreHistory', 'RelyingParty'
   )
@@ -188,7 +190,7 @@ The admin operations role bypasses RLS for maintenance operations:
 
 ```sql
 -- Admin connection bypasses RLS (uses different role)
-SET ROLE okoro_admin;
+SET ROLE cerniq_admin;
 SELECT COUNT(*) FROM "AuditEvent"; -- sees all rows
 RESET ROLE; -- always reset after admin operations
 ```
@@ -213,12 +215,12 @@ Configure before first user traffic:
 pg_dump $DATABASE_URL \
   --format=custom \
   --compress=9 \
-  --file="okoro-backup-$(date +%Y%m%d-%H%M).dump"
+  --file="cerniq-backup-$(date +%Y%m%d-%H%M).dump"
 
 # Schema only
 pg_dump $DATABASE_URL \
   --schema-only \
-  --file="okoro-schema-$(date +%Y%m%d).sql"
+  --file="cerniq-schema-$(date +%Y%m%d).sql"
 
 # Specific table
 pg_dump $DATABASE_URL \
@@ -231,18 +233,18 @@ pg_dump $DATABASE_URL \
 
 ```bash
 # 1. Create a fresh database (DO NOT restore over production directly)
-createdb okoro_restored
+createdb cerniq_restored
 
 # 2. Restore from dump
 pg_restore \
-  --dbname okoro_restored \
+  --dbname cerniq_restored \
   --verbose \
   --exit-on-error \
-  okoro-backup-20260504-1200.dump
+  cerniq-backup-20260504-1200.dump
 
 # 3. Verify restore
-psql okoro_restored -c "
-  SELECT 
+psql cerniq_restored -c "
+  SELECT
     (SELECT COUNT(*) FROM \"Principal\") as principals,
     (SELECT COUNT(*) FROM \"AgentIdentity\") as agents,
     (SELECT COUNT(*) FROM \"AuditEvent\") as audit_events,
@@ -250,7 +252,7 @@ psql okoro_restored -c "
 "
 
 # 4. Run audit chain verification on restored DB
-DATABASE_URL=postgresql://localhost/okoro_restored \
+DATABASE_URL=postgresql://localhost/cerniq_restored \
   pnpm tsx scripts/audit-verify-chain.ts --limit 1000
 
 # 5. If restore is valid, switch DATABASE_URL in Railway
@@ -272,33 +274,34 @@ DATABASE_URL=postgresql://localhost/okoro_restored \
 
 ```
 # .env.production
-DATABASE_URL="postgresql://user:pass@host:5432/okoro?connection_limit=10&pool_timeout=20"
+DATABASE_URL="postgresql://user:pass@host:5432/cerniq?connection_limit=10&pool_timeout=20"
 ```
 
 Configuration table:
 
-| Env | connection_limit | pool_timeout | Notes |
-|-----|-----------------|--------------|-------|
-| Development | 5 | 10s | Single developer |
-| CI | 5 | 10s | Parallel test jobs each get 5 |
-| Staging | 10 | 20s | Moderate load |
-| Production (Phase 1) | 20 | 30s | Railway Pro: 1-2 replicas |
-| Production (Phase 2+) | See PgBouncer | — | External pool at high traffic |
+| Env                   | connection_limit | pool_timeout | Notes                         |
+| --------------------- | ---------------- | ------------ | ----------------------------- |
+| Development           | 5                | 10s          | Single developer              |
+| CI                    | 5                | 10s          | Parallel test jobs each get 5 |
+| Staging               | 10               | 20s          | Moderate load                 |
+| Production (Phase 1)  | 20               | 30s          | Railway Pro: 1-2 replicas     |
+| Production (Phase 2+) | See PgBouncer    | —            | External pool at high traffic |
 
 ### 5.2 PgBouncer (Phase 2+)
 
 At >100 RPS sustained, Prisma's built-in pool hits PostgreSQL's max_connections limit. Add PgBouncer:
 
 ```
-DATABASE_URL="postgresql://user:pass@pgbouncer-host:6432/okoro?pgbouncer=true"
-DIRECT_DATABASE_URL="postgresql://user:pass@postgres-host:5432/okoro"
+DATABASE_URL="postgresql://user:pass@pgbouncer-host:6432/cerniq?pgbouncer=true"
+DIRECT_DATABASE_URL="postgresql://user:pass@postgres-host:5432/cerniq"
 # DIRECT_DATABASE_URL is used for migrations only (pooled connections break Prisma migrate)
 ```
 
 PgBouncer configuration:
+
 ```ini
 [databases]
-okoro = host=postgres-host port=5432 dbname=okoro
+cerniq = host=postgres-host port=5432 dbname=cerniq
 
 [pgbouncer]
 pool_mode = transaction  ; Required for Prisma
@@ -313,9 +316,9 @@ reserve_pool_timeout = 3
 ```bash
 # Current pool state
 psql $DATABASE_URL -c "
-  SELECT count(*), state 
-  FROM pg_stat_activity 
-  WHERE datname = 'okoro' 
+  SELECT count(*), state
+  FROM pg_stat_activity
+  WHERE datname = 'cerniq'
   GROUP BY state;
 "
 
@@ -344,7 +347,7 @@ CREATE INDEX idx_audit_chain ON "AuditEvent"("prevEventId"); -- for chain traver
 
 -- At >10M rows, add these:
 CREATE INDEX CONCURRENTLY idx_audit_outcome ON "AuditEvent"(outcome, "createdAt" DESC);
-CREATE INDEX CONCURRENTLY idx_audit_denial ON "AuditEvent"("denialReason", "createdAt" DESC) 
+CREATE INDEX CONCURRENTLY idx_audit_denial ON "AuditEvent"("denialReason", "createdAt" DESC)
   WHERE "denialReason" IS NOT NULL;
 ```
 
@@ -362,7 +365,7 @@ ALTER TABLE "AuditEvent" RENAME TO "AuditEvent_old";
 -- Step 2: Create partitioned table
 CREATE TABLE "AuditEvent" (
   -- same columns as before
-  -- ... 
+  -- ...
   "createdAt" TIMESTAMP NOT NULL
 ) PARTITION BY RANGE ("createdAt");
 
@@ -388,19 +391,19 @@ SELECT partman.create_partition_time('public.AuditEvent', 1, p_premake := 3);
 
 Per `docs/RETENTION_POLICY.md` §8:
 
-| Tier | Age | Storage | Queryable |
-|------|-----|---------|----------|
-| Hot | 0-90 days | PostgreSQL primary | Yes, full performance |
-| Warm | 90-365 days | PostgreSQL read replica | Yes, slower |
-| Cold | 1-7 years | S3/GCS (Parquet) | Via Athena/BigQuery |
-| Purge | >7 years | Deleted | No |
+| Tier  | Age         | Storage                 | Queryable             |
+| ----- | ----------- | ----------------------- | --------------------- |
+| Hot   | 0-90 days   | PostgreSQL primary      | Yes, full performance |
+| Warm  | 90-365 days | PostgreSQL read replica | Yes, slower           |
+| Cold  | 1-7 years   | S3/GCS (Parquet)        | Via Athena/BigQuery   |
+| Purge | >7 years    | Deleted                 | No                    |
 
 GDPR Art.17 erasure: use `*Hash` columns. Never delete AuditEvent rows — hash the identifying fields instead:
 
 ```sql
 -- GDPR erasure: hash the identifying fields
-UPDATE "AuditEvent" 
-SET 
+UPDATE "AuditEvent"
+SET
   "agentIdHash" = encode(sha256("agentId"::bytea || 'salt'::bytea), 'hex'),
   "agentId" = '[ERASED]'
 WHERE "principalId" = $1;
@@ -415,13 +418,13 @@ WHERE "principalId" = $1;
 # Monthly: archive events older than 90 days to S3
 pnpm tsx scripts/archive-audit-events.ts \
   --older-than 90 \
-  --destination s3://okoro-audit-archive/$(date +%Y/%m)/ \
+  --destination s3://cerniq-audit-archive/$(date +%Y/%m)/ \
   --format parquet \
   --delete-after-archive  # requires explicit flag
 
 # Verify archive integrity before deleting
 pnpm tsx scripts/verify-audit-archive.ts \
-  --path s3://okoro-audit-archive/2026/02/
+  --path s3://cerniq-audit-archive/2026/02/
 ```
 
 ---
@@ -433,21 +436,21 @@ pnpm tsx scripts/verify-audit-archive.ts \
 ```sql
 -- Verify flow: agent lookup (most frequent query in the system)
 -- Uses: idx_agent_principal (agentId, principalId, status)
-SELECT * FROM "AgentIdentity" 
+SELECT * FROM "AgentIdentity"
 WHERE id = $agentId AND "principalId" = $principalId AND status = 'ACTIVE';
 
 -- Audit tail: recent events for agent
 -- Uses: idx_audit_agent_created
-SELECT * FROM "AuditEvent" 
-WHERE "agentId" = $agentId 
-ORDER BY "createdAt" DESC 
+SELECT * FROM "AuditEvent"
+WHERE "agentId" = $agentId
+ORDER BY "createdAt" DESC
 LIMIT 20;
 
 -- BATE signals: recent signals for scoring
 -- Uses: idx_bate_agent_window (agentId, createdAt)
 SELECT type, SUM(count), MIN("createdAt"), MAX("createdAt")
 FROM "BateSignal"
-WHERE "agentId" = $agentId 
+WHERE "agentId" = $agentId
   AND "createdAt" > NOW() - INTERVAL '30 days'
 GROUP BY type;
 ```
@@ -459,7 +462,7 @@ GROUP BY type;
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
 -- Top slow queries (run weekly)
-SELECT 
+SELECT
   LEFT(query, 100) as query_preview,
   calls,
   mean_exec_time,
@@ -482,10 +485,10 @@ Before adding any index, verify it's needed:
 ```sql
 -- Check if query is using indexes
 EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
-SELECT * FROM "AuditEvent" 
-WHERE "principalId" = 'prin_abc123' 
+SELECT * FROM "AuditEvent"
+WHERE "principalId" = 'prin_abc123'
   AND "createdAt" > NOW() - INTERVAL '7 days'
-ORDER BY "createdAt" DESC 
+ORDER BY "createdAt" DESC
 LIMIT 100;
 
 -- Look for:
@@ -504,7 +507,7 @@ PostgreSQL auto-vacuum handles most cases, but after bulk inserts:
 
 ```sql
 -- Check table bloat
-SELECT 
+SELECT
   schemaname, tablename,
   n_dead_tup, n_live_tup,
   ROUND(100 * n_dead_tup / NULLIF(n_live_tup + n_dead_tup, 0)) as dead_pct,
@@ -521,25 +524,25 @@ VACUUM ANALYZE "AuditEvent";
 
 ```sql
 -- Table sizes (run monthly)
-SELECT 
+SELECT
   schemaname, tablename,
   pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as total_size,
   pg_size_pretty(pg_relation_size(schemaname||'.'||tablename)) as table_size,
   pg_size_pretty(pg_indexes_size(schemaname||'.'||tablename)) as index_size
-FROM pg_tables 
+FROM pg_tables
 WHERE schemaname = 'public'
 ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 ```
 
 ### 8.3 Alert Thresholds
 
-| Condition | Threshold | Action |
-|-----------|-----------|--------|
-| DB storage > 80% | Immediate | Upgrade Railway plan or archive AuditEvent |
-| AuditEvent > 50M rows | Planned | Begin partitioning migration |
-| Dead tuple % > 20% | Scheduled | Manual VACUUM |
-| Index bloat > 30% | Scheduled | REINDEX CONCURRENTLY |
-| Connection pool > 80% | Immediate | See §5 connection pooling |
+| Condition             | Threshold | Action                                     |
+| --------------------- | --------- | ------------------------------------------ |
+| DB storage > 80%      | Immediate | Upgrade Railway plan or archive AuditEvent |
+| AuditEvent > 50M rows | Planned   | Begin partitioning migration               |
+| Dead tuple % > 20%    | Scheduled | Manual VACUUM                              |
+| Index bloat > 30%     | Scheduled | REINDEX CONCURRENTLY                       |
+| Connection pool > 80% | Immediate | See §5 connection pooling                  |
 
 ---
 
@@ -557,7 +560,7 @@ Time budget: RTO = 4 hours
                Contact Railway support if instance shows as running
 
 00:15 - 00:30  Declare incident in #incidents
-               Put API in maintenance mode (OKORO_MAINTENANCE_MODE=true)
+               Put API in maintenance mode (CERNIQ_MAINTENANCE_MODE=true)
                This prevents writes to a partially-broken DB
 
 00:30 - 01:00  Provision new PostgreSQL instance on Railway
@@ -582,7 +585,7 @@ Time budget: RTO = 4 hours
                - Check audit log was written
 
 03:30 - 04:00  Remove maintenance mode
-               OKORO_MAINTENANCE_MODE=false → redeploy
+               CERNIQ_MAINTENANCE_MODE=false → redeploy
                Monitor error rate for 30 minutes
 
 04:00          Incident resolved
@@ -601,7 +604,7 @@ psql $RESTORED_DB_URL -c "
 
 # Data loss = current time - last_event
 # Notify principals whose verify calls fall in the data loss window
-okoro admin data-loss-report \
+cerniq admin data-loss-report \
   --from $(date -d "yesterday 02:00" +%Y-%m-%dT%H:%M:%S) \
   --to $(date +%Y-%m-%dT%H:%M:%S) \
   --notify-principals
@@ -615,7 +618,7 @@ These queries are safe to run in production (reads only):
 
 ```sql
 -- Principal summary
-SELECT id, email, "createdAt", 
+SELECT id, email, "createdAt",
   (SELECT COUNT(*) FROM "AgentIdentity" WHERE "principalId" = p.id) as agent_count,
   (SELECT COUNT(*) FROM "AuditEvent" WHERE "principalId" = p.id) as audit_count
 FROM "Principal" p
@@ -654,5 +657,5 @@ GROUP BY status;
 
 ---
 
-*Database operations guide version: 1.0 | OKORO Phase 1*  
-*Next review: before AuditEvent hits 10M rows*
+_Database operations guide version: 1.0 | CERNIQ Phase 1_  
+_Next review: before AuditEvent hits 10M rows_

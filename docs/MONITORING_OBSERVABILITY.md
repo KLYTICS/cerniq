@@ -1,4 +1,4 @@
-# OKORO — Monitoring & Observability
+# CERNIQ — Monitoring & Observability
 
 ## OTel Spans, Prometheus Metrics, Alerting Rules, and Dashboards
 
@@ -10,7 +10,7 @@
 
 ## 1. Observability Pillars
 
-OKORO uses the three pillars. Each serves a different diagnostic need:
+CERNIQ uses the three pillars. Each serves a different diagnostic need:
 
 | Pillar      | Tool                               | What It Answers                                           |
 | ----------- | ---------------------------------- | --------------------------------------------------------- |
@@ -26,64 +26,64 @@ OKORO uses the three pillars. Each serves a different diagnostic need:
 
 These are the metrics that matter most. Every on-call engineer must know them.
 
-| Metric                           | Type      | Labels                                             | Description                                             |
-| -------------------------------- | --------- | -------------------------------------------------- | ------------------------------------------------------- |
-| `okoro_verify_total`             | Counter   | `outcome` (approved/denied/error), `denial_reason` | All verify calls                                        |
-| `okoro_verify_duration_seconds`  | Histogram | `outcome`                                          | Verify latency — check p50/p95/p99                      |
-| `okoro_verify_token_age_seconds` | Histogram | —                                                  | How old are tokens when presented (monitors clock skew) |
-| `okoro_verify_spend_amount`      | Histogram | `currency`                                         | Distribution of spend amounts                           |
+| Metric                            | Type      | Labels                                             | Description                                             |
+| --------------------------------- | --------- | -------------------------------------------------- | ------------------------------------------------------- |
+| `cerniq_verify_total`             | Counter   | `outcome` (approved/denied/error), `denial_reason` | All verify calls                                        |
+| `cerniq_verify_duration_seconds`  | Histogram | `outcome`                                          | Verify latency — check p50/p95/p99                      |
+| `cerniq_verify_token_age_seconds` | Histogram | —                                                  | How old are tokens when presented (monitors clock skew) |
+| `cerniq_verify_spend_amount`      | Histogram | `currency`                                         | Distribution of spend amounts                           |
 
 **SLO targets:**
 
-- `okoro_verify_duration_seconds{quantile="0.99"}` < 200ms
-- `okoro_verify_total{outcome="error"}` rate < 0.1%
-- `okoro_verify_total{outcome="approved"}` / total > 85% (healthy traffic baseline)
+- `cerniq_verify_duration_seconds{quantile="0.99"}` < 200ms
+- `cerniq_verify_total{outcome="error"}` rate < 0.1%
+- `cerniq_verify_total{outcome="approved"}` / total > 85% (healthy traffic baseline)
 
 ### 2.2 Identity Metrics
 
-| Metric                               | Type      | Labels       | Description                    |
-| ------------------------------------ | --------- | ------------ | ------------------------------ |
-| `okoro_agents_registered_total`      | Counter   | —            | Cumulative agent registrations |
-| `okoro_agents_active`                | Gauge     | —            | Active (non-revoked) agents    |
-| `okoro_agents_revoked_total`         | Counter   | `reason`     | Revocations by reason          |
-| `okoro_trust_score`                  | Histogram | `band`       | Distribution of trust scores   |
-| `okoro_trust_band_transitions_total` | Counter   | `from`, `to` | Band promotions/demotions      |
+| Metric                                | Type      | Labels       | Description                    |
+| ------------------------------------- | --------- | ------------ | ------------------------------ |
+| `cerniq_agents_registered_total`      | Counter   | —            | Cumulative agent registrations |
+| `cerniq_agents_active`                | Gauge     | —            | Active (non-revoked) agents    |
+| `cerniq_agents_revoked_total`         | Counter   | `reason`     | Revocations by reason          |
+| `cerniq_trust_score`                  | Histogram | `band`       | Distribution of trust scores   |
+| `cerniq_trust_band_transitions_total` | Counter   | `from`, `to` | Band promotions/demotions      |
 
 ### 2.3 BATE Metrics
 
-| Metric                                 | Type      | Labels                                                        | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| -------------------------------------- | --------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `okoro_bate_signals_total`             | Counter   | `type`                                                        | Signals received by type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `okoro_bate_anomaly_triggers_total`    | Counter   | `rule` (R-1..R-5)                                             | Anomaly rule firings                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `okoro_bate_anomaly_trigger_total`     | Counter   | `rule` (low cardinality, values `detector.r1`..`detector.r5`) | Count of BATE behavioral anomaly detector rule triggers, partitioned by rule. Increments inside `BateService.recompute` when `BateAnomalyDetector.detect()` emits a signal. Use to detect rules with abnormal trigger rates (sudden jump = either an attacker pattern or a tuning regression). Source: `apps/api/src/common/observability/metrics.service.ts`, `apps/api/src/modules/bate/bate.worker.ts`. Suggested alert: `rate(okoro_bate_anomaly_trigger_total{rule="detector.r3"}[5m]) > 0.5` (geographic-inconsistency rule firing >0.5/sec sustained = likely tenant compromise). |
-| `okoro_bate_score_computation_seconds` | Histogram | —                                                             | BATE scoring latency                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Metric                                  | Type      | Labels                                                        | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --------------------------------------- | --------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cerniq_bate_signals_total`             | Counter   | `type`                                                        | Signals received by type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `cerniq_bate_anomaly_triggers_total`    | Counter   | `rule` (R-1..R-5)                                             | Anomaly rule firings                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `cerniq_bate_anomaly_trigger_total`     | Counter   | `rule` (low cardinality, values `detector.r1`..`detector.r5`) | Count of BATE behavioral anomaly detector rule triggers, partitioned by rule. Increments inside `BateService.recompute` when `BateAnomalyDetector.detect()` emits a signal. Use to detect rules with abnormal trigger rates (sudden jump = either an attacker pattern or a tuning regression). Source: `apps/api/src/common/observability/metrics.service.ts`, `apps/api/src/modules/bate/bate.worker.ts`. Suggested alert: `rate(cerniq_bate_anomaly_trigger_total{rule="detector.r3"}[5m]) > 0.5` (geographic-inconsistency rule firing >0.5/sec sustained = likely tenant compromise). |
+| `cerniq_bate_score_computation_seconds` | Histogram | —                                                             | BATE scoring latency                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
 ### 2.4 Audit Metrics
 
-| Metric                                | Type      | Labels                       | Description                                   |
-| ------------------------------------- | --------- | ---------------------------- | --------------------------------------------- |
-| `okoro_audit_events_total`            | Counter   | `outcome`, `denial_reason`   | Audit events written                          |
-| `okoro_audit_chain_breaks_total`      | Counter   | —                            | Chain integrity failures (should be 0 always) |
-| `okoro_audit_signing_latency_seconds` | Histogram | `signer` (kms/env/ephemeral) | KMS vs env var signing latency                |
+| Metric                                 | Type      | Labels                       | Description                                   |
+| -------------------------------------- | --------- | ---------------------------- | --------------------------------------------- |
+| `cerniq_audit_events_total`            | Counter   | `outcome`, `denial_reason`   | Audit events written                          |
+| `cerniq_audit_chain_breaks_total`      | Counter   | —                            | Chain integrity failures (should be 0 always) |
+| `cerniq_audit_signing_latency_seconds` | Histogram | `signer` (kms/env/ephemeral) | KMS vs env var signing latency                |
 
 ### 2.5 Infrastructure Metrics
 
-| Metric                            | Type      | Labels                     | Description                 |
-| --------------------------------- | --------- | -------------------------- | --------------------------- |
-| `okoro_db_query_duration_seconds` | Histogram | `operation`                | Prisma query latency        |
-| `okoro_db_pool_connections`       | Gauge     | `state` (active/idle)      | Connection pool utilization |
-| `okoro_redis_operations_total`    | Counter   | `operation`, `status`      | Redis command count         |
-| `okoro_redis_latency_seconds`     | Histogram | `operation`                | Redis operation latency     |
-| `okoro_http_requests_total`       | Counter   | `method`, `path`, `status` | HTTP request count          |
-| `okoro_http_duration_seconds`     | Histogram | `method`, `path`           | HTTP latency by endpoint    |
+| Metric                             | Type      | Labels                     | Description                 |
+| ---------------------------------- | --------- | -------------------------- | --------------------------- |
+| `cerniq_db_query_duration_seconds` | Histogram | `operation`                | Prisma query latency        |
+| `cerniq_db_pool_connections`       | Gauge     | `state` (active/idle)      | Connection pool utilization |
+| `cerniq_redis_operations_total`    | Counter   | `operation`, `status`      | Redis command count         |
+| `cerniq_redis_latency_seconds`     | Histogram | `operation`                | Redis operation latency     |
+| `cerniq_http_requests_total`       | Counter   | `method`, `path`, `status` | HTTP request count          |
+| `cerniq_http_duration_seconds`     | Histogram | `method`, `path`           | HTTP latency by endpoint    |
 
 ### 2.6 Business Metrics
 
-| Metric                           | Type    | Labels                                 | Description                   |
-| -------------------------------- | ------- | -------------------------------------- | ----------------------------- |
-| `okoro_principals_total`         | Gauge   | `tier` (free/developer/pro/enterprise) | Active principals by plan     |
-| `okoro_onboarding_step_total`    | Counter | `step`                                 | Onboarding funnel progression |
-| `okoro_webhook_deliveries_total` | Counter | `status` (success/failed/retrying)     | Webhook delivery health       |
+| Metric                            | Type    | Labels                                 | Description                   |
+| --------------------------------- | ------- | -------------------------------------- | ----------------------------- |
+| `cerniq_principals_total`         | Gauge   | `tier` (free/developer/pro/enterprise) | Active principals by plan     |
+| `cerniq_onboarding_step_total`    | Counter | `step`                                 | Onboarding funnel progression |
+| `cerniq_webhook_deliveries_total` | Counter | `status` (success/failed/retrying)     | Webhook delivery health       |
 
 ---
 
@@ -95,11 +95,11 @@ These are the metrics that matter most. Every on-call engineer must know them.
 # prometheus.yml (or Grafana Agent config)
 
 scrape_configs:
-  - job_name: 'okoro-api'
+  - job_name: 'cerniq-api'
     metrics_path: '/metrics'
     bearer_token: '${METRICS_TOKEN}'
     static_configs:
-      - targets: ['api.okoroapp.com']
+      - targets: ['api.cerniqapp.com']
     scrape_interval: 15s
     scrape_timeout: 10s
 ```
@@ -108,13 +108,13 @@ scrape_configs:
 
 ```bash
 # Verify metrics endpoint is working
-curl https://api.okoroapp.com/metrics \
+curl https://api.cerniqapp.com/metrics \
   -H "Authorization: Bearer $METRICS_TOKEN"
 
 # Expected: Prometheus text format
-# okoro_verify_total{outcome="approved"} 12453
-# okoro_verify_total{outcome="denied",denial_reason="SPEND_LIMIT_EXCEEDED"} 234
-# okoro_verify_duration_seconds_bucket{le="0.05"} 11200
+# cerniq_verify_total{outcome="approved"} 12453
+# cerniq_verify_total{outcome="denied",denial_reason="SPEND_LIMIT_EXCEEDED"} 234
+# cerniq_verify_duration_seconds_bucket{le="0.05"} 11200
 # ...
 ```
 
@@ -123,34 +123,34 @@ curl https://api.okoroapp.com/metrics \
 Pre-compute expensive queries for dashboards:
 
 ```yaml
-# okoro-recording-rules.yml
+# cerniq-recording-rules.yml
 
 groups:
-  - name: okoro.verify
+  - name: cerniq.verify
     interval: 30s
     rules:
-      - record: okoro:verify_error_rate:5m
+      - record: cerniq:verify_error_rate:5m
         expr: |
-          rate(okoro_verify_total{outcome="error"}[5m])
+          rate(cerniq_verify_total{outcome="error"}[5m])
           /
-          rate(okoro_verify_total[5m])
+          rate(cerniq_verify_total[5m])
 
-      - record: okoro:verify_approval_rate:5m
+      - record: cerniq:verify_approval_rate:5m
         expr: |
-          rate(okoro_verify_total{outcome="approved"}[5m])
+          rate(cerniq_verify_total{outcome="approved"}[5m])
           /
-          rate(okoro_verify_total[5m])
+          rate(cerniq_verify_total[5m])
 
-      - record: okoro:verify_p99:5m
+      - record: cerniq:verify_p99:5m
         expr: |
           histogram_quantile(0.99, 
-            rate(okoro_verify_duration_seconds_bucket[5m])
+            rate(cerniq_verify_duration_seconds_bucket[5m])
           )
 
-      - record: okoro:verify_p50:5m
+      - record: cerniq:verify_p50:5m
         expr: |
           histogram_quantile(0.50, 
-            rate(okoro_verify_duration_seconds_bucket[5m])
+            rate(cerniq_verify_duration_seconds_bucket[5m])
           )
 ```
 
@@ -161,23 +161,23 @@ groups:
 ### 4.1 P0 Alerts (Page Immediately)
 
 ```yaml
-# okoro-alerts.yml
+# cerniq-alerts.yml
 
 groups:
-  - name: okoro.p0
+  - name: cerniq.p0
     rules:
-      - alert: OkoroApiDown
-        expr: up{job="okoro-api"} == 0
+      - alert: CerniqApiDown
+        expr: up{job="cerniq-api"} == 0
         for: 1m
         labels:
           severity: critical
           runbook: RB-001
         annotations:
-          summary: 'OKORO API is down'
+          summary: 'CERNIQ API is down'
           description: 'Health endpoint not responding for 1 minute.'
 
-      - alert: OkoroVerifyErrorRate
-        expr: okoro:verify_error_rate:5m > 0.01
+      - alert: CerniqVerifyErrorRate
+        expr: cerniq:verify_error_rate:5m > 0.01
         for: 5m
         labels:
           severity: critical
@@ -186,8 +186,8 @@ groups:
           summary: 'Verify error rate > 1%'
           description: '{{ $value | humanizePercentage }} of verify calls are erroring.'
 
-      - alert: OkoroAuditChainBreak
-        expr: increase(okoro_audit_chain_breaks_total[5m]) > 0
+      - alert: CerniqAuditChainBreak
+        expr: increase(cerniq_audit_chain_breaks_total[5m]) > 0
         labels:
           severity: critical
           runbook: RB-003
@@ -195,10 +195,10 @@ groups:
           summary: 'Audit chain integrity break detected'
           description: 'THIS IS A P0 SECURITY INCIDENT.'
 
-      - alert: OkoroRedisDown
+      - alert: CerniqRedisDown
         expr: |
-          rate(okoro_redis_operations_total{status="error"}[1m]) 
-          / rate(okoro_redis_operations_total[1m]) > 0.9
+          rate(cerniq_redis_operations_total{status="error"}[1m]) 
+          / rate(cerniq_redis_operations_total[1m]) > 0.9
         for: 1m
         labels:
           severity: critical
@@ -211,10 +211,10 @@ groups:
 ### 4.2 P1 Alerts (Page Within 15 Min)
 
 ```yaml
-- name: okoro.p1
+- name: cerniq.p1
   rules:
-    - alert: OkoroVerifyLatencyHigh
-      expr: okoro:verify_p99:5m > 0.5
+    - alert: CerniqVerifyLatencyHigh
+      expr: cerniq:verify_p99:5m > 0.5
       for: 5m
       labels:
         severity: high
@@ -223,10 +223,10 @@ groups:
         summary: 'Verify p99 latency > 500ms'
         description: 'Current p99: {{ $value | humanizeDuration }}'
 
-    - alert: OkoroDBConnectionPoolExhausted
+    - alert: CerniqDBConnectionPoolExhausted
       expr: |
-        okoro_db_pool_connections{state="active"}
-        / (okoro_db_pool_connections{state="active"} + okoro_db_pool_connections{state="idle"})
+        cerniq_db_pool_connections{state="active"}
+        / (cerniq_db_pool_connections{state="active"} + cerniq_db_pool_connections{state="idle"})
         > 0.9
       for: 5m
       labels:
@@ -235,15 +235,15 @@ groups:
       annotations:
         summary: 'DB connection pool > 90% utilized'
 
-    - alert: OkoroWebhookBacklogHigh
-      expr: okoro_webhook_queue_depth > 1000
+    - alert: CerniqWebhookBacklogHigh
+      expr: cerniq_webhook_queue_depth > 1000
       for: 10m
       labels:
         severity: high
         runbook: RB-103
 
-    - alert: OkoroSuddenApprovalRateDrop
-      expr: okoro:verify_approval_rate:5m < 0.5
+    - alert: CerniqSuddenApprovalRateDrop
+      expr: cerniq:verify_approval_rate:5m < 0.5
       for: 3m
       labels:
         severity: high
@@ -254,27 +254,27 @@ groups:
 ### 4.3 P2 Alerts (Non-Paging)
 
 ```yaml
-- name: okoro.p2
+- name: cerniq.p2
   rules:
-    - alert: OkoroVerifyLatencyElevated
-      expr: okoro:verify_p50:5m > 0.1
+    - alert: CerniqVerifyLatencyElevated
+      expr: cerniq:verify_p50:5m > 0.1
       for: 10m
       labels:
         severity: warning
       annotations:
         summary: 'Verify p50 > 100ms (elevated, not yet paging)'
 
-    - alert: OkoroTrustBandDegradation
+    - alert: CerniqTrustBandDegradation
       expr: |
-        rate(okoro_trust_band_transitions_total{to="FLAGGED"}[1h])
+        rate(cerniq_trust_band_transitions_total{to="FLAGGED"}[1h])
         > 10
       labels:
         severity: warning
       annotations:
         summary: 'High rate of agents dropping to FLAGGED band'
 
-    - alert: OkoroKeyExpiringSoon
-      expr: okoro_signing_key_expiry_seconds < 86400 * 7 # 7 days
+    - alert: CerniqKeyExpiringSoon
+      expr: cerniq_signing_key_expiry_seconds < 86400 * 7 # 7 days
       labels:
         severity: warning
       annotations:
@@ -289,8 +289,8 @@ groups:
 
 ```bash
 # .env.production
-OKORO_OTEL_ENABLED=true
-OTEL_SERVICE_NAME=okoro-api
+CERNIQ_OTEL_ENABLED=true
+OTEL_SERVICE_NAME=cerniq-api
 OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector.your-infra.io:4318
 OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer ${OTEL_TOKEN}
 ```
@@ -327,16 +327,16 @@ Every verify span carries these attributes for filtering in APM:
 
 ```typescript
 span.setAttributes({
-  'okoro.principal_id': principalId,
-  'okoro.agent_id': agentId,
-  'okoro.outcome': outcome,
-  'okoro.denial_reason': denialReason ?? null,
-  'okoro.trust_band': trustBand,
-  'okoro.trust_score': trustScore,
-  'okoro.spend_amount': amount ?? 0,
-  'okoro.spend_currency': currency ?? null,
-  'okoro.token_age_ms': tokenAgeMs,
-  'okoro.scopes': scopes.join(','),
+  'cerniq.principal_id': principalId,
+  'cerniq.agent_id': agentId,
+  'cerniq.outcome': outcome,
+  'cerniq.denial_reason': denialReason ?? null,
+  'cerniq.trust_band': trustBand,
+  'cerniq.trust_score': trustScore,
+  'cerniq.spend_amount': amount ?? 0,
+  'cerniq.spend_currency': currency ?? null,
+  'cerniq.token_age_ms': tokenAgeMs,
+  'cerniq.scopes': scopes.join(','),
 });
 ```
 
@@ -348,11 +348,11 @@ const sampler = new ParentBasedSampler({
   // Sample 100% of errors (we never want to miss a failing trace)
   // Sample 10% of successful verify calls at high traffic
   root: new TraceIdRatioBased(
-    process.env.OKORO_OTEL_SAMPLE_RATE ? parseFloat(process.env.OKORO_OTEL_SAMPLE_RATE) : 0.1,
+    process.env.CERNIQ_OTEL_SAMPLE_RATE ? parseFloat(process.env.CERNIQ_OTEL_SAMPLE_RATE) : 0.1,
   ),
 });
 
-// In production: OKORO_OTEL_SAMPLE_RATE=0.05 (5% of successful traces)
+// In production: CERNIQ_OTEL_SAMPLE_RATE=0.05 (5% of successful traces)
 // On errors: always 100% (SDK auto-upgrades error traces)
 ```
 
@@ -371,7 +371,7 @@ All logs are Pino JSON. Every log line must include:
   "msg": "verify.completed",
   "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
   "spanId": "00f067aa0ba902b7",
-  "service": "okoro-api",
+  "service": "cerniq-api",
   "version": "1.2.3",
   "principalId": "prin_abc123",
   "agentId": "agent_xyz789",
@@ -570,12 +570,12 @@ env.ANALYTICS.writeDataPoint({
 });
 ```
 
-Cloudflare dashboard → Workers → Analytics → custom dataset: `okoro_edge_verify`
+Cloudflare dashboard → Workers → Analytics → custom dataset: `cerniq_edge_verify`
 
 Additional edge metrics to track:
 
 - Cache hit rate for agent/policy lookups (target: >80%)
-- `X-OKORO-Edge-Divergence` header rate (shadow mode: how often edge disagrees with origin)
+- `X-CERNIQ-Edge-Divergence` header rate (shadow mode: how often edge disagrees with origin)
 - Edge vs origin latency comparison
 
 ---
@@ -602,22 +602,22 @@ Every alert links to the correct runbook section. Quick reference:
 
 ```bash
 # Health (unauthenticated — used by load balancers)
-curl https://api.okoroapp.com/health
+curl https://api.cerniqapp.com/health
 # Expected: {"status":"ok","timestamp":"2026-05-04T12:00:00.000Z"}
 # This must NEVER require auth. Never block on DB/Redis.
 
 # Readiness (authenticated — deep health check)
-curl https://api.okoroapp.com/ready \
-  -H "X-OKORO-Admin: $OKORO_ADMIN_TOKEN"
+curl https://api.cerniqapp.com/ready \
+  -H "X-CERNIQ-Admin: $CERNIQ_ADMIN_TOKEN"
 # Expected: {"status":"ready","db":"ok","redis":"ok","migrations":"current"}
 
 # Metrics
-curl https://api.okoroapp.com/metrics \
+curl https://api.cerniqapp.com/metrics \
   -H "Authorization: Bearer $METRICS_TOKEN"
 # Expected: Prometheus text format
 
 # Version info
-curl https://api.okoroapp.com/version
+curl https://api.cerniqapp.com/version
 # Expected: {"version":"1.2.3","commit":"abc123","build":"2026-05-04"}
 ```
 
@@ -639,5 +639,5 @@ Before handing off to the next on-call engineer:
 
 ---
 
-_Observability guide version: 1.0 | OKORO Phase 1_  
+_Observability guide version: 1.0 | CERNIQ Phase 1_  
 _Next review: after first week of production traffic_

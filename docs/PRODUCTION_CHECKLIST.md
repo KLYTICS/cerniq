@@ -1,4 +1,4 @@
-# OKORO — Production Go-Live Checklist
+# CERNIQ — Production Go-Live Checklist
 
 ## Gate Criteria Before Accepting First Real User Traffic
 
@@ -21,7 +21,7 @@
 ### 1.1 Cryptography
 
 ```
-[ ] 🔴 Production Ed25519 keys generated via scripts/generate-okoro-keys.ts
+[ ] 🔴 Production Ed25519 keys generated via scripts/generate-cerniq-keys.ts
         Keys are NOT the development defaults
         Keys stored in Railway Variables or a secrets manager
         Private keys have NEVER appeared in git history
@@ -29,14 +29,14 @@
 [ ] 🔴 JWT signing key and audit signing key are SEPARATE
         Different keys for different purposes (rotation independence)
 
-[ ] 🔴 OKORO_API_KEY_BCRYPT_COST=12 in production
+[ ] 🔴 CERNIQ_API_KEY_BCRYPT_COST=12 in production
         (cost=4 is only acceptable in test/CI)
         Verify: grep BCRYPT_COST .env.production
 
-[ ] 🔴 OKORO_ADMIN_TOKEN is a randomly generated 32-byte hex string
+[ ] 🔴 CERNIQ_ADMIN_TOKEN is a randomly generated 32-byte hex string
         NOT a human-readable password
         NOT committed to git
-        Verify: echo $OKORO_ADMIN_TOKEN | wc -c   # should be 65 (64 hex + newline)
+        Verify: echo $CERNIQ_ADMIN_TOKEN | wc -c   # should be 65 (64 hex + newline)
 
 [ ] 🟠 Private keys are NOT logged anywhere
         Search: grep -r "privateKey" apps/api/src --include="*.ts" | grep -v "spec\|test"
@@ -55,11 +55,11 @@
         Railway: custom domain with valid TLS cert
 
 [ ] 🔴 HSTS header present on all responses
-        Verify: curl -I https://api.okoroapp.com/health | grep strict-transport
+        Verify: curl -I https://api.cerniqapp.com/health | grep strict-transport
         Expected: strict-transport-security: max-age=31536000; includeSubDomains
 
 [ ] 🟠 CSP header on dashboard
-        Verify: curl -I https://dashboard.okoroapp.com | grep content-security-policy
+        Verify: curl -I https://dashboard.cerniqapp.com | grep content-security-policy
 
 [ ] 🟠 CORS allowlist is explicit (not *)
         Check: apps/api/src/common/security/cors-allowlist.ts
@@ -70,7 +70,7 @@
 
 ```
 [ ] 🔴 Throttler configured for FREE tier verify
-        Check: OKORO_VERIFY_RATE_LIMIT_FREE=10 (req/sec, burst 20)
+        Check: CERNIQ_VERIFY_RATE_LIMIT_FREE=10 (req/sec, burst 20)
         See: apps/api/src/modules/verify/verify.module.ts @nestjs/throttler config
 
 [ ] 🟠 Identity endpoints rate-limited (prevent agent spam registration)
@@ -149,10 +149,10 @@
 
 ```
 [ ] 🔴 Health endpoint responds < 500ms
-        curl -w "%{time_total}" https://api.okoroapp.com/health
+        curl -w "%{time_total}" https://api.cerniqapp.com/health
 
 [ ] 🔴 Readiness endpoint passes (DB + Redis ping)
-        curl https://api.okoroapp.com/ready -H "X-OKORO-Admin: $OKORO_ADMIN_TOKEN"
+        curl https://api.cerniqapp.com/ready -H "X-CERNIQ-Admin: $CERNIQ_ADMIN_TOKEN"
         Expected: { "status": "ready", "db": "ok", "redis": "ok" }
 
 [ ] 🔴 Verify endpoint responds correctly to valid token
@@ -178,7 +178,7 @@
 ```
 [ ] 🔴 Audit chain integrity script passes on empty chain
         Run: pnpm tsx scripts/audit-verify-chain.ts \
-             --api-base $BASE --api-key $OKORO_API_KEY --limit 10
+             --api-base $BASE --api-key $CERNIQ_API_KEY --limit 10
         Expected: ✓ Chain intact (0 events or N events, 0 breaks)
 
 [ ] 🔴 Hash chain links correctly after first verify call
@@ -192,7 +192,7 @@
         Expected: ✗ Chain break detected at event #N
 
 [ ] 🟠 /.well-known/audit-signing-key returns correct JWKS
-        curl https://api.okoroapp.com/.well-known/audit-signing-key
+        curl https://api.cerniqapp.com/.well-known/audit-signing-key
         Verify: kid matches signingKeyId in latest AuditEvent row
         NOTE: This endpoint is still open (G-1) — block GA until shipped
 ```
@@ -200,7 +200,7 @@
 ### 3.2 JWT Signing
 
 ```
-[ ] 🔴 JWT tokens signed by OKORO are EdDSA only (no RSA, no HS256)
+[ ] 🔴 JWT tokens signed by CERNIQ are EdDSA only (no RSA, no HS256)
         Inspect a policy JWT: cat policy.signedToken | cut -d. -f1 | base64 -d
         Expected: { "alg": "EdDSA", ... }
 
@@ -283,14 +283,14 @@
 
 ```
 [ ] 🔴 /health endpoint has no auth, always returns 200 (never blocks)
-        curl https://api.okoroapp.com/health   # no API key
+        curl https://api.cerniqapp.com/health   # no API key
 
 [ ] 🔴 /metrics endpoint returns valid Prometheus text
-        curl https://api.okoroapp.com/metrics -H "Authorization: Bearer $METRICS_TOKEN"
-        Expected: okoro_verify_total, okoro_verify_latency_seconds, etc.
+        curl https://api.cerniqapp.com/metrics -H "Authorization: Bearer $METRICS_TOKEN"
+        Expected: cerniq_verify_total, cerniq_verify_latency_seconds, etc.
 
 [ ] 🟠 OTel tracing enabled and traces appearing in your collector
-        OKORO_OTEL_ENABLED=true
+        CERNIQ_OTEL_ENABLED=true
         Verify traces in Jaeger/Tempo/DataDog
 
 [ ] 🟠 Railway + Cloudflare alerts configured
@@ -324,7 +324,7 @@
         RTO target: 4 hours. RPO target: 1 hour.
         Last DR test date recorded.
 
-[ ] 🟡 Status page configured (okorostatus.io or internal)
+[ ] 🟡 Status page configured (cerniqstatus.io or internal)
         OD-007 decision required for hosting choice
 ```
 
@@ -333,21 +333,21 @@
 ## Section 8 — Legal & Compliance
 
 ```
-[ ] 🔴 Privacy policy published (okoroapp.com/privacy)
+[ ] 🔴 Privacy policy published (cerniqapp.com/privacy)
         References agent data handling, audit log retention
 
-[ ] 🔴 Terms of service published (okoroapp.com/terms)
+[ ] 🔴 Terms of service published (cerniqapp.com/terms)
         Includes acceptable use for agent operations
 
 [ ] 🟠 DPA template ready for EU enterprise customers
-        GDPR Art. 28 template with OKORO as data processor
+        GDPR Art. 28 template with CERNIQ as data processor
         References audit redaction capability (ADR-0006)
 
 [ ] 🟠 7-year audit retention policy documented (OD-004)
         Cold storage plan configured (S3/GCS archive)
 
 [ ] 🟡 Cookie consent banner on dashboard
-        OKORO_ANALYTICS_CONSENT=required in EU
+        CERNIQ_ANALYTICS_CONSENT=required in EU
 ```
 
 ---
@@ -357,8 +357,8 @@
 ```
 [ ] 🟠 Load test passes target SLO (p99 < 200ms at 500 RPS)
         Run: k6 run tests/load/verify.js \
-             -e BASE_URL=https://api.okoroapp.com/v1 \
-             -e API_KEY=$OKORO_API_KEY
+             -e BASE_URL=https://api.cerniqapp.com/v1 \
+             -e API_KEY=$CERNIQ_API_KEY
         Expected: p99 < 200ms, error rate < 0.1%
 
 [ ] 🟠 Spend race test passes under load
@@ -389,5 +389,5 @@ ______________________________________________________________
 
 ---
 
-_Template version: 1.0 | OKORO Phase 1 GA_  
+_Template version: 1.0 | CERNIQ Phase 1 GA_  
 _Next review: before Phase 2 launch ($500 MRR gate)_

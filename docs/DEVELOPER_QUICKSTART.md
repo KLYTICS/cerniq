@@ -1,17 +1,17 @@
-# OKORO — Developer Quickstart
+# CERNIQ — Developer Quickstart
 
 ## From Zero to First Verified Agent Call in 10 Minutes
 
-> **Audience:** Developer integrating OKORO for the first time.  
+> **Audience:** Developer integrating CERNIQ for the first time.  
 > **Time:** ~10 minutes for happy path. ~30 minutes for full denial-precedence walkthrough.  
-> **Prerequisites:** Node.js 18+ or Python 3.11+. An OKORO API key (get one at dashboard.okoroapp.com or via the CLI).
+> **Prerequisites:** Node.js 18+ or Python 3.11+. An CERNIQ API key (get one at dashboard.cerniqapp.com or via the CLI).
 
 ---
 
 ## The 30-Second Concept
 
 ```
-Your Agent                 OKORO                    Your Service (Relying Party)
+Your Agent                 CERNIQ                    Your Service (Relying Party)
     │                         │                              │
     │  1. register()          │                              │
     │ ──────────────────────► │                              │
@@ -24,14 +24,14 @@ Your Agent                 OKORO                    Your Service (Relying Party)
     │  3. sign(privateKey, action, amount)                   │
     │  ─ token (local, no network) ──────────────────────►  │
     │                         │                              │
-    │                         │  4. okoro.verify(token)      │
+    │                         │  4. cerniq.verify(token)      │
     │                         │ ◄──────────────────────────  │
     │                         │  ──── { valid, trustScore } ►│
     │                         │                              │
     │              ◄─ approved or denied ───────────────────►│
 ```
 
-**Private key never leaves your process. OKORO only sees the public key.**
+**Private key never leaves your process. CERNIQ only sees the public key.**
 
 ---
 
@@ -40,28 +40,28 @@ Your Agent                 OKORO                    Your Service (Relying Party)
 ### 1. Install
 
 ```bash
-npm install @okoro/sdk
+npm install @cerniq/sdk
 # or
-pnpm add @okoro/sdk
+pnpm add @cerniq/sdk
 # or
-yarn add @okoro/sdk
+yarn add @cerniq/sdk
 ```
 
 ### 2. Register an Agent
 
 ```typescript
-import { OkoroClient, generateKeypair } from '@okoro/sdk';
+import { CerniqClient, generateKeypair } from '@cerniq/sdk';
 
-const okoro = new OkoroClient({
-  apiKey: process.env.OKORO_API_KEY!, // Your management API key
-  baseUrl: 'https://api.okoroapp.com/v1', // default; omit in prod
+const cerniq = new CerniqClient({
+  apiKey: process.env.CERNIQ_API_KEY!, // Your management API key
+  baseUrl: 'https://api.cerniqapp.com/v1', // default; omit in prod
 });
 
-// Generate an Ed25519 keypair. Private key stays client-side — NEVER sent to OKORO.
+// Generate an Ed25519 keypair. Private key stays client-side — NEVER sent to CERNIQ.
 const { publicKey, privateKey } = await generateKeypair();
 
 // Register the agent
-const agent = await okoro.agents.register({
+const agent = await cerniq.agents.register({
   publicKey,
   runtime: 'ANTHROPIC', // 'OPENAI' | 'ANTHROPIC' | 'GOOGLE' | 'HUGGINGFACE' | 'CUSTOM'
   label: 'my-purchase-agent',
@@ -80,7 +80,7 @@ console.log('Agent ID:', agent.agentId);
 Policies bind an agent to a set of scopes (what it can do), spend limits (how much), and a TTL (how long).
 
 ```typescript
-const policy = await okoro.policies.create({
+const policy = await cerniq.policies.create({
   agentId: agent.agentId,
   label: 'flight-booking-scope',
   scopes: [
@@ -111,7 +111,7 @@ console.log('Signed JWT:', policy.signedToken.slice(0, 40) + '...');
 Your agent signs a short-lived token for each action. This token is what relying parties verify.
 
 ```typescript
-import { sign } from '@okoro/sdk';
+import { sign } from '@cerniq/sdk';
 
 // Called by your agent immediately before each action
 const token = await sign(privateKey, {
@@ -126,7 +126,7 @@ const token = await sign(privateKey, {
 });
 
 // token is a compact EdDSA JWT, ~400 bytes
-// Send it as: Authorization: Bearer <token>  or  X-OKORO-Token: <token>
+// Send it as: Authorization: Bearer <token>  or  X-CERNIQ-Token: <token>
 ```
 
 ### 5. Verify (Relying-Party Side)
@@ -135,7 +135,7 @@ This is what the service receiving the agent's request calls.
 
 ```typescript
 // In your API handler (Express, Fastify, Hono, etc.)
-const result = await okoro.verify(token, {
+const result = await cerniq.verify(token, {
   action: 'commerce.purchase',
   amount: 347.5,
   currency: 'USD',
@@ -163,20 +163,21 @@ console.log('Audit event ID:', result.auditEventId); // link to your own logs
 
 ```typescript
 import express from 'express';
-import { OkoroClient } from '@okoro/sdk';
+import { CerniqClient } from '@cerniq/sdk';
 
 const app = express();
-const okoro = new OkoroClient({ apiKey: process.env.OKORO_API_KEY! });
+const cerniq = new CerniqClient({ apiKey: process.env.CERNIQ_API_KEY! });
 
-// Middleware: verify OKORO token before any protected route
+// Middleware: verify CERNIQ token before any protected route
 const requireAgent =
   (minTrustScore = 400) =>
   async (req, res, next) => {
     const token =
-      (req.headers['x-okoro-token'] as string) ?? req.headers.authorization?.replace('Bearer ', '');
-    if (!token) return res.status(401).json({ error: 'missing_okoro_token' });
+      (req.headers['x-cerniq-token'] as string) ??
+      req.headers.authorization?.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'missing_cerniq_token' });
 
-    const result = await okoro.verify(token, {
+    const result = await cerniq.verify(token, {
       action: req.path.replace('/', '').replace('/', '.'),
       minTrustScore,
     });
@@ -193,15 +194,15 @@ app.post('/checkout', requireAgent(500), async (req, res) => {
 });
 ```
 
-### 7. Offline Verify (No OKORO Network Call)
+### 7. Offline Verify (No CERNIQ Network Call)
 
-For ultra-low-latency relying parties, `@okoro/verifier-rp` verifies tokens offline via cached JWKS:
+For ultra-low-latency relying parties, `@cerniq/verifier-rp` verifies tokens offline via cached JWKS:
 
 ```typescript
-import { OkoroVerifier } from '@okoro/verifier-rp';
+import { CerniqVerifier } from '@cerniq/verifier-rp';
 
-const verifier = new OkoroVerifier({
-  // OKORO JWKS endpoint is fetched once, cached 1h (configurable)
+const verifier = new CerniqVerifier({
+  // CERNIQ JWKS endpoint is fetched once, cached 1h (configurable)
   getAgentPublicKey: async (agentId) => {
     // Your key store — e.g., Redis, or a previous registration cache
     return await myKeyCache.get(agentId); // returns Uint8Array (32 bytes, Ed25519)
@@ -228,11 +229,11 @@ const result = await verifier.verify(token, {
 ### 1. Install
 
 ```bash
-pip install okoro-sdk
+pip install cerniq-sdk
 # or
-uv add okoro-sdk
+uv add cerniq-sdk
 # or
-poetry add okoro-sdk
+poetry add cerniq-sdk
 ```
 
 ### 2. Full Example (Async)
@@ -240,17 +241,17 @@ poetry add okoro-sdk
 ```python
 import asyncio
 import os
-from okoro import AsyncOkoro
-from okoro.crypto import generate_keypair, sign
+from cerniq import AsyncCerniq
+from cerniq.crypto import generate_keypair, sign
 
 async def main():
-    async with AsyncOkoro(api_key=os.environ["OKORO_API_KEY"]) as okoro:
+    async with AsyncCerniq(api_key=os.environ["CERNIQ_API_KEY"]) as cerniq:
 
         # 1. Generate keypair (stays client-side)
         keypair = generate_keypair()
 
         # 2. Register agent
-        agent = await okoro.agents.register(
+        agent = await cerniq.agents.register(
             public_key=keypair.public_key,
             runtime="anthropic",
             label="my-langchain-agent",
@@ -258,7 +259,7 @@ async def main():
         print(f"Agent ID: {agent.agent_id}")
 
         # 3. Create policy
-        policy = await okoro.policies.create(
+        policy = await cerniq.policies.create(
             agent_id=agent.agent_id,
             scopes=[{
                 "category": "commerce",
@@ -284,7 +285,7 @@ async def main():
         )
 
         # 5. Verify
-        result = await okoro.verify(token, action="commerce.purchase", amount=149.99)
+        result = await cerniq.verify(token, action="commerce.purchase", amount=149.99)
         print(f"Valid: {result.valid}")
         print(f"Trust score: {result.trust_score}/1000")
 
@@ -295,18 +296,18 @@ asyncio.run(main())
 
 ```python
 from langchain.tools import BaseTool
-from okoro import AsyncOkoro
-from okoro.crypto import sign
+from cerniq import AsyncCerniq
+from cerniq.crypto import sign
 
-class OkoroVerifiedTool(BaseTool):
-    """Wrap any LangChain tool with OKORO verification."""
+class CerniqVerifiedTool(BaseTool):
+    """Wrap any LangChain tool with CERNIQ verification."""
 
     name = "verified_purchase"
-    description = "Purchase a flight ticket with OKORO trust verification"
+    description = "Purchase a flight ticket with CERNIQ trust verification"
 
-    def __init__(self, okoro_client: AsyncOkoro, agent_id: str,
+    def __init__(self, cerniq_client: AsyncCerniq, agent_id: str,
                  policy_id: str, private_key: bytes):
-        self.okoro = okoro_client
+        self.cerniq = cerniq_client
         self.agent_id = agent_id
         self.policy_id = policy_id
         self.private_key = private_key
@@ -320,11 +321,11 @@ class OkoroVerifiedTool(BaseTool):
             amount=amount,
             merchant_domain=merchant,
         )
-        result = await self.okoro.verify(
+        result = await self.cerniq.verify(
             token, action="commerce.purchase", amount=amount
         )
         if not result.valid:
-            raise PermissionError(f"OKORO denied: {result.denial_reason}")
+            raise PermissionError(f"CERNIQ denied: {result.denial_reason}")
         # proceed with actual purchase logic
         return f"Purchase authorized (trust: {result.trust_score}/1000)"
 ```
@@ -337,30 +338,30 @@ class OkoroVerifiedTool(BaseTool):
 
 ```bash
 # macOS (Homebrew)
-brew install klytics/tap/okoro
+brew install klytics/tap/cerniq
 
 # Linux / macOS (curl installer)
-curl -fsSL https://get.okoro.dev/install.sh | sh
+curl -fsSL https://get.cerniq.dev/install.sh | sh
 
 # From source
-cd packages/cli && go build -o okoro . && sudo mv okoro /usr/local/bin/
+cd packages/cli && go build -o cerniq . && sudo mv cerniq /usr/local/bin/
 ```
 
 ### First Use
 
 ```bash
 # Authenticate
-okoro login --api-key sk_live_...
+cerniq login --api-key sk_live_...
 
 # Verify your setup
-okoro doctor
+cerniq doctor
 # ✓ API reachable (142ms)
 # ✓ JWKS endpoint reachable
 # ✓ Clock skew OK (+1s)
 # ⚠ No agents registered yet
 
 # Register an agent with auto-generated keypair
-okoro agents register \
+cerniq agents register \
   --runtime anthropic \
   --label "my-first-agent" \
   --generate-keypair
@@ -372,7 +373,7 @@ okoro agents register \
 # 0x4a3b...f99e
 
 # Create a policy
-okoro policy create \
+cerniq policy create \
   --agent-id cld_01HXYZ \
   --scope commerce \
   --max-per-txn 500 \
@@ -381,7 +382,7 @@ okoro policy create \
   --expires "30d"
 
 # Verify a token
-okoro verify eyJhbGciOiJFZERTQSJ9... \
+cerniq verify eyJhbGciOiJFZERTQSJ9... \
   --action commerce.purchase \
   --amount 347.50 \
   --merchant-domain delta.com
@@ -396,7 +397,7 @@ okoro verify eyJhbGciOiJFZERTQSJ9... \
 # Latency:     67ms
 
 # Tail live audit events for an agent
-okoro events tail --agent-id cld_01HXYZ
+cerniq events tail --agent-id cld_01HXYZ
 # 14:32:01 APPROVED  commerce.purchase  $347.50  delta.com  score=512
 # 14:32:47 APPROVED  commerce.purchase  $89.00   delta.com  score=512
 # ^C (Ctrl-C exits cleanly)
@@ -410,7 +411,7 @@ Understanding denial reasons is critical for debugging integrations:
 
 | Denial Reason          | Meaning                                                       | Fix                                                              |
 | ---------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `AGENT_NOT_FOUND`      | agentId in token doesn't exist or agent is SUSPENDED          | Check agent status: `okoro agents show <id>`                     |
+| `AGENT_NOT_FOUND`      | agentId in token doesn't exist or agent is SUSPENDED          | Check agent status: `cerniq agents show <id>`                    |
 | `AGENT_REVOKED`        | Agent was explicitly revoked                                  | Register a new agent                                             |
 | `INVALID_SIGNATURE`    | Token tampered, wrong private key, expired, or replay attempt | Re-sign with correct key; check clock skew                       |
 | `POLICY_REVOKED`       | Policy was explicitly revoked                                 | Create a new policy                                              |
@@ -418,9 +419,9 @@ Understanding denial reasons is critical for debugging integrations:
 | `SCOPE_NOT_GRANTED`    | Action or merchantDomain not covered by policy scopes         | Check scope.category matches action prefix; check allowedDomains |
 | `SPEND_LIMIT_EXCEEDED` | Per-txn, per-day, or per-month spend cap hit                  | Reduce request amount or wait for window reset                   |
 | `TRUST_SCORE_TOO_LOW`  | Agent's BATE score below `minTrustScore`                      | Lower your threshold, or wait for agent to build history         |
-| `ANOMALY_FLAGGED`      | BATE engine has hard-flagged the agent                        | Check `okoro events tail` for anomaly signals; contact support   |
+| `ANOMALY_FLAGGED`      | BATE engine has hard-flagged the agent                        | Check `cerniq events tail` for anomaly signals; contact support  |
 
-**Denial precedence is guaranteed:** OKORO always reports the highest-priority denial (AGENT_NOT_FOUND before INVALID_SIGNATURE, etc.). Your error handling can branch on the exact string.
+**Denial precedence is guaranteed:** CERNIQ always reports the highest-priority denial (AGENT_NOT_FOUND before INVALID_SIGNATURE, etc.). Your error handling can branch on the exact string.
 
 ---
 
@@ -441,14 +442,14 @@ New agents start at **500 (VERIFIED)**. Score improves via clean transactions, p
 
 ```typescript
 // Subscribe to events that matter to your integration
-await okoro.webhooks.create({
-  url: 'https://your-api.com/webhooks/okoro',
-  secret: process.env.OKORO_WEBHOOK_SECRET!,
+await cerniq.webhooks.create({
+  url: 'https://your-api.com/webhooks/cerniq',
+  secret: process.env.CERNIQ_WEBHOOK_SECRET!,
   events: [
-    'okoro.agent.revoked', // Immediate revocation — stop accepting tokens
-    'okoro.agent.trust_score_changed', // Score band changes — adjust limits
-    'okoro.agent.anomaly_detected', // Flag for human review
-    'okoro.policy.expired', // Renew policy before next action
+    'cerniq.agent.revoked', // Immediate revocation — stop accepting tokens
+    'cerniq.agent.trust_score_changed', // Score band changes — adjust limits
+    'cerniq.agent.anomaly_detected', // Flag for human review
+    'cerniq.policy.expired', // Renew policy before next action
   ],
 });
 ```
@@ -466,14 +467,14 @@ function verifyWebhookSignature(payload: string, header: string, secret: string)
   return expected === signature;
 }
 
-app.post('/webhooks/okoro', express.raw({ type: 'application/json' }), (req, res) => {
-  const header = req.headers['x-okoro-signature'] as string;
-  if (!verifyWebhookSignature(req.body.toString(), header, process.env.OKORO_WEBHOOK_SECRET!)) {
+app.post('/webhooks/cerniq', express.raw({ type: 'application/json' }), (req, res) => {
+  const header = req.headers['x-cerniq-signature'] as string;
+  if (!verifyWebhookSignature(req.body.toString(), header, process.env.CERNIQ_WEBHOOK_SECRET!)) {
     return res.status(401).send('Invalid signature');
   }
   const event = JSON.parse(req.body);
   switch (event.type) {
-    case 'okoro.agent.revoked':
+    case 'cerniq.agent.revoked':
       // Immediately purge agent from your allow-list / session cache
       await revokeAgentSession(event.data.agentId);
       break;
@@ -488,21 +489,21 @@ app.post('/webhooks/okoro', express.raw({ type: 'application/json' }), (req, res
 
 ```bash
 # Required
-OKORO_API_KEY=sk_live_...          # Management API key (full scope)
-OKORO_VERIFY_KEY=vk_live_...       # Verify-only key (RP-side, no management access)
+CERNIQ_API_KEY=sk_live_...          # Management API key (full scope)
+CERNIQ_VERIFY_KEY=vk_live_...       # Verify-only key (RP-side, no management access)
 
 # Optional
-OKORO_BASE_URL=https://api.okoroapp.com/v1   # default
-OKORO_TIMEOUT_MS=5000                         # default 5000ms
-OKORO_RETRY_ATTEMPTS=3                        # default 3
-OKORO_LOG_LEVEL=info                          # debug | info | warn | error
+CERNIQ_BASE_URL=https://api.cerniqapp.com/v1   # default
+CERNIQ_TIMEOUT_MS=5000                         # default 5000ms
+CERNIQ_RETRY_ATTEMPTS=3                        # default 3
+CERNIQ_LOG_LEVEL=info                          # debug | info | warn | error
 ```
 
 ---
 
 ## Next Steps
 
-- **MCP Integration:** See `docs/INTEGRATION_GUIDE_MCP.md` — add OKORO to Claude Desktop or any MCP server in one line
+- **MCP Integration:** See `docs/INTEGRATION_GUIDE_MCP.md` — add CERNIQ to Claude Desktop or any MCP server in one line
 - **LangChain/CrewAI:** See `docs/INTEGRATION_GUIDE_LANGCHAIN.md`
 - **RP verifier (offline):** See `docs/INTEGRATION_GUIDE_EXPRESS.md`
 - **Fintech pattern:** See `docs/INTEGRATION_GUIDE_FINTECH.md`
@@ -512,4 +513,4 @@ OKORO_LOG_LEVEL=info                          # debug | info | warn | error
 
 ---
 
-_Last updated: 2026-05-04 | SDK versions: @okoro/sdk@0.1.0, okoro-sdk@0.1.0, CLI@0.1.0_
+_Last updated: 2026-05-04 | SDK versions: @cerniq/sdk@0.1.0, cerniq-sdk@0.1.0, CLI@0.1.0_

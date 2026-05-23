@@ -31,7 +31,11 @@ export function checkScopeAndSpend(
   requiredScope?: string,
 ): ScopeCheckResult | null {
   // Required scope category — drives middleware-level coarse access control.
-  if (requiredScope !== undefined && claims.scopes.length > 0 && !claims.scopes.includes(requiredScope)) {
+  if (
+    requiredScope !== undefined &&
+    claims.scopes.length > 0 &&
+    !claims.scopes.includes(requiredScope)
+  ) {
     return {
       reason: 'SCOPE_NOT_GRANTED',
       detail: `required scope "${requiredScope}" not in token scopes [${claims.scopes.join(', ')}]`,
@@ -62,8 +66,8 @@ export function checkScopeAndSpend(
 
   // Spend-limit echo — the token already encodes a per-tx amount limit at
   // issue time via `amt`. A relying party-supplied amount that exceeds it is
-  // refused locally; we don't need to round-trip OKORO. (Per-day/per-month
-  // ledgering still requires OKORO-side enforcement; we don't fabricate it.)
+  // refused locally; we don't need to round-trip CERNIQ. (Per-day/per-month
+  // ledgering still requires CERNIQ-side enforcement; we don't fabricate it.)
   if (ctx.amount !== undefined && claims.amount !== undefined) {
     if (ctx.amount > claims.amount) {
       return {

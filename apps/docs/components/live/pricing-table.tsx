@@ -15,13 +15,11 @@ interface ApiPricing {
   tiers: ApiTier[];
 }
 
-type FetchResult =
-  | { source: 'api'; data: ApiPricing }
-  | { source: 'fallback'; reason: string };
+type FetchResult = { source: 'api'; data: ApiPricing } | { source: 'fallback'; reason: string };
 
 async function fetchPricing(): Promise<FetchResult> {
-  const base = process.env.OKORO_API_BASE_URL;
-  if (!base) return { source: 'fallback', reason: 'OKORO_API_BASE_URL unset' };
+  const base = process.env.CERNIQ_API_BASE_URL;
+  if (!base) return { source: 'fallback', reason: 'CERNIQ_API_BASE_URL unset' };
   try {
     const res = await fetch(`${base.replace(/\/$/, '')}/.well-known/pricing.json`, {
       next: { revalidate: 3600 },
@@ -106,9 +104,9 @@ export async function PricingTable() {
   const tiers = result.source === 'api' ? result.data.tiers : FALLBACK_TIERS;
   return (
     <div className="my-6">
-      <div className="overflow-hidden rounded-lg border border-[var(--okoro-mist)] bg-[var(--okoro-ink)]">
+      <div className="overflow-hidden rounded-lg border border-[var(--cerniq-mist)] bg-[var(--cerniq-ink)]">
         <table className="w-full text-sm">
-          <thead className="bg-[var(--okoro-steel)] text-xs uppercase tracking-wider text-[var(--okoro-fog)]">
+          <thead className="bg-[var(--cerniq-steel)] text-xs uppercase tracking-wider text-[var(--cerniq-fog)]">
             <tr>
               <th className="px-4 py-3 text-left">Tier</th>
               <th className="px-4 py-3 text-left">Price</th>
@@ -118,8 +116,8 @@ export async function PricingTable() {
           </thead>
           <tbody>
             {tiers.map((t) => (
-              <tr key={t.id} className="border-t border-[var(--okoro-mist)]">
-                <td className="px-4 py-3 font-mono text-[var(--okoro-cyan)]">{t.name}</td>
+              <tr key={t.id} className="border-t border-[var(--cerniq-mist)]">
+                <td className="px-4 py-3 font-mono text-[var(--cerniq-cyan)]">{t.name}</td>
                 <td className="px-4 py-3 font-mono">{fmtPrice(t)}</td>
                 <td className="px-4 py-3 font-mono">{fmtVerifies(t)}</td>
                 <td className="px-4 py-3 font-mono">{fmtOverage(t)}</td>
@@ -129,7 +127,7 @@ export async function PricingTable() {
         </table>
       </div>
       <p
-        className="mt-2 font-mono text-xs text-[var(--okoro-shadow)]"
+        className="mt-2 font-mono text-xs text-[var(--cerniq-shadow)]"
         data-source={result.source}
         data-testid="pricing-provenance"
       >

@@ -1,4 +1,4 @@
-# golangci-lint config for the okoro CLI.
+# golangci-lint config for the cerniq CLI.
 # Tightens past defaults to match CLAUDE.md quality bar:
 #   - no any without rationale
 #   - no silent error swallowing
@@ -21,7 +21,7 @@ linters:
     - goimports
 linters-settings:
   goimports:
-    local-prefixes: github.com/klytics/okoro
+    local-prefixes: github.com/klytics/cerniq
 issues:
   exclude-use-default: false
   max-same-issues: 0

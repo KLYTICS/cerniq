@@ -30,9 +30,9 @@ fi
 #
 #   BLOCKED_PATH    — matches the FILENAME of a staged file. Catches
 #                     `.env`, `.env.local`, `secrets/*`, `*.pem`, `*.key`.
-#   BLOCKED_CONTENT — matches FILE CONTENTS. Catches OKORO-shaped
+#   BLOCKED_CONTENT — matches FILE CONTENTS. Catches CERNIQ-shaped
 #                     plaintext keys and credential env-var assignments
-#                     (`okoro_sk_…`, `okoro_vk_…`, `JWT_…_B64=<value>`).
+#                     (`cerniq_sk_…`, `cerniq_vk_…`, `JWT_…_B64=<value>`).
 #
 # The two were previously combined in one regex run against file contents,
 # which produced false positives on TypeScript lines like `process.env.FOO`
@@ -52,13 +52,13 @@ fi
 # is also exempt. Keep this directory limited to hook scripts; do NOT use
 # it for secret material.
 BLOCKED_PATH='(^|/)\.env(\.[^/]+)?$|(^|/)secrets/|\.pem$|\.key$'
-## Real okoro_sk_/okoro_vk_ keys are base58-encoded 21 random bytes (~28 chars
+## Real cerniq_sk_/cerniq_vk_ keys are base58-encoded 21 random bytes (~28 chars
 ## from the bitcoin base58 alphabet `[1-9A-HJ-NP-Za-km-z]`). Tightening to
-## {20,} excludes placeholders like `okoro_sk_xxx`, `okoro_vk_REPLACE_ME`, and
-## template literals like `okoro_vk_seed_${...}` while still catching any real
+## {20,} excludes placeholders like `cerniq_sk_xxx`, `cerniq_vk_REPLACE_ME`, and
+## template literals like `cerniq_vk_seed_${...}` while still catching any real
 ## leaked key. Underscores, `_`, `<`, and the base58-forbidden chars (0OIl) are
 ## the give-away that the string is a placeholder, not a real key.
-BLOCKED_CONTENT='okoro_sk_[1-9A-HJ-NP-Za-km-z]{20,}|okoro_vk_[1-9A-HJ-NP-Za-km-z]{20,}|JWT_ED25519_PRIVATE_KEY_B64=[A-Za-z0-9+/=_-]|AUDIT_SIGNING_KEY_B64=[A-Za-z0-9+/=_-]'
+BLOCKED_CONTENT='cerniq_sk_[1-9A-HJ-NP-Za-km-z]{20,}|cerniq_vk_[1-9A-HJ-NP-Za-km-z]{20,}|JWT_ED25519_PRIVATE_KEY_B64=[A-Za-z0-9+/=_-]|AUDIT_SIGNING_KEY_B64=[A-Za-z0-9+/=_-]'
 TEST_FILE_ALLOWLIST='\.(spec|test|fixture|mock|stub)\.(ts|tsx|js|jsx|mjs|cjs)$|/tests?/|/__tests?__/|/test/|/_stubs/|tools/postman/|^\.husky/'
 
 STAGED=$(git diff --cached --name-only)
@@ -126,13 +126,13 @@ if [ "${SKIP_PREFLIGHT:-0}" != "1" ] && \
   # path. Capturing $? straight off the command (no `if` wrapper) avoids
   # both pitfalls.
   #
-  # `-F @okoro/api` is used so tsx resolves from apps/api's deps, matching
+  # `-F @cerniq/api` is used so tsx resolves from apps/api's deps, matching
   # the Makefile's invocation. That filter also switches cwd to apps/api,
   # so the script path must be absolute — the Makefile uses `$(CURDIR)/…`
   # for the same reason. We use git's authoritative top-level (hooks run
   # there already, but being explicit removes ambiguity).
   REPO_ROOT=$(git rev-parse --show-toplevel)
-  pnpm -s -F @okoro/api exec tsx "$REPO_ROOT/tools/preflight/preflight.ts" --fast
+  pnpm -s -F @cerniq/api exec tsx "$REPO_ROOT/tools/preflight/preflight.ts" --fast
   code=$?
   if [ "$code" -ge 2 ]; then
     echo

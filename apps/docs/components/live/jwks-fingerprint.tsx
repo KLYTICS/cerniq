@@ -20,7 +20,9 @@ interface Jwk {
   alg?: string;
 }
 
-interface Jwks { keys: Jwk[] }
+interface Jwks {
+  keys: Jwk[];
+}
 
 type FetchResult =
   | { source: 'api'; jwks: Jwks; fetchedAt: string }
@@ -38,13 +40,12 @@ function colonHex(hex: string): string {
 }
 
 async function fetchJwks(): Promise<FetchResult> {
-  const base = process.env.OKORO_API_BASE_URL;
-  if (!base) return { source: 'fallback', reason: 'OKORO_API_BASE_URL unset' };
+  const base = process.env.CERNIQ_API_BASE_URL;
+  if (!base) return { source: 'fallback', reason: 'CERNIQ_API_BASE_URL unset' };
   try {
-    const res = await fetch(
-      `${base.replace(/\/$/, '')}/.well-known/audit-signing-key`,
-      { next: { revalidate: 3600 } },
-    );
+    const res = await fetch(`${base.replace(/\/$/, '')}/.well-known/audit-signing-key`, {
+      next: { revalidate: 3600 },
+    });
     if (!res.ok) return { source: 'fallback', reason: `HTTP ${res.status}` };
     const jwks = (await res.json()) as Jwks;
     if (!Array.isArray(jwks?.keys) || jwks.keys.length === 0) {
@@ -66,64 +67,53 @@ export async function JwksFingerprint() {
       ? result.jwks.keys.map((k) => ({
           kid: k.kid,
           use: k.use ?? 'sig',
-          alg: k.alg ?? (k.crv === 'Ed25519' ? 'EdDSA' : k.crv ?? 'unknown'),
+          alg: k.alg ?? (k.crv === 'Ed25519' ? 'EdDSA' : (k.crv ?? 'unknown')),
           thumbprint: rfc7638Thumbprint(k),
         }))
       : [];
 
   return (
     <div
-      className="my-6 overflow-hidden rounded-lg border border-[var(--okoro-mist)] bg-[var(--okoro-ink)]"
+      className="my-6 overflow-hidden rounded-lg border border-[var(--cerniq-mist)] bg-[var(--cerniq-ink)]"
       data-source={result.source}
       data-testid="jwks-fingerprint"
     >
-      <div className="flex items-center justify-between border-b border-[var(--okoro-mist)] bg-[var(--okoro-steel)] px-4 py-3">
-        <p className="text-xs uppercase tracking-wider text-[var(--okoro-fog)]">
+      <div className="flex items-center justify-between border-b border-[var(--cerniq-mist)] bg-[var(--cerniq-steel)] px-4 py-3">
+        <p className="text-xs uppercase tracking-wider text-[var(--cerniq-fog)]">
           Audit signing keys · RFC 7638 thumbprints (SHA-256)
         </p>
         {result.source === 'api' ? (
-          <span className="font-mono text-xs text-[var(--okoro-verified)]">
+          <span className="font-mono text-xs text-[var(--cerniq-verified)]">
             live · {rows.length} {rows.length === 1 ? 'key' : 'keys'}
           </span>
         ) : (
-          <span className="font-mono text-xs text-[var(--okoro-pending)]">
-            fallback
-          </span>
+          <span className="font-mono text-xs text-[var(--cerniq-pending)]">fallback</span>
         )}
       </div>
       {result.source === 'fallback' ? (
-        <div className="px-4 py-4 text-sm text-[var(--okoro-shadow)]">
-          Unable to fetch the live JWKS ({result.reason}). When this site is
-          deployed with <code className="font-mono">OKORO_API_BASE_URL</code>{' '}
-          set, the live signing-key thumbprints render here so auditors can
-          verify they match the fingerprint in their SOC2 evidence package
-          without trusting OKORO infrastructure.
+        <div className="px-4 py-4 text-sm text-[var(--cerniq-shadow)]">
+          Unable to fetch the live JWKS ({result.reason}). When this site is deployed with{' '}
+          <code className="font-mono">CERNIQ_API_BASE_URL</code> set, the live signing-key
+          thumbprints render here so auditors can verify they match the fingerprint in their SOC2
+          evidence package without trusting CERNIQ infrastructure.
         </div>
       ) : (
         <table className="w-full text-sm">
-          <thead className="text-xs uppercase tracking-wider text-[var(--okoro-fog)]">
+          <thead className="text-xs uppercase tracking-wider text-[var(--cerniq-fog)]">
             <tr>
               <th className="px-4 py-3 text-left">kid</th>
               <th className="px-4 py-3 text-left">use</th>
               <th className="px-4 py-3 text-left">alg</th>
-              <th className="px-4 py-3 text-left">
-                SHA-256 thumbprint (RFC 7638)
-              </th>
+              <th className="px-4 py-3 text-left">SHA-256 thumbprint (RFC 7638)</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.kid} className="border-t border-[var(--okoro-mist)]">
-                <td className="px-4 py-3 font-mono text-[var(--okoro-cyan)]">
-                  {r.kid}
-                </td>
-                <td className="px-4 py-3 font-mono text-[var(--okoro-fog)]">
-                  {r.use}
-                </td>
-                <td className="px-4 py-3 font-mono text-[var(--okoro-fog)]">
-                  {r.alg}
-                </td>
-                <td className="px-4 py-3 font-mono text-xs leading-snug text-[var(--okoro-halo)] break-all">
+              <tr key={r.kid} className="border-t border-[var(--cerniq-mist)]">
+                <td className="px-4 py-3 font-mono text-[var(--cerniq-cyan)]">{r.kid}</td>
+                <td className="px-4 py-3 font-mono text-[var(--cerniq-fog)]">{r.use}</td>
+                <td className="px-4 py-3 font-mono text-[var(--cerniq-fog)]">{r.alg}</td>
+                <td className="px-4 py-3 font-mono text-xs leading-snug text-[var(--cerniq-halo)] break-all">
                   {r.thumbprint
                     ? colonHex(r.thumbprint)
                     : '—  (non-OKP key, thumbprint format differs per kty)'}
@@ -133,12 +123,9 @@ export async function JwksFingerprint() {
           </tbody>
         </table>
       )}
-      <div className="border-t border-[var(--okoro-mist)] bg-[var(--okoro-graphite)] px-4 py-2 text-xs text-[var(--okoro-shadow)]">
-        Live source:{' '}
-        <code className="font-mono">/.well-known/audit-signing-key</code>{' '}
-        · algorithm:{' '}
-        <code className="font-mono">SHA-256(canonical_JSON(crv, kty, x))</code>{' '}
-        per RFC 7638
+      <div className="border-t border-[var(--cerniq-mist)] bg-[var(--cerniq-graphite)] px-4 py-2 text-xs text-[var(--cerniq-shadow)]">
+        Live source: <code className="font-mono">/.well-known/audit-signing-key</code> · algorithm:{' '}
+        <code className="font-mono">SHA-256(canonical_JSON(crv, kty, x))</code> per RFC 7638
       </div>
     </div>
   );

@@ -1,19 +1,19 @@
-// Express middleware. Reads the OKORO token from a header (default
-// X-OKORO-Token), runs verifier.verify(), and attaches the outcome to the
-// request under `req.okoro` (or a custom property).
+// Express middleware. Reads the CERNIQ token from a header (default
+// X-CERNIQ-Token), runs verifier.verify(), and attaches the outcome to the
+// request under `req.cerniq` (or a custom property).
 
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 
 import type { VerifyContext, VerifyOptions, VerifyOutcomeSuccess } from '../types.js';
-import type { OkoroVerifier } from '../verifier.js';
+import type { CerniqVerifier } from '../verifier.js';
 
-const DEFAULT_HEADER = 'x-okoro-token';
+const DEFAULT_HEADER = 'x-cerniq-token';
 
 export interface ExpressGuardOptions {
-  verifier: OkoroVerifier;
-  /** Header name to read. Default `X-OKORO-Token`. */
+  verifier: CerniqVerifier;
+  /** Header name to read. Default `X-CERNIQ-Token`. */
   headerName?: string;
-  /** Property to attach the verify outcome to. Default `okoro`. */
+  /** Property to attach the verify outcome to. Default `cerniq`. */
   attachTo?: string;
   /** Required scope for this route — same semantics as VerifyOptions.requiredScope. */
   requiredScope?: string;
@@ -24,26 +24,26 @@ export interface ExpressGuardOptions {
   contextFrom?: (req: Request) => VerifyContext;
   /**
    * Optional override for the failure response. By default we return 401 with
-   * `{ error: 'OKORO_VERIFICATION_FAILED', reason }`.
+   * `{ error: 'CERNIQ_VERIFICATION_FAILED', reason }`.
    */
   onDenied?: (res: Response, reason: string, detail?: string) => void;
 }
 
-export function okoroGuard(options: ExpressGuardOptions): RequestHandler {
+export function cerniqGuard(options: ExpressGuardOptions): RequestHandler {
   if (!options || typeof options !== 'object') {
-    throw new TypeError('okoroGuard: options object is required');
+    throw new TypeError('cerniqGuard: options object is required');
   }
   if (!options.verifier) {
-    throw new TypeError('okoroGuard: options.verifier is required');
+    throw new TypeError('cerniqGuard: options.verifier is required');
   }
   const headerName = (options.headerName ?? DEFAULT_HEADER).toLowerCase();
-  const attachTo = options.attachTo ?? 'okoro';
+  const attachTo = options.attachTo ?? 'cerniq';
 
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const headerVal = req.headers[headerName];
     const token = Array.isArray(headerVal) ? headerVal[0] : headerVal;
     if (!token) {
-      sendDenied(res, 'OKORO_VERIFICATION_FAILED', 'INVALID_SIGNATURE', 'missing token', options);
+      sendDenied(res, 'CERNIQ_VERIFICATION_FAILED', 'INVALID_SIGNATURE', 'missing token', options);
       return;
     }
     const ctx: VerifyContext = options.contextFrom ? options.contextFrom(req) : {};
@@ -53,7 +53,7 @@ export function okoroGuard(options: ExpressGuardOptions): RequestHandler {
     try {
       const outcome = await options.verifier.verify(token, ctx, verifyOpts);
       if (!outcome.valid) {
-        sendDenied(res, 'OKORO_VERIFICATION_FAILED', outcome.reason, outcome.detail, options);
+        sendDenied(res, 'CERNIQ_VERIFICATION_FAILED', outcome.reason, outcome.detail, options);
         return;
       }
       // Attach typed outcome.
@@ -82,4 +82,4 @@ function sendDenied(
 }
 
 // Re-export for convenience under the same name as in adapters/index.
-export const expressMiddleware = okoroGuard;
+export const expressMiddleware = cerniqGuard;

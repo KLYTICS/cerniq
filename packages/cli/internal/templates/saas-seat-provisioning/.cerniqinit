@@ -1,0 +1,7 @@
+cerniq-init-template:saas-seat-provisioning
+v1
+The saas-seat-provisioning template is rendered into the user's target
+directory when they run `cerniq init --industry saas-seat-provisioning`.
+The full source tree lives at examples/saas-seat-provisioning/ in the
+CERNIQ repo and is synchronized into this embed root by
+`make cli-sync-templates`.

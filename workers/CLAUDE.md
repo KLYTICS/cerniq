@@ -1,8 +1,8 @@
-# OKORO Workers - Claude contract
+# CERNIQ Workers - Claude contract
 
 This directory owns edge surfaces, especially the Cloudflare Worker port of the
 verify hot path. The worker exists to make `/v1/verify` globally low-latency
-without changing OKORO security semantics.
+without changing CERNIQ security semantics.
 
 ## Edge rules
 
@@ -19,8 +19,8 @@ without changing OKORO security semantics.
 
 ## Required verification
 
-- Worker typecheck: `pnpm --filter @okoro/cf-verify typecheck`
-- Worker lint: `pnpm --filter @okoro/cf-verify lint`
+- Worker typecheck: `pnpm --filter @cerniq/cf-verify typecheck`
+- Worker lint: `pnpm --filter @cerniq/cf-verify lint`
 - Cross-package parity: `pnpm test:parity`
 
 Deployment remains phase-gated. Do not bypass the `deploy` script guard unless

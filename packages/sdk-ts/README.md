@@ -1,23 +1,23 @@
-# `@okoro/sdk`
+# `@cerniq/sdk`
 
 > Verified identity, scoped policy, and behavioral attestation for AI agents.
 
 ```bash
-npm install @okoro/sdk
+npm install @cerniq/sdk
 ```
 
 ## Quickstart
 
 ```ts
-import { Okoro, generateKeypair } from '@okoro/sdk';
+import { Cerniq, generateKeypair } from '@cerniq/sdk';
 
 // 1. Create a keypair on the agent host. Persist the private key locally —
-//    OKORO never receives it.
+//    CERNIQ never receives it.
 const { publicKey, privateKey } = await generateKeypair();
 
-// 2. Register the agent with OKORO.
-const okoro = new Okoro({ apiKey: process.env.OKORO_API_KEY! });
-const agent = await okoro.agents.register({
+// 2. Register the agent with CERNIQ.
+const cerniq = new Cerniq({ apiKey: process.env.CERNIQ_API_KEY! });
+const agent = await cerniq.agents.register({
   publicKey,
   runtime: 'ANTHROPIC',
   model: 'claude-sonnet-4-5',
@@ -25,7 +25,7 @@ const agent = await okoro.agents.register({
 });
 
 // 3. Issue a scoped policy.
-const policy = await okoro.policies.create(agent.agentId, {
+const policy = await cerniq.policies.create(agent.agentId, {
   label: 'Buy flights under $500',
   scopes: [
     {
@@ -38,7 +38,7 @@ const policy = await okoro.policies.create(agent.agentId, {
 });
 
 // 4. Before each agent action, sign a token.
-const token = await okoro.sign(privateKey, agent.agentId, policy.policyId, {
+const token = await cerniq.sign(privateKey, agent.agentId, policy.policyId, {
   action: 'commerce.purchase',
   amount: 347,
   currency: 'USD',
@@ -46,7 +46,7 @@ const token = await okoro.sign(privateKey, agent.agentId, policy.policyId, {
 });
 
 // 5. The relying party verifies the token.
-const result = await okoro.verify(token, {
+const result = await cerniq.verify(token, {
   action: 'commerce.purchase',
   amount: 347,
   merchantDomain: 'delta.com',
@@ -59,11 +59,11 @@ if (!result.valid) {
 
 ## Security guarantees
 
-- **Private keys never transit OKORO.** `generateKeypair` produces them
+- **Private keys never transit CERNIQ.** `generateKeypair` produces them
   client-side; only the public key is registered.
 - **Tokens are short-lived.** Default TTL is 60 seconds. Override with
   `ttlSeconds` per-call if your relying party flow needs more.
-- **Revocation is instant.** `okoro.agents.revoke(agentId)` propagates to the
+- **Revocation is instant.** `cerniq.agents.revoke(agentId)` propagates to the
   edge cache in seconds; existing tokens immediately fail verification.
 
 ## Runtime

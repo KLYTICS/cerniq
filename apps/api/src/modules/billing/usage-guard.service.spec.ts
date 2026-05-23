@@ -70,8 +70,8 @@ describe('UsageGuardService', () => {
   const PRINCIPAL_ID = 'prin_test_abc123';
   const FROZEN_DATE = new Date('2026-05-15T12:00:00Z');
   const EXPECTED_MONTH_KEY = '2026-05';
-  const PLAN_KEY = `okoro:plan:${PRINCIPAL_ID}`;
-  const USAGE_KEY = `okoro:usage:${PRINCIPAL_ID}:${EXPECTED_MONTH_KEY}`;
+  const PLAN_KEY = `cerniq:plan:${PRINCIPAL_ID}`;
+  const USAGE_KEY = `cerniq:usage:${PRINCIPAL_ID}:${EXPECTED_MONTH_KEY}`;
 
   let prisma: MockPrisma;
   let redisHandles: ReturnType<typeof makeMockRedis>;
@@ -124,11 +124,7 @@ describe('UsageGuardService', () => {
         where: { id: PRINCIPAL_ID },
         select: { planTier: true },
       });
-      expect(redisHandles.mock.set).toHaveBeenCalledWith(
-        PLAN_KEY,
-        { tier: 'GROWTH' },
-        300,
-      );
+      expect(redisHandles.mock.set).toHaveBeenCalledWith(PLAN_KEY, { tier: 'GROWTH' }, 300);
       expect(result.planTier).toBe('GROWTH');
     });
 
@@ -140,11 +136,7 @@ describe('UsageGuardService', () => {
       const result = await service.checkQuota(PRINCIPAL_ID);
 
       expect(result.planTier).toBe('FREE');
-      expect(redisHandles.mock.set).toHaveBeenCalledWith(
-        PLAN_KEY,
-        { tier: 'FREE' },
-        300,
-      );
+      expect(redisHandles.mock.set).toHaveBeenCalledWith(PLAN_KEY, { tier: 'FREE' }, 300);
     });
 
     it('usage cache hit: skips DB count (FREE bypasses gate per F-08; remaining = Infinity)', async () => {
@@ -273,7 +265,9 @@ describe('UsageGuardService', () => {
     it('exec rejection is swallowed (fire-and-forget, no throw)', async () => {
       redisHandles.multiChain.exec.mockRejectedValueOnce(new Error('redis exec fail'));
 
-      expect(() => { service.incrementUsage(PRINCIPAL_ID); }).not.toThrow();
+      expect(() => {
+        service.incrementUsage(PRINCIPAL_ID);
+      }).not.toThrow();
 
       // Drain the catch handler.
       await Promise.resolve();
@@ -295,7 +289,10 @@ describe('UsageGuardService', () => {
       ): { recordOverage: jest.Mock; svc: UsageGuardService } {
         // Reset mocks and seed the INCR reply tuple shape: [err, value][].
         redisHandles.multiChain.exec.mockReset();
-        redisHandles.multiChain.exec.mockResolvedValueOnce([[null, post], [null, 1]]);
+        redisHandles.multiChain.exec.mockResolvedValueOnce([
+          [null, post],
+          [null, 1],
+        ]);
         redisHandles.mock.get.mockResolvedValueOnce({ tier: cachedTier });
         const recordOverage = jest.fn().mockResolvedValue(undefined);
         const svc = new UsageGuardService(
@@ -345,7 +342,9 @@ describe('UsageGuardService', () => {
         // The class-level test setup uses the 2-arg ctor — confirm
         // incrementUsage still no-ops cleanly with no Stripe wiring.
         redisHandles.multiChain.exec.mockResolvedValueOnce([[null, 999_999]]);
-        expect(() => { service.incrementUsage(PRINCIPAL_ID); }).not.toThrow();
+        expect(() => {
+          service.incrementUsage(PRINCIPAL_ID);
+        }).not.toThrow();
       });
     });
   });
@@ -374,11 +373,7 @@ describe('UsageGuardService', () => {
         where: { id: PRINCIPAL_ID },
         select: { planTier: true },
       });
-      expect(redisHandles.mock.set).toHaveBeenCalledWith(
-        PLAN_KEY,
-        { tier: 'DEVELOPER' },
-        300,
-      );
+      expect(redisHandles.mock.set).toHaveBeenCalledWith(PLAN_KEY, { tier: 'DEVELOPER' }, 300);
       expect(tier).toBe('DEVELOPER');
     });
 

@@ -1,5 +1,5 @@
 {
-  "extends": "@okoro/tsconfig/base.json",
+  "extends": "@cerniq/tsconfig/base.json",
   "compilerOptions": {
     "outDir": "./dist",
     "module": "ESNext",
@@ -7,7 +7,7 @@
     "rootDir": "../..",
     "baseUrl": ".",
     "paths": {
-      "@okoro/audit-verifier": ["../../packages/audit-verifier/src/index.ts"]
+      "@cerniq/audit-verifier": ["../../packages/audit-verifier/src/index.ts"]
     },
     "lib": ["ES2022"],
     "types": ["node", "vitest/globals"]

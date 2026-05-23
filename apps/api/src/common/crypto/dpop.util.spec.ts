@@ -9,8 +9,12 @@ import { encodeBase64Url } from './ed25519.util';
 
 class StubReplayCache implements ReplayCache {
   private readonly seen = new Set<string>();
-  async has(jti: string): Promise<boolean> { return this.seen.has(jti); }
-  async add(jti: string, _ttl: number): Promise<void> { this.seen.add(jti); }
+  async has(jti: string): Promise<boolean> {
+    return this.seen.has(jti);
+  }
+  async add(jti: string, _ttl: number): Promise<void> {
+    this.seen.add(jti);
+  }
 }
 
 async function makeKey(): Promise<{ priv: Uint8Array; pub: Uint8Array; jwk: DpopJwk }> {
@@ -39,60 +43,137 @@ async function signProof(args: {
 }
 
 describe('verifyDpopProof', () => {
-  const TOKEN = 'okoro_test_token_abcdef';
-  const URL = 'https://okoro.example.com/v1/verify';
+  const TOKEN = 'cerniq_test_token_abcdef';
+  const URL = 'https://cerniq.example.com/v1/verify';
 
   it('accepts a valid proof', async () => {
     const k = await makeKey();
-    const proof = await signProof({ priv: k.priv, jwk: k.jwk, htm: 'POST', htu: URL, iat: Math.floor(Date.now() / 1000), accessToken: TOKEN });
+    const proof = await signProof({
+      priv: k.priv,
+      jwk: k.jwk,
+      htm: 'POST',
+      htu: URL,
+      iat: Math.floor(Date.now() / 1000),
+      accessToken: TOKEN,
+    });
     const cache = new StubReplayCache();
-    const r = await verifyDpopProof(proof, { method: 'POST', url: URL, accessToken: TOKEN, replayCache: cache });
+    const r = await verifyDpopProof(proof, {
+      method: 'POST',
+      url: URL,
+      accessToken: TOKEN,
+      replayCache: cache,
+    });
     expect(r.valid).toBe(true);
     if (r.valid) expect(r.jkt).toBe(await jwkThumbprint(k.jwk));
   });
 
   it('rejects malformed proofs', async () => {
     const cache = new StubReplayCache();
-    const r = await verifyDpopProof('not.a.jwt.at.all', { method: 'POST', url: URL, accessToken: TOKEN, replayCache: cache });
+    const r = await verifyDpopProof('not.a.jwt.at.all', {
+      method: 'POST',
+      url: URL,
+      accessToken: TOKEN,
+      replayCache: cache,
+    });
     expect(r.valid).toBe(false);
     if (!r.valid) expect(r.reason).toBe('DPoP_MALFORMED');
   });
 
   it('rejects htm mismatch', async () => {
     const k = await makeKey();
-    const proof = await signProof({ priv: k.priv, jwk: k.jwk, htm: 'GET', htu: URL, iat: Math.floor(Date.now() / 1000), accessToken: TOKEN });
-    const r = await verifyDpopProof(proof, { method: 'POST', url: URL, accessToken: TOKEN, replayCache: new StubReplayCache() });
+    const proof = await signProof({
+      priv: k.priv,
+      jwk: k.jwk,
+      htm: 'GET',
+      htu: URL,
+      iat: Math.floor(Date.now() / 1000),
+      accessToken: TOKEN,
+    });
+    const r = await verifyDpopProof(proof, {
+      method: 'POST',
+      url: URL,
+      accessToken: TOKEN,
+      replayCache: new StubReplayCache(),
+    });
     expect(r.valid).toBe(false);
     if (!r.valid) expect(r.reason).toBe('DPoP_HTM_MISMATCH');
   });
 
   it('rejects htu mismatch (different path)', async () => {
     const k = await makeKey();
-    const proof = await signProof({ priv: k.priv, jwk: k.jwk, htm: 'POST', htu: 'https://okoro.example.com/v1/agents', iat: Math.floor(Date.now() / 1000), accessToken: TOKEN });
-    const r = await verifyDpopProof(proof, { method: 'POST', url: URL, accessToken: TOKEN, replayCache: new StubReplayCache() });
+    const proof = await signProof({
+      priv: k.priv,
+      jwk: k.jwk,
+      htm: 'POST',
+      htu: 'https://cerniq.example.com/v1/agents',
+      iat: Math.floor(Date.now() / 1000),
+      accessToken: TOKEN,
+    });
+    const r = await verifyDpopProof(proof, {
+      method: 'POST',
+      url: URL,
+      accessToken: TOKEN,
+      replayCache: new StubReplayCache(),
+    });
     expect(r.valid).toBe(false);
     if (!r.valid) expect(r.reason).toBe('DPoP_HTU_MISMATCH');
   });
 
   it('accepts htu with case-insensitive host + ignored fragment', async () => {
     const k = await makeKey();
-    const proof = await signProof({ priv: k.priv, jwk: k.jwk, htm: 'POST', htu: 'https://OKORO.EXAMPLE.COM/v1/verify#frag', iat: Math.floor(Date.now() / 1000), accessToken: TOKEN });
-    const r = await verifyDpopProof(proof, { method: 'POST', url: URL, accessToken: TOKEN, replayCache: new StubReplayCache() });
+    const proof = await signProof({
+      priv: k.priv,
+      jwk: k.jwk,
+      htm: 'POST',
+      htu: 'https://CERNIQ.EXAMPLE.COM/v1/verify#frag',
+      iat: Math.floor(Date.now() / 1000),
+      accessToken: TOKEN,
+    });
+    const r = await verifyDpopProof(proof, {
+      method: 'POST',
+      url: URL,
+      accessToken: TOKEN,
+      replayCache: new StubReplayCache(),
+    });
     expect(r.valid).toBe(true);
   });
 
   it('rejects clock skew beyond 30s', async () => {
     const k = await makeKey();
-    const proof = await signProof({ priv: k.priv, jwk: k.jwk, htm: 'POST', htu: URL, iat: Math.floor(Date.now() / 1000) - 600, accessToken: TOKEN });
-    const r = await verifyDpopProof(proof, { method: 'POST', url: URL, accessToken: TOKEN, replayCache: new StubReplayCache() });
+    const proof = await signProof({
+      priv: k.priv,
+      jwk: k.jwk,
+      htm: 'POST',
+      htu: URL,
+      iat: Math.floor(Date.now() / 1000) - 600,
+      accessToken: TOKEN,
+    });
+    const r = await verifyDpopProof(proof, {
+      method: 'POST',
+      url: URL,
+      accessToken: TOKEN,
+      replayCache: new StubReplayCache(),
+    });
     expect(r.valid).toBe(false);
     if (!r.valid) expect(r.reason).toBe('DPoP_CLOCK_SKEW');
   });
 
   it('rejects ath mismatch (token swap attack)', async () => {
     const k = await makeKey();
-    const proof = await signProof({ priv: k.priv, jwk: k.jwk, htm: 'POST', htu: URL, iat: Math.floor(Date.now() / 1000), accessToken: 'OTHER_TOKEN' });
-    const r = await verifyDpopProof(proof, { method: 'POST', url: URL, accessToken: TOKEN, replayCache: new StubReplayCache() });
+    const proof = await signProof({
+      priv: k.priv,
+      jwk: k.jwk,
+      htm: 'POST',
+      htu: URL,
+      iat: Math.floor(Date.now() / 1000),
+      accessToken: 'OTHER_TOKEN',
+    });
+    const r = await verifyDpopProof(proof, {
+      method: 'POST',
+      url: URL,
+      accessToken: TOKEN,
+      replayCache: new StubReplayCache(),
+    });
     expect(r.valid).toBe(false);
     if (!r.valid) expect(r.reason).toBe('DPoP_ATH_MISMATCH');
   });
@@ -102,10 +183,28 @@ describe('verifyDpopProof', () => {
     const cache = new StubReplayCache();
     const jti = ulid();
     const iat = Math.floor(Date.now() / 1000);
-    const proof = await signProof({ priv: k.priv, jwk: k.jwk, htm: 'POST', htu: URL, iat, jti, accessToken: TOKEN });
-    const r1 = await verifyDpopProof(proof, { method: 'POST', url: URL, accessToken: TOKEN, replayCache: cache });
+    const proof = await signProof({
+      priv: k.priv,
+      jwk: k.jwk,
+      htm: 'POST',
+      htu: URL,
+      iat,
+      jti,
+      accessToken: TOKEN,
+    });
+    const r1 = await verifyDpopProof(proof, {
+      method: 'POST',
+      url: URL,
+      accessToken: TOKEN,
+      replayCache: cache,
+    });
     expect(r1.valid).toBe(true);
-    const r2 = await verifyDpopProof(proof, { method: 'POST', url: URL, accessToken: TOKEN, replayCache: cache });
+    const r2 = await verifyDpopProof(proof, {
+      method: 'POST',
+      url: URL,
+      accessToken: TOKEN,
+      replayCache: cache,
+    });
     expect(r2.valid).toBe(false);
     if (!r2.valid) expect(r2.reason).toBe('DPoP_REPLAY');
   });
@@ -113,16 +212,36 @@ describe('verifyDpopProof', () => {
   it('rejects jkt mismatch when cnf.jkt is supplied', async () => {
     const k1 = await makeKey();
     const k2 = await makeKey();
-    const proof = await signProof({ priv: k1.priv, jwk: k1.jwk, htm: 'POST', htu: URL, iat: Math.floor(Date.now() / 1000), accessToken: TOKEN });
+    const proof = await signProof({
+      priv: k1.priv,
+      jwk: k1.jwk,
+      htm: 'POST',
+      htu: URL,
+      iat: Math.floor(Date.now() / 1000),
+      accessToken: TOKEN,
+    });
     const wrongJkt = await jwkThumbprint(k2.jwk);
-    const r = await verifyDpopProof(proof, { method: 'POST', url: URL, accessToken: TOKEN, replayCache: new StubReplayCache(), expectedJkt: wrongJkt });
+    const r = await verifyDpopProof(proof, {
+      method: 'POST',
+      url: URL,
+      accessToken: TOKEN,
+      replayCache: new StubReplayCache(),
+      expectedJkt: wrongJkt,
+    });
     expect(r.valid).toBe(false);
     if (!r.valid) expect(r.reason).toBe('DPoP_JKT_MISMATCH');
   });
 
   it('rejects tampered signature', async () => {
     const k = await makeKey();
-    const proof = await signProof({ priv: k.priv, jwk: k.jwk, htm: 'POST', htu: URL, iat: Math.floor(Date.now() / 1000), accessToken: TOKEN });
+    const proof = await signProof({
+      priv: k.priv,
+      jwk: k.jwk,
+      htm: 'POST',
+      htu: URL,
+      iat: Math.floor(Date.now() / 1000),
+      accessToken: TOKEN,
+    });
     const [h, p, s] = proof.split('.');
     // Deterministic mutation: XOR the first byte of the 64-byte signature.
     // `s.slice(0, -2) + 'AA'` is flaky — if the last byte is already 0, the
@@ -130,7 +249,12 @@ describe('verifyDpopProof', () => {
     const sigBytes = Buffer.from(s, 'base64url');
     sigBytes[0] ^= 0xff; // always produces a different byte, never a no-op
     const tampered = `${h}.${p}.${Buffer.from(sigBytes).toString('base64url')}`;
-    const r = await verifyDpopProof(tampered, { method: 'POST', url: URL, accessToken: TOKEN, replayCache: new StubReplayCache() });
+    const r = await verifyDpopProof(tampered, {
+      method: 'POST',
+      url: URL,
+      accessToken: TOKEN,
+      replayCache: new StubReplayCache(),
+    });
     expect(r.valid).toBe(false);
     if (!r.valid) expect(r.reason).toBe('DPoP_SIGNATURE');
   });
@@ -139,8 +263,19 @@ describe('verifyDpopProof', () => {
 describe('jwkThumbprint', () => {
   it('matches the RFC 7638 canonical-form sha256', async () => {
     // Test vector built by hand: known ed25519 public key, hand-canonicalized.
-    const jwk: DpopJwk = { kty: 'OKP', crv: 'Ed25519', x: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' };
-    const expected = encodeBase64Url(createHash('sha256').update('{"crv":"Ed25519","kty":"OKP","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}', 'utf8').digest());
+    const jwk: DpopJwk = {
+      kty: 'OKP',
+      crv: 'Ed25519',
+      x: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+    };
+    const expected = encodeBase64Url(
+      createHash('sha256')
+        .update(
+          '{"crv":"Ed25519","kty":"OKP","x":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}',
+          'utf8',
+        )
+        .digest(),
+    );
     expect(await jwkThumbprint(jwk)).toBe(expected);
   });
 });

@@ -29,7 +29,12 @@ interface Recorded {
   apiKeys: Array<{ id: string; principalId: string; data: Record<string, unknown> }>;
   agents: Array<{ id: string; principalId: string; data: Record<string, unknown> }>;
   policies: Array<{ id: string; agentId: string; data: Record<string, unknown> }>;
-  webhooks: Array<{ id: string; principalId: string; secret: string; data: Record<string, unknown> }>;
+  webhooks: Array<{
+    id: string;
+    principalId: string;
+    secret: string;
+    data: Record<string, unknown>;
+  }>;
   bateSignals: Array<{ id: string; data: Record<string, unknown> }>;
   auditEvents: Array<{ id: string; data: Record<string, unknown> }>;
   deletedSuffixes: string[];
@@ -94,7 +99,11 @@ function buildPrisma(): { prisma: DemoPrisma; rec: Recorded } {
           secret: String(args.data.secret),
           data: args.data,
         });
-        return { id: wid, principalId: String(args.data.principalId), secret: String(args.data.secret) };
+        return {
+          id: wid,
+          principalId: String(args.data.principalId),
+          secret: String(args.data.secret),
+        };
       },
     },
     bateSignal: {
@@ -131,9 +140,9 @@ function buildCipher(): DemoCipher {
 // ──────────────────────────────────────────────────────────────────
 
 describe('mintApiKeyPlaintext', () => {
-  it('produces okoro_sk_-prefixed plaintext with stable prefix slice', () => {
+  it('produces cerniq_sk_-prefixed plaintext with stable prefix slice', () => {
     const k = mintApiKeyPlaintext();
-    expect(k.plaintext.startsWith('okoro_sk_')).toBe(true);
+    expect(k.plaintext.startsWith('cerniq_sk_')).toBe(true);
     expect(k.prefix).toBe(k.plaintext.slice(0, 12));
   });
 });
@@ -205,9 +214,12 @@ describe('planAgentEvents', () => {
     expect(denied.length).toBeGreaterThanOrEqual(20); // > 10%
     expect(denied.length).toBeLessThanOrEqual(60); // < 30%
     for (const d of denied) {
-      expect(['INVALID_SIGNATURE', 'SCOPE_NOT_GRANTED', 'SPEND_LIMIT_EXCEEDED', 'TRUST_SCORE_TOO_LOW']).toContain(
-        d.denialReason,
-      );
+      expect([
+        'INVALID_SIGNATURE',
+        'SCOPE_NOT_GRANTED',
+        'SPEND_LIMIT_EXCEEDED',
+        'TRUST_SCORE_TOO_LOW',
+      ]).toContain(d.denialReason);
     }
   });
 });
@@ -224,7 +236,11 @@ describe('signAuditChain + verifySignedChain', () => {
       endTime: new Date('2026-05-05T00:00:00Z'),
       rng: deterministicRng(3),
     });
-    const signed = await signAuditChain({ events: planned, privateKey: priv, partitionBy: 'agentId' });
+    const signed = await signAuditChain({
+      events: planned,
+      privateKey: priv,
+      partitionBy: 'agentId',
+    });
     const verify = await verifySignedChain(signed, pub, 'agentId');
     expect(verify).toEqual({ ok: true });
   });
@@ -240,10 +256,21 @@ describe('signAuditChain + verifySignedChain', () => {
       endTime: new Date('2026-05-05T00:00:00Z'),
       rng: deterministicRng(11),
     });
-    const signed = await signAuditChain({ events: planned, privateKey: priv, partitionBy: 'agentId' });
+    const signed = await signAuditChain({
+      events: planned,
+      privateKey: priv,
+      partitionBy: 'agentId',
+    });
     // Tamper with the third event's signature byte.
     const tampered = signed.map((s, i) =>
-      i === 2 ? { ...s, okoroSignature: Buffer.from(s.okoroSignature, 'base64url').reverse().toString('base64url') } : s,
+      i === 2
+        ? {
+            ...s,
+            cerniqSignature: Buffer.from(s.cerniqSignature, 'base64url')
+              .reverse()
+              .toString('base64url'),
+          }
+        : s,
     );
     const verify = await verifySignedChain(tampered, pub, 'agentId');
     expect(verify.ok).toBe(false);
@@ -262,7 +289,11 @@ describe('signAuditChain + verifySignedChain', () => {
       endTime: new Date('2026-05-05T00:00:00Z'),
       rng: deterministicRng(99),
     });
-    const signed = await signAuditChain({ events: planned, privateKey: priv, partitionBy: 'agentId' });
+    const signed = await signAuditChain({
+      events: planned,
+      privateKey: priv,
+      partitionBy: 'agentId',
+    });
     expect(signed[0]!.prevEventId).toBeNull();
     for (let i = 1; i < signed.length; i++) {
       expect(signed[i]!.prevEventId).toBe(signed[i - 1]!.id);
@@ -312,7 +343,7 @@ describe('runSeedDemo', () => {
     expect(outcome.totalBateSignals).toBe(57);
   });
 
-  it('idempotent: re-runs delete @okoro-demo.test rows before recreating', async () => {
+  it('idempotent: re-runs delete @cerniq-demo.test rows before recreating', async () => {
     const { prisma, rec } = buildPrisma();
     const cipher = buildCipher();
     await runSeedDemo(prisma, cipher, { dryRun: false, resetOnly: false });
@@ -405,8 +436,8 @@ describe('runSeedDemo', () => {
     await runSeedDemo(prisma, cipher, { dryRun: false, resetOnly: false });
     expect(rec.auditEvents.length).toBe(60);
     for (const ev of rec.auditEvents) {
-      expect(typeof ev.data.okoroSignature).toBe('string');
-      expect(String(ev.data.okoroSignature).length).toBeGreaterThan(40);
+      expect(typeof ev.data.cerniqSignature).toBe('string');
+      expect(String(ev.data.cerniqSignature).length).toBeGreaterThan(40);
       expect(ev.data.payloadVersion).toBe(2);
     }
   });
@@ -417,7 +448,7 @@ describe('runSeedDemo', () => {
 // ──────────────────────────────────────────────────────────────────
 
 describe('PERSONAS', () => {
-  it('uses the @okoro-demo.test suffix for every persona email', () => {
+  it('uses the @cerniq-demo.test suffix for every persona email', () => {
     for (const p of PERSONAS) {
       expect(p.email.endsWith(DEMO_EMAIL_SUFFIX)).toBe(true);
     }

@@ -1,8 +1,8 @@
 #!/usr/bin/env -S node --import=tsx
-// OKORO — OpenAPI ↔ Prisma parity gate (workspace-scoped to @okoro/api).
+// CERNIQ — OpenAPI ↔ Prisma parity gate (workspace-scoped to @cerniq/api).
 //
 // CI entry point: spec-sync.yml job-2 invokes this exact path:
-//   pnpm -F @okoro/api exec tsx scripts/check-openapi-prisma-parity.ts
+//   pnpm -F @cerniq/api exec tsx scripts/check-openapi-prisma-parity.ts
 //
 // What we check (high-signal, low-noise):
 //   1. Every Prisma `enum` whose name maps to an OpenAPI component (or to
@@ -17,7 +17,7 @@
 //
 // What we DO NOT check (deliberately):
 //   - Field types — Prisma's optional/nullable/relation rules don't map
-//     1:1 to OpenAPI. Type checking lives in the @okoro/types Zod
+//     1:1 to OpenAPI. Type checking lives in the @cerniq/types Zod
 //     parity script.
 //   - Internal models (Principal, ApiKey, BateSignal, OutboxEvent, …).
 //     They are not part of the public surface; they ship through
@@ -42,16 +42,15 @@ function getScriptPaths() {
   // In CJS (Jest / ts-jest), the runtime injects `__dirname`.
   // When run natively as an ESM script (tsx / node --import=tsx),
   // __dirname is undefined so we fall back to cwd — which is always
-  // apps/api/ when invoked via `pnpm -F @okoro/api exec tsx scripts/...`
-  const scriptDir: string =
-    typeof __dirname !== 'undefined' ? resolve(__dirname) : process.cwd();
+  // apps/api/ when invoked via `pnpm -F @cerniq/api exec tsx scripts/...`
+  const scriptDir: string = typeof __dirname !== 'undefined' ? resolve(__dirname) : process.cwd();
   const APP_ROOT = resolve(scriptDir, '..');
   const REPO_ROOT = resolve(APP_ROOT, '..', '..');
   return {
     APP_ROOT,
     REPO_ROOT,
     PRISMA_PATH: join(APP_ROOT, 'prisma', 'schema.prisma'),
-    SPEC_PATH: join(REPO_ROOT, 'docs', 'spec', 'OKORO_API_SPEC.yaml'),
+    SPEC_PATH: join(REPO_ROOT, 'docs', 'spec', 'CERNIQ_API_SPEC.yaml'),
     REPORT_PATH: join(REPO_ROOT, 'spec-sync.json'),
   };
 }
@@ -223,13 +222,13 @@ const MODEL_MAPPINGS: readonly ModelMapping[] = [
     // Wire renames: the API DTO (apps/api/src/modules/audit/audit.dto.ts)
     // surfaces these Prisma columns under different names. `denialReason`
     // is the Prisma storage column; the wire calls it `decisionReason`
-    // (broader semantic — covers approve/flag context too). `okoroSignature`
+    // (broader semantic — covers approve/flag context too). `cerniqSignature`
     // is the storage column; the wire calls it `signature` (consumer-facing).
     renames: {
       id: 'eventId',
       createdAt: 'timestamp',
       denialReason: 'decisionReason',
-      okoroSignature: 'signature',
+      cerniqSignature: 'signature',
     },
     internalFields: new Set([
       'agent',
@@ -373,10 +372,7 @@ function diffModel(
   };
 }
 
-function diffEnum(
-  prismaEnum: PrismaEnum,
-  components: Record<string, SchemaNode>,
-): EnumReport {
+function diffEnum(prismaEnum: PrismaEnum, components: Record<string, SchemaNode>): EnumReport {
   const apiName = ENUM_MAPPINGS[prismaEnum.name];
   if (!apiName) {
     return {
@@ -478,8 +474,7 @@ async function main(): Promise<number> {
   const enumReports: EnumReport[] = Array.from(enums.values()).map((e) => diffEnum(e, components));
 
   const failed =
-    modelReports.some((r) => r.status !== 'ok') ||
-    enumReports.some((r) => r.status === 'drift'); // 'missing' is informational
+    modelReports.some((r) => r.status !== 'ok') || enumReports.some((r) => r.status === 'drift'); // 'missing' is informational
 
   const report: DriftReport = {
     generatedAt: new Date().toISOString(),
@@ -507,14 +502,18 @@ function formatTable(report: DriftReport): string {
   lines.push('─'.repeat(96));
   for (const r of report.models) {
     const tag = r.status === 'ok' ? '   ✓ ok' : r.status === 'missing' ? ' ✗ MISSING' : ' ✗ DRIFT';
-    lines.push(`${(r.prismaModel + ' → ' + r.openapiComponent).padEnd(50)}${tag.padEnd(11)}${r.detail}`);
+    lines.push(
+      `${(r.prismaModel + ' → ' + r.openapiComponent).padEnd(50)}${tag.padEnd(11)}${r.detail}`,
+    );
   }
   lines.push('');
   lines.push('Prisma enum → OpenAPI enum (case-folded)');
   lines.push('─'.repeat(96));
   for (const e of report.enums) {
     const tag = e.status === 'ok' ? '   ✓ ok' : e.status === 'missing' ? ' ⓘ no map' : ' ✗ DRIFT';
-    lines.push(`${(e.prismaEnum + (e.openapiComponentOrProperty ? ' → ' + e.openapiComponentOrProperty : '')).padEnd(50)}${tag.padEnd(11)}${e.detail}`);
+    lines.push(
+      `${(e.prismaEnum + (e.openapiComponentOrProperty ? ' → ' + e.openapiComponentOrProperty : '')).padEnd(50)}${tag.padEnd(11)}${e.detail}`,
+    );
   }
   lines.push('');
   return lines.join('\n');
@@ -529,7 +528,9 @@ if (isMain) {
   main()
     .then(exit)
     .catch((err: unknown) => {
-      stderr.write(`spec-sync: fatal — ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
+      stderr.write(
+        `spec-sync: fatal — ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`,
+      );
       exit(2);
     });
 }

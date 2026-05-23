@@ -6,8 +6,8 @@
 import type { Metadata } from 'next';
 
 import {
-  OkoroApiError,
-  OkoroAuthMissingError,
+  CerniqApiError,
+  CerniqAuthMissingError,
   listAgents,
   listPolicies,
   type AgentRow,
@@ -17,7 +17,7 @@ import { authConfigured } from '../../lib/auth';
 import { relativeTime, shortId, statusTone } from '../../lib/format';
 
 export const metadata: Metadata = {
-  title: 'Policies · OKORO',
+  title: 'Policies · CERNIQ',
 };
 
 const MAX_AGENT_FANOUT = 50;
@@ -35,16 +35,20 @@ interface AggregatedResult {
   agentsWithErrors: number;
 }
 
-async function fetchAggregatedPolicies(): Promise<AggregatedResult | { error: { code: string; message: string } }> {
+async function fetchAggregatedPolicies(): Promise<
+  AggregatedResult | { error: { code: string; message: string } }
+> {
   let agentList;
   try {
     agentList = await listAgents({ limit: MAX_AGENT_FANOUT });
   } catch (err) {
-    if (err instanceof OkoroAuthMissingError) {
-      return { error: { code: err.code, message: 'Set OKORO_DASHBOARD_API_KEY to populate this view.' } };
+    if (err instanceof CerniqAuthMissingError) {
+      return {
+        error: { code: err.code, message: 'Set CERNIQ_DASHBOARD_API_KEY to populate this view.' },
+      };
     }
-    if (err instanceof OkoroApiError) return { error: { code: err.code, message: err.message } };
-    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting OKORO API.' } };
+    if (err instanceof CerniqApiError) return { error: { code: err.code, message: err.message } };
+    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting CERNIQ API.' } };
   }
 
   const aggregated: AggregatedPolicy[] = [];
@@ -85,18 +89,20 @@ export default async function PoliciesPage() {
   const data = await fetchAggregatedPolicies();
 
   return (
-    <section className="okoro-page">
-      <header className="okoro-page-header">
+    <section className="cerniq-page">
+      <header className="cerniq-page-header">
         <h1>Policies</h1>
         <p className="muted">
-          Scoped, time-bounded permissions. Each row is an OKORO-signed JWT issued to a specific
+          Scoped, time-bounded permissions. Each row is an CERNIQ-signed JWT issued to a specific
           agent. Revoking propagates to the verify hot path within seconds.
         </p>
       </header>
 
       {!authConfigured() ? (
         <div className="data-empty">
-          <p>Set <code>OKORO_DASHBOARD_API_KEY</code> to populate this view.</p>
+          <p>
+            Set <code>CERNIQ_DASHBOARD_API_KEY</code> to populate this view.
+          </p>
         </div>
       ) : 'error' in data ? (
         <div className="data-empty error" role="alert">
@@ -146,42 +152,44 @@ export default async function PoliciesPage() {
             <div className="data-empty">
               <p>No policies issued.</p>
               <pre className="hint">{`# from your terminal:
-okoro policy create --agent agt_… --scope commerce.purchase --max 100USD --ttl 24h`}</pre>
+cerniq policy create --agent agt_… --scope commerce.purchase --max 100USD --ttl 24h`}</pre>
             </div>
           ) : (
             <div className="table-scroll">
-            <table className="data-table dense" aria-label="Active policies">
-              <thead>
-                <tr>
-                  <th>policy id</th>
-                  <th>agent</th>
-                  <th>label</th>
-                  <th>status</th>
-                  <th>scopes</th>
-                  <th>expires</th>
-                  <th>created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.policies.map(({ agent, policy }) => (
-                  <tr key={policy.policyId}>
-                    <td className="mono">{shortId(policy.policyId, 8, 4)}</td>
-                    <td className="mono">
-                      <a href={`/agents/${encodeURIComponent(agent.agentId)}`}>
-                        {shortId(agent.agentId, 6, 4)}
-                      </a>
-                    </td>
-                    <td className="dim">{policy.label ?? '–'}</td>
-                    <td>
-                      <span className={`badge badge-${statusTone(policy.status)}`}>{policy.status}</span>
-                    </td>
-                    <td className="num">{policy.scopes.length}</td>
-                    <td className="dim">{relativeTime(policy.expiresAt)}</td>
-                    <td className="dim">{relativeTime(policy.createdAt)}</td>
+              <table className="data-table dense" aria-label="Active policies">
+                <thead>
+                  <tr>
+                    <th>policy id</th>
+                    <th>agent</th>
+                    <th>label</th>
+                    <th>status</th>
+                    <th>scopes</th>
+                    <th>expires</th>
+                    <th>created</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data.policies.map(({ agent, policy }) => (
+                    <tr key={policy.policyId}>
+                      <td className="mono">{shortId(policy.policyId, 8, 4)}</td>
+                      <td className="mono">
+                        <a href={`/agents/${encodeURIComponent(agent.agentId)}`}>
+                          {shortId(agent.agentId, 6, 4)}
+                        </a>
+                      </td>
+                      <td className="dim">{policy.label ?? '–'}</td>
+                      <td>
+                        <span className={`badge badge-${statusTone(policy.status)}`}>
+                          {policy.status}
+                        </span>
+                      </td>
+                      <td className="num">{policy.scopes.length}</td>
+                      <td className="dim">{relativeTime(policy.expiresAt)}</td>
+                      <td className="dim">{relativeTime(policy.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </>
@@ -190,7 +198,15 @@ okoro policy create --agent agt_… --scope commerce.purchase --max 100USD --ttl
   );
 }
 
-function Metric({ label, value, tone }: { label: string; value: string; tone?: 'ok' | 'warn' | 'crit' | 'muted' }) {
+function Metric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: 'ok' | 'warn' | 'crit' | 'muted';
+}) {
   return (
     <div className={`metric ${tone ? `metric-${tone}` : ''}`}>
       <dt>{label}</dt>

@@ -33,9 +33,9 @@ export async function generateMetadata(props: { params: Promise<{ slug?: string[
   return {
     // page.data is typed `any` by fumadocs source; coerce explicitly to
     // satisfy @typescript-eslint/restrict-template-expressions. A non-
-    // string title renders visibly (e.g. "[object Object] · OKORO Docs"),
+    // string title renders visibly (e.g. "[object Object] · CERNIQ Docs"),
     // so misformatted frontmatter fails loud rather than silent.
-    title: `${String(page.data.title)} · OKORO Docs`,
+    title: `${String(page.data.title)} · CERNIQ Docs`,
     description: page.data.description as string | undefined,
   };
 }

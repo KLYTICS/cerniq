@@ -1,10 +1,10 @@
-# Cloudflare Worker for the OKORO verify hot path. Phase 3.
+# Cloudflare Worker for the CERNIQ verify hot path. Phase 3.
 #
 # DO NOT DEPLOY UNTIL Phase 3 is unlocked (see CLAUDE.md / WORK_BOARD.md).
 # This file exists so the worker shape and bindings are checked in early —
 # Phase 3 work is "wire it up", not "design it from scratch".
 
-name = "okoro-cf-verify"
+name = "cerniq-cf-verify"
 main = "src/index.ts"
 compatibility_date = "2026-04-01"
 compatibility_flags = ["nodejs_compat"]
@@ -24,20 +24,20 @@ binding = "TRUST_KV"
 id = "REPLACE_ME_AT_DEPLOY"
 
 # D1 (or HTTP origin fallback) for agent/policy lookups when KV misses.
-# We start with HTTP fallback to the origin API (`OKORO_ORIGIN_URL`) and
+# We start with HTTP fallback to the origin API (`CERNIQ_ORIGIN_URL`) and
 # move to D1 in Phase 3.5 once the replication path is proven.
 # [[d1_databases]]
-# binding = "OKORO_DB"
-# database_name = "okoro-edge"
+# binding = "CERNIQ_DB"
+# database_name = "cerniq-edge"
 # database_id = "REPLACE_ME_AT_DEPLOY"
 
 [vars]
-OKORO_ORIGIN_URL = "https://api.okoroapp.com"
-OKORO_VERIFY_TIMEOUT_MS = "1500"
+CERNIQ_ORIGIN_URL = "https://api.cerniqapp.com"
+CERNIQ_VERIFY_TIMEOUT_MS = "1500"
 
 # Secrets (set via `wrangler secret put`):
-#   OKORO_AUDIT_PUBLIC_KEY_B64   — to verify audit chain entries at the edge
-#   OKORO_FALLBACK_API_KEY        — verify-key used when falling back to origin
+#   CERNIQ_AUDIT_PUBLIC_KEY_B64   — to verify audit chain entries at the edge
+#   CERNIQ_FALLBACK_API_KEY        — verify-key used when falling back to origin
 
 [[durable_objects.bindings]]
 name = "RATE_LIMITER"

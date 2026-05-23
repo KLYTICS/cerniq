@@ -1,5 +1,5 @@
 ---
-title: OKORO — Integration Map
+title: CERNIQ — Integration Map
 audience: every contributor confused about which doc governs what
 last-reviewed: 2026-05-08
 status: source-of-truth — v1
@@ -62,44 +62,44 @@ status: source-of-truth — v1
 ```
 
 The doc map is hierarchical. Higher docs supersede lower in conflicts.
-The execution OS in this folder sits *below* CLAUDE.md and the
-canonical specs (it cannot override invariants), and *above* the
+The execution OS in this folder sits _below_ CLAUDE.md and the
+canonical specs (it cannot override invariants), and _above_ the
 day-to-day artifacts (it governs how they get produced).
 
 ---
 
 ## 2. Per-surface ownership matrix
 
-Every product surface OKORO ships maps to a department owner, an
+Every product surface CERNIQ ships maps to a department owner, an
 agent role typically performing the work, and the canonical doc(s)
 that govern it.
 
-| Surface | Department owner | Typical agent role | Governing docs |
-|---|---|---|---|
-| `apps/api` (verify path) | Engineering + Security | Architect → Implementer → Reviewer → Security | CLAUDE.md, SECURITY.md, ARCHITECTURE.md, ADRs |
-| `apps/api` (audit chain) | Engineering + Security | Same as above + Compliance | CLAUDE.md, IMMUTABILITY.md, ADR-0005, ADR-0006 |
-| `apps/api` (policy engine) | Engineering | Architect → Implementer → Reviewer | CLAUDE.md, ARCHITECTURE.md |
-| `apps/api` (BATE) | Engineering + Product + Security | Architect → Implementer → Reviewer → Security | BATE_ALGORITHM.md, ARCHITECTURE.md |
-| `apps/api` (billing/plans) | Engineering + Product + Finance | Architect → Implementer → Reviewer | spec/04_COMMERCIAL_STRATEGY.md, plans.ts |
-| `apps/dashboard` | Engineering + Design | Designer + Implementer → Reviewer | docs/design/02_DASHBOARD_PROMPTS.md, brand foundation |
-| `apps/marketing` | Design + GTM + Engineering | Designer → Implementer → Documenter → Reviewer (multi-role) | docs/design/01_MARKETING_SITE_PROMPTS.md, brand foundation |
-| `apps/docs` | Engineering + Documenter + Design | Documenter → Designer → Implementer | docs/design/03_DOCS_SITE_PROMPTS.md, brand foundation |
-| `packages/sdk-ts` | Engineering + Standards | Architect → Implementer → Reviewer → Security | CLAUDE.md, ARCHITECTURE.md, OpenAPI spec |
-| `packages/sdk-py` | Engineering + Standards | Same as sdk-ts | Same as sdk-ts |
-| `packages/types` | Engineering | Architect → Implementer → Reviewer | spec/OKORO_API_SPEC.yaml |
-| `packages/ui-brand` | Design + Engineering | Designer → Implementer → Reviewer | docs/design/04_BRAND_IDENTITY_PROMPTS.md |
-| `workers/cf-verify` | Engineering + Security | Architect → Implementer → Reviewer → Security | CLAUDE.md inv-2 (portable verify path) |
-| Threat model | Security | Architect → Security | THREAT_MODEL_v2.md |
-| Compliance posture | Compliance + Security | Compliance | COMPLIANCE.md, audit_2026q2/ |
-| Pitch deck (investor) | IR + Operator | IR + Documenter + Designer | docs/design/05_PITCH_DECK_PROMPTS.md, public-co bar |
-| Pitch deck (enterprise) | GTM + Customer Success | Documenter + Designer | docs/design/05_PITCH_DECK_PROMPTS.md |
-| Customer integration runbook | Customer Success + Engineering | Documenter | docs/INTEGRATION_GUIDE_*.md |
-| Monthly board update | IR + Operator | IR | execution/05_PUBLIC_COMPANY_READINESS.md § 8 |
-| Customer contract | Legal + GTM | Legal | docs/legal/ (when canonicalized) |
-| Privacy policy / ToS | Legal + Compliance | Legal + Documenter | docs/legal/ |
-| Data room artifact | Per-source-doc owner | (varies) | execution/05 § 7 |
-| Incident postmortem | Security + Engineering + Customer Success | Security + Documenter | INCIDENT_RESPONSE.md, INCIDENT_RUNBOOK.md |
-| Material event log | IR + Compliance | IR | execution/05 § 6 |
+| Surface                      | Department owner                          | Typical agent role                                          | Governing docs                                             |
+| ---------------------------- | ----------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------- |
+| `apps/api` (verify path)     | Engineering + Security                    | Architect → Implementer → Reviewer → Security               | CLAUDE.md, SECURITY.md, ARCHITECTURE.md, ADRs              |
+| `apps/api` (audit chain)     | Engineering + Security                    | Same as above + Compliance                                  | CLAUDE.md, IMMUTABILITY.md, ADR-0005, ADR-0006             |
+| `apps/api` (policy engine)   | Engineering                               | Architect → Implementer → Reviewer                          | CLAUDE.md, ARCHITECTURE.md                                 |
+| `apps/api` (BATE)            | Engineering + Product + Security          | Architect → Implementer → Reviewer → Security               | BATE_ALGORITHM.md, ARCHITECTURE.md                         |
+| `apps/api` (billing/plans)   | Engineering + Product + Finance           | Architect → Implementer → Reviewer                          | spec/04_COMMERCIAL_STRATEGY.md, plans.ts                   |
+| `apps/dashboard`             | Engineering + Design                      | Designer + Implementer → Reviewer                           | docs/design/02_DASHBOARD_PROMPTS.md, brand foundation      |
+| `apps/marketing`             | Design + GTM + Engineering                | Designer → Implementer → Documenter → Reviewer (multi-role) | docs/design/01_MARKETING_SITE_PROMPTS.md, brand foundation |
+| `apps/docs`                  | Engineering + Documenter + Design         | Documenter → Designer → Implementer                         | docs/design/03_DOCS_SITE_PROMPTS.md, brand foundation      |
+| `packages/sdk-ts`            | Engineering + Standards                   | Architect → Implementer → Reviewer → Security               | CLAUDE.md, ARCHITECTURE.md, OpenAPI spec                   |
+| `packages/sdk-py`            | Engineering + Standards                   | Same as sdk-ts                                              | Same as sdk-ts                                             |
+| `packages/types`             | Engineering                               | Architect → Implementer → Reviewer                          | spec/CERNIQ_API_SPEC.yaml                                  |
+| `packages/ui-brand`          | Design + Engineering                      | Designer → Implementer → Reviewer                           | docs/design/04_BRAND_IDENTITY_PROMPTS.md                   |
+| `workers/cf-verify`          | Engineering + Security                    | Architect → Implementer → Reviewer → Security               | CLAUDE.md inv-2 (portable verify path)                     |
+| Threat model                 | Security                                  | Architect → Security                                        | THREAT_MODEL_v2.md                                         |
+| Compliance posture           | Compliance + Security                     | Compliance                                                  | COMPLIANCE.md, audit_2026q2/                               |
+| Pitch deck (investor)        | IR + Operator                             | IR + Documenter + Designer                                  | docs/design/05_PITCH_DECK_PROMPTS.md, public-co bar        |
+| Pitch deck (enterprise)      | GTM + Customer Success                    | Documenter + Designer                                       | docs/design/05_PITCH_DECK_PROMPTS.md                       |
+| Customer integration runbook | Customer Success + Engineering            | Documenter                                                  | docs/INTEGRATION*GUIDE*\*.md                               |
+| Monthly board update         | IR + Operator                             | IR                                                          | execution/05_PUBLIC_COMPANY_READINESS.md § 8               |
+| Customer contract            | Legal + GTM                               | Legal                                                       | docs/legal/ (when canonicalized)                           |
+| Privacy policy / ToS         | Legal + Compliance                        | Legal + Documenter                                          | docs/legal/                                                |
+| Data room artifact           | Per-source-doc owner                      | (varies)                                                    | execution/05 § 7                                           |
+| Incident postmortem          | Security + Engineering + Customer Success | Security + Documenter                                       | INCIDENT_RESPONSE.md, INCIDENT_RUNBOOK.md                  |
+| Material event log           | IR + Compliance                           | IR                                                          | execution/05 § 6                                           |
 
 ---
 
@@ -107,31 +107,31 @@ that govern it.
 
 For any task, what gates apply (from `04_QUALITY_GATES.md`)?
 
-| Task type | Code | Security | Design | Docs | Compliance | Narrative |
-|---|---|---|---|---|---|---|
-| Bug fix in apps/api | ● | ● | | ● | | ● |
-| New crypto code | ● | ● | | ● | ● | ● |
-| New denial reason | ● | ● | | ● | ● | ● |
-| Audit chain change | ● | ● | | ● | ● | ● |
-| Dashboard UI feature | ● | ● | ● | ● | | ● |
-| Marketing page | | | ● | ● | ● | ● |
-| Docs page (concept) | | | | ● | | ● |
-| API ref update | | | | ● | | ● |
-| Brand foundation change | | | ● | | | ● |
-| Identity (logo) refresh | | | ● | | | ● |
-| Pricing change (code) | ● | | | ● | ● | ● |
-| Pricing change (page) | | | ● | ● | ● | ● |
-| New customer contract | | | | | ● | ● |
-| New sub-processor | | ● | | ● | ● | ● |
-| Compliance claim | | ● | | ● | ● | ● |
-| Investor deck | | | ● | ● | ● | ● |
-| Board update | | | | ● | ● | ● |
-| Threat model update | | ● | | ● | ● | ● |
-| Incident postmortem | | ● | | ● | ● | ● |
-| Customer-facing release note | ● | ● | | ● | ● | ● |
-| Internal SESSION_HANDOFF entry | | | | | | ● |
-| ADR (architectural) | | (if relevant) | | | | ● |
-| ADR (security/audit) | | ● | | | ● | ● |
+| Task type                      | Code | Security      | Design | Docs | Compliance | Narrative |
+| ------------------------------ | ---- | ------------- | ------ | ---- | ---------- | --------- |
+| Bug fix in apps/api            | ●    | ●             |        | ●    |            | ●         |
+| New crypto code                | ●    | ●             |        | ●    | ●          | ●         |
+| New denial reason              | ●    | ●             |        | ●    | ●          | ●         |
+| Audit chain change             | ●    | ●             |        | ●    | ●          | ●         |
+| Dashboard UI feature           | ●    | ●             | ●      | ●    |            | ●         |
+| Marketing page                 |      |               | ●      | ●    | ●          | ●         |
+| Docs page (concept)            |      |               |        | ●    |            | ●         |
+| API ref update                 |      |               |        | ●    |            | ●         |
+| Brand foundation change        |      |               | ●      |      |            | ●         |
+| Identity (logo) refresh        |      |               | ●      |      |            | ●         |
+| Pricing change (code)          | ●    |               |        | ●    | ●          | ●         |
+| Pricing change (page)          |      |               | ●      | ●    | ●          | ●         |
+| New customer contract          |      |               |        |      | ●          | ●         |
+| New sub-processor              |      | ●             |        | ●    | ●          | ●         |
+| Compliance claim               |      | ●             |        | ●    | ●          | ●         |
+| Investor deck                  |      |               | ●      | ●    | ●          | ●         |
+| Board update                   |      |               |        | ●    | ●          | ●         |
+| Threat model update            |      | ●             |        | ●    | ●          | ●         |
+| Incident postmortem            |      | ●             |        | ●    | ●          | ●         |
+| Customer-facing release note   | ●    | ●             |        | ●    | ●          | ●         |
+| Internal SESSION_HANDOFF entry |      |               |        |      |            | ●         |
+| ADR (architectural)            |      | (if relevant) |        |      |            | ●         |
+| ADR (security/audit)           |      | ●             |        |      | ●          | ●         |
 
 Use this table to size review rigor. A change that lights up Code +
 Security + Design + Docs gates is a substantial review (1-3 hours);
@@ -143,22 +143,22 @@ a change that lights up only Code is a fast review (15-30 minutes).
 
 For any task type, what agent roles touch it (in lifecycle order)?
 
-| Task | Lifecycle (typical role chain) |
-|---|---|
-| Trivial bug fix | Implementer → Reviewer |
-| Non-trivial bug fix | Implementer → Reviewer (+ Security if invariant-touching) |
-| New feature, small | Architect → Implementer → Reviewer (+ Documenter if customer-facing) |
-| New feature, architectural | Architect → (multiple) Implementers → Reviewer → Security → Compliance → Documenter → Reviewer-of-docs |
-| Crypto change | Architect → Security → Implementer → Reviewer → Security (final approval) |
-| Threat model update | Security (single role; Reviewer is Architect or Operator) |
-| Marketing page | Documenter → Designer → Implementer → Reviewer (multi-role: Design + GTM + Compliance + IR if claim-bearing) |
-| Docs page | Documenter → Reviewer (Documenter or Engineer) → Designer (visual only) |
-| Brand foundation change | Designer (Architect for the visual decision) → Reviewer (Operator + Engineering) |
-| Identity / logo | Designer (with external designer) → Operator approves → Implementer wires |
-| Pricing change | Architect (decides) → Implementer (code) → Designer (page) → Documenter (announcement) → Compliance → IR → Reviewer chain |
-| Customer onboarding | Customer Success (lead) → Documenter (runbook) → Engineer (technical support) |
-| Monthly board update | IR (lead) → Compliance (review) → Operator (approves) |
-| Incident | Security (lead, with Engineering) → Customer Success (comms) → Documenter (postmortem) → Operator (approves customer-facing) → Compliance (logs) |
+| Task                       | Lifecycle (typical role chain)                                                                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Trivial bug fix            | Implementer → Reviewer                                                                                                                           |
+| Non-trivial bug fix        | Implementer → Reviewer (+ Security if invariant-touching)                                                                                        |
+| New feature, small         | Architect → Implementer → Reviewer (+ Documenter if customer-facing)                                                                             |
+| New feature, architectural | Architect → (multiple) Implementers → Reviewer → Security → Compliance → Documenter → Reviewer-of-docs                                           |
+| Crypto change              | Architect → Security → Implementer → Reviewer → Security (final approval)                                                                        |
+| Threat model update        | Security (single role; Reviewer is Architect or Operator)                                                                                        |
+| Marketing page             | Documenter → Designer → Implementer → Reviewer (multi-role: Design + GTM + Compliance + IR if claim-bearing)                                     |
+| Docs page                  | Documenter → Reviewer (Documenter or Engineer) → Designer (visual only)                                                                          |
+| Brand foundation change    | Designer (Architect for the visual decision) → Reviewer (Operator + Engineering)                                                                 |
+| Identity / logo            | Designer (with external designer) → Operator approves → Implementer wires                                                                        |
+| Pricing change             | Architect (decides) → Implementer (code) → Designer (page) → Documenter (announcement) → Compliance → IR → Reviewer chain                        |
+| Customer onboarding        | Customer Success (lead) → Documenter (runbook) → Engineer (technical support)                                                                    |
+| Monthly board update       | IR (lead) → Compliance (review) → Operator (approves)                                                                                            |
+| Incident                   | Security (lead, with Engineering) → Customer Success (comms) → Documenter (postmortem) → Operator (approves customer-facing) → Compliance (logs) |
 
 The chain reads left-to-right in time. Each transition is recorded
 (commits, PR comments, `SESSION_HANDOFF.md` entries).
@@ -167,33 +167,33 @@ The chain reads left-to-right in time. Each transition is recorded
 
 ## 5. Cross-doc cheatsheet — "I want to X, where do I look?"
 
-| I want to… | Look here |
-|---|---|
-| Understand OKORO architectural invariants | `CLAUDE.md` |
-| Understand OKORO visual identity | `docs/design/00_BRAND_FOUNDATION.md` |
-| Find a claimable module | `WORK_BOARD.md` |
-| Understand how to claim a module | `docs/SPRINT_PROTOCOL.md` |
-| Know which department owns a piece of work | `docs/execution/01_DEPARTMENT_CHARTERS.md` |
-| Know what role I'm filling on a task | `docs/execution/02_AGENT_ROLES.md` |
-| Know what stage my task is in | `docs/execution/03_TASK_LIFECYCLE.md` |
-| Know what gates my work must pass | `docs/execution/04_QUALITY_GATES.md` |
-| Understand the IPO-bar discipline | `docs/execution/05_PUBLIC_COMPANY_READINESS.md` |
-| Understand the threat model | `docs/THREAT_MODEL_v2.md` |
-| Find the denial precedence | `docs/SECURITY.md` § Denial Precedence |
-| Understand BATE | `docs/BATE_ALGORITHM.md` |
-| Find canonical pricing | `apps/api/src/modules/billing/plans.ts` (code) + `docs/spec/04_COMMERCIAL_STRATEGY.md` (strategy) |
-| Find prior architectural decisions | `docs/decisions/` |
-| Find recent shipping activity | `docs/SESSION_HANDOFF.md` |
-| Generate a marketing page prompt | `docs/design/01_MARKETING_SITE_PROMPTS.md` |
-| Generate a dashboard page prompt | `docs/design/02_DASHBOARD_PROMPTS.md` |
-| Generate a docs page prompt | `docs/design/03_DOCS_SITE_PROMPTS.md` |
-| Generate identity work prompts | `docs/design/04_BRAND_IDENTITY_PROMPTS.md` |
-| Generate a deck | `docs/design/05_PITCH_DECK_PROMPTS.md` |
-| Read about a specific persona | `docs/personas/<persona>.md` |
-| Find an integration guide | `docs/INTEGRATION_GUIDE_*.md` |
-| Find a runbook for an operational task | `docs/RUNBOOK.md` or `docs/<TOPIC>_RUNBOOK.md` |
-| Respond to an incident | `docs/INCIDENT_RUNBOOK.md` then `docs/INCIDENT_RESPONSE.md` |
-| Hand off to the next session | append to `docs/SESSION_HANDOFF.md` |
+| I want to…                                 | Look here                                                                                         |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| Understand CERNIQ architectural invariants | `CLAUDE.md`                                                                                       |
+| Understand CERNIQ visual identity          | `docs/design/00_BRAND_FOUNDATION.md`                                                              |
+| Find a claimable module                    | `WORK_BOARD.md`                                                                                   |
+| Understand how to claim a module           | `docs/SPRINT_PROTOCOL.md`                                                                         |
+| Know which department owns a piece of work | `docs/execution/01_DEPARTMENT_CHARTERS.md`                                                        |
+| Know what role I'm filling on a task       | `docs/execution/02_AGENT_ROLES.md`                                                                |
+| Know what stage my task is in              | `docs/execution/03_TASK_LIFECYCLE.md`                                                             |
+| Know what gates my work must pass          | `docs/execution/04_QUALITY_GATES.md`                                                              |
+| Understand the IPO-bar discipline          | `docs/execution/05_PUBLIC_COMPANY_READINESS.md`                                                   |
+| Understand the threat model                | `docs/THREAT_MODEL_v2.md`                                                                         |
+| Find the denial precedence                 | `docs/SECURITY.md` § Denial Precedence                                                            |
+| Understand BATE                            | `docs/BATE_ALGORITHM.md`                                                                          |
+| Find canonical pricing                     | `apps/api/src/modules/billing/plans.ts` (code) + `docs/spec/04_COMMERCIAL_STRATEGY.md` (strategy) |
+| Find prior architectural decisions         | `docs/decisions/`                                                                                 |
+| Find recent shipping activity              | `docs/SESSION_HANDOFF.md`                                                                         |
+| Generate a marketing page prompt           | `docs/design/01_MARKETING_SITE_PROMPTS.md`                                                        |
+| Generate a dashboard page prompt           | `docs/design/02_DASHBOARD_PROMPTS.md`                                                             |
+| Generate a docs page prompt                | `docs/design/03_DOCS_SITE_PROMPTS.md`                                                             |
+| Generate identity work prompts             | `docs/design/04_BRAND_IDENTITY_PROMPTS.md`                                                        |
+| Generate a deck                            | `docs/design/05_PITCH_DECK_PROMPTS.md`                                                            |
+| Read about a specific persona              | `docs/personas/<persona>.md`                                                                      |
+| Find an integration guide                  | `docs/INTEGRATION_GUIDE_*.md`                                                                     |
+| Find a runbook for an operational task     | `docs/RUNBOOK.md` or `docs/<TOPIC>_RUNBOOK.md`                                                    |
+| Respond to an incident                     | `docs/INCIDENT_RUNBOOK.md` then `docs/INCIDENT_RESPONSE.md`                                       |
+| Hand off to the next session               | append to `docs/SESSION_HANDOFF.md`                                                               |
 
 ---
 
@@ -300,7 +300,7 @@ WORK_BOARD.md module added
 apps/api/prisma/schema.prisma changes
   → packages/types may need regen
   → apps/dashboard, apps/marketing data loaders may need updates
-  → docs/spec/OKORO_API_SPEC.yaml may need updates
+  → docs/spec/CERNIQ_API_SPEC.yaml may need updates
   → migration file in apps/api/prisma/migrations/
 
 apps/api/src/modules/billing/plans.ts changes

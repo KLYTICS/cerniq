@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --import=tsx
 /**
- * OKORO — manual audit-retention sweep.
+ * CERNIQ — manual audit-retention sweep.
  *
  * Bootstraps a Nest standalone application context (no HTTP listener),
  * resolves `AuditRetentionService`, and invokes `runOnce()`. Useful for:
@@ -19,7 +19,7 @@
  *   2  — usage error (bad CLI flag).
  *   3  — config / bootstrap error (DB not reachable, app context failed).
  *
- * Lives inside @okoro/api so the relative imports into `src/*` resolve
+ * Lives inside @cerniq/api so the relative imports into `src/*` resolve
  * cleanly and `@nestjs/core` is a real runtime dep. (Moved from
  * `scripts/run-audit-retention.ts` in Round 17 — see SESSION_HANDOFF.)
  */
@@ -42,7 +42,7 @@ async function main(): Promise<void> {
   const program = new Command();
   program
     .name('run-audit-retention')
-    .description('Run the OKORO audit-retention sweep on demand.')
+    .description('Run the CERNIQ audit-retention sweep on demand.')
     .addOption(new Option('--dry-run', 'log what would be redacted, no writes').default(false))
     .addOption(new Option('--principal-id <id>', 'restrict the sweep to one principal'))
     .addOption(
@@ -96,7 +96,8 @@ async function main(): Promise<void> {
 }
 
 const isMain =
-  argv[1] && (argv[1].endsWith('run-audit-retention.ts') || argv[1].endsWith('run-audit-retention.js'));
+  argv[1] &&
+  (argv[1].endsWith('run-audit-retention.ts') || argv[1].endsWith('run-audit-retention.js'));
 if (isMain) {
   main().catch((err) => {
     stderr.write(`fatal: ${(err as Error).message}\n`);

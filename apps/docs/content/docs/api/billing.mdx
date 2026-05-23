@@ -3,13 +3,13 @@ title: Billing API
 description: Stripe-backed plans, usage metering, and the pricing-discovery endpoint.
 ---
 
-OKORO billing is Stripe-backed. Plans, overage prices, and the trial cap
-are documented in [ADR-0014](https://github.com/klytics/okoro/blob/main/docs/decisions/0014-pricing-and-free-trial.md).
+CERNIQ billing is Stripe-backed. Plans, overage prices, and the trial cap
+are documented in [ADR-0014](https://github.com/klytics/cerniq/blob/main/docs/decisions/0014-pricing-and-free-trial.md).
 
 ## Pricing — live discovery
 
 ```bash
-curl https://api.okoroapp.com/.well-known/pricing.json
+curl https://api.cerniqapp.com/.well-known/pricing.json
 ```
 
 Public, unauthenticated, `Cache-Control: public, max-age=3600`. This
@@ -42,7 +42,7 @@ HTTP 402 (Payment Required).
 
 The Stripe webhook handler is mounted at a separate signature-verified
 endpoint — never call it directly. Refer to
-[`docs/RUNBOOK.md` § Billing](https://github.com/klytics/okoro/blob/main/docs/RUNBOOK.md)
+[`docs/RUNBOOK.md` § Billing](https://github.com/klytics/cerniq/blob/main/docs/RUNBOOK.md)
 for operational runbooks.
 
 ## Usage metering
@@ -50,4 +50,4 @@ for operational runbooks.
 Verify counts roll up nightly to Stripe metered prices. Failed Stripe
 metering does **not** block the verify hot path — failures surface in
 operator metrics, not in customer responses. See
-[ADR-0014](https://github.com/klytics/okoro/blob/main/docs/decisions/0014-pricing-and-free-trial.md) for the metering contract.
+[ADR-0014](https://github.com/klytics/cerniq/blob/main/docs/decisions/0014-pricing-and-free-trial.md) for the metering contract.

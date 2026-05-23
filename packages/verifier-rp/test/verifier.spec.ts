@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { OkoroVerifier } from '../src/verifier.js';
+import { CerniqVerifier } from '../src/verifier.js';
 import { ConfigError } from '../src/errors.js';
 import { resetClock, setClock } from '../src/_internal/time.js';
 import { generateKeypair, signTestToken, tamperToken } from './_helpers/sign.js';
@@ -21,8 +21,11 @@ interface TestKeys {
 
 async function makeVerifier(opts: {
   keys: TestKeys;
-  status?: { status: 'active' | 'suspended' | 'revoked' | 'pending_verification'; trustScore?: number };
-}): Promise<{ verifier: OkoroVerifier; fetchMock: ReturnType<typeof vi.fn> }> {
+  status?: {
+    status: 'active' | 'suspended' | 'revoked' | 'pending_verification';
+    trustScore?: number;
+  };
+}): Promise<{ verifier: CerniqVerifier; fetchMock: ReturnType<typeof vi.fn> }> {
   const status = opts.status ?? { status: 'active' };
   const fetchMock = vi.fn(async (url: string | URL) => {
     if (String(url).includes('/agents/')) {
@@ -35,7 +38,7 @@ async function makeVerifier(opts: {
     }
     return fakeRes({ keys: [] });
   });
-  const verifier = new OkoroVerifier({
+  const verifier = new CerniqVerifier({
     baseUrl: 'https://api.example.com/v1',
     getAgentPublicKey: async () => opts.keys.publicKey,
     fetch: fetchMock as unknown as typeof globalThis.fetch,
@@ -43,7 +46,7 @@ async function makeVerifier(opts: {
   return { verifier, fetchMock };
 }
 
-describe('OkoroVerifier', () => {
+describe('CerniqVerifier', () => {
   let keys: TestKeys;
 
   beforeEach(async () => {
@@ -58,7 +61,7 @@ describe('OkoroVerifier', () => {
   it('throws ConfigError when getAgentPublicKey is missing', () => {
     expect(
       () =>
-        new OkoroVerifier({
+        new CerniqVerifier({
           baseUrl: 'x',
           getAgentPublicKey: undefined as unknown as never,
           fetch: globalThis.fetch,
@@ -239,9 +242,7 @@ describe('OkoroVerifier', () => {
     const { verifier } = await makeVerifier({ keys });
     // Seed JWKS with our key under kid=k1.
     const { b64uEncode } = await import('../src/_internal/b64u.js');
-    verifier._seedJwks([
-      { kty: 'OKP', crv: 'Ed25519', x: b64uEncode(keys.publicKey), kid: 'k1' },
-    ]);
+    verifier._seedJwks([{ kty: 'OKP', crv: 'Ed25519', x: b64uEncode(keys.publicKey), kid: 'k1' }]);
     const token = await signTestToken(keys.privateKey, 'agt_a', 'pol_a', {
       action: 'commerce.purchase',
       kid: 'k1',

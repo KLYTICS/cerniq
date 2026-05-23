@@ -12,7 +12,7 @@
     "useDefineForClassFields": false,
     "noUncheckedIndexedAccess": false,
     "paths": {
-      "@okoro/api/*": ["src/*"]
+      "@cerniq/api/*": ["src/*"]
     }
   },
   "include": ["src/**/*"],

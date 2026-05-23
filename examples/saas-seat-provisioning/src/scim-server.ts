@@ -5,27 +5,27 @@
 //   - the seat table (tier, tenant, externalId, agentId, policyId)
 //   - the per-tier policy template (scope, spend cap, domains)
 //
-// OKORO owns:
+// CERNIQ owns:
 //   - the cryptographic agent identity
 //   - the signed policy JWT
 //   - the audit chain
 //
 // On POST /scim/v2/Agents the SaaS:
 //   1. Validates the SCIM body.
-//   2. okoro.agents.register() — creates the cryptographic identity.
-//   3. okoro.policies.create() — mints a tier-shaped scoped policy.
+//   2. cerniq.agents.register() — creates the cryptographic identity.
+//   3. cerniq.policies.create() — mints a tier-shaped scoped policy.
 //   4. Persists a seat row joining (tenant, externalId, agentId, policyId).
 //   5. Returns the SCIM-shaped 201 Created.
 //
-// On DELETE the SaaS revokes both the OKORO agent (immediate) and the
+// On DELETE the SaaS revokes both the CERNIQ agent (immediate) and the
 // policy (idempotent — agent revocation kills any signed token anyway).
 
 import express, { type Request, type Response } from 'express';
-import { Okoro } from '@okoro/sdk';
+import { Cerniq } from '@cerniq/sdk';
 
-const okoro = new Okoro({
-  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okoroapp.com',
-  apiKey: requireEnv('OKORO_API_KEY'),
+const cerniq = new Cerniq({
+  baseUrl: process.env.CERNIQ_API_BASE ?? 'https://api.cerniqapp.com',
+  apiKey: requireEnv('CERNIQ_API_KEY'),
 });
 
 const tenantId = requireEnv('SAAS_TENANT_ID');
@@ -57,18 +57,18 @@ app.post('/scim/v2/Agents', async (req: Request, res: Response) => {
   const existing = seats.get(key);
   if (existing) return res.status(200).json(scimRender(existing));
 
-  const tier: SeatTier = (body.urn?.['urn:okoro:saas:1.0:Agent']?.tier ?? 'free') as SeatTier;
+  const tier: SeatTier = (body.urn?.['urn:cerniq:saas:1.0:Agent']?.tier ?? 'free') as SeatTier;
   const tpl = POLICY_TEMPLATES[tier];
   if (!tpl) {
     return res.status(400).json(scimError('invalidValue', `unknown tier ${tier}`));
   }
 
-  const agent = await okoro.agents.register({
+  const agent = await cerniq.agents.register({
     publicKey: body.publicKey,
     runtime: 'CUSTOM',
     metadata: { tenantId, externalId: body.externalId, displayName: body.displayName },
   });
-  const policy = await okoro.policies.create({
+  const policy = await cerniq.policies.create({
     agentId: agent.id,
     scope: tpl.scope,
     maxPerDay: tpl.maxPerDay,
@@ -99,8 +99,8 @@ app.get('/scim/v2/Agents/:id', (req, res) => {
 app.delete('/scim/v2/Agents/:id', async (req, res) => {
   for (const [key, seat] of seats.entries()) {
     if (seat.id !== req.params.id) continue;
-    await okoro.agents.revoke(seat.agentId).catch(() => undefined);
-    await okoro.policies.revoke(seat.policyId).catch(() => undefined);
+    await cerniq.agents.revoke(seat.agentId).catch(() => undefined);
+    await cerniq.policies.revoke(seat.policyId).catch(() => undefined);
     seats.delete(key);
     return res.status(204).end();
   }
@@ -110,7 +110,7 @@ app.delete('/scim/v2/Agents/:id', async (req, res) => {
 app.get('/scim/v2/ServiceProviderConfig', (_req, res) => {
   res.json({
     schemas: ['urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig'],
-    documentationUri: 'https://docs.okoroapp.com/integrations/scim',
+    documentationUri: 'https://docs.cerniqapp.com/integrations/scim',
     patch: { supported: false },
     bulk: { supported: false, maxOperations: 0, maxPayloadSize: 0 },
     filter: { supported: true, maxResults: 200 },
@@ -153,16 +153,16 @@ interface ScimCreateBody {
   externalId: string;
   displayName: string;
   publicKey: string;
-  urn?: { 'urn:okoro:saas:1.0:Agent'?: { tier?: SeatTier } };
+  urn?: { 'urn:cerniq:saas:1.0:Agent'?: { tier?: SeatTier } };
 }
 
 function scimRender(seat: SeatRow): Record<string, unknown> {
   return {
-    schemas: ['urn:ietf:params:scim:schemas:core:2.0:Agent', 'urn:okoro:saas:1.0:Agent'],
+    schemas: ['urn:ietf:params:scim:schemas:core:2.0:Agent', 'urn:cerniq:saas:1.0:Agent'],
     id: seat.id,
     externalId: seat.externalId,
     displayName: seat.displayName,
-    'urn:okoro:saas:1.0:Agent': {
+    'urn:cerniq:saas:1.0:Agent': {
       tier: seat.tier,
       agentId: seat.agentId,
       policyId: seat.policyId,

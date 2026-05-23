@@ -1,8 +1,8 @@
-# OKORO Packages - Claude contract
+# CERNIQ Packages - Claude contract
 
-This directory owns public and shared packages: `@okoro/types`, `@okoro/sdk`,
-`okoro` Python SDK, `@okoro/cli`, `@okoro/verifier-rp`, `@okoro/mcp-server`,
-`@okoro/mcp-bridge`, shared tsconfig, and eslint config.
+This directory owns public and shared packages: `@cerniq/types`, `@cerniq/sdk`,
+`cerniq` Python SDK, `@cerniq/cli`, `@cerniq/verifier-rp`, `@cerniq/mcp-server`,
+`@cerniq/mcp-bridge`, shared tsconfig, and eslint config.
 
 ## Package invariants
 
@@ -12,7 +12,7 @@ This directory owns public and shared packages: `@okoro/types`, `@okoro/sdk`,
   APIs. Relying-party middleware must keep framework adapters optional.
 - `packages/types` is the wire-contract source of truth. Update OpenAPI, API
   DTOs, generated enums, SDK types, and parity tests together.
-- SDKs hold private keys locally but never send them to OKORO.
+- SDKs hold private keys locally but never send them to CERNIQ.
 - Error classes and denial reasons must match the API catalog exactly.
 - Package builds should be tree-shakeable and side-effect-light.
 
@@ -32,11 +32,11 @@ This directory owns public and shared packages: `@okoro/types`, `@okoro/sdk`,
 
 Use package-specific filters:
 
-- `pnpm --filter @okoro/types typecheck && pnpm --filter @okoro/types test`
-- `pnpm --filter @okoro/sdk typecheck && pnpm --filter @okoro/sdk test`
-- `pnpm --filter @okoro/verifier-rp typecheck && pnpm --filter @okoro/verifier-rp test`
-- `pnpm --filter @okoro/mcp-server typecheck && pnpm --filter @okoro/mcp-server test`
-- `pnpm --filter @okoro/mcp-bridge typecheck && pnpm --filter @okoro/mcp-bridge test`
+- `pnpm --filter @cerniq/types typecheck && pnpm --filter @cerniq/types test`
+- `pnpm --filter @cerniq/sdk typecheck && pnpm --filter @cerniq/sdk test`
+- `pnpm --filter @cerniq/verifier-rp typecheck && pnpm --filter @cerniq/verifier-rp test`
+- `pnpm --filter @cerniq/mcp-server typecheck && pnpm --filter @cerniq/mcp-server test`
+- `pnpm --filter @cerniq/mcp-bridge typecheck && pnpm --filter @cerniq/mcp-bridge test`
 - `cd packages/sdk-py && python -m pytest` when Python dependencies are installed
 
 Run `pnpm test:parity` when a package contract must agree with API, dashboard,

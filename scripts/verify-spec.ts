@@ -1,10 +1,10 @@
 #!/usr/bin/env -S node --import=tsx
 /**
- * OKORO — contract drift gate.
+ * CERNIQ — contract drift gate.
  *
  * Compares three declarations of the same contract:
  *
- *   docs/spec/OKORO_API_SPEC.yaml      (publicly committed)
+ *   docs/spec/CERNIQ_API_SPEC.yaml      (publicly committed)
  *   packages/types/src/schemas.ts      (runtime Zod source of truth)
  *   apps/api/prisma/schema.prisma      (persistence enums)
  *
@@ -16,7 +16,7 @@
  *
  * Exit code 0 = full parity; 1 = drift. CI gates merges on this.
  *
- *   pnpm --filter @okoro/scripts verify-spec -- --strict --json
+ *   pnpm --filter @cerniq/scripts verify-spec -- --strict --json
  */
 
 import { readFile } from 'node:fs/promises';
@@ -28,11 +28,11 @@ import { Command } from 'commander';
 import yaml from 'yaml';
 import { z, ZodObject, ZodEnum, type ZodTypeAny } from 'zod';
 
-import * as TypeSchemas from '@okoro/types/schemas';
+import * as TypeSchemas from '@cerniq/types/schemas';
 
 const __filename = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(__filename), '..');
-const SPEC_PATH = join(REPO_ROOT, 'docs/spec/OKORO_API_SPEC.yaml');
+const SPEC_PATH = join(REPO_ROOT, 'docs/spec/CERNIQ_API_SPEC.yaml');
 const PRISMA_PATH = join(REPO_ROOT, 'apps/api/prisma/schema.prisma');
 
 // ── Types ─────────────────────────────────────────────────────────
@@ -248,7 +248,7 @@ export function parsePrismaEnums(source: string): Map<string, string[]> {
  *   Prisma `PolicyStatus`    → Zod `PolicyStatusSchema`
  *   Prisma `AgentStatus`     → Zod `AgentStatusSchema`  (note: collides with
  *                              the response schema of the same Zod name)
- * Returns null if no matching ZodEnum is found in @okoro/types/schemas.
+ * Returns null if no matching ZodEnum is found in @cerniq/types/schemas.
  */
 export function findZodEnum(prismaName: string): ZodEnum<[string, ...string[]]> | null {
   const exportsMap = TypeSchemas as Record<string, unknown>;
@@ -257,10 +257,7 @@ export function findZodEnum(prismaName: string): ZodEnum<[string, ...string[]]> 
   return null;
 }
 
-export function compareEnums(
-  prismaMembers: string[],
-  zodMembers: string[],
-): DiffResult {
+export function compareEnums(prismaMembers: string[], zodMembers: string[]): DiffResult {
   const norm = (s: string): string => s.toUpperCase();
   const p = new Set(prismaMembers.map(norm));
   const z = new Set(zodMembers.map(norm));
@@ -324,8 +321,7 @@ export async function runVerify(opts: { strict: boolean }): Promise<RunResult> {
     });
   }
 
-  const ok =
-    rows.every((r) => r.status === 'ok') && enumReports.every((r) => r.status === 'ok');
+  const ok = rows.every((r) => r.status === 'ok') && enumReports.every((r) => r.status === 'ok');
 
   return { rows, enums: enumReports, ok };
 }
@@ -350,7 +346,9 @@ function parseCli(args: string[]): CliOpts {
 
 function formatTable(result: RunResult): string {
   const lines: string[] = [];
-  lines.push('[ENDPOINT]                          [DIR]      [SCHEMA]                    [STATUS]  [DELTA]');
+  lines.push(
+    '[ENDPOINT]                          [DIR]      [SCHEMA]                    [STATUS]  [DELTA]',
+  );
   for (const r of result.rows) {
     lines.push(
       [
@@ -366,12 +364,9 @@ function formatTable(result: RunResult): string {
   lines.push('[PRISMA ENUM]               [ZOD ENUM]                 [STATUS]  [DELTA]');
   for (const e of result.enums) {
     lines.push(
-      [
-        e.prismaEnum.padEnd(27),
-        (e.zodEnum ?? '-').padEnd(26),
-        e.status.padEnd(9),
-        e.delta,
-      ].join(' '),
+      [e.prismaEnum.padEnd(27), (e.zodEnum ?? '-').padEnd(26), e.status.padEnd(9), e.delta].join(
+        ' ',
+      ),
     );
   }
   return lines.join('\n');
@@ -389,7 +384,9 @@ async function main(): Promise<void> {
     stderr.write('drift detected — failing.\n');
     exit(1);
   }
-  stdout.write(`ok: ${result.rows.length} schema row(s), ${result.enums.length} enum(s) — full parity.\n`);
+  stdout.write(
+    `ok: ${result.rows.length} schema row(s), ${result.enums.length} enum(s) — full parity.\n`,
+  );
 }
 
 const invokedDirectly = (() => {

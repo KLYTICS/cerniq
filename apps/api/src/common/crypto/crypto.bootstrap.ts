@@ -57,7 +57,7 @@ bootstrapCrypto();
 // ───────────────────────────────────────────────────────────────────────────
 
 /**
- * The signing-key purposes OKORO understands. New purposes must be added
+ * The signing-key purposes CERNIQ understands. New purposes must be added
  * here AND in `docs/decisions/0011-key-rotation-kms.md`.
  *
  *   AUDIT     — signs audit-event chain entries (Ed25519 today).
@@ -105,7 +105,9 @@ export interface KmsAdapter {
    * historical signed record. Returns null if `kid` is unknown — that's a
    * cryptographic failure, surfaces upstream as INVALID_SIGNATURE.
    */
-  getKeyByKid(kid: string): Promise<{ kid: string; publicKey: string; algorithm: KeyMetadata['algorithm'] } | null>;
+  getKeyByKid(
+    kid: string,
+  ): Promise<{ kid: string; publicKey: string; algorithm: KeyMetadata['algorithm'] } | null>;
 
   /**
    * Powers the JWKS endpoint at `/.well-known/audit-signing-key` and the
@@ -166,14 +168,18 @@ export class InMemoryKmsAdapter implements KmsAdapter {
     };
   }
 
-  async getKeyByKid(kid: string): Promise<{ kid: string; publicKey: string; algorithm: KeyMetadata['algorithm'] } | null> {
+  async getKeyByKid(
+    kid: string,
+  ): Promise<{ kid: string; publicKey: string; algorithm: KeyMetadata['algorithm'] } | null> {
     const entry = this.keys.get(kid);
     if (!entry) return null;
     return { kid: entry.kid, publicKey: entry.publicKey, algorithm: entry.algorithm };
   }
 
   async listKeys(purpose: KmsKeyPurpose): Promise<KeyMetadata[]> {
-    return Array.from(this.keys.values()).filter((k) => k.purpose === purpose).map(stripPrivate);
+    return Array.from(this.keys.values())
+      .filter((k) => k.purpose === purpose)
+      .map(stripPrivate);
   }
 }
 

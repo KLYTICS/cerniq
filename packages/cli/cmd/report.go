@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/klytics/okoro/packages/cli/internal/client"
-	"github.com/klytics/okoro/packages/cli/internal/cliutil"
-	"github.com/klytics/okoro/packages/cli/internal/ui"
+	"github.com/klytics/cerniq/packages/cli/internal/client"
+	"github.com/klytics/cerniq/packages/cli/internal/cliutil"
+	"github.com/klytics/cerniq/packages/cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -39,11 +39,11 @@ Verified relying parties are weighted more heavily — see
 docs/BATE_ALGORITHM.md § "Signal weights".
 
 Examples:
-  okoro report agt_01 --type fraud_confirmed --severity high \
+  cerniq report agt_01 --type fraud_confirmed --severity high \
                       --description "chargeback received" \
                       --transaction-id stripe_ch_xyz
 
-  okoro report agt_01 --type anomaly --evidence ip=8.8.8.8 \
+  cerniq report agt_01 --type anomaly --evidence ip=8.8.8.8 \
                                      --evidence amount_zar=2400`,
 	RunE: runReport,
 }
@@ -102,7 +102,7 @@ func runReport(cmd *cobra.Command, args []string) error {
 		return cliutil.RenderJSON(cmd.OutOrStdout(), map[string]any{
 			"agentId":  args[0],
 			"accepted": true,
-			"async":    "BATE re-scoring runs asynchronously; check `okoro agents status` for the new trust score",
+			"async":    "BATE re-scoring runs asynchronously; check `cerniq agents status` for the new trust score",
 		})
 	}
 	ui.OK(cmd.OutOrStdout(), fmt.Sprintf("report accepted (async) — %s on %s", severity, eventType))

@@ -1,11 +1,11 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import type { Okoro } from '@okoro/sdk';
+import type { Cerniq } from '@cerniq/sdk';
 import { makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixtures';
 import { assertVerifyApproved } from './_support/assert';
 
 describe('06 · verify happy path', () => {
-  let sdk: Okoro;
+  let sdk: Cerniq;
   const cleanup: string[] = [];
 
   beforeAll(() => {
@@ -55,7 +55,11 @@ describe('06 · verify happy path', () => {
     const agent = await createAgent(sdk);
     cleanup.push(agent.agentId);
     const policy = await createPolicy(sdk, agent.agentId, [SCOPES.commerce()]);
-    const token = await signTokenFor(agent, policy.policyId, { action: 'commerce.purchase', amount: 5, currency: 'USD' });
+    const token = await signTokenFor(agent, policy.policyId, {
+      action: 'commerce.purchase',
+      amount: 5,
+      currency: 'USD',
+    });
     const result = await sdk.verify(token);
     // Token-only verify: amount/domain were embedded at sign time, the verifier
     // should evaluate the policy against the in-token claims.

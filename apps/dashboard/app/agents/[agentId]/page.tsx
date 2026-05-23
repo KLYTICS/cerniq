@@ -8,7 +8,7 @@ import { CopyButton, Copyable } from '../../../components/CopyButton';
 import { HandshakePanel } from '../../../components/HandshakePanel';
 import { StatusDot } from '../../../components/StatusDot';
 import {
-  OkoroApiError,
+  CerniqApiError,
   getAgent,
   getHandshakeStatus,
   listAudit,
@@ -21,7 +21,7 @@ import {
 import { relativeTime, statusTone, trustBandTone } from '../../../lib/format';
 
 export const metadata: Metadata = {
-  title: 'Agent · OKORO',
+  title: 'Agent · CERNIQ',
 };
 
 interface PageProps {
@@ -38,15 +38,17 @@ interface DetailBundle {
   handshakeError?: string;
 }
 
-async function loadDetail(agentId: string): Promise<DetailBundle | { notFound: true } | { error: string }> {
+async function loadDetail(
+  agentId: string,
+): Promise<DetailBundle | { notFound: true } | { error: string }> {
   let agent: AgentRow;
   try {
     agent = await getAgent(agentId);
   } catch (err) {
-    if (err instanceof OkoroApiError && (err.code === 'AGENT_NOT_FOUND' || err.status === 404)) {
+    if (err instanceof CerniqApiError && (err.code === 'AGENT_NOT_FOUND' || err.status === 404)) {
       return { notFound: true };
     }
-    if (err instanceof OkoroApiError) return { error: `${err.code}: ${err.message}` };
+    if (err instanceof CerniqApiError) return { error: `${err.code}: ${err.message}` };
     return { error: 'Unexpected error loading agent.' };
   }
 
@@ -61,26 +63,24 @@ async function loadDetail(agentId: string): Promise<DetailBundle | { notFound: t
     agent,
     policies: policiesSettled.status === 'fulfilled' ? policiesSettled.value : [],
     audit:
-      auditSettled.status === 'fulfilled'
-        ? auditSettled.value
-        : { events: [], nextCursor: null },
+      auditSettled.status === 'fulfilled' ? auditSettled.value : { events: [], nextCursor: null },
     handshake: handshakeSettled.status === 'fulfilled' ? handshakeSettled.value : null,
   };
   if (policiesSettled.status === 'rejected') {
     bundle.policyError =
-      policiesSettled.reason instanceof OkoroApiError
+      policiesSettled.reason instanceof CerniqApiError
         ? `${policiesSettled.reason.code}: ${policiesSettled.reason.message}`
         : 'Failed to load policies.';
   }
   if (auditSettled.status === 'rejected') {
     bundle.auditError =
-      auditSettled.reason instanceof OkoroApiError
+      auditSettled.reason instanceof CerniqApiError
         ? `${auditSettled.reason.code}: ${auditSettled.reason.message}`
         : 'Failed to load audit.';
   }
   if (handshakeSettled.status === 'rejected') {
     bundle.handshakeError =
-      handshakeSettled.reason instanceof OkoroApiError
+      handshakeSettled.reason instanceof CerniqApiError
         ? `${handshakeSettled.reason.code}: ${handshakeSettled.reason.message}`
         : 'Failed to load handshake status.';
   }
@@ -94,8 +94,8 @@ export default async function AgentDetailPage({ params }: PageProps) {
   if ('notFound' in detail) notFound();
   if ('error' in detail) {
     return (
-      <section className="okoro-page">
-        <header className="okoro-page-header">
+      <section className="cerniq-page">
+        <header className="cerniq-page-header">
           <h1>Agent</h1>
           <p className="muted">{agentId}</p>
         </header>
@@ -107,12 +107,12 @@ export default async function AgentDetailPage({ params }: PageProps) {
   }
 
   const { agent, policies, audit, handshake, policyError, auditError } = detail;
-  const apiBaseUrl = process.env.OKORO_API_BASE_URL ?? 'http://localhost:4000';
+  const apiBaseUrl = process.env.CERNIQ_API_BASE_URL ?? 'http://localhost:4000';
 
   return (
-    <section className="okoro-page">
-      <header className="okoro-page-header">
-        <div className="okoro-page-header-row">
+    <section className="cerniq-page">
+      <header className="cerniq-page-header">
+        <div className="cerniq-page-header-row">
           <div>
             <h1 className="mono">
               <Copyable value={agent.agentId} label="agent id">
@@ -124,7 +124,7 @@ export default async function AgentDetailPage({ params }: PageProps) {
               {agent.model ? ` · ${agent.model}` : ''}
             </p>
           </div>
-          <a href="/agents" className="okoro-button-ghost">
+          <a href="/agents" className="cerniq-button-ghost">
             ← all agents
           </a>
         </div>
@@ -159,37 +159,41 @@ export default async function AgentDetailPage({ params }: PageProps) {
         <p className="muted">No policies issued for this agent yet.</p>
       ) : (
         <div className="table-scroll">
-        <table className="data-table dense">
-          <thead>
-            <tr>
-              <th>policy id</th>
-              <th>label</th>
-              <th>status</th>
-              <th>scopes</th>
-              <th>expires</th>
-              <th>created</th>
-            </tr>
-          </thead>
-          <tbody>
-            {policies.map((p) => (
-              <tr key={p.policyId}>
-                <td className="mono">
-                  <Copyable value={p.policyId} label="policy id">{p.policyId}</Copyable>
-                </td>
-                <td className="dim">{p.label ?? '–'}</td>
-                <td>
-                  <StatusDot
-                    status={p.status}
-                    label={<span className={`badge badge-${statusTone(p.status)}`}>{p.status}</span>}
-                  />
-                </td>
-                <td className="num">{p.scopes.length}</td>
-                <td className="dim">{relativeTime(p.expiresAt)}</td>
-                <td className="dim">{relativeTime(p.createdAt)}</td>
+          <table className="data-table dense">
+            <thead>
+              <tr>
+                <th>policy id</th>
+                <th>label</th>
+                <th>status</th>
+                <th>scopes</th>
+                <th>expires</th>
+                <th>created</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {policies.map((p) => (
+                <tr key={p.policyId}>
+                  <td className="mono">
+                    <Copyable value={p.policyId} label="policy id">
+                      {p.policyId}
+                    </Copyable>
+                  </td>
+                  <td className="dim">{p.label ?? '–'}</td>
+                  <td>
+                    <StatusDot
+                      status={p.status}
+                      label={
+                        <span className={`badge badge-${statusTone(p.status)}`}>{p.status}</span>
+                      }
+                    />
+                  </td>
+                  <td className="num">{p.scopes.length}</td>
+                  <td className="dim">{relativeTime(p.expiresAt)}</td>
+                  <td className="dim">{relativeTime(p.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -202,34 +206,36 @@ export default async function AgentDetailPage({ params }: PageProps) {
         <p className="muted">No verify decisions recorded for this agent.</p>
       ) : (
         <div className="table-scroll">
-        <table className="data-table dense">
-          <thead>
-            <tr>
-              <th>when</th>
-              <th>decision</th>
-              <th>reason</th>
-              <th>policy</th>
-              <th className="num">amount</th>
-              <th>domain</th>
-            </tr>
-          </thead>
-          <tbody>
-            {audit.events.map((e) => (
-              <tr key={e.id}>
-                <td className="dim">{relativeTime(e.timestamp)}</td>
-                <td>
-                  <span className={`badge badge-${decisionTone(e.decision)}`}>{e.decision}</span>
-                </td>
-                <td className="mono dim">{e.decisionReason ?? '–'}</td>
-                <td className="mono dim">{e.policyId ?? '–'}</td>
-                <td className="num mono">
-                  {e.amount !== null && e.amount !== undefined ? `${e.amount} ${e.currency ?? ''}` : '–'}
-                </td>
-                <td className="dim">{e.domain ?? '–'}</td>
+          <table className="data-table dense">
+            <thead>
+              <tr>
+                <th>when</th>
+                <th>decision</th>
+                <th>reason</th>
+                <th>policy</th>
+                <th className="num">amount</th>
+                <th>domain</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {audit.events.map((e) => (
+                <tr key={e.id}>
+                  <td className="dim">{relativeTime(e.timestamp)}</td>
+                  <td>
+                    <span className={`badge badge-${decisionTone(e.decision)}`}>{e.decision}</span>
+                  </td>
+                  <td className="mono dim">{e.decisionReason ?? '–'}</td>
+                  <td className="mono dim">{e.policyId ?? '–'}</td>
+                  <td className="num mono">
+                    {e.amount !== null && e.amount !== undefined
+                      ? `${e.amount} ${e.currency ?? ''}`
+                      : '–'}
+                  </td>
+                  <td className="dim">{e.domain ?? '–'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </section>
@@ -250,9 +256,7 @@ function Metric({
   return (
     <div className={`metric ${tone ? `metric-${tone}` : ''}`}>
       <dt>{label}</dt>
-      <dd>
-        {dotStatus ? <StatusDot status={dotStatus} label={value} /> : value}
-      </dd>
+      <dd>{dotStatus ? <StatusDot status={dotStatus} label={value} /> : value}</dd>
     </div>
   );
 }

@@ -7,7 +7,13 @@ const vi = { fn: jest.fn };
 // We mock just enough of PrismaService + RedisService + AppConfigService
 // to drive the adapter. Real fetch is replaced via globalThis.fetch stub.
 
-interface FakeJwk { kty: 'RSA'; kid: string; alg: string; n: string; e: string; }
+interface FakeJwk {
+  kty: 'RSA';
+  kid: string;
+  alg: string;
+  n: string;
+  e: string;
+}
 
 const SAMPLE_JWK: FakeJwk = {
   kty: 'RSA',
@@ -23,7 +29,10 @@ const SAMPLE_JWK: FakeJwk = {
 function makeAdapter() {
   const prisma = { principal: { findFirst: vi.fn(), create: vi.fn() } };
   const redis = { get: vi.fn(async () => null), set: vi.fn(async () => undefined) };
-  const config = { auth0Issuer: 'https://okoro.us.auth0.com/', auth0Audience: 'https://api.okoro.dev' };
+  const config = {
+    auth0Issuer: 'https://cerniq.us.auth0.com/',
+    auth0Audience: 'https://api.cerniq.dev',
+  };
   return new Auth0Adapter(prisma as never, redis as never, config as never);
 }
 
@@ -31,8 +40,8 @@ function makeAdapter() {
 
 describe('Auth0Adapter.verifyAccessToken', () => {
   beforeEach(() => {
-    (globalThis as { fetch?: typeof fetch }).fetch = vi.fn(async () =>
-      ({ ok: true, json: async () => ({ keys: [SAMPLE_JWK] }) }) as Response,
+    (globalThis as { fetch?: typeof fetch }).fetch = vi.fn(
+      async () => ({ ok: true, json: async () => ({ keys: [SAMPLE_JWK] }) }) as Response,
     );
   });
 
@@ -43,37 +52,51 @@ describe('Auth0Adapter.verifyAccessToken', () => {
 
   it('rejects unsupported alg', async () => {
     const a = makeAdapter();
-    const header = Buffer.from(JSON.stringify({ alg: 'HS256', kid: 'test-kid' })).toString('base64url');
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256', kid: 'test-kid' })).toString(
+      'base64url',
+    );
     const payload = Buffer.from(JSON.stringify({ sub: 'auth0|abc' })).toString('base64url');
     expect(await a.verifyAccessToken(`${header}.${payload}.sig`)).toBeNull();
   });
 
   it('rejects wrong issuer', async () => {
     const a = makeAdapter();
-    const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: 'test-kid' })).toString('base64url');
-    const payload = Buffer.from(JSON.stringify({ iss: 'https://evil.example/', exp: Date.now() / 1000 + 3600 })).toString('base64url');
+    const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: 'test-kid' })).toString(
+      'base64url',
+    );
+    const payload = Buffer.from(
+      JSON.stringify({ iss: 'https://evil.example/', exp: Date.now() / 1000 + 3600 }),
+    ).toString('base64url');
     expect(await a.verifyAccessToken(`${header}.${payload}.sig`)).toBeNull();
   });
 
   it('rejects expired tokens', async () => {
     const a = makeAdapter();
-    const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: 'test-kid' })).toString('base64url');
-    const payload = Buffer.from(JSON.stringify({
-      iss: 'https://okoro.us.auth0.com/',
-      aud: 'https://api.okoro.dev',
-      exp: 1000,
-    })).toString('base64url');
+    const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: 'test-kid' })).toString(
+      'base64url',
+    );
+    const payload = Buffer.from(
+      JSON.stringify({
+        iss: 'https://cerniq.us.auth0.com/',
+        aud: 'https://api.cerniq.dev',
+        exp: 1000,
+      }),
+    ).toString('base64url');
     expect(await a.verifyAccessToken(`${header}.${payload}.sig`)).toBeNull();
   });
 
   it('rejects mismatched audience', async () => {
     const a = makeAdapter();
-    const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: 'test-kid' })).toString('base64url');
-    const payload = Buffer.from(JSON.stringify({
-      iss: 'https://okoro.us.auth0.com/',
-      aud: 'https://other.example/',
-      exp: Date.now() / 1000 + 3600,
-    })).toString('base64url');
+    const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: 'test-kid' })).toString(
+      'base64url',
+    );
+    const payload = Buffer.from(
+      JSON.stringify({
+        iss: 'https://cerniq.us.auth0.com/',
+        aud: 'https://other.example/',
+        exp: Date.now() / 1000 + 3600,
+      }),
+    ).toString('base64url');
     expect(await a.verifyAccessToken(`${header}.${payload}.sig`)).toBeNull();
   });
 });
@@ -86,8 +109,17 @@ describe('Auth0Adapter.ensurePrincipalForOrg', () => {
         create: vi.fn(),
       },
     };
-    const a = new Auth0Adapter(prisma as never, { get: async () => null, set: async () => undefined } as never, {} as never);
-    const r = await a.ensurePrincipalForOrg({ idpOrganizationId: 'org_acme', idpDomain: 'acme.com', email: 'admin@acme.com', name: 'Acme Admin' });
+    const a = new Auth0Adapter(
+      prisma as never,
+      { get: async () => null, set: async () => undefined } as never,
+      {} as never,
+    );
+    const r = await a.ensurePrincipalForOrg({
+      idpOrganizationId: 'org_acme',
+      idpDomain: 'acme.com',
+      email: 'admin@acme.com',
+      name: 'Acme Admin',
+    });
     expect(r).toEqual({ principalId: 'p_existing', created: false });
     expect(prisma.principal.create).not.toHaveBeenCalled();
   });
@@ -99,12 +131,26 @@ describe('Auth0Adapter.ensurePrincipalForOrg', () => {
         create: vi.fn(async ({ data }: { data: { id: string } }) => ({ id: data.id })),
       },
     };
-    const a = new Auth0Adapter(prisma as never, { get: async () => null, set: async () => undefined } as never, {} as never);
-    const r = await a.ensurePrincipalForOrg({ idpOrganizationId: 'org_acme', idpDomain: 'acme.com', email: 'admin@acme.com', name: 'Acme Admin' });
+    const a = new Auth0Adapter(
+      prisma as never,
+      { get: async () => null, set: async () => undefined } as never,
+      {} as never,
+    );
+    const r = await a.ensurePrincipalForOrg({
+      idpOrganizationId: 'org_acme',
+      idpDomain: 'acme.com',
+      email: 'admin@acme.com',
+      name: 'Acme Admin',
+    });
     expect(r.created).toBe(true);
     expect(r.principalId).toMatch(/^p_a0_[0-9a-f]{12}$/);
     // Same input → same id (idempotent).
-    const r2 = await a.ensurePrincipalForOrg({ idpOrganizationId: 'org_acme', idpDomain: 'acme.com', email: 'admin@acme.com', name: 'Acme Admin' });
+    const r2 = await a.ensurePrincipalForOrg({
+      idpOrganizationId: 'org_acme',
+      idpDomain: 'acme.com',
+      email: 'admin@acme.com',
+      name: 'Acme Admin',
+    });
     expect(r2.principalId).toBe(r.principalId);
   });
 });

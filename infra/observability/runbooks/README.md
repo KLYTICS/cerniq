@@ -1,6 +1,6 @@
-# OKORO — On-call runbooks
+# CERNIQ — On-call runbooks
 
-Every alert in `infra/observability/alerts/okoro.rules.yml` has exactly
+Every alert in `infra/observability/alerts/cerniq.rules.yml` has exactly
 one runbook in this directory. The on-call engineer's first action on
 any page is to open the runbook linked from the alert annotation —
 not Slack, not Grafana, not the source code. The runbook tells them
@@ -33,13 +33,13 @@ The runbook is correct as written.
 
 - **Critical alert** — phone page via PagerDuty. Acknowledge within
   5 min; first runbook step within 5 min of acknowledgment. Status
-  page update (https://status.okoroapp.com) within 15 min if the
+  page update (https://status.cerniqapp.com) within 15 min if the
   alert is still firing.
 - **Warning alert** — PagerDuty notify (no page) + Slack
-  `#okoro-oncall`. Triage within 30 min during business hours, by
+  `#cerniq-oncall`. Triage within 30 min during business hours, by
   next business day if after-hours. No status page entry unless it
   escalates.
-- **Info alert** — Slack `#okoro-ops` only. Triage during business
+- **Info alert** — Slack `#cerniq-ops` only. Triage during business
   hours.
 
 The current rotation, escalation chain, and PagerDuty service ID are
@@ -56,8 +56,8 @@ escalation contact as `${ESCALATION_CONTACT}` until OD-007 lands.
    URLs, exact Prometheus queries. The quality bar (below) is enforced
    in review.
 3. **Cross-link the alert.** The `runbook` annotation on the alert in
-   `okoro.rules.yml` must use the runbook's repo path; the
-   `runbook_url` must use `https://docs.okoroapp.com/runbooks/<file
+   `cerniq.rules.yml` must use the runbook's repo path; the
+   `runbook_url` must use `https://docs.cerniqapp.com/runbooks/<file
 without .md>`.
 4. **Update this index table.** New row in the right severity slot.
 
@@ -102,7 +102,7 @@ These five reach Prometheus-alert parity once their underlying metrics emit (rou
 
 ## Where things live
 
-- Alert rules: `infra/observability/alerts/okoro.rules.yml`
+- Alert rules: `infra/observability/alerts/cerniq.rules.yml`
 - Grafana dashboards: `infra/observability/grafana-dashboards/`
 - OTel collector config: `infra/observability/otel-collector.yaml`
 - SLO contract: `docs/SLO.md`

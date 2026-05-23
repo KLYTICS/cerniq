@@ -1,13 +1,13 @@
-# `did:okoro` — DID Method Specification (draft v0.1)
+# `did:cerniq` — DID Method Specification (draft v0.1)
 
-> A W3C-conformant Decentralized Identifier method for OKORO-registered
+> A W3C-conformant Decentralized Identifier method for CERNIQ-registered
 > AI agents. Lets standards-compliant verifiers (W3C VC verifiers,
 > GS1's traceability stack, Microsoft Entra Verified ID, etc.) consume
-> OKORO identities natively, without bespoke client code.
+> CERNIQ identities natively, without bespoke client code.
 
 **Spec status**: DRAFT — not yet submitted to the W3C DID Method
 Registry. Targeted submission: Q3 2026 after one external pilot.
-**Editor**: OKORO Labs / KLYTICS.
+**Editor**: CERNIQ Labs / KLYTICS.
 **Version**: 0.1 (2026-05-01).
 
 ---
@@ -18,39 +18,39 @@ Two reasons:
 
 1. **Standards distribution wedge.** Verifiers built around W3C DIDs
    (a growing set in 2026: government wallets, supply-chain
-   traceability, healthcare credential systems) can consume `did:okoro`
+   traceability, healthcare credential systems) can consume `did:cerniq`
    identities by adding a single resolver entry, without learning the
-   OKORO API.
+   CERNIQ API.
 2. **DID compatibility hedge.** If the W3C DID stack wins the standards
    war over OAuth-for-agents (uncertain), we're already there. If
-   OAuth/DPoP wins, we still have our REST API. Doctrine: OKORO is
+   OAuth/DPoP wins, we still have our REST API. Doctrine: CERNIQ is
    neutral and protocol-agnostic.
 
-**Non-goals**: replacing the OKORO REST API; obsoleting the OKORO SDK;
+**Non-goals**: replacing the CERNIQ REST API; obsoleting the CERNIQ SDK;
 selling DIDs as an end product.
 
 ## 2. Method name
 
 ```
-did:okoro:<network>:<agent-id>
+did:cerniq:<network>:<agent-id>
 ```
 
 - `<network>` — `mainnet` (production), `sandbox` (sandbox env), or a
   region prefix in Phase 2.5 (`eu-mainnet`).
-- `<agent-id>` — the OKORO agent identifier, e.g.
+- `<agent-id>` — the CERNIQ agent identifier, e.g.
   `agt_01HZ9YZXM4QT3B7P8WKJD6R5V`.
 
 ### Example
 
 ```
-did:okoro:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V
+did:cerniq:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V
 ```
 
 ## 3. CRUD operations
 
 ### CREATE (registration)
 
-Creating an OKORO agent via `POST /v1/agents/register` implicitly creates
+Creating an CERNIQ agent via `POST /v1/agents/register` implicitly creates
 the DID. There is no separate DID registration step.
 
 ### READ (resolve)
@@ -58,14 +58,14 @@ the DID. There is no separate DID registration step.
 Resolution endpoint:
 
 ```
-GET https://api.okoroapp.com/.well-known/did/{did-encoded}
+GET https://api.cerniqapp.com/.well-known/did/{did-encoded}
 ```
 
 Or via the [universal resolver](https://dev.uniresolver.io/) once we
 register the method (target Q3 2026):
 
 ```
-https://dev.uniresolver.io/1.0/identifiers/did:okoro:mainnet:agt_xyz
+https://dev.uniresolver.io/1.0/identifiers/did:cerniq:mainnet:agt_xyz
 ```
 
 Returns a DID Document conforming to W3C DID Core v1.1:
@@ -73,46 +73,46 @@ Returns a DID Document conforming to W3C DID Core v1.1:
 ```jsonc
 {
   "@context": ["https://www.w3.org/ns/did/v1", "https://w3id.org/security/suites/ed25519-2020/v1"],
-  "id": "did:okoro:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V",
-  "controller": "did:okoro:mainnet:principal:p_abc123",
+  "id": "did:cerniq:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V",
+  "controller": "did:cerniq:mainnet:principal:p_abc123",
   "verificationMethod": [
     {
-      "id": "did:okoro:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V#key-1",
+      "id": "did:cerniq:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V#key-1",
       "type": "Ed25519VerificationKey2020",
-      "controller": "did:okoro:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V",
+      "controller": "did:cerniq:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V",
       "publicKeyMultibase": "z6MkpTHR8VNsBxYAAWHut2Geadd9jSrYE6BnUQUpCPVZjy2",
     },
   ],
-  "authentication": ["did:okoro:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V#key-1"],
-  "assertionMethod": ["did:okoro:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V#key-1"],
+  "authentication": ["did:cerniq:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V#key-1"],
+  "assertionMethod": ["did:cerniq:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V#key-1"],
   "service": [
     {
-      "id": "did:okoro:mainnet:agt_xyz#okoro-status",
-      "type": "OkoroAgentStatus",
-      "serviceEndpoint": "https://api.okoroapp.com/v1/agents/agt_xyz/status",
+      "id": "did:cerniq:mainnet:agt_xyz#cerniq-status",
+      "type": "CerniqAgentStatus",
+      "serviceEndpoint": "https://api.cerniqapp.com/v1/agents/agt_xyz/status",
     },
     {
-      "id": "did:okoro:mainnet:agt_xyz#okoro-verify",
-      "type": "OkoroVerify",
-      "serviceEndpoint": "https://api.okoroapp.com/v1/verify",
+      "id": "did:cerniq:mainnet:agt_xyz#cerniq-verify",
+      "type": "CerniqVerify",
+      "serviceEndpoint": "https://api.cerniqapp.com/v1/verify",
     },
   ],
 }
 ```
 
-The DID Document is **not signed** by OKORO — the integrity comes from
-TLS to a verifiable OKORO endpoint. Verifiers MAY additionally use the
+The DID Document is **not signed** by CERNIQ — the integrity comes from
+TLS to a verifiable CERNIQ endpoint. Verifiers MAY additionally use the
 status service endpoint to fetch the current trust band.
 
 ### UPDATE
 
-DID Documents are derived from OKORO database state. Updates happen
+DID Documents are derived from CERNIQ database state. Updates happen
 implicitly when the underlying agent is updated:
 
 - Status changes (`active` → `revoked`) reflect within ≤60s in the DID
   Document and immediately on the status service endpoint.
 - Trust score changes are NOT reflected in the DID Document itself
-  (avoid resolution churn) — fetch via the `OkoroAgentStatus` service.
+  (avoid resolution churn) — fetch via the `CerniqAgentStatus` service.
 
 ### DEACTIVATE
 
@@ -121,24 +121,24 @@ deactivated form:
 
 ```jsonc
 {
-  "id": "did:okoro:mainnet:agt_xyz",
+  "id": "did:cerniq:mainnet:agt_xyz",
   "deactivated": true,
-  "controller": "did:okoro:mainnet:principal:p_abc123",
+  "controller": "did:cerniq:mainnet:principal:p_abc123",
 }
 ```
 
 ## 4. Authentication & assertion
 
-A relying party verifying a presentation that includes a `did:okoro`
+A relying party verifying a presentation that includes a `did:cerniq`
 identity SHOULD:
 
 1. Resolve the DID Document.
 2. Confirm the public key matches the one used to sign the presentation
-   (Ed25519 raw verification — same operation as `okoro.verify()` does
+   (Ed25519 raw verification — same operation as `cerniq.verify()` does
    internally).
-3. Optionally call the `OkoroVerify` service endpoint to confirm
+3. Optionally call the `CerniqVerify` service endpoint to confirm
    trust-score, scope, spend limits, and revocation state — this is the
-   OKORO value-add over a bare DID resolution.
+   CERNIQ value-add over a bare DID resolution.
 
 A bare DID resolution gives identity but **not** behavioral attestation;
 that's why the BATE service endpoint exists.
@@ -147,10 +147,10 @@ that's why the BATE service endpoint exists.
 
 ### Privacy
 
-- DIDs leak the OKORO network (`mainnet` vs `sandbox`).
+- DIDs leak the CERNIQ network (`mainnet` vs `sandbox`).
 - The `controller` field reveals the principal-level DID.
-- Verifiers should be aware that calling `OkoroVerify` with a DID is
-  observable to OKORO — operators wanting unobservable verification
+- Verifiers should be aware that calling `CerniqVerify` with a DID is
+  observable to CERNIQ — operators wanting unobservable verification
   should fall back to local key verification.
 
 ### DID rotation
@@ -176,10 +176,10 @@ the [DID Test Suite](https://w3c.github.io/did-test-suite/).
 
 ## 7. Open questions (revisit before Q3 2026 submission)
 
-1. **Should `did:okoro` be cryptographic-self-asserting (like `did:key`)
+1. **Should `did:cerniq` be cryptographic-self-asserting (like `did:key`)
    or web-anchored (like `did:web`)?** Currently web-anchored — implies
-   OKORO uptime is part of the trust model. Counter-argument: making it
-   self-asserting decouples OKORO uptime from DID validity, which
+   CERNIQ uptime is part of the trust model. Counter-argument: making it
+   self-asserting decouples CERNIQ uptime from DID validity, which
    matches our "neutral verifier" doctrine.
 
 2. **Multi-key support.** A future agent might want classical Ed25519
@@ -187,7 +187,7 @@ the [DID Test Suite](https://w3c.github.io/did-test-suite/).
    The DID Document already supports multi-key arrays — wire this up
    when the migration starts.
 
-3. **`did:okoro:eu-mainnet`** vs `did:okoro:mainnet` with a
+3. **`did:cerniq:eu-mainnet`** vs `did:cerniq:mainnet` with a
    `service.region` field. Cleaner to put it in the network identifier
    (resolvable without parsing the document) but it complicates URI
    parsing.
@@ -197,4 +197,4 @@ the [DID Test Suite](https://w3c.github.io/did-test-suite/).
 - [W3C DID Core v1.1](https://www.w3.org/TR/did-1.1/)
 - [W3C DID Method Registry](https://www.w3.org/TR/did-spec-registries/#did-methods)
 - [Microsoft Entra Verified ID](https://learn.microsoft.com/en-us/entra/verified-id/)
-- OKORO internal: `docs/spec/05_STANDARDS_ROADMAP.md`, `docs/SECURITY.md`
+- CERNIQ internal: `docs/spec/05_STANDARDS_ROADMAP.md`, `docs/SECURITY.md`

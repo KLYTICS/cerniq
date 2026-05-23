@@ -1,17 +1,17 @@
 ---
-title: OKORO Service Map
+title: CERNIQ Service Map
 audience: engineers picking a layer to work in
 last-reviewed: 2026-05-04
 ---
 
-# OKORO Service Map
+# CERNIQ Service Map
 
 How the terminals, services, and packages fit together. This is the map an
 engineer reads on day one to understand which layer owns which concern.
 
 ```
                          ┌─────────────────────────────────────┐
-                         │  OKORO principal (you, the operator) │
+                         │  CERNIQ principal (you, the operator) │
                          └─────────────────────────────────────┘
                                       │ holds private keys
                                       │ holds API keys
@@ -21,10 +21,10 @@ engineer reads on day one to understand which layer owns which concern.
             │  (have access to private keys; sign on behalf of      │
             │   the principal; never accept inbound traffic)        │
             ├──────────────────────────────────────────────────────┤
-            │  • packages/sdk-ts        @okoro/sdk         (TS)     │
-            │  • packages/sdk-py        okoro              (Py)     │
-            │  • packages/cli           okoro              (Go)     │
-            │  • packages/mcp-server    @okoro/mcp-server  (TS)     │
+            │  • packages/sdk-ts        @cerniq/sdk         (TS)     │
+            │  • packages/sdk-py        cerniq              (Py)     │
+            │  • packages/cli           cerniq              (Go)     │
+            │  • packages/mcp-server    @cerniq/mcp-server  (TS)     │
             └──────────────────────────────────────────────────────┘
                                       │  POST  /v1/agents/register
                                       │  POST  /v1/agents/:id/challenge
@@ -34,7 +34,7 @@ engineer reads on day one to understand which layer owns which concern.
                                       │  GET   /v1/audit/:id
                                       ▼
             ┌──────────────────────────────────────────────────────┐
-            │                  OKORO API (origin)                   │
+            │                  CERNIQ API (origin)                   │
             │  apps/api  ·  NestJS 11 + Fastify-eligible/Express    │
             ├──────────────────────────────────────────────────────┤
             │  modules/  identity   policy   verify   audit         │
@@ -63,14 +63,14 @@ engineer reads on day one to understand which layer owns which concern.
             ├──────────────────────────────────────────────────────┤
             │  • workers/cf-verify  Cloudflare Worker — KV-cached   │
             │                       /v1/verify port (Phase 3)       │
-            │  • packages/verifier-rp @okoro/verifier-rp — offline   │
+            │  • packages/verifier-rp @cerniq/verifier-rp — offline   │
             │                       JWKS verify in any RP service   │
             └──────────────────────────────────────────────────────┘
 
             ┌──────────────────────────────────────────────────────┐
             │                  HUMAN SURFACE                        │
             ├──────────────────────────────────────────────────────┤
-            │  • apps/dashboard        @okoro/dashboard   Next 16   │
+            │  • apps/dashboard        @cerniq/dashboard   Next 16   │
             │    /, /agents, /agents/[id], /policies, /audit,       │
             │    /webhooks, /billing, /mcp-servers, /quickstart     │
             │    Cmd-K palette · g-prefixed chords · toasts         │
@@ -80,35 +80,35 @@ engineer reads on day one to understand which layer owns which concern.
 
 ## Per-package responsibilities
 
-| Path | Package | Owns |
-|---|---|---|
-| `apps/api/` | `@okoro/api` (private) | The control plane. Every state mutation flows through here. |
-| `apps/dashboard/` | `@okoro/dashboard` (private) | Operator-facing read+write UI. Holds API keys, never private keys. |
-| `packages/types/` | `@okoro/types` | Single source of truth for wire shapes (Zod schemas). API DTOs and dashboard fetch types both reconcile to these. |
-| `packages/sdk-ts/` | `@okoro/sdk` | Public TS SDK. Browser- and Edge-runtime-safe. Holds the agent private key. |
-| `packages/sdk-py/` | `okoro` | Python SDK. Mirrors TS surface. |
-| `packages/cli/` | `okoro` (Go binary) | Operator CLI. `okoro agents register/handshake/...` |
-| `packages/verifier-rp/` | `@okoro/verifier-rp` | Drop-in TS library for relying parties. Offline JWKS verification of `/v1/verify` tokens. |
-| `packages/mcp-server/` | `@okoro/mcp-server` | MCP server exposing OKORO tools to Claude Desktop / generic MCP clients. |
-| `workers/cf-verify/` | (no npm name) | Cloudflare Worker port of `/v1/verify`. Phase-3 edge optimization. |
-| `apps/api/prisma/` | (schema) | Postgres schema. AgentIdentity, AgentPolicy, AuditEvent (signed, chained), BateSignal, WebhookSubscription, Principal, OnboardingProgress, RelyingParty… |
+| Path                    | Package                       | Owns                                                                                                                                                     |
+| ----------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/`             | `@cerniq/api` (private)       | The control plane. Every state mutation flows through here.                                                                                              |
+| `apps/dashboard/`       | `@cerniq/dashboard` (private) | Operator-facing read+write UI. Holds API keys, never private keys.                                                                                       |
+| `packages/types/`       | `@cerniq/types`               | Single source of truth for wire shapes (Zod schemas). API DTOs and dashboard fetch types both reconcile to these.                                        |
+| `packages/sdk-ts/`      | `@cerniq/sdk`                 | Public TS SDK. Browser- and Edge-runtime-safe. Holds the agent private key.                                                                              |
+| `packages/sdk-py/`      | `cerniq`                      | Python SDK. Mirrors TS surface.                                                                                                                          |
+| `packages/cli/`         | `cerniq` (Go binary)          | Operator CLI. `cerniq agents register/handshake/...`                                                                                                     |
+| `packages/verifier-rp/` | `@cerniq/verifier-rp`         | Drop-in TS library for relying parties. Offline JWKS verification of `/v1/verify` tokens.                                                                |
+| `packages/mcp-server/`  | `@cerniq/mcp-server`          | MCP server exposing CERNIQ tools to Claude Desktop / generic MCP clients.                                                                                |
+| `workers/cf-verify/`    | (no npm name)                 | Cloudflare Worker port of `/v1/verify`. Phase-3 edge optimization.                                                                                       |
+| `apps/api/prisma/`      | (schema)                      | Postgres schema. AgentIdentity, AgentPolicy, AuditEvent (signed, chained), BateSignal, WebhookSubscription, Principal, OnboardingProgress, RelyingParty… |
 
 ## The first-run workflow — terminal-by-terminal
 
 This is the canonical flow `docs/QUICKSTART.md` walks an operator through.
 Each step lists which terminals participate.
 
-| Step | Operator action | Terminal | What happens |
-|---|---|---|---|
-| 1 | `pnpm add @okoro/sdk` | shell | SDK installed. |
-| 2 | `generateKeypair()` | SDK (browser-safe) | Ed25519 keypair, private stays local. |
-| 3 | `okoro.agents.register({publicKey, runtime})` | SDK → API | `AgentIdentity` row written; principal-bound. |
-| 4 | `okoro.handshake(agentId, privateKey)` | SDK → API → SDK → API | Challenge issued (Redis-stored), signed locally, verified server-side. Trust score → ≥600. |
-| 5 | `okoro.policies.create(agentId, {...})` | SDK → API | EdDSA-signed JWT policy issued. |
-| 6 | `okoro.sign(privKey, agentId, policyId, ctx)` then `okoro.verify(token, ctx)` | SDK | Locally-signed verify token. |
-| 6b | `POST /v1/verify` | SDK → API | Verify hot path runs full denial-precedence sweep. Returns `approved | denied | flagged`. |
-| 6c | Audit row written | API → Postgres | Hash-chained, OKORO-signed event. Webhooks dispatch async via outbox + BullMQ. |
-| 7 | Operator opens `/agents/:id` | Dashboard → API | Status dot, trust band, recent audit, handshake panel — all live. |
+| Step | Operator action                                                                 | Terminal              | What happens                                                                               |
+| ---- | ------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------ | ------ | --------- |
+| 1    | `pnpm add @cerniq/sdk`                                                          | shell                 | SDK installed.                                                                             |
+| 2    | `generateKeypair()`                                                             | SDK (browser-safe)    | Ed25519 keypair, private stays local.                                                      |
+| 3    | `cerniq.agents.register({publicKey, runtime})`                                  | SDK → API             | `AgentIdentity` row written; principal-bound.                                              |
+| 4    | `cerniq.handshake(agentId, privateKey)`                                         | SDK → API → SDK → API | Challenge issued (Redis-stored), signed locally, verified server-side. Trust score → ≥600. |
+| 5    | `cerniq.policies.create(agentId, {...})`                                        | SDK → API             | EdDSA-signed JWT policy issued.                                                            |
+| 6    | `cerniq.sign(privKey, agentId, policyId, ctx)` then `cerniq.verify(token, ctx)` | SDK                   | Locally-signed verify token.                                                               |
+| 6b   | `POST /v1/verify`                                                               | SDK → API             | Verify hot path runs full denial-precedence sweep. Returns `approved                       | denied | flagged`. |
+| 6c   | Audit row written                                                               | API → Postgres        | Hash-chained, CERNIQ-signed event. Webhooks dispatch async via outbox + BullMQ.            |
+| 7    | Operator opens `/agents/:id`                                                    | Dashboard → API       | Status dot, trust band, recent audit, handshake panel — all live.                          |
 
 Every step has at least one Bloomberg-density visualization in the dashboard
 and at least one CopyButton-backed snippet in `/quickstart`.
@@ -117,7 +117,7 @@ and at least one CopyButton-backed snippet in `/quickstart`.
 
 These are the inviolable rules. Full text in `apps/api/CLAUDE.md`.
 
-1. **Private keys never enter OKORO.** SDK is the only surface that touches one.
+1. **Private keys never enter CERNIQ.** SDK is the only surface that touches one.
 2. **Verify hot path is portable.** Pure functions, no NestJS imports — so the CF Worker port (Phase 3) is a drop-in.
 3. **Audit is append-only and signed.** Every write goes through `audit.service.append()`. Hash-chained. No `UPDATE`/`DELETE` ever.
 4. **No silent failures.** Failures surface in response + audit log. No fabricated empty arrays masking errors.
@@ -128,7 +128,7 @@ These are the inviolable rules. Full text in `apps/api/CLAUDE.md`.
 
 Multiple Claude sessions work in this repo. Coordination layer:
 
-- `~/.claude/peers/bin/claude-peers claim okoro <scope> --note ...` before edits.
+- `~/.claude/peers/bin/claude-peers claim cerniq <scope> --note ...` before edits.
 - `WORK_BOARD.md` lists modules; status tracked there.
 - `OPERATOR_DECISIONS.md` carries open decisions with reasoned defaults.
 - `docs/SESSION_HANDOFF.md` is appended after every session — read the last entry to know what just landed.
@@ -140,17 +140,17 @@ See `apps/api/CLAUDE.md` § "How parallel sessions claim work" for the contract.
 ## File layout — at a glance
 
 ```
-okoro/
+cerniq/
 ├── apps/
 │   ├── api/                       NestJS — control plane
 │   └── dashboard/                 Next.js 16 — operator UI
 ├── packages/
-│   ├── types/                     @okoro/types — Zod schemas
-│   ├── sdk-ts/                    @okoro/sdk — TS SDK
-│   ├── sdk-py/                    okoro — Python SDK
-│   ├── cli/                       okoro — Go CLI
-│   ├── verifier-rp/               @okoro/verifier-rp — offline RP verifier
-│   ├── mcp-server/                @okoro/mcp-server — MCP integration
+│   ├── types/                     @cerniq/types — Zod schemas
+│   ├── sdk-ts/                    @cerniq/sdk — TS SDK
+│   ├── sdk-py/                    cerniq — Python SDK
+│   ├── cli/                       cerniq — Go CLI
+│   ├── verifier-rp/               @cerniq/verifier-rp — offline RP verifier
+│   ├── mcp-server/                @cerniq/mcp-server — MCP integration
 │   └── tsconfig/, eslint-config/  shared configs
 ├── workers/
 │   └── cf-verify/                 Cloudflare Worker — Phase 3 edge verify
@@ -163,7 +163,7 @@ okoro/
 │   ├── SESSION_HANDOFF.md         Living log of session deliveries
 │   └── spec/                      Master, technical, GTM, OpenAPI
 ├── examples/
-│   ├── ai-platform-tool-call/     MCP agent → OKORO verify → downstream
+│   ├── ai-platform-tool-call/     MCP agent → CERNIQ verify → downstream
 │   ├── fintech-payments/          Stripe-style checkout with verify gate
 │   └── saas-seat-provisioning/    SCIM-flavored agent provisioning
 ├── infra/

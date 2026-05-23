@@ -1,22 +1,25 @@
-# OKORO — Agent Gateway & Identity Stack
+# CERNIQ — Agent Gateway & Identity Stack
+
 ## KLYTICS Internal Master Document v1.0
+
 ### Classification: INTERNAL — CONFIDENTIAL
 
 ---
 
 ## EXECUTIVE SUMMARY
 
-**OKORO** is a neutral, developer-first middleware layer that sits between AI agents and the services they interact with — providing verified identity, scoped authorization, behavioral attestation, and audit rails for every agent-initiated action.
+**CERNIQ** is a neutral, developer-first middleware layer that sits between AI agents and the services they interact with — providing verified identity, scoped authorization, behavioral attestation, and audit rails for every agent-initiated action.
 
 This is not a "passport." It is not a single authority. It is the **verification and policy enforcement choke point** that no protocol owns but every agent transaction must pass through.
 
-**Market signal:** OpenAI and Stripe launched the Agentic Commerce Protocol (ACP) in September 2025 — a payment rail for agent transactions. ACP solves the *payment* leg. It does not solve:
+**Market signal:** OpenAI and Stripe launched the Agentic Commerce Protocol (ACP) in September 2025 — a payment rail for agent transactions. ACP solves the _payment_ leg. It does not solve:
+
 - Who is the agent?
 - Is it actually authorized by a real human?
 - Has its behavior been trustworthy across sessions?
 - Can a relying party independently verify the claim in <100ms?
 
-OKORO fills that gap. ACP-compatible by design, OKORO plugs into the emerging agentic commerce stack as the **trust and verification layer** that Stripe explicitly left to implementers.
+CERNIQ fills that gap. ACP-compatible by design, CERNIQ plugs into the emerging agentic commerce stack as the **trust and verification layer** that Stripe explicitly left to implementers.
 
 ---
 
@@ -24,23 +27,24 @@ OKORO fills that gap. ACP-compatible by design, OKORO plugs into the emerging ag
 
 ### 1.1 What Already Exists (Do Not Re-Build)
 
-| Layer | Existing Solution | Our Angle |
-|---|---|---|
-| Agent payments | Stripe ACP + Shared Payment Tokens | Integrate, not compete |
-| Enterprise IAM | Auth0, Okta, SailPoint | Too heavy, human-centric |
-| Machine identity | Entro Security, Prefactor | Enterprise/DevSecOps angle |
-| Agent auth SDK | Auth0 for AI Agents (GA Nov 2025) | Dev-facing, not neutral verifier |
-| Commerce protocol | ACP (agenticcommerce.dev) | Open standard; we plug in |
-| Attestation | None at scale | **Our whitespace** |
+| Layer             | Existing Solution                  | Our Angle                        |
+| ----------------- | ---------------------------------- | -------------------------------- |
+| Agent payments    | Stripe ACP + Shared Payment Tokens | Integrate, not compete           |
+| Enterprise IAM    | Auth0, Okta, SailPoint             | Too heavy, human-centric         |
+| Machine identity  | Entro Security, Prefactor          | Enterprise/DevSecOps angle       |
+| Agent auth SDK    | Auth0 for AI Agents (GA Nov 2025)  | Dev-facing, not neutral verifier |
+| Commerce protocol | ACP (agenticcommerce.dev)          | Open standard; we plug in        |
+| Attestation       | None at scale                      | **Our whitespace**               |
 
 ### 1.2 The Whitespace
 
 No player owns the **neutral cross-platform agent trust score + attestation layer.** Every existing solution is:
+
 - Tied to a platform (Auth0 → Okta, Prefactor → MCP-only)
 - Commerce-specific (ACP → shopping flows)
 - Enterprise-only (SailPoint, Entro → large org tooling)
 
-OKORO is **platform-agnostic, developer-facing, and protocol-compatible.** It works whether the agent runs on Claude, GPT-4o, Gemini, or a custom LLM.
+CERNIQ is **platform-agnostic, developer-facing, and protocol-compatible.** It works whether the agent runs on Claude, GPT-4o, Gemini, or a custom LLM.
 
 ### 1.3 TAM Snapshot
 
@@ -53,7 +57,7 @@ OKORO is **platform-agnostic, developer-facing, and protocol-compatible.** It wo
 
 ## SECTION 2 — PRODUCT ARCHITECTURE
 
-### 2.1 The OKORO Stack (4 Layers)
+### 2.1 The CERNIQ Stack (4 Layers)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -76,69 +80,73 @@ OKORO is **platform-agnostic, developer-facing, and protocol-compatible.** It wo
 **What it is:** A cryptographic identity object tied to a human or organization principal.
 
 **Data model:**
+
 ```typescript
 interface AgentIdentity {
-  agentId: string;           // OKORO-issued ULID
-  publicKey: string;         // Ed25519 public key (DID-compatible)
-  principalId: string;       // Human/org owner
+  agentId: string; // CERNIQ-issued ULID
+  publicKey: string; // Ed25519 public key (DID-compatible)
+  principalId: string; // Human/org owner
   principalVerification: {
-    method: "email" | "oauth" | "wallet";
+    method: 'email' | 'oauth' | 'wallet';
     verifiedAt: Date;
     provider: string;
   };
   agentMetadata: {
-    runtime: string;          // "openai" | "anthropic" | "custom"
+    runtime: string; // "openai" | "anthropic" | "custom"
     model: string;
     version: string;
     registeredAt: Date;
   };
-  status: "active" | "suspended" | "revoked";
-  attestationScore: number;  // 0-1000, updated by BATE
+  status: 'active' | 'suspended' | 'revoked';
+  attestationScore: number; // 0-1000, updated by BATE
 }
 ```
 
 **How it works:**
-1. Developer registers agent via OKORO SDK or API
-2. OKORO issues a keypair — private key stored client-side, public key registered with OKORO
-3. Agent signs every outbound request with its private key
-4. Relying party (Delta, Amazon, bank) calls OKORO `/verify` endpoint to confirm identity + current trust score in <80ms
 
-**Key design choice:** OKORO never holds the private key. We are a **verifier and scorer**, not a key custodian. This eliminates our liability if a developer's key is compromised.
+1. Developer registers agent via CERNIQ SDK or API
+2. CERNIQ issues a keypair — private key stored client-side, public key registered with CERNIQ
+3. Agent signs every outbound request with its private key
+4. Relying party (Delta, Amazon, bank) calls CERNIQ `/verify` endpoint to confirm identity + current trust score in <80ms
+
+**Key design choice:** CERNIQ never holds the private key. We are a **verifier and scorer**, not a key custodian. This eliminates our liability if a developer's key is compromised.
 
 ### 2.3 Layer 2 — Policy Engine
 
 **What it is:** Fine-grained, programmable permission scopes bound to an agent identity.
 
 **Policy object:**
+
 ```typescript
 interface AgentPolicy {
   policyId: string;
   agentId: string;
   scopes: PolicyScope[];
-  createdBy: string;        // Principal ID
+  createdBy: string; // Principal ID
   expiresAt: Date;
   revokable: true;
 }
 
 interface PolicyScope {
-  category: string;          // "commerce" | "data-read" | "communication"
+  category: string; // "commerce" | "data-read" | "communication"
   spendLimit?: {
-    currency: "USD" | "EUR";
+    currency: 'USD' | 'EUR';
     maxPerTransaction: number;
     maxPerDay: number;
     maxPerMonth: number;
   };
-  merchantCategories?: string[];  // MCC codes for payment scopes
+  merchantCategories?: string[]; // MCC codes for payment scopes
   allowedDomains?: string[];
-  dataScopes?: string[];          // "read:email" | "write:calendar"
+  dataScopes?: string[]; // "read:email" | "write:calendar"
   validFrom: Date;
   validUntil: Date;
 }
 ```
 
 **Policy verification flow:**
+
 ```
-Agent Request → OKORO /verify
+Agent Request → CERNIQ /verify
   → Decode signed token
   → Look up active policy
   → Check scope allows this action
@@ -153,6 +161,7 @@ This is the highest-value, most defensible component. No competitor has built th
 **What it is:** A real-time trust scoring engine that tracks agent behavior across sessions and surfaces anomaly signals to relying parties.
 
 **Signal inputs:**
+
 - Transaction velocity (requests/minute)
 - Geographic consistency of request origins
 - Merchant/domain diversity vs. expected behavior
@@ -162,6 +171,7 @@ This is the highest-value, most defensible component. No competitor has built th
 - Cross-agent correlation (same principal, multiple agents)
 
 **BATE score model:**
+
 ```
 Trust Score (0-1000) = f(
   BaselineScore,          // Starts at 500 on registration
@@ -174,16 +184,18 @@ Trust Score (0-1000) = f(
 ```
 
 **Trust bands:**
+
 - 750–1000: PLATINUM — pre-approved at most relying parties
 - 500–749: VERIFIED — standard verification required
 - 250–499: WATCH — enhanced verification, lower spend limits
 - 0–249: FLAGGED — most relying parties will reject
 
-**Key insight:** This is the credit score layer for agents. It compounds in value over time. An agent with a 900-point OKORO score has a moat against competitors who would have to rebuild that history.
+**Key insight:** This is the credit score layer for agents. It compounds in value over time. An agent with a 900-point CERNIQ score has a moat against competitors who would have to rebuild that history.
 
 ### 2.5 Layer 4 — Audit & Compliance Rail
 
 Every action logged:
+
 ```typescript
 interface AuditEvent {
   eventId: string;
@@ -192,10 +204,10 @@ interface AuditEvent {
   timestamp: Date;
   action: string;
   relying_party: string;
-  policySnapshot: PolicyScope;    // Exact policy at time of action
-  decision: "approved" | "denied" | "flagged";
+  policySnapshot: PolicyScope; // Exact policy at time of action
+  decision: 'approved' | 'denied' | 'flagged';
   decisionReason: string;
-  signature: string;               // OKORO signs the audit record
+  signature: string; // CERNIQ signs the audit record
 }
 ```
 
@@ -207,16 +219,16 @@ Audit log is append-only. Exportable for SOC2, GDPR, FINRA, and COSSEC complianc
 
 ### 3.1 Technology Choices
 
-| Component | Technology | Rationale |
-|---|---|---|
-| Core API | NestJS (TypeScript) | Consistent with CERNIQ/SENTINEL stack |
-| Database | PostgreSQL + Prisma | Same as existing KLYTICS stack |
-| Cache / Real-time scores | Redis | Sub-10ms trust score lookups |
-| Cryptography | libsodium (Ed25519) | Industry standard, battle-tested |
-| Queue (BATE signals) | BullMQ | Already in SENTINEL pattern |
-| Hosting | Railway | Same as CERNIQ/SENTINEL |
-| CDN/Edge verification | Cloudflare Workers | Sub-50ms global verification |
-| Monitoring | Datadog (or Railway native) | Production observability |
+| Component                | Technology                  | Rationale                             |
+| ------------------------ | --------------------------- | ------------------------------------- |
+| Core API                 | NestJS (TypeScript)         | Consistent with CERNIQ/SENTINEL stack |
+| Database                 | PostgreSQL + Prisma         | Same as existing KLYTICS stack        |
+| Cache / Real-time scores | Redis                       | Sub-10ms trust score lookups          |
+| Cryptography             | libsodium (Ed25519)         | Industry standard, battle-tested      |
+| Queue (BATE signals)     | BullMQ                      | Already in SENTINEL pattern           |
+| Hosting                  | Railway                     | Same as CERNIQ/SENTINEL               |
+| CDN/Edge verification    | Cloudflare Workers          | Sub-50ms global verification          |
+| Monitoring               | Datadog (or Railway native) | Production observability              |
 
 ### 3.2 API Surface (v1)
 
@@ -258,56 +270,56 @@ GET /v1/agents/:agentId/audit
 #### Webhook Events (Developer Subscriptions)
 
 ```
-okoro.agent.trust_score_changed
-okoro.agent.anomaly_detected
-okoro.agent.policy_expired
-okoro.agent.flagged_by_relying_party
+cerniq.agent.trust_score_changed
+cerniq.agent.anomaly_detected
+cerniq.agent.policy_expired
+cerniq.agent.flagged_by_relying_party
 ```
 
 ### 3.3 SDK Design
 
 ```typescript
-// npm install @okoro/sdk
+// npm install @cerniq/sdk
 
-import { Okoro } from '@okoro/sdk';
+import { Cerniq } from '@cerniq/sdk';
 
-const okoro = new Okoro({ apiKey: process.env.OKORO_API_KEY });
+const cerniq = new Cerniq({ apiKey: process.env.CERNIQ_API_KEY });
 
 // Agent builder: sign outbound request
-const token = await okoro.agent.sign({
+const token = await cerniq.agent.sign({
   action: 'commerce.purchase',
   amount: 450,
-  merchantId: 'delta-airlines'
+  merchantId: 'delta-airlines',
 });
 
 // Relying party: verify inbound agent
-const result = await okoro.verify(incomingToken);
+const result = await cerniq.verify(incomingToken);
 if (result.valid && result.trustScore > 500) {
   processTransaction();
 }
 
 // Dashboard: revoke agent
-await okoro.agent.revoke(agentId);
+await cerniq.agent.revoke(agentId);
 ```
 
 ### 3.4 ACP Integration
 
-OpenAI/Stripe ACP uses Shared Payment Tokens (SPTs). OKORO wraps the agent identity layer *above* SPT:
+OpenAI/Stripe ACP uses Shared Payment Tokens (SPTs). CERNIQ wraps the agent identity layer _above_ SPT:
 
 ```
-ACP Flow with OKORO:
+ACP Flow with CERNIQ:
 
 1. User grants agent permission
 2. Agent gets SPT from Stripe
 3. Agent calls Delta API with:
-   { spt: "stripe_spt_xxx", okoroToken: "okoro_signed_xxx" }
+   { spt: "stripe_spt_xxx", cerniqToken: "cerniq_signed_xxx" }
 4. Delta calls:
    - Stripe: "Is this SPT valid for $450?"
-   - OKORO:  "Is this agent trusted at score >500 with commerce scope?"
+   - CERNIQ:  "Is this agent trusted at score >500 with commerce scope?"
 5. Both confirm → transaction approved
 ```
 
-OKORO is **additive to ACP**, not competitive with it. This is the positioning wedge.
+CERNIQ is **additive to ACP**, not competitive with it. This is the positioning wedge.
 
 ---
 
@@ -320,6 +332,7 @@ OKORO is **additive to ACP**, not competitive with it. This is the positioning w
 Why: Enterprises already have IAM teams and budget. Indie developers have no solution. They're the ones building the next wave of consumer agents. Get them while they're forming habits.
 
 **ICP (Ideal Customer Profile):**
+
 - Solo or 2-5 person team building an AI agent product
 - Agent performs real-world actions (shopping, scheduling, data retrieval)
 - Stack: Python/TypeScript + any LLM
@@ -329,17 +342,20 @@ Why: Enterprises already have IAM teams and budget. Indie developers have no sol
 ### 4.2 Distribution Channels
 
 **Phase 1 (0→1):**
+
 - GitHub: Open-source the SDK, closed-source the BATE engine
 - Hacker News, dev.to, r/LLMDevs
 - LangChain, CrewAI, AutoGen community forums
 - Discord: AI builders communities
 
 **Phase 2 (1→10):**
+
 - Partnerships with agent orchestration frameworks (LangChain, AutoGen)
 - Co-marketing with ACP-enabled merchants who want agent verification
 - Direct outreach to developer tool VCs (a16z, Sequoia scout programs)
 
 **Phase 3 (10→100):**
+
 - Enterprise sales to relying parties (e-commerce, financial services)
 - COSSEC and PR financial institution angle via CERNIQ pipeline
 - Regulatory-driven adoption (AI act compliance, SOC2 requirements)
@@ -347,12 +363,14 @@ Why: Enterprises already have IAM teams and budget. Indie developers have no sol
 ### 4.3 Pricing Model
 
 **Free tier (conversion engine):**
+
 - 10,000 verifications/month
 - 2 registered agents
 - No BATE score (basic trust only)
 - 30-day audit log retention
 
 **Developer ($29/month):**
+
 - 500,000 verifications/month
 - 10 agents
 - BATE score + anomaly alerts
@@ -360,6 +378,7 @@ Why: Enterprises already have IAM teams and budget. Indie developers have no sol
 - Webhook events
 
 **Growth ($149/month):**
+
 - 5M verifications/month
 - Unlimited agents
 - Full BATE with custom scoring rules
@@ -368,6 +387,7 @@ Why: Enterprises already have IAM teams and budget. Indie developers have no sol
 - SOC2 report access
 
 **Enterprise (custom):**
+
 - Unlimited
 - On-premise BATE option
 - Custom trust bands
@@ -375,6 +395,7 @@ Why: Enterprises already have IAM teams and budget. Indie developers have no sol
 - FINRA/COSSEC compliance packages
 
 **Revenue model also includes:**
+
 - Metered overages: $0.0002/verification above plan
 - Verification API pass-through for relying parties: $0.001/call
 - Trust score data licensing (anonymized, aggregate): future stream
@@ -382,15 +403,17 @@ Why: Enterprises already have IAM teams and budget. Indie developers have no sol
 ### 4.4 Revenue Gate Position in KLYTICS Stack
 
 Per Revenue Gate doctrine:
-- OKORO development begins: **AFTER CERNIQ Gate 1 ($2,500 MRR)**
-- OKORO is exempt from building moratorium during CERNIQ pilot phase
-- Exception: Architecture documentation and spec can be completed now (zero dev cost)
-- OKORO prototype (proof of concept, no customers) can begin during CERNIQ pilot active phase
-- First OKORO revenue target before any new product: $500 MRR
 
-**OKORO entry into KLYTICS holding company:**
+- CERNIQ development begins: **AFTER CERNIQ Gate 1 ($2,500 MRR)**
+- CERNIQ is exempt from building moratorium during CERNIQ pilot phase
+- Exception: Architecture documentation and spec can be completed now (zero dev cost)
+- CERNIQ prototype (proof of concept, no customers) can begin during CERNIQ pilot active phase
+- First CERNIQ revenue target before any new product: $500 MRR
+
+**CERNIQ entry into KLYTICS holding company:**
+
 - Separate LLC entity (not under CERNIQ or FORGE)
-- Operating as: OKORO Labs LLC (or OKORO Security Inc.)
+- Operating as: CERNIQ Labs LLC (or CERNIQ Security Inc.)
 - Housed under KLYTICS parent holdco
 
 ---
@@ -399,27 +422,27 @@ Per Revenue Gate doctrine:
 
 ### 5.1 Why We Win (If We Execute)
 
-| Moat | Description | Time to Build |
-|---|---|---|
-| Network effects | Trust score improves as more relying parties report signals | 18–36 months |
-| Data flywheel | More agents → richer BATE training data → better anomaly detection | 12–24 months |
-| Protocol lock-in | If ACP cites OKORO as recommended verifier, switching cost is high | 6–18 months |
-| First-mover neutrality | We are not Google, Stripe, or OpenAI — we are the Switzerland of agent identity | Immediate |
+| Moat                   | Description                                                                     | Time to Build |
+| ---------------------- | ------------------------------------------------------------------------------- | ------------- |
+| Network effects        | Trust score improves as more relying parties report signals                     | 18–36 months  |
+| Data flywheel          | More agents → richer BATE training data → better anomaly detection              | 12–24 months  |
+| Protocol lock-in       | If ACP cites CERNIQ as recommended verifier, switching cost is high             | 6–18 months   |
+| First-mover neutrality | We are not Google, Stripe, or OpenAI — we are the Switzerland of agent identity | Immediate     |
 
 ### 5.2 Threats (Honest Assessment)
 
-| Threat | Probability | Mitigation |
-|---|---|---|
-| Stripe extends ACP to include identity | HIGH | Build before they do; position as neutral to Stripe's commerce angle |
-| Auth0/Okta builds agent BATE | MEDIUM | Enterprise only; we own developer segment |
-| OpenAI/Anthropic builds identity | MEDIUM | They don't want to be trust gatekeepers; political liability |
-| Google/Apple | HIGH (long term) | Become the standard they have to support |
+| Threat                                 | Probability      | Mitigation                                                           |
+| -------------------------------------- | ---------------- | -------------------------------------------------------------------- |
+| Stripe extends ACP to include identity | HIGH             | Build before they do; position as neutral to Stripe's commerce angle |
+| Auth0/Okta builds agent BATE           | MEDIUM           | Enterprise only; we own developer segment                            |
+| OpenAI/Anthropic builds identity       | MEDIUM           | They don't want to be trust gatekeepers; political liability         |
+| Google/Apple                           | HIGH (long term) | Become the standard they have to support                             |
 
 ### 5.3 Key Insight: The Neutrality Advantage
 
 Stripe is Stripe. Auth0 is Okta. Both carry platform baggage. A Delta Air Lines or Chase Bank will not route all agent verification through OpenAI's infrastructure — their compliance teams won't allow it.
 
-OKORO is infrastructure-neutral, model-neutral, and commerce-neutral. This is the moat that big tech cannot buy.
+CERNIQ is infrastructure-neutral, model-neutral, and commerce-neutral. This is the moat that big tech cannot buy.
 
 ---
 
@@ -431,7 +454,7 @@ OKORO is infrastructure-neutral, model-neutral, and commerce-neutral. This is th
 The p99 target is <80ms globally. This requires Cloudflare Workers edge deployment for the hot verification path. Trust scores must be pre-computed and cached in Redis — not computed on-demand. This is the hardest infrastructure problem in Phase 1.
 
 **B2 — Key management UX**
-Developers are terrible at key management. The OKORO SDK must make signing trivially easy. If signing an agent request adds more than 2 lines of code, adoption will suffer. Consider: magic link-style onboarding, auto-rotation policies, SDK-managed key storage.
+Developers are terrible at key management. The CERNIQ SDK must make signing trivially easy. If signing an agent request adds more than 2 lines of code, adoption will suffer. Consider: magic link-style onboarding, auto-rotation policies, SDK-managed key storage.
 
 **B3 — Cold start trust problem**
 A new agent has a score of 500 — "neutral." Relying parties may still reject neutral agents for high-value actions. Need a "trust accelerator" path: principal KYC verification, pre-approved agent certification for specific use cases, referral from a high-trust agent (similar to credit card authorized user logic).
@@ -442,35 +465,39 @@ When Agent A delegates to Agent B delegates to Agent C, who is responsible? Need
 ### 6.2 Go-to-Market Friction Points
 
 **F1 — Chicken-and-egg**
-Relying parties want to verify agents. Developers want their agents trusted. Neither side acts first. Solution: launch with relying party-side as open and free (no cost to check an OKORO token), create developer demand through ecosystem positioning.
+Relying parties want to verify agents. Developers want their agents trusted. Neither side acts first. Solution: launch with relying party-side as open and free (no cost to check an CERNIQ token), create developer demand through ecosystem positioning.
 
 **F2 — Education overhead**
 Developers building agents today don't know they need agent identity. They'll learn when their agent gets blocked by a merchant's bot detection. We need to be in that search result ("how to make my AI agent trusted by websites") before the problem is widespread.
 
 **F3 — Standard fragmentation**
-ACP may not be the only protocol. Google, Visa, and others are building their own. OKORO must be protocol-agnostic at the transport layer — not coupled to any single commerce or agent protocol.
+ACP may not be the only protocol. Google, Visa, and others are building their own. CERNIQ must be protocol-agnostic at the transport layer — not coupled to any single commerce or agent protocol.
 
 ---
 
 ## SECTION 7 — DEVELOPMENT PHASES
 
 ### Phase 0 — Spec & Foundation (Now, no devs needed)
+
 **Duration:** 2–4 weeks
 **Owner:** Erwin
 **Deliverables:**
-- [ ] This document (OKORO_MASTER.md)
+
+- [ ] This document (CERNIQ_MASTER.md)
 - [ ] OpenAPI spec for all v1 endpoints
 - [ ] Agent identity data model finalized
 - [ ] Policy schema v1 finalized
 - [ ] BATE scoring algorithm documented
 - [ ] SDK API surface designed (TypeScript types)
-- [ ] Legal entity research (OKORO Labs LLC feasibility)
+- [ ] Legal entity research (CERNIQ Labs LLC feasibility)
 
 ### Phase 1 — MVP (Post CERNIQ Gate 1)
+
 **Duration:** 6–8 weeks
 **Stack:** NestJS, PostgreSQL, Redis, Railway
 **Team needed:** 1 backend dev (can be Erwin + 1 contractor)
 **Deliverables:**
+
 - [ ] Agent registration API
 - [ ] Ed25519 keypair issuance
 - [ ] Policy engine (create/revoke/check)
@@ -483,9 +510,11 @@ ACP may not be the only protocol. Google, Visa, and others are building their ow
 **Exit criteria:** 10 agents registered, 1 relying party integration, 1 paying developer customer
 
 ### Phase 2 — BATE Engine (Post $500 MRR)
+
 **Duration:** 8–10 weeks
 **Team needed:** +1 ML/data engineer (part-time)
 **Deliverables:**
+
 - [ ] BATE signal ingestion pipeline (BullMQ)
 - [ ] Trust score computation engine
 - [ ] Anomaly detection (rule-based v1, ML v2)
@@ -497,9 +526,11 @@ ACP may not be the only protocol. Google, Visa, and others are building their ow
 **Exit criteria:** BATE live, trust score updating in real-time, 50+ agents tracked
 
 ### Phase 3 — Edge & Enterprise (Post $5,000 MRR)
+
 **Duration:** 10–12 weeks
 **Team needed:** +1 infra/DevSecOps
 **Deliverables:**
+
 - [ ] Cloudflare Workers edge deployment (global <80ms)
 - [ ] Delegation chain support (multi-agent)
 - [ ] ACP integration connector
@@ -513,13 +544,13 @@ ACP may not be the only protocol. Google, Visa, and others are building their ow
 
 ### 8.1 Synergies
 
-**CERNIQ:** Cooperativa AI agents (auto-generating risk reports, executing FRTB calculations, querying loan portfolios) need agent identity. OKORO becomes the identity layer for CERNIQ's future agentic features. CERNIQ pilots OKORO as first enterprise customer.
+**CERNIQ:** Cooperativa AI agents (auto-generating risk reports, executing FRTB calculations, querying loan portfolios) need agent identity. CERNIQ becomes the identity layer for CERNIQ's future agentic features. CERNIQ pilots CERNIQ as first enterprise customer.
 
-**FORGE:** Manufacturing OS agents that query inventory, trigger purchase orders, interface with suppliers — all need verified identity. OKORO is FORGE's security substrate.
+**FORGE:** Manufacturing OS agents that query inventory, trigger purchase orders, interface with suppliers — all need verified identity. CERNIQ is FORGE's security substrate.
 
-**GHOST SWARM:** Ethical hacking agents need controlled identities to simulate attacks without being flagged as real threats. OKORO could provide "red team" agent credentials — a unique, defensible use case.
+**GHOST SWARM:** Ethical hacking agents need controlled identities to simulate attacks without being flagged as real threats. CERNIQ could provide "red team" agent credentials — a unique, defensible use case.
 
-**BLR-OS:** 20-agent AI label OS — each agent is an OKORO identity. This gives OKORO real-world internal testing before external launch.
+**BLR-OS:** 20-agent AI label OS — each agent is an CERNIQ identity. This gives CERNIQ real-world internal testing before external launch.
 
 ### 8.2 KLYTICS Entity Structure
 
@@ -527,12 +558,12 @@ ACP may not be the only protocol. Google, Visa, and others are building their ow
 KLYTICS LLC (holding)
 ├── CERNIQ (ALM/risk SaaS)
 ├── FORGE (manufacturing OS)
-├── OKORO Labs LLC (agent identity)
+├── CERNIQ Labs LLC (agent identity)
 ├── BLR / Black Label Records
 └── SAKRA (streetwear)
 ```
 
-OKORO operates as a separate legal entity for liability isolation (cryptographic security = potential target), independent fundraising path, and eventual acqui-hire/acquisition positioning.
+CERNIQ operates as a separate legal entity for liability isolation (cryptographic security = potential target), independent fundraising path, and eventual acqui-hire/acquisition positioning.
 
 ---
 
@@ -556,9 +587,10 @@ Target: 3/5 naming "verified identity + trust score" unprompted
 
 ### 9.2 Post-MVP Validation
 
-**North Star Metric:** Weekly Verified Transactions (WVT) — number of agent actions successfully verified through OKORO per week
+**North Star Metric:** Weekly Verified Transactions (WVT) — number of agent actions successfully verified through CERNIQ per week
 
 **Leading indicators:**
+
 - Agents registered (week 1 target: 10)
 - SDK installs (week 4 target: 100)
 - Developer signups (month 1 target: 50)
@@ -569,15 +601,15 @@ Target: 3/5 naming "verified identity + trust score" unprompted
 
 ## SECTION 10 — ACQUISITION NARRATIVE
 
-If OKORO reaches $500K ARR and 1M monthly verifications, it becomes an acquisition target for:
+If CERNIQ reaches $500K ARR and 1M monthly verifications, it becomes an acquisition target for:
 
-| Acquirer | Rationale | Likely Multiple |
-|---|---|---|
-| Okta / Auth0 | Identity layer for agents, extends their IAM suite | 10–15× ARR |
-| Stripe | Completes ACP with the identity layer they left to implementers | 12–20× ARR |
-| Cloudflare | Zero Trust + agent identity = natural product extension | 8–12× ARR |
-| CrowdStrike / Palo Alto | Agent identity as a security product | 10–15× ARR |
-| Anthropic / OpenAI | Vertical integration of trust layer | Strategic premium |
+| Acquirer                | Rationale                                                       | Likely Multiple   |
+| ----------------------- | --------------------------------------------------------------- | ----------------- |
+| Okta / Auth0            | Identity layer for agents, extends their IAM suite              | 10–15× ARR        |
+| Stripe                  | Completes ACP with the identity layer they left to implementers | 12–20× ARR        |
+| Cloudflare              | Zero Trust + agent identity = natural product extension         | 8–12× ARR         |
+| CrowdStrike / Palo Alto | Agent identity as a security product                            | 10–15× ARR        |
+| Anthropic / OpenAI      | Vertical integration of trust layer                             | Strategic premium |
 
 At $500K ARR, this is a $5M–$10M exit minimum. At $2M ARR with strong growth, $20M–$40M. At protocol-level adoption, the ceiling is uncapped.
 
@@ -595,13 +627,13 @@ At $500K ARR, this is a $5M–$10M exit minimum. At $2M ARR with strong growth, 
 ## APPENDIX B — GLOSSARY
 
 - **ACP** — Agentic Commerce Protocol (OpenAI + Stripe open standard)
-- **BATE** — Behavioral Attestation Engine (OKORO proprietary)
-- **DID** — Decentralized Identifier (W3C standard, OKORO-compatible)
+- **BATE** — Behavioral Attestation Engine (CERNIQ proprietary)
+- **DID** — Decentralized Identifier (W3C standard, CERNIQ-compatible)
 - **Ed25519** — Elliptic curve signature scheme used for agent signing
 - **NHI** — Non-Human Identity (industry term for machine/agent identities)
 - **SPT** — Shared Payment Token (Stripe primitive in ACP)
-- **Trust Score** — OKORO proprietary 0–1000 score computed by BATE
+- **Trust Score** — CERNIQ proprietary 0–1000 score computed by BATE
 
 ---
 
-*Document version: 1.0 | Author: Erwin Kiess-Alfonso / KLYTICS | Status: DRAFT*
+_Document version: 1.0 | Author: Erwin Kiess-Alfonso / KLYTICS | Status: DRAFT_

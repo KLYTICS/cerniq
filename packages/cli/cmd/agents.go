@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/klytics/okoro/packages/cli/internal/client"
-	"github.com/klytics/okoro/packages/cli/internal/cliutil"
-	"github.com/klytics/okoro/packages/cli/internal/ui"
+	"github.com/klytics/cerniq/packages/cli/internal/client"
+	"github.com/klytics/cerniq/packages/cli/internal/cliutil"
+	"github.com/klytics/cerniq/packages/cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -21,12 +21,12 @@ func init() {
 	agentsRegisterCmd.Flags().String("public-key", "",
 		"path to base64url-encoded Ed25519 public key file (use '-' to read from stdin)")
 	agentsRegisterCmd.Flags().Bool("generate-keypair", false,
-		"generate a fresh Ed25519 keypair locally; private key prints to stdout once and is NEVER sent to OKORO")
+		"generate a fresh Ed25519 keypair locally; private key prints to stdout once and is NEVER sent to CERNIQ")
 	agentsRegisterCmd.Flags().String("runtime", "custom",
 		"agent runtime: openai|anthropic|google|custom")
 	agentsRegisterCmd.Flags().String("model", "", "model identifier (e.g. gpt-4o)")
 	agentsRegisterCmd.Flags().String("principal-id", "",
-		"OKORO principal ID (defaults to the principal of the API key)")
+		"CERNIQ principal ID (defaults to the principal of the API key)")
 	agentsRegisterCmd.Flags().String("label", "", "human-readable label")
 
 	agentsCmd.AddCommand(agentsRegisterCmd, agentsShowCmd, agentsStatusCmd, agentsRevokeCmd)
@@ -44,12 +44,12 @@ var agentsRegisterCmd = &cobra.Command{
 	Short: "Register a new agent identity",
 	Long: `Register a new agent identity.
 
-The agent's PRIVATE key never enters OKORO (CLAUDE.md invariant 1). You
+The agent's PRIVATE key never enters CERNIQ (CLAUDE.md invariant 1). You
 either:
 
   --generate-keypair     mint a fresh Ed25519 keypair locally; the CLI
                          prints the base64url-encoded private key once,
-                         to stdout. Save it. OKORO will refuse to mint
+                         to stdout. Save it. CERNIQ will refuse to mint
                          a replacement.
 
   --public-key <path>    register an existing public key. The file
@@ -130,7 +130,7 @@ func runAgentsRegister(cmd *cobra.Command, _ []string) error {
 			"privateKeyOnce":   priv, // empty unless --generate-keypair
 			"keyEncoding":      "base64url",
 			"keyAlgorithm":     "Ed25519",
-			"keyPrintingNote":  "private key shown ONCE; OKORO never receives it",
+			"keyPrintingNote":  "private key shown ONCE; CERNIQ never receives it",
 			"verificationStep": fmt.Sprintf("sign the verificationToken with the matching private key, then call POST /v1/agents/%s/verify-handshake", resp.AgentID),
 		}
 		return cliutil.RenderJSON(cmd.OutOrStdout(), out)
@@ -152,7 +152,7 @@ func runAgentsRegister(cmd *cobra.Command, _ []string) error {
 	if priv != "" {
 		ui.Heading(w, "private key — printed ONCE, save now")
 		fmt.Fprintln(w, priv)
-		ui.Warn(w, "OKORO holds only the public key. If you lose this private key, register a new agent.")
+		ui.Warn(w, "CERNIQ holds only the public key. If you lose this private key, register a new agent.")
 	}
 	return nil
 }
@@ -249,7 +249,7 @@ func runAgentsRevoke(cmd *cobra.Command, args []string) error {
 
 // resolvePublicKey returns (publicKey base64url, privateKey base64url
 // only when --generate-keypair, error). The private key is empty for the
-// --public-key path — OKORO never receives it.
+// --public-key path — CERNIQ never receives it.
 func resolvePublicKey(path string, gen bool, stdin io.Reader) (string, string, error) {
 	if gen {
 		pub, priv, err := ed25519.GenerateKey(rand.Reader)

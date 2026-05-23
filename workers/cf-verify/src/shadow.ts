@@ -4,19 +4,19 @@
 // before we trust the edge with live traffic. Shadow mode runs both,
 // returns the origin response (so users see no behavior change), and
 // records whether the edge agreed. Operators flip
-// `OKORO_EDGE_VERIFY_ENABLED=true` only after observing N days of high
+// `CERNIQ_EDGE_VERIFY_ENABLED=true` only after observing N days of high
 // agreement (target ≥ 99.9% over 1M+ comparable verifies).
 //
 // Three modes:
 //   - off: pure origin (default). Edge code never executes.
 //   - shadow: edge AND origin run; origin response is served; divergence
-//     is recorded on the response header `X-OKORO-Edge-Divergence` and
+//     is recorded on the response header `X-CERNIQ-Edge-Divergence` and
 //     emitted to a Workers Analytics Engine dataset (when configured).
 //   - live: edge serves cache hits; origin handles misses.
 //
 // Mode selection:
-//   OKORO_EDGE_VERIFY_ENABLED=true       → live
-//   OKORO_EDGE_VERIFY_SHADOW_MODE=true   → shadow (only when not-live)
+//   CERNIQ_EDGE_VERIFY_ENABLED=true       → live
+//   CERNIQ_EDGE_VERIFY_SHADOW_MODE=true   → shadow (only when not-live)
 //   neither                              → off
 //
 // We DO NOT compare unstructured fields like `verifiedAt` (timestamps
@@ -24,13 +24,16 @@
 // (valid, denialReason, agentId, principalId, trustBand, scopesGranted)
 // — the bits a relying party actually relies on.
 
-import type { VerifyResponse } from '@okoro/types';
+import type { VerifyResponse } from '@cerniq/types';
 
 export type ShadowMode = 'off' | 'shadow' | 'live';
 
-export function shadowMode(env: { OKORO_EDGE_VERIFY_ENABLED?: string; OKORO_EDGE_VERIFY_SHADOW_MODE?: string }): ShadowMode {
-  if (env.OKORO_EDGE_VERIFY_ENABLED === 'true') return 'live';
-  if (env.OKORO_EDGE_VERIFY_SHADOW_MODE === 'true') return 'shadow';
+export function shadowMode(env: {
+  CERNIQ_EDGE_VERIFY_ENABLED?: string;
+  CERNIQ_EDGE_VERIFY_SHADOW_MODE?: string;
+}): ShadowMode {
+  if (env.CERNIQ_EDGE_VERIFY_ENABLED === 'true') return 'live';
+  if (env.CERNIQ_EDGE_VERIFY_SHADOW_MODE === 'true') return 'shadow';
   return 'off';
 }
 
@@ -47,7 +50,10 @@ export interface DivergenceReport {
  * `{ divergent: true, fields: [...] }` when ANY of the cared-about
  * fields differ. Used for the shadow-mode header.
  */
-export function compareVerifyResponses(edge: VerifyResponse, origin: VerifyResponse): DivergenceReport {
+export function compareVerifyResponses(
+  edge: VerifyResponse,
+  origin: VerifyResponse,
+): DivergenceReport {
   const fields: string[] = [];
   if (edge.valid !== origin.valid) fields.push('valid');
   if (edge.denialReason !== origin.denialReason) fields.push('denialReason');
@@ -72,7 +78,7 @@ function arraysEqual(a: readonly string[], b: readonly string[]): boolean {
  *   "diverge:valid,denialReason"
  *   "edge-forward:no-edge-decision"
  *
- * Operators query Cloudflare logs for `X-OKORO-Edge-Divergence: diverge:*`
+ * Operators query Cloudflare logs for `X-CERNIQ-Edge-Divergence: diverge:*`
  * to spot disagreements. With shadow mode active for 7 days at production
  * traffic we expect to see a clear pass/fail signal.
  */
@@ -85,7 +91,7 @@ export function divergenceHeader(report: DivergenceReport | { edgeForwarded: tru
 /**
  * Optional: emit divergence to Workers Analytics Engine. Stub kept here
  * so the worker can wire it up without restructuring. Set
- * OKORO_DIVERGENCE_DATASET_BINDING in env to enable.
+ * CERNIQ_DIVERGENCE_DATASET_BINDING in env to enable.
  */
 export interface AnalyticsEngineLike {
   writeDataPoint(p: { blobs?: string[]; doubles?: number[]; indexes?: string[] }): void;
@@ -106,7 +112,12 @@ export function recordDivergence(
     return;
   }
   ae.writeDataPoint({
-    blobs: [report.divergent ? 'diverge' : 'agree', report.fields.join(','), ctx.agentId ?? '', ctx.denialReason ?? ''],
+    blobs: [
+      report.divergent ? 'diverge' : 'agree',
+      report.fields.join(','),
+      ctx.agentId ?? '',
+      ctx.denialReason ?? '',
+    ],
     doubles: [report.divergent ? 1 : 0],
     indexes: ['cf-verify-shadow'],
   });

@@ -1,4 +1,4 @@
-// Assembles the final `okoro-evidence-*.tar.gz` from collected artifacts.
+// Assembles the final `cerniq-evidence-*.tar.gz` from collected artifacts.
 //
 // We emit a strict POSIX ustar archive (Format 0x75 0x73 0x74 0x61 0x72 in
 // the magic field) and pipe it through gzip — both formats are stable and
@@ -59,9 +59,7 @@ interface TarHeaderInput {
 /** Build a 512-byte POSIX ustar header for one tar member. */
 export function buildTarHeader(input: TarHeaderInput): Buffer {
   if (input.name.length > NAME_FIELD_MAX) {
-    throw new Error(
-      `tar: name "${input.name}" exceeds 100 bytes — bundle paths must stay short`,
-    );
+    throw new Error(`tar: name "${input.name}" exceeds 100 bytes — bundle paths must stay short`);
   }
   const header = Buffer.alloc(BLOCK_SIZE);
 
@@ -79,8 +77,8 @@ export function buildTarHeader(input: TarHeaderInput): Buffer {
   header.write('ustar\0', 257, 6, 'utf8');
   header.write('00', 263, 2, 'utf8');
   // uname / gname
-  header.write('okoro\0', 265, 6, 'utf8');
-  header.write('okoro\0', 297, 6, 'utf8');
+  header.write('cerniq\0', 265, 6, 'utf8');
+  header.write('cerniq\0', 297, 6, 'utf8');
 
   // Compute the unsigned checksum over the entire 512-byte header.
   let checksum = 0;
@@ -156,12 +154,8 @@ export async function planBundleEntries(args: {
   // human auditors who will read the file directly.
   const manifestBytes = utf8Bytes(`${JSON.stringify(manifest, null, 2)}\n`);
   const jwksBytes = utf8Bytes(`${JSON.stringify(args.fetched.jwks, null, 2)}\n`);
-  const configBytes = utf8Bytes(
-    `${JSON.stringify(args.fetched.okoroConfiguration, null, 2)}\n`,
-  );
-  const verificationBytes = utf8Bytes(
-    `${JSON.stringify(args.verification, null, 2)}\n`,
-  );
+  const configBytes = utf8Bytes(`${JSON.stringify(args.fetched.cerniqConfiguration, null, 2)}\n`);
+  const verificationBytes = utf8Bytes(`${JSON.stringify(args.verification, null, 2)}\n`);
   const securityBytes = utf8Bytes(args.fetched.securityTxt);
 
   // Order matters for SHA256SUMS reproducibility — sort by path lexicographically.
@@ -178,15 +172,13 @@ export async function planBundleEntries(args: {
     sha256: sha256OfBytes(jwksBytes),
   });
   entries.push({
-    path: 'okoro-configuration.json',
+    path: 'cerniq-configuration.json',
     source: { kind: 'bytes', data: configBytes },
     sha256: sha256OfBytes(configBytes),
   });
 
   if (args.fetched.retentionPolicyAvailable && args.fetched.retentionPolicy !== null) {
-    const retentionBytes = utf8Bytes(
-      `${JSON.stringify(args.fetched.retentionPolicy, null, 2)}\n`,
-    );
+    const retentionBytes = utf8Bytes(`${JSON.stringify(args.fetched.retentionPolicy, null, 2)}\n`);
     entries.push({
       path: 'retention-policy.json',
       source: { kind: 'bytes', data: retentionBytes },
@@ -243,8 +235,7 @@ async function* tarMemberChunks(
   mtime: number,
 ): AsyncGenerator<Buffer, void, void> {
   const fullName = `${bundleRoot}/${entry.path}`;
-  const size =
-    entry.source.kind === 'bytes' ? entry.source.data.byteLength : entry.source.size;
+  const size = entry.source.kind === 'bytes' ? entry.source.data.byteLength : entry.source.size;
   yield buildTarHeader({ name: fullName, size, typeflag: '0', mtime });
 
   if (entry.source.kind === 'bytes') {
@@ -282,9 +273,7 @@ export async function writeBundle(args: {
   bundleRoot: string;
   entries: BundleEntry[];
 }): Promise<void> {
-  const tarReadable = Readable.from(
-    tarStreamGenerator(args.bundleRoot, args.entries),
-  );
+  const tarReadable = Readable.from(tarStreamGenerator(args.bundleRoot, args.entries));
   const gzip = createGzip({ level: 6 });
   const out = createWriteStream(args.outputPath);
   await pipeline(tarReadable, gzip, out);

@@ -1,12 +1,12 @@
 #!/usr/bin/env -S node --import=tsx
-// OKORO — OpenAPI ↔ Zod parity gate (workspace-scoped to @okoro/types).
+// CERNIQ — OpenAPI ↔ Zod parity gate (workspace-scoped to @cerniq/types).
 //
 // CI entry point: spec-sync.yml job-1 invokes this exact path:
-//   pnpm -F @okoro/types exec tsx scripts/check-openapi-zod-parity.ts
+//   pnpm -F @cerniq/types exec tsx scripts/check-openapi-zod-parity.ts
 //
 // Why a workspace-scoped script (separate from the broader root
-// scripts/verify-spec.ts): @okoro/types must be self-validating against
-// the OpenAPI spec without dragging Prisma or @okoro/api into its
+// scripts/verify-spec.ts): @cerniq/types must be self-validating against
+// the OpenAPI spec without dragging Prisma or @cerniq/api into its
 // dependency graph. The wire contract lives here; this script is the
 // gate that says "this package and the OpenAPI document still agree".
 //
@@ -42,7 +42,7 @@ import { DENIAL_REASON_PRECEDENCE } from '../src/constants.js';
 const __filename = fileURLToPath(import.meta.url);
 const PACKAGE_ROOT = resolve(dirname(__filename), '..');
 const REPO_ROOT = resolve(PACKAGE_ROOT, '..', '..');
-const SPEC_PATH = join(REPO_ROOT, 'docs', 'spec', 'OKORO_API_SPEC.yaml');
+const SPEC_PATH = join(REPO_ROOT, 'docs', 'spec', 'CERNIQ_API_SPEC.yaml');
 const REPORT_PATH = join(REPO_ROOT, 'spec-sync.json');
 
 const REF_PREFIX = '#/components/schemas/';
@@ -115,9 +115,7 @@ interface DriftReport {
 /** Collect every component name referenced by a path operation, with the
  *  endpoints that touch it. Recursive — chases `$ref`, `items`, and
  *  `allOf/oneOf/anyOf`. */
-function collectReferencedComponents(
-  doc: OpenApiDoc,
-): Map<string, Set<string>> {
+function collectReferencedComponents(doc: OpenApiDoc): Map<string, Set<string>> {
   const refs = new Map<string, Set<string>>();
   const addRef = (name: string, endpoint: string): void => {
     let endpoints = refs.get(name);
@@ -308,7 +306,11 @@ function checkDenialEnumOrder(spec: OpenApiDoc): EnumReport {
       detail: `length mismatch — spec has ${specOrder.length}, canonical has ${canonical.length}`,
     };
   }
-  return { name: 'VerifyResponse.denialReason', status: 'ok', detail: 'byte-identical to DENIAL_REASON_PRECEDENCE' };
+  return {
+    name: 'VerifyResponse.denialReason',
+    status: 'ok',
+    detail: 'byte-identical to DENIAL_REASON_PRECEDENCE',
+  };
 }
 
 // ── Main ─────────────────────────────────────────────────────────────
@@ -409,12 +411,16 @@ function formatTable(report: DriftReport): string {
 }
 
 // Vitest imports this file but we don't want to execute under test.
-const isMain = import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('check-openapi-zod-parity.ts');
+const isMain =
+  import.meta.url === `file://${process.argv[1]}` ||
+  process.argv[1]?.endsWith('check-openapi-zod-parity.ts');
 if (isMain) {
   main()
     .then(exit)
     .catch((err: unknown) => {
-      stderr.write(`spec-sync: fatal — ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
+      stderr.write(
+        `spec-sync: fatal — ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`,
+      );
       exit(2);
     });
 }
