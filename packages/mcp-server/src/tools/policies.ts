@@ -1,5 +1,4 @@
 import type { Aegis } from '@aegis/sdk';
-
 import type { ToolDefinition } from './registry.js';
 
 export function registerPoliciesTools(aegis: Aegis, registry: Map<string, ToolDefinition>): void {
@@ -38,46 +37,30 @@ export function registerPoliciesTools(aegis: Aegis, registry: Map<string, ToolDe
       required: ['agent_id', 'scopes'],
       additionalProperties: false,
     },
-    handler: async (args) =>
-      await aegis.policies.create({
-        agentId: String(args.agent_id),
+    handler: async (args) => {
+      const agentId = String(args.agent_id);
+      const expiresInSeconds = typeof args.expires_in_seconds === 'number' ? args.expires_in_seconds : 86400;
+      const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
+      return await aegis.policies.create(agentId, {
         scopes: args.scopes as never,
-        expiresInSeconds: typeof args.expires_in_seconds === 'number' ? args.expires_in_seconds : undefined,
-      }),
-  });
-
-  registry.set('aegis.policies.get', {
-    name: 'aegis.policies.get',
-    description: 'Fetch one policy by id.',
-    inputSchema: {
-      type: 'object',
-      properties: { policy_id: { type: 'string' } },
-      required: ['policy_id'],
-      additionalProperties: false,
+        expiresAt,
+      });
     },
-    handler: async (args) => await aegis.policies.get(String(args.policy_id)),
   });
 
   registry.set('aegis.policies.list', {
     name: 'aegis.policies.list',
-    description: 'List active policies for an agent or principal.',
+    description: 'List active policies for an agent.',
     inputSchema: {
       type: 'object',
       properties: {
         agent_id: { type: 'string' },
-        status: { type: 'string', enum: ['ACTIVE', 'REVOKED', 'EXPIRED'] },
-        limit: { type: 'number', minimum: 1, maximum: 100 },
-        cursor: { type: 'string' },
       },
+      required: ['agent_id'],
       additionalProperties: false,
     },
     handler: async (args) =>
-      await aegis.policies.list({
-        agentId: typeof args.agent_id === 'string' ? args.agent_id : undefined,
-        status: typeof args.status === 'string' ? (args.status as 'ACTIVE' | 'REVOKED' | 'EXPIRED') : undefined,
-        limit: typeof args.limit === 'number' ? args.limit : undefined,
-        cursor: typeof args.cursor === 'string' ? args.cursor : undefined,
-      }),
+      await aegis.policies.list(String(args.agent_id)),
   });
 
   registry.set('aegis.policies.revoke', {
@@ -86,15 +69,13 @@ export function registerPoliciesTools(aegis: Aegis, registry: Map<string, ToolDe
     inputSchema: {
       type: 'object',
       properties: {
-        policy_id: { type: 'string' },
-        reason: { type: 'string' },
+        agent_id: { type: 'string', description: 'Agent ID associated with the policy.' },
+        policy_id: { type: 'string', description: 'Policy ID to revoke.' },
       },
-      required: ['policy_id'],
+      required: ['agent_id', 'policy_id'],
       additionalProperties: false,
     },
     handler: async (args) =>
-      { await aegis.policies.revoke(String(args.policy_id), {
-        reason: typeof args.reason === 'string' ? args.reason : undefined,
-      }); },
+      await aegis.policies.revoke(String(args.agent_id), String(args.policy_id)),
   });
 }

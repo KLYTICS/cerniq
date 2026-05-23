@@ -9,7 +9,8 @@
  *  - Trust band below minimum → BridgeDenialError(TRUST_SCORE_TOO_LOW)
  *  - Happy path → handler called, aegisVerify injected into context
  *  - Custom onDenial callback is invoked (not the default throw)
- *  - actionPrefix + method → action string forwarded to verify()
+ *  - tools/call scopes to the named MCP tool, not the generic JSON-RPC method
+ *  - bridge-only auth metadata is stripped before handler execution
  *  - PLAN_LIMIT_EXCEEDED propagates from verify()
  *  - FLAGGED minTrustBand accepts any band
  */
@@ -47,15 +48,16 @@ function makeReq(
 }
 
 /** Token-bearing request via header path */
-function reqWithHeaderToken(method: string, token: string) {
+function reqWithHeaderToken(method: string, token: string, params?: Record<string, unknown>) {
   return makeReq(method, {
+    ...(params ?? {}),
     _aegis_headers: { 'x-aegis-token': token },
   });
 }
 
 /** Token-bearing request via arg path */
-function reqWithArgToken(method: string, token: string) {
-  return makeReq(method, { _aegis_token: token });
+function reqWithArgToken(method: string, token: string, params?: Record<string, unknown>) {
+  return makeReq(method, { ...(params ?? {}), _aegis_token: token });
 }
 
 function happyResult(overrides?: Partial<VerifyResult>): VerifyResult {
@@ -98,10 +100,85 @@ describe('wrapMcpHandler', () => {
     const handler = vi.fn().mockResolvedValue({ result: 'ok' });
 
     const wrapped = wrapMcpHandler(config, handler);
-    await wrapped(reqWithHeaderToken('tools/call', 'tok_header'));
+    await wrapped(reqWithHeaderToken('tools/call', 'tok_header', { name: 'read_file' }));
 
-    expect(aegis.verify).toHaveBeenCalledWith('tok_header', expect.objectContaining({ action: 'mcp.test.tools/call' }));
+    expect(aegis.verify).toHaveBeenCalledWith('tok_header', expect.objectContaining({ action: 'mcp.test.read_file' }));
     expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('normalizes mixed-case transport headers before extracting the token', async () => {
+    const aegis = makeAegis(happyResult());
+    const config = baseConfig({ aegis });
+    const handler = vi.fn().mockResolvedValue({ result: 'ok' });
+
+    const wrapped = wrapMcpHandler(config, handler);
+    await wrapped(
+      makeReq('tools/call', {
+        name: 'read_file',
+        _aegis_headers: { 'X-AEGIS-Token': 'tok_mixed_case' },
+      }),
+    );
+
+    expect(aegis.verify).toHaveBeenCalledWith('tok_mixed_case', expect.objectContaining({ action: 'mcp.test.read_file' }));
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('exposes ctx.headers with lowercase keys to the handler — contract lock', async () => {
+    // Lock the BridgeContext.headers contract: keys are guaranteed
+    // lowercased regardless of what the transport delivered. Without this
+    // assertion a future contributor could "improve" extractHeaders to
+    // preserve casing and silently break every consumer that does
+    // `ctx.headers['x-...']`.
+    let observed: Record<string, string> | undefined;
+    const handler = vi.fn().mockImplementation(async (_req: unknown, ctx: { headers: Record<string, string> }) => {
+      observed = ctx.headers;
+      return { ok: true };
+    });
+    const wrapped = wrapMcpHandler(baseConfig(), handler);
+
+    await wrapped(
+      makeReq('tools/call', {
+        name: 'read_file',
+        _aegis_headers: {
+          'X-AEGIS-Token': 'tok',
+          'X-Request-Id': 'req-123',
+          'User-Agent': 'mcp-client/1.0',
+        },
+      }),
+    );
+
+    expect(observed).toEqual({
+      'x-aegis-token': 'tok',
+      'x-request-id': 'req-123',
+      'user-agent': 'mcp-client/1.0',
+    });
+    // Negative: original-case keys are gone, not duplicated.
+    expect(observed!['X-Request-Id']).toBeUndefined();
+  });
+
+  it('drops non-string header values defensively', async () => {
+    // Transports occasionally deliver numeric content-length or boolean
+    // flags. We forward only string-valued headers so consumers don't
+    // need to typeguard every lookup.
+    let observed: Record<string, string> | undefined;
+    const handler = vi.fn().mockImplementation(async (_req: unknown, ctx: { headers: Record<string, string> }) => {
+      observed = ctx.headers;
+      return { ok: true };
+    });
+    const wrapped = wrapMcpHandler(baseConfig(), handler);
+
+    await wrapped(
+      makeReq('tools/call', {
+        name: 'read_file',
+        _aegis_headers: {
+          'X-AEGIS-Token': 'tok',
+          'Content-Length': 42,
+          'X-Trusted': true,
+        },
+      }),
+    );
+
+    expect(observed).toEqual({ 'x-aegis-token': 'tok' });
   });
 
   it('extracts token from _aegis_token param when header is absent', async () => {
@@ -219,10 +296,11 @@ describe('wrapMcpHandler', () => {
     });
 
     const wrapped = wrapMcpHandler(baseConfig({ aegis }), handler);
-    await wrapped(reqWithHeaderToken('tools/call', 'tok'));
+    await wrapped(reqWithHeaderToken('tools/call', 'tok', { name: 'read_file' }));
 
     expect(capturedCtx).toMatchObject({
       method: 'tools/call',
+      target: 'read_file',
       aegisVerify: verifyResult,
     });
   });
@@ -259,9 +337,43 @@ describe('wrapMcpHandler', () => {
     expect(onDenial).toHaveBeenCalledWith('AGENT_NOT_FOUND', expect.anything());
   });
 
-  // ── actionPrefix + method ────────────────────────────────────────────────
+  it('strips bridge-only auth metadata before invoking the handler', async () => {
+    const handler = vi.fn().mockResolvedValue({ ok: true });
+    const wrapped = wrapMcpHandler(baseConfig(), handler);
 
-  it('constructs action as actionPrefix + method', async () => {
+    await wrapped(
+      makeReq('tools/call', {
+        name: 'read_file',
+        path: '/tmp/report.txt',
+        _aegis_token: 'tok_arg',
+        _aegis_headers: { 'x-aegis-token': 'tok_header' },
+      }),
+    );
+
+    expect(handler).toHaveBeenCalledWith(
+      {
+        method: 'tools/call',
+        params: { name: 'read_file', path: '/tmp/report.txt' },
+      },
+      expect.objectContaining({
+        args: { name: 'read_file', path: '/tmp/report.txt' },
+      }),
+    );
+  });
+
+  // ── action scoping ───────────────────────────────────────────────────────
+
+  it('constructs tools/call action as actionPrefix + target tool name', async () => {
+    const aegis = makeAegis(happyResult());
+    const config = baseConfig({ aegis, actionPrefix: 'mcp.myserver.' });
+    const wrapped = wrapMcpHandler(config, vi.fn().mockResolvedValue({}));
+
+    await wrapped(reqWithHeaderToken('tools/call', 'tok', { name: 'charge_card' }));
+
+    expect(aegis.verify).toHaveBeenCalledWith('tok', { action: 'mcp.myserver.charge_card' });
+  });
+
+  it('falls back to method name when the MCP request has no concrete target', async () => {
     const aegis = makeAegis(happyResult());
     const config = baseConfig({ aegis, actionPrefix: 'mcp.myserver.' });
     const wrapped = wrapMcpHandler(config, vi.fn().mockResolvedValue({}));
@@ -270,6 +382,55 @@ describe('wrapMcpHandler', () => {
 
     expect(aegis.verify).toHaveBeenCalledWith('tok', { action: 'mcp.myserver.tools/list' });
   });
+
+  // Resource methods scope under the method name to keep resource URIs
+  // namespaced separately from tool names (which use a flat prefix).
+  // A resource URI of "read_file" must NOT match a tools/call policy.
+  it.each([
+    ['resources/read', 'file:///etc/hosts', 'mcp.myserver.resources/read.file:///etc/hosts'],
+    ['resources/subscribe', 'config://app/logs', 'mcp.myserver.resources/subscribe.config://app/logs'],
+    ['resources/unsubscribe', 'config://app/logs', 'mcp.myserver.resources/unsubscribe.config://app/logs'],
+    ['prompts/get', 'summarize_diff', 'mcp.myserver.prompts/get.summarize_diff'],
+  ])('scopes %s to its target via method.target namespace', async (method, target, expectedAction) => {
+    const aegis = makeAegis(happyResult());
+    const config = baseConfig({ aegis, actionPrefix: 'mcp.myserver.' });
+    const wrapped = wrapMcpHandler(config, vi.fn().mockResolvedValue({}));
+
+    const params = method.startsWith('resources/') ? { uri: target } : { name: target };
+    await wrapped(reqWithHeaderToken(method, 'tok', params));
+
+    expect(aegis.verify).toHaveBeenCalledWith('tok', { action: expectedAction });
+  });
+
+  // Defense: a resource URI that spells `charge_card` must not pass a
+  // tools/call policy on `mcp.myserver.charge_card`. The method.target
+  // namespace prevents this cross-method confusion.
+  it('isolates a resource URI from collision with a tool name', async () => {
+    const aegis = makeAegis(happyResult());
+    const config = baseConfig({ aegis, actionPrefix: 'mcp.myserver.' });
+    const wrapped = wrapMcpHandler(config, vi.fn().mockResolvedValue({}));
+
+    await wrapped(reqWithHeaderToken('resources/read', 'tok', { uri: 'charge_card' }));
+
+    // resources/read scoped under its method; cannot match an
+    // mcp.myserver.charge_card tools/call policy.
+    expect(aegis.verify).toHaveBeenCalledWith('tok', {
+      action: 'mcp.myserver.resources/read.charge_card',
+    });
+  });
+
+  it.each(['resources/list', 'prompts/list'])(
+    'list method %s falls back to method name (no target discriminator)',
+    async (method) => {
+      const aegis = makeAegis(happyResult());
+      const config = baseConfig({ aegis, actionPrefix: 'mcp.myserver.' });
+      const wrapped = wrapMcpHandler(config, vi.fn().mockResolvedValue({}));
+
+      await wrapped(reqWithHeaderToken(method, 'tok'));
+
+      expect(aegis.verify).toHaveBeenCalledWith('tok', { action: `mcp.myserver.${method}` });
+    },
+  );
 
   // ── BridgeDenialError shape ──────────────────────────────────────────────
 

@@ -20,6 +20,10 @@ export class Aegis {
       timeoutMs: config.timeoutMs ?? DEFAULT_TIMEOUT_MS,
       fetch: config.fetch,
       userAgent: config.userAgent,
+      onWriteResponse: config.onWriteResponse,
+      signal: config.signal,
+      apiVersion: config.apiVersion,
+      onApiVersionDeprecated: config.onApiVersionDeprecated,
     });
     this.agents = new AgentClient(this.http);
     this.policies = new PolicyClient(this.http);
@@ -100,4 +104,75 @@ export type {
   BreakerState,
   FallbackMode,
 } from './verify-gateway.js';
+export {
+  AUTO_IDEMPOTENT_METHODS,
+  FIRST_SEEN_HEADER,
+  IDEMPOTENCY_HEADER,
+  REPLAY_HEADER,
+  generateIdempotencyKey,
+  parseReplayHeaders,
+  resolveIdempotencyKey,
+} from './idempotency.js';
+export type {
+  AutoAttachMode,
+  IdempotencyOptions,
+  OnWriteResponse,
+  ReplayMetadata,
+  WriteResponseInfo,
+} from './idempotency.js';
+export {
+  AegisWebhookSignatureInvalidError,
+  AegisWebhookSignatureMalformedError,
+  AegisWebhookTimestampError,
+  DEFAULT_TOLERANCE_SECONDS,
+  WEBHOOK_DELIVERY_ID_HEADER,
+  WEBHOOK_EVENT_HEADER,
+  WEBHOOK_SIGNATURE_HEADER,
+  verifyWebhookSignature,
+} from './webhook.js';
+export type { VerifiedWebhook, VerifyWebhookOptions } from './webhook.js';
+export {
+  DEFAULT_MAX_PAGES,
+  PaginationLimitExceededError,
+  paginate,
+} from './pagination.js';
+export type { PaginationOptions } from './pagination.js';
+export {
+  API_VERSION_HEADER,
+  DEPRECATION_HEADER,
+  LATEST_VERSION_HEADER,
+  parseVersionResponse,
+} from './version.js';
+export type {
+  ApiVersionDeprecationInfo,
+  OnApiVersionDeprecated,
+} from './version.js';
+export {
+  WebhookEventParseError,
+  interpretWebhookEvent,
+  isWebhookEnvelope,
+} from './webhook-events.js';
+export type {
+  AgentAnomalyDetectedEvent,
+  AgentAnomalyDetectedPayload,
+  AgentFlaggedByRelyingPartyEvent,
+  AgentFlaggedByRelyingPartyPayload,
+  AgentPolicyExpiredEvent,
+  AgentPolicyExpiredPayload,
+  AgentRevokedEvent,
+  AgentRevokedPayload,
+  AgentTrustScoreChangedEvent,
+  AgentTrustScoreChangedPayload,
+  WebhookEnvelope,
+} from './webhook-events.js';
+export {
+  AegisWebhookReplayDetectedError,
+  assertNotReplay,
+  createMemoryReplayStore,
+} from './webhook-replay.js';
+export type {
+  AssertNotReplayOptions,
+  MemoryReplayStoreOptions,
+  WebhookReplayStore,
+} from './webhook-replay.js';
 export type * from './types.js';

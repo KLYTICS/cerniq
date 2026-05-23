@@ -68,20 +68,15 @@ class Currency(StrEnum):
     GBP = "GBP"
 
 
-class DenialReason(StrEnum):
-    # Billing pre-gate — fires BEFORE the 9-step algorithm chain.
-    # Relying parties receiving this should direct users to upgrade their plan.
-    PLAN_LIMIT_EXCEEDED = "PLAN_LIMIT_EXCEEDED"
-    # 9-step algorithm chain (in precedence order):
-    AGENT_NOT_FOUND = "AGENT_NOT_FOUND"
-    AGENT_REVOKED = "AGENT_REVOKED"
-    INVALID_SIGNATURE = "INVALID_SIGNATURE"
-    POLICY_REVOKED = "POLICY_REVOKED"
-    POLICY_EXPIRED = "POLICY_EXPIRED"
-    SCOPE_NOT_GRANTED = "SCOPE_NOT_GRANTED"
-    SPEND_LIMIT_EXCEEDED = "SPEND_LIMIT_EXCEEDED"
-    TRUST_SCORE_TOO_LOW = "TRUST_SCORE_TOO_LOW"
-    ANOMALY_FLAGGED = "ANOMALY_FLAGGED"
+# DenialReason is re-exported from the generated module to keep TS↔PY
+# drift structurally impossible. See ``_denial_reason_generated.py``
+# header and ``scripts/generate-denial-reason.ts`` for the contract.
+# CI gate ``pnpm check:denial-reason-gen`` reds on drift.
+#
+# Public consumers should keep importing from this module
+# (``from aegis.models import DenialReason``) — the generated module
+# is private (leading underscore) and may move between minor versions.
+from ._denial_reason_generated import DenialReason  # noqa: F401
 
 
 class SignalSeverity(StrEnum):

@@ -5,8 +5,8 @@
 // call (POLICY_EXPIRED denial), so an unswept expired policy is already
 // safe — the sweep keeps the data model truthful for dashboards, CSV
 // exports, and SOC2 evidence. It also fires the
-// `aegis.policy.expired` webhook so customers can plumb expiry into
-// their own ticketing.
+// `aegis.agent.policy_expired` webhook so customers can plumb expiry
+// into their own ticketing.
 //
 // Design:
 //   - BullMQ repeatable job (every 5 minutes) — uses the same queue
@@ -20,6 +20,7 @@
 // runs on every expired policy in the system). `WebhooksService.enqueue`
 // scopes per-principal automatically by looking up the policy's owner.
 
+import { WEBHOOK_EVENT } from '@aegis/types';
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import type { AgentPolicy } from '@prisma/client';
 import { Queue, Worker, type Job } from 'bullmq';
@@ -30,7 +31,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { AppConfigService } from '../../config/config.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
 
-export const POLICY_EXPIRY_QUEUE = 'aegis.policy.expiry';
+export const POLICY_EXPIRY_QUEUE = 'okoro.policy.expiry';
 export const POLICY_EXPIRY_REPEAT_KEY = 'policy:expiry:tick';
 export const POLICY_EXPIRY_INTERVAL_MS = 5 * 60_000; // 5 min — see ADR-0007 §"Cadence"
 
@@ -141,7 +142,16 @@ export class PolicyExpiryWorker implements OnModuleInit, OnModuleDestroy {
       try {
         await this.webhooks.enqueue(
           {
-            type: 'aegis.policy.expired',
+            // M-WEBHOOK-3 (2026-05-22): use the catalog constant, not
+            // the legacy 'okoro.policy.expired' literal. Subscriptions
+            // match on exact string in webhooks.service.ts:65; the
+            // legacy name silently dropped every delivery to
+            // subscribers that registered for the catalog name.
+            // Cross-package parity test
+            // tests/cross-package/webhook-event-emitter-parity.spec.ts
+            // gates this constant against the catalog so future drift
+            // breaks CI, not customers.
+            type: WEBHOOK_EVENT.AGENT_POLICY_EXPIRED,
             data: {
               policyId: row.id,
               agentId: row.agentId,
@@ -161,6 +171,13 @@ export class PolicyExpiryWorker implements OnModuleInit, OnModuleDestroy {
 
     if (count > 0) {
       this.metrics.policyExpiredSweptTotal?.inc({ outcome: 'swept' }, count);
+    }
+    if (errors > 0) {
+      // Surface webhook fan-out failures to Prometheus. The revocation itself
+      // is durable (count above); this counter lets ops alert on the
+      // best-effort fan-out without scraping log lines. Sample alert:
+      // rate(okoro_policy_expired_swept_total{outcome="webhook_error"}[15m]) > 0
+      this.metrics.policyExpiredSweptTotal?.inc({ outcome: 'webhook_error' }, errors);
     }
     this.logger.log(`policy.expiry sweep: ${count} policies revoked, ${errors} webhook errors`);
     return { swept: count, errors };

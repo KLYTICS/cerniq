@@ -18,6 +18,7 @@ import httpx
 from ._constants import DEFAULT_BASE_URL, DEFAULT_MAX_RETRIES, DEFAULT_TIMEOUT_MS
 from ._http import HttpClient
 from .agents import AgentsClient
+from .intent import IntentClient
 from .models import (
     AgentPolicy,
     AgentRecord,
@@ -43,7 +44,7 @@ class AsyncAegis:
         >>> from aegis import AsyncAegis, generate_keypair
         >>> async def main() -> None:
         ...     kp = generate_keypair()
-        ...     async with AsyncAegis(api_key="aegis_sk_example") as aegis:
+        ...     async with AsyncAegis(api_key=os.environ["AEGIS_API_KEY"]) as aegis:
         ...         agent = await aegis.agents.register(
         ...             public_key=kp.public_key,
         ...             runtime="anthropic",
@@ -74,6 +75,7 @@ class AsyncAegis:
         )
         self.agents = AgentsClient(self._http)
         self.policies = PoliciesClient(self._http)
+        self.intent = IntentClient(self._http)
         self._verify = VerifyClient(self._http)
 
     # ── lifecycle ────────────────────────────────────────────

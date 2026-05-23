@@ -53,7 +53,7 @@ export class VerifyRequestDto {
  * Denial reasons returned by /v1/verify.
  *
  * `PLAN_LIMIT_EXCEEDED` is a pre-algorithm billing gate — it fires before the
- * 10-step denial-precedence chain (AGENT_NOT_FOUND → … → ANOMALY_FLAGGED) and
+ * 11-step denial-precedence chain (AGENT_NOT_FOUND → … → INTENT_MISMATCH) and
  * is therefore NOT part of that chain (see CLAUDE.md § "Denial precedence").
  * Relying parties should handle it separately: it means the calling principal
  * has exhausted their plan's monthly verify quota and must upgrade.
@@ -61,6 +61,11 @@ export class VerifyRequestDto {
  * `TRIAL_EXHAUSTED` (added 2026-05-05 per ADR-0014) sits inside the chain
  * between SCOPE_NOT_GRANTED and SPEND_LIMIT_EXCEEDED. It fires when a
  * free-trial principal has used their lifetime 10K-verify cap.
+ *
+ * `INTENT_MISMATCH` (added 2026-05-15 per ADR-0016) sits at the end of the
+ * chain. It fires when the agent's actual call deviates from a signed
+ * intent manifest issued alongside the verify token, under STRICT or
+ * breached-tolerance GRADUATED reconciliation. See @aegis/intent-manifest.
  */
 export type DenialReason =
   | 'PLAN_LIMIT_EXCEEDED'       // billing gate — fires before algorithm
@@ -73,7 +78,8 @@ export type DenialReason =
   | 'TRIAL_EXHAUSTED'           // ADR-0014: free-trial lifetime cap
   | 'SPEND_LIMIT_EXCEEDED'
   | 'TRUST_SCORE_TOO_LOW'
-  | 'ANOMALY_FLAGGED';
+  | 'ANOMALY_FLAGGED'
+  | 'INTENT_MISMATCH';          // ADR-0016: intent-bound attestation
 
 export class VerifyResponseDto {
   @ApiProperty()
@@ -105,4 +111,57 @@ export class VerifyResponseDto {
 
   @ApiProperty({ nullable: true, description: 'ID of the audit row this decision generated. Use it to reference the decision in support tickets.' })
   auditEventId!: string | null;
+
+  /**
+   * RFC 6749 §5.2 — OAuth-canonical error code. Populated whenever
+   * `denialReason` is set; null on approval. Mapped via the closed
+   * table in `oauth-error-mapping.ts` (parity-tested). Lets buyers
+   * with existing OAuth review playbooks handle AEGIS denials without
+   * learning AEGIS-specific reason codes — the `denialReason` field
+   * remains the source of truth for AEGIS-internal logic.
+   */
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'RFC 6749 §5.2 canonical error code. Set iff denialReason is set.',
+    example: 'invalid_token',
+  })
+  error?: string | null;
+
+  /**
+   * RFC 6749 §5.2 — Human-readable description for the `error` value.
+   * Public-safe wording; no internal jargon or stack details.
+   */
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'RFC 6749 §5.2 error_description. Set iff denialReason is set.',
+    example: 'Agent signature failed verification.',
+  })
+  error_description?: string | null;
+
+  /**
+   * Public-safe denial discriminator. Round-10 addition: lets operators
+   * + integrators differentiate the five INVALID_SIGNATURE rejection
+   * conditions (signature / aud / iss / iat / replay) and the nine RAR
+   * sub-reasons (action_unauthorized / limit_exceeded / etc.) without
+   * growing the locked ADR-0004 denial-precedence enum (which would
+   * require a 90-day customer notice + major version bump).
+   *
+   * Shape is intentionally minimal: `{ kind: '<closed-enum-value>' }`.
+   * Specifics (expected aud, max-age threshold, etc.) are NOT carried
+   * here — those flow to operator-side structured logs only. See
+   * `docs/spec/05_FAPI_2_0_PROFILE.md` §2.6 for the threat-model split.
+   *
+   * Closed-enum values: see `DenialContextKind` in
+   * `apps/api/src/modules/verify/algorithm/verify.ports.ts`. Stable
+   * additive evolution applies — adding a kind is non-breaking;
+   * removing or renaming requires a major version bump.
+   */
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      'Public-safe denial discriminator. Set iff denialReason is set. ' +
+      'See FAPI 2.0 profile §2.6 for threat model.',
+    example: { kind: 'jar_aud_mismatch' },
+  })
+  denialContext?: { kind: string } | null;
 }

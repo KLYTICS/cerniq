@@ -23,7 +23,8 @@ export type DenialReason =
   | 'SPEND_LIMIT_EXCEEDED'
   | 'REPLAY_DETECTED'
   | 'TRUST_SCORE_TOO_LOW'
-  | 'ANOMALY_FLAGGED';
+  | 'ANOMALY_FLAGGED'
+  | 'INTENT_MISMATCH';
 
 export type TrustBand = 'PLATINUM' | 'VERIFIED' | 'WATCH' | 'FLAGGED';
 

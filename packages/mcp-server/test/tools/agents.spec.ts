@@ -5,8 +5,8 @@ import type { ToolDefinition } from '../../src/tools/registry';
 function buildAegis() {
   return {
     agents: {
-      create: vi.fn(async (args) => ({ id: 'agt_1', ...args })),
-      get: vi.fn(async (id) => ({ id })),
+      register: vi.fn(async (args) => ({ agentId: 'agt_1', ...args })),
+      get: vi.fn(async (id) => ({ agentId: id })),
       list: vi.fn(async () => ({ agents: [], cursor: null })),
       revoke: vi.fn(async () => ({ ok: true })),
     },
@@ -28,7 +28,7 @@ describe('aegis.agents.* tools', () => {
     const reg = new Map<string, ToolDefinition>();
     registerAgentsTools(aegis as never, reg);
     await reg.get('aegis.agents.create')!.handler({ name: 'agent-x', public_key: 'AAAA', metadata: { ver: 1 } });
-    expect(aegis.agents.create).toHaveBeenCalledWith({ name: 'agent-x', publicKey: 'AAAA', metadata: { ver: 1 } });
+    expect(aegis.agents.register).toHaveBeenCalledWith({ label: 'agent-x', publicKey: 'AAAA', runtime: 'CUSTOM' });
   });
 
   it('aegis.agents.list passes pagination', async () => {
@@ -44,6 +44,6 @@ describe('aegis.agents.* tools', () => {
     const reg = new Map<string, ToolDefinition>();
     registerAgentsTools(aegis as never, reg);
     await reg.get('aegis.agents.revoke')!.handler({ agent_id: 'agt_1', reason: 'compromised' });
-    expect(aegis.agents.revoke).toHaveBeenCalledWith('agt_1', { reason: 'compromised' });
+    expect(aegis.agents.revoke).toHaveBeenCalledWith('agt_1');
   });
 });

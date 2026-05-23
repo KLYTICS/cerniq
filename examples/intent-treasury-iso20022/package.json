@@ -1,0 +1,28 @@
+{
+  "name": "@aegis-examples/intent-treasury-iso20022",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Treasury ISO 20022 (pacs.008) — AEGIS Intent Manifest demo for AI treasury agents.",
+  "type": "module",
+  "scripts": {
+    "demo": "tsx src/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aegis/intent-manifest": "workspace:*",
+    "@aegis/verifier-rp": "workspace:*",
+    "@noble/ed25519": "^2.1.0",
+    "@noble/hashes": "^1.5.0"
+  },
+  "devDependencies": {
+    "@aegis/tsconfig": "workspace:*",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

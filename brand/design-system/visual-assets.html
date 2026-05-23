@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>AEGIS — Visual Assets</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" />
+<style>
+  html, body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; background: #F8FAFC; }
+  * { box-sizing: border-box; }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="assets/design-canvas.jsx"></script>
+<script type="text/babel" src="assets/marks.jsx"></script>
+<script type="text/babel" src="assets/diagrams.jsx"></script>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState } = React;
+
+// Wordmark renderings — Inter 700 tracking-tight indigo
+function Wordmark({ size = 56, color = BRAND.INDIGO }) {
+  return (
+    <span style={{
+      fontSize: size, fontFamily: 'Inter, sans-serif', fontWeight: 700,
+      letterSpacing: '-0.04em', color: color, lineHeight: 1
+    }}>AEGIS</span>
+  );
+}
+
+function Lockup({ Mark, orientation = 'h', label = '', size = 'lg' }) {
+  const markSize = size === 'sm' ? 32 : size === 'md' ? 56 : 80;
+  const wordSize = size === 'sm' ? 22 : size === 'md' ? 36 : 52;
+  if (orientation === 'v') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+        <Mark size={markSize} />
+        <Wordmark size={wordSize} />
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+      <Mark size={markSize} />
+      <Wordmark size={wordSize} />
+    </div>
+  );
+}
+
+// === Mark exploration artboard cell ===
+function MarkCell({ Mark, name, blurb }) {
+  return (
+    <div style={{ width: '100%', height: '100%', padding: 24, display: 'flex',
+                  flexDirection: 'column', justifyContent: 'space-between',
+                  background: '#fff' }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Mark size={120} />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 16,
+                    borderTop: '1px solid #E2E8F0' }}>
+        <Mark size={28} />
+        <Mark size={20} />
+        <Mark size={16} />
+        <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1.5, color: '#64748B' }}>
+            {name}
+          </div>
+          <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>{blurb}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Lockup cell with explicit framing
+function LockupCell({ children, label, bg = '#fff', fg = '#0F172A' }) {
+  return (
+    <div style={{ width: '100%', height: '100%', background: bg, color: fg,
+                  display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+        {children}
+      </div>
+      <div style={{ padding: '12px 20px', borderTop: `1px solid ${bg === '#fff' ? '#E2E8F0' : '#1E293B'}`,
+                    fontSize: 11, letterSpacing: 1.5, fontWeight: 600,
+                    color: bg === '#fff' ? '#64748B' : '#94A3B8' }}>{label}</div>
+    </div>
+  );
+}
+
+// Favicon scale strip
+function FaviconStrip() {
+  const sizes = [16, 24, 32, 48, 64, 96, 128];
+  return (
+    <div style={{ width: '100%', height: '100%', padding: 24, background: '#fff' }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, color: '#64748B' }}>
+        FAVICON · NAV · DECK
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 600, color: '#0F172A', marginTop: 6, marginBottom: 28 }}>
+        Mark holds at every scale
+      </div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 32, justifyContent: 'space-around' }}>
+        {sizes.map(s => (
+          <div key={s} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <MarkKeystone size={s} />
+            <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#94A3B8' }}>
+              {s}px
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 36, padding: 20, background: '#0F172A', borderRadius: 6,
+                    display: 'flex', alignItems: 'center', gap: 24 }}>
+        <MarkKeystone size={24} fg="#A5B4FC" />
+        <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', color: '#F8FAFC' }}>
+          AEGIS
+        </span>
+        <span style={{ marginLeft: 'auto', fontSize: 11, fontFamily: 'JetBrains Mono, monospace',
+                       color: '#94A3B8' }}>nav · 24px mark · 18px wordmark</span>
+      </div>
+    </div>
+  );
+}
+
+// Component samples — buttons, badges, status dots
+function ComponentSamples() {
+  return (
+    <div style={{ width: '100%', height: '100%', padding: 24, background: '#fff' }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, color: '#64748B' }}>
+        COMPONENTS
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 600, color: '#0F172A', marginTop: 6, marginBottom: 24 }}>
+        Buttons · badges · status
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <button style={{ height: 36, padding: '0 16px', background: '#3730A3', color: '#fff',
+                           border: 'none', borderRadius: 6, fontWeight: 500, fontSize: 14,
+                           fontFamily: 'Inter, sans-serif', cursor: 'pointer' }}>
+            Verify request
+          </button>
+          <button style={{ height: 36, padding: '0 16px', background: '#fff', color: '#334155',
+                           border: '1px solid #E2E8F0', borderRadius: 6, fontWeight: 500, fontSize: 14,
+                           fontFamily: 'Inter, sans-serif', cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button style={{ height: 36, padding: '0 12px', background: 'transparent', color: '#312E81',
+                           border: 'none', fontWeight: 500, fontSize: 14,
+                           fontFamily: 'Inter, sans-serif', cursor: 'pointer' }}>
+            View audit chain →
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {[
+            ['VERIFIED', '#10B981'],
+            ['ACTIVE', '#3730A3'],
+            ['EXPIRING', '#F59E0B'],
+            ['REVOKED', '#F43F5E'],
+            ['DENIED', '#F43F5E']
+          ].map(([label, color]) => (
+            <span key={label} style={{
+              fontSize: 11, fontFamily: 'Inter, sans-serif', fontWeight: 500,
+              letterSpacing: 1, padding: '3px 8px', borderRadius: 4,
+              background: color + '1A', color: color, textTransform: 'uppercase'
+            }}>{label}</span>
+          ))}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {[
+            ['#10B981', 'agent_01H… verified', '14:02:11'],
+            ['#3730A3', 'policy.payments.transfer evaluated', '14:02:11'],
+            ['#F59E0B', 'BATE score declined: 91 → 86', '14:01:47'],
+            ['#F43F5E', 'agent_01F… revoked by op_2k', '13:58:09']
+          ].map(([color, msg, ts], i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12,
+                                   fontSize: 13, color: '#334155' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: color,
+                             flexShrink: 0 }} />
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>{msg}</span>
+              <span style={{ marginLeft: 'auto', fontFamily: 'JetBrains Mono, monospace',
+                             fontSize: 11, color: '#94A3B8' }}>{ts}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: 16, border: '1px solid #E2E8F0', borderRadius: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1.5, color: '#64748B' }}>
+            CARD · DEFAULT
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 600, color: '#0F172A', marginTop: 6 }}>
+            agent_01H8K2RMQX4
+          </div>
+          <div style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>
+            stripe-checkout-bot · 3 active scopes · BATE 86
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Type specimen
+function TypeSpecimen() {
+  return (
+    <div style={{ width: '100%', height: '100%', padding: 32, background: '#fff' }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, color: '#64748B' }}>
+        TYPOGRAPHY
+      </div>
+      <div style={{ fontSize: 60, fontWeight: 700, letterSpacing: '-0.04em',
+                    color: '#0F172A', lineHeight: 1, marginTop: 12 }}>
+        Verifiable.
+      </div>
+      <div style={{ fontSize: 36, fontWeight: 600, letterSpacing: '-0.02em',
+                    color: '#3730A3', lineHeight: 1.1, marginTop: 12 }}>
+        Non-custodial. Neutral.
+      </div>
+      <div style={{ fontSize: 18, lineHeight: 1.55, color: '#334155', marginTop: 24, maxWidth: 560 }}>
+        Inter at 16px is the workhorse. JetBrains Mono earns its place
+        on endpoints, agent ids, and signatures — mono is the
+        security-trust signal.
+      </div>
+      <div style={{ marginTop: 24, padding: '16px 18px', background: '#F1F5F9',
+                    borderRadius: 6, borderLeft: '3px solid #3730A3' }}>
+        <code style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, color: '#0F172A' }}>
+          POST /v1/<span style={{ color: '#3730A3', fontWeight: 600, fontStyle: 'italic' }}>verify</span>
+          {' → '}<span style={{ color: '#10B981' }}>200 OK</span>
+          {' · '}<span style={{ color: '#64748B' }}>78ms</span>
+        </code>
+      </div>
+      <div style={{ marginTop: 24, display: 'flex', gap: 32, fontSize: 13, color: '#64748B' }}>
+        <span>Inter 400 / 500 / 600 / 700</span>
+        <span>JetBrains Mono 400 / 500</span>
+      </div>
+    </div>
+  );
+}
+
+// === Render the canvas ===
+function App() {
+  return (
+    <DesignCanvas title="AEGIS — Visual Assets" subtitle="v1 · 2026-05-09">
+
+      <DCSection id="brand-foundations" title="Brand foundations">
+        <DCArtboard id="type-specimen" label="Type specimen" width={720} height={420}>
+          <TypeSpecimen />
+        </DCArtboard>
+        <DCArtboard id="color-tokens" label="Color tokens" width={720} height={320}>
+          <ColorTokens />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="logomark" title="Logomark — six directions">
+        <DCArtboard id="mark-keystone" label="01 · Keystone" width={320} height={320}>
+          <MarkCell Mark={MarkKeystone} name="KEYSTONE" blurb="load-bearing wedge" />
+        </DCArtboard>
+        <DCArtboard id="mark-aperture" label="02 · Aperture" width={320} height={320}>
+          <MarkCell Mark={MarkAperture} name="APERTURE" blurb="concentric chevron · 4 layers" />
+        </DCArtboard>
+        <DCArtboard id="mark-seal" label="03 · Seal" width={320} height={320}>
+          <MarkCell Mark={MarkSeal} name="SEAL" blurb="rotated square · two-stage attest" />
+        </DCArtboard>
+        <DCArtboard id="mark-chain" label="04 · Chain" width={320} height={320}>
+          <MarkCell Mark={MarkChain} name="CHAIN" blurb="audit-chain primitive" />
+        </DCArtboard>
+        <DCArtboard id="mark-prism" label="05 · Prism" width={320} height={320}>
+          <MarkCell Mark={MarkPrism} name="PRISM" blurb="tri-plane wedge" />
+        </DCArtboard>
+        <DCArtboard id="mark-gate" label="06 · Gate" width={320} height={320}>
+          <MarkCell Mark={MarkGate} name="GATE" blurb="verification choke point" />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="lockups" title="Wordmark lockups (Keystone direction)">
+        <DCArtboard id="lockup-h-light" label="Horizontal · light" width={520} height={220}>
+          <LockupCell label="HORIZONTAL · LIGHT">
+            <Lockup Mark={MarkKeystone} orientation="h" size="lg" />
+          </LockupCell>
+        </DCArtboard>
+        <DCArtboard id="lockup-h-dark" label="Horizontal · dark" width={520} height={220}>
+          <LockupCell label="HORIZONTAL · DARK" bg="#0F172A">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <MarkKeystone size={80} fg="#A5B4FC" />
+              <Wordmark size={52} color="#F8FAFC" />
+            </div>
+          </LockupCell>
+        </DCArtboard>
+        <DCArtboard id="lockup-v" label="Vertical" width={320} height={320}>
+          <LockupCell label="VERTICAL">
+            <Lockup Mark={MarkKeystone} orientation="v" size="md" />
+          </LockupCell>
+        </DCArtboard>
+        <DCArtboard id="lockup-mono" label="Monochrome" width={520} height={220}>
+          <LockupCell label="MONOCHROME · SLATE-900">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <MarkKeystone size={80} fg="#0F172A" />
+              <Wordmark size={52} color="#0F172A" />
+            </div>
+          </LockupCell>
+        </DCArtboard>
+        <DCArtboard id="lockup-reverse" label="Reverse" width={520} height={220}>
+          <LockupCell label="REVERSE · ON BRAND" bg="#3730A3">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <MarkKeystone size={80} fg="#F8FAFC" />
+              <Wordmark size={52} color="#F8FAFC" />
+            </div>
+          </LockupCell>
+        </DCArtboard>
+        <DCArtboard id="favicon-strip" label="Scale strip" width={720} height={400}>
+          <FaviconStrip />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="diagrams" title="Canonical diagrams">
+        <DCArtboard id="four-layer" label="Four-layer stack" width={720} height={480}>
+          <FourLayerStack />
+        </DCArtboard>
+        <DCArtboard id="hot-path" label="Verify hot path" width={880} height={360}>
+          <VerifyHotPath />
+        </DCArtboard>
+        <DCArtboard id="denial-ladder" label="Denial precedence" width={560} height={460}>
+          <DenialLadder />
+        </DCArtboard>
+        <DCArtboard id="bate-gauge" label="BATE trust score" width={360} height={320}>
+          <BATEGauge value={86} />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="surfaces" title="Surface treatments">
+        <DCArtboard id="hero" label="Marketing hero" width={720} height={360}>
+          <HeroTexture />
+        </DCArtboard>
+        <DCArtboard id="code-sample" label="Code sample treatment" width={720} height={360}>
+          <CodeSample />
+        </DCArtboard>
+        <DCArtboard id="components" label="Components" width={720} height={520}>
+          <ComponentSamples />
+        </DCArtboard>
+      </DCSection>
+
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

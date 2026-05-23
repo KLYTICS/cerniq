@@ -1,0 +1,12 @@
+{
+  "extends": "@aegis/tsconfig/base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "rootDir": "./src",
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "src/**/*.spec.ts"]
+}

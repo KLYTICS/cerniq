@@ -127,7 +127,11 @@ describe('Postman collection validator', () => {
     const path = writeTemp('short-precedence.json', doc);
     const result = runValidate(path);
     expect(result.ok).toBe(false);
-    expect(result.errors.join('\n')).toMatch(/exactly 10 requests/);
+    // Count tracks DENIAL_REASON_PRECEDENCE.length (excluding PLAN_LIMIT_EXCEEDED
+    // pre-gate). Was 10 before INTENT_MISMATCH (ADR-0016 / commit 5e44480); now 11.
+    // Regex remains specific to a count to assert the error names the actual gap,
+    // not just "wrong count" — but the count itself is canon-driven.
+    expect(result.errors.join('\n')).toMatch(/exactly 11 requests/);
   });
 
   it('flags a denial-precedence folder with a reordered entry', () => {

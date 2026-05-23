@@ -13,7 +13,7 @@
 
 import type { BateSignalType, SignalSeverity, TrustBand } from '@prisma/client';
 
-export const WEIGHTS_VERSION = 'v1.1.0-dpop-2026-05-02';
+export const WEIGHTS_VERSION = 'v1.2.0-intent-2026-05-15';
 
 /**
  * Per-signal-occurrence delta. Applied for every occurrence of the signal
@@ -43,6 +43,18 @@ export const SIGNAL_DELTA: Readonly<Record<BateSignalType, number>> = Object.fre
   //   window. Strong indicator of credential exfiltration.
   AGENT_NO_DPOP: -15,
   AGENT_DPOP_REPLAY_ATTEMPT: -200,
+
+  // ── Intent Manifest — ADR-0016 + ADR-0017 ──────────────────────────
+  // INTENT_MISMATCH_OBSERVED: agent declared X via signed intent manifest,
+  //   did Y. Strong negative signal — magnitude between DPoP replay
+  //   (-200, credential exfiltration) and POLICY_VIOLATION_ATTEMPT (-75,
+  //   scope overshoot). Intent mismatch is a SEMANTIC violation: the
+  //   agent demonstrably broke a promise it cryptographically made.
+  //   -100 puts a single mismatch at ~5× a geographic inconsistency —
+  //   meaningful but not nuke-from-orbit. The relying party's strict-
+  //   mode denial is the IMMEDIATE consequence; the trust-score drop
+  //   is the cross-relying-party signal that travels with the agent.
+  INTENT_MISMATCH_OBSERVED: -100,
 });
 
 /**
@@ -80,6 +92,12 @@ export const PER_TYPE_CAP_PER_WINDOW: Readonly<Record<BateSignalType, number>> =
   // WATCH band on its own.
   AGENT_NO_DPOP: 60,
   AGENT_DPOP_REPLAY_ATTEMPT: 600,
+
+  // Intent mismatch — cap permits ~3 mismatches inside a window before
+  // the cap binds (3 × 100 = 300). The relying party already denies
+  // the immediate request via strict mode; this cap governs how much
+  // the score CARRIES across relying parties per window.
+  INTENT_MISMATCH_OBSERVED: 300,
 });
 
 /** Bonus when an agent has run on at least N distinct days without anomalies. */

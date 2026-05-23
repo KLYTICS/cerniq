@@ -21,6 +21,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
+    },
+    "./adapters/redis": {
+      "types": "./dist/adapters/redis.d.ts",
+      "import": "./dist/adapters/redis.mjs",
+      "require": "./dist/adapters/redis.cjs"
     }
   },
   "files": ["dist", "README.md", "LICENSE"],
@@ -34,6 +39,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aegis/intent-manifest": "workspace:*",
     "@aegis/types": "workspace:*",
     "@noble/ed25519": "^2.1.0",
     "@noble/hashes": "^1.5.0",

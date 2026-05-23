@@ -19,6 +19,7 @@ import {
   MemoryVerifyCache,
   buildCacheKey,
   clampTtlMs,
+  type CachedVerify,
   type VerifyCache,
   type VerifyCacheContext,
 } from './cache.js';
@@ -145,9 +146,17 @@ export class VerifyGateway {
 
     // 1. Cache lookup. Prefer `peek` so a stale entry survives for the
     // serve-stale breaker fallback below; gateway validates expiry itself.
-    const cached = await Promise.resolve(
-      this.cache.peek ? this.cache.peek(key) : this.cache.get(key),
-    );
+    // P1 (R-006): never let a backend failure (Redis timeout, CF KV
+    // unavailability, etc.) take down the verify path. Treat as miss.
+    let cached: CachedVerify | undefined;
+    try {
+      cached = await Promise.resolve(
+        this.cache.peek ? this.cache.peek(key) : this.cache.get(key),
+      );
+    } catch (err) {
+      cached = undefined;
+      if (err instanceof AegisError) this.safeHook('onError', err);
+    }
     if (cached !== undefined && cached.expiresAt > this.now()) {
       this.hits += 1;
       this.safeHook('onHit', key, cached.result);
@@ -165,8 +174,10 @@ export class VerifyGateway {
     if (this.breaker === 'half-open' && this.halfOpenProbeInFlight) {
       return this.handleBreakerOpen(key, cached);
     }
+    let iAmProbing = false;
     if (this.breaker === 'half-open') {
       this.halfOpenProbeInFlight = true;
+      iAmProbing = true;
     }
 
     // 3. Single-flight coalesce.
@@ -189,6 +200,13 @@ export class VerifyGateway {
     } finally {
       this.inflight.delete(key);
       this.inflightWaiters.delete(key);
+      // P1 (R-003): if WE set the half-open probe flag and execution
+      // ended without recordSuccess/recordFailure (e.g. unexpected
+      // throw before either ran), clear so the breaker doesn't deadlock
+      // in half-open. Idempotent.
+      if (iAmProbing && this.breaker === 'half-open') {
+        this.halfOpenProbeInFlight = false;
+      }
     }
   }
 
@@ -202,25 +220,32 @@ export class VerifyGateway {
     token: string,
     ctx: VerifyCacheContext,
   ): Promise<VerifyResult> {
+    let result: VerifyResult;
     try {
-      const result = await this.aegis.verify(token, ctx);
-      this.recordSuccess();
-
-      const ttlMs = this.computeTtlMs(result);
-      if (ttlMs > 0) {
-        // Negative-only jitter. Spreads expiries so 10k tokens cached in
-        // the same second don't all stampede 30 seconds later. Server
-        // TTL is the ceiling — we only ever shorten, never extend.
-        const jittered = Math.floor(ttlMs * (1 - this.randomJitterFactor()));
-        await Promise.resolve(
-          this.cache.set(key, { result, expiresAt: this.now() + jittered }),
-        );
-      }
-      return result;
+      result = await this.aegis.verify(token, ctx);
     } catch (err) {
       this.recordFailure(err);
       throw err;
     }
+    this.recordSuccess();
+
+    const ttlMs = this.computeTtlMs(result);
+    if (ttlMs > 0) {
+      // Negative-only jitter. Spreads expiries so 10k tokens cached in
+      // the same second don't all stampede 30 seconds later. Server
+      // TTL is the ceiling — we only ever shorten, never extend.
+      const jittered = Math.floor(ttlMs * (1 - this.randomJitterFactor()));
+      try {
+        await Promise.resolve(
+          this.cache.set(key, { result, expiresAt: this.now() + jittered }),
+        );
+      } catch (err) {
+        // P1 (R-006): cache-backend errors must NOT lose a successful
+        // verify. Surface via onError and proceed.
+        if (err instanceof AegisError) this.safeHook('onError', err);
+      }
+    }
+    return result;
   }
 
   private computeTtlMs(result: VerifyResult): number {
@@ -240,15 +265,26 @@ export class VerifyGateway {
   private recordFailure(err: unknown): void {
     if (!(err instanceof AegisError)) return;
     this.safeHook('onError', err);
-    this.consecutiveFailures += 1;
-    if (this.consecutiveFailures >= this.breakerThreshold && this.breaker === 'closed') {
-      this.openedAt = this.now();
-      this.breakerTrips += 1;
-      this.transitionBreaker('open');
-    } else if (this.breaker === 'half-open') {
-      // Half-open probe failed: re-open with full cooldown.
+    // P1 (R-005): structured by breaker state to prevent unbounded
+    // accumulation of consecutiveFailures while open, which would
+    // cause re-trip cascades after recovery probes.
+    if (this.breaker === 'half-open') {
+      // Probe failed: re-open with full cooldown, reset count.
       this.openedAt = this.now();
       this.halfOpenProbeInFlight = false;
+      this.consecutiveFailures = 0;
+      this.breakerTrips += 1;
+      this.transitionBreaker('open');
+      return;
+    }
+    if (this.breaker === 'open') {
+      // In-flight failures during open phase: don't accumulate.
+      return;
+    }
+    // closed
+    this.consecutiveFailures += 1;
+    if (this.consecutiveFailures >= this.breakerThreshold) {
+      this.openedAt = this.now();
       this.breakerTrips += 1;
       this.transitionBreaker('open');
     }

@@ -144,9 +144,14 @@ describe('diffComponent', () => {
 
 describe('checkDenialEnumOrder', () => {
   it('passes when the spec lists DENIAL_REASON_PRECEDENCE in canonical order', () => {
-    // Canonical order from packages/types/src/constants.ts
-    // DENIAL_REASON_PRECEDENCE — bumped to 11 entries 2026-05-05 per ADR-0014
-    // (TRIAL_EXHAUSTED inserted between SCOPE_NOT_GRANTED and SPEND_LIMIT_EXCEEDED).
+    // Canonical order from packages/types/src/constants.ts.
+    // DENIAL_REASON_PRECEDENCE history:
+    //   - 10 entries originally.
+    //   - Bumped to 11 on 2026-05-05 per ADR-0014 (TRIAL_EXHAUSTED inserted
+    //     between SCOPE_NOT_GRANTED and SPEND_LIMIT_EXCEEDED).
+    //   - Bumped to 12 on 2026-05-15 per ADR-0016 (INTENT_MISMATCH appended
+    //     after ANOMALY_FLAGGED — forward-compatible per Decision 3 option (a),
+    //     no API minor bump). Phase 1 wire-up commit: 2078bd2.
     const spec: OpenApiDoc = {
       components: {
         schemas: {
@@ -166,6 +171,7 @@ describe('checkDenialEnumOrder', () => {
                   'SPEND_LIMIT_EXCEEDED',
                   'TRUST_SCORE_TOO_LOW',
                   'ANOMALY_FLAGGED',
+                  'INTENT_MISMATCH',
                 ],
               },
             },

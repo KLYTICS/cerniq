@@ -65,8 +65,16 @@ export type WebhookEvent = (typeof WEBHOOK_EVENT)[keyof typeof WEBHOOK_EVENT];
 // have been validated but before any spend accounting — a trial principal
 // has no "spend limit" in the policy sense; their cap is the lifetime
 // verify counter. HTTP 402 (Payment Required).
+//
+// INTENT_MISMATCH was appended 2026-05-15 per ADR-0016 (intent-bound
+// attestation). It fires when the agent's actual call deviates from the
+// signed intent manifest issued alongside the verify token, under STRICT
+// or breached-tolerance GRADUATED reconciliation. Forward-compatible:
+// older relying-party SDKs see it as an unknown reason and fall through
+// to denialReasonRank() === +Infinity, which their existing escalation
+// logic already handles. Append-only per CLAUDE.md invariant 6.
 export const DENIAL_REASON_PRECEDENCE = [
-  'PLAN_LIMIT_EXCEEDED', // billing gate — pre-algorithm; not part of the 10-step chain
+  'PLAN_LIMIT_EXCEEDED', // billing gate — pre-algorithm; not part of the 11-step chain
   'AGENT_NOT_FOUND',
   'AGENT_REVOKED',
   'INVALID_SIGNATURE',
@@ -77,6 +85,7 @@ export const DENIAL_REASON_PRECEDENCE = [
   'SPEND_LIMIT_EXCEEDED',
   'TRUST_SCORE_TOO_LOW',
   'ANOMALY_FLAGGED',
+  'INTENT_MISMATCH', // ADR-0016: intent-bound attestation
 ] as const;
 
 export type DenialReason = (typeof DENIAL_REASON_PRECEDENCE)[number];
@@ -104,3 +113,74 @@ export function denialReasonRank(reason: string): number {
 export function moreSeverDenialReason(a: DenialReason, b: DenialReason): DenialReason {
   return denialReasonRank(a) <= denialReasonRank(b) ? a : b;
 }
+
+// ── DenialContext discriminator (round 10, 2026-05-16) ──────────────
+//
+// Closed-enum discriminator that lives BELOW the locked
+// DENIAL_REASON_PRECEDENCE. Lets operators + integrators differentiate
+// the five INVALID_SIGNATURE rejection conditions (signature / aud /
+// iss / iat / replay) and the nine RAR sub-reasons WITHOUT growing the
+// locked denial-precedence enum (which would require a 90-day customer
+// notice + major version bump per CLAUDE.md invariant #6).
+//
+// Source-of-truth: this list. The API mirror lives at
+// apps/api/src/modules/verify/algorithm/verify.ports.ts as
+// `ALL_DENIAL_CONTEXT_KINDS` and must equal this set bit-for-bit (locked
+// by tests/cross-package/fapi-denial-context-parity.spec.ts).
+//
+// Public-API contract: adding a kind here is non-breaking; renaming
+// or removing requires a major version bump. Order is NOT significant
+// (unlike DENIAL_REASON_PRECEDENCE which IS ordered) — discriminator
+// kinds compose laterally, not hierarchically.
+//
+// See docs/spec/05_FAPI_2_0_PROFILE.md §2.6 for the threat-model split
+// that keeps operator config out of buyer-visible responses.
+export const DENIAL_CONTEXT_KINDS = [
+  // Step 1 — malformed token
+  'token_malformed',
+  // Step 2 — agent
+  'agent_unknown',
+  'agent_revoked',
+  'agent_suspended',
+  // Step 3 — signature
+  'signature_invalid',
+  // Step 3.4-3.6 — RFC 9101 JAR claim binding
+  'jar_aud_mismatch',
+  'jar_iss_sub_mismatch',
+  'jar_iat_stale',
+  // Step 3.7 — replay cache
+  'replay_consumed',
+  'replay_port_outage',
+  // Step 4 — policy
+  'policy_missing',
+  'policy_revoked',
+  'policy_expired',
+  // Step 5 — scope category
+  'scope_category_not_granted',
+  // Step 6 — domain allow-list
+  'scope_domain_not_allowed',
+  // Step 6.5 — RAR evaluation
+  'rar_type_unauthorized',
+  'rar_action_unauthorized',
+  'rar_instrument_not_whitelisted',
+  'rar_destination_not_whitelisted',
+  'rar_resource_not_whitelisted',
+  'rar_limit_exceeded',
+  'rar_currency_unauthorized',
+  'rar_pii_disallowed',
+  'rar_outside_trading_hours',
+  'rar_no_authorization_details',
+  // Step 7 — spend limits
+  'spend_limit_exceeded',
+  // Step 8 — trust score
+  'trust_below_minimum',
+  // Step 9 — anomaly hard-flag
+  'anomaly_flagged',
+  // Pre-algorithm gates (emitted by service adapter, not algorithm)
+  'plan_limit_exceeded',
+  'trial_exhausted',
+  // ADR-0016 intent manifest mismatch (wired through BATE)
+  'intent_mismatch',
+] as const;
+
+export type DenialContextKind = (typeof DENIAL_CONTEXT_KINDS)[number];

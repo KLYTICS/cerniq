@@ -87,7 +87,11 @@ const CANONICAL = [...DENIAL_REASON_PRECEDENCE].filter((r) => r !== 'PLAN_LIMIT_
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe('denial-reason enum parity (CLAUDE.md invariant 6)', () => {
-  it('the canonical source has 10 reasons in fixed precedence order', () => {
+  it('the canonical source has 11 reasons in fixed precedence order', () => {
+    // ADR-0016 (2026-05-15) appended INTENT_MISMATCH at end. Append-only
+    // per CLAUDE.md invariant 6 — older RPs see it as unknown and fall
+    // through to denialReasonRank() === +Infinity, which existing
+    // escalation logic already handles (forward-compatible).
     expect(CANONICAL).toEqual([
       'AGENT_NOT_FOUND',
       'AGENT_REVOKED',
@@ -99,6 +103,7 @@ describe('denial-reason enum parity (CLAUDE.md invariant 6)', () => {
       'SPEND_LIMIT_EXCEEDED',
       'TRUST_SCORE_TOO_LOW',
       'ANOMALY_FLAGGED',
+      'INTENT_MISMATCH',
     ]);
   });
 

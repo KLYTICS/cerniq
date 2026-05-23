@@ -43,3 +43,15 @@ export type {
   VerifyOutcomeFailure,
   VerifyOutcomeSuccess,
 } from './types.js';
+
+// ── Intent Manifest adoption surface (ADR-0016 + ADR-0017) ────────────
+// Single-call wedge for relying parties — combines kernel signature
+// verification + verify-token binding (IM-T2 defense) + semantic
+// reconciliation. See docs/THREAT_MODEL_INTENT_MANIFEST.md for the
+// threat model this surface implements.
+export { verifyIntent } from './intent.js';
+export type {
+  VerifyIntentInput,
+  VerifyIntentOutcome,
+  VerifyIntentDenialReason,
+} from './intent.js';

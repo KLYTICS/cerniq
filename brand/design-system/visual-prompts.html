@@ -1,0 +1,1454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>AEGIS — Visual Prompt Playbook</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,300;9..144,400&display=swap" />
+<style>
+  :root {
+    --bone: #F8FAFC;
+    --bone-2: #F1F5F9;
+    --line: #E2E8F0;
+    --ink: #0F172A;
+    --ink-2: #1E293B;
+    --slate: #334155;
+    --slate-2: #64748B;
+    --slate-3: #94A3B8;
+    --indigo: #3730A3;
+    --indigo-deep: #1E1B4B;
+    --indigo-soft: #A5B4FC;
+    --lavender: #EEF2FF;
+    --gold: #B45309;
+    --teal: #0F766E;
+    --crimson: #9F1239;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bone); color: var(--ink); }
+  body {
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .serif { font-family: 'Fraunces', Georgia, serif; font-style: italic; font-weight: 300; }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--slate-2);
+  }
+  .doc { max-width: 1240px; margin: 0 auto; padding: 0 56px; }
+  hr.rule { border: 0; border-top: 1px solid var(--line); margin: 0; }
+
+  /* ===== HERO ===== */
+  .hero {
+    border-bottom: 1px solid var(--line);
+    padding: 72px 0 56px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-meta {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 32px;
+    margin-bottom: 36px;
+  }
+  .brand-row { display: flex; align-items: center; gap: 14px; }
+  .brand-mark {
+    width: 32px; height: 32px;
+  }
+  .brand-word {
+    font-weight: 700; letter-spacing: -0.04em; font-size: 22px;
+  }
+  .doc-coords { text-align: right; }
+  .doc-coords .row { display: flex; gap: 24px; justify-content: flex-end; }
+  .doc-coords .k { color: var(--slate-3); }
+  .hero h1 {
+    font-size: 92px;
+    line-height: 0.95;
+    letter-spacing: -0.045em;
+    font-weight: 700;
+    margin: 0 0 12px;
+    text-wrap: balance;
+  }
+  .hero h1 em {
+    font-family: 'Fraunces', serif; font-style: italic; font-weight: 300;
+    color: var(--indigo);
+  }
+  .hero-sub {
+    font-size: 21px;
+    line-height: 1.45;
+    color: var(--slate);
+    max-width: 760px;
+    margin: 0;
+  }
+  .hero-sub strong { color: var(--ink); font-weight: 600; }
+  .lineage {
+    margin-top: 36px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .lineage > div {
+    padding: 18px 20px;
+    border-right: 1px solid var(--line);
+  }
+  .lineage > div:last-child { border-right: 0; }
+  .lineage .name {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 0.2em; color: var(--slate-3); margin-bottom: 8px;
+  }
+  .lineage .quality {
+    font-size: 14px; color: var(--ink); font-weight: 500;
+  }
+
+  /* ===== SECTIONS ===== */
+  section.block {
+    padding: 80px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .section-head {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 56px;
+    margin-bottom: 56px;
+    align-items: start;
+  }
+  .section-head .marker {
+    position: sticky;
+    top: 32px;
+  }
+  .section-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    color: var(--indigo);
+    margin-bottom: 6px;
+  }
+  .section-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--slate-2);
+    letter-spacing: 0.16em;
+  }
+  .section-head h2 {
+    font-size: 56px;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    font-weight: 600;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  .section-head h2 em {
+    font-family: 'Fraunces', serif; font-style: italic; font-weight: 300;
+    color: var(--indigo);
+  }
+  .section-head .lede {
+    font-size: 19px;
+    color: var(--slate);
+    max-width: 780px;
+    line-height: 1.5;
+  }
+
+  /* ===== SYSTEM PRIMER (top callouts) ===== */
+  .primer {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 0;
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .primer-cell { padding: 28px 32px; }
+  .primer-cell + .primer-cell { border-left: 1px solid var(--line); }
+  .primer h3 {
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--slate-2);
+    margin: 0 0 16px;
+    font-weight: 600;
+  }
+  .primer pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--ink);
+    background: var(--bone-2);
+    border-left: 3px solid var(--indigo);
+    padding: 16px 18px;
+    margin: 0 0 16px;
+    white-space: pre-wrap;
+    border-radius: 0 4px 4px 0;
+  }
+  .primer pre b { color: var(--indigo); font-weight: 600; }
+  .primer .legend {
+    display: grid; gap: 6px;
+    font-size: 13.5px; color: var(--slate);
+  }
+  .primer .legend span.k {
+    display: inline-block; width: 96px;
+    color: var(--slate-3);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+
+  /* ===== MODIFIER BANKS ===== */
+  .banks {
+    margin-top: 28px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bank { padding: 22px 24px; border-right: 1px solid var(--line); }
+  .bank:last-child { border-right: 0; }
+  .bank h4 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    color: var(--slate-3);
+    margin: 0 0 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .bank ul {
+    margin: 0; padding: 0; list-style: none;
+    display: grid; gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    color: var(--ink-2);
+    line-height: 1.55;
+  }
+
+  /* ===== PROMPT CARDS ===== */
+  .prompt {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 56px;
+    padding: 36px 0;
+    border-top: 1px solid var(--line);
+  }
+  .prompt:first-of-type { border-top: 0; padding-top: 0; }
+  .prompt .meta { padding-top: 4px; }
+  .prompt .meta .id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    color: var(--indigo);
+    font-weight: 600;
+  }
+  .prompt .meta .title {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-top: 8px;
+    line-height: 1.2;
+  }
+  .prompt .meta .ttl {
+    font-family: 'Fraunces', serif; font-style: italic; font-weight: 300;
+    color: var(--indigo);
+  }
+  .prompt .meta .use {
+    font-size: 13px; color: var(--slate-2);
+    margin-top: 10px; line-height: 1.5;
+  }
+  .prompt .body {}
+  .prompt .pre-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .prompt .params {
+    display: flex; gap: 14px; flex-wrap: wrap;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--slate-2);
+  }
+  .prompt .params span b { color: var(--indigo); font-weight: 600; }
+  .prompt .params span { letter-spacing: 0.06em; }
+  button.copy {
+    appearance: none; border: 1px solid var(--line);
+    background: #fff; padding: 6px 12px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    letter-spacing: 0.12em; color: var(--ink);
+    border-radius: 4px; cursor: pointer;
+    text-transform: uppercase; font-weight: 500;
+    transition: all .15s ease;
+  }
+  button.copy:hover {
+    background: var(--ink); color: var(--bone); border-color: var(--ink);
+  }
+  button.copy.ok {
+    background: var(--indigo); color: #fff; border-color: var(--indigo);
+  }
+  pre.prompt-body {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.75;
+    color: var(--ink);
+    background: var(--bone-2);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--indigo);
+    padding: 22px 26px;
+    margin: 0;
+    white-space: pre-wrap;
+    border-radius: 0 4px 4px 0;
+  }
+  pre.prompt-body .accent { color: var(--indigo); font-weight: 600; }
+  .neg {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: var(--slate);
+  }
+  .neg b { color: var(--crimson); font-weight: 600; letter-spacing: 0.1em; }
+
+  /* mood swatches */
+  .mood {
+    margin-top: 14px;
+    display: flex; gap: 6px; align-items: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    color: var(--slate-3); letter-spacing: 0.1em;
+  }
+  .mood .sw {
+    width: 14px; height: 14px; border-radius: 2px;
+    border: 1px solid rgba(15,23,42,0.08);
+  }
+
+  /* ===== INDEX ===== */
+  .toc {
+    margin-top: 48px;
+    border-top: 1px solid var(--line);
+  }
+  .toc-row {
+    display: grid;
+    grid-template-columns: 56px 1fr 240px 120px;
+    gap: 24px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+    align-items: baseline;
+    font-size: 14px;
+  }
+  .toc-row .n {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--indigo); font-weight: 600; letter-spacing: 0.14em;
+  }
+  .toc-row .t { font-weight: 500; color: var(--ink); }
+  .toc-row .t em { font-family: 'Fraunces', serif; font-style: italic; font-weight: 300; color: var(--indigo); }
+  .toc-row .u { color: var(--slate-2); font-size: 13px; }
+  .toc-row .a {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--slate-3); text-align: right; letter-spacing: 0.1em;
+  }
+
+  /* footer */
+  footer {
+    padding: 56px 0 80px;
+    color: var(--slate-2);
+    font-size: 13px;
+  }
+  footer .grid {
+    display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 32px;
+    align-items: end;
+  }
+  footer .axiom {
+    font-family: 'Fraunces', serif; font-style: italic;
+    font-weight: 300;
+    font-size: 28px;
+    line-height: 1.25;
+    color: var(--ink);
+    max-width: 640px;
+  }
+
+  /* small */
+  @media (max-width: 1080px) {
+    .doc { padding: 0 32px; }
+    .hero h1 { font-size: 64px; }
+    .section-head { grid-template-columns: 1fr; gap: 12px; }
+    .prompt { grid-template-columns: 1fr; gap: 18px; }
+    .primer { grid-template-columns: 1fr; }
+    .primer-cell + .primer-cell { border-left: 0; border-top: 1px solid var(--line); }
+    .banks { grid-template-columns: repeat(2, 1fr); }
+    .bank { border-right: 0; border-bottom: 1px solid var(--line); }
+    .lineage { grid-template-columns: repeat(2, 1fr); }
+    .lineage > div:nth-child(2n) { border-right: 0; }
+    .lineage > div { border-bottom: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+
+<div class="doc">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="hero-meta">
+      <div class="brand-row">
+        <svg class="brand-mark" viewBox="0 0 64 64" fill="none">
+          <path d="M32 10 L52 50 H42 L38 42 H26 L22 50 H12 Z" fill="#3730A3"/>
+          <rect x="26" y="32" width="12" height="3" fill="#F8FAFC"/>
+        </svg>
+        <span class="brand-word">AEGIS</span>
+        <span class="eyebrow" style="margin-left:10px;">VISUAL PROMPT PLAYBOOK</span>
+      </div>
+      <div class="doc-coords mono">
+        <div class="row"><span class="k">DOC</span><span>VPP-001</span></div>
+        <div class="row"><span class="k">REV</span><span>v1 · 2026-05-09</span></div>
+        <div class="row"><span class="k">USE</span><span>image · video · OOH</span></div>
+      </div>
+    </div>
+
+    <div class="eyebrow" style="margin-bottom:14px;">A library of generation prompts</div>
+    <h1>Make every render <em>cathedral-grade.</em></h1>
+    <p class="hero-sub">
+      A working library of <strong>copy-paste prompts</strong> for image and motion models, tuned to the AEGIS
+      visual system: indigo on graphite, the keystone wedge, mono code overlays, an editorial register.
+      Each prompt is a <strong>complete shot description</strong> — subject, materials, light, lens, composition,
+      negative — engineered so any modern model returns campaign-grade output on the first run.
+    </p>
+
+    <div class="lineage">
+      <div>
+        <div class="name">FROM PAYMENTS, TAKE</div>
+        <div class="quality">Trust as architecture — vault-grade seriousness, no ornament.</div>
+      </div>
+      <div>
+        <div class="name">FROM DEVELOPER TOOLS, TAKE</div>
+        <div class="quality">Meticulous studio still-life of the product itself.</div>
+      </div>
+      <div>
+        <div class="name">FROM ATHLETICS, TAKE</div>
+        <div class="quality">Kinetic confidence, motion you feel before you read.</div>
+      </div>
+      <div>
+        <div class="name">FROM EVERYDAY GIANTS, TAKE</div>
+        <div class="quality">Universal warmth — humans, not personas.</div>
+      </div>
+      <div>
+        <div class="name">FROM INFRA AT SCALE, TAKE</div>
+        <div class="quality">Quiet ubiquity — every interaction, everywhere.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 00 SYSTEM PRIMER ============ -->
+  <section class="block">
+    <div class="section-head">
+      <div class="marker">
+        <div class="section-num">00 / SYSTEM</div>
+        <div class="section-tag">PRIMER</div>
+      </div>
+      <div>
+        <h2>The DNA stub. <em>Prepend to every prompt.</em></h2>
+        <p class="lede">
+          Every prompt in this book assumes the same brand atmosphere. To change models or add specificity,
+          paste the DNA stub at the top of any prompt and append your shot description. Treat the
+          modifier banks as a buffet — pull two or three, not the whole row.
+        </p>
+      </div>
+    </div>
+
+    <div class="primer">
+      <div class="primer-cell">
+        <h3>Brand DNA stub</h3>
+<pre>AEGIS visual system. Subject world: <b>verifiable AI agent infrastructure</b>
+— non-custodial, neutral, audit-grade. Palette: deep <b>indigo #3730A3</b>
+on <b>graphite #0F172A</b>, set on warm <b>bone #F8FAFC</b>; one accent of
+soft lavender <b>#A5B4FC</b>, never neon. Surfaces: matte glass, brushed
+aluminium, raw concrete, bone paper, machined acrylic. Typography hint:
+Inter and JetBrains Mono fragments overlaid as quiet code. Geometric
+keystone motif (an A-wedge with a horizontal beam) appears subtly. Tone:
+<b>editorial, observed, cathedral-quiet</b>. Hand-built, not rendered.</pre>
+        <div class="legend">
+          <div><span class="k">PALETTE</span> indigo · graphite · bone · lavender accent</div>
+          <div><span class="k">TYPE</span> Inter (UI), JetBrains Mono (signal of trust)</div>
+          <div><span class="k">MOTIF</span> keystone wedge · concentric chevron · sealed square</div>
+          <div><span class="k">REGISTER</span> editorial photograph, not poster, not 3D demo</div>
+          <div><span class="k">FORBIDDEN</span> padlocks · shields · neon · brain glow · handshake</div>
+        </div>
+      </div>
+      <div class="primer-cell">
+        <h3>Universal negative prompt</h3>
+<pre>--no padlock, shield, scales of justice, glowing brain, neon
+cyberpunk, anime, robot hand shaking human hand, dollar sign,
+green checkmark, circuit-board overlay, hexagonal mesh, blue-
+purple gradient slop, lens flare, bokeh hearts, motivational
+poster crop, stock-photo handshake, generic AI face, 3D plastic
+sheen, over-rendered, chromatic aberration, watermark, logo soup</pre>
+        <h3 style="margin-top:18px;">Aspect cheat sheet</h3>
+        <div class="legend">
+          <div><span class="k">2:1</span> hero web banner, OOH transit</div>
+          <div><span class="k">3:2</span> editorial press, blog open</div>
+          <div><span class="k">4:5</span> social feed, LinkedIn ad</div>
+          <div><span class="k">9:16</span> story / vertical OOH / film</div>
+          <div><span class="k">1:1</span> avatar, app store, badge</div>
+          <div><span class="k">21:9</span> cinematic film still, billboard</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="banks">
+      <div class="bank">
+        <h4>LIGHT</h4>
+        <ul>
+          <li>raking dawn, 5° elevation</li>
+          <li>north-window soft, overcast</li>
+          <li>single 4'×6' silk, key-only</li>
+          <li>edge rim, 60° back-right</li>
+          <li>practical fluorescent, neutral 4000K</li>
+          <li>moonless server-room cyan fill</li>
+          <li>indigo gel, 1/2 stop kiss</li>
+        </ul>
+      </div>
+      <div class="bank">
+        <h4>LENS / FORMAT</h4>
+        <ul>
+          <li>Cooke S4 32mm anamorphic T2.8</li>
+          <li>Hasselblad 80mm f/2.8, medium format</li>
+          <li>Leica Summicron 35mm f/2</li>
+          <li>tilt-shift 24mm, f/8, planar</li>
+          <li>Mamiya 7 80mm, 6×7 film grain</li>
+          <li>macro 90mm, f/5.6, micro detail</li>
+          <li>technical 4×5 large format, sheet</li>
+        </ul>
+      </div>
+      <div class="bank">
+        <h4>MATERIAL</h4>
+        <ul>
+          <li>matte sandblasted glass</li>
+          <li>brushed natural anodised aluminium</li>
+          <li>raw fair-faced concrete</li>
+          <li>oxidised brass, brushed bronze</li>
+          <li>machined translucent PMMA</li>
+          <li>bone paper, deckle edge</li>
+          <li>black wool felt, light-absorbing</li>
+        </ul>
+      </div>
+      <div class="bank">
+        <h4>COMPOSITION</h4>
+        <ul>
+          <li>subject lower-left third, deep negative</li>
+          <li>centered, axial, monumental</li>
+          <li>over-the-shoulder, observed</li>
+          <li>top-down flat-lay, knolled</li>
+          <li>diptych, vertical seam</li>
+          <li>extreme wide, architectural scale</li>
+          <li>macro fragment, mystery first</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 01 HERO ============ -->
+  <section class="block">
+    <div class="section-head">
+      <div class="marker">
+        <div class="section-num">01 / CAMPAIGN</div>
+        <div class="section-tag">HERO PHOTOGRAPHY</div>
+      </div>
+      <div>
+        <h2>The brand <em>at human scale.</em></h2>
+        <p class="lede">
+          Cinematic editorial photographs that put a person inside the architecture of trust.
+          These are the lead images for the homepage hero, the keynote opener, the OOH wrap.
+          Observed, not posed; real production gear, real materials.
+        </p>
+      </div>
+    </div>
+
+    <!-- 01.A -->
+    <div class="prompt" id="p-101">
+      <div class="meta">
+        <div class="id">01.A · HERO</div>
+        <div class="title">The Operator <span class="ttl">at dawn</span></div>
+        <div class="use">Homepage hero · keynote opener · annual report cover.</div>
+        <div class="mood">
+          <span class="sw" style="background:#F8FAFC;"></span>
+          <span class="sw" style="background:#0F172A;"></span>
+          <span class="sw" style="background:#3730A3;"></span>
+          <span>BONE · GRAPHITE · INDIGO</span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux/Sora</b></span>
+            <span>--ar 21:9</span>
+            <span>--style raw</span>
+            <span>--s 250</span>
+          </div>
+          <button class="copy" data-target="b-101">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-101">[DNA stub] · Cinematic editorial photograph, 35mm film grain, golden-hour dawn light raking 5° low across a quiet open-plan operations floor. A single operator in a fitted charcoal merino crewneck stands facing a wall-sized matte sandblasted glass console; her hand is raised mid-gesture as a slow horizontal rail of agent identifiers — short hash strings in JetBrains Mono — drifts past at eye level. The console is the only light source besides the dawn; soft <span class="accent">indigo glyphs</span> cast a 1/4-stop kiss on her cheekbone. Off-white polished concrete floor, oxidised brass cable trays running under the console. Back wall is deep graphite slate; far right an open doorway lets pale bone light bleed in. Composition: extreme wide 21:9, subject placed on the left third, two thirds of frame given to negative space and architecture. Lens: Cooke S4 32mm anamorphic, T2.8, gentle barrel falloff, anamorphic squeeze flares clipped low. Editorial, observed, not heroic. Bone, graphite, indigo only. Hand-built reality, not rendered.</pre>
+        <div class="neg"><b>NEG</b> · no glowing holograms, no floating UI cards, no sci-fi blue uplight, no padlocks, no robotic figures, no team-of-five posed line-up, no neon, no brain motif, no chrome cyberpunk.</div>
+      </div>
+    </div>
+
+    <!-- 01.B -->
+    <div class="prompt" id="p-102">
+      <div class="meta">
+        <div class="id">01.B · HERO</div>
+        <div class="title">Two hands, <span class="ttl">one decision</span></div>
+        <div class="use">Trust narrative · case-study lead · investor letter spread.</div>
+        <div class="mood">
+          <span class="sw" style="background:#F1F5F9;"></span>
+          <span class="sw" style="background:#1E1B4B;"></span>
+          <span class="sw" style="background:#B45309;"></span>
+          <span>BONE · MIDNIGHT · BRASS</span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 3:2</span>
+            <span>--style raw</span>
+            <span>--s 200</span>
+          </div>
+          <button class="copy" data-target="b-102">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-102">[DNA stub] · Editorial photograph, medium-format Hasselblad 80mm f/2.8, single 4×6ft silk diffuser key-light from camera-left at 45°, no fill, deep falloff into shadow. A close-cropped over-the-shoulder shot of two hands meeting at the same matte aluminium tabletop — one hand of an older woman in a black wool blazer cuff, one hand of a younger person in a soft bone cotton shirt cuff. Between them lies a single sheet of deckle-edge bone paper with a printed audit chain: short JetBrains Mono hash strings in <span class="accent">indigo ink</span>, ending in a stamped lozenge that reads "VERIFIED · 14:02 UTC". A brushed bronze pen rests at 30°. Background falls to deep midnight slate, completely out of focus. Skin lit warm, page lit cool — two temperatures meeting on the seam. Composition: tabletop horizon at lower third, hands occupying the central band, generous head-room of dark above. The frame is about <span class="accent">consequence</span>, not technology. No screens visible.</pre>
+        <div class="neg"><b>NEG</b> · no faces, no laptops, no contracts dressed as movie props, no fountain pens with ornate flourish, no gold rings, no coffee cups, no plant in background, no neon.</div>
+      </div>
+    </div>
+
+    <!-- 01.C -->
+    <div class="prompt" id="p-103">
+      <div class="meta">
+        <div class="id">01.C · HERO</div>
+        <div class="title">Field <span class="ttl">operations</span></div>
+        <div class="use">Customer story · enterprise case · documentary social.</div>
+        <div class="mood">
+          <span class="sw" style="background:#94A3B8;"></span>
+          <span class="sw" style="background:#0F172A;"></span>
+          <span class="sw" style="background:#3730A3;"></span>
+          <span>FOG · GRAPHITE · INDIGO</span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 2:1</span>
+            <span>--style raw</span>
+            <span>--s 180</span>
+          </div>
+          <button class="copy" data-target="b-103">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-103">[DNA stub] · Documentary-grade editorial photograph, Leica Summicron 35mm f/2 on a Q-body, overcast north light, slight high-altitude fog. A logistics yard at 6:40am: rows of identical steel containers in graphite, a single one tagged with a small bone-coloured placard bearing one short <span class="accent">indigo glyph</span> (the keystone wedge) and a JetBrains Mono identifier "agent_01H8K2". Mid-ground, an operator in a navy field jacket and bone cotton scarf walks left-to-right with a cased tablet under her arm; her face is partially turned, anonymous. Wet asphalt reflects the cool sky. Composition: 2:1 wide, container lattice forming strict horizontal rhythm, the tagged container slightly off-centre. The image whispers <span class="accent">infrastructure at scale</span> — a single verifiable agent moves goods, no spectacle. Print-grain, no oversaturation. Bone, slate, fog, one drop of indigo.</pre>
+        <div class="neg"><b>NEG</b> · no forklift in motion blur, no neon shipping graphics, no obvious brand logos, no AI face on a screen, no sunset, no drama.</div>
+      </div>
+    </div>
+
+    <!-- 01.D -->
+    <div class="prompt" id="p-104">
+      <div class="meta">
+        <div class="id">01.D · HERO</div>
+        <div class="title">The cathedral <span class="ttl">of audit</span></div>
+        <div class="use">Anthem film opener · annual review hero · trust page.</div>
+        <div class="mood">
+          <span class="sw" style="background:#F8FAFC;"></span>
+          <span class="sw" style="background:#1E1B4B;"></span>
+          <span class="sw" style="background:#A5B4FC;"></span>
+          <span>BONE · MIDNIGHT · LAVENDER</span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux/Sora</b></span>
+            <span>--ar 21:9</span>
+            <span>--style raw</span>
+            <span>--s 300</span>
+          </div>
+          <button class="copy" data-target="b-104">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-104">[DNA stub] · Architectural photograph, technical 4×5 large-format, perfectly axial, 24mm tilt-shift planar. Interior of a vast concrete hall, ceiling 14 metres, in the spirit of a Brutalist library — board-formed concrete walls, bone terrazzo floor, two thin clerestory slits at the top admitting cool overcast daylight. Centred on the back wall, a single full-height matte glass plinth, chest-height to a tiny human silhouette walking past at the base. The plinth carries one quiet line of <span class="accent">indigo</span> JetBrains Mono text running the length of the wall: "every interaction · verified · 2026". No furniture, no seating, no signage. Composition: pure one-point perspective, vanishing point dead-centre, human figure 4% of frame height for scale. Mood: cathedral-quiet, civic, not corporate. Render as a real built space, not concept art.</pre>
+        <div class="neg"><b>NEG</b> · no holograms, no floating particles, no marble veining, no gold, no fog machine haze, no sci-fi suspended platforms, no ornate columns.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 02 AGENTIC ============ -->
+  <section class="block">
+    <div class="section-head">
+      <div class="marker">
+        <div class="section-num">02 / AGENTIC</div>
+        <div class="section-tag">CONCEPT IMAGERY</div>
+      </div>
+      <div>
+        <h2>What an agent <em>looks like</em>, when it can be trusted.</h2>
+        <p class="lede">
+          The futurist register — but earned, not anime. Agents as crystalline objects, signal as architecture,
+          verification as choreography. These are conceptual hero shots for product narrative pages, conference
+          booths, animated explainers.
+        </p>
+      </div>
+    </div>
+
+    <!-- 02.A -->
+    <div class="prompt" id="p-201">
+      <div class="meta">
+        <div class="id">02.A · CONCEPT</div>
+        <div class="title">The agent, <span class="ttl">in glass</span></div>
+        <div class="use">Product manifesto page · keynote slide 02.</div>
+        <div class="mood">
+          <span class="sw" style="background:#F8FAFC;"></span>
+          <span class="sw" style="background:#3730A3;"></span>
+          <span class="sw" style="background:#A5B4FC;"></span>
+          <span>BONE · INDIGO · LAVENDER</span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 4:5</span>
+            <span>--style raw</span>
+            <span>--s 350</span>
+          </div>
+          <button class="copy" data-target="b-201">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-201">[DNA stub] · Studio still-life photograph, Phase One IQ4 medium format, single overhead 6×6ft butterfly silk, clean shadow on bone seamless paper. Subject: a sculpted block of <span class="accent">optical glass, 18cm tall</span>, wedge-shaped — an abstracted A keystone — refracting a precise, narrow beam of indigo light through its body so a thin caustic prism falls across the paper to the right. Inside the wedge, suspended, is a tiny machined aluminium token the size of a fingernail, milled with concentric chevrons (the AEGIS aperture mark). The glass shows real chamfered edges, faint internal bubbles, a foundry mark hairline-etched into the base reading "agent_01H8K2RMQX4" in JetBrains Mono. Composition: subject perfectly centred, paper background falling to graphite at the upper edge. Tactile, museum-grade, the agent <span class="accent">as object</span> — not a glowing cloud, not a face, not a robot. A held, examined, signed thing.</pre>
+        <div class="neg"><b>NEG</b> · no neon glow, no cyberpunk circuitry inside the glass, no rainbow refraction, no holographic mesh, no floating UI labels, no sci-fi rim light, no plastic CGI.</div>
+      </div>
+    </div>
+
+    <!-- 02.B -->
+    <div class="prompt" id="p-202">
+      <div class="meta">
+        <div class="id">02.B · CONCEPT</div>
+        <div class="title">Verification <span class="ttl">at the speed of thought</span></div>
+        <div class="use">Latency / hot-path narrative · developer launch hero.</div>
+        <div class="mood">
+          <span class="sw" style="background:#0F172A;"></span>
+          <span class="sw" style="background:#3730A3;"></span>
+          <span class="sw" style="background:#F8FAFC;"></span>
+          <span>GRAPHITE · INDIGO · BONE</span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 16:9</span>
+            <span>--style raw</span>
+            <span>--s 280</span>
+          </div>
+          <button class="copy" data-target="b-202">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-202">[DNA stub] · Long-exposure photograph, 4-second shutter, technical camera, on a graphite seamless. Subject: a single thread of <span class="accent">indigo light</span>, 0.8mm thin, traced by a precision tool through space — entering frame on the left as a straight horizontal line, passing through three suspended matte glass plates (vertical, parallel, edge-on so they read as razor-thin verticals), and exiting frame on the right. Each plate is etched with one tiny line of JetBrains Mono ("issue", "evaluate", "attest"). The light has a real photographic quality — slight bloom, faint specular kiss on each plate, no CGI sheen. Background dissolves into deep graphite at the edges. The image is the <span class="accent">verify hot path</span> made visible: 78 milliseconds of physics. Composition: 16:9, generous side margins, plates evenly spaced across the centre.</pre>
+        <div class="neg"><b>NEG</b> · no laser beams from a sci-fi gun, no neon lightsaber, no glitter trail, no lens-flare star, no holographic UI, no green or pink, no cyberpunk grid floor.</div>
+      </div>
+    </div>
+
+    <!-- 02.C -->
+    <div class="prompt" id="p-203">
+      <div class="meta">
+        <div class="id">02.C · CONCEPT</div>
+        <div class="title">A swarm <span class="ttl">that signs its work</span></div>
+        <div class="use">Multi-agent narrative · platform overview · explainer cover.</div>
+        <div class="mood">
+          <span class="sw" style="background:#F8FAFC;"></span>
+          <span class="sw" style="background:#0F172A;"></span>
+          <span class="sw" style="background:#3730A3;"></span>
+          <span>BONE · GRAPHITE · INDIGO</span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 3:2</span>
+            <span>--style raw</span>
+            <span>--s 320</span>
+          </div>
+          <button class="copy" data-target="b-203">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-203">[DNA stub] · Editorial top-down flat-lay, 90mm macro, north-window soft light, on a sheet of bone deckle-edge cotton paper measuring roughly 60×40cm. Subject: an arrangement of <span class="accent">forty small machined aluminium tokens</span>, each 14mm across, each milled with a different geometric agent glyph (concentric chevrons, rotated squares, single wedges). The tokens form a loose constellation, organised but not regimented — small clusters, a few solitary outliers — connected to each other by the faintest <span class="accent">drawn-by-hand indigo ink lines</span> from a 0.3mm Rotring pen. At the centre, one slightly larger token — the keystone wedge — is the hub of three converging lines. A few tokens carry hairline-etched JetBrains Mono ids. Knolled, observed, not graphic-design-fake. Real metal, real ink, real paper grain.</pre>
+        <div class="neg"><b>NEG</b> · no glowing dots, no holographic network mesh, no blue-purple gradient cloud, no Photoshop Lens-Flare, no tech wallpaper aesthetic, no chrome.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 03 PRODUCT ============ -->
+  <section class="block">
+    <div class="section-head">
+      <div class="marker">
+        <div class="section-num">03 / PRODUCT</div>
+        <div class="section-tag">UI HERO &amp; STILL-LIFE</div>
+      </div>
+      <div>
+        <h2>The product <em>as object.</em></h2>
+        <p class="lede">
+          Studio-grade still-life of the AEGIS console — the developer-tool register: floating UI fragments,
+          honest typography, no fake glow. These prompts treat the product like a hand-built artefact
+          photographed under controlled light.
+        </p>
+      </div>
+    </div>
+
+    <!-- 03.A -->
+    <div class="prompt" id="p-301">
+      <div class="meta">
+        <div class="id">03.A · PRODUCT</div>
+        <div class="title">Console fragment, <span class="ttl">studio light</span></div>
+        <div class="use">Feature hero · launch announcement · pricing page.</div>
+        <div class="mood">
+          <span class="sw" style="background:#F8FAFC;"></span>
+          <span class="sw" style="background:#E2E8F0;"></span>
+          <span class="sw" style="background:#3730A3;"></span>
+          <span>BONE · LINE · INDIGO</span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 4:5</span>
+            <span>--style raw</span>
+            <span>--s 220</span>
+          </div>
+          <button class="copy" data-target="b-301">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-301">[DNA stub] · Studio still-life photograph, Hasselblad 80mm f/4, single softbox key from upper-left, faint silver bounce camera-right. Subject: a single <span class="accent">slab of UI</span> — a 9:16 fragment of the AEGIS console — printed crisp on a 4mm sheet of matte sandblasted acrylic, propped at a 6° lean against a bone plaster wall, casting a soft hard-edged shadow. The UI shows a clean Inter/JetBrains-Mono interface: a panel header reading "agent_01H8K2RMQX4", a row of badges ("VERIFIED", "ACTIVE", "BATE 86"), and four lines of mono log entries. Indigo accents only on the verified badge and one small keystone glyph in the corner. The acrylic edge is bevelled, catching a thin highlight. Foreground left, a single brushed-aluminium pen at 20° rest; the rest of the frame is bone paper — three quarters of negative space. Composition: rule-of-thirds, slab on right third, leaning left, deep restful air. The product reads as a <span class="accent">hand-held physical object</span>, not a 3D mockup.</pre>
+        <div class="neg"><b>NEG</b> · no laptop bezel, no MacBook on desk, no isometric tilt, no plastic phone mockup, no fake glow behind the UI, no skeumorphic shadow, no Dribbble-style gradient mesh.</div>
+      </div>
+    </div>
+
+    <!-- 03.B -->
+    <div class="prompt" id="p-302">
+      <div class="meta">
+        <div class="id">03.B · PRODUCT</div>
+        <div class="title">Three panels, <span class="ttl">one decision</span></div>
+        <div class="use">Workflow narrative · docs landing · feature triptych.</div>
+        <div class="mood">
+          <span class="sw" style="background:#F1F5F9;"></span>
+          <span class="sw" style="background:#0F172A;"></span>
+          <span class="sw" style="background:#3730A3;"></span>
+          <span>BONE · GRAPHITE · INDIGO</span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 16:9</span>
+            <span>--style raw</span>
+            <span>--s 200</span>
+          </div>
+          <button class="copy" data-target="b-302">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-302">[DNA stub] · Editorial product photograph, top-down flat-lay, 50mm macro, perfectly perpendicular sensor, soft north-window light, on a graphite-grey wool felt surface. Subject: three matte sandblasted glass panels arranged in a horizontal row with 30mm gaps, each 14×20cm, each carrying a printed UI fragment from the AEGIS verify flow: panel one shows "policy.payments.transfer · scope check" with a small <span class="accent">indigo</span> tick; panel two shows a JetBrains Mono signature block, four lines of hash; panel three shows a short audit-chain in indigo with a green "VERIFIED 78ms" stamp. Each panel rests on two tiny brushed-aluminium feet, throwing a soft 1mm shadow on the felt. Beside the centre panel, a single bone-paper note with one handwritten word in graphite pencil: "ship". Composition: three panels evenly spaced, dead horizontal, generous air top and bottom. The image reads as a <span class="accent">workshop bench</span> — calm, decided.</pre>
+        <div class="neg"><b>NEG</b> · no laptops, no phones, no isometric perspective, no holographic UI float, no neon backlight, no chrome rims, no extra props, no coffee cup.</div>
+      </div>
+    </div>
+
+    <!-- 03.C -->
+    <div class="prompt" id="p-303">
+      <div class="meta">
+        <div class="id">03.C · PRODUCT</div>
+        <div class="title">The verify <span class="ttl">endpoint</span></div>
+        <div class="use">Developer launch · API release · technical blog hero.</div>
+        <div class="mood">
+          <span class="sw" style="background:#0F172A;"></span>
+          <span class="sw" style="background:#A5B4FC;"></span>
+          <span class="sw" style="background:#F8FAFC;"></span>
+          <span>GRAPHITE · LAVENDER · BONE</span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 2:1</span>
+            <span>--style raw</span>
+            <span>--s 240</span>
+          </div>
+          <button class="copy" data-target="b-303">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-303">[DNA stub] · Macro photograph, 90mm at f/8, single 30° rim light camera-back-right, deep shadow elsewhere. Subject: an extreme close-up of <span class="accent">a single line of code</span>, raised letterpress on heavy bone cotton paper, occupying the centre band of frame. The code reads "POST /v1/verify → 200 OK · 78ms" — set in JetBrains Mono, the word "verify" pressed in saturated indigo ink with visible plate-bite, the rest in graphite. Paper grain, ink relief, faint embossing shadow. The image is two thirds bone, one third near-black, divided by a precise horizontal seam under the code. Composition: 2:1, code occupies the upper-third, lower two-thirds is breathing dark air. The endpoint as <span class="accent">printed ceremony</span> — Stripe-grade craft, but quieter.</pre>
+        <div class="neg"><b>NEG</b> · no monitor screen, no IDE chrome, no terminal cursor, no neon cyan, no holographic UI, no Apple-style mockup tilt, no glitchy text effect.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 04 TRUST ============ -->
+  <section class="block">
+    <div class="section-head">
+      <div class="marker">
+        <div class="section-num">04 / TRUST</div>
+        <div class="section-tag">INFRASTRUCTURE STILLS</div>
+      </div>
+      <div>
+        <h2>Vault, kiln, ledger. <em>Trust as material.</em></h2>
+        <p class="lede">
+          The serious register. Object photography that says "this will outlast you" — civic-grade,
+          monumental, the visual register of a central bank gallery or an architectural foundation report.
+          Use sparingly, where the message is permanence and consequence.
+        </p>
+      </div>
+    </div>
+
+    <!-- 04.A -->
+    <div class="prompt" id="p-401">
+      <div class="meta">
+        <div class="id">04.A · TRUST</div>
+        <div class="title">The sealed <span class="ttl">ledger</span></div>
+        <div class="use">Compliance page · audit narrative · regulator brief.</div>
+        <div class="mood">
+          <span class="sw" style="background:#0F172A;"></span>
+          <span class="sw" style="background:#B45309;"></span>
+          <span class="sw" style="background:#3730A3;"></span>
+          <span>GRAPHITE · BRASS · INDIGO</span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 1:1</span>
+            <span>--style raw</span>
+            <span>--s 220</span>
+          </div>
+          <button class="copy" data-target="b-401">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-401">[DNA stub] · Museum-quality still-life, 80mm at f/5.6, single overhead north skylight, dust motes faintly visible. Subject: a thick slab of <span class="accent">oxidised brushed bronze</span>, 22×30cm, 4cm deep, lying centred on a black wool felt surface. Into its top face, a precise <span class="accent">indigo</span> enamel inlay traces a vertical chain of seven short hashes in JetBrains Mono — an audit chain, each line linked to the next by a tiny etched bracket. At the foot of the chain, a deep-stamped <span class="accent">keystone wedge</span> (the AEGIS mark), filled with the same indigo enamel. The bronze surface shows the honest tool-marks of brushing, faint patina at the corners. Composition: square, object dead-centre, deep felt all around. The image reads as a <span class="accent">civic seal</span> — slow, weighty, signed.</pre>
+        <div class="neg"><b>NEG</b> · no gold sparkle, no diamond inlays, no royal heraldry, no medieval scroll, no over-shiny chrome, no cyan, no holographic stamp.</div>
+      </div>
+    </div>
+
+    <!-- 04.B -->
+    <div class="prompt" id="p-402">
+      <div class="meta">
+        <div class="id">04.B · TRUST</div>
+        <div class="title">Geological <span class="ttl">time</span></div>
+        <div class="use">Anniversary asset · long-term partnership · ESG.</div>
+        <div class="mood">
+          <span class="sw" style="background:#94A3B8;"></span>
+          <span class="sw" style="background:#0F172A;"></span>
+          <span class="sw" style="background:#A5B4FC;"></span>
+          <span>STONE · GRAPHITE · LAVENDER</span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 4:5</span>
+            <span>--style raw</span>
+            <span>--s 240</span>
+          </div>
+          <button class="copy" data-target="b-402">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-402">[DNA stub] · Studio still-life, Phase One IQ4, single 8×8ft silk overhead, cool overcast quality. Subject: a hand-quarried block of <span class="accent">grey limestone</span>, 24×24×40cm, with one face precision-machined flat and polished to a faint sheen. Into the polished face, a single <span class="accent">indigo</span> resin inlay traces the AEGIS aperture mark (concentric chevron, four layers) — perfectly geometric against the rough chiselled sides of the block. The stone sits on bone seamless paper, centred. Tiny chips and stone-dust at the base. Composition: 4:5, object occupying the lower 60% of frame, generous calm air above. The image is about <span class="accent">a thing made to last</span> — verifiable infrastructure as geology, not as software.</pre>
+        <div class="neg"><b>NEG</b> · no marble veining, no ancient ruin, no archaeology dig dirt, no glow inside the inlay, no hieroglyphics, no Greek pillars, no candle.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 05 TEXTURES ============ -->
+  <section class="block">
+    <div class="section-head">
+      <div class="marker">
+        <div class="section-num">05 / TEXTURES</div>
+        <div class="section-tag">BACKDROPS &amp; TILES</div>
+      </div>
+      <div>
+        <h2>Wallpaper for the <em>system.</em></h2>
+        <p class="lede">
+          Abstract backgrounds for hero sections, deck dividers, OOH wraps, and social. Each is engineered
+          to feel like a captured physical phenomenon — refraction, ink diffusion, signal — rather than a
+          digital gradient. Tile and crop freely.
+        </p>
+      </div>
+    </div>
+
+    <!-- 05.A -->
+    <div class="prompt" id="p-501">
+      <div class="meta">
+        <div class="id">05.A · TEXTURE</div>
+        <div class="title">Refracted <span class="ttl">indigo</span></div>
+        <div class="use">Hero background · keynote divider · social full-bleed.</div>
+        <div class="mood">
+          <span class="sw" style="background:#F8FAFC;"></span>
+          <span class="sw" style="background:#3730A3;"></span>
+          <span class="sw" style="background:#A5B4FC;"></span>
+          <span>BONE · INDIGO · LAVENDER</span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 16:9</span>
+            <span>--tile</span>
+            <span>--s 400</span>
+          </div>
+          <button class="copy" data-target="b-501">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-501">[DNA stub] · Long-exposure photograph of a real optical phenomenon, captured on bone seamless paper. A single thick prism of optical glass at the right edge of frame is hit by a precise narrow beam of indigo light from upper-left; the beam refracts through the prism and falls across the paper as a soft, slightly defocused band of <span class="accent">indigo dissolving into lavender</span>, with a hard kiss of caustic at the entry point and a feathered tail at the exit. No other elements. The paper grain is visible. The image feels like a captured fragment of physics — colour as <span class="accent">measurement</span>, not as decoration. Composition: 16:9, refracted band running diagonally lower-left to upper-right, deep restful negative space.</pre>
+        <div class="neg"><b>NEG</b> · no rainbow, no full spectrum prism, no Pink Floyd reference, no purple-pink gradient, no glow filters, no lens flare, no digital noise.</div>
+      </div>
+    </div>
+
+    <!-- 05.B -->
+    <div class="prompt" id="p-502">
+      <div class="meta">
+        <div class="id">05.B · TEXTURE</div>
+        <div class="title">Audit chain <span class="ttl">bloom</span></div>
+        <div class="use">Deck divider · case-study background · social tile.</div>
+        <div class="mood">
+          <span class="sw" style="background:#F8FAFC;"></span>
+          <span class="sw" style="background:#1E1B4B;"></span>
+          <span class="sw" style="background:#3730A3;"></span>
+          <span>BONE · MIDNIGHT · INDIGO</span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 3:2</span>
+            <span>--style raw</span>
+            <span>--s 320</span>
+          </div>
+          <button class="copy" data-target="b-502">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-502">[DNA stub] · Macro photograph, 100mm at f/4, single overhead light. Subject: a real drop of <span class="accent">indigo Pelikan ink</span> mid-bloom in a shallow petri dish of cold water on a bone-paper backdrop, frozen at 1/4000s shutter — the bloom is fractal, with delicate dendritic tendrils forming a pattern that quietly suggests a branching audit-chain. The dish edge falls just outside frame; the bloom occupies most of the image, slightly off-centre to the left. Tiny suspended particulate, real fluid dynamics, no symmetry tricks. The image reads as a <span class="accent">network forming</span> — organic, signed. Bone paper grain visible at the corners.</pre>
+        <div class="neg"><b>NEG</b> · no symmetric kaleidoscope, no neon, no rainbow, no glitter, no AI fractal swirl, no obviously-fake CGI fluid, no chrome.</div>
+      </div>
+    </div>
+
+    <!-- 05.C -->
+    <div class="prompt" id="p-503">
+      <div class="meta">
+        <div class="id">05.C · TEXTURE</div>
+        <div class="title">Signal <span class="ttl">field</span></div>
+        <div class="use">Loop video background · web hero overlay.</div>
+        <div class="mood">
+          <span class="sw" style="background:#0F172A;"></span>
+          <span class="sw" style="background:#3730A3;"></span>
+          <span class="sw" style="background:#A5B4FC;"></span>
+          <span>GRAPHITE · INDIGO · LAVENDER</span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux/Sora</b></span>
+            <span>--ar 21:9</span>
+            <span>--style raw</span>
+            <span>--s 280</span>
+          </div>
+          <button class="copy" data-target="b-503">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-503">[DNA stub] · Long-exposure architectural photograph at night. A single <span class="accent">vast graphite wall</span>, 12 metres wide, faintly board-formed concrete texture; across its surface, slow horizontal beams of indigo light — thin parallel bands of varying brightness, 8–12 lines, each line carrying a pulse that drifts left-to-right at different speeds. Captured at 8s shutter so each line records a soft trail. No symbols, no text. Pure horizontal rhythm. The image evokes <span class="accent">verification traffic</span> as architecture: every interaction, accounted for, in motion. Composition: 21:9 cinematic, lines fully bleeding the frame, no obvious focal point — meant to be looped as backdrop.</pre>
+        <div class="neg"><b>NEG</b> · no audio waveform shape, no equaliser bars, no city skyline, no traffic lights, no neon signage, no obvious VFX particle system.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 06 EDITORIAL ============ -->
+  <section class="block">
+    <div class="section-head">
+      <div class="marker">
+        <div class="section-num">06 / EDITORIAL</div>
+        <div class="section-tag">DATA AS ART</div>
+      </div>
+      <div>
+        <h2>Charts that <em>print on linen.</em></h2>
+        <p class="lede">
+          Where the product story is numerical — latency, scale, denial precedence, BATE trust scores —
+          render the data as if for a museum-quality atlas: hand-set, paper-grade, indigo plate ink.
+        </p>
+      </div>
+    </div>
+
+    <!-- 06.A -->
+    <div class="prompt" id="p-601">
+      <div class="meta">
+        <div class="id">06.A · EDITORIAL</div>
+        <div class="title">A trillion calls, <span class="ttl">a single page</span></div>
+        <div class="use">Annual report spread · scale narrative · investor letter.</div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 4:5</span>
+            <span>--style raw</span>
+            <span>--s 200</span>
+          </div>
+          <button class="copy" data-target="b-601">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-601">[DNA stub] · Macro photograph of a printed page, 90mm at f/8, soft north light, paper grain visible. Subject: a single oversized sheet of bone cotton paper, on which is letterpress-printed an editorial chart in <span class="accent">indigo plate ink</span>: a precise small-multiples grid of 12×12 little area-charts, each one labelled in JetBrains Mono with a scope name ("payments.transfer", "policy.evaluate", "key.rotate", etc), each one quietly tracing a different traffic curve. The headline above, set in Inter 700, reads "1.4T verifications · 2025" in graphite. Subhead in Fraunces italic: "every interaction, accounted for". Margin notes in mono, a single <span class="accent">keystone glyph</span> at lower right. Real plate-bite, real fibres, real letterpress kiss. The image reads as a <span class="accent">page from a permanent atlas</span>, photographed.</pre>
+        <div class="neg"><b>NEG</b> · no Excel-style 3D chart, no glossy infographic, no PowerPoint slide, no bright candy palette, no startup pitch-deck aesthetics, no isometric chart blocks.</div>
+      </div>
+    </div>
+
+    <!-- 06.B -->
+    <div class="prompt" id="p-602">
+      <div class="meta">
+        <div class="id">06.B · EDITORIAL</div>
+        <div class="title">BATE score, <span class="ttl">in print</span></div>
+        <div class="use">Trust-score launch · pricing-tier card · partner brief.</div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 1:1</span>
+            <span>--style raw</span>
+            <span>--s 220</span>
+          </div>
+          <button class="copy" data-target="b-602">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-602">[DNA stub] · Studio macro of a printed dial gauge on heavy bone card stock, set on a graphite wool surface, soft side light. The gauge is a 270° arc, hand-drawn precision, divided into four bands — hairline, hairline-with-tick, solid, double-solid — labelled in tiny JetBrains Mono "0–25 / 26–60 / 61–85 / 86–100". An <span class="accent">indigo</span> needle is set at 86; below it, large Fraunces italic numerals "86" and a small Inter caps subhead "BATE TRUST". A keystone glyph is embossed lower-right. Real letterpress impression, faint paper indent under each line. Composition: square, gauge centred, calm air around. The image reads like a <span class="accent">page from a Bauhaus instrument manual</span>.</pre>
+        <div class="neg"><b>NEG</b> · no neon dashboard UI, no glow under the needle, no skeumorphic chrome bezel, no infographic shading, no rainbow scale.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 07 LIFESTYLE ============ -->
+  <section class="block">
+    <div class="section-head">
+      <div class="marker">
+        <div class="section-num">07 / LIFESTYLE</div>
+        <div class="section-tag">REAL MOMENTS</div>
+      </div>
+      <div>
+        <h2>The platform, <em>at desk height.</em></h2>
+        <p class="lede">
+          Documentary photographs of operators, founders, and developers using the product. The
+          everyday-giants register: warmth, imperfect rooms, real coffee, no posing.
+        </p>
+      </div>
+    </div>
+
+    <!-- 07.A -->
+    <div class="prompt" id="p-701">
+      <div class="meta">
+        <div class="id">07.A · LIFESTYLE</div>
+        <div class="title">Pair-programming, <span class="ttl">late</span></div>
+        <div class="use">Developer story · careers page · launch dev-week.</div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 3:2</span>
+            <span>--style raw</span>
+            <span>--s 180</span>
+          </div>
+          <button class="copy" data-target="b-701">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-701">[DNA stub] · Documentary photograph, 35mm at f/2, single 4000K practical desk-lamp as key, ambient room dim. Two engineers at a single broad oak desk in a converted-warehouse workspace at 22:30; one in a bone cotton T-shirt leaning forward at the screen, the other in a charcoal hoodie standing behind, hand on the chair-back, pointing at a tiny detail on-screen. Their faces are partial, three-quarter, anonymised by light. On screen (visible in oblique reflection only, never head-on), faint <span class="accent">indigo</span> glyph hints; on the desk, a hand-bound bone notebook with a graphite-pencil sketch of the AEGIS keystone, two empty enamel mugs, an oxidised brass ruler. Soft warm window-light bleed from far right. Composition: 3:2, two figures occupying the left two thirds, generous warm shadow on the right. The image is about <span class="accent">care</span> — quiet, unposed, not heroic.</pre>
+        <div class="neg"><b>NEG</b> · no overhead office lighting, no co-working meme aesthetic, no MacBook Pro logo, no glowing screen as key light, no obvious "team smiling at laptop" trope.</div>
+      </div>
+    </div>
+
+    <!-- 07.B -->
+    <div class="prompt" id="p-702">
+      <div class="meta">
+        <div class="id">07.B · LIFESTYLE</div>
+        <div class="title">Founder's <span class="ttl">desk</span></div>
+        <div class="use">Customer testimonial · series-A spread · CEO portrait.</div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 4:5</span>
+            <span>--style raw</span>
+            <span>--s 180</span>
+          </div>
+          <button class="copy" data-target="b-702">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-702">[DNA stub] · Editorial documentary portrait, Hasselblad 80mm f/2.8, soft north window as key, no fill. A founder in his mid-40s, weathered, in a bone linen shirt, sleeves cuffed once, sits at a slim oak desk by a tall window, one hand resting on a closed bone hardback notebook. The notebook cover is hand-debossed with a single small <span class="accent">keystone wedge</span>. The desk holds a single brushed-aluminium pen, an enamel cup of black coffee, and a small <span class="accent">indigo</span> cardstock card with "agent_01H8K2" letterpress-printed on it. The wall behind is unfinished plaster. He is mid-thought, not smiling, looking down-and-left at the closed notebook. Composition: 4:5, subject lower right third, calm window light flooding the upper left. Real, observed, not posed.</pre>
+        <div class="neg"><b>NEG</b> · no startup hoodie, no pitch-deck behind, no investor on phone, no laptop on lap, no whiteboard scribble, no lifestyle stock-photo smile.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 08 OOH ============ -->
+  <section class="block">
+    <div class="section-head">
+      <div class="marker">
+        <div class="section-num">08 / OOH</div>
+        <div class="section-tag">OUT-OF-HOME &amp; CAMPAIGN</div>
+      </div>
+      <div>
+        <h2>The brand <em>in the city.</em></h2>
+        <p class="lede">
+          Mockup prompts for billboards, transit, and building wraps. Optimised for a single legible idea
+          at distance — type-led, ten-words-or-fewer, the keystone present but quiet.
+        </p>
+      </div>
+    </div>
+
+    <!-- 08.A -->
+    <div class="prompt" id="p-801">
+      <div class="meta">
+        <div class="id">08.A · OOH</div>
+        <div class="title">Embarcadero <span class="ttl">building wrap</span></div>
+        <div class="use">Launch week · SF takeover · partner moment.</div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 9:16</span>
+            <span>--style raw</span>
+            <span>--s 220</span>
+          </div>
+          <button class="copy" data-target="b-801">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-801">[DNA stub] · Architectural photograph at golden-hour blue-hour transition, Leica SL 35mm f/2.8, slight 8s exposure for traffic light-trails on the street below. A 14-storey building façade in San Francisco wrapped in a single bone-paper-toned vinyl, the wrap carrying ONLY: a tall <span class="accent">indigo keystone wedge</span> filling the upper third, beneath it one Inter 700 line in graphite "every agent · accountable", and at the bottom a JetBrains Mono signature "AEGIS · 2026". No other graphics, no website URL, no QR code. People walking past at street level for human scale, slightly motion-blurred. Real urban environment, real reflection in adjacent glass towers, honest wind-flap on the wrap edges. Composition: vertical 9:16, building filling 80% of frame.</pre>
+        <div class="neg"><b>NEG</b> · no QR code, no app-store badges, no website URL, no busy multi-image collage, no neon billboards, no Times Square chaos, no model walking foreground.</div>
+      </div>
+    </div>
+
+    <!-- 08.B -->
+    <div class="prompt" id="p-802">
+      <div class="meta">
+        <div class="id">08.B · OOH</div>
+        <div class="title">Terminal <span class="ttl">jetway</span></div>
+        <div class="use">Airport campaign · enterprise B2B · finance week.</div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 21:9</span>
+            <span>--style raw</span>
+            <span>--s 200</span>
+          </div>
+          <button class="copy" data-target="b-802">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-802">[DNA stub] · Wide architectural photograph inside an international airport jetway gallery wall, 24mm tilt-shift, daylight balanced, faint motion blur of a single passing traveller. The wall is a continuous 60-metre printed run on bone paper with a horizontal rhythm of seven equal panels; six panels are blank with only a small <span class="accent">indigo keystone</span> at the centre, the seventh — second from the right — carries a single Inter 600 line in graphite "verifiable agents. anywhere money moves." A single business traveller in a charcoal coat passes left-to-right, slightly out of focus. Composition: 21:9, the wall running edge-to-edge, traveller positioned at the rule-of-thirds line. The campaign reads as <span class="accent">infrastructure</span> — quiet, ubiquitous, signed.</pre>
+        <div class="neg"><b>NEG</b> · no airline logos, no airport ad clutter, no overhead departure board mimicry, no rainbow palette, no floor reflections like a CGI render, no flashy arrow callouts.</div>
+      </div>
+    </div>
+
+    <!-- 08.C -->
+    <div class="prompt" id="p-803">
+      <div class="meta">
+        <div class="id">08.C · OOH</div>
+        <div class="title">Print, <span class="ttl">full-page</span></div>
+        <div class="use">FT / Bloomberg / Economist · annual takeover.</div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>MJ/Flux</b></span>
+            <span>--ar 4:5</span>
+            <span>--style raw</span>
+            <span>--s 200</span>
+          </div>
+          <button class="copy" data-target="b-803">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-803">[DNA stub] · Photograph of an open broadsheet newspaper on a graphite wool surface, soft window light from the left. The visible right page is an AEGIS full-page ad, set entirely in editorial typography on bone newsprint: a small <span class="accent">indigo keystone</span> wedge dead-centre at the top; below it, a Fraunces italic display line at 72pt graphite — "Every agent. Every signature. Every time."; below, a short paragraph in 11pt Inter set as a single restrained column; at the bottom edge, a JetBrains Mono signature "aegis.network · 2026". The left page is the real newspaper — financial columns, real ink, real grid. The seam of the spread is honest, paper grain visible, slight cylinder fold. Composition: 4:5, the AEGIS page filling the right two thirds, the real paper the left third.</pre>
+        <div class="neg"><b>NEG</b> · no glossy magazine paper, no full-bleed photograph, no QR code, no two-column hard-sell, no website URL above the keystone, no startup pitch-deck colours.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 09 MOTION ============ -->
+  <section class="block">
+    <div class="section-head">
+      <div class="marker">
+        <div class="section-num">09 / MOTION</div>
+        <div class="section-tag">VIDEO &amp; ANIMATION CUES</div>
+      </div>
+      <div>
+        <h2>The brand, <em>moving.</em></h2>
+        <p class="lede">
+          Prompts for video generators (Sora, Runway, Veo) and motion-design briefs (Lottie, After Effects).
+          Each describes a single 6–12 second beat — never busy, always one idea unfolding.
+        </p>
+      </div>
+    </div>
+
+    <!-- 09.A -->
+    <div class="prompt" id="p-901">
+      <div class="meta">
+        <div class="id">09.A · MOTION</div>
+        <div class="title">Anthem <span class="ttl">opener</span></div>
+        <div class="use">Hero film · keynote opener · launch trailer.</div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>Sora/Veo/Runway</b></span>
+            <span>--ar 21:9</span>
+            <span>--len 8s</span>
+            <span>24fps</span>
+          </div>
+          <button class="copy" data-target="b-901">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-901">[DNA stub] · 8-second cinematic shot, anamorphic, 24fps, no cuts. Open on a single <span class="accent">indigo dot of light</span>, dead-centre on a vast bone seamless paper, held still for one beat. The dot draws itself horizontally to the right at a controlled, ceremonial pace, leaving a thin precise line; at exactly 4 seconds it stops and a hairline keystone wedge sketches itself above the line in one continuous stroke. The line then continues right and exits frame; camera pushes in slowly the entire duration, very gently. No text, no UI, no music cue described — purely the line, the wedge, the paper grain, the soft falling light from a high north window. The beat reads as <span class="accent">a signature being made</span>.</pre>
+        <div class="neg"><b>NEG</b> · no fast cuts, no whoosh particles, no neon trail, no logo reveal animation tropes, no zoom shake, no chromatic aberration.</div>
+      </div>
+    </div>
+
+    <!-- 09.B -->
+    <div class="prompt" id="p-902">
+      <div class="meta">
+        <div class="id">09.B · MOTION</div>
+        <div class="title">Loop, <span class="ttl">background</span></div>
+        <div class="use">Web hero loop · keynote idle · trade-show wall.</div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>Sora/Veo/Runway</b></span>
+            <span>--ar 16:9</span>
+            <span>--len 12s · loop</span>
+            <span>24fps</span>
+          </div>
+          <button class="copy" data-target="b-902">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-902">[DNA stub] · 12-second seamless looping shot, locked-off camera. A graphite concrete wall in faint overcast light fills the frame. Across the wall, eight thin horizontal beams of <span class="accent">indigo light</span> drift from left to right at slightly different speeds, each leaving a faint trail captured at 8s exposure equivalent. Every 3 seconds, one beam <span class="accent">pulses brighter</span> and a tiny mono-typographic id "agent_01H…" briefly appears at its tip and dissolves. The image must loop perfectly: the last frame matches the first. Cathedral-quiet, infrastructural, no music in description — purely visual rhythm of verifiable traffic.</pre>
+        <div class="neg"><b>NEG</b> · no audio waveform aesthetic, no equaliser bars, no city traffic timelapse, no neon, no glitch transitions, no big text reveal.</div>
+      </div>
+    </div>
+
+    <!-- 09.C -->
+    <div class="prompt" id="p-903">
+      <div class="meta">
+        <div class="id">09.C · MOTION</div>
+        <div class="title">Verify, <span class="ttl">in 78ms</span></div>
+        <div class="use">Product demo · explainer · social vertical.</div>
+      </div>
+      <div class="body">
+        <div class="pre-row">
+          <div class="params">
+            <span><b>Sora/Veo/Runway</b></span>
+            <span>--ar 9:16</span>
+            <span>--len 6s</span>
+            <span>30fps</span>
+          </div>
+          <button class="copy" data-target="b-903">Copy</button>
+        </div>
+<pre class="prompt-body" id="b-903">[DNA stub] · 6-second vertical shot, locked camera, on bone paper, 30fps, single overhead silk light. Three vertical matte-glass plates stand edge-on across the frame, evenly spaced, each etched with one mono word — "issue", "evaluate", "attest". From the left, a single hairline <span class="accent">indigo light-thread</span> traces through plate one at 1.5s, plate two at 3.0s, plate three at 4.5s; on contact with each plate a faint halo blooms and recedes. At 5.5s, a small mono-tag fades up at lower right: "78ms · VERIFIED". Camera does not move; the only motion is the thread and the haloes. Cathedral-quiet, ceremonial.</pre>
+        <div class="neg"><b>NEG</b> · no whoosh transitions, no UI overlays, no sound-effect-driven cuts, no neon laser, no progress bar UI, no spinner.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ INDEX ============ -->
+  <section class="block">
+    <div class="section-head">
+      <div class="marker">
+        <div class="section-num">10 / INDEX</div>
+        <div class="section-tag">QUICK LOOKUP</div>
+      </div>
+      <div>
+        <h2>The whole library, <em>at a glance.</em></h2>
+        <p class="lede">
+          Twenty-one prompts across nine categories. Add your own; remove what you don't ship.
+          Treat the DNA stub as the constant; treat everything else as a dial.
+        </p>
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-row"><span class="n">01.A</span><span class="t">The Operator <em>at dawn</em></span><span class="u">Homepage hero · keynote opener</span><span class="a">21:9</span></div>
+      <div class="toc-row"><span class="n">01.B</span><span class="t">Two hands, <em>one decision</em></span><span class="u">Trust narrative · case lead</span><span class="a">3:2</span></div>
+      <div class="toc-row"><span class="n">01.C</span><span class="t">Field <em>operations</em></span><span class="u">Customer story · enterprise</span><span class="a">2:1</span></div>
+      <div class="toc-row"><span class="n">01.D</span><span class="t">The cathedral <em>of audit</em></span><span class="u">Anthem opener · annual review</span><span class="a">21:9</span></div>
+      <div class="toc-row"><span class="n">02.A</span><span class="t">The agent, <em>in glass</em></span><span class="u">Manifesto · keynote 02</span><span class="a">4:5</span></div>
+      <div class="toc-row"><span class="n">02.B</span><span class="t">Verification <em>at the speed of thought</em></span><span class="u">Latency narrative</span><span class="a">16:9</span></div>
+      <div class="toc-row"><span class="n">02.C</span><span class="t">A swarm <em>that signs its work</em></span><span class="u">Multi-agent narrative</span><span class="a">3:2</span></div>
+      <div class="toc-row"><span class="n">03.A</span><span class="t">Console fragment, <em>studio light</em></span><span class="u">Feature hero · pricing page</span><span class="a">4:5</span></div>
+      <div class="toc-row"><span class="n">03.B</span><span class="t">Three panels, <em>one decision</em></span><span class="u">Workflow · docs landing</span><span class="a">16:9</span></div>
+      <div class="toc-row"><span class="n">03.C</span><span class="t">The verify <em>endpoint</em></span><span class="u">Developer launch · API release</span><span class="a">2:1</span></div>
+      <div class="toc-row"><span class="n">04.A</span><span class="t">The sealed <em>ledger</em></span><span class="u">Compliance · regulator brief</span><span class="a">1:1</span></div>
+      <div class="toc-row"><span class="n">04.B</span><span class="t">Geological <em>time</em></span><span class="u">Anniversary · ESG</span><span class="a">4:5</span></div>
+      <div class="toc-row"><span class="n">05.A</span><span class="t">Refracted <em>indigo</em></span><span class="u">Hero background · social</span><span class="a">16:9</span></div>
+      <div class="toc-row"><span class="n">05.B</span><span class="t">Audit chain <em>bloom</em></span><span class="u">Deck divider · case background</span><span class="a">3:2</span></div>
+      <div class="toc-row"><span class="n">05.C</span><span class="t">Signal <em>field</em></span><span class="u">Loop background · web overlay</span><span class="a">21:9</span></div>
+      <div class="toc-row"><span class="n">06.A</span><span class="t">A trillion calls, <em>a single page</em></span><span class="u">Annual report · scale narrative</span><span class="a">4:5</span></div>
+      <div class="toc-row"><span class="n">06.B</span><span class="t">BATE score, <em>in print</em></span><span class="u">Trust-score launch · partner brief</span><span class="a">1:1</span></div>
+      <div class="toc-row"><span class="n">07.A</span><span class="t">Pair-programming, <em>late</em></span><span class="u">Developer story · careers</span><span class="a">3:2</span></div>
+      <div class="toc-row"><span class="n">07.B</span><span class="t">Founder's <em>desk</em></span><span class="u">Customer testimonial · CEO portrait</span><span class="a">4:5</span></div>
+      <div class="toc-row"><span class="n">08.A</span><span class="t">Embarcadero <em>building wrap</em></span><span class="u">Launch week · SF takeover</span><span class="a">9:16</span></div>
+      <div class="toc-row"><span class="n">08.B</span><span class="t">Terminal <em>jetway</em></span><span class="u">Airport · enterprise B2B</span><span class="a">21:9</span></div>
+      <div class="toc-row"><span class="n">08.C</span><span class="t">Print, <em>full-page</em></span><span class="u">FT / Economist takeover</span><span class="a">4:5</span></div>
+      <div class="toc-row"><span class="n">09.A</span><span class="t">Anthem <em>opener</em></span><span class="u">Hero film · launch trailer</span><span class="a">21:9 · 8s</span></div>
+      <div class="toc-row"><span class="n">09.B</span><span class="t">Loop, <em>background</em></span><span class="u">Web hero · trade-show</span><span class="a">16:9 · 12s</span></div>
+      <div class="toc-row"><span class="n">09.C</span><span class="t">Verify, <em>in 78ms</em></span><span class="u">Product demo · social vertical</span><span class="a">9:16 · 6s</span></div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer>
+    <div class="grid">
+      <div class="axiom">
+        "Render the system as if you respect what it protects.
+        Bone, graphite, indigo. Nothing more. Nothing louder."
+      </div>
+      <div>
+        <div class="eyebrow" style="margin-bottom:6px;">SYSTEM OWNER</div>
+        <div class="mono">brand@aegis.network</div>
+      </div>
+      <div>
+        <div class="eyebrow" style="margin-bottom:6px;">REVISION</div>
+        <div class="mono">VPP-001 · v1 · 2026-05-09</div>
+      </div>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  // copy-to-clipboard
+  document.querySelectorAll('button.copy').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const t = document.getElementById(btn.dataset.target);
+      if (!t) return;
+      const text = t.innerText;
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (e) {
+        // fallback
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta);
+        ta.select(); document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      btn.classList.add('ok');
+      const old = btn.textContent;
+      btn.textContent = 'COPIED';
+      setTimeout(() => {
+        btn.classList.remove('ok');
+        btn.textContent = old;
+      }, 1400);
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,64 @@
+{
+  "name": "@aegis/intent-manifest",
+  "version": "0.0.1",
+  "description": "Intent-bound attestation for AEGIS verify tokens. Pre-declares what an agent intends to do; reconciles actuals against the declaration. Closes the gap that platform vendors are structurally disincentivized to fill.",
+  "license": "MIT",
+  "author": "AEGIS Labs <hello@aegislabs.io>",
+  "homepage": "https://aegislabs.io",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klytics/aegis.git",
+    "directory": "packages/intent-manifest"
+  },
+  "bugs": {
+    "url": "https://github.com/klytics/aegis/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup && pnpm build:dts",
+    "build:dts": "tsc --emitDeclarationOnly --outDir dist --incremental false && node -e \"require('fs').copyFileSync('dist/index.d.ts','dist/index.d.cts')\"",
+    "prepublishOnly": "pnpm build",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@noble/ed25519": "^2.1.0",
+    "@noble/hashes": "^1.5.0"
+  },
+  "devDependencies": {
+    "@aegis/tsconfig": "workspace:*",
+    "@types/node": "^20.14.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "keywords": [
+    "aegis",
+    "intent",
+    "attestation",
+    "agent-identity",
+    "ed25519",
+    "verify"
+  ]
+}

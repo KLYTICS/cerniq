@@ -429,6 +429,13 @@ enum BateSignalType {
   // ── DPoP — RFC 9449 (ADR-0010, M-024) ─────────────────────────────
   AGENT_NO_DPOP
   AGENT_DPOP_REPLAY_ATTEMPT
+
+  // ── Intent Manifest — ADR-0016 + ADR-0017 ─────────────────────────
+  // INTENT_MISMATCH_OBSERVED: fires when reconcileIntent() returns a
+  //   non-null recommendedDenialReason (i.e. strict mismatch OR
+  //   breached graduated tolerance). HIGH severity by default — the
+  //   agent declared X and did Y, which is unambiguously bad signal.
+  INTENT_MISMATCH_OBSERVED
 }
 
 enum SignalSeverity {
@@ -583,4 +590,77 @@ enum RelyingPartyKind {
   COMMERCE
   AUTH0_APP
   OIDC_CLIENT
+}
+
+// ─────────────────────────────────────────────────────────────
+// INTENT MANIFEST (ADR-0016 + ADR-0017)
+// ─────────────────────────────────────────────────────────────
+//
+// Two-table design:
+//   - IntentManifest: signed declaration. Immutable after issuance
+//     except for the `status` cache field (OPEN → RECONCILED → EXPIRED).
+//     CLAUDE.md invariant #3: the body/signature pair NEVER mutates.
+//   - IntentActual: signed reconciliation outcome. Exactly one per
+//     manifest (`manifestId @unique`). Idempotency: replay when
+//     (manifestId, idempotencyKey) seen with deep-equal actuals body;
+//     otherwise typed `idempotency_conflict` failure from the algorithm.
+//
+// The `status` field on IntentManifest is a denormalized read-side cache
+// strictly redundant with `expiresAt vs now()` + IntentActual presence.
+// Kept to enable fast filter queries for cold-archive sweeps.
+//
+// Gating:
+//   - Module registration: AEGIS_INTENT_MANIFEST_ENABLED=true (off by default).
+//   - Storage backend: AEGIS_INTENT_MANIFEST_STORAGE=memory|prisma (memory default).
+//
+// Edge-runtime portability: NONE — these models are Nest-only by design.
+// The framework-free verify path (verifier-rp.verifyIntent) is offline;
+// these tables back the AEGIS-side issuance + reconciliation server.
+
+model IntentManifest {
+  id              String   @id @default(cuid())
+  manifestId      String   @unique // ULID matching SignedIntentManifest.body.manifestId
+  principalId     String           // CLAUDE.md invariant #5 — tenant
+  agentId         String
+
+  // ── Signed payload ────────────────────────────────────────────
+  body            Json             // IntentManifestBody (canonical)
+  signingKeyId    String           // kid resolvable via /.well-known/audit-signing-key
+  signatureB64Url String           // Ed25519, base64url
+
+  // ── Lifecycle ─────────────────────────────────────────────────
+  status          IntentManifestStatus @default(OPEN)
+  expiresAt       DateTime         // mirrors body.expiresAt for indexed sweeps
+  createdAt       DateTime @default(now())
+
+  // ── Reverse relation to the single reconciliation row ────────
+  reconciliation  IntentActual?
+
+  @@index([principalId, manifestId])
+  @@index([principalId, status, expiresAt])
+}
+
+model IntentActual {
+  id              String   @id @default(cuid())
+  // 1:1 with IntentManifest via manifestId @unique.
+  manifestId      String   @unique
+  manifest        IntentManifest @relation(fields: [manifestId], references: [manifestId])
+
+  // ── Idempotency contract ──────────────────────────────────────
+  // Same (manifestId, idempotencyKey, actuals deep-equal) → replay.
+  // Same (manifestId, idempotencyKey) but different actuals → conflict.
+  // Different idempotencyKey for already-reconciled manifest → conflict.
+  idempotencyKey  String
+  actuals         Json             // ActualCallObservation[]
+  result          Json             // ReconciliationResult
+
+  reconciledAt    DateTime @default(now())
+
+  @@unique([manifestId, idempotencyKey], map: "idx_intent_actual_idem")
+}
+
+enum IntentManifestStatus {
+  OPEN
+  RECONCILED
+  EXPIRED
 }

@@ -14,7 +14,7 @@ export {
   policiesList,
   policiesRevoke,
 } from './commands/policies.js';
-export { auditSearch, auditVerify } from './commands/audit.js';
+export { auditSearch, auditVerify, auditVerifyManifests } from './commands/audit.js';
 export { kmsList, kmsRotate } from './commands/kms.js';
 export { mcpInstall } from './commands/mcp.js';
 export { resolveCredentials, writeCredentials, type AegisCredentials } from './credentials.js';

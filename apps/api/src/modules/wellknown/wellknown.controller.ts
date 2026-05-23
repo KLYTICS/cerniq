@@ -9,14 +9,13 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-
 import { Public } from '../auth/api-key.guard';
-
-import { AegisConfigurationDto } from './dto/discovery.dto';
-import { AuditSigningKeyDto, JwksDto } from './dto/jwks.dto';
-import { PricingDto } from './dto/pricing.dto';
-import { RetentionPolicyDto } from './dto/retention-policy.dto';
 import { WellknownService } from './wellknown.service';
+import { AuditSigningKeyDto, JwksDto } from './dto/jwks.dto';
+import { AegisConfigurationDto } from './dto/discovery.dto';
+import { OAuthAuthorizationServerMetadataDto } from './dto/oauth-as-metadata.dto';
+import { RetentionPolicyDto } from './dto/retention-policy.dto';
+import { PricingDto } from './dto/pricing.dto';
 
 /**
  * Cache for one day at the edge, allow stale revalidation for a week.
@@ -99,6 +98,33 @@ export class WellknownController {
   configuration(@Res({ passthrough: true }) res: Response): AegisConfigurationDto {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     return this.wellknown.getAegisConfiguration();
+  }
+
+  /**
+   * RFC 8414 — OAuth 2.0 Authorization Server Metadata.
+   *
+   * Standards-shaped discovery doc for buyers whose tooling auto-fetches
+   * `/.well-known/oauth-authorization-server`. Subset of RFC 8414 plus
+   * FAPI 2.0 §6.1 extensions plus AEGIS-namespaced fields. Fields whose
+   * underlying flow AEGIS doesn't implement (response_types_supported,
+   * token_endpoint_auth_methods_supported) are empty arrays per RFC 8414
+   * §2 — honest, not omitted.
+   *
+   * Cache 1h at the edge; the body only changes on deploy.
+   */
+  @Public()
+  @Get('oauth-authorization-server')
+  @Header('Cache-Control', 'public, max-age=3600')
+  @ApiOperation({
+    summary: 'RFC 8414 OAuth 2.0 Authorization Server Metadata (subset honest for AEGIS).',
+    description:
+      'Standards-shaped view of AEGIS\'s discoverable surface for OAuth/FAPI tooling. ' +
+      'A strict superset is at /.well-known/aegis-configuration. Empty arrays signal flows ' +
+      'AEGIS does not implement (it is an authorization-decision-and-audit-layer, not a full AS).',
+  })
+  oauthAuthorizationServer(@Res({ passthrough: true }) res: Response): OAuthAuthorizationServerMetadataDto {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    return this.wellknown.getOAuthAuthorizationServerMetadata();
   }
 
   /**

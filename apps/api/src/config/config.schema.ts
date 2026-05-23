@@ -106,6 +106,35 @@ export const configSchema = z.object({
   // dev/test can stub with any value.
   WORKOS_API_KEY: z.string().optional(),
   WORKOS_COOKIE_PASSWORD: z.string().optional(),
+
+  // ----- RFC 9101 (JAR) enforcement knobs -----
+  // Optional and OFF by default. Setting either of these tightens the
+  // verify hot path beyond the pre-JAR baseline and MUST be coordinated
+  // with the agent fleet (every SDK must already be signing the matching
+  // claim) — otherwise upgraded-server + old-SDK combinations fail with
+  // INVALID_SIGNATURE that looks like a key problem.
+  //
+  // Rollout: ship SDK support → wait for fleet to roll over → enable knob
+  // behind a flag → canary on a single relying party → flip for the
+  // deployment. See `apps/api/src/common/crypto/jwt.util.ts`
+  // `JarValidationOptions` JSDoc for the deployment-coordination
+  // footgun details.
+  //
+  // AEGIS_MAX_TOKEN_AGE_SECONDS — when set, tokens whose `iat` is older
+  // than this many seconds are rejected at Step 3.6 EVEN IF `exp` is in
+  // the future. Defense against long-lived tokens being replayed within
+  // their exp window after credential exposure (logs, screenshots).
+  // Conventional FAPI 2.0 ceiling is 300 (5 min). Production guidance:
+  // ≥60s unless you've measured your relying-party-to-AEGIS p99 RTT.
+  AEGIS_MAX_TOKEN_AGE_SECONDS: intish.optional(),
+
+  // AEGIS_STRICT_JAR_ISS — when true, tokens with `iss !== sub` are
+  // rejected at Step 3.5. RFC 9101 specifies `iss` SHOULD be the
+  // client_id; in AEGIS that's the agent_id (= sub). Mismatch is either
+  // a client-SDK bug or an impersonation attempt. Default: false
+  // (backward compat with SDKs that set iss to something else, e.g.
+  // principal_id).
+  AEGIS_STRICT_JAR_ISS: boolish.default(false),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

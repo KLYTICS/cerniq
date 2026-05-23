@@ -6,6 +6,7 @@
 // `BREAKING` entry in CHANGELOG.
 
 export * from './schemas.js';
+export * from './intent.js';
 export * from './constants.js';
 export * from './errors.js';
 export * from './error-catalog.js';

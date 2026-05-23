@@ -32,6 +32,14 @@ describe('buildCacheKey', () => {
     const b = buildCacheKey('tok', { action: 'a|b', merchantId: '' });
     expect(a).not.toBe(b);
   });
+
+  it('rejects NUL byte in any field — prevents shared-backend cross-context poisoning', () => {
+    // A token smuggled through a proxy with \x00 could otherwise collide
+    // canonically with a different (token, ctx) tuple.
+    expect(() => buildCacheKey('a\x00b')).toThrow(/NUL/);
+    expect(() => buildCacheKey('tok', { action: 'a\x00b' })).toThrow(/NUL/);
+    expect(() => buildCacheKey('tok', { merchantDomain: 'x\x00y' })).toThrow(/NUL/);
+  });
 });
 
 describe('clampTtlMs', () => {

@@ -167,6 +167,12 @@ function Step({ n, title, body, snippet }: { n: number; title: string; body: str
   );
 }
 
+// ⚠ When editing the snippet array below, also update
+//   `_typeCheckedSnippet_dashboard_bootstrap` in
+//   `tests/cross-package/quickstart-snippets-parity.spec.ts` so the
+//   spec's tsc gate catches future drift between this rendered code
+//   and @aegis/sdk. Without that update, the spec holds the stale
+//   shape and silently passes.
 function BootstrapBlock({ apiBaseUrl }: { apiBaseUrl: string }) {
   const snippet = [
     `// quickstart.ts — full first-run flow. ~30 lines.`,
@@ -184,9 +190,9 @@ function BootstrapBlock({ apiBaseUrl }: { apiBaseUrl: string }) {
     ``,
     `const policy = await aegis.policies.create(agent.agentId, {`,
     `  scopes: [{`,
-    `    action: 'commerce.purchase',`,
-    `    spendLimit: { amount: 200, currency: 'USD', period: 'PER_TRANSACTION' },`,
-    `    merchantDomains: ['delta.com'],`,
+    `    category: 'commerce',`,
+    `    spendLimit: { currency: 'USD', maxPerTransaction: 200 },`,
+    `    allowedDomains: ['delta.com'],`,
     `  }],`,
     `  expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),`,
     `});`,
@@ -197,7 +203,7 @@ function BootstrapBlock({ apiBaseUrl }: { apiBaseUrl: string }) {
     `const decision = await aegis.verify(token, {`,
     `  action: 'commerce.purchase', amount: 199, currency: 'USD', merchantDomain: 'delta.com',`,
     `});`,
-    `console.log(decision.outcome);  // 'approved'`,
+    `console.log(decision.valid ? 'approved' : 'denied: ' + decision.denialReason);`,
   ].join('\n');
   return (
     <div className="handshake-path">

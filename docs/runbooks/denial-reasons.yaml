@@ -1,0 +1,191 @@
+# AEGIS denial-reason runbook source.
+#
+# Single source of truth for operator-facing and relying-party-facing
+# guidance on every denial reason in DENIAL_REASON_PRECEDENCE.
+#
+# Schema (per entry):
+#   reason: <CANONICAL_NAME>             # MUST appear in DENIAL_REASON_PRECEDENCE
+#   description: <short string>          # operator-/RP-facing one-liner
+#   severity: info | warning | critical  # ops-routing tier
+#   relying_party_action: <string>       # what the agent's caller should do
+#   operator_check: <string>             # what an AEGIS operator should investigate
+#   dashboard_query: <string>            # query string for the AEGIS ops dashboard
+#                                        # (leave as "TODO" until operator confirms)
+#   sdk_doc_link: <string>               # anchor in SDK docs (leave as "TODO" until written)
+#
+# This file is parsed by scripts/generate-runbook-docs.ts to produce:
+#   docs/runbooks/denial-reasons.md       (human-readable per-reason runbook)
+#
+# Completeness gate: pnpm check:runbook-coverage asserts every reason in
+# DENIAL_REASON_PRECEDENCE has a corresponding entry here. Adding a new
+# denial reason to the canonical tuple WITHOUT adding a YAML entry reds CI.
+#
+# Content provenance: the `description` field for the 12 reasons below
+# was seeded from packages/cli/src/aegis-cli.ts (DENIAL_DESCRIPTIONS) as
+# of commit 8b0d499 — Erwin / oncall-operators may refine.
+#
+# Fields marked `TODO(operator)` need Erwin's tribal-knowledge fill-in
+# before the runbook is canonical compliance evidence (SOC2/GDPR).
+
+reasons:
+  - reason: PLAN_LIMIT_EXCEEDED
+    description: "Plan tier monthly verify quota exhausted (billing pre-gate)."
+    severity: warning
+    relying_party_action: >-
+      Direct the user to upgrade their AEGIS plan. Do NOT retry — the
+      gate is monthly-quota-bound, not transient. Surface the upgrade
+      link from the billing portal.
+    operator_check: >-
+      Confirm Stripe subscription state matches AEGIS plan. If the
+      principal recently upgraded, the quota counter may not have
+      reset yet (cache TTL up to 60s). If stale, force-refresh via
+      `aegis-cli billing sync --principal <id>`.
+    dashboard_query: "principalId:{{id}} AND denialReason:PLAN_LIMIT_EXCEEDED"
+    sdk_doc_link: "TODO(operator)"
+  - reason: AGENT_NOT_FOUND
+    description: "No agent identity matches that ID."
+    severity: warning
+    relying_party_action: >-
+      The agent ID embedded in the token is unknown to AEGIS. Either
+      the agent was deleted, never registered, or the token was issued
+      by a different AEGIS deployment. Caller should re-register the
+      agent via `agents.create()` if expected to exist.
+    operator_check: >-
+      Look up the principalId in the audit log for recent agent
+      delete/revoke events. If unexpected, check identity.module for
+      a recent migration that may have orphaned agents.
+    dashboard_query: "agentId:{{id}}"
+    sdk_doc_link: "TODO(operator)"
+  - reason: AGENT_REVOKED
+    description: "The agent has been revoked."
+    severity: warning
+    relying_party_action: >-
+      The agent is intentionally revoked — do NOT auto-retry. If the
+      revocation was an error, contact the principal owner to
+      re-register or restore.
+    operator_check: >-
+      Pull the audit-log entry for the revocation event: who
+      initiated, when, what reason was logged. If revocation was
+      operator-initiated (key compromise / policy), it stays.
+    dashboard_query: "agentId:{{id}} AND eventType:agent.revoked"
+    sdk_doc_link: "TODO(operator)"
+  - reason: INVALID_SIGNATURE
+    description: "The request token signature did not verify."
+    severity: critical
+    relying_party_action: >-
+      Either the agent's private key has rotated (re-issue token with
+      current key) OR the token was tampered with in transit (SEV
+      investigation). Do NOT silently retry — log a security event.
+    operator_check: >-
+      Compare the agent's published JWKS against the kid embedded in
+      the signature. If kids match but verify still fails, the token
+      bytes were modified between issuance and verify — escalate.
+    dashboard_query: "agentId:{{id}} AND denialReason:INVALID_SIGNATURE"
+    sdk_doc_link: "TODO(operator)"
+  - reason: POLICY_REVOKED
+    description: "The policy was revoked."
+    severity: warning
+    relying_party_action: >-
+      Re-request a fresh policy from the principal owner. The old
+      policy is permanently revoked.
+    operator_check: >-
+      Audit-log lookup for policy revocation. Verify it was
+      operator-initiated (vs. automated expiry — different reason).
+    dashboard_query: "policyId:{{id}} AND eventType:policy.revoked"
+    sdk_doc_link: "TODO(operator)"
+  - reason: POLICY_EXPIRED
+    description: "The policy has expired (or was never found)."
+    severity: info
+    relying_party_action: >-
+      Request a fresh policy. POLICY_EXPIRED is expected at the end
+      of each policy lifetime and should be a normal-flow refresh
+      trigger, not an alert.
+    operator_check: >-
+      Usually no action needed. If expiry rate is anomalously high,
+      investigate whether issued policies have insufficient TTL for
+      the workload.
+    dashboard_query: "principalId:{{id}} AND denialReason:POLICY_EXPIRED"
+    sdk_doc_link: "TODO(operator)"
+  - reason: SCOPE_NOT_GRANTED
+    description: "The action / domain is outside the policy scope."
+    severity: warning
+    relying_party_action: >-
+      The agent attempted an action / merchant / domain not covered
+      by the granted policy scope. Request a broader policy from the
+      principal owner if the action is legitimate.
+    operator_check: >-
+      Inspect the policy's `scopes` field vs. the request's
+      `action` / `merchantId` / `merchantDomain`. Check whether the
+      agent's behavior matches its expected workflow.
+    dashboard_query: "agentId:{{id}} AND denialReason:SCOPE_NOT_GRANTED"
+    sdk_doc_link: "TODO(operator)"
+  - reason: TRIAL_EXHAUSTED
+    description: "Lifetime free-trial verify quota exhausted; upgrade to a paid plan."
+    severity: warning
+    relying_party_action: >-
+      The principal is on the free trial and has used all lifetime
+      verify calls. Direct them to upgrade their AEGIS plan. HTTP 402
+      (Payment Required). Do NOT retry.
+    operator_check: >-
+      Verify the principal's trial usage in billing — should match
+      the trial-quota counter. If counter is wrong (e.g. expired
+      trial flag was reset), reconcile via `aegis-cli billing sync`.
+    dashboard_query: "principalId:{{id}} AND denialReason:TRIAL_EXHAUSTED"
+    sdk_doc_link: "TODO(operator)"
+  - reason: SPEND_LIMIT_EXCEEDED
+    description: "The amount exceeds the policy spend limit."
+    severity: warning
+    relying_party_action: >-
+      The transaction amount exceeds the per-period spend cap in the
+      policy. Either reduce the transaction or request a higher cap
+      from the principal owner.
+    operator_check: >-
+      Confirm `spend:{policyId}:day:{date}` (or month) counter
+      matches expected. If the agent is hitting the cap repeatedly,
+      surface the trend to the principal.
+    dashboard_query: "policyId:{{id}} AND denialReason:SPEND_LIMIT_EXCEEDED"
+    sdk_doc_link: "TODO(operator)"
+  - reason: TRUST_SCORE_TOO_LOW
+    description: "The agent trust score is below the threshold for this action."
+    severity: warning
+    relying_party_action: >-
+      The agent's BATE-computed trust score is below the policy's
+      minimum band. The action will be denied until the trust score
+      recovers (typically requires positive operator-observed behavior
+      across the next several verify cycles).
+    operator_check: >-
+      Inspect agent's recent BATE signals. Likely contributors:
+      anomaly flags, RP fraud reports, sudden behavior shift. Surface
+      to the principal if remediation is needed.
+    dashboard_query: "agentId:{{id}} AND denialReason:TRUST_SCORE_TOO_LOW"
+    sdk_doc_link: "TODO(operator)"
+  - reason: ANOMALY_FLAGGED
+    description: "BATE flagged this request as anomalous."
+    severity: critical
+    relying_party_action: >-
+      BATE detected behavioral anomaly (timing, geo, action pattern).
+      Do NOT auto-retry — escalate to fraud/security review. Caller
+      should log a security event with the request correlation ID.
+    operator_check: >-
+      Pull the BATE signal that flagged this request. If false
+      positive, mark via `aegis-cli signals dismiss <id>`. If true
+      positive, escalate to fraud team and consider freezing the agent.
+    dashboard_query: "agentId:{{id}} AND signalType:ANOMALY AND denialReason:ANOMALY_FLAGGED"
+    sdk_doc_link: "TODO(operator)"
+  - reason: INTENT_MISMATCH
+    description: "The actual call deviated from the declared intent manifest."
+    severity: critical
+    relying_party_action: >-
+      The agent's actual tool call deviated from the intent it
+      declared at policy-issuance time (ADR-0016). Under STRICT
+      reconciliation this fails closed; under GRADUATED, it may pass
+      with a flag depending on tolerance. Do NOT auto-retry — the
+      agent's behavior diverged from its declared intent, which is
+      itself a security signal.
+    operator_check: >-
+      Pull the intent manifest from `intent.declared` audit events vs.
+      the actual call params. Determine whether divergence is a bug in
+      the agent (intent under-specified) or behavioral drift (intent
+      mis-stated). Surface to the principal owner for review.
+    dashboard_query: "agentId:{{id}} AND denialReason:INTENT_MISMATCH"
+    sdk_doc_link: "TODO(operator)"

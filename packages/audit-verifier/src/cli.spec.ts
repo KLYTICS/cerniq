@@ -1,0 +1,596 @@
+// parseArgs spec — exercises every branch of the side-effect-free argv
+// parser. Before the refactor that introduced ParseResult, parseArgs
+// terminated the process on bad input (fail() → exit()), which made it
+// unreachable from a vitest harness. The Result-typed shape lets every
+// branch be a single-assertion test.
+//
+// What this spec validates:
+//   - Operator-facing UX: --help / -h / 'help' route to the 'help' result
+//     (caller exits 0, prints to stdout).
+//   - Argument validation: every fail() call site in the previous shape
+//     is replaced by an 'invalid' result with a matching message.
+//   - Happy paths: 'verify' and 'verify-manifests' return ok=true with
+//     the expected discriminated args shape and flag-bound defaults.
+//
+// Two layers of test rigor sit on top of parseArgs:
+//   - Unit + property: directly call parseArgs and assert ParseResult
+//     shape. Fast (ms), build-independent, isolates parser regressions
+//     from build-pipeline regressions. Most of this file.
+//   - Subprocess: invoke the built dist/cli.cjs via spawnSync and
+//     observe exit code + stdout/stderr. Validates the entry-point
+//     guard, main() dispatch, stream demuxing, and OS-level exit-code
+//     propagation — the integration concerns unit tests can't reach.
+//     Lives in the trailing describe block. Conditional-skips when
+//     dist is missing so the unit tests stay runnable during dev
+//     before any build has happened.
+
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { describe, expect, it } from 'vitest';
+
+import { parseArgs, type ParseResult } from './cli.js';
+
+function expectHelp(r: ParseResult): void {
+  expect(r.ok).toBe(false);
+  if (r.ok) return;
+  expect(r.reason).toBe('help');
+  expect(r.exitCode).toBe(0);
+}
+
+function expectInvalid(r: ParseResult, messageMatcher: RegExp): void {
+  expect(r.ok).toBe(false);
+  if (r.ok) return;
+  expect(r.reason).toBe('invalid');
+  if (r.reason !== 'invalid') return;
+  expect(r.exitCode).toBe(2);
+  expect(r.message).toMatch(messageMatcher);
+}
+
+describe('parseArgs — help branch', () => {
+  it('--help routes to help result, exit 0', () => {
+    expectHelp(parseArgs(['--help']));
+  });
+
+  it('-h routes to help result, exit 0', () => {
+    expectHelp(parseArgs(['-h']));
+  });
+
+  it("bare 'help' subcommand routes to help result, exit 0", () => {
+    expectHelp(parseArgs(['help']));
+  });
+
+  it('--help wins over a following path that would otherwise look valid', () => {
+    // Operator typing `aegis-audit-verify --help verify ./x.ndjson` gets
+    // help, not a usage error from arg1 validation. The first-arg branch
+    // is the routing point.
+    expectHelp(parseArgs(['--help', 'verify', './x.ndjson']));
+  });
+});
+
+describe('parseArgs — invalid first-argument branch', () => {
+  it('empty argv → no-subcommand error, exit 2', () => {
+    expectInvalid(parseArgs([]), /no subcommand given/);
+  });
+
+  it('unknown subcommand → error names the bad value', () => {
+    const r = parseArgs(['nuke-everything']);
+    expectInvalid(r, /unknown subcommand "nuke-everything"/);
+  });
+
+  it("unknown subcommand error references expected values", () => {
+    const r = parseArgs(['foo']);
+    expectInvalid(r, /expected "verify" or "verify-manifests"/);
+  });
+});
+
+describe('parseArgs — verify path/flag validation', () => {
+  it('verify with no path → missing NDJSON path error', () => {
+    expectInvalid(parseArgs(['verify']), /missing NDJSON path/);
+  });
+
+  it('verify with --flag as second arg (not a path) → missing path error', () => {
+    expectInvalid(parseArgs(['verify', '--jwks', 'https://x']), /missing NDJSON path/);
+  });
+
+  it('verify with path but no JWKS source → required-jwks error', () => {
+    expectInvalid(parseArgs(['verify', './export.ndjson']), /one of --jwks <url> or --jwks-file/);
+  });
+
+  it('verify with BOTH --jwks and --jwks-file → mutually-exclusive error', () => {
+    expectInvalid(
+      parseArgs(['verify', './export.ndjson', '--jwks', 'https://x', '--jwks-file', './j.json']),
+      /use --jwks OR --jwks-file, not both/,
+    );
+  });
+
+  it('verify with non-integer --max-row-detail → typed error includes the offending value', () => {
+    const r = parseArgs(['verify', './export.ndjson', '--jwks', 'https://x', '--max-row-detail', 'abc']);
+    expectInvalid(r, /--max-row-detail must be a non-negative integer, got "abc"/);
+  });
+
+  it('verify with negative --max-row-detail → rejected', () => {
+    expectInvalid(
+      parseArgs(['verify', './export.ndjson', '--jwks', 'https://x', '--max-row-detail', '-5']),
+      /--max-row-detail must be a non-negative integer/,
+    );
+  });
+});
+
+describe('parseArgs — verify happy path', () => {
+  it('minimum-viable verify args → ok with defaults', () => {
+    const r = parseArgs(['verify', './export.ndjson', '--jwks', 'https://example.com/jwks']);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.args.command).toBe('verify');
+    if (r.args.command !== 'verify') return;
+    expect(r.args.ndjsonPath).toBe('./export.ndjson');
+    expect(r.args.jwksUrl).toBe('https://example.com/jwks');
+    expect(r.args.jwksFile).toBeUndefined();
+    expect(r.args.failFast).toBe(true); // default: fail-fast on
+    expect(r.args.maxRowDetail).toBe(100); // documented default
+    expect(r.args.json).toBe(false);
+  });
+
+  it('verify with all flags toggled → ok and flags reflected', () => {
+    const r = parseArgs([
+      'verify',
+      './export.ndjson',
+      '--jwks-file',
+      './aegis-audit-jwks.json',
+      '--no-fail-fast',
+      '--max-row-detail',
+      '50',
+      '--json',
+    ]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    if (r.args.command !== 'verify') return;
+    expect(r.args.jwksFile).toBe('./aegis-audit-jwks.json');
+    expect(r.args.jwksUrl).toBeUndefined();
+    expect(r.args.failFast).toBe(false);
+    expect(r.args.maxRowDetail).toBe(50);
+    expect(r.args.json).toBe(true);
+  });
+});
+
+describe('parseArgs — verify-manifests', () => {
+  it('verify-manifests with no dir → missing directory error', () => {
+    expectInvalid(parseArgs(['verify-manifests']), /missing directory/);
+  });
+
+  it('verify-manifests with dir + --jwks → ok with recursive=false default', () => {
+    const r = parseArgs(['verify-manifests', './audit-corpus', '--jwks', 'https://x/jwks']);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.args.command).toBe('verify-manifests');
+    if (r.args.command !== 'verify-manifests') return;
+    expect(r.args.dir).toBe('./audit-corpus');
+    expect(r.args.recursive).toBe(false);
+    expect(r.args.json).toBe(false);
+  });
+
+  it('verify-manifests with --recursive --json → ok with flags set', () => {
+    const r = parseArgs([
+      'verify-manifests',
+      './audit-corpus',
+      '--jwks-file',
+      './j.json',
+      '--recursive',
+      '--json',
+    ]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    if (r.args.command !== 'verify-manifests') return;
+    expect(r.args.recursive).toBe(true);
+    expect(r.args.json).toBe(true);
+    expect(r.args.jwksFile).toBe('./j.json');
+  });
+});
+
+describe('parseArgs — flag-value validation (silent-typo guards)', () => {
+  // Before getFlag's tristate shape, each of these inputs slipped through
+  // with a misleading downstream error (or no error at all). These tests
+  // lock the explicit, flag-named error messages so the operator sees
+  // "you forgot the value for X" rather than a confusing fallback error
+  // or a silently-defaulted run.
+
+  it('--jwks at end of argv → flag-specific error (not the generic "one of --jwks ..." fallback)', () => {
+    const r = parseArgs(['verify', './x.ndjson', '--jwks']);
+    expectInvalid(r, /--jwks requires a URL value/);
+  });
+
+  it('--jwks followed by another flag → flag-specific error, NOT a silently-captured "--json" URL', () => {
+    // Before the fix: jwksUrl became literally "--json", loadJwksFromUrl
+    // failed later with a URL-parse error far from the actual mistake.
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', '--json']);
+    expectInvalid(r, /--jwks requires a URL value/);
+  });
+
+  it('--jwks-file at end of argv → flag-specific error', () => {
+    expectInvalid(parseArgs(['verify', './x.ndjson', '--jwks-file']), /--jwks-file requires a path value/);
+  });
+
+  it('--jwks-file followed by another flag → flag-specific error', () => {
+    expectInvalid(
+      parseArgs(['verify', './x.ndjson', '--jwks-file', '--json']),
+      /--jwks-file requires a path value/,
+    );
+  });
+
+  it('--max-row-detail at end of argv → flag-specific error (NOT a silent default to 100)', () => {
+    // Before the fix: silently defaulted to 100; operator's "I want 50" intent
+    // was discarded without any signal. Now the missing value is an explicit
+    // error so the operator learns about their typo.
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', 'https://x', '--max-row-detail']);
+    expectInvalid(r, /--max-row-detail requires a non-negative integer value/);
+  });
+
+  it('--max-row-detail followed by another flag → flag-specific error', () => {
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', 'https://x', '--max-row-detail', '--json']);
+    expectInvalid(r, /--max-row-detail requires a non-negative integer value/);
+  });
+
+  it('--jwks with a valid URL at end of argv → still ok (negative case for the guard)', () => {
+    // Sanity: the missing-value guard must NOT fire when the flag has a
+    // real value, even if it's the last arg.
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', 'https://example.com/jwks']);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    if (r.args.command !== 'verify') return;
+    expect(r.args.jwksUrl).toBe('https://example.com/jwks');
+  });
+});
+
+describe('parseArgs — unknown-flag rejection (operator-typo + wrong-subcommand)', () => {
+  // These tests lock the contract that *every* `--xxx` arg in argv must
+  // belong to the active subcommand's known set. Before this guard, typos
+  // like `--josn` or wrong-subcommand flags like `--max-row-detail` on
+  // verify-manifests were silently absorbed.
+
+  it('verify with a typo flag → error names the bad flag', () => {
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', 'https://y', '--josn']);
+    expectInvalid(r, /unknown flag "--josn"/);
+  });
+
+  it('verify with a made-up flag → error names it', () => {
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', 'https://y', '--frobnicate']);
+    expectInvalid(r, /unknown flag "--frobnicate"/);
+  });
+
+  it('unknown-flag error includes the subcommand name', () => {
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', 'https://y', '--nope']);
+    expectInvalid(r, /for "verify" subcommand/);
+  });
+
+  it('unknown-flag error includes the valid-flag catalogue for actionable recovery', () => {
+    // JS default sort is lexicographic by char code, not dictionary order,
+    // so `--json` (s=0x73) comes before `--jwks` (w=0x77). The test locks
+    // the actual emitted ordering so a future sort change doesn't silently
+    // shuffle the operator-facing catalogue.
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', 'https://y', '--nope']);
+    expectInvalid(r, /valid flags: --json, --jwks, --jwks-file, --max-row-detail, --no-fail-fast/);
+  });
+
+  it('verify-manifests with --max-row-detail (verify-only flag) → rejected as unknown for this sub', () => {
+    // Cross-subcommand flag misuse: --max-row-detail only applies to verify
+    // (NDJSON row chain) and is meaningless for manifest corpus walking.
+    // Previously silently ignored; now caught with the right error.
+    const r = parseArgs(['verify-manifests', './corpus', '--jwks', 'https://y', '--max-row-detail', '50']);
+    expectInvalid(r, /unknown flag "--max-row-detail" for "verify-manifests" subcommand/);
+  });
+
+  it('verify with --recursive (manifests-only flag) → rejected as unknown for this sub', () => {
+    // Same wrong-subcommand check in the other direction.
+    const r = parseArgs(['verify', './x.ndjson', '--jwks', 'https://y', '--recursive']);
+    expectInvalid(r, /unknown flag "--recursive" for "verify" subcommand/);
+  });
+
+  it('verify-manifests with valid --recursive → still ok (negative case for the guard)', () => {
+    const r = parseArgs(['verify-manifests', './corpus', '--jwks', 'https://y', '--recursive']);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    if (r.args.command !== 'verify-manifests') return;
+    expect(r.args.recursive).toBe(true);
+  });
+
+  it('verify with all valid flags toggled → still ok (negative case)', () => {
+    // Lock that legitimate flag combinations remain accepted post-guard.
+    const r = parseArgs([
+      'verify',
+      './x.ndjson',
+      '--jwks-file',
+      './j.json',
+      '--no-fail-fast',
+      '--max-row-detail',
+      '25',
+      '--json',
+    ]);
+    expect(r.ok).toBe(true);
+  });
+});
+
+describe('parseArgs — subcommand --help routing (UX)', () => {
+  // Operators expect `<cmd> <sub> --help` to print help, not error on
+  // missing-path or unknown-flag. Help-anywhere detection short-circuits.
+
+  it('verify --help → help result (not "missing NDJSON path")', () => {
+    expectHelp(parseArgs(['verify', '--help']));
+  });
+
+  it('verify -h → help result', () => {
+    expectHelp(parseArgs(['verify', '-h']));
+  });
+
+  it('verify-manifests --help → help result', () => {
+    expectHelp(parseArgs(['verify-manifests', '--help']));
+  });
+
+  it('--help after a valid path + flags → still routes to help', () => {
+    // Once help is anywhere in argv past the subcommand, it wins. This
+    // prevents the unknown-flag walk from rejecting --help as unknown,
+    // and prevents tristate from interpreting --help as a flag-value.
+    expectHelp(parseArgs(['verify', './x.ndjson', '--jwks', 'https://y', '--help']));
+  });
+});
+
+describe('parseArgs — purity contract', () => {
+  it('does not mutate the input argv array', () => {
+    const argv: readonly string[] = Object.freeze([
+      'verify',
+      './export.ndjson',
+      '--jwks',
+      'https://x',
+    ]);
+    // Freezing + spread tests both that we don't mutate and that we accept
+    // ReadonlyArray-shaped input. parseArgs is typed string[] but should
+    // never write to it; this is the test that locks that contract.
+    const r = parseArgs([...argv]);
+    expect(r.ok).toBe(true);
+    expect(argv).toEqual(['verify', './export.ndjson', '--jwks', 'https://x']);
+  });
+
+  it('calling parseArgs twice with the same input returns equivalent results (idempotent)', () => {
+    const input = ['verify-manifests', './x', '--jwks-file', './j.json', '--recursive'];
+    const a = parseArgs(input);
+    const b = parseArgs(input);
+    expect(a).toEqual(b);
+  });
+});
+
+describe('parseArgs — total-function contract (pathological inputs)', () => {
+  // Property-style hand-rolled coverage: parseArgs MUST be a total function
+  // over string[]. For every input below — including malformed, hostile, and
+  // bizarre shapes — parseArgs must:
+  //   (1) not throw
+  //   (2) return a discriminator-valid ParseResult
+  //   (3) be idempotent (calling twice produces deep-equal results)
+  //   (4) not mutate the input
+  //
+  // fast-check would test this property over generated random strings, but
+  // it isn't a dep in this workspace yet. Hand-rolled exhaustive enumeration
+  // of edge cases that fast-check would otherwise discover provides similar
+  // defensive coverage with zero new deps.
+  //
+  // Why each input is interesting:
+  //   - Empty / single-char / dash-only:  pre-flag edge cases
+  //   - Control chars / unicode:          tests no string-content assumption
+  //   - Very long argv / very long values: stress-tests linear walks
+  //   - All flags / no positionals:        the parser's "shape gymnastics"
+  //   - Repeated subcommands:              indexOf-first-occurrence assumption
+  //   - Mixed help + valid + invalid:      help-anywhere priority lock
+  //   - Value-shaped-like-a-flag:          tristate ambiguity boundary
+  const PATHOLOGICAL_INPUTS: ReadonlyArray<readonly [name: string, argv: readonly string[]]> = [
+    ['empty argv', []],
+    ['single empty string', ['']],
+    ['two empty strings', ['', '']],
+    ['lone single-dash', ['-']],
+    ['lone double-dash', ['--']],
+    ['lone triple-dash', ['---']],
+    ['verify with empty path', ['verify', '']],
+    ['verify with NUL in path', ['verify', '\x00']],
+    ['unicode subcommand', ['🦅']],
+    ['control chars throughout', ['\x01', '\x02', '\x03']],
+    ['very long single arg', ['verify', '/'.repeat(5000)]],
+    ['very long argv', Array(500).fill('verify')],
+    ['many unknown flags', ['verify', './x', '--jwks', 'https://y', ...Array(20).fill(0).map((_, i) => `--unknown-${i}`)]],
+    ['repeated subcommand tokens as args', ['verify', 'verify', 'verify-manifests', 'verify']],
+    ['repeated --jwks (last wins or first wins)', ['verify', './x', '--jwks', 'https://a', '--jwks', 'https://b']],
+    ['--help buried after valid verify run', ['verify', './x.ndjson', '--jwks', 'https://y', '--json', '--help']],
+    ['-h interleaved with valid flags', ['verify', './x', '-h', '--jwks', 'https://y']],
+    ['flag value that looks like a flag value', ['verify', './x', '--jwks', '--this-is-not-a-real-flag']],
+    ['mixed unicode + flags', ['verify-manifests', './café-corpus', '--jwks-file', './日本.json']],
+    ['negative number as max-row-detail', ['verify', './x', '--jwks', 'https://y', '--max-row-detail', '-100']],
+    ['scientific notation max-row-detail', ['verify', './x', '--jwks', 'https://y', '--max-row-detail', '1e5']],
+    ['Infinity max-row-detail', ['verify', './x', '--jwks', 'https://y', '--max-row-detail', 'Infinity']],
+    ['NaN string max-row-detail', ['verify', './x', '--jwks', 'https://y', '--max-row-detail', 'NaN']],
+    ['unicode whitespace as max-row-detail', ['verify', './x', '--jwks', 'https://y', '--max-row-detail', ' ']],
+  ];
+
+  it.each(PATHOLOGICAL_INPUTS.map(([name, argv]) => [name, argv] as const))(
+    'is a total function for: %s',
+    (_name, argv) => {
+      // Property 1: never throws. Reaching the next line proves it.
+      // Property 4: must not mutate input. Snapshot before, compare after.
+      const before = [...argv];
+      const result = parseArgs([...argv]);
+      // Reading argv length triggers no mutation; deep-equal check confirms.
+      expect([...argv]).toEqual(before);
+      // Property 2: discriminator-valid ParseResult. Exhaustively check the
+      // union shape so an unrecognized result shape (e.g. someone returning
+      // a plain string by mistake) fails this test.
+      if (result.ok) {
+        expect(['verify', 'verify-manifests']).toContain(result.args.command);
+      } else {
+        expect(['help', 'invalid']).toContain(result.reason);
+        if (result.reason === 'help') {
+          expect(result.exitCode).toBe(0);
+        } else {
+          expect(result.exitCode).toBe(2);
+          expect(typeof result.message).toBe('string');
+          expect(result.message.length).toBeGreaterThan(0);
+        }
+      }
+      // Property 3: idempotent. Second call returns deep-equal result.
+      const second = parseArgs([...argv]);
+      expect(second).toEqual(result);
+    },
+  );
+
+  it('repeated flags use FIRST occurrence (locked behavior of indexOf-based parser)', () => {
+    // The current parser uses input.indexOf(flag), so the FIRST --jwks wins.
+    // Locking this behavior so a future "switch to lastIndexOf or reduce"
+    // refactor surfaces in the spec rather than silently changing operator
+    // semantics. If the contract ever flips, update this test deliberately.
+    const r = parseArgs(['verify', './x', '--jwks', 'https://first', '--jwks', 'https://second']);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    if (r.args.command !== 'verify') return;
+    expect(r.args.jwksUrl).toBe('https://first');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Subprocess integration suite
+// ─────────────────────────────────────────────────────────────────────
+//
+// The unit tests above call parseArgs directly. That proves the parser
+// is correct in isolation but says nothing about how the BINARY behaves
+// when an operator types `aegis-audit-verify ...` in a real shell.
+// These tests fill that gap by spawning the built `dist/cli.cjs` and
+// observing exit code + stdout + stderr.
+//
+// What this layer uniquely proves:
+//   1. The entry-point guard at the bottom of cli.ts (the argv[1]
+//      suffix check) actually fires when invoked as a binary. Unit
+//      tests only prove it does NOT fire on import.
+//   2. main()'s dispatch correctly routes help to stdout vs invalid
+//      to stderr + the usage block precedes the error message.
+//   3. OS-level exit codes propagate (no Node-side wrapping eats
+//      them; pipe-friendly).
+//   4. The tsup-built CJS bundle is invokable by node without ESM
+//      interop errors.
+//
+// Conditional skip: if dist/cli.cjs doesn't exist (developer hasn't
+// run `pnpm -F @aegis/audit-verifier build` yet), the suite skips
+// rather than failing. CI is expected to build before test.
+
+const THIS_FILE = fileURLToPath(import.meta.url);
+const CLI_PATH = resolve(dirname(THIS_FILE), '..', 'dist', 'cli.cjs');
+const HAS_DIST = existsSync(CLI_PATH);
+
+const describeWhenDist = HAS_DIST ? describe : describe.skip;
+
+interface SpawnOutcome {
+  status: number;
+  stdout: string;
+  stderr: string;
+}
+
+function runCli(...args: string[]): SpawnOutcome {
+  const r = spawnSync('node', [CLI_PATH, ...args], {
+    encoding: 'utf8',
+    // Empty stdin; CLI shouldn't read from it.
+    input: '',
+    // 5s should be more than enough for argv-only paths (no IO);
+    // anything slower is a regression worth surfacing.
+    timeout: 5_000,
+  });
+  // spawnSync's status can be null if killed by signal; coerce to a
+  // sentinel that fails any === assertion the test makes.
+  return {
+    status: r.status ?? -1,
+    stdout: r.stdout ?? '',
+    stderr: r.stderr ?? '',
+  };
+}
+
+describeWhenDist('subprocess: dist/cli.cjs invocation contract', () => {
+  it('--help prints usage to stdout, empty stderr, exit 0', () => {
+    const r = runCli('--help');
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/aegis-audit-verify/);
+    expect(r.stdout).toMatch(/verify <export\.ndjson>/);
+    expect(r.stdout).toMatch(/verify-manifests <dir>/);
+    expect(r.stderr).toBe('');
+  });
+
+  it('-h short flag matches --help behavior', () => {
+    const r = runCli('-h');
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/aegis-audit-verify/);
+    expect(r.stderr).toBe('');
+  });
+
+  it("'help' as bare subcommand matches --help", () => {
+    const r = runCli('help');
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/aegis-audit-verify/);
+  });
+
+  it('no args → usage to stderr + specific error + exit 2', () => {
+    const r = runCli();
+    expect(r.status).toBe(2);
+    // Usage block precedes the error so the operator sees both context
+    // and the specific thing they got wrong.
+    expect(r.stderr).toMatch(/aegis-audit-verify — offline audit-chain/);
+    expect(r.stderr).toMatch(/no subcommand given/);
+    expect(r.stdout).toBe('');
+  });
+
+  it('unknown subcommand → usage + named-value error + exit 2', () => {
+    const r = runCli('nuke-everything');
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/unknown subcommand "nuke-everything"/);
+    expect(r.stdout).toBe('');
+  });
+
+  it('verify with no path → missing-path error + exit 2', () => {
+    const r = runCli('verify');
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/missing NDJSON path/);
+  });
+
+  it('verify with unknown flag → flag-rejection error + valid catalogue + exit 2', () => {
+    const r = runCli('verify', './x.ndjson', '--jwks', 'https://y', '--frobnicate');
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/unknown flag "--frobnicate"/);
+    expect(r.stderr).toMatch(/valid flags:/);
+  });
+
+  it('verify with --jwks at end of argv → flag-specific missing-value error + exit 2', () => {
+    const r = runCli('verify', './x.ndjson', '--jwks');
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/--jwks requires a URL value/);
+  });
+
+  it('verify-manifests with verify-only flag → wrong-subcommand rejection + exit 2', () => {
+    const r = runCli('verify-manifests', './corpus', '--jwks', 'https://y', '--max-row-detail', '50');
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/unknown flag "--max-row-detail" for "verify-manifests"/);
+  });
+
+  it('subcommand --help routes to root usage (UX expectation)', () => {
+    const r = runCli('verify', '--help');
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/aegis-audit-verify/);
+    expect(r.stderr).toBe('');
+  });
+
+  it('entry-point guard fires on binary invocation (negative lock for module-load behavior)', () => {
+    // The unit tests prove the guard does NOT fire when cli.ts is
+    // imported (no main() side-effect during vitest module load).
+    // This is the symmetric lock: the guard DOES fire when the binary
+    // is invoked as a process. Without this assertion, a regression
+    // that breaks the suffix-match (e.g. someone tightens the check
+    // and accidentally excludes cli.cjs) would silently produce a
+    // binary that exits 0 with no output.
+    const r = runCli('--help');
+    // Any non-empty stdout proves main() ran. Combined with exit 0,
+    // proves the guard fired AND main() dispatched correctly.
+    expect(r.stdout.length).toBeGreaterThan(0);
+    expect(r.status).toBe(0);
+  });
+});

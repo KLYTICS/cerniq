@@ -1,0 +1,21 @@
+{
+  "name": "@aegis-examples/offline-verifier-rp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Offline relying-party verification demo. Verifies OKORO-signed agent tokens with zero outbound network calls to OKORO.",
+  "scripts": {
+    "demo": "tsx src/demo.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aegis/sdk": "workspace:*",
+    "@aegis/verifier-rp": "workspace:*"
+  },
+  "devDependencies": {
+    "@aegis/tsconfig": "workspace:*",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

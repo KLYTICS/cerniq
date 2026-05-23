@@ -225,6 +225,29 @@ export const ERROR_CATALOG: Readonly<Record<string, ErrorCatalogEntry>> = Object
     customerMessage: 'Plan monthly verify quota exceeded. Upgrade or wait for the next period.',
     category: 'billing',
   },
+
+  // ── Intent Manifest (ADR-0016 + ADR-0017) ─────────────────────────
+  // IntentAlgorithmException carries a typed `cause` discriminator
+  // (manifest_not_found | manifest_expired | manifest_reconciled |
+  // manifest_collision | verify_token_already_used | tenant_mismatch |
+  // idempotency_conflict | ttl_out_of_bounds | signing_failed). The
+  // intent.controller.ts translator maps each cause to a specific
+  // AegisError subclass — NotFoundError, ConflictError,
+  // IdempotencyConflictError, ValidationError, InternalError. By the
+  // time anything reaches the global filter, IntentAlgorithmException
+  // SHOULD have been translated. This catalog entry exists as a
+  // belt-and-braces safety net: if a future code path bubbles up an
+  // untranslated IntentAlgorithmException, the client gets a typed
+  // 422 instead of a generic 500 — and the audit-error-catalog.ts
+  // drift gate stays green.
+  IntentAlgorithmException: {
+    code: 'intent_algorithm_failure',
+    httpStatus: 422,
+    retryable: false,
+    customerMessage:
+      'Intent manifest operation failed validation. Check the manifest id, idempotency key, and TTL.',
+    category: 'validation',
+  },
 });
 
 /** Sentinel entry used when an arbitrary `Error` reaches the global filter. */

@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aegis/sdk": "link:../../packages/sdk-ts"
+    "@aegis/sdk": "workspace:*"
   },
   "devDependencies": {
     "@aegis/tsconfig": "link:../../packages/tsconfig",

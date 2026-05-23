@@ -35,7 +35,14 @@ export async function readCredentials(): Promise<AegisCredentials | null> {
 }
 
 export async function writeCredentials(c: AegisCredentials): Promise<void> {
-  await mkdir(dirname(CREDS_PATH), { recursive: true });
+  // Tighten the dir to 0o700 BOTH at creation (via mkdir's `mode`) AND
+  // explicitly afterwards (via chmod) so we cover the pre-existing-dir
+  // case where the user already has ~/.aegis at a looser umask-derived
+  // mode (typically 0o755). umask can also relax mkdir's `mode` argument,
+  // hence the belt-and-braces chmod.
+  const dir = dirname(CREDS_PATH);
+  await mkdir(dir, { recursive: true, mode: 0o700 });
+  await chmod(dir, 0o700);
   await writeFile(CREDS_PATH, JSON.stringify(c, null, 2) + '\n', 'utf8');
   await chmod(CREDS_PATH, 0o600);
 }

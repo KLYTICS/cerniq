@@ -16,6 +16,7 @@ export const DENIAL_REASONS = [
   "SPEND_LIMIT_EXCEEDED",
   "TRUST_SCORE_TOO_LOW",
   "ANOMALY_FLAGGED",
+  "INTENT_MISMATCH",
 ] as const;
 
 export type DenialReason = (typeof DENIAL_REASONS)[number];

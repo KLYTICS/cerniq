@@ -1,0 +1,106 @@
+# @generated — do not edit; run `pnpm gen:prom-alerts`
+# Source: docs/runbooks/denial-reasons.yaml
+#
+# Closes the prom-alerts gap flagged in 8b0d499 — every reason in
+# DENIAL_REASON_PRECEDENCE now has at least a recording-rule SLI.
+# Critical-severity reasons additionally have a baseline alert.
+#
+# COEXISTENCE with hand-tuned rules:
+#   - infra/observability/alerts/aegis.rules.yml (latency / SRE)
+#   - infra/observability/alerts/aegis-security.rules.yml (specific
+#     INVALID_SIGNATURE / ANOMALY_FLAGGED alerts with bespoke
+#     thresholds tuned to specific incident patterns).
+# Both file kinds may fire on the same underlying signal; routing in
+# Alertmanager can split on label `aegis_managed: generated` vs.
+# (absent / bespoke). Operators may silence whichever they prefer.
+#
+# CI gate `pnpm check:prom-alerts-gen` re-runs the generator and reds
+# on any drift. Hand edits to this file are clobbered next run.
+
+groups:
+  # Recording rule: emits a pre-aggregated denial-rate SLI series
+  # labeled by denial_reason. Operators build custom alerts /
+  # dashboards off this named series instead of re-deriving the
+  # PromQL in three places.
+  - name: aegis_denial_reasons.recording
+    interval: 30s
+    rules:
+      - record: job:aegis_denial_rate:5m
+        expr: |
+          sum by (denial_reason) (
+            rate(aegis_verify_total{decision="denied"}[5m])
+          )
+
+  # Baseline alerts — generated only for reasons tagged `critical`
+  # in docs/runbooks/denial-reasons.yaml. WARNING/INFO reasons get a
+  # recording rule above but no alert (defaults would page-storm
+  # for normal-flow events like POLICY_EXPIRED).
+  - name: aegis_denial_reasons.baseline_alerts
+    interval: 30s
+    rules:
+
+      - alert: AEGIS_BASELINE_INVALID_SIGNATURE_SPIKE
+        expr: |
+          sum(rate(aegis_verify_total{decision="denied",denial_reason="INVALID_SIGNATURE"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: page
+          team: aegis-oncall
+          domain: aegis
+          denial_reason: INVALID_SIGNATURE
+          aegis_managed: generated
+        annotations:
+          summary: "Baseline INVALID_SIGNATURE denial-rate spike (operator-tunable)"
+          description: "The request token signature did not verify."
+          relying_party_action: >-
+            Either the agent's private key has rotated (re-issue token with current key) OR the token was tampered with in transit (SEV investigation). Do NOT silently retry — log a security event.
+          operator_check: >-
+            Compare the agent's published JWKS against the kid embedded in the signature. If kids match but verify still fails, the token bytes were modified between issuance and verify — escalate.
+          runbook_md: >-
+            docs/runbooks/denial-reasons.md#4-invalid_signature
+          threshold_note: >-
+            Baseline threshold: > 2/sec sustained 5m. Tune per deployment.
+
+      - alert: AEGIS_BASELINE_ANOMALY_FLAGGED_SPIKE
+        expr: |
+          sum(rate(aegis_verify_total{decision="denied",denial_reason="ANOMALY_FLAGGED"}[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: page
+          team: aegis-oncall
+          domain: aegis
+          denial_reason: ANOMALY_FLAGGED
+          aegis_managed: generated
+        annotations:
+          summary: "Baseline ANOMALY_FLAGGED denial-rate spike (operator-tunable)"
+          description: "BATE flagged this request as anomalous."
+          relying_party_action: >-
+            BATE detected behavioral anomaly (timing, geo, action pattern). Do NOT auto-retry — escalate to fraud/security review. Caller should log a security event with the request correlation ID.
+          operator_check: >-
+            Pull the BATE signal that flagged this request. If false positive, mark via `aegis-cli signals dismiss <id>`. If true positive, escalate to fraud team and consider freezing the agent.
+          runbook_md: >-
+            docs/runbooks/denial-reasons.md#11-anomaly_flagged
+          threshold_note: >-
+            Baseline threshold: > 0.5/sec sustained 5m. Tune per deployment.
+
+      - alert: AEGIS_BASELINE_INTENT_MISMATCH_SPIKE
+        expr: |
+          sum(rate(aegis_verify_total{decision="denied",denial_reason="INTENT_MISMATCH"}[5m])) > 0.1
+        for: 10m
+        labels:
+          severity: page
+          team: aegis-oncall
+          domain: aegis
+          denial_reason: INTENT_MISMATCH
+          aegis_managed: generated
+        annotations:
+          summary: "Baseline INTENT_MISMATCH denial-rate spike (operator-tunable)"
+          description: "The actual call deviated from the declared intent manifest."
+          relying_party_action: >-
+            The agent's actual tool call deviated from the intent it declared at policy-issuance time (ADR-0016). Under STRICT reconciliation this fails closed; under GRADUATED, it may pass with a flag depending on tolerance. Do NOT auto-retry — the agent's behavior diverged from its declared intent, which is itself a security signal.
+          operator_check: >-
+            Pull the intent manifest from `intent.declared` audit events vs. the actual call params. Determine whether divergence is a bug in the agent (intent under-specified) or behavioral drift (intent mis-stated). Surface to the principal owner for review.
+          runbook_md: >-
+            docs/runbooks/denial-reasons.md#12-intent_mismatch
+          threshold_note: >-
+            Baseline threshold: > 0.1/sec sustained 10m. Tune per deployment.

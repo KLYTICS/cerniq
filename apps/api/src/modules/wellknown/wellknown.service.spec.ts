@@ -134,6 +134,247 @@ describe('WellknownService', () => {
     });
   });
 
+  describe('getAegisConfiguration — FAPI-2.0-aligned metadata (1.1.0)', () => {
+    // Locks the wedge into the discovery surface: every claim made on the
+    // marketing site that maps to a standards-binding should be discoverable
+    // by `curl /.well-known/aegis-configuration` so a buyer can self-verify.
+    let svc: WellknownService;
+
+    beforeEach(() => {
+      svc = new WellknownService(buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }));
+      svc.onModuleInit();
+    });
+
+    afterEach(() => {
+      delete process.env.AEGIS_OP_POLICY_URI;
+      delete process.env.AEGIS_OP_TOS_URI;
+    });
+
+    it('spec_version was bumped to 1.4.0 (RFC-9101 JAR promoted)', () => {
+      const cfg = svc.getAegisConfiguration();
+      expect(cfg.spec_version).toBe('1.4.0');
+    });
+
+    it('publishes a stable FAPI profile identifier', () => {
+      const cfg = svc.getAegisConfiguration();
+      expect(cfg.fapi_profile).toBe('aegis-fapi-2.0-aligned-1.0');
+      expect(cfg.fapi_profile_spec_uri).toMatch(/05_FAPI_2_0_PROFILE/);
+    });
+
+    it('standards_implemented contains only standards backed by running code', () => {
+      const cfg = svc.getAegisConfiguration();
+      // Each RFC here must correspond to demonstrable behavior. Adding to
+      // this list without a backing implementation is a CLAUDE.md invariant
+      // #4 violation (no fabricated data). If you add an entry, add a test
+      // that exercises the binding.
+      expect(cfg.standards_implemented).toEqual(
+        expect.arrayContaining([
+          'RFC-8032', // EdDSA
+          'RFC-7517', // JWKS
+          'RFC-9116', // security.txt
+          'RFC-9396', // RAR — promoted 2026-05-15
+          'RFC-8414', // OAuth AS Metadata — promoted 2026-05-15
+          'RFC-6749', // OAuth error envelope — promoted 2026-05-15
+          'RFC-9101', // JAR — promoted 2026-05-16
+        ]),
+      );
+      // Negative: only what's truly still roadmap'd remains here.
+      expect(cfg.standards_implemented).not.toContain('RFC-9449'); // DPoP
+      expect(cfg.standards_implemented).not.toContain('RFC-9421'); // HTTP Sig
+    });
+
+    it('standards_aligned contains only roadmap items NOT yet bindingly compliant', () => {
+      const cfg = svc.getAegisConfiguration();
+      expect(cfg.standards_aligned).toEqual(
+        expect.arrayContaining([
+          'RFC-9449', // DPoP
+          'RFC-9421', // HTTP Message Signatures
+        ]),
+      );
+      // Promoted RFCs must no longer appear in aligned.
+      expect(cfg.standards_aligned).not.toContain('RFC-9396');
+      expect(cfg.standards_aligned).not.toContain('RFC-8414');
+      expect(cfg.standards_aligned).not.toContain('RFC-6749');
+      expect(cfg.standards_aligned).not.toContain('RFC-9101');
+    });
+
+    it('RFC-8414 + RFC-6749 + RFC-9101 are in standards_implemented (1.3.0 + 1.4.0)', () => {
+      const cfg = svc.getAegisConfiguration();
+      expect(cfg.standards_implemented).toContain('RFC-8414');
+      expect(cfg.standards_implemented).toContain('RFC-6749');
+      expect(cfg.standards_implemented).toContain('RFC-9101');
+      expect(cfg.standards_aligned).not.toContain('RFC-8414');
+      expect(cfg.standards_aligned).not.toContain('RFC-6749');
+      expect(cfg.standards_aligned).not.toContain('RFC-9101');
+    });
+
+    it('authorization_details_types_supported lists the 4 registered RAR types', () => {
+      const cfg = svc.getAegisConfiguration();
+      expect(cfg.authorization_details_types_supported).toEqual(
+        expect.arrayContaining([
+          'trading_order',
+          'payment_initiation',
+          'data_access',
+          'agent_action',
+        ]),
+      );
+      // The list must match REGISTERED_AUTH_DETAIL_TYPES in rar.types.ts;
+      // any drift means the wedge claim ('RAR-implemented with 4 types') is
+      // out of sync between the discovery doc and the evaluator. If you
+      // add a type to rar.types.ts, add it to AUTHORIZATION_DETAILS_TYPES_SUPPORTED
+      // in wellknown.service.ts in the same change.
+      expect(cfg.authorization_details_types_supported).toHaveLength(4);
+    });
+
+    it('standards_implemented and standards_aligned are disjoint sets', () => {
+      // A standard cannot be both "implemented" and "aligned" — those terms
+      // are deliberately separated. If you start implementing something,
+      // move it from aligned → implemented in one atomic change.
+      const cfg = svc.getAegisConfiguration();
+      const overlap = cfg.standards_implemented.filter((s) =>
+        cfg.standards_aligned.includes(s),
+      );
+      expect(overlap).toEqual([]);
+    });
+
+    it('signing alg fields advertise EdDSA only (Ed25519 invariant per ADR-0002)', () => {
+      const cfg = svc.getAegisConfiguration();
+      expect(cfg.signing_alg_values_supported).toEqual(['EdDSA']);
+      expect(cfg.agent_signing_alg_values_supported).toEqual(['EdDSA']);
+    });
+
+    it('agent_authentication_methods_supported names the bespoke ed25519_canonical_json (not FAPI private_key_jwt yet)', () => {
+      // Honesty-by-construction: we do NOT yet implement RFC 7523 private_key_jwt
+      // over JAR. The discovery doc names what we actually do today.
+      const cfg = svc.getAegisConfiguration();
+      expect(cfg.agent_authentication_methods_supported).toEqual([
+        'ed25519_canonical_json',
+      ]);
+      expect(cfg.agent_authentication_methods_supported).not.toContain('private_key_jwt');
+    });
+
+    it('op_policy_uri is undefined when AEGIS_OP_POLICY_URI env is unset', () => {
+      delete process.env.AEGIS_OP_POLICY_URI;
+      const cfg = svc.getAegisConfiguration();
+      expect(cfg.op_policy_uri).toBeUndefined();
+    });
+
+    it('op_policy_uri is populated when AEGIS_OP_POLICY_URI env is set', () => {
+      process.env.AEGIS_OP_POLICY_URI = 'https://aegis.klytics.io/security';
+      const cfg = svc.getAegisConfiguration();
+      expect(cfg.op_policy_uri).toBe('https://aegis.klytics.io/security');
+    });
+
+    it('op_tos_uri follows the same env-override pattern', () => {
+      delete process.env.AEGIS_OP_TOS_URI;
+      expect(svc.getAegisConfiguration().op_tos_uri).toBeUndefined();
+      process.env.AEGIS_OP_TOS_URI = 'https://aegis.klytics.io/terms';
+      expect(svc.getAegisConfiguration().op_tos_uri).toBe('https://aegis.klytics.io/terms');
+    });
+
+    it('preserves all 1.0.0 + 1.1.0 + 1.2.0 fields (backwards-compatible additive only)', () => {
+      // Locks the additive guarantee. If a future change removes any of
+      // these, this test fails AND spec_version major bump is required.
+      const cfg = svc.getAegisConfiguration();
+      const requiredV1Fields: ReadonlyArray<keyof typeof cfg> = [
+        'issuer', 'spec_version', 'api_version', 'documentation', 'openapi_spec',
+        'jwks_uri', 'audit_signing_key_uri', 'endpoints', 'supported_algorithms',
+        'supported_curves', 'denial_reasons', 'trust_bands', 'rate_limits',
+        'supported_runtimes', 'sdks', 'build', 'security_txt', 'llms_txt',
+        'retention_policy_uri', 'pricing_uri',
+      ];
+      for (const f of requiredV1Fields) {
+        expect(cfg).toHaveProperty(f);
+      }
+    });
+  });
+
+  describe('getOAuthAuthorizationServerMetadata — RFC 8414 (1.3.0)', () => {
+    // Locks the RFC 8414 binding. Buyers running OAuth/FAPI tooling
+    // can fetch /.well-known/oauth-authorization-server and get a
+    // parseable response with the AEGIS-honest subset of fields.
+    let svc: WellknownService;
+
+    beforeEach(() => {
+      svc = new WellknownService(buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }));
+      svc.onModuleInit();
+    });
+
+    afterEach(() => {
+      delete process.env.AEGIS_OP_POLICY_URI;
+      delete process.env.AEGIS_OP_TOS_URI;
+    });
+
+    it('contains RFC 8414 §2 required field `issuer`', () => {
+      const md = svc.getOAuthAuthorizationServerMetadata();
+      expect(md.issuer).toBeDefined();
+      expect(typeof md.issuer).toBe('string');
+      expect(md.issuer.length).toBeGreaterThan(0);
+    });
+
+    it('contains RFC 8414 §2 required field `response_types_supported` (empty — AEGIS issues no auth codes)', () => {
+      const md = svc.getOAuthAuthorizationServerMetadata();
+      // Empty array is honest, NOT lying-by-omission. AEGIS is not a
+      // full OAuth AS; it does not issue authorization codes.
+      expect(Array.isArray(md.response_types_supported)).toBe(true);
+      expect(md.response_types_supported).toEqual([]);
+    });
+
+    it('contains jwks_uri pointing at /.well-known/jwks.json', () => {
+      const md = svc.getOAuthAuthorizationServerMetadata();
+      expect(md.jwks_uri).toMatch(/\/\.well-known\/jwks\.json$/);
+    });
+
+    it('introspection_endpoint points at /v1/verify (verify IS the introspection-shaped decision)', () => {
+      const md = svc.getOAuthAuthorizationServerMetadata();
+      expect(md.introspection_endpoint).toMatch(/\/v1\/verify$/);
+      expect(md.introspection_endpoint_auth_methods_supported).toContain('api_key_bearer');
+    });
+
+    it('signing alg fields advertise EdDSA only (Ed25519 invariant)', () => {
+      const md = svc.getOAuthAuthorizationServerMetadata();
+      expect(md.token_endpoint_auth_signing_alg_values_supported).toEqual(['EdDSA']);
+      expect(md.request_object_signing_alg_values_supported).toEqual(['EdDSA']);
+    });
+
+    it('authorization_details_types_supported mirrors discovery doc (RFC 9396 cross-link)', () => {
+      const md = svc.getOAuthAuthorizationServerMetadata();
+      const cfg = svc.getAegisConfiguration();
+      expect(md.authorization_details_types_supported).toEqual(
+        cfg.authorization_details_types_supported,
+      );
+    });
+
+    it('aegis_service_type clearly disambiguates AEGIS from a full OAuth AS', () => {
+      const md = svc.getOAuthAuthorizationServerMetadata();
+      expect(md.aegis_service_type).toBe('authorization-decision-and-audit-layer');
+    });
+
+    it('aegis_rar_evaluate_endpoint points at /v1/verify/rar/evaluate', () => {
+      const md = svc.getOAuthAuthorizationServerMetadata();
+      expect(md.aegis_rar_evaluate_endpoint).toMatch(/\/v1\/verify\/rar\/evaluate$/);
+    });
+
+    it('aegis_fapi_profile matches the discovery doc fapi_profile field', () => {
+      const md = svc.getOAuthAuthorizationServerMetadata();
+      const cfg = svc.getAegisConfiguration();
+      expect(md.aegis_fapi_profile).toBe(cfg.fapi_profile);
+    });
+
+    it('op_policy_uri / op_tos_uri honor the same env-override pattern as aegis-configuration', () => {
+      delete process.env.AEGIS_OP_POLICY_URI;
+      delete process.env.AEGIS_OP_TOS_URI;
+      const md1 = svc.getOAuthAuthorizationServerMetadata();
+      expect(md1.op_policy_uri).toBeUndefined();
+      expect(md1.op_tos_uri).toBeUndefined();
+      process.env.AEGIS_OP_POLICY_URI = 'https://aegis.klytics.io/security';
+      process.env.AEGIS_OP_TOS_URI = 'https://aegis.klytics.io/terms';
+      const md2 = svc.getOAuthAuthorizationServerMetadata();
+      expect(md2.op_policy_uri).toBe('https://aegis.klytics.io/security');
+      expect(md2.op_tos_uri).toBe('https://aegis.klytics.io/terms');
+    });
+  });
+
   describe('getRetentionPolicy', () => {
     let svc: WellknownService;
     beforeEach(() => {

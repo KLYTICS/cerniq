@@ -85,16 +85,23 @@ function fromB64Url(s: string): Uint8Array {
 
 // ── Denial reason → human-readable map (no LLM, no fabrication) ──
 
+// Ordered to mirror DENIAL_REASON_PRECEDENCE (packages/types/src/constants.ts).
+// Keep all 12 reasons mapped; consumers reading from an upgraded API and
+// rendering with an older CLI would otherwise show "Unknown reason" for the
+// three reasons added 2026-05-05 (ADR-0014) and 2026-05-15 (ADR-0016).
 export const DENIAL_DESCRIPTIONS: Readonly<Record<string, string>> = Object.freeze({
+  PLAN_LIMIT_EXCEEDED: 'Plan tier monthly verify quota exhausted (billing pre-gate).',
   AGENT_NOT_FOUND: 'No agent identity matches that ID.',
   AGENT_REVOKED: 'The agent has been revoked.',
   INVALID_SIGNATURE: 'The request token signature did not verify.',
   POLICY_REVOKED: 'The policy was revoked.',
   POLICY_EXPIRED: 'The policy has expired (or was never found).',
   SCOPE_NOT_GRANTED: 'The action / domain is outside the policy scope.',
+  TRIAL_EXHAUSTED: 'Lifetime free-trial verify quota exhausted; upgrade to a paid plan.',
   SPEND_LIMIT_EXCEEDED: 'The amount exceeds the policy spend limit.',
   TRUST_SCORE_TOO_LOW: 'The agent trust score is below the threshold for this action.',
   ANOMALY_FLAGGED: 'BATE flagged this request as anomalous.',
+  INTENT_MISMATCH: 'The actual call deviated from the declared intent manifest.',
 });
 
 // ── Errors ────────────────────────────────────────────────────────

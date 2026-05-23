@@ -41,10 +41,19 @@
     "seed:dev": "pnpm --filter @aegis/scripts seed",
     "gen:error-catalog": "pnpm -F @aegis/types exec tsx ../../scripts/generate-error-catalog.ts",
     "gen:denial-reason": "pnpm -F @aegis/scripts exec tsx ./generate-denial-reason.ts",
+    "gen:shared-constants": "pnpm -F @aegis/scripts exec tsx ./generate-shared-constants.ts",
+    "gen:runbook-docs": "pnpm -F @aegis/scripts exec tsx ./generate-runbook-docs.ts",
+    "gen:prom-alerts": "pnpm -F @aegis/scripts exec tsx ./generate-prom-alerts.ts",
+    "gen:postman-walkthrough": "pnpm -F @aegis/scripts exec tsx ./generate-postman-walkthrough.ts",
     "check:openapi-zod": "pnpm -F @aegis/types exec tsx scripts/check-openapi-zod-parity.ts",
     "check:openapi-prisma": "pnpm -F @aegis/api exec tsx scripts/check-openapi-prisma-parity.ts",
     "check:migrations": "pnpm -F @aegis/scripts exec tsx check-migration-immutability.ts",
-    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:openapi-zod && pnpm check:openapi-prisma && pnpm check:migrations"
+    "check:denial-reason-gen": "pnpm gen:denial-reason && git diff --exit-code -- packages/sdk-ts/src/denial-reason.generated.ts packages/sdk-py/aegis/_denial_reason_generated.py",
+    "check:shared-constants-gen": "pnpm gen:shared-constants && git diff --exit-code -- packages/sdk-py/aegis/_shared_constants_generated.py",
+    "check:runbook-coverage": "pnpm gen:runbook-docs && git diff --exit-code -- docs/runbooks/denial-reasons.md",
+    "check:prom-alerts-gen": "pnpm gen:prom-alerts && git diff --exit-code -- infra/observability/alerts/denial-reasons.rules.yml",
+    "check:postman-walkthrough-gen": "pnpm gen:postman-walkthrough && git diff --exit-code -- tools/postman/aegis.collection.json",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:openapi-zod && pnpm check:openapi-prisma && pnpm check:migrations && pnpm check:denial-reason-gen && pnpm check:shared-constants-gen && pnpm check:runbook-coverage && pnpm check:prom-alerts-gen && pnpm check:postman-walkthrough-gen"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.0.1",
@@ -56,6 +65,7 @@
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-security": "^3.0.1",
     "eslint-plugin-unicorn": "^56.0.0",
+    "husky": "^9.1.7",
     "lint-staged": "^17.0.5",
     "prettier": "^3.3.3",
     "typescript": "^5.6.3",

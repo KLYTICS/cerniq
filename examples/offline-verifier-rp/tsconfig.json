@@ -1,0 +1,7 @@
+{
+  "extends": "@aegis/tsconfig/node.json",
+  "include": ["src/**/*"],
+  "compilerOptions": {
+    "outDir": "dist"
+  }
+}

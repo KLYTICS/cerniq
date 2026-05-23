@@ -36,16 +36,23 @@ if (!VERIFY_KEY) {
 
 const aegis = new Aegis({ apiKey: VERIFY_KEY, baseUrl: API_BASE });
 
+// Ordered to mirror DENIAL_REASON_PRECEDENCE (packages/types/src/constants.ts).
+// All 12 reasons mapped so an upgraded AEGIS API doesn't surface "Unknown"
+// to the relying-party operator for reasons added by ADR-0014 (2026-05-05)
+// and ADR-0016 (2026-05-15).
 const DESCRIPTIONS: Readonly<Record<string, string>> = Object.freeze({
+  PLAN_LIMIT_EXCEEDED: 'Plan tier monthly verify quota exhausted.',
   AGENT_NOT_FOUND: 'Unknown agent.',
   AGENT_REVOKED: 'Agent has been revoked.',
   INVALID_SIGNATURE: 'Token signature did not verify.',
   POLICY_REVOKED: 'Policy revoked.',
   POLICY_EXPIRED: 'Policy expired.',
   SCOPE_NOT_GRANTED: 'Action / domain outside policy scope.',
+  TRIAL_EXHAUSTED: 'Free-trial quota exhausted; upgrade required.',
   SPEND_LIMIT_EXCEEDED: 'Amount exceeds policy limit.',
   TRUST_SCORE_TOO_LOW: 'Trust score below threshold.',
   ANOMALY_FLAGGED: 'Anomaly detected.',
+  INTENT_MISMATCH: 'Actual call deviated from declared intent.',
 });
 
 const app = express();

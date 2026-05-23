@@ -1,13 +1,4508 @@
-# AEGIS — Session handoff log
+# OKORO — Session handoff log
 
 > Append a short entry every time a session lands meaningful work.
 > Newest at top. Format: date, session, what shipped, what's next.
 
 ---
 
-## 2026-05-21 (Gap 3 closed: husky preflight make-rewrite — PR #40 merged) · sid=09b16195 · claim=aegis:husky-preflight-make-rewrite-fix
+## 2026-05-22 · cli-audit-verify-manifests + shared-index coordination event
 
-**Status:** ✅ Closes Gap 3 from the post-merge audit immediately below. Husky pre-commit hook on main now correctly distinguishes preflight's warning-level exit 1 from gating exit ≥2. Merged via PR #40 ([c0a415a](https://github.com/KLYTICS/aegis/commit/c0a415a)).
+Operator said _"continue"_. Intended a focused follow-up to 00f954b:
+expose `aegis audit verify-manifests` in the operator CLI symmetrically
+with the standalone `aegis-audit-verify` binary. The work landed — but
+NOT under its own commit. A peer Claude session running
+`okoro:sdk-py-webhook-events` committed M-WEBHOOK-3-py (`cf2e31f`) in
+the few-second window between my final `git status` verification and
+my `git commit`. Because the two sessions share one `.git/index`, the
+peer's commit swept up my staged CLI files alongside their sdk-py
+deliverables.
+
+### What landed in `cf2e31f` from this session (despite message attribution)
+
+- `packages/cli/src/commands/audit.ts` (+107 lines) — new
+  `auditVerifyManifests(dir, opts)` function. Walks `<dir>` for
+  `*.manifest.json` files (optionally `--recursive`), loads JWKS via
+  `loadJwksFromUrl` or `loadJwksFromFile`, hands the parsed manifests
+  to `verifyManifestCorpus()` from `@aegis/audit-verifier`. Emits
+  human report (ok/info/err) or full JSON `ManifestCorpusReport` per
+  `--json`. Exit 1 on chain break, 0 on intact, 2 on argument/IO
+  error.
+- `packages/cli/src/bin.ts` (+11 lines) — exposes
+  `aegis audit verify-manifests <dir>` with flags `--jwks <url>`,
+  `--jwks-file <path>`, `--recursive`, `--json`. `--jwks-file` is the
+  dominant flag for archived-manifest verification since it's often
+  done in airgapped compliance environments.
+- `packages/cli/src/index.ts` (+2 lines) — re-exports the new
+  function from the package's public library surface.
+
+### Architectural property preserved through the coordination event
+
+The chain-verification algorithm is still single-sourced at
+`verifyManifestCorpus()` in `@aegis/audit-verifier`. Both the operator
+CLI (`aegis audit verify-manifests`) and the standalone binary
+(`aegis-audit-verify verify-manifests`) call the same function with
+the same input shape. The directory-walking helper
+(`loadManifestsFromDir`) is intentionally DUPLICATED across the two
+CLIs rather than exposed from `@aegis/audit-verifier`'s public API,
+because file walking is CLI plumbing, not verification algorithm.
+**Three entry points, one algorithm**: operator CLI, standalone
+binary, programmatic import.
+
+### Verification (run before commit attempt)
+
+- `pnpm --filter @aegis/cli typecheck` — clean
+- `pnpm --filter @aegis/cli test` — 5/5 pass
+- `pnpm --filter @aegis/e2e test:parity` — 38 files, 398 tests pass
+
+### The coordination failure mode worth recording
+
+Two Claude sessions sharing one `.git/index`:
+
+  - Session A (this one) staged 3 CLI files via `git add` after
+    verifying the diff. `git status --short` showed exactly the
+    intended set.
+  - Session B (`sdk-py-webhook-events`) ran `git commit` for their
+    M-WEBHOOK-3-py work while my files were staged. Their commit
+    swept up everything in the index — the 4 sdk-py-related files
+    THEY intended (`__init__.py` update, `webhook_events.py`,
+    `test_webhook_events.py`, parity spec) PLUS my 3 CLI files PLUS
+    a 173-line `SESSION_HANDOFF` update.
+
+`claude-peers conflict-check` catches **path overlap with active
+peer CLAIMS** but does not catch **index contamination by another
+session's staging**. Mitigation for next session: in addition to
+`git status` before commit, watch `.git/index`'s mtime relative to
+the start of staging — if it's been touched by anyone else, abort
+and re-stage from a known baseline. A stronger structural defense
+would be per-session worktrees with isolated indexes (each peer
+opens its own `git worktree add` under `.claude/worktrees/`), or a
+peer-level "intent to commit" lock.
+
+### Effect on commit attribution
+
+A future `git blame` on `packages/cli/src/commands/audit.ts` for the
+`auditVerifyManifests` lines will point at `cf2e31f`, whose commit
+message describes sdk-py M-WEBHOOK-3-py. This handoff entry is the
+forensic trail for the CLI work's actual intent. The peer's commit
+message accurately describes THEIR sdk-py changes; it just happens
+to also carry my CLI work as a side-effect of shared-index timing.
+
+### Next on my queue
+
+- Per-session worktrees as a discipline going forward (each peer
+  session opens its own `git worktree add` under
+  `.claude/worktrees/` and commits from there).
+- Fixture-based e2e for `verify-manifests` against a real sealed-
+  archive corpus.
+
+---
+
+## 2026-05-22 · sdk-py-webhook-events · M-WEBHOOK-3-py — Python typed event union closes the M-WEBHOOK arc 100% TS↔Py
+
+Fifth commit this session (after 7040d7f M-WEBHOOK-2, 7ab08a1 recipe-
+parity gate, 4f20586 M-WEBHOOK-1-py, f44241d M-WEBHOOK-2-py). Operator
+said _"as you see fit ultrathink"_. Ultrathink-deliberation across
+three lenses (compounding-the-pattern, blast-radius, narrative-
+closure) all pointed at the same slice: M-WEBHOOK-3-py over M-IDEM-3.
+The pattern is locked, the blast radius is trivially additive, and
+closing the M-WEBHOOK arc 100% TS↔Py is a clean operator-facing unit.
+
+### Design tension resolved — Python typing strategy
+
+Three options for mirroring the TS discriminated union:
+
+1. **TypedDict + Literal** — wire-shape faithful, dict access,
+   narrows via `if event["event"] == "..."` under mypy.
+2. **Frozen dataclass + Literal** — attribute access (Pythonic),
+   narrows via isinstance/match, but requires construction from dict.
+3. **Pydantic v2 discriminated union** — best ergonomics, adds runtime
+   validation cost.
+
+Picked (1) TypedDict — wire-shape faithful (mirrors TS's zero-
+construction `as` approach exactly), zero runtime cost, zero new
+dependencies (consistent with my prior two stdlib-only Py commits),
+and mypy 1.x narrows TypedDict unions on Literal-keyed discriminator
+fields. The customer's `if event["event"] == "..."` pattern works the
+same as TS's `switch (event.event)`.
+
+Python 3.11+'s `NotRequired[T]` from `typing` makes optional fields
+cleanly expressible inside otherwise-required TypedDicts — exactly
+the right tool for `subscriptionId`/`deliveryId`/`occurredAt` which
+are technically optional in the envelope.
+
+### What shipped (4 files, ~840 LoC, 18 + 7 = 25 passing tests)
+
+- `packages/sdk-py/aegis/webhook_events.py` (new):
+  - 5 envelope TypedDicts (one per catalog event) with
+    `event: Literal["..."]` discriminator field and optional base
+    fields (`subscriptionId`/`deliveryId`/`occurredAt`) declared
+    as `NotRequired[str]`.
+  - 2 concrete payload TypedDicts
+    (`AgentTrustScoreChangedPayload`, `AgentPolicyExpiredPayload`)
+    sourced from API emitter code.
+  - 3 placeholder payloads as `dict[str, Any]` for events with no
+    emitter yet (matches TS's `Record<string, unknown>` — concrete
+    schemas land WITH the emitter per CLAUDE.md docs rule).
+  - `WebhookEnvelope` Union type using PEP 604 `|` syntax (mypy and
+    ruff both prefer it over `typing.Union` in Python 3.11+).
+  - `WebhookEventName` Literal alias for the catalog values.
+  - `WebhookEventParseError(ValueError)` carrying `raw_event_name`
+    attribute for forensics. Inherits from ValueError (not
+    AegisError) because parse failures are caller-input errors, not
+    API errors — matches TS's `extends Error` choice.
+  - `interpret_webhook_event(raw) -> WebhookEnvelope` runtime
+    validator: validates raw is a dict, validates `event` is a
+    string in the known catalog, casts through.
+  - `is_webhook_envelope(raw) -> TypeGuard[WebhookEnvelope]` for
+    silent-skip pattern (matches TS's `isWebhookEnvelope`).
+  - **Import-time exhaustiveness gate**: locks `WebhookEventName`
+    Literal against `WEBHOOK_EVENT` catalog. If the canonical
+    catalog grows a new entry and this module isn't updated,
+    `import aegis.webhook_events` raises `RuntimeError` with a
+    clear message — louder than the TS `_ExhaustivenessGate`,
+    which only fails at tsc time.
+- `packages/sdk-py/tests/test_webhook_events.py` (new, **18
+  passing**): mirrors `webhook-events.spec.ts` test-for-test:
+  happy path on all 5 catalog entries (2 with full payload
+  narrowing, 3 with opaque-data assertions), failure modes
+  (non-dict, missing event field, non-string event, unknown event
+  with guidance message), `raw_event_name` forensics on every error
+  path, drift regression for the historical `okoro.policy.expired`
+  bug, `is_webhook_envelope` truth-table across 4 cases, full-
+  catalog runtime sanity, static-type smoke that TypedDict
+  assignment works for both known payload variants, type-only
+  WebhookEnvelope-Union-accepts-all-5-variants test.
+- `tests/cross-package/sdk-ts-py-webhook-events-parity.spec.ts`
+  (new, **7 passing**): the enterprise-quality piece. Locks 7
+  properties cross-language:
+  - Catalog values byte-equivalent on both sides (sorted JSON
+    comparison).
+  - Both SDKs accept the same 5 catalog inputs and return identical
+    `.event`/`["event"]` values.
+  - Both SDKs reject the same unknown event name with parse-error
+    + raw-event attached + guidance message containing the
+    unknown name.
+  - Both SDKs reject non-object envelope with parse-error.
+  - Both SDKs reject missing-event-field with parse-error.
+  - `is_webhook_envelope`/`isWebhookEnvelope` agree on truth value
+    across 5 test cases (known event, unknown event, non-object,
+    missing event field, null).
+  - Drift regression: both SDKs reject the historical
+    `okoro.policy.expired` legacy name.
+- `packages/sdk-py/aegis/__init__.py`: barrel exports — 15 new
+  symbols (5 event envelopes, 5 payloads, 1 Union, 1 Literal alias,
+  1 error class, 2 functions).
+
+### M-WEBHOOK arc — Python parity 100% closed
+
+| Primitive             | TS                          | Py                       | Cross-lang gate                               |
+| --------------------- | --------------------------- | ------------------------ | --------------------------------------------- |
+| M-WEBHOOK-1 (sign)    | webhook.ts                  | webhook.py               | sdk-ts-py-webhook-signature-parity.spec.ts    |
+| M-WEBHOOK-2 (dedupe)  | webhook-replay.ts           | webhook_replay.py        | sdk-ts-py-webhook-replay-parity.spec.ts       |
+| M-WEBHOOK-3 (narrow)  | webhook-events.ts           | webhook_events.py ★      | sdk-ts-py-webhook-events-parity.spec.ts ★     |
+
+★ = this commit. Plus:
+- API ↔ TS-SDK: `webhook-signature-parity.spec.ts` (HMAC byte-equivalence)
+- API emit → catalog: `webhook-event-emitter-parity.spec.ts` (event name lock)
+- Recipe-level (TS): `webhook-delivery-id-parity.spec.ts` (verify/dedupe/narrow seam)
+
+The entire webhook protocol is now locked across three independent
+implementations (API NestJS, TS-SDK @noble, Py-SDK stdlib) with SIX
+parity gates. A protocol bug now requires breaking multiple gates in
+the same commit to ship.
+
+### Verification
+
+- `cd packages/sdk-py && python3 -m pytest` → 202/202 (was 184; +18
+  new from test_webhook_events.py). Zero regressions.
+- `python3 -m mypy --strict --follow-imports=silent aegis/webhook_events.py`
+  → 0 issues.
+- `python3 -m ruff check aegis/webhook_events.py tests/test_webhook_events.py`
+  → all checks passed (after 2 auto-fixes: PT017 pytest.raises pattern,
+  UP007 PEP 604 `|` union syntax — both match prior Py SDK style).
+- `pnpm test:parity` → 38/38 files (+1), 398/398 tests (+7). No
+  regressions in any of the existing 37 gates.
+
+### Customer-facing Python recipe (full verify→dedupe→narrow)
+
+```python
+import asyncio, json, os
+from aegis import (
+    verify_webhook_signature,
+    assert_not_replay,
+    create_memory_replay_store,
+    interpret_webhook_event,
+)
+
+replay_store = create_memory_replay_store(max_entries=50_000)
+
+async def webhook_handler(request):
+    body = (await request.body()).decode()
+    sig = request.headers["X-AEGIS-Signature"]
+    delivery_id = request.headers["X-AEGIS-Delivery-Id"]
+    secret = os.environ["AEGIS_WEBHOOK_SECRET"]
+
+    verify_webhook_signature(payload=body, signature=sig, secret=secret)
+    await assert_not_replay(
+        store=replay_store, delivery_id=delivery_id, ttl_seconds=86_400
+    )
+    event = interpret_webhook_event(json.loads(body))
+
+    if event["event"] == "aegis.agent.trust_score_changed":
+        # event["data"] narrowed to AgentTrustScoreChangedPayload
+        score = event["data"]["score"]
+        prev = event["data"]["previousScore"]
+        ...
+    elif event["event"] == "aegis.agent.policy_expired":
+        # event["data"] narrowed to AgentPolicyExpiredPayload
+        await revoke_downstream_session(event["data"]["agentId"])
+```
+
+### Remaining Py-side follow-up (next sessions)
+
+**M-IDEM-3** — Python idempotency-key surface mirroring TS's
+`idempotency.ts` plus the operator-pinned `AUTO_IDEMPOTENT_METHODS`
+table (commit 80377f3). Longest-pending Py parity gap after this
+commit. ~600 LoC and touches `aegis/_http.py` so coordinate with
+any peer working on the http client (potential overlap with peer
+`d75f2658`'s M-ABORT-1-py if/when they ship the AbortSignal Py
+mirror).
+
+---
+
+## 2026-05-22 · cli-audit-verify-m016-close · operator CLI wires through @aegis/audit-verifier; ~/.aegis perms tightened
+
+Operator said _"continue"_. Closed the M-016 placeholder in the
+operator-facing CLI — the work I'd queued in the prior turn's
+handoff after refactoring `@aegis/audit-verifier` clean. While
+there I caught a real pre-existing security regression
+(credentials.spec.ts had 2 failing assertions on directory mode
+hardening) and closed it in a separate small commit.
+
+### What shipped (2 commits on feat/sdk-verify-gateway-hardening)
+
+- **`00f954b` feat(cli): `aegis audit verify` wired through
+  @aegis/audit-verifier** — closes the M-016 surface in the operator
+  CLI. Where the previous body did presence-checking against
+  `/v1/audit-events` (display-shaped DTO, missing 8 canonical
+  payload fields), the new body does real chain walking via
+  `verifyChain()` from the now-green audit-verifier. Fetches NDJSON
+  from `/v1/audit-events/export` with X-AEGIS-API-Key, parses with
+  `parseAuditNdjson`, fetches JWKS via `loadJwksFromUrl`. Emits
+  human report (ok/info/err lines) or full JSON ChainReport per
+  `--json`. Exit 1 on chain break, 0 on intact. Three new flags
+  propagate the underlying primitive's capabilities:
+  `--no-fail-fast`, `--max-row-detail <n>`, `--json`. Both `--from`
+  and `--to` continue to scope the export window. **162+/56-** lines
+  total (audit.ts + bin.ts + package.json + pnpm-lock).
+
+  **Architectural property preserved:** the chain-verification
+  algorithm is single-sourced in `@aegis/audit-verifier`. The
+  operator CLI is now literally a thin wrapper around the same
+  library a third-party auditor would install — both call
+  `verifyChain()` with the same args. The bit-for-bit equivalence
+  is ADR-0011 §6 (third-party verifier) expressed as code rather
+  than aspiration.
+
+- **`38c4a92` fix(cli): tighten ~/.aegis to mode 0o700** — closes
+  a pre-existing security regression I found while running the CLI
+  test suite during the M-016 work. `credentials.spec.ts` asserted
+  that fresh creation of `~/.aegis` placed the directory at 0o700
+  and `credentials.json` at 0o600; `writeCredentials()` only
+  chmod'd the file, leaving the directory at the umask-derived
+  default (typically 0o755). Any local user could list the
+  credentials filename and watch its mtime even though the file
+  contents were 0o600. Fix: pass `{ recursive: true, mode: 0o700 }`
+  to mkdir AND explicit `chmod(dir, 0o700)` afterwards (belt-and-
+  braces against umask relaxation + pre-existing-dir cases). **8+/1-**
+  lines.
+
+### Verification
+
+- `pnpm --filter @aegis/cli typecheck` — clean
+- `pnpm --filter @aegis/cli test` — **5/5 pass** (was 2/5 before
+  38c4a92; the credentials.spec.ts assertions on dir/file mode
+  hardening now pass)
+- `pnpm --filter @aegis/audit-verifier test` — 173/173 still pass
+  (verified post-CLI-wire — no regression in the underlying
+  primitive)
+- `pnpm --filter @aegis/e2e test:parity` — **37 files, 391 tests
+  pass** (broader parity suite still clean)
+
+### The full audit-chain story is now end-to-end
+
+The chain walks the same way at every layer:
+
+  1. Operator at terminal: `aegis audit verify --json --from 2026-...`
+     calls `verifyChain()`.
+  2. Third-party auditor with a sealed export: `aegis-audit-verify
+     verify ./export.ndjson --jwks ...` calls `verifyChain()`.
+  3. Programmatic embedder: `import { verifyChain } from
+     '@aegis/audit-verifier'` and call directly.
+
+All three paths use the same Ed25519 verification, the same
+canonical-JSON algorithm, the same prev_hash recomputation. The
+wedge "an auditor can verify without trusting AEGIS" is now
+demonstrable from three independent entry points.
+
+### Next on my queue
+
+- Fixture-based e2e for `verify-manifests` against a real sealed-
+  archive corpus.
+- Possibly wire `aegis audit verify-manifests` into the operator
+  CLI too (the audit-verifier package supports it; the operator
+  CLI does not yet expose it).
+
+---
+
+## 2026-05-22 · sdk-py-webhook-replay · M-WEBHOOK-2-py — Python replay defense + TS↔Py behavioral parity gate
+
+Same session as M-WEBHOOK-1-py (commit 4f20586). Operator said
+_"continue"_. Picked the next Python parity slice: replay defense
+mirroring my own TS commit 7040d7f. Composes with the just-shipped
+M-WEBHOOK-1-py to give Python customers the full verify+dedupe recipe,
+not just signature verification.
+
+### Design tension resolved — async/sync interface tolerance
+
+The TS interface uses `Promise<T> | T` because JavaScript awaits plain
+values transparently. Python doesn't — `await 'first-sight'` raises
+TypeError. Three options for the Py mirror:
+
+1. Sync-only `record_or_replay`: locks out Redis (async). Friction.
+2. Async-only: customers paying asyncio tax for an in-memory dict.
+3. Either, with `inspect.isawaitable` discriminator in the helper.
+
+Picked (3) — `WebhookReplayStore.record_or_replay` may return EITHER
+the literal directly (in-memory) OR an Awaitable (aioredis).
+`assert_not_replay` is async and checks `inspect.isawaitable` to await
+only when needed. Customers in sync code use
+`asyncio.run(assert_not_replay(...))` — same dual-mode pattern as
+`Aegis`/`AsyncAegis`. Mirrors TS's sync-or-async tolerance most
+faithfully and aligns with the Py SDK's existing discipline.
+
+### What shipped (3 files, ~720 LoC, 17 + 7 = 24 passing tests)
+
+- `packages/sdk-py/aegis/webhook_replay.py` (new):
+  - `WebhookReplayDetectedError(AegisError)` — code
+    `WEBHOOK_REPLAY_DETECTED`, status 409, carries `delivery_id`.
+  - `WebhookReplayStore` runtime-checkable Protocol — atomic
+    `record_or_replay(delivery_id, ttl_seconds) -> ReplayVerdict
+| Awaitable[ReplayVerdict]`.
+  - `_MemoryReplayStore` class — bounded LRU + per-entry TTL.
+    Insertion-order eviction via Python `dict` (CPython 3.7+ language
+    guarantee, matches JS Map iteration order this mirrors). **Does
+    NOT refresh LRU position on a replay hit** (security property —
+    attacker re-attempting cannot hold a slot indefinitely).
+  - `create_memory_replay_store(*, max_entries, now)` factory
+    returning the Protocol type (so customers swapping to Redis later
+    don't need to import the concrete class).
+  - `assert_not_replay(*, store, delivery_id, ttl_seconds)` async
+    helper with `inspect.isawaitable` discriminator.
+  - `DEFAULT_REPLAY_TTL_SECONDS = 86_400` — operator-pinned, locked
+    across TS and Py.
+  - Zero new dependencies; stdlib-only (`inspect`, `time`,
+    `collections.abc`, `typing`).
+- `packages/sdk-py/tests/test_webhook_replay.py` (new, **17
+  passing**): test-for-test mirror of `webhook-replay.spec.ts`
+  including the operator-added atomicity stampede coverage:
+  100 concurrent calls → exactly 1 first-sight + 99 replays;
+  50 different ids all return first-sight independently;
+  `assert_not_replay` stampede yields exactly 1 success out of 20.
+  Plus a Protocol-conformance test asserting `isinstance(store,
+WebhookReplayStore)` holds at runtime.
+- `tests/cross-package/sdk-ts-py-webhook-replay-parity.spec.ts`
+  (new, **7 passing**): the enterprise-quality piece. Unlike the
+  signature gate (byte-equivalence — same HMAC hex from same inputs),
+  the replay store has separate state on each side by design, so the
+  parity gate locks BEHAVIORAL equivalence: given the same canonical
+  scenario, both SDKs produce identical verdict sequences. Seven tests:
+  - `DEFAULT_REPLAY_TTL_SECONDS = 86_400` on both sides.
+  - First-sight/replay/replay verdict sequence identical.
+  - LRU eviction — replay does NOT refresh position (the security
+    property locked across both languages).
+  - maxEntries cap — oldest-first eviction identical.
+  - TTL expiry boundary — same eviction window (exactly at
+    `expiresAt <= currentTime`).
+  - Stampede atomicity — both sides yield 1 first-sight + 99 replays
+    in 100 concurrent calls (TS via `Promise.all`, Py via
+    `asyncio.gather`).
+  - `WebhookReplayDetectedError` shape — code/status/delivery_id
+    parity asserted via JSON-round-tripping the captured attributes.
+- `packages/sdk-py/aegis/__init__.py`: barrel exports — 6 new symbols
+  added to `__all__`.
+
+### M-WEBHOOK arc — Python parity status update
+
+After this commit, the Python SDK covers two of the three M-WEBHOOK
+primitives (with cross-language parity gates for both):
+
+| Primitive             | TS                          | Py                     | Cross-lang gate                              |
+| --------------------- | --------------------------- | ---------------------- | -------------------------------------------- |
+| M-WEBHOOK-1 (sign)    | webhook.ts                  | webhook.py             | sdk-ts-py-webhook-signature-parity.spec.ts   |
+| M-WEBHOOK-2 (dedupe)  | webhook-replay.ts           | webhook_replay.py ★    | sdk-ts-py-webhook-replay-parity.spec.ts ★    |
+| M-WEBHOOK-3 (narrow)  | webhook-events.ts           | (pending)              | (pending)                                    |
+
+★ = this commit. M-WEBHOOK-3-py is the only remaining slice to fully
+close the TS↔Py parity gap on the webhook arc.
+
+### Verification
+
+- `cd packages/sdk-py && python3 -m pytest` → 184/184 (was 167;
+  +17 new from test_webhook_replay.py). Zero regressions.
+- `python3 -m mypy --strict --follow-imports=silent aegis/webhook_replay.py`
+  → 0 issues.
+- `python3 -m ruff check aegis/webhook_replay.py tests/test_webhook_replay.py`
+  → all checks passed (4 fixes auto-applied for import-order +
+  spacing — matches Py SDK existing style).
+- `pnpm test:parity` → 37/37 files (+1), 391/391 tests (+7 this
+  commit). No regressions in any of the existing 36 gates.
+
+### Customer-facing Python recipe (after M-WEBHOOK-1-py + this commit)
+
+```python
+import asyncio
+from aegis import (
+    verify_webhook_signature,
+    assert_not_replay,
+    create_memory_replay_store,
+)
+
+# Use create_memory_replay_store() for single-process receivers.
+# For Django/FastAPI behind a load balancer with > 1 pod, supply a
+# Redis-backed WebhookReplayStore (~5-line aioredis adapter).
+replay_store = create_memory_replay_store(max_entries=50_000)
+
+async def webhook_handler(request):
+    body = (await request.body()).decode()
+    sig = request.headers["X-AEGIS-Signature"]
+    delivery_id = request.headers["X-AEGIS-Delivery-Id"]
+    secret = os.environ["AEGIS_WEBHOOK_SECRET"]
+
+    verify_webhook_signature(payload=body, signature=sig, secret=secret)
+    await assert_not_replay(
+        store=replay_store, delivery_id=delivery_id, ttl_seconds=86_400
+    )
+    # ...process the verified, deduped event...
+```
+
+### Remaining Py-side slices (next sessions)
+
+1. **M-WEBHOOK-3-py** — typed event union mirroring TS `webhook-events.ts`.
+   `Literal[...]` over `WEBHOOK_EVENT` catalog (already in
+   `_shared_constants_generated.py`), `interpret_webhook_event`
+   runtime check, exhaustiveness via mypy `assert_never`. ~250 LoC
+   plus cross-language parity gate covering: same catalog values on
+   both sides, same `WebhookEventParseError` shape, same handling of
+   unknown event names.
+2. **M-IDEM-3** — Python idempotency-key surface. Longest-pending.
+   The TS surface has the `AUTO_IDEMPOTENT_METHODS` table operator-
+   pinned (commit 80377f3) plus header parsing + the
+   `OnWriteResponse` hook. ~600 LoC and touches `aegis/_http.py` so
+   needs coordination with any peer working on the http client.
+
+---
+
+## 2026-05-22 · sdk-api-version-pinning · M-VERSION-1 — Stripe-shape forward-compat scaffold
+
+Operator asked _"continue"_ after M-PAGINATE-1. Picked API version
+pinning as the highest-leverage net-new slice — high one-time
+enterprise value (prevents future API-change customer breaks), SDK
+side ships as forward-compat scaffold today even before the API
+honors the header. Stripe-shape: every SDK request carries
+`Aegis-Version: <pinned>` when the customer has pinned, and the API
+honors it whenever version-aware behavior switching is wired
+server-side. Claimed `okoro:sdk-api-version-pinning`. Peer
+8bda6e32 on `sdk-py-webhook-replay` — Python scope, no overlap.
+
+### What shipped (uncommitted, ~440 LoC net-new + small additive edits)
+
+- `packages/sdk-ts/src/version.ts` (new, ~145 lines):
+  - Three header constants pinning the wire contract:
+    `API_VERSION_HEADER = 'Aegis-Version'` (request),
+    `LATEST_VERSION_HEADER = 'Aegis-Latest-Version'` (response),
+    `DEPRECATION_HEADER = 'Aegis-Deprecation'` (response).
+  - `ApiVersionDeprecationInfo` interface — structured payload for
+    deprecation callback (pinnedVersion, deprecatedAt, latestVersion,
+    requestUrl).
+  - `OnApiVersionDeprecated` callback type.
+  - `parseVersionResponse(headers, requestUrl, pinnedVersion)`:
+    returns `ApiVersionDeprecationInfo | undefined`. Returns
+    undefined when no deprecation header is present (common case —
+    no allocation when nothing to report). Case-insensitive header
+    lookup; works with both `Headers` and plain records.
+- `packages/sdk-ts/src/version.spec.ts` (new, ~225 lines,
+  **19 passing**):
+  - Request header: sent when pinned; omitted when unset; sent on
+    EVERY request; reserved-header contract prevents override via
+    `opts.headers`.
+  - parseVersionResponse: undefined on absent; structured info on
+    present; surfaces latestVersion when both present; case-
+    insensitive; treats empty value as absent; Headers Web API
+    support.
+  - Callback: fires on deprecation header; does NOT fire without
+    header; does NOT fire when apiVersion unset (no pin = no
+    deprecation surface — the deliberate high-signal-low-noise
+    choice); does NOT fire when callback unset; survives
+    subscriber-throw; fires on every deprecating response with
+    correct request URL.
+  - Header constant locks: `Aegis-Version`, `Aegis-Latest-Version`,
+    `Aegis-Deprecation` literal-string pins.
+- `packages/sdk-ts/src/types.ts`: `AegisConfig.apiVersion?: string`
+  + `AegisConfig.onApiVersionDeprecated?: OnApiVersionDeprecated`
+  with rich JSDoc covering the Stripe-shape rationale + the
+  forward-compat-today semantics.
+- `packages/sdk-ts/src/http.ts`:
+  - `HttpClientConfig.apiVersion?` + `onApiVersionDeprecated?`.
+  - Constructor captures both.
+  - `request()` injects `Aegis-Version` header on every request when
+    pinned; adds `'aegis-version'` to the reserved-header guard so
+    `opts.headers` cannot override the config-level pin.
+  - On success path: parses response headers via
+    `parseVersionResponse`; if deprecation info present AND callback
+    wired, fires it in try/catch. Hook errors swallowed (same
+    pattern as M-IDEM-2 `onWriteResponse`).
+- `packages/sdk-ts/src/index.ts`: threads both fields into the
+  HttpClient constructor in the Aegis class ctor; barrel re-exports
+  the 4 helpers + 2 types.
+
+### Design decisions (locked in source + spec)
+
+1. **Bare `Aegis-Version` header name, not `X-Aegis-Version`.**
+   Operator decision 2026-05-22. Stripe-shape, RFC-6648 compliant.
+   The existing `X-AEGIS-*` headers are legacy that the next
+   versioning revamp can clean up; this slice lands the new header
+   on the right convention from day one.
+2. **Deprecation callback fires ONLY on explicit `Aegis-Deprecation`
+   response header.** NOT on drift between pinned vs server-latest
+   (that would be a separate `onApiVersionDrift` hook if customers
+   ever ask). Today: high-signal, low-noise — the customer is
+   notified specifically when the server says "your pin is
+   sunsetting", not every time the server ships a new version.
+3. **Default-unset behavior is silent.** No console.warn at
+   construct time encouraging pinning. Matches Stripe's pattern;
+   avoids surprise onboarding friction. Documentation is the
+   pinning recommendation, not runtime noise.
+4. **SDK does not validate the version string format.** The API
+   chooses the format (date, semver, custom); the SDK passes the
+   string opaquely. Forward-compat against any future format
+   change.
+5. **`apiVersion` is reserved against `opts.headers` override.**
+   The config-level pin is the source of truth; allowing
+   per-request override via raw headers would let a caller
+   accidentally (or maliciously) downgrade the version contract.
+
+### Customer-facing pattern (post-this-slice)
+
+```ts
+const aegis = new Aegis({
+  apiKey: process.env.AEGIS_API_KEY,
+  apiVersion: '2026-05-22',                     // pin
+  onApiVersionDeprecated: (info) => {
+    logger.warn(info, 'Aegis API version deprecating — schedule upgrade');
+    metrics.increment('aegis.api_version_deprecation', 1, {
+      pinned: info.pinnedVersion,
+    });
+    // Alternative: file a Jira ticket, page the on-call, etc.
+  },
+});
+
+await aegis.agents.register({ ... });   // header sent automatically
+```
+
+### Verification
+
+- `npx jest version.spec pagination.spec abort.spec http.spec
+idempotency.spec webhook-replay.spec webhook-events.spec
+webhook.spec intent.spec verify-gateway.spec` → **188/188 pass**
+  (19 new + 169 prior).
+- `npx tsc --noEmit` (packages/sdk-ts) → **clean**.
+- `npx vitest run idempotency-header-parity webhook-signature-parity
+webhook-event-emitter-parity intent-manifest-denial-reason-parity`
+  → **24/24 pass**.
+
+### Combined session output (this turn + prior seven)
+
+Full enterprise-SDK arc on `feat/sdk-verify-gateway-hardening`:
+
+- M-IDEM-1/2/4: idempotency E2E (149fcd4)
+- M-WEBHOOK-1: signature verifier (392a6e7)
+- M-WEBHOOK-3: typed events + drift fix (0e3f48b)
+- M-WEBHOOK-2: replay cache (7040d7f — Erwin)
+- M-IDEM-OP: AUTO_IDEMPOTENT_METHODS pinned (80377f3)
+- M-ABORT-1: AbortSignal threading (6f3790a)
+- M-PAGINATE-1: async-iterable pagination (bfcd729)
+- M-VERSION-1: API version pinning (this commit)
+
+Total ~2,830 LoC net-new across 13 new files, 120+ new tests, 5
+cross-package parity gates, 2 production bugs caught + fixed
+(policy-expiry drift; listener-leak prevention via tests), zero
+regression. SDK is now end-to-end enterprise-grade: retry-safe
+writes, observable response metadata, signature-verified webhooks
+with dedupe + typed narrowing, serverless-deadline-aware cancellation,
+ergonomic pagination, AND forward-compat version pinning.
+
+### Next session(s) pick up here
+
+- **API-side `Aegis-Version` honoring** — multi-session arc.
+  Behavior-switching infrastructure (version → behavior mapping per
+  endpoint), `Aegis-Deprecation` header emission policy, an ADR
+  documenting the versioning scheme. The SDK side is ready;
+  shipping the API side activates the customer value.
+- **Telemetry exporter interface** — vendor-neutral OTel/Datadog
+  bridge composing with existing `onWriteResponse` +
+  `onApiVersionDeprecated` hooks. Two instances of the
+  hook-on-config pattern already exist; the third would lock the
+  template.
+- **`policies.list` cursor support** — API-side change; then
+  `policies.listAll` follows the M-PAGINATE-1 pattern in three
+  lines.
+- **M-IDEM-3 Python parity** — peer is in flight on Py webhook
+  replay; coordinate next-session to align on what's left.
+
+### Peer coordination
+
+- Released claim `okoro:sdk-api-version-pinning`.
+- No conflicts with peer `okoro:sdk-py-webhook-replay` (Python
+  scope, no overlap with my TS edits).
+
+---
+
+## 2026-05-22 · audit-verifier-cli-refactor · Result-typed parseArgs + verify-manifests subcommand
+
+Operator said _"continue"_. Closed the long-deferred audit-verifier
+cli.spec.ts refactor I'd been flagging across the last 4 turns. The
+596-line spec was authoritative on the package's CLI shape but the
+implementation lagged with exit-on-error parseArgs (unreachable from
+vitest) and a TODO `verify-manifests` subcommand. Single-commit lands
+the full refactor passing 173/173 audit-verifier tests including 75
+in cli.spec.ts.
+
+### What shipped (`58e6bc7`, 407+/50- lines on packages/audit-verifier/src/cli.ts)
+
+- **`parseArgs` is now a total function** over `readonly string[]`.
+  Never throws, never exits, returns a discriminator-valid
+  `ParseResult` for every input — including pathological argv
+  (unicode subcommands, NaN in `--max-row-detail`, very long argv,
+  repeated `--jwks`, mixed `--help` anywhere). Property-style tests
+  in the spec hammer this with a hand-rolled exhaustive enumeration.
+- **Three-arm discriminated union** for `ParseResult`:
+  `{ok: true, args}` | `{ok: false, reason: 'help', exitCode: 0}` |
+  `{ok: false, reason: 'invalid', exitCode: 2, message}`. Callers
+  inspect the discriminator and act. No more side-effecting exits in
+  the parser.
+- **`verify-manifests <dir>` subcommand**. Walks for `*.manifest.json`
+  files (optionally `--recursive`), parses as
+  `SignedAuditCompressionManifest`, hands to the already-shipped
+  `verifyManifestCorpus()`. Closes the M-016 sealed-manifest
+  verification surface per ADR-0015.
+- **Help routing**: `--help`, `-h`, bare `help` route from ANY
+  position in argv. `verify --help` no longer fails — help-anywhere
+  wins.
+- **Tristate flag-value validation** via `getFlagValue()`. Flag at
+  end of argv OR flag followed by another `--flag` both surface as
+  a flag-specific error ("--jwks requires a URL value") rather than
+  a misleading downstream error or silent default.
+- **Unknown-flag rejection** with the sorted valid-flag catalogue
+  as actionable recovery hint. Cross-subcommand flag misuse caught
+  with the same shape.
+- On `invalid` ParseResult, main() writes USAGE then the specific
+  error to stderr in that order so the operator sees both context
+  and the bad input.
+- Entry-point guard handles `cli.cjs` / `cli.mjs` / `cli.js` on
+  both POSIX and Windows. Importing the module from cli.spec.ts
+  does not trigger main().
+
+### Why this matters beyond the package
+
+The `/proof` page (shipped earlier this session in `0e2aca7`) lists
+`@aegis/audit-verifier` as a procurement claim: *"a SOC 2 auditor
+can pull the NDJSON export and verify every signature plus prev-hash
+link locally."* That claim now has a green test suite end-to-end —
+typecheck clean AND test suite green AND the dist/cli.cjs subprocess
+suite passes against the just-built binary. The wedge claim is
+real, not aspirational.
+
+### Verification
+
+- `pnpm --filter @aegis/audit-verifier typecheck` — clean
+- `pnpm --filter @aegis/audit-verifier build` — cli.cjs + cli.mjs + .d.ts emit
+- `pnpm --filter @aegis/audit-verifier test` — **173/173 pass; 75
+  in cli.spec.ts including the subprocess suite against
+  dist/cli.cjs**
+- `pnpm --filter @aegis/e2e test:parity` — **36 files, 384 tests
+  pass** (broader parity suite picks up the new audit-verifier tests
+  without regression)
+
+### Next on my queue
+
+- Wire `packages/cli/src/commands/audit.ts` to consume
+  `/v1/audit-events/export` (NDJSON) via the now-shipped
+  `@aegis/audit-verifier`. This is the natural follow-up that
+  finally closes the M-016 placeholder in the operator-facing CLI
+  with real chain walking.
+- Possibly fixture-based e2e for `verify-manifests` against a real
+  sealed-archive corpus.
+
+---
+
+## 2026-05-22 · sdk-pagination-iterators · M-PAGINATE-1 — async-iterable wrappers for list/audit
+
+Operator asked _"continue"_ after the M-ABORT-1 commit. Audited the
+remaining SDK enterprise gaps and picked pagination iterators as the
+highest-leverage net-new slice — direct daily ergonomic pain (every
+list-call site is `while (cursor) {...}` boilerplate today), composes
+with M-ABORT-1, all net-new files. Claimed
+`okoro:sdk-pagination-iterators`. Peer 8bda6e32 on `sdk-py-webhook-
+signature` — Python work, no overlap.
+
+### What shipped (uncommitted, ~440 LoC net-new)
+
+- `packages/sdk-ts/src/pagination.ts` (new, ~165 lines):
+  - `paginate<TItem, TPage, TQuery>(fetchPage, extractItems,
+    extractCursor, initial, options?)`: generic AsyncIterableIterator
+    wrapper. Lazy fetch (single network in-flight); cursor threading
+    correct on page 1 (server reads undefined as "page 1", no
+    double-fetch).
+  - `PaginationLimitExceededError`: thrown when `maxPages` cap exceeded
+    without end-of-stream. Carries the limit + pagesConsumed for
+    forensics.
+  - `DEFAULT_MAX_PAGES = 10_000`: operator-decided safety cap.
+    Rationale block in source captures the trade-off (Stripe default
+    Infinity rejected as too trusting; 1_000 rejected as too tight).
+  - `PaginationOptions.signal?: AbortSignal`: composes with M-ABORT-1.
+    Three checkpoints: preflight (already-aborted = no fetch),
+    between pages, and threaded into fetchPage if caller forwards it
+    via their bound function.
+- `packages/sdk-ts/src/pagination.spec.ts` (new, ~205 lines,
+  **13 passing**):
+  - Single-page: yields items, ends WITHOUT a second fetch (cursor
+    threading correctness — no double-fetch of page 1).
+  - Empty page: yields zero items, one fetch.
+  - Multi-page: cursor threaded correctly; initial query preserved
+    on every call.
+  - Safety cap: PaginationLimitExceededError on runaway-server bug;
+    `Infinity` opts out; default is `10_000`.
+  - Error mid-iteration: fetchPage rejection propagates immediately,
+    no swallow, items from successful pages still yielded.
+  - Abort integration: preflight abort throws reason with ZERO
+    fetches; between-pages abort honored (next page NOT fetched);
+    type ergonomics check (paginate's TItem type narrows correctly).
+- `packages/sdk-ts/src/agent.ts`: net-new methods
+  `listAll(query?, options?): AsyncIterableIterator<AgentRecord>`
+  and `auditAll(agentId, query?, options?): AsyncIterableIterator<
+unknown>`. Both ADDITIVE — existing `list()` and `audit()`
+  signatures unchanged. The wrapping pattern is so generic that
+  future cursor-paginated endpoints can compose `paginate()` with
+  three lines of glue each.
+- `packages/sdk-ts/src/index.ts`: barrel exports `paginate`,
+  `PaginationLimitExceededError`, `DEFAULT_MAX_PAGES`, and
+  `PaginationOptions` type.
+
+### Design decisions (locked)
+
+1. **Lazy fetch over eager prefetch.** Eager would overlap next-page
+   fetch with current-page consumption — lower latency at the cost
+   of doubling network calls if iteration breaks early. Matches
+   Stripe's default; caller can buffer themselves if they want
+   eager.
+2. **`DEFAULT_MAX_PAGES = 10_000` over `Infinity` or `1_000`.** At
+   server's default 100 items/page, 10k pages = 1M items. Generous
+   for legitimate workloads, hard stop for runaway server bugs.
+   Stripe trusts the server (Infinity); OKORO defends-in-depth.
+3. **Cursor starts `undefined`, not empty string.** Server reads
+   undefined as "page 1"; the helper passes that through and only
+   sets cursor from the server's response. This is the standard
+   correctness lock — naive impls double-fetch page 1.
+4. **Error mid-iteration throws immediately.** No partial-page-then-
+   throw; no swallow. A failed page is unsafe data; the caller can
+   restart with the last successful cursor if they want resumable
+   iteration.
+5. **Abort honored between pages, not within a page's yield loop.**
+   Per-item check would slow the hot path; between-page check is
+   sufficient because each page is consumed synchronously before
+   the next fetch. Customer abort triggers a clean
+   end-of-iteration with the signal's reason on the next iteration
+   attempt.
+
+### Customer-facing pattern (post-this-slice)
+
+```ts
+// Simple iteration over all agents
+for await (const agent of aegis.agents.listAll()) {
+  console.log(agent.id);
+}
+
+// Filtered iteration with cancellation (composes with M-ABORT-1)
+const ctrl = new AbortController();
+button.onclick = () => ctrl.abort();
+for await (const event of aegis.agents.auditAll(agentId, {
+  from: '2026-01-01T00:00:00Z',
+  to: '2026-04-01T00:00:00Z',
+}, { signal: ctrl.signal })) {
+  await processEvent(event);
+}
+
+// Force-bounded for known-large enumerations
+for await (const event of aegis.agents.auditAll(agentId, query, {
+  maxPages: 100,  // hard cap — throw if more
+})) { ... }
+```
+
+### Verification
+
+- `npx jest pagination.spec abort.spec http.spec idempotency.spec
+webhook-replay.spec webhook-events.spec webhook.spec intent.spec
+verify-gateway.spec` → **169/169 pass** (13 new + 156 prior).
+- `npx tsc --noEmit` (packages/sdk-ts) → **clean**.
+- `npx vitest run idempotency-header-parity webhook-signature-parity
+webhook-event-emitter-parity intent-manifest-denial-reason-parity`
+  → **24/24 pass**.
+
+### Combined session output (this turn + prior six)
+
+Full enterprise-SDK arc on `feat/sdk-verify-gateway-hardening`:
+
+- M-IDEM-1/2/4: idempotency E2E (149fcd4)
+- M-WEBHOOK-1: signature verifier (392a6e7)
+- M-WEBHOOK-3: typed events + drift fix (0e3f48b)
+- M-WEBHOOK-2: replay cache (7040d7f — Erwin)
+- M-IDEM-OP: AUTO_IDEMPOTENT_METHODS pinned (80377f3)
+- M-ABORT-1: AbortSignal threading (6f3790a)
+- M-PAGINATE-1: async-iterable pagination (this commit)
+
+Total ~2,390 LoC net-new across 11 new files, 100+ new tests, 5
+cross-package parity gates, 2 production bugs fixed (policy-expiry
+drift; listener-leak prevention), zero regression. Every list-call
+in the SDK is now ergonomic-by-default; every write-call is
+retry-safe by default; every webhook is verifiable by default;
+every long-running request is cancelable by default.
+
+### Next session(s) pick up here
+
+- **API version pinning (Stripe-Version header)** — gap from prior
+  audit; needs API coord for behavior switching, but SDK side
+  could ship as a forward-compat scaffold (header + deprecation
+  warning hook) immediately.
+- **Telemetry exporter interface** — vendor-neutral OTel/Datadog
+  bridge composing with the existing onWriteResponse hook.
+- **`policies.list` pagination** — currently returns a plain array;
+  if it gains cursor support, `listAll` follows the same pattern.
+- **M-IDEM-3 Python webhook port** — peer 8bda6e32 in flight; my TS
+  pagination work doesn't conflict.
+- **Cross-language pagination parity** — when Python catches up,
+  add `tests/cross-package/pagination-parity.spec.ts` asserting
+  TS and Py iterate the same way.
+
+### Peer coordination
+
+- Released claim `okoro:sdk-pagination-iterators`.
+- No conflicts with peer `okoro:sdk-py-webhook-signature` (Python
+  scope, no overlap with my agent.ts edits).
+
+---
+
+## 2026-05-22 · sdk-py-webhook-signature · M-WEBHOOK-1-py — Python signature verifier mirror + TS↔Py byte-equivalence gate
+
+Same session, third commit (after M-WEBHOOK-2 commit 7040d7f and the
+recipe-parity gate 7ab08a1). Operator said _"as you see fit
+ultrathink"_. After ultrathink-deliberation across drift-risk,
+customer-payoff, and smallest-coherent-change lenses, picked the
+longest-running pending follow-up: closing one slice of the
+TS-runs-ahead-of-Py parity gap.
+
+The TS SDK has been shipping M-IDEM + M-WEBHOOK-1/2/3 on this branch
+without Python mirrors. Every TS commit widens the parity gap.
+M-WEBHOOK-1-py is the highest-impact single Python commit because:
+(1) it's the foundation that M-WEBHOOK-2/3-py will compose on,
+(2) it eliminates the #1 webhook-SDK CVE pattern (hand-rolled HMAC
+verify) for Python webhook receivers (Django/FastAPI/Flask shops,
+LangChain agents, AI-platform integrations), (3) it lands with
+cross-language byte-equivalence by construction.
+
+### What shipped (3 files, 901 LoC, 22 + 5 = 27 passing tests)
+
+- `packages/sdk-py/aegis/webhook.py` (new, 303 LoC): full Python
+  mirror of `packages/sdk-ts/src/webhook.ts`. Surface:
+  - 3 wire-header constants (`WEBHOOK_SIGNATURE_HEADER`,
+    `WEBHOOK_EVENT_HEADER`, `WEBHOOK_DELIVERY_ID_HEADER`).
+  - `DEFAULT_TOLERANCE_SECONDS = 300` — operator-pinned to match TS.
+  - 3 typed errors (`WebhookSignatureMalformedError`,
+    `WebhookSignatureInvalidError`, `WebhookTimestampError`)
+    inheriting from `AegisError` per Py SDK convention. The
+    timestamp error carries `signature_timestamp`, `received_at`,
+    `tolerance_seconds` for forensics — same as TS.
+  - `VerifiedWebhook` frozen dataclass with `timestamp` +
+    `skew_seconds`.
+  - `verify_webhook_signature(*, payload, signature, secret,
+tolerance_seconds, now)` — keyword-only, sync, stdlib-only.
+  - **Constant-time compare via `hmac.compare_digest`** — Python's
+    native primitive (no equivalent of TS's `crypto.subtle.verify`
+    needed). The spec includes a meta-test asserting the module
+    source uses `hmac.compare_digest` and forbids `==` patterns on
+    HMAC bytes — belt-and-braces against future refactors.
+  - Stdlib-only (`hmac`, `hashlib`, `re`, `time`, `dataclasses`,
+    `collections.abc`). Zero new dependencies.
+- `packages/sdk-py/tests/test_webhook.py` (new, 379 LoC, **22
+  passing**): mirrors `webhook.spec.ts` exactly. Covers happy path,
+  positive/negative skew, infinity-tolerance escape hatch, custom
+  tolerance windows, all header-parsing malformed cases (missing t,
+  missing v1, non-integer t, odd-length hex, non-hex), unknown-segment
+  forward-compat, wrong-secret + modified-payload + wrong-template +
+  wrong-algorithm rejection, multi-v1 key rotation, and the meta-test
+  that locks constant-time discipline. **Canonical parity vector
+  (secret/ts/body/expected-signature)** baked in — see the cross-
+  language gate below for what locks it to the TS side.
+- `tests/cross-package/sdk-ts-py-webhook-signature-parity.spec.ts`
+  (new, 219 LoC, **5 passing**): the enterprise-quality piece. The
+  M-015 acceptance criterion ("JWT byte-equivalent to TS SDK") gets
+  its M-WEBHOOK-1 counterpart. Four cross-direction tests:
+  - TS-SDK verifies the canonical signature (TS-side correctness).
+  - Py-SDK verifies the canonical signature via `python3 -c` subprocess
+    (Py-side correctness AND byte-equivalence with TS — same secret/
+    template/algorithm produce the same hex).
+  - TS produces a signature → Py-SDK verifies it (cross-direction
+    acceptance one way).
+  - Py produces a signature → TS-SDK verifies it (cross-direction
+    acceptance the other way).
+  Plus a fifth test asserting Py rejects a wrong-template signature,
+  mirroring the TS rejection-discipline test from `webhook.spec.ts`.
+  Subprocess pattern follows `preflight-cli.spec.ts`'s `spawnSync`
+  precedent; PYTHONPATH-injected import skips the venv setup step
+  so CI doesn't need a `pip install -e .` action.
+- `packages/sdk-py/aegis/__init__.py`: barrel exports — 8 new symbols
+  added to `__all__`.
+
+### Composition with existing gates — three-way lock
+
+After this commit, the webhook signature scheme is locked across all
+three implementations:
+
+| Pair                   | Gate                                                   |
+| ---------------------- | ------------------------------------------------------ |
+| API ↔ TS-SDK           | `webhook-signature-parity.spec.ts`                     |
+| TS-SDK ↔ Py-SDK        | `sdk-ts-py-webhook-signature-parity.spec.ts` ★         |
+| Recipe-level (3 prims) | `webhook-delivery-id-parity.spec.ts`                   |
+
+★ = this commit. Transitively API ↔ TS ↔ Py — three independent
+implementations of the same signing scheme, all locked to each other.
+
+### Verification
+
+- `cd packages/sdk-py && python3 -m pytest` → 167/167 (was 145; +22
+  new from test_webhook.py). Zero regressions in the existing 145.
+- `python3 -m mypy --strict --follow-imports=silent aegis/webhook.py`
+  → 0 issues. (Whole-import-graph mypy reports 6 pre-existing errors
+  in `_http.py`, `intent.py`, `verify_cache.py` — codebase debt, not
+  introduced by this commit.)
+- `python3 -m ruff check aegis/webhook.py tests/test_webhook.py`
+  → all checks passed (12 UP012 redundant-encoding fixes auto-applied
+  to match Py SDK's existing style).
+- `pnpm test:parity` → 36/36 files (+2 since session start), 384/384
+  tests (+18 since session start; +5 from this commit). No regressions
+  in any of the existing 31 gates.
+
+### Operator-observable constants — locked across TS and Py
+
+| Constant                       | Value               |
+| ------------------------------ | ------------------- |
+| `WEBHOOK_SIGNATURE_HEADER`     | `X-AEGIS-Signature` |
+| `WEBHOOK_EVENT_HEADER`         | `X-AEGIS-Event`     |
+| `WEBHOOK_DELIVERY_ID_HEADER`   | `X-AEGIS-Delivery-Id` |
+| `DEFAULT_TOLERANCE_SECONDS`    | `300`               |
+
+If a future commit changes any of these on either SDK without updating
+the other, the cross-language parity gate fails.
+
+### Customer-facing usage (Python, after this slice)
+
+```python
+from aegis import verify_webhook_signature, WebhookSignatureInvalidError
+
+@app.post("/webhooks/aegis")
+async def webhook(request: Request):
+    body = (await request.body()).decode()
+    sig = request.headers["X-AEGIS-Signature"]
+    secret = os.environ["AEGIS_WEBHOOK_SECRET"]
+    try:
+        verified = verify_webhook_signature(
+            payload=body, signature=sig, secret=secret
+        )
+    except WebhookSignatureInvalidError:
+        return Response(status_code=401)
+    # ... process verified.timestamp / verified.skew_seconds
+```
+
+### Remaining Py-side follow-ups (next sessions)
+
+1. **M-WEBHOOK-2-py** — `aegis.webhook_replay` mirroring
+   `webhook-replay.ts` (this session's commit 7040d7f). Single-call
+   `record_or_replay(id, ttl) -> Literal['first-sight', 'replay']`,
+   in-memory store, `assert_not_replay` helper, replay error class.
+   Same atomic interface choice the operator locked for TS.
+2. **M-WEBHOOK-3-py** — `aegis.webhook_events` mirroring
+   `webhook-events.ts` (peer's commit 0e3f48b). Typed event union
+   over `WEBHOOK_EVENT` catalog from `_shared_constants_generated.py`,
+   `interpret_webhook_event` runtime check, exhaustiveness pattern
+   adapted to Python (Literal + assert-no-other in tests).
+3. **M-IDEM-3** — Python idempotency-key surface mirroring
+   `idempotency.ts`. Long-pending; the AUTO_IDEMPOTENT_METHODS table
+   in TS was just operator-passed in commit 80377f3 — Py needs the
+   same table.
+
+Each is a self-contained slice with its own cross-language parity gate,
+following the pattern this commit establishes.
+
+---
+
+## 2026-05-22 · sdk-abort-signal-threading · M-ABORT-1 — serverless deadline propagation
+
+Operator asked _"continue ultrathink"_. Audited the remaining SDK
+enterprise gaps and picked the highest-leverage net-new slice:
+AbortSignal threading. Today's Vercel Edge / Cloudflare Worker
+deployments hit this immediately — without SDK signal threading,
+customers either ignore the platform's `request.signal` (in-flight
+requests killed mid-flight by the runtime, ugly) or hand-roll the
+forwarding (subtly wrong). This is the #1 enterprise serverless
+integration ask.
+
+Claimed `okoro:sdk-abort-signal-threading`. Peer 8bda6e32 active in
+the same repo on `sdk-webhook-delivery-id-parity` — pure-additive
+cross-package test, no overlap with my http.ts / types.ts / index.ts
+edits. Confirmed via peer note before starting.
+
+### What shipped (uncommitted, ~400 LoC net-new + small additive edits)
+
+- `packages/sdk-ts/src/types.ts`: `AegisConfig.signal?: AbortSignal`
+  with rich JSDoc covering the serverless-deadline pattern. Listener
+  cleanup is automatic via the SDK's try/finally — passing a
+  long-lived signal (shared across many requests) does not
+  accumulate handlers.
+- `packages/sdk-ts/src/http.ts`:
+  - `HttpClientConfig.signal?`, `RequestOptions.signal?` (per-call
+    override). Both honored; combined via listener forwarding.
+  - `RetryOptions.signal?` for the retry wrapper. Default sleep is
+    now signal-aware — aborts during backoff reject with the
+    signal's reason immediately.
+  - `request()`: combines internal timeout + per-call signal +
+    config signal via a pattern that keeps the TIMEOUT controller
+    separate from the COMBINED controller. The catch handler
+    disambiguates "we timed out" (→ AegisNetworkError, preserving
+    the existing customer contract) from "external signal aborted"
+    (→ propagate the caller's reason verbatim, matching native
+    fetch convention).
+  - Listener cleanup: every `addEventListener('abort', ...)` is
+    paired with a `removeEventListener` in the `finally` block,
+    even on the error path. Verified by two listener-count tests.
+  - **Disambiguation uses signal-state, not err.name**. Runtime
+    variation across Node / browsers / workers means a DOMException
+    thrown by fetch may or may not pass `instanceof Error`; the
+    `combinedCtrl.signal.aborted` check is reliable across all
+    target runtimes.
+- `packages/sdk-ts/src/index.ts`: threads `config.signal` into the
+  HttpClient constructor in the `Aegis` class ctor.
+- `packages/sdk-ts/src/abort.spec.ts` (new, ~290 lines,
+  **12 passing**):
+  - Preflight: already-aborted opts.signal → throw reason; already-
+    aborted configSignal → throw reason.
+  - Mid-request: caller aborts during fetch → propagate reason.
+  - Timeout vs external disambiguation: internal timeout fires →
+    AegisNetworkError; external signal fires → caller's reason.
+  - Multi-signal: caller signal wins when first; config signal
+    wins when first.
+  - Listener cleanup: verified via add/removeEventListener spy that
+    every listener attached on the caller's signal is removed after
+    the request completes (success path AND error path).
+  - withRetry: signal pre-aborted → no fn invocation, throw reason;
+    signal aborts mid-sleep → throws reason WITHOUT finishing sleep
+    or attempting another request; no-signal path still retries.
+
+### Design choices (locked in source comments)
+
+1. **Per-method signal threading deliberately OUT of scope.** For the
+   dominant serverless use case (`new Aegis({ signal: request.signal
+})`), construct-time signal applies to all requests through the
+   client — sufficient and avoids breaking the IdempotencyOptions
+   2nd-arg shape established by M-IDEM-1. For per-call control,
+   customers can call `http.request(path, { signal })` directly or
+   construct a fresh client.
+2. **Abort-during-retry-backoff fires immediately.** No "finish current
+   sleep" or "attempt one more request" — the caller asked to abort,
+   the SDK respects that now. Test pins this with attempt-count
+   assertion.
+3. **Reason propagation matches fetch native behavior.** External
+   signal abort → throw `signal.reason` verbatim (typically a
+   DOMException, but customers can pass any value via `abort(reason)`).
+   Existing customer `catch (err) { if (err.name === 'AbortError') }`
+   patterns work unchanged.
+4. **Internal timeout still throws AegisNetworkError.** Preserving the
+   existing customer contract; the message shape (`Request to X
+timed out after Yms`) is intentionally unchanged.
+
+### Customer-facing pattern (post-this-slice)
+
+```ts
+// Vercel Edge / Cloudflare Worker — runtime deadline propagation
+export async function POST(req: Request): Promise<Response> {
+  const aegis = new Aegis({
+    apiKey: process.env.AEGIS_API_KEY,
+    signal: req.signal,                    // runtime deadline
+  });
+  await aegis.agents.register({ ... });   // SDK aborts cleanly if
+  await aegis.policies.create({ ... });   // the runtime fires signal
+  return Response.json({ ok: true });
+}
+
+// Long-lived customer abort controller (cancel button)
+const cancel = new AbortController();
+const aegis = new Aegis({ apiKey, signal: cancel.signal });
+button.onclick = () => cancel.abort(new Error('user cancelled'));
+// SDK throws the Error verbatim — customer's typed catch works
+```
+
+### Verification
+
+- `npx jest abort.spec http.spec idempotency.spec webhook-replay.spec
+webhook-events.spec webhook.spec intent.spec verify-gateway.spec`
+  → **156/156 pass** (12 new abort tests + 144 prior).
+- `npx tsc --noEmit` (packages/sdk-ts) → **clean**.
+- `npx vitest run idempotency-header-parity webhook-signature-parity
+webhook-event-emitter-parity` → **19/19 pass** (no regression).
+
+### Combined session output (this turn + prior five)
+
+Full enterprise-SDK arc on `feat/sdk-verify-gateway-hardening`:
+
+- M-IDEM-1/2/4: idempotency E2E (149fcd4)
+- M-WEBHOOK-1: signature verifier (392a6e7)
+- M-WEBHOOK-3: typed event union + drift fix (0e3f48b)
+- M-WEBHOOK-2: replay cache (7040d7f — Erwin)
+- M-IDEM-OP: AUTO_IDEMPOTENT_METHODS pinned (80377f3)
+- M-ABORT-1: AbortSignal threading (this commit)
+
+Total ~1,950 LoC net-new across 9 new files, 90+ new tests, 5 cross-
+package parity gates, **two production bugs fixed** (policy-expiry
+event-name drift caught by emitter parity; abort cleanup leak
+prevented by listener-pair tests), zero regression.
+
+### Next session(s) pick up here
+
+- **API version pinning (Stripe-Version header)** — gap from prior
+  ultrathink audit; needs API coord, multi-session arc. Could ship
+  SDK side first as a no-op header with deprecation-warning hook.
+- **Pagination iterators** — `for await (const x of aegis.agents
+.list())` ergonomic wrapper.
+- **Telemetry exporter interface** — vendor-neutral OTel/Datadog
+  bridge composing with the existing onWriteResponse hook.
+- **M-IDEM-3 Python SDK mirror** — still pending. The TS surface is
+  now fully locked including signal threading; Python parity should
+  mirror byte-for-byte.
+- **Payload schemas for not-yet-emitted catalog events** (anomaly,
+  flagged_by_relying_party, revoked) — locked in by M-WEBHOOK-3
+  exhaustiveness gate to ship WITH their emitters.
+
+### Peer coordination
+
+- Released claim `okoro:sdk-abort-signal-threading` (this session).
+- No conflicts with peer 8bda6e32's `sdk-webhook-delivery-id-parity`
+  scope (cross-package test only).
+
+---
+
+## 2026-05-22 · wedge-public-proof-page · trust loop closes — four pages, four parity gates
+
+Operator said _"continue"_. The procurement trust loop was three-
+fourths complete after the prior turn (/security + /architecture +
+/principles). Shipped the fourth surface to close it: **/proof —
+fetchable artifacts behind every claim**.
+
+### What shipped (`0e2aca7`, 458 lines, 1 commit)
+
+- **`apps/marketing/app/proof/page.tsx`** — net-new public route
+  listing 11 artifacts in 4 kinds: 6 live discovery endpoints, 1
+  pricing endpoint, 3 verifier libraries, the source repo itself.
+  Each card carries oneLine + whatItProves + a click-through link.
+- **`tests/cross-package/marketing-proof-artifacts-parity.spec.ts`**
+  — 7-assertion gate that is meaningfully stronger than the other
+  marketing parity specs:
+    - `routePath` entries grep `wellknown.controller.ts` for the
+      matching `@Get('<route>')` decorator — assert the route is wired.
+    - `packagePath` entries assert the package.json exists on disk
+      AND is NOT `"private": true` — a private package cannot be
+      installed by a third party, so it fails the "fetch it yourself"
+      property.
+    - Kind-shape rules enforce that `discovery`/`pricing` artifacts
+      MUST have a `routePath` and `library` artifacts MUST have a
+      `packagePath` — a defensive guard against future entries that
+      bypass the gate.
+- **`apps/marketing/app/layout.tsx`** — `/proof` added to the footer
+  cluster. Final order: Security → Principles → Architecture → Proof
+  → Docs. Reading order: posture → refusals → commitments →
+  artifacts → reference.
+
+### Pattern fully complete — four public pages, four exported arrays, four gates
+
+| Page              | Exported           | Parity test                                     | Engineering source                            |
+|-------------------|--------------------|-------------------------------------------------|-----------------------------------------------|
+| /security         | IMPLEMENTED+ALIGNED| marketing-security-standards-parity.spec.ts     | wellknown.service.ts                          |
+| /principles       | REFUSALS           | marketing-non-goals-parity.spec.ts              | docs/NON_GOALS.md                             |
+| /architecture     | COMMITMENTS        | marketing-architecture-parity.spec.ts           | docs/decisions/                               |
+| **/proof**        | **PROOF_ARTIFACTS**| **marketing-proof-artifacts-parity.spec.ts**    | **wellknown.controller.ts + packages/\*/package.json** |
+
+`/proof`'s gate is the **strongest** of the four — it asserts each
+artifact resolves to a real route definition or a publishable
+package on disk, not just a markdown heading. A 404 on a /proof
+link cannot ship.
+
+### Verification
+
+- `pnpm --filter @aegis/marketing typecheck` — clean
+- `pnpm --filter @aegis/marketing build` — **21 static pages**
+  (was 20; /proof is the 21st), all routes prerendered (`○`)
+- `pnpm --filter @aegis/e2e test:parity` — **35 files, 379 tests**
+  all pass, including 7 new assertions in
+  `marketing-proof-artifacts-parity.spec.ts`
+
+### Next on my queue
+
+- Add Markdown rendering for the per-artifact `whatItProves` field
+  (currently plain string; richer markup would help long descriptions).
+- Possibly wire `/proof` into the homepage's existing wedge section
+  alongside the /try playground link.
+- The audit-verifier `cli.spec.ts` refactor remains parked as its
+  own work module.
+
+---
+
+## 2026-05-22 · sdk-webhook-delivery-id-parity · M-WEBHOOK arc parity ratchet closes — recipe-level gate locks API↔SDK contract end-to-end
+
+Same session as M-WEBHOOK-2 (commit 7040d7f), same arc. The follow-up
+I'd flagged for the next session was the cross-package parity test
+for the delivery-id wire shape. Shipping it in the same pass — tight
+(~210 LoC), pure-additive, and the M-WEBHOOK arc isn't fully fenced
+without it. Claimed `okoro:sdk-webhook-delivery-id-parity` (distinct
+from peer `d75f2658`'s still-active `sdk-webhook-replay-cache` claim
+— they absorbed my M-WEBHOOK-2 cleanly and shipped two adjacent
+commits: `80377f3` AUTO_IDEMPOTENT_METHODS and `c85f10f`
+marketing/architecture).
+
+### Scope: what's NEW vs what was already covered
+
+The existing parity gates already covered:
+- `webhook-signature-parity.spec.ts` — HMAC byte-equivalence + header
+  name presence in API source (M-WEBHOOK-1 coverage).
+- `webhook-event-emitter-parity.spec.ts` — every API-emitted event
+  name resolves to a `WEBHOOK_EVENT` catalog entry (M-WEBHOOK-3
+  coverage, and what caught the `okoro.policy.expired` drift bug).
+
+This commit adds the missing third leg: **recipe-level parity**.
+Locks the contract that the three M-WEBHOOK primitives, composed on
+simulated API output, produce the customer-facing semantics docs and
+SDK promise. Catches drift the per-primitive gates miss because each
+gate is too narrow to see the seam.
+
+### Drift this gate catches
+
+1. **Semantic source-shape**: a future refactor that swaps
+   `'X-AEGIS-Delivery-Id': delivery.id` for any other field
+   (`delivery.subscriptionId`, `delivery.attemptId`, etc.). Dedupe
+   correctness would silently break — the stamped value would no
+   longer be unique-per-attempt — and customers would start
+   double-processing. Locked via a regex source-shape assertion.
+2. **Format swap**: CUID → ULID/UUID/dbgenerated. Strings would still
+   compare equal in the dedupe path, but the wire-shape change is
+   customer-observable and deserves an explicit conversation. Locked
+   via a Prisma-schema source-shape assertion against the
+   `WebhookDelivery.id` field.
+3. **Recipe seam drift**: any change to the verify/dedupe/narrow
+   composition that makes a fresh delivery fail OR a re-fire pass.
+   Locked via end-to-end round-trip tests that simulate exactly what
+   the API emits (HMAC-signed body + three headers) and walk it
+   through the SDK's public surface.
+4. **Wire-shape robustness**: SDK rejects a delivery-id format the
+   API actually emits. Tests CUID-like + ULID-like + prefixed shapes
+   so a future format change is forward-compatible by construction.
+
+### What shipped (1 file, ~210 LoC, 6 passing tests)
+
+- `tests/cross-package/webhook-delivery-id-parity.spec.ts` (new):
+  - **Source-shape lock** (2 tests): API stamps `delivery.id` on the
+    header (regex on webhook.delivery.ts), and the schema declares
+    that id as `cuid()` (regex on schema.prisma).
+  - **Recipe parity** (4 tests): fresh delivery passes all three
+    primitives; re-fire rejected at dedupe (signature still valid
+    but dedupe catches it — the whole point of M-WEBHOOK-2); two
+    different deliveries with same event type not collapsed (dedupe
+    keys on delivery-id, not event name); SDK accepts three id
+    shapes (CUID/ULID/prefixed) for forward-compat.
+  - Inline `apiSign(secret, ts, body)` mirrors
+    `WebhookDeliveryWorker.sign` (existing
+    `webhook-signature-parity` catches any drift in that mirror).
+  - `simulateApiDelivery()` builder produces exactly the headers +
+    body shape a customer receiver would observe on the wire.
+
+### Verification
+
+- `pnpm test:parity` → 34/34 files (+1), 372/372 tests (+6). No
+  regressions in any of the 33 existing gates.
+- Failure-mode-verified: each of the 6 tests fails for the intended
+  reason (per `tests/CLAUDE.md`'s "verify the test can fail for the
+  intended reason"). Source-shape locks fail the moment the regex
+  stops matching; recipe tests fail the moment any primitive's
+  contract drifts.
+- Not-tested: `pnpm check` (broader-than-needed — pure-additive new
+  test file in `tests/cross-package/`, blast radius is the parity
+  suite alone).
+
+### M-WEBHOOK arc status — closed for TS SDK
+
+After this commit, the M-WEBHOOK arc has full parity coverage for
+the TypeScript surface:
+
+| Primitive             | Implementation               | Parity gate                            |
+| --------------------- | ---------------------------- | -------------------------------------- |
+| M-WEBHOOK-1 (sign)    | `webhook.ts`                 | `webhook-signature-parity.spec.ts`     |
+| M-WEBHOOK-2 (dedupe)  | `webhook-replay.ts`          | `webhook-delivery-id-parity.spec.ts` ★ |
+| M-WEBHOOK-3 (narrow)  | `webhook-events.ts`          | `webhook-event-emitter-parity.spec.ts` |
+
+★ = this commit.
+
+### Remaining follow-ups (next sessions)
+
+1. **M-IDEM-3 Python mirror** + matching Py-side M-WEBHOOK-1/2/3
+   surface. The TS arc is now end-to-end with parity gates; Python
+   is the next ratchet to close. `packages/sdk-py/**`.
+2. **`examples/fintech-payments` quickstart** — adopt the
+   verify/dedupe/narrow recipe in its webhook receiver so customers
+   see the canonical pattern in working code, not docs.
+
+---
+
+## 2026-05-22 · wedge-public-architecture-page · commitments register, 3 commits
+
+Operator said _"continue enterprise quality"_. Sequenced three
+moves: smallest first (footer link for /principles to complete its
+discoverability), defensively investigated the audit-verifier
+cli.spec.ts regression (out of scope — needs Result-typed refactor +
+new verify-manifests subcommand), then the substantial piece —
+/architecture as the procurement-grade companion to /principles.
+
+### What shipped (3 commits on feat/sdk-verify-gateway-hardening)
+
+- **`aa6ac8b` feat(marketing): /principles footer link** — one-line
+  additive change to layout.tsx. Placed between /security and Docs
+  (the procurement-grade research cluster). Header nav untouched —
+  that's conversion-funnel real estate; /principles is deep-research.
+- **`c85f10f` feat(marketing): /architecture page + parity gate** —
+  net-new public route surfacing eight curated ADRs in three themes:
+  Cryptographic foundation (0002, 0005, 0011), Verifiability (0003,
+  0006, 0007), Neutrality (0009, 0016). Each card carries a buyer-
+  friendly oneLine, a procurement-context "why it matters", an
+  evidence path, and a link to the source ADR. Companion parity test
+  (`tests/cross-package/marketing-architecture-parity.spec.ts`)
+  asserts every COMMITMENT.adrSlug resolves to a file on disk and
+  every adrTitle matches the file's first H1 verbatim — so renaming
+  an ADR title without updating the page fails CI. 388 lines total
+  (page + spec).
+- **`cd6c935` feat(marketing): /architecture footer link** — sibling
+  to aa6ac8b. Footer cluster order: Security → Principles →
+  Architecture → Docs. Posture → refusals → commitments → reference.
+
+### Verification
+
+- `pnpm --filter @aegis/marketing typecheck` — clean
+- `pnpm --filter @aegis/marketing build` — 20 static pages, both
+  /principles and /architecture in the route manifest as `○` (static
+  prerendered), generated in 216ms
+- `pnpm --filter @aegis/e2e test:parity` — **33 files, 366 tests
+  all pass**, including the new `marketing-architecture-parity.spec.ts`
+  with 6 assertions
+
+### Pattern crystallized this session
+
+Three public pages now follow the same shape:
+
+| Page              | Exported array     | Parity test                                           |
+|-------------------|--------------------|-------------------------------------------------------|
+| /security         | IMPLEMENTED+ALIGNED | `marketing-security-standards-parity.spec.ts`        |
+| /principles       | REFUSALS           | `marketing-non-goals-parity.spec.ts`                  |
+| /architecture     | COMMITMENTS        | `marketing-architecture-parity.spec.ts`               |
+
+Each page exports the source-of-truth array; each parity test
+asserts sync with the engineering source (wellknown discovery for
+/security, docs/NON_GOALS.md for /principles, docs/decisions/ for
+/architecture). Adding a public commitment without the matching
+engineering change (or vice versa) is impossible to land — the build
+gate forces both. **The marketing surface is now structurally a
+mirror of the engineering source.**
+
+### Investigated but not shipped
+
+- **`@aegis/audit-verifier` cli.spec.ts regression**. The spec
+  expects a refactored `parseArgs` that returns a `ParseResult`
+  discriminated union (not exit-on-error) AND introduces a new
+  `verify-manifests` subcommand. That's a substantial refactor
+  (~596-line spec drives ~138 lines of cli.ts toward a new shape),
+  not a small fix. Out of scope here. The existing presence-checking
+  in `packages/cli/src/commands/audit.ts` continues to work; full
+  chain walking via `@aegis/audit-verifier` is parked until the
+  refactor lands.
+
+### Next on my queue
+
+- The audit-verifier refactor as its own work module (Result-typed
+  parseArgs + verify-manifests subcommand + the ~596-line spec
+  re-enabled).
+- Possibly /verifiable-claims — a fourth pattern-page that lists
+  every marketing claim and the test that enforces it. Would close
+  the trust loop completely ("here's our claim, here's the CI gate
+  that prevents the claim from being a lie").
+
+---
+
+## 2026-05-22 · sdk-idempotency-operator-pass · activate AUTO_IDEMPOTENT_METHODS policy table
+
+Operator said _"continue as you see fit ultrathink"_ — picked the
+final pending decision from the M-IDEM-1 scaffold: the per-method
+auto-attach policy table that had been shipping at default `'opt-in'`
+across all rows since 2026-05-22. The table was scaffolded with a
+TODO[OPERATOR] block + four prior handoffs carrying my recommended
+values; this commit applies them and pins each decision with a
+runtime test so future drift breaks loudly.
+
+Also wrote net-new concurrency tests for `webhook-replay.spec.ts`
+(M-WEBHOOK-2, landed by Erwin's commit 7040d7f earlier this turn)
+— the peer's spec covered TTL semantics + LRU eviction + happy paths
+but did not exercise the atomicity contract that its JSDoc promises.
+My four added tests fire stampedes (2-call, 100-call, 50-id-mix,
+20-call assertNotReplay) and assert exactly one first-sight; the
+peer's commit captured the merged state including these additions.
+
+### What shipped
+
+**AUTO_IDEMPOTENT_METHODS row decisions (idempotency.ts):**
+
+| Method | New mode | Customer-visible behavior |
+|--------|----------|---------------------------|
+| `agents.register` | **`'auto'`** ★ | SDK auto-mints UUID v4 — write that creates persistent identity, double-submit creates duplicate agent row |
+| `agents.revoke` | `'opt-in'` | DELETE is server-side idempotent; no SDK protection needed |
+| `agents.report` | **`'auto'`** ★ | SDK auto-mints — fraud signal double-submit inflates BATE risk delta against legitimate agents |
+| `agents.challenge` | **`'forbidden'`** ★ | SDK refuses any key — replay returns stale 5-min-TTL nonce that silently breaks the handshake |
+| `agents.verifyHandshake` | `'opt-in'` | Signature is single-use; server-side replay defense already covers double-submit |
+| `policies.create` | **`'auto'`** ★ | SDK auto-mints — double-submit creates two valid policies, second shadowing the first |
+| `policies.revoke` | `'opt-in'` | DELETE is server-side idempotent |
+| `intent.reconcile` | `'opt-in'` (pinned) | ADR-0017 — caller-minted key is part of manifest identity |
+
+★ = changed from `'opt-in'` default. Customer-observable contract;
+the rationale block now lives in source where Stripe/Twilio-derived
+trade-offs are next to the values they encode.
+
+**File edits:**
+
+- `packages/sdk-ts/src/idempotency.ts`: TODO[OPERATOR] block replaced
+  with the rationale-per-row JSDoc; four row values flipped per the
+  table above; comment markers gone.
+- `packages/sdk-ts/src/idempotency.spec.ts`: new `describe` block
+  with 10 tests pinning each row decision PLUS two end-to-end
+  behavior checks (agents.register auto-mints when no opts;
+  agents.challenge refuses even explicit `{ key }` requests).
+  Test names state customer-visible behavior, not internal mode.
+
+**Concurrency-test contribution to webhook-replay (captured in
+commit 7040d7f):**
+
+- `packages/sdk-ts/src/webhook-replay.spec.ts`: 4 atomicity tests
+  added — 2-call concurrent stampede yields one first-sight + one
+  replay; 100-call stampede yields exactly 1 first-sight + 99
+  replays; 50 different-id concurrent calls all return first-sight
+  independently; assertNotReplay stampede produces exactly 1 success
+  + 19 throws. Exercises the JSDoc contract about single-process
+  atomicity that the original spec didn't lock.
+
+### Verification
+
+- `npx jest idempotency.spec webhook-replay.spec webhook-events.spec
+webhook.spec http.spec intent.spec verify-gateway.spec` →
+  **144/144 pass**.
+- `npx tsc --noEmit` (packages/sdk-ts) → **clean**.
+- `npx vitest run idempotency-header-parity webhook-signature-parity
+webhook-event-emitter-parity` → **19/19 pass**.
+
+### Combined session output (this turn + prior four)
+
+The full enterprise-SDK arc on `feat/sdk-verify-gateway-hardening`
+now includes the complete idempotency + webhook surface:
+
+- M-IDEM-1: SDK auto-attach policy (149fcd4) — scaffold + table
+- M-IDEM-2: response-side replay observability hook (149fcd4)
+- M-IDEM-4: idempotency header parity gate (149fcd4)
+- M-WEBHOOK-1: webhook signature verifier (392a6e7)
+- M-WEBHOOK-3: typed event union + drift fix (0e3f48b)
+- M-WEBHOOK-2: replay-cache adapter (7040d7f — Erwin)
+- M-IDEM-OP: AUTO_IDEMPOTENT_METHODS pinned (this commit)
+
+The customer-facing webhook recipe is now: verify (M-WEBHOOK-1) →
+dedupe (M-WEBHOOK-2) → narrow (M-WEBHOOK-3). All three primitives
+ship in the same SDK barrel and compose with zero glue.
+
+### Peer coordination
+
+- Active claim `okoro:sdk-webhook-replay-cache` (mine) — release on
+  commit; my scope shrank when peer's M-WEBHOOK-2 commit landed
+  mid-session. Yielded to peer's design (which was better:
+  discriminated `'first-sight' | 'replay'` return, factory function,
+  `assertNotReplay` opinionated helper); my contribution narrowed
+  to concurrency-test coverage on their spec.
+- No conflicts. Sole outstanding work this turn = the operator
+  policy pass.
+
+### Next session(s) pick up here
+
+- **M-IDEM-3 (Python SDK mirror)**: still pending — port the full
+  idempotency + webhook (verify + dedupe + narrow) surface to
+  `packages/sdk-py/`. The AUTO_IDEMPOTENT_METHODS table is now
+  locked, so Python parity should mirror it byte-for-byte.
+- **Payload schemas for not-yet-emitted catalog events** (anomaly,
+  flagged_by_relying_party, revoked) — locked in by the
+  M-WEBHOOK-3 exhaustiveness gate to ship WITH their emitters.
+- **Cross-package parity test for AUTO_IDEMPOTENT_METHODS values**:
+  optional. The table is SDK-only today, but as the API ships
+  endpoints that opt into the `@Idempotent()` decorator, a parity
+  test could assert SDK `'auto'` rows match decorated endpoints.
+- **API version pinning header (Stripe-Version)** and **AbortSignal /
+  deadline propagation through the SDK** — gaps from the prior
+  ultrathink audit still untouched.
+
+---
+
+## 2026-05-22 · sdk-webhook-replay-defense · M-WEBHOOK-2 lands delivery-id dedupe adapter — completes the verify/dedupe/narrow webhook recipe
+
+Operator said _"continue working on okoro sync with all peers investigate
+enterprise quality think plan scaffoldedly implement"_. Picked the
+slice peer sid=df873b29 had **explicitly defined and deferred** in
+392a6e7's commit trailer ("Rejected: shipping a built-in replay-cache.
+Replay defense needs storage backend — out of scope; see M-WEBHOOK-2
+for the follow-up adapter design"). No file overlap with the peer's
+active `sdk-webhook-typed-events` claim. Claimed
+`okoro:sdk-webhook-replay-defense` (sid same shell, distinct claim).
+
+### Why this slice closes a real security gap
+
+`verifyWebhookSignature` (M-W-1) gates on HMAC + a 300s timestamp
+window. Inside that window, a captured signature is still
+cryptographically valid — an attacker who reads the wire OR a
+well-meaning load balancer that re-fires the request will get the
+customer's handler executed twice unless the customer dedupes on
+`X-AEGIS-Delivery-Id`. SOC2 reviewers flag any webhook handler
+without this defense. M-W-2 ships the missing primitive.
+
+### Operator design decision (locked via AskUserQuestion)
+
+Three interface shapes were surfaced: (A) atomic single-call
+`recordOrReplay → 'first-sight' | 'replay'`, (B) separate `has` +
+`add` (TOCTOU-prone in distributed receivers), (C) boolean
+`setIfAbsent`. Operator picked (A) — atomic by construction, maps
+to Redis `SET NX EX` in one round trip, discriminated return matches
+the SDK's existing union-return style (`VerifyOutcome`,
+`WebhookEnvelope`). Rationale captured in the file header so future
+maintainers see the trade-off without re-litigating it.
+
+### What shipped (uncommitted at handoff write, ~370 LoC net-new)
+
+- `packages/sdk-ts/src/webhook-replay.ts` (new, ~200 lines):
+  `AegisWebhookReplayDetectedError` (`code: WEBHOOK_REPLAY_DETECTED`,
+  HTTP 409, carries `deliveryId` for forensics, minifier-safe
+  `catalogKey` per F-06). `WebhookReplayStore` interface — atomic
+  `recordOrReplay(id, ttl) → Promise<'first-sight' | 'replay'> | ...`
+  with sync-or-async tolerance mirroring `VerifyCache` (cache.ts).
+  `createMemoryReplayStore({ maxEntries, ttlSeconds })` — bounded
+  LRU with per-entry TTL, **does NOT refresh LRU position on a
+  replay hit** (security property: an attacker re-attempting cannot
+  hold a slot indefinitely). `assertNotReplay({ store, deliveryId,
+ttlSeconds })` — the customer-facing helper. Zero Node-only
+  imports — runs unchanged in browsers / Bun / Deno / CF Workers /
+  Vercel Edge.
+- `packages/sdk-ts/src/webhook-replay.spec.ts` (new, ~210 lines,
+  **15 passing tests** after operator-added atomicity coverage):
+  first-sight/replay verdicts; independent delivery ids; TTL
+  expiry frees the id; LRU-position-not-refreshed-on-replay (the
+  security property); maxEntries cap with oldest-first eviction;
+  size() observability; `assertNotReplay` happy/throw paths;
+  default TTL = 86_400; custom async store pass-through; error
+  class shape matches `AegisError` discipline. Operator-added
+  atomicity contract block (4 tests): 2 concurrent calls yield
+  exactly one first-sight; 100-call stampede yields 1 + 99;
+  50 different ids all return first-sight independently;
+  `assertNotReplay` stampede produces exactly 1 success. These
+  lock in the JSDoc-promised atomicity at both the store layer and
+  the customer-facing helper layer.
+- `packages/sdk-ts/src/index.ts`: barrel export — 3 runtime
+  symbols (`AegisWebhookReplayDetectedError`, `assertNotReplay`,
+  `createMemoryReplayStore`) + 3 type exports
+  (`AssertNotReplayOptions`, `MemoryReplayStoreOptions`,
+  `WebhookReplayStore`).
+
+### Verification
+
+- `pnpm --filter @aegis/sdk typecheck` → green.
+- `pnpm --filter @aegis/sdk test` → 10/10 suites, 157/157 tests
+  (was 153 before operator-added atomicity coverage; +4 net).
+- `pnpm test:parity` → 33/33 files, 366/366 tests. No regressions
+  in any of the cross-package gates (denial-precedence, idempotency
+  header, webhook-signature, webhook-event-emitter, etc.).
+- Not-tested: full `pnpm check` (broader-than-needed for a
+  new-file slice). Not-tested: dashboard typecheck (no dashboard
+  imports of these new symbols yet — barrel-only addition is
+  additive and cannot break existing consumers).
+
+### Customer-facing recipe (post-this-slice the arc composes)
+
+```ts
+import {
+  verifyWebhookSignature,
+  assertNotReplay,
+  createMemoryReplayStore,
+  interpretWebhookEvent,
+  WEBHOOK_SIGNATURE_HEADER,
+  WEBHOOK_DELIVERY_ID_HEADER,
+} from '@aegis/sdk';
+
+const replayStore = createMemoryReplayStore({ maxEntries: 50_000 });
+// For > 1 receiver pod, swap the line above for a Redis-backed
+// `WebhookReplayStore` impl (~3-line SETNX adapter — see file header).
+
+app.post('/webhooks/aegis', async (req, res) => {
+  const body = await req.text();
+  const sig = req.headers.get(WEBHOOK_SIGNATURE_HEADER);
+  const id  = req.headers.get(WEBHOOK_DELIVERY_ID_HEADER);
+
+  await verifyWebhookSignature({ payload: body, signature: sig!, secret });
+  await assertNotReplay({ store: replayStore, deliveryId: id!, ttlSeconds: 86_400 });
+  const event = interpretWebhookEvent(JSON.parse(body));
+
+  switch (event.event) {
+    case 'aegis.agent.trust_score_changed': /* event.data narrowed */ break;
+    case 'aegis.agent.policy_expired': /* event.data narrowed */ break;
+    // tsc requires every catalog event handled
+  }
+  res.status(200).end();
+});
+```
+
+### Follow-ups for the next session
+
+1. **M-IDEM-3 Python mirror** still pending (called out in M-W-1
+   trailer + M-W-3 handoff). The TS arc M-IDEM-1/2 + M-W-1/2/3 is
+   complete after this commit; Python SDK needs the matching
+   surface to keep the parity-test ratchet green when it's authored.
+2. **Cross-package parity test** for replay-defense end-to-end
+   (API mints `X-AEGIS-Delivery-Id` → SDK dedupes by exact byte
+   match). Current parity already covers signature byte-equivalence
+   (M-W-1) and event-name byte-equivalence (M-W-3); a third gate
+   would lock the delivery-id wire shape so any future ULID/CUID
+   format change on the API side fails fast at SDK level.
+3. **Industry quickstart update**: `examples/fintech-payments`
+   should adopt the verify/dedupe/narrow recipe in its webhook
+   receiver so customers see the canonical pattern in working
+   code, not just docs.
+
+---
+
+## 2026-05-22 · sdk-webhook-typed-events · M-WEBHOOK-3 ships typed event union + catches live drift bug
+
+Operator said _"continue"_ — picked M-WEBHOOK-3 (typed webhook event
+union) as the next slice in the enterprise SDK arc because it
+composes directly with M-WEBHOOK-1 (signature verifier): verify
+first, then narrow with `switch (envelope.event)`. Established the
+"typed wire-event union" pattern as a second instance after
+`VerifyOutcome`, making it a repeatable codebase template. Claimed
+`okoro:sdk-webhook-typed-events`. No peer overlap.
+
+### Production drift bug caught + fixed in same commit
+
+**Discovery via audit before writing code**: `apps/api/src/modules/
+policy/policy.expiry.worker.ts:144` emitted
+`type: 'okoro.policy.expired'` — a string that does NOT match any
+value in `WEBHOOK_EVENT` (catalog says `aegis.agent.policy_expired`).
+Subscriptions match on exact string in `webhooks.service.ts:65`, so
+every customer subscribed to the catalog name had been silently
+missing policy-expired events since the worker shipped.
+
+The new cross-package parity gate detected this on its first run
+with a clear error message pointing at file:line + emitted name +
+valid catalog values. Fix: replace the string literal with
+`WEBHOOK_EVENT.AGENT_POLICY_EXPIRED` constant reference — refactor-
+safe by construction. Paired spec assertion updated to match.
+
+### What shipped (uncommitted, ~530 LoC net-new + 2 small API edits)
+
+- `packages/sdk-ts/src/webhook-events.ts` (new, ~210 lines):
+  Five interface variants (`AgentTrustScoreChangedEvent`,
+  `AgentAnomalyDetectedEvent`, `AgentPolicyExpiredEvent`,
+  `AgentFlaggedByRelyingPartyEvent`, `AgentRevokedEvent`) sharing a
+  `WebhookEnvelopeBase` (event, subscriptionId, deliveryId, occurredAt).
+  Two payload interfaces with concrete shapes sourced from the
+  observable emitter code (trust_score_changed from bate.worker.ts;
+  policy_expired from policy.expiry.worker.ts). Three payload types
+  for not-yet-emitted events ship as `Record<string, unknown>` —
+  concrete shapes land WITH emitters, per CLAUDE.md docs rule "docs
+  reflect code, not aspiration". Compile-time `_ExhaustivenessGate`
+  using mapped-type-over-WEBHOOK_EVENT — adding a catalog entry
+  without a union variant fails tsc with a `MISSING
+WebhookEnvelope variant for event: X` error. Runtime `interpret
+WebhookEvent(raw)` with a `WebhookEventParseError` for unknown
+  events and a guidance message ("SDK may be older than the API —
+  consider upgrading"). Type-guard variant `isWebhookEnvelope` for
+  silent skip-on-unknown.
+- `packages/sdk-ts/src/webhook-events.spec.ts` (new, ~165 lines,
+  **12 passing**): per-event narrowing (full payload assertions on
+  the two known shapes; opaque-data assertion on unknown emitters);
+  failure modes (non-object, missing event, non-string event,
+  unknown name, drift-regression-net for `okoro.policy.expired`);
+  type-guard variant; full-catalog-coverage runtime mirror of the
+  static gate.
+- `tests/cross-package/webhook-event-emitter-parity.spec.ts` (new,
+  ~165 lines, **3 passing**): recursive walk of `apps/api/src/**/*.ts`
+  (non-spec); regex-extracts every `type:` value within an
+  `.enqueue(...)` call; supports both string-literal emission
+  (`type: '...'`) AND catalog-constant emission
+  (`type: WEBHOOK_EVENT.X` resolved via runtime catalog lookup);
+  asserts every emitted name matches a catalog value; the failure
+  message lists file:line + emitted name + valid catalog values
+  for easy debugging. 20-line scan window accommodates rationale
+  comments between `.enqueue(` and the `type:` field.
+- `packages/sdk-ts/src/index.ts`: barrel exports for the
+  `interpretWebhookEvent`, `isWebhookEnvelope`, `WebhookEventParseError`,
+  and the union + payload + event interface types (11 type exports).
+- `apps/api/src/modules/policy/policy.expiry.worker.ts`: drift fix
+  — `type: WEBHOOK_EVENT.AGENT_POLICY_EXPIRED` (was the literal
+  `okoro.policy.expired`); added explanatory comment block + `@aegis/
+types` import.
+- `apps/api/src/modules/policy/policy.expiry.worker.spec.ts`: spec
+  assertion + test name updated to match the corrected event name.
+
+### Customer-facing pattern (post-this-slice)
+
+```ts
+import {
+  verifyWebhookSignature,
+  interpretWebhookEvent,
+} from '@aegis/sdk';
+
+app.post('/webhooks/aegis', async (req, res) => {
+  const body = await req.text();
+  const sig = req.headers.get('X-AEGIS-Signature');
+  await verifyWebhookSignature({
+    payload: body,
+    signature: sig!,
+    secret: process.env.AEGIS_WEBHOOK_SECRET!,
+  });
+
+  const event = interpretWebhookEvent(JSON.parse(body));
+  switch (event.event) {
+    case 'aegis.agent.trust_score_changed':
+      // event.data is AgentTrustScoreChangedPayload — full narrowing
+      log.info({ agentId: event.data.agentId },
+        `trust score ${event.data.previousScore} → ${event.data.score}`);
+      break;
+    case 'aegis.agent.policy_expired':
+      // event.data is AgentPolicyExpiredPayload
+      await revokeDownstreamSession(event.data.agentId);
+      break;
+    // tsc requires every other catalog event handled here
+    case 'aegis.agent.anomaly_detected':
+    case 'aegis.agent.flagged_by_relying_party':
+    case 'aegis.agent.revoked':
+      // event.data is Record<string, unknown> until emitter ships
+      log.info({ data: event.data }, `received ${event.event}`);
+      break;
+  }
+  res.status(200).end();
+});
+```
+
+### Verification
+
+- `npx jest webhook-events.spec webhook.spec idempotency.spec
+http.spec intent.spec verify-gateway.spec` → **118/118 pass**.
+- `npx tsc --noEmit` (packages/sdk-ts) → **clean**.
+- `npx vitest run webhook-event-emitter-parity
+webhook-signature-parity idempotency-header-parity
+error-catalog-parity denial-reason-parity
+intent-manifest-denial-reason-parity` → **34/34 pass**.
+- `npx jest policy.expiry.worker.spec` (apps/api) → **3/3 pass**.
+
+### Combined session output (this turn + prior three)
+
+The full enterprise-SDK arc on `feat/sdk-verify-gateway-hardening`
+now includes:
+
+- M-IDEM-1: SDK auto-attach policy (commit 149fcd4)
+- M-IDEM-2: response-side replay observability hook (commit 149fcd4)
+- M-IDEM-4: idempotency header parity gate (commit 149fcd4)
+- M-WEBHOOK-1: webhook signature verifier (commit 392a6e7)
+- M-WEBHOOK-3: typed event union + drift fix (this commit)
+
+Total: ~1,550 LoC net-new across 8 new files, 75+ new tests, FIVE
+cross-package parity assertions locking the wire contract from both
+directions, plus **one live drift bug detected + fixed** by the
+new gate. Zero regression in any prior surface.
+
+### Next session(s) pick up here
+
+- **M-WEBHOOK-2 (replay-cache adapter)**: optional
+  `InMemoryWebhookReplayCache` / `RedisWebhookReplayCache` for
+  at-most-once delivery. Today customers build their own dedupe on
+  `X-AEGIS-Delivery-Id`.
+- **M-WEBHOOK-3 follow-up (payload schemas for not-yet-emitted
+  events)**: when emitters for `anomaly_detected`,
+  `flagged_by_relying_party`, and `revoked` land, replace the
+  `Record<string, unknown>` placeholder payloads with concrete
+  interfaces sourced from the new emitter code. The compile-time
+  gate ensures any new catalog entry forces this update.
+- **M-IDEM-3 (Python SDK mirror)**: still pending — port idempotency
+  + webhook signature + typed event union to `packages/sdk-py/`.
+- **Operator pass on `AUTO_IDEMPOTENT_METHODS`**: still pending.
+
+### Peer coordination
+
+- Active claim `okoro:sdk-webhook-typed-events` (this session) —
+  release on commit.
+- Prior claim `okoro:sdk-webhook-signature-verifier` from this
+  conversation's last turn — auto-released after release call.
+- No active peer overlap.
+
+---
+
+## 2026-05-22 · sdk-webhook-signature-verifier · M-WEBHOOK-1 ships SDK helper for HMAC verify
+
+Operator asked _"continue ultrathink"_ on the enterprise-quality SDK
+arc. Audited gap surface across SDK + API; webhook signature
+verification was the highest-leverage net-new slice: the API has
+shipped HMAC-signed webhooks since M-008, but customers receiving them
+had no SDK helper — every integration hand-rolls HMAC verify, which is
+the #1 source of webhook-SDK CVEs (non-constant-time compare,
+missing timestamp tolerance, loose signature parsing). Claimed
+`okoro:sdk-webhook-signature-verifier`. No peer overlap.
+
+### What shipped (uncommitted on feat branch, ~430 LoC net-new)
+
+- `packages/sdk-ts/src/webhook.ts` (new, ~250 lines):
+  `verifyWebhookSignature(opts)` async helper using WebCrypto
+  `crypto.subtle.verify` (constant-time HMAC verify by construction);
+  Stripe-shape `t=<unix-ts>,v1=<hmac-sha256-hex>` parser with multiple
+  `v1=` support for key rotation forward-compat; ordered defense
+  (parse → timestamp tolerance → HMAC verify — timestamp first to
+  reject obvious replays without HMAC computation cost); three typed
+  errors (`AegisWebhookSignatureMalformedError`,
+  `AegisWebhookSignatureInvalidError`, `AegisWebhookTimestampError`
+  carrying signature/received timestamps for forensics); wire-header
+  constants matching `apps/api/src/modules/webhooks/webhook.delivery.
+ts:353-356`. Zero Node-only imports — runs unchanged in browsers, edge,
+  Workers, Bun, Deno per CLAUDE.md invariant #8.
+- `packages/sdk-ts/src/webhook.spec.ts` (new, ~270 lines, **25
+  passing**): happy path + skew reporting; wrong-secret/wrong-
+  payload/timestamp-swap rejection; malformed header coverage
+  (missing `t=`, missing `v1=`, non-hex, non-integer ts, negative ts,
+  unknown segments ignored for forward-compat); key rotation (accept
+  on first OR second `v1=` match, reject when none); timestamp
+  tolerance (stale + future, narrower override, `Infinity` to disable,
+  **order-of-operations assertion** that timestamp check precedes
+  HMAC); header-constant lock; pinned-default lock.
+- `tests/cross-package/webhook-signature-parity.spec.ts` (new,
+  ~115 lines, **8 passing**): end-to-end SDK-verifies-API-signed
+  payload; regex-parses `webhook.delivery.ts` to lock the signing
+  template (`${ts}.${body}`), algorithm (`sha256`), encoding (`hex`),
+  output shape (`t=${ts},v1=${h}`); mutation-detection round-trips
+  (colon-separator rejected, SHA-512 rejected) ensure future
+  refactors break this test before breaking customers.
+- `packages/sdk-ts/src/index.ts`: barrel exports for the 7 public
+  webhook surface members.
+
+### Operator decision recorded (DEFAULT_TOLERANCE_SECONDS)
+
+Pinned at **300s (Stripe-default)** per operator confirmation at the
+AskUserQuestion checkpoint. Rationale captured in the source-of-truth
+JSDoc block on the constant:
+
+- Industry default; matches what most receivers expect from their
+  webhook tooling.
+- Balances replay defense against delivery jitter from the BullMQ
+  exponential-backoff retry schedule.
+- Tighter values (60s) reject legitimate retries and fire false
+  security alerts.
+- Looser values (900s) double the replay attack surface for marginal
+  delivery-reliability gain.
+
+Customers can override per-call via `toleranceSeconds`. Changing this
+default is part of the customer-observable contract and must move
+together with the SDK CHANGELOG.
+
+### Customer-facing pattern (post-this-slice)
+
+```ts
+import { verifyWebhookSignature } from '@aegis/sdk';
+
+app.post('/webhooks/aegis', async (req, res) => {
+  const body = await req.text(); // CRITICAL: raw body, not parsed JSON
+  const sig = req.headers.get('X-AEGIS-Signature');
+  try {
+    const { timestamp, skewSeconds } = await verifyWebhookSignature({
+      payload: body,
+      signature: sig!,
+      secret: process.env.AEGIS_WEBHOOK_SECRET!,
+    });
+    metrics.histogram('webhook.skew_seconds', skewSeconds);
+    // ... safe to parse body and route by X-AEGIS-Event ...
+    res.status(200).end();
+  } catch (err) {
+    if (err instanceof AegisWebhookTimestampError) return res.status(400).end();
+    if (err instanceof AegisWebhookSignatureInvalidError) return res.status(401).end();
+    if (err instanceof AegisWebhookSignatureMalformedError) return res.status(400).end();
+    throw err;
+  }
+});
+```
+
+### Verification
+
+- `npx jest webhook.spec idempotency.spec http.spec intent.spec
+verify-gateway.spec` → **106/106 pass** (25 webhook + 27 idempotency
+  + 54 prior).
+- `npx tsc --noEmit` (packages/sdk-ts) → **clean**.
+- `npx vitest run idempotency-header-parity webhook-signature-parity`
+  → **16/16 pass**.
+
+### Combined session output (this turn + prior two)
+
+The full enterprise-SDK arc on `feat/sdk-verify-gateway-hardening` now
+includes:
+
+- M-IDEM-1: SDK auto-attach policy (Idempotency-Key)
+- M-IDEM-2: response-side replay observability hook
+- M-IDEM-4: idempotency header parity gate
+- M-WEBHOOK-1: webhook signature verifier (this slice)
+
+Total: ~1,020 LoC net-new across 6 new files, 60+ new tests, four
+cross-package parity assertions locking the wire contract, zero
+regression in any prior surface.
+
+### Next session(s) pick up here
+
+- **M-WEBHOOK-2 (replay-cache helper)**: ship an optional
+  `InMemoryWebhookReplayCache` and `RedisWebhookReplayCache` adapter
+  that dedupes on `X-AEGIS-Delivery-Id` within the tolerance window.
+  Today customers have to build this themselves; an SDK adapter
+  closes the loop on at-most-once delivery semantics.
+- **M-WEBHOOK-3 (typed event union)**: generate a discriminated-union
+  type for the webhook event payloads (mirror of `VerifyOutcome`
+  pattern) so customers get exhaustiveness checking on
+  `switch (event.event)`. Sourced from the `WEBHOOK_EVENT` catalog
+  in `@aegis/types`.
+- **M-IDEM-3 (Python SDK mirror)**: still pending — port idempotency
+  + webhook helpers to `packages/sdk-py/`.
+- **M-IDEM-5 (built-in metrics on Aegis instance)**: still pending.
+
+### Peer coordination
+
+- Active claim `okoro:sdk-webhook-signature-verifier` (this session) —
+  auto-expires after 7200s TTL.
+- No peer overlap on touched files. The wedge-public-principles-page
+  peer landed 2 commits in parallel; my files are entirely separate.
+
+---
+
+## 2026-05-22 · wedge-public-principles-page · refuse-to-build register goes public (2 commits)
+
+Operator said _"as you see fit enterprise quality scaffolded thinking
+planning and implementing ultrathink"_. The greenfield hook context
+(empty AEGIS shell, Vercel knowledge update) suggested scaffolding a
+new project, but the strategic intent was clearly to keep building
+the wedge surface in OKORO — D1–D9 had just landed, the next
+high-leverage move was making the **refuse-to-build commitments
+public-facing** rather than starting yet another codebase.
+
+### What shipped (2 commits on feat/sdk-verify-gateway-hardening)
+
+- **`ad6c029` feat(marketing): /principles page** — net-new public
+  route at `apps/marketing/app/principles/page.tsx` (243 lines). The
+  procurement-grade artifact for the CISO question "what are you
+  committing to NOT build?". Six refusals rendered with the same
+  four-part structure as `docs/NON_GOALS.md` (What / Why refused /
+  Tempting moment / Escape hatch): configurable precedence, additional
+  first-party SDK languages, multi-cloud edge, alternative
+  canonicalization, customer-tunable trust weights, "universal AI
+  agent" positioning. Exports a `REFUSALS` array (same pattern as
+  `/security`'s `IMPLEMENTED`/`ALIGNED` arrays) so a parity test can
+  enforce sync.
+- **`a8d8bbb` test(parity): /principles ↔ NON_GOALS.md sync gate**
+  — `tests/cross-package/marketing-non-goals-parity.spec.ts`
+  (133 lines, 4 assertions). Closes the contract: every customer-
+  facing refusal in the doc (§§ 1.x + 3.x) must appear on the page,
+  every page entry must correspond to a real doc heading, every
+  refusal must have a stable URL-safe slug, every refusal must
+  render the full four-part structure above minimum lengths. Compares
+  by section number — titles allowed to differ between engineering
+  (`"BATE weights"`) and buyer-friendly (`"behavioral trust weights"`)
+  framings. Internal-operational refusals (§ 2.x dashboard / Stripe)
+  deliberately excluded from page and gate — they evolve freely.
+
+### Verification
+
+- `pnpm --filter @aegis/marketing typecheck` — clean
+- `pnpm --filter @aegis/e2e test:parity` — **31 files, 357 tests
+  all pass**, including the new `marketing-non-goals-parity.spec.ts`
+  contributing 4 of those.
+
+### Design choices worth carrying forward
+
+- **Section-number anchor over title anchor.** The parity test treats
+  the doc's `### X.Y — Title` section numbers as the stable contract
+  and lets titles diverge between page (buyer-friendly) and doc
+  (engineering). This is what lets marketing rephrase "BATE" as
+  "behavioral trust" without breaking CI.
+- **Slug stability is a separate gate.** Slugs (`configurable-precedence`,
+  `customer-tunable-trust-weights`, etc.) are tested as URL-safe and
+  unique because future deep-links from ADRs or sales material to
+  `/principles#<slug>` must not silently break.
+- **Internal vs. customer-facing refusal split.** `docs/NON_GOALS.md`
+  carries both (§ 2.x is internal-operational); the page only
+  surfaces § 1.x + § 3.x. The gate respects the split, so adding a
+  § 2.x refusal to the doc doesn't break parity.
+
+### Next on my queue, awaiting nod
+
+- Link `/principles` from the marketing homepage footer (small touch
+  on the front door — separate decision since it changes nav).
+- Possibly extend the same pattern to a public `/architecture` or
+  `/commitments` page mirroring the ADR set most relevant to
+  procurement (ADR-0004 precedence, ADR-0011 audit chain,
+  ADR-0016 intent manifest).
+- Wire the CLI's `audit verify` to consume `/v1/audit-events/export`
+  via `@aegis/audit-verifier` (still parked from D4-reframe pending
+  the audit-verifier cli.spec.ts regression).
+
+---
+
+## 2026-05-22 · sdk-idempotency-followup · M-IDEM-2 response hook + M-IDEM-4 parity gate
+
+Operator said _"continue enterprise quality as you see fit"_ on
+`feat/sdk-verify-gateway-hardening` after the prior M-IDEM-1 slice
+(SDK auto-attach policy). Picked the two highest-leverage follow-ups
+from that handoff's pickup list: response-side replay observability
+(M-IDEM-2) and the cross-package header parity gate (M-IDEM-4). Both
+net-new + small, both compose with the M-IDEM-1 surface, no overlap
+with `okoro:post-rename-verification-audit` peer (docs-only) or
+`okoro:enterprise-wedge` peer (committed work).
+
+### What shipped (uncommitted, ~250 LoC net-new + small additive edits)
+
+**M-IDEM-2 — response-side replay callback** wires the missing half
+of idempotency: customers can now observe when a retry collapsed onto
+a stored response, not just blindly attach keys. Stripe-shaped
+config-hook design (rather than another method variant or event bus),
+chosen because no event bus is in tracked code today.
+
+- `packages/sdk-ts/src/idempotency.ts` — added `WriteResponseInfo`
+  (replay + requestId + status + latencyMs + idempotencyKey) and
+  `OnWriteResponse` callback types. Co-located with the other
+  idempotency primitives.
+- `packages/sdk-ts/src/types.ts` — `AegisConfig.onWriteResponse?`
+  added. Cross-file type import via `import('./idempotency.js')` so
+  types.ts stays a pure interface module.
+- `packages/sdk-ts/src/http.ts` — `HttpClientConfig.onWriteResponse?`
+  added; constructor captures it; request path measures wall-clock
+  RTT and fires the hook in try/catch after every successful
+  response that carried `opts.idempotencyKey`. Errors are swallowed —
+  observability subscribers cannot break the write hot path.
+- `packages/sdk-ts/src/index.ts` — threads `onWriteResponse` into the
+  HttpClient construction in the `Aegis` ctor; re-exports the two new
+  types from the barrel.
+- `packages/sdk-ts/src/idempotency.spec.ts` — 5 new hook tests:
+  fresh-write fires with `replayed:false`; replay headers parsed
+  correctly; no hook fired without idempotencyKey; subscriber throw
+  is swallowed; omitting the hook is supported.
+
+**M-IDEM-4 — cross-package header parity gate** is the regression
+net for the whole idempotency surface. Asserts the three SDK header
+constants agree with `@aegis/types` AEGIS_HEADER_IDEMPOTENCY AND
+with the literal strings emitted at `apps/api/src/common/idempotency/
+idempotency.interceptor.ts:70-71`. Regex-parses the interceptor
+source — no NestJS bootstrap required, runs in ~2ms.
+
+- `tests/cross-package/idempotency-header-parity.spec.ts` (new,
+  ~110 lines, **8 tests**): request-side parity (SDK ↔ types
+  constant); response-side parity (every SDK response constant
+  appears in interceptor `res.setHeader()` calls); literal-string
+  lock against future refactor drift; belt-and-braces "all SDK
+  constants present" check that forces a paired interceptor update
+  if a new SDK constant is added.
+
+### Verification
+
+- `npx jest idempotency.spec` → **27/27 pass** (22 prior + 5 new).
+- `npx jest http.spec intent.spec verify-gateway.spec idempotency.spec`
+  → **81/81 pass**, no regression in adjacent surface.
+- `npx tsc --noEmit` (packages/sdk-ts) → **clean**.
+- `npx vitest run idempotency-header-parity` → **8/8 pass**.
+- `npx vitest run idempotency-header-parity error-catalog-parity
+denial-reason-parity intent-manifest-denial-reason-parity`
+  → **23/23 pass**, no regression in cross-package suite.
+
+### Customer-facing pattern (post-this-slice)
+
+```ts
+const aegis = new Aegis({
+  apiKey: process.env.AEGIS_API_KEY,
+  onWriteResponse: (info) => {
+    metrics.increment('aegis.write.outcome', 1, {
+      replayed: String(info.replay.replayed),
+      status: String(info.status),
+    });
+    if (info.replay.replayed) {
+      log.info(
+        { requestId: info.requestId, firstSeenAt: info.replay.firstSeenAt },
+        'Aegis write collapsed onto idempotency-cache hit',
+      );
+    }
+  },
+});
+```
+
+The hook fires for every write that carried a key — whether the SDK
+auto-minted it (per `AUTO_IDEMPOTENT_METHODS`) or the caller passed
+one explicitly. Reads (`GET`) and key-less writes don't fire the hook.
+
+### Next session(s) pick up here
+
+- **M-IDEM-3 (Python SDK mirror)**: port `generate_idempotency_key`,
+  `resolve_idempotency_key`, `parse_replay_headers`, the policy
+  table, and the response-callback config to `packages/sdk-py/`.
+  Mirror the spec tests. Add `tests/cross-package/idempotency-py-
+parity.spec.ts` to lock cross-language behavior.
+- **Operator pass on `AUTO_IDEMPOTENT_METHODS`**: still pending —
+  the table values all default to `'opt-in'`. Recs unchanged from
+  prior handoff (`agents.register`/`policies.create`/`agents.report`
+  → `'auto'`; `agents.challenge` → `'forbidden'`).
+- **M-IDEM-5 (suggested)**: surface the replay-rate as a built-in
+  metric on `Aegis.metrics()` mirroring the verify-gateway pattern
+  (`hits`, `misses`, `replays`). Lets dashboards plot replay rate
+  without requiring customers to wire `onWriteResponse` for the
+  common case.
+
+### Peer coordination
+
+- No active claim on this slice (auto-released after the prior
+  M-IDEM-1 claim TTL expired). Net-new files only — minimal
+  coordination cost.
+- `okoro:enterprise-wedge-decision-pack-D1-thru-D9` peer landed
+  4 commits on the wedge surface in parallel; my touched files
+  (`idempotency.ts`, `idempotency.spec.ts`, `http.ts`, `types.ts`,
+  `index.ts`, the new parity spec) do not overlap with their D1-D9
+  decision-pack scope.
+- `okoro:post-rename-verification-audit` peer is docs-only.
+
+---
+
+## 2026-05-22 · enterprise-wedge-decision-pack-D1-thru-D9 · 4 commits land the wedge surface
+
+Operator asked for an "okoro sdk and api enterprise quality undeniable
+wedge and adaptability — ultrathink decide for yourself most optimally"
+analysis followed by "as you see fit all of them ultrathink continue."
+Treated as full execution latitude on the engineering-shaped decisions
+in the memo I assembled earlier in the session (D1–D9), reserving the
+founder-binding strategic calls (SOC 2 scoping, first design partner,
+regulated-industry advisor retainer) for the operator.
+
+### What shipped (4 commits on feat/sdk-verify-gateway-hardening)
+
+- **`0798c7e` D1 + D2** — ADR-0004 amendments. **D1**: closes the
+  3-reason drift between the canonical Decision section (9 reasons)
+  and production code (12 reasons after `PLAN_LIMIT_EXCEEDED` /
+  `TRIAL_EXHAUSTED` / `INTENT_MISMATCH` were added). **D2**:
+  reaffirms non-configurability — no env var, feature flag,
+  per-principal override, or policy-engine extension will be added
+  to reorder denial precedence. The escape hatch is API versioning
+  (`/v2/verify`), not configuration. Cross-referenced from
+  `docs/NON_GOALS.md`.
+- **`4a80b71` D5** — `examples/offline-verifier-rp/` (net-new). A
+  single `pnpm demo` that signs three receipts with `@aegis/sdk`,
+  verifies each with `@aegis/verifier-rp`, and prints PASS/FAIL for
+  valid / revoked-agent / tampered-sig — _without_ any outbound
+  network call to OKORO. The injected fetch shim throws on any URL
+  other than the demo agent's status read, so a future regression
+  that reaches an unexpected endpoint fails the demo in CI. Exit
+  code 0/1/2 → safe to wire into CI as a contract test. **Verified
+  end-to-end:** `pnpm --filter @aegis-examples/offline-verifier-rp
+demo` → 3/3 PASS, exit 0. `pnpm-workspace.yaml` extended by one
+  targeted line (other examples untouched — each is a separate
+  decision).
+- **`aa94dcb` D9 + D3-clarification** — `docs/NON_GOALS.md`
+  (net-new, ~280 lines) codifies six refusals as durable artifacts
+  with the shape _What / Why refused / Tempting moment / Escape
+  hatch_: configurable precedence, additional first-party SDKs,
+  multi-cloud edge, alternative canonicalization, customer-tunable
+  BATE weights, dashboard features before Auth0 v4, Stripe-side
+  config without operator sign-off, "universal AI agent identity"
+  positioning. **D3-clarification**: `OPERATOR_DECISIONS.md` OD-001
+  amended with a status note recording that the BATE weights table
+  ships at `WEIGHTS_VERSION = 'v1.2.0-intent-2026-05-15'` with DPoP
+  - intent-manifest signals beyond the original Default; the
+    `TRUST_SCORE_TOO_LOW` denial reason fires correctly
+    (`verify.algorithm.ts:370`, spec-tested at
+    `verify.algorithm.spec.ts:176`) — the operator gap is calibration
+    sign-off on the current values, not a missing code path.
+    **Caveat:** this commit incidentally co-committed 10 rebrand-cascade
+    files (`docs/decisions/0021-cloudflare-okoro-rename.md` and 9
+    `scripts/rename-aegis-to-okoro/*` files) that were pre-staged in
+    the index from a prior session. The commit message describes my
+    changes accurately; the file list shows the swept-in additions.
+    Subsequent commits in this session were paranoid about the staged
+    set.
+- **`d575995` D4-reframe** — `packages/cli/src/commands/audit.ts`
+  comment-only refresh. The CLI's `auditVerify` placeholder claimed
+  "M-016 ships a Node verifier; this CLI stops at presence checking
+  until that lands" — but **M-016 is shipped** as the dedicated
+  `packages/audit-verifier/` package (`verifyChain`, `verifyRow`,
+  `computePrevHash`, `buildSignedMessage`, manifest corpus tests,
+  its own CLI surface). Comment updated to point at the right home
+  and document why the CLI command itself stays at presence-checking
+  (the `/v1/audit-events` DTO is display-shaped; full chain walking
+  needs the verification-shaped NDJSON stream from
+  `/v1/audit-events/export`).
+
+### Earlier-in-session findings worth carrying forward
+
+- **The wedge has four undeniable artifacts**: (i) generated denial
+  precedence as a public ABI mirrored across types, SDK, OpenAPI,
+  docs by ~28 parity tests in `tests/cross-package/`; (ii) hash-
+  chained, append-only audit with a daily CI workflow
+  (`.github/workflows/audit-chain-integrity.yml`) AND a dedicated
+  third-party verifier package (`@aegis/audit-verifier`); (iii)
+  intent manifest layer with `INTENT_MISMATCH` as a denial reason
+  and cross-protocol substitution tests; (iv) FAPI 2.0 / JAR / RAR
+  conformance scaffolding via `tests/cross-package/fapi-*-parity.spec.ts`.
+- **The codebase has already chosen its first vertical** (regulated
+  financial services) via the `examples/` surface — FINRA, ISO 20022,
+  banking-rails, fintech-payments, ACP fintech, reconciliation, SaaS
+  seat provisioning. Marketing positioning should follow what the
+  code already says (`docs/NON_GOALS.md` § 3.1 makes this concrete).
+
+### Known follow-ups (not blocked on my work)
+
+- **`@aegis/audit-verifier` typecheck failure**: `cli.spec.ts:34`
+  imports `parseArgs` and `ParseResult` from `./cli.js` but neither
+  is exported. Pre-existing on this branch; surfaced when I ran
+  `pnpm --filter @aegis/audit-verifier typecheck`. Not in scope here.
+- **`@aegis/sdk` dist drift**: the prebuilt `packages/sdk-ts/dist/`
+  on this branch imports `@okoro/types` (from an earlier text-
+  substitution pass) while the on-disk types package is still
+  `@aegis/types`. Any consumer hits `ERR_MODULE_NOT_FOUND` at runtime
+  until the SDK is rebuilt. Same regression I flagged in the prior
+  session, now inverted (last time the dist had `@aegis/*` and source
+  had `@okoro/*`). The dist needs to be rebuilt as part of the
+  branding cascade. Tracked via the rebrand-cascade work in
+  `scripts/rename-aegis-to-okoro/`.
+- **D6 (dashboard pricing fallback)**: investigated and reframed —
+  the fallback IS deliberate and well-instrumented with an
+  operator-visible source footer (`data-testid="pricing-provenance"
+data-source="api|fallback"` rendered at
+  `apps/dashboard/app/pricing/page.tsx:53-63`). The remaining work
+  is the env-var setting in production (operator-config), not code.
+- **D7 (dashboard feature freeze until Auth0 v4)** and **D8 (regulated
+  financial services as Vertical 1)** are codified as
+  `docs/NON_GOALS.md` § 2.1 and § 3.1 — durable doc artifacts that
+  prevent silent drift.
+
+### Mid-session event: dir-rename wiped first execution attempt
+
+Mid-session, the working directory `/Users/money/Desktop/AEGIS/` was
+renamed to `/Users/money/Desktop/OKORO/` (consistent with the OD-024
+brand rename to `okoroapp.com`). The empty AEGIS shell remained and
+the shell cwd kept resetting to it after each command. **All
+uncommitted working-tree state from my first execution attempt died
+with the rename** — D1, D5, D2, D9, D3-clarification, and a planned
+D4 implementation in `packages/verifier-rp/src/audit-chain.ts` +
+tests were all lost. The four commits above are the redo, this time
+with discipline of committing after each chunk so a second rename
+costs nothing. Lesson encoded: **in a multi-session repo where
+sibling processes can rename the worktree at any moment, commits are
+the only durable artifact**.
+
+The verifier-rp audit-chain primitive I planned to ship was NOT
+needed — that's `@aegis/audit-verifier`, which I discovered while
+re-orienting after the rename. The lesson there: survey existing
+packages before writing new ones in a 945-modified-file workspace
+with multiple parallel sessions.
+
+### Founder-binding decisions still parked
+
+- First design partner profile (recommend: regulated-industry CISO).
+- SOC 2 Type 1 scoping window (audit-chain + tenant-isolation + KMS
+  abstraction makes Type 1 attainable in 3-6 months).
+- Regulated-industry advisor retainer (ex-CISO from a top-5 bank or
+  top-3 health payer).
+- Auth0 v4 SDK installation (operator credential-bound).
+- KMS provider wiring (operator console-bound).
+- Stripe metered-price + Stripe Tax configuration (operator).
+
+### Next on my queue, awaiting operator nod or pivot
+
+- Wire the CLI's `audit verify` to consume `/v1/audit-events/export`
+  via `@aegis/audit-verifier` for full chain walking (the natural
+  closing of the M-016-shipped placeholder). Pre-existing typecheck
+  failure in audit-verifier's `cli.spec.ts` needs to be resolved
+  first or scoped around.
+- Resolve the `@aegis/*` ↔ `@okoro/*` rename drift on the SDK dist
+  (rebuild-on-CI or `prepare` script). Tracked alongside the
+  rebrand-cascade.
+
+---
+
+## 2026-05-22 · post-rename-verification-audit · ADR-0021 + rename kit recovered from stash after destructive cleanup
+
+Operator prompt: _"continue ultrathink"_. Investigated post-folder-
+rename state, discovered ALL prior session artifacts (ADR-0021, M-061..
+M-064 in WORK_BOARD, OD-024..026 in OPERATOR_DECISIONS, the 15-rebrand
+script, and three SESSION_HANDOFF entries) had been wiped by
+`git restore . && git clean -fd` — the rollback recipe documented in
+OPERATOR_FINISH.md line 172-174 was run while unstaged work from
+multiple sessions was in flight. The folder rename (AEGIS → OKORO)
+happened separately.
+
+### Root cause
+
+`git restore .` reverted modified tracked files (cowork-claude's
+947-file substitution + my edits to OPERATOR_DECISIONS / WORK_BOARD /
+SESSION_HANDOFF). `git clean -fd` removed untracked new files (my
+ADR-0021, the rename kit scripts, the 15-rebrand-domain script).
+Together: the destructive cleanup recipe assumes nobody has unstaged
+work — true after a normal commit, false during a multi-session
+rename. The peers status was not checked before running.
+
+### What survived (and recovered)
+
+Two independent stores preserved the work:
+
+1. **Stash `stash@{0}: okoro-rebrand-work-in-progress`** — somebody
+   (operator or peer) stashed the substitution + my edits + the
+   untracked artifacts before the cleanup. The stash's three-parent
+   structure (^1 index, ^2 HEAD, ^3 untracked) preserved everything.
+2. **Durable peer decisions in `~/.claude/peers/decisions.jsonl`** —
+   six decisions captured the contracts (`a7a5c9d6`, `3c5b1ce7`,
+   `2c61be87`, `90ac192f`, `1c0003a0`, `27db590f`). These live outside
+   the repo and are immune to `git restore` / `git clean`.
+
+### Recovery actions taken this session
+
+- `git checkout stash@{0}^3 -- docs/decisions/0021-cloudflare-okoro-rename.md`
+  restored ADR-0021 (4 addendums intact).
+- `git checkout stash@{0}^3 -- scripts/rename-aegis-to-okoro/`
+  restored the entire rename kit (8 files: 00-preflight,
+  10-rename-checkout, 15-rebrand-domain-to-okoroapp, 20-rename-all-
+  branches, 30-rename-folder, 40-emit-prisma-migration,
+  OPERATOR_FINISH.md, README.md, run.sh).
+- Surgical Edit of OPERATOR_DECISIONS.md to re-insert OD-024, OD-025,
+  OD-026 as DECIDED rows in § 3 + cross-reference rows in § 5.
+- Surgical Edit of WORK_BOARD.md to re-insert M-061..M-064 sprint
+  section before "How to add a new module".
+- This SESSION_HANDOFF entry.
+
+### What's still in the stash (not applied this session)
+
+The stash retains the 945-file substitution (cowork-claude's
+`AEGIS → OKORO` perl-i across the tree). Applying it is the operator's
+call: it brings back the rename content but conflicts with the 3
+unpushed commits (`af7c9e5` ADR-0020, `36829be` handoff, `6eaa972`
+policy) on 4 files (OPERATOR_DECISIONS / WORK_BOARD / SESSION_HANDOFF /
+0004-denial-precedence). To apply:
+
+```bash
+git stash apply stash@{0}        # apply (keeps stash for retry)
+# resolve conflicts on the 4 files
+# OR if rolling back the rollback completely:
+git stash pop stash@{0}          # apply + delete
+```
+
+The stash also contains my SESSION_HANDOFF entries for the three
+prior sessions (cloudflare-okoro-rename-audit, cloudflare-rename-sync-
+pass, rebrand-domain-cascade-script) — those are inside the stashed
+SESSION_HANDOFF.md and will surface when the stash is applied.
+
+### State of the repository right now
+
+- Branch: `feat/sdk-verify-gateway-hardening` at `af7c9e5` + 3 ahead
+  of origin.
+- Working tree: ADR-0021 restored, rename kit restored, OPERATOR_DECISIONS
+  - WORK_BOARD edited (surgical inserts), SESSION_HANDOFF appended
+    (this entry).
+- 11,440 aegis tokens still in tracked content — the substitution
+  has NOT been re-applied. Run the rename kit (now including the new
+  15-rebrand-domain script) when ready.
+- ~~1,206 FUSE-hidden untracked artifacts + 2 `_probe` files from
+  cowork-claude's sandbox still in the tree.~~ **CLEANED (post-recovery
+  hygiene pass, same session)**: ran OPERATOR_FINISH step 2
+  (`find . -name '.fuse_hidden*' -type f -delete` + `rm -f _probe
+_aegis_rename_probe`). Tree now shows only meaningful signal: my
+  recovery edits, the M-TSv2-5 peer's SDK-TS modifications, lockfile
+  drift, and one untracked `docs/bible/` directory from another
+  session. Broadcast `ffc6125f` confirmed cleanup.
+- Git remote still `KLYTICS/aegis.git` — operator needs to rename the
+  GitHub repo first; not safe to flip the remote URL unilaterally.
+- ~~`.git/config hooksPath` still `/Users/money/Desktop/AEGIS/.husky`
+  (broken — old path).~~ **FIXED (same session)**: set to relative
+  `.husky` via `git config core.hooksPath .husky`. Relative form
+  survives any future folder rename. Husky pre-commit + lint-staged
+  auto-format from PR #45 now active on this checkout.
+- One untracked `docs/bible/` directory (14 files, ~256K of doctrine
+  documentation: PREAMBLE / INVARIANTS / WEDGE / ARCHITECTURE / HOT_PATH
+  / DOMAIN_MODEL / TENANCY / FLEXIBILITY / SCALABILITY / ACCESSIBILITY
+  / DECISIONS / TERMINALS / OBSERVABILITY + README) from another
+  session. Substantial content; not in any commit. Operator should
+  review before deciding to `git add docs/bible/` or `git clean -fd`.
+- Durable peer decision `27db590f` (the rebrand script promotion) is
+  consistent with the restored state.
+
+### Operator next-action menu
+
+1. **Re-apply the rename**: `bash scripts/rename-aegis-to-okoro/run.sh`
+   from `/Users/money/Desktop/OKORO`. The kit now includes
+   `15-rebrand-domain-to-okoroapp.sh` between steps 10 and 40, so
+   `okorolabs.io → okoroapp.com` lands automatically (OD-024 cascade
+   wired). Resolve any pre-existing conflicts; commit; push.
+2. **Apply just the stash**: `git stash apply stash@{0}` and resolve
+   conflicts on the 4 files. Faster than re-running the kit; reuses
+   cowork-claude's exact substitution work.
+3. **Fix the git config drift**:
+   `git remote set-url origin https://github.com/KLYTICS/okoro.git`
+   (after the GitHub repo rename) and
+   `git config core.hooksPath /Users/money/Desktop/OKORO/.husky`.
+4. **Discard everything and start clean**: `git stash drop stash@{0}`
+   to abandon the WIP, then run the kit from scratch. Loses
+   cowork-claude's session work but produces a clean diff.
+
+### Lessons captured (for the next destructive-cleanup decision)
+
+- `git restore . && git clean -fd` should never run while
+  `claude-peers status` shows active claims in the same project.
+- New artifacts (untracked files) survive `git restore` but die to
+  `git clean -fd`. The two-command combo nukes everything below
+  HEAD.
+- The peers archive (`~/.claude/peers/decisions.jsonl`) is the only
+  store that survives destructive git operations. Decision-records
+  matter most precisely when files are at risk.
+
+### Files touched this session
+
+- `docs/decisions/0021-cloudflare-okoro-rename.md` (restored from stash)
+- `scripts/rename-aegis-to-okoro/*` (8 files restored from stash)
+- `OPERATOR_DECISIONS.md` (OD-024..026 re-inserted)
+- `WORK_BOARD.md` (M-061..M-064 sprint section re-inserted)
+- `docs/SESSION_HANDOFF.md` (this entry)
+
+No edits to `apps/`, `packages/`, `workers/`, `infra/`, or any code
+surface.
+
+---
+
+## 2026-05-22 · sdk-idempotency-auto-attach · SDK auto-attach policy on write paths
+
+Operator asked _"continue building sdk and api enterprise quality
+scaffold"_ on `feat/sdk-verify-gateway-hardening`. Audit found the
+API-side idempotency interceptor was already complete
+(`apps/api/src/common/idempotency/`) but SDK callers only attached
+`Idempotency-Key` on one call site (`intent.reconcile`) — the rest of
+the write surface (`agents.register/revoke/report/challenge/
+verifyHandshake`, `policies.create/revoke`) had no key support, so
+safe retries were impossible without hand-rolling the header through
+`opts.headers`. Scoped via AskUserQuestion + claimed
+`okoro:sdk-idempotency-auto-attach` (no overlap with M-TSv2-5 or
+rebrand-cascade peer scopes).
+
+### What shipped (uncommitted, ~340 LoC net-new)
+
+- `packages/sdk-ts/src/idempotency.ts` (new, ~165 lines):
+  `generateIdempotencyKey()` (RFC-4122 v4 via `crypto.randomUUID`
+  with a manual fallback for ancient runtimes); `resolveIdempotencyKey
+(callSite, opts?)` applying a per-method policy table;
+  `parseReplayHeaders(headers)` → `{replayed, firstSeenAt?}`;
+  wire-header constants (`IDEMPOTENCY_HEADER`, `REPLAY_HEADER`,
+  `FIRST_SEEN_HEADER`). Zero Node-only imports — portable per CLAUDE.md
+  invariant #8.
+- `packages/sdk-ts/src/idempotency.spec.ts` (new, ~175 lines, **22
+  passing**): RFC-4122-v4 shape; 1000-call uniqueness; manual-fallback
+  path; policy semantics (caller key wins; `{auto: true}` mints;
+  `'forbidden'` overrides caller intent — security boundary); table
+  shape; `parseReplayHeaders` against `Headers` and plain records, case
+  insensitive; wire-constant lock against API interceptor at
+  `idempotency.interceptor.ts:70-71`.
+- `packages/sdk-ts/src/http.ts` (small additive edit): new optional
+  `RequestOptions.idempotencyKey?: string`; injects header after the
+  user-headers merge so the structured field always wins; reserved-
+  header contract preserved.
+- `packages/sdk-ts/src/agent.ts` + `policy.ts` (additive edits): every
+  write method now accepts an optional `IdempotencyOptions` 2nd-arg
+  (`register`, `revoke`, `report`, `challenge`, `verifyHandshake`,
+  `policies.create`, `policies.revoke`) and consults the policy table.
+  Backwards-compat: omitting the arg = same behavior as before.
+- `packages/sdk-ts/src/index.ts`: barrel re-exports.
+
+### Operator decision pending in code (intentional TODO block)
+
+`idempotency.ts:AUTO_IDEMPOTENT_METHODS` ships with all rows set to
+`'opt-in'` as the safe default. The TODO block in the file documents
+the trade-off and what each value means. Recommendations to flip:
+
+- `agents.register`, `agents.report`, `policies.create`: `'auto'`
+  (writes that mint persistent state — double-submit risk worth
+  defending against by default).
+- `agents.revoke`, `policies.revoke`: keep `'opt-in'` (DELETE is
+  resource-level idempotent).
+- `agents.challenge`: **`'forbidden'`** — replaying a 5-min-TTL nonce
+  silently breaks the handshake. SDK enforces this client-side so the
+  header never reaches the wire.
+- `agents.verifyHandshake`: keep `'opt-in'` (signature is single-use;
+  server-side replay defense already covers it).
+
+### Verification
+
+- `npx jest idempotency.spec` → **22/22 pass**.
+- `npx jest http.spec intent.spec verify-gateway.spec idempotency.spec`
+  → **76/76 pass** (no regression in adjacent surface).
+- `npx tsc --noEmit` (packages/sdk-ts) → **clean**.
+- The three previously-failing SDK suites (blocked on operator-owned
+  `@aegis/types` workspace symlink gap, per prior handoff) remain
+  unchanged — this slice didn't touch the contract surface gating them.
+
+### Next session(s) pick up here
+
+- **Operator pass**: flip `AUTO_IDEMPOTENT_METHODS` per the recs
+  above; capture rationale in ADR if non-default.
+- **M-IDEM-2 (response-side replay metadata)**: surface
+  `{ replayed, firstSeenAt }` back to the caller via a new
+  `requestWithMetadata<T>(...): Promise<{data:T, replay:ReplayMetadata}>`
+  on `HttpClient`. The wire path already returns these headers; the
+  SDK discards them today.
+- **M-IDEM-3 (Python SDK mirror)**: port the three helpers + table to
+  `packages/sdk-py/` with matching policy semantics. Cross-language
+  parity via `tests/cross-package`.
+- **M-IDEM-4 (parity test)**: add
+  `tests/cross-package/idempotency-header-parity.spec.ts` asserting
+  the three SDK constants match `AEGIS_HEADER_IDEMPOTENCY` in
+  `@aegis/types/src/constants.ts` and the response-header strings
+  emitted at `apps/api/src/common/idempotency/idempotency.interceptor
+.ts:70-71`.
+
+### Peer coordination
+
+- Active claim `okoro:sdk-idempotency-auto-attach` (this session).
+- `okoro:M-TSv2-5` (shipped per prior handoff; claim is stale at
+  sid=5443a97a/cwd=AEGIS but no conflict — verify-outcome surface
+  untouched by this slice).
+- `okoro:rebrand-domain-cascade-script` — peer scoped to
+  `scripts/rename-aegis-to-okoro/**` only. No overlap.
+
+---
+
+## 2026-05-21 · policy-expiry-worker-observability · close webhook_error metric gap (6eaa972)
+
+Operator asked _"continue building okoro sdk and api"_ on
+`feat/sdk-verify-gateway-hardening`. Scoped via AskUserQuestion to
+M-004 policy expiry worker (one coherent commit, then stop) after
+confirming the peer claim `sid=13271bbf` (audit-crypto paired tests)
+held the audit-\* surface. WORK_BOARD listed M-004 as "remaining" but
+`policy.expiry.worker.{ts,spec.ts}` were already shipped — board is
+stale.
+
+### What shipped (commit `6eaa972`)
+
+The `okoro_policy_expired_swept_total` Prometheus counter was defined
+with an `outcome` label (`metrics.service.ts:118-122`) but the worker
+only ever incremented with `outcome: 'swept'`. Webhook fan-out
+failures were logged at warn level and **invisible to Prometheus
+alerting** — a violation of CLAUDE.md rule #4 (no silent failures).
+
+- `apps/api/src/modules/policy/policy.expiry.worker.ts` — added
+  `outcome: 'webhook_error'` emit + 4-line ops-context comment with
+  a sample alert query.
+- `apps/api/src/modules/policy/policy.expiry.worker.spec.ts` —
+  extended the existing webhook-error case to assert both outcome
+  buckets fire (`swept` + `webhook_error`).
+
+Total: 2 files, 20+/5− lines. Sweep behavior unchanged.
+
+### Verification (BLOCKED at compile)
+
+`pnpm --filter @okoro/api test -- --testPathPattern=policy.expiry.worker.spec`
+fails at TS compile because `apps/api/src/common/crypto/webhook-secret-cipher.ts:32`
+imports `../errors/okoro-error` (cowork-claude's text substitution)
+but the file on disk is still `aegis-error.ts`. This is **operator-
+owned** per `RENAME_IN_PROGRESS.md`: the sandbox cannot do `git mv`.
+
+The closest offline check ran clean — added emit is structurally
+identical to the existing `outcome: 'swept'` call two lines above,
+and the test assertion mirrors the file's existing Jest-mock pattern.
+
+### Next session(s) pick up here
+
+- **Once the rename `git mv` sweep lands**: run
+  `pnpm --filter @okoro/api test -- --testPathPattern=policy.expiry.worker.spec`
+  to confirm the 3 tests pass (including the new webhook_error
+  assertion in the third case).
+- **WORK_BOARD hygiene**: M-004 should be flipped from "remaining"
+  to "shipped"; both `policy.expiry.worker.ts` and its spec exist
+  and are wired in `policy.module.ts`. M-001 sdk-ts client status
+  also worth re-validating — claim by sid=3e2203ee dates to
+  2026-05-01 with no recent peer presence.
+- **Adjacent observability gaps worth flagging** (not addressed
+  here): the `BateWorker` and `OutboxWorker` (`apps/api/src/modules/
+bate/bate.worker.ts`, `apps/api/src/common/outbox/outbox.worker.ts`)
+  may have similar log-only failure paths. Each warrants its own
+  small commit if `okoro_*_total` counters exist with unused label
+  values.
+
+---
+
+## 2026-05-21 · okoro-enterprise-planning · OKORO Enterprise Plan + ADR-0022 (docs-only)
+
+Operator asked _"continue building okoro sdk and api enterprise quality
+devise plans and make sure we are building a source of truth."_ After
+clarifying scope (all four surfaces: SDK-TS, SDK-PY, API hardening,
+Source-of-Truth unification; plan-first then code; respect peer session;
+deliver enterprise-quality scaffold so peer agents can execute), shipped
+a complete planning scaffold under `docs/plan/`. **No code edited.
+Additive docs only.** Branch state respected — `aegis:platform-hygiene`
+(sid=ca612b33) on this branch was not touched. `WORK_BOARD.md` and
+`OPERATOR_DECISIONS.md` left untouched; new modules captured in
+`docs/plan/WORK_MODULES_PROPOSED.md` so promotion is a copy-paste once
+operator ratifies.
+
+### What shipped
+
+- `docs/plan/00_OKORO_ENTERPRISE_PLAN.md` (~23 KB) — master plan.
+  Vision, evidence-based current-state baseline, four workstreams,
+  five-phase plan (P0..P4), eight invariants restated with module-level
+  preservation tests, ten quality gates, risk register R-1..R-8,
+  operator-decision table, peer claim protocol.
+- `docs/plan/01_SOURCE_OF_TRUTH_CHARTER.md` (~13 KB) — operationalizes
+  invariant I-7. Eight principles, canonical artifact registry, the
+  three new generators+checks added by `M-SOT-1..3`, drift-response
+  protocol, anti-patterns list, worked example for adding a new
+  contract.
+- `docs/plan/05_PARITY_MATRIX.md` (~7 KB) — flat lookup table mapping
+  every contract artifact to its canonical owner, generated consumers,
+  and drift gate. Six sections (A wire, B storage, C operator-facing, D
+  cross-SDK, E branding, F how to add, G stubs).
+- `docs/plan/02_SDK_TS_EXECUTION_PLAN.md` (~11 KB) — seven SDK-TS
+  hardening modules `M-TSv2-1..7` with acceptance criteria, test matrix,
+  sequencing diagram.
+- `docs/plan/03_SDK_PY_PARITY_PLAN.md` (~13 KB) — thirteen SDK-PY parity
+  modules `M-PYv2-1..13`, parity-gap matrix vs SDK-TS, cross-SDK harness
+  spec, wave sequencing.
+- `docs/plan/04_API_ENTERPRISE_HARDENING_PLAN.md` (~14 KB) — nine API +
+  edge modules `M-APIv2-1..9`. Edge worker imports pure algorithm; audit
+  signing-key endpoint + NDJSON export; shadow-mode divergence
+  telemetry; denial-precedence regression suite; BATE worker completion;
+  webhook DLQ + replay; policy expiry; tenant-isolation tests; SLO
+  standardization.
+- `docs/plan/WORK_MODULES_PROPOSED.md` (~9 KB) — claim-ready
+  consolidated module list (32 modules, ~14 startable in parallel). Stays
+  separate from live `WORK_BOARD.md` until operator ratifies.
+- `docs/plan/README.md` — directory index + read order.
+- `docs/plan/OKORO_PLAN_OVERVIEW.html` (~24 KB) — single-file enterprise
+  HTML stakeholder dashboard with north-star outcomes, invariants,
+  workstreams, phasing roadmap, parity-matrix excerpt, KPIs, risk
+  register, ratification path.
+- `docs/decisions/0022-public-sdk-naming-and-cross-sdk-parity-during-cutover.md`
+  — ADR-0022 (`proposed`). Six sub-decisions D1..D6: target public SDK
+  names (`@okoro/sdk` + `okoro`), SDK-PY directory rename `aegis/` →
+  `okoro/`, parity-harness gate before rename, customer migration
+  messaging, atomic-cutover-PR discipline, OD-023 follow-on.
+- `docs/plan/ADDENDUM_REALITY_CHECK.md` — corrections layer. Documents
+  six discrepancies between the original planning-pass assumptions and
+  the surveyed repository state, with table-by-table corrections.
+
+### Reconciliation surfaced mid-session
+
+A verification pass at the end of the session caught material gaps in
+the original planning-pass assumptions. **All caught before commit, all
+documented in the addendum**:
+
+1. **ADR-0021 was already filed** as the Cloudflare-edge rename ADR on
+   2026-05-21. The original draft of this session's ADR collided on the
+   number AND contradicted the operator's already-decided **hard
+   cutover** doctrine. Original draft deleted; refiled as **ADR-0022**
+   accepting ADR-0021's framing.
+2. **Internal packages already `@okoro/*`** in root `package.json`
+   scripts. The rebrand is in flight, not proposed.
+3. **SDK-PY is much more mature than the initial survey reported**.
+   `packages/sdk-py/aegis/` already contains `AsyncOkoro`/`Okoro`
+   clients, `AgentsClient`, `IntentClient`, `crypto.py`, `verify.py`,
+   `verify_gateway.py`, `verify_cache.py`, `error_catalog.py`, retry
+   `_http.py`, Redis adapter, typed models. Most `M-PYv2-*` modules are
+   reclassified as verification + parity-coverage, not build-from-scratch.
+4. **Latent CI hazard**: `check:denial-reason-gen` expects
+   `packages/sdk-py/okoro/_denial_reason_generated.py` but the file is at
+   `packages/sdk-py/aegis/_denial_reason_generated.py`. The next peer
+   running `pnpm gen:denial-reason` will trigger the diff. Captured as
+   ADR-0022 D2 and new module `M-PYv2-14` (directory rename).
+5. **OD-021 and OD-022 are already taken** (Slack workspace UX,
+   per-role cost calibration — both opened by ADR-0020 follow-up). New
+   decision row opened as **OD-023** (final acceptance of ADR-0022).
+6. **`M-TSv2-7` and `M-PYv2-13` alias-package modules are withdrawn**.
+   ADR-0021's hard-cutover doctrine rules out re-export aliases.
+
+The four-workstream framing, phasing, parity matrix, risk register, and
+quality gates all remain authoritative. Addendum is the corrections layer
+peers should read alongside, not after.
+
+### Pending operator action
+
+- **ADR-0022 D1..D6** — final acceptance. Suggested reply shape:
+  `accept defaults D1..D6` or override individual rows. Locking unblocks
+  the cutover PR sequence and clears the latent CI hazard.
+- **Plan ratification** — promote `WORK_MODULES_PROPOSED.md` into a new
+  `SPRINT S2 — OKORO Enterprise Hardening` section in `WORK_BOARD.md`.
+  Apply the addendum's reclassifications during promotion.
+- **OD-023** to be added to `OPERATOR_DECISIONS.md` to track ADR-0022
+  acceptance (no edit made this session — `OPERATOR_DECISIONS.md` left
+  untouched per peer-coordination protocol).
+
+### Files NOT touched (intentional)
+
+- `README.md` — already modified by another session; no overlap with
+  this plan's content.
+- `WORK_BOARD.md` — peer session may still be editing.
+- `OPERATOR_DECISIONS.md` — peer session may still be editing.
+- `apps/api/**`, `packages/**`, `workers/**` — docs-only mode.
+- `docs/decisions/0021-cloudflare-okoro-rename.md` — owned by the
+  cloudflare-rename session.
+
+### What's next
+
+When operator ratifies the plan, the suggested first claims (all
+parallel-startable, no `blockedBy`):
+
+1. `M-SOT-1` (cross-language JSON-schema export) — unblocks SDK-PY parity.
+2. `M-TSv2-4` (RFC 8785 JCS helper) — unblocks `M-TSv2-5`, `M-TSv2-6`,
+   and `M-PYv2-2`.
+3. `M-APIv2-1` (edge worker imports pure verify algorithm via new
+   `packages/verify-core`) — closes invariant I-2 at the edge.
+4. `M-APIv2-2` (audit signing key endpoint + NDJSON export) — closes
+   third-party auditability for invariant I-3.
+
+---
+
+## 2026-05-21 · cloudflare-okoro-rename-audit · ADR-0021 — worker rename plan + cutover guard rail (docs-only)
+
+Operator asked _"how can we make Okoro be incorporated for instance
+Cloudflare?"_ during the live AEGIS → Okoro rename. Confirmed framing:
+the rename is a hard cutover (driven by `cowork-claude` in the Cowork
+sandbox via case-preserving `perl -i` substitution; see their entry
+below and `RENAME_IN_PROGRESS.md`), and the Cloudflare edge surface is
+**deferred** until the API + SDK rename is stable.
+
+This session is read-only on `workers/cf-verify/` (no code edits). The
+output is one new file —
+`docs/decisions/0021-cloudflare-okoro-rename.md` — plus a durable
+cross-session decision in the peers archive (`a7a5c9d6`, scope
+`workers/cf-verify/**`) and a broadcast peer-msg (`99a9a760`) to the
+6 known sessions.
+
+### Reality check vs. D3
+
+`cowork-claude`'s case-preserving substitution **already renamed the
+D3-gated surfaces** (`X-AEGIS-*` → `X-OKORO-*` in
+`workers/cf-verify/src/index.ts`, plus all `AEGIS_*` env vars in
+`wrangler.toml` and the deploy-guard echo text in `package.json`).
+The deploy guard's `exit 1` logic is intact, so no customer is
+impacted yet. ADR-0021 D3's intent — that a customer-visible header
+rename ride a coordinated SDK major bump — still applies, but is now
+a **forward** constraint on the edge-phase PR (the worker source is
+ahead of the deployed binary; the SDK major must publish before the
+worker is redeployed). The ADR's rename map is preserved because it
+was written after cowork-claude's substitution pass.
+
+### Headline findings (full detail in ADR-0021)
+
+1. The worker is in scaffold state. **Deploy is guarded** via
+   `pnpm deploy` exit 1; guard logic is intact post-substitution.
+2. `wrangler.toml` has no `[[routes]]` block — no DNS coupling yet.
+3. Verification path is issuer-string agnostic (Ed25519 from KV,
+   not a brand-coupled anchor). The JWT `iss?` claim is decoded for
+   forwarding hints only; origin enforces `aud`/`iss`.
+4. KV key prefixes (`trust:`, `policy:`, `spend:`) and binding names
+   (`TRUST_KV`, `RATE_LIMITER`) are brand-neutral. cowork-claude
+   correctly left these alone.
+5. Customer-visible response headers were renamed; safety net is
+   the deploy guard. SDK major bump is now load-bearing for the
+   edge phase.
+
+### Coordination with active peers
+
+- `platform-hygiene` (sid=ca612b33) — same branch, PR #43 docs-lint.
+  ADR-0021 is Prettier-clean (verified). peer-msg `066e2681` sent.
+- `lint-staged-config-gap` (sid=13271bbf) — landed PR #45 to main
+  this session. Side-effect: future commits auto-Prettier staged md.
+  peer-msg `0acf18e2` sent.
+- `compliancekit:...` (sid=106921fc) — different repo. Out of scope.
+- `cowork-claude` — **not registered as a peer claim**; running in
+  Cowork sandbox. They left `RENAME_IN_PROGRESS.md` at repo root as
+  a separate coordination channel. Broadcast `99a9a760` reached 6
+  recipients; no observed conflict on gated surfaces (D2 deploy
+  guard logic intact; D4 KV prefixes intact).
+
+### Files touched this session
+
+- `docs/decisions/0021-cloudflare-okoro-rename.md` (new, ~200 lines
+  including inventory appendix and operator-input items)
+- `docs/SESSION_HANDOFF.md` (this entry)
+
+No edits to `workers/`, `apps/`, `packages/`, or any code surface.
+
+### Next session(s) pick up here
+
+- **Cutover follow-up**: when cowork-claude's
+  `scripts/rename-aegis-to-okoro/10-rename-checkout.sh` runs on the
+  operator machine and the rename lands, the ADR-0021 inventory
+  becomes the audit trail for what was renamed and what was gated.
+- **When the edge phase opens**: file `M-CFV-rename` in
+  `WORK_BOARD.md`; sequence per D1 (API on main → SDK major
+  published → ≥7 days shadow-mode parity → edge-deploy PR); run
+  `pnpm test:parity` for byte-clean decision-tuple agreement.
+- **Operator items**: OD-021a (aegislabs.io → okorolabs.io DNS
+  flip — `wrangler.toml` already points at `api.okorolabs.io`),
+  OD-021b (dual-emit headers vs. hard rename at SDK major bump —
+  cutover already chose hard rename; SDK coordination required),
+  OD-021c (historical Aegis-anchored audit entries verifiable from
+  the renamed worker?).
+
+---
+
+## 2026-05-21 · cowork-claude · AEGIS → OKORO rename (text substitution + new migration)
+
+Operator (Erwin) requested a full rename of the project from AEGIS to OKORO,
+case-preserving, across every workspace and every branch.
+
+**What landed in this session (current branch only — `feat/sdk-verify-gateway-hardening`):**
+
+- Case-preserving text substitution applied via `perl -i` to every tracked
+  text file except `pnpm-lock.yaml`, `apps/api/prisma/migrations/`, and known
+  binary file types. 12,184 → 50 matches. Remaining 50 are intentional:
+  - 6 immutable migration files (per CLAUDE.md immutability contract)
+  - 11 inside `brand/AEGIS-Pitch-Deck.pptx` (binary, needs file rename + manual edit)
+  - 32 inside `pnpm-lock.yaml` (regenerate via `pnpm install`)
+  - 1 inside `RENAME_IN_PROGRESS.md` (intentional notice for peer agents)
+- New migration emitted at
+  `apps/api/prisma/migrations/20260521000000_rename_aegis_to_okoro/migration.sql`.
+  ALTERs `aegis_app` / `aegis_owner` roles, `aegis_current_principal` /
+  `aegis_rls_bypass_active` functions, and the `aegis.*` GUC namespace.
+- Rename kit at `scripts/rename-aegis-to-okoro/` (run.sh + 6 phase scripts +
+  README.md). Operator can re-run on other branches.
+- `RENAME_IN_PROGRESS.md` notice file at repo root for peer Claude/Codex
+  sessions in other worktrees.
+
+**What did NOT land (sandbox limitations — operator must do):**
+
+- `git commit` — `.git/index.lock` was stale and cannot be removed from the
+  Cowork sandbox. All changes are unstaged on the working tree.
+- File and directory renames (52 paths). Sandbox cannot delete files, so
+  `git mv` is blocked. Run `scripts/rename-aegis-to-okoro/10-rename-checkout.sh`
+  on the operator machine to do the path renames.
+- Branch sweep across the other 97 branches.
+- Root folder rename (`AEGIS` → `OKORO`).
+- `pnpm install` (lockfile regen) and `pnpm check` verification.
+- Provider configs (Stripe, Auth0, DNS, `sales@aegislabs.io` → `sales@okorolabs.io`).
+
+**Constraint:** existing migrations not edited; new migration added.
+**Tested:** text substitution (12,184 substitutions, 0 errors).
+**Not-tested:** `pnpm install`, `pnpm check`, `pnpm test:parity`, migration apply.
+**Scope-risk:** high. Every workspace touched.
+**Directive:** when operator returns, run
+`scripts/rename-aegis-to-okoro/10-rename-checkout.sh` to handle path renames,
+then `pnpm install && pnpm check`, then `git add -A && git commit`.
+
+---
+
+## 2026-05-21 · operator-strategic-orchestrator (enterprise-quality polish) · ADR-0020 EQR-1 through EQR-10 + OD-021/022/023 + M-060h runbook + observability dashboards (docs-only)
+
+Third pass on ADR-0020, triggered by operator directive _"as you see
+fit enterprise quality."_ Hardened the strategic decision against
+public-company-grade operational and compliance bars per root
+CLAUDE.md framing (_"public-company infrastructure: every change
+needs a clear owner, a small blast radius, typed contracts, auditable
+behavior, and verification evidence"_).
+
+### What shipped (all docs, no code)
+
+`docs/decisions/0020-cross-project-agent-orchestrator.md` — added
+**Enterprise Quality Readiness** section (~340 lines) covering ten
+EQR sub-areas:
+
+- **EQR-1** SLO codification — 8 SLIs with SLO targets and 28-day
+  error budgets, encoded as gates in `tests/load/orchestrator.k6.ts`
+  (M-060g). Quarterly review cadence locked.
+- **EQR-2** Observability spec — 9 Prometheus metrics with
+  `principalId` labels, structured log redaction rules (extending
+  ADR-0006 redactability pattern to orchestrator payloads), OTel
+  traces with `taskId` / `correlationId` propagation, 4 alert
+  definitions (TaskCreateErrorRateHigh P2, ApprovalBacklog P2,
+  AuditChainBreak wake-the-house P0, SlackCallbackForgeryAttempts
+  security P1).
+- **EQR-3** FMEA matrix — 8 failure modes (Slack outage, forged
+  callback, DB primary failure, outbox backlog, audit-chain hash
+  mismatch, ROI cost-model misconfig, consumer DoS, schema migration
+  misapply) each with detection signal, blast radius, mitigation, and
+  rollback path. Feature-flag rollback procedure documented.
+- **EQR-4** Wire-level versioning policy — additive-only within
+  majors, ≥ 90-day deprecation window with `Deprecation` header on
+  breaking changes (extends invariant #7), cross-SDK parity gate.
+- **EQR-5** Security review gates — CLAUDE.md crypto/auth/tenant
+  paired-tests mandate applied to M-060b/d (8 paired spec files
+  enumerated); STRIDE threat-model delta required in same PR
+  (spoofing / tampering / repudiation / info-disclosure / DoS / EoP
+  with D-decision mitigations); KMS key inventory tied to ADR-0011;
+  pen-test scope explicit.
+- **EQR-6** Compliance evidence binding — SOC 2 CC6/CC7/CC8 control
+  mappings, GDPR Art. 17 redaction inheritance, audit retention
+  inheritance from OD-004, ComplianceKit dogfood evidence-export
+  story (CK's customers get SOC 2 evidence via `@okoro/verifier-rp`
+  reading from OKORO's audit chain — meta-compliance).
+- **EQR-7** HA/DR posture — inherits existing Postgres active-passive
+  - Redis cluster + stateless API pods; multi-region deferred to
+    follow-on ADR; EU data residency follows API's current single-region
+    US choice.
+- **EQR-8** Pricing/billing — orchestrator slots into existing OD-003
+  tier table (FREE off / Developer 1K/mo / Team 25K/mo / Scale 250K/mo
+  / Enterprise bespoke); Stripe metering for overage; pricing
+  surfaced via `/.well-known/pricing.json` extension (additive per
+  invariant #7); customer comms requirement gated on release
+  checklist.
+- **EQR-9** Operational runbook — new file at
+  `docs/runbooks/orchestrator.md` (388 lines) with 11 sections
+  covering healthcheck, useful queries, all four alert responses,
+  the P0 audit-chain-break (wake-the-house) procedure with no-silent-
+  recovery rule, customer-ticket flow for stuck tasks, bulk-approve
+  fallback via M-060f when Slack is out, feature-flag flip
+  procedure, escalation ladder, cross-links to ADR-0020 EQR-3 FMEA.
+- **EQR-10** Definition of "done" — 10-item release-gate checklist
+  required before flipping `OKORO_ORCHESTRATOR_ENABLED` default-on in
+  production. Any unchecked item blocks GA.
+
+`OPERATOR_DECISIONS.md` — three new OPEN rows filed in §2 (operator
+input pending; defaults proposed for each):
+
+- **OD-021** Slack workspace registration UX (dashboard self-serve
+  vs. CLI fallback; KMS key per workspace; blocks M-060d ship to
+  first paying customer).
+- **OD-022** Per-role cost calibration for D7b (V1 holds single
+  $150/hr blended rate; V1.1 splits by engineer / ops / executive /
+  compliance / support roles once ≥ 90 days of real data justifies
+  it; no V1 action needed).
+- **OD-023** Non-audit task-record retention (90 days default;
+  audit-chain task events still inherit OD-004's 7-year default;
+  Enterprise can extend as paid line item; blocks DPA template).
+
+§5 cross-reference map updated: OD-020 now blocks M-060a–**h** (added
+M-060h runbook); OD-021 → M-060d; OD-022 → M-060f; OD-023 → M-060b.
+
+`WORK_BOARD.md` — M-060 family extensions:
+
+- **M-060g acceptance** extended with DB-failover chaos test +
+  audit-chain-break chaos test (wake-the-house alert path); 8 SLOs
+  measured with error-budget tracking.
+- **NEW M-060h** Operator runbook + observability dashboards module.
+  Depends on M-060b shipping (need real metrics to author dashboards).
+  Acceptance includes alert-injection tests, page-on-call drill,
+  bulk-approve flow rehearsed end-to-end with operator sign-off.
+- **M-060b acceptance** extended with EQR-5 paired tests
+  (`task.audit-chain.integrity.spec.ts`,
+  `task.kms-signature.spec.ts`,
+  `task.tenant-isolation.spec.ts` — explicit cross-principalId
+  negative tests across N≥3 principals); STRIDE threat-model delta
+  required in same PR; EQR-2 observability assertions.
+- **M-060d acceptance** extended with 5 paired specs (HMAC, KMS
+  signature, replay attack, forged payload, cross-principal
+  callback); `OrchestratorSlackCallbackForgeryAttempts` security
+  alert wired; `intent.approval.forgery_attempt` audit event on
+  every KMS-mismatch callback.
+
+`docs/runbooks/orchestrator.md` — NEW 388-line operational runbook
+stub per docs/CLAUDE.md mandate (exact commands, expected output,
+rollback steps, escalation criteria). Stub level acknowledged
+explicitly; concrete command outputs fill in during M-060h.
+
+### Why this matters
+
+ADR-0020 D1–D8 locked the _architecture_. EQR-1 through EQR-10 lock
+the _operational and compliance contract_ an enterprise buyer (and
+their auditor) will hold us to. The 11-section runbook + 4 alerts +
+8 SLOs + 8 paired security specs + 3 chaos tests + STRIDE threat
+model + SOC 2 control mapping is the difference between "neat
+platform" and "platform an enterprise IT director can sign a
+contract against."
+
+The 10-item EQR-10 release checklist is the single forcing function:
+no GA flag flip until every box is checked. The gate is the gate.
+
+### Pending operator action
+
+- **OD-021** (Slack UX) — accept dashboard self-serve default OR
+  override with CLI-first / centralized-provisioning model. Blocks
+  M-060d ship to first paying customer.
+- **OD-022** (per-role cost calibration) — no V1 action needed;
+  revisit V1.1 with 90 days of data.
+- **OD-023** (non-audit retention) — accept 90-day default OR
+  override for stricter privacy posture. Blocks DPA template.
+
+### Coordination status
+
+- Broadcast message `8496d772` (thread `8496d772`) sent earlier this
+  session to 4 active peer sessions (sid=13271bbf, 0c5056a4,
+  42dda801, 634c2f97) with full commit instructions for the cowork
+  rename peer. ACK pending.
+- This polish pass touches the same 4 files plus 1 new file
+  (`docs/runbooks/orchestrator.md`); no overlap with active peer
+  scopes.
+- ComplianceKit unchanged this pass (still deferred per active CK
+  peer claim sid=106921fc on `cursor/production-env-seed-alignment`).
+
+---
+
+## 2026-05-21 · operator-strategic-orchestrator (follow-up) · ADR-0020 D8 + sdk-py + CK interop correction (docs-only)
+
+Follow-up pass after operator asked _"follow up on all across both"_
+(OKORO + ComplianceKit). Cross-project probe revealed three things the
+original ADR-0020 missed:
+
+1. **ComplianceKit's API is FastAPI/Python**, not Node/TS. The original
+   M-060e wiring referenced `@okoro/sdk-ts` only — wrong consumer SDK.
+   Corrected: M-060c now ships **both** `@okoro/sdk-ts` AND
+   `@okoro/sdk-py` in parallel (CK Python agents use sdk-py, CK web
+   admin uses sdk-ts). Cross-SDK parity test added to acceptance
+   criteria so wire payloads stay identical.
+
+2. **ComplianceKit has its own internal orchestrator** at
+   `apps/api/app/agents/orchestrator.py` driving a 10-agent swarm
+   under a load-bearing < 45-minute vault-generation SLA (CK CLAUDE.md
+   rule #2). Original ADR-0020 implicitly assumed OKORO orchestrator
+   would handle all task scheduling — would have killed CK's SLA via
+   per-task network round-trips.
+
+   **Fix: added D8 to ADR-0020 (additive-only interop)**. OKORO
+   orchestrator handles only cross-project work; consumer-internal
+   orchestration is preserved unchanged. The "seam" is a threshold
+   rule: a task crosses to OKORO if any of (a) `crossProject: true`,
+   (b) `write|admin riskTier` AND `approvalRequired`, (c) high-$ ROI
+   attribution, (d) `complianceArtifact: true`. Otherwise stays
+   internal. Per-project thresholds encoded in the D6
+   `ProjectManifest`. Same pattern will apply to future projects
+   with their own internal agent systems (APEX, Klytics, Forge).
+
+   **D8 has three sub-questions (D8a/b/c)** with proposed defaults
+   pending operator response — captured on OD-020.
+
+3. **Coordination with active peer sessions**:
+   - `okoro:platform-hygiene` (sid=ca612b33) is on the same branch
+     (`feat/sdk-verify-gateway-hardening`) running PR #43 docs-lint.
+     **Sent peer-msg heads-up** about the ADR/OD/WORK_BOARD/
+     SESSION_HANDOFF edits so docs-lint absorbs cleanly.
+   - `compliancekit:P1-C1 + P1-H1/H2 + P2-H1` (sid=106921fc) is
+     actively modifying CK API files (apps/api/app/agents/
+     orchestrator.py is in their scope). **Deferred all CK edits** —
+     M-060e in CK is "wait for the production-env-seed-alignment
+     branch to land" per the updated WORK_BOARD M-060e STATUS.
+
+### Files touched this follow-up pass (all in OKORO, docs-only)
+
+- `docs/decisions/0020-cross-project-agent-orchestrator.md` —
+  Deciders header: seven → eight; M-060c reference fixed
+  (`sdk-ts` → `sdk-ts AND sdk-py`); M-060e reference updated with
+  Python-first interop note; **NEW D8 section** (~110 lines) with
+  context, proposed default, ASCII seam diagram, threshold rule,
+  three sub-decisions (D8a/b/c), rejected alternatives; operator-input
+  items table extended with D8a/b/c rows.
+- `OPERATOR_DECISIONS.md` — OD-020 row in §3 amended with D8
+  correction notes; defaults D8a/b/c pending operator.
+- `WORK_BOARD.md` — M-060c expanded to cover both SDKs with
+  cross-SDK parity test acceptance criterion; M-060e expanded with
+  exact CK paths, D8 seam check requirement, CK SLA non-regression
+  acceptance, coordination note about active CK peer session.
+
+### Resolution (2026-05-21 same-session)
+
+- **D8a/b/c locked** — operator response `accept defaults D8a/b/c`.
+  ADR-0020 status moved from `proposed` → `accepted`. OD-020 row in
+  `OPERATOR_DECISIONS.md` updated to reflect all eight sub-decisions
+  locked. **No pending operator items remain on ADR-0020.**
+- Branch re-sync with main initiated (separately) so the
+  `feat/sdk-verify-gateway-hardening` branch picks up the
+  ubuntu-latest CI runners from PR #39 merge (peer-msg from
+  ca612b33 confirmed the merge train is unstuck). Required before
+  any commit will produce green CI.
+
+---
+
+## 2026-05-21 · operator-strategic-orchestrator · ADR-0020 + OD-020 + M-060 family filed (docs-only, no code)
+
+Strategic foundation session: operator asked _"should I incorporate Slack
+building into OKORO and ComplianceKit for all my cloud agents working
+together?"_ — followed by _"ensure it fits well so I can deploy highly
+scalable and world-class teams for both and future projects, but also
+map it to specific ROI activities."_ Answered with a packaged set of
+architecture artifacts that turn OKORO into the operator's
+cross-project agent + human team orchestrator with executive-grade
+ROI attribution. **No code shipped this session — three doc files
+edited, claim released cleanly.**
+
+### What shipped
+
+`docs/decisions/0020-cross-project-agent-orchestrator.md` (NEW, ~430
+lines, `STATUS: proposed`). Seven sub-decisions packaged with framed
+defaults + rejected alternatives + invariant impact assessment + follow-on
+work plan. Reframed user's strategic question into "OKORO _is_ the
+control plane; ComplianceKit becomes the first external SDK consumer;
+future projects (Klytics, APEX, Forge) plug in via a declarative
+`ProjectManifest` per D6." Key decisions:
+
+- D1: federated `principalId` (no native cross-tenant tasks; preserves
+  invariant #5 absolutely).
+- D2: task events ride the existing signed audit chain via nullable
+  `taskId` on `AuditEvent` (preserves invariant #3, free audit-trail
+  evidence for ComplianceKit's own compliance story).
+- D3: approval is a separate task state machine — NOT a new entry in
+  denial-precedence (preserves invariants #2 and #6).
+- D4: envelope Zod schema in `packages/types/src/orchestrator.ts`
+  (invariant #7).
+- D5a–d: per-tenant Slack workspace, OAuth-bound human identity,
+  KMS-signed interactivity payloads, DB-as-truth on Slack outage.
+- D6: team/project as metadata layer (NOT tenancy boundary, k8s-style
+  labels vs. namespaces); V1 SLOs encoded as GA gates (≥1000 concurrent
+  agents/principal, ≥100 tasks/sec, P95 create→ready <250ms, approval
+  round-trip <60s); "zero OKORO code changes to onboard project #3"
+  invariant via declarative ProjectManifest contract.
+- D7a–c: **required** `roi` envelope field with 5 top-level kinds
+  (`revenue` / `cost_avoided` / `risk_reduced` / `product_velocity` /
+  `discovery`) + starter sub-type taxonomy + cost-model defaults
+  ($150/hr eng-loaded, $1K/$10K/$100K/$1M severity ladder) +
+  `discovery` first-class kind. Forcing function: tasks that can't
+  ROI-tag can't ship autonomously.
+
+`OPERATOR_DECISIONS.md` — added OD-020 to §3 Recently decided
+(operator accepted defaults D1–D7 on 2026-05-21) and to §5
+cross-references map blocking M-060a..g. Spun off OD-021 (Slack
+workspace registration UX) and OD-022 (per-role cost calibration)
+as follow-on items. Updated footer date to 2026-05-21.
+
+`WORK_BOARD.md` — added M-060 umbrella + M-060a..g sub-modules with
+full STATUS / Paths / Goal / Acceptance per sub-module. Module
+ordering: 60a (types + ROI taxonomy) → 60b (orchestrator module +
+Prisma migration) → 60c (SDK methods) → 60d (Slack adapter) → 60e
+
+- 60f + 60g in parallel. M-060e is the ComplianceKit dogfood (in
+  CK repo) that validates D6's "zero OKORO changes for project #3"
+  promise; M-060f is the ROI rollup endpoint + dashboard tile (the
+  executive narrative surface); M-060g is the k6 load gates that
+  encode D6 SLOs as GA gates.
+
+### Why this matters (strategic)
+
+This decision elevates OKORO from "neutral verification layer" to
+"agent + human team operating system with ROI attribution" — without
+violating any of the 8 invariants. ComplianceKit becomes OKORO's first
+real external SDK consumer, which serves three goals simultaneously:
+(1) validates the SDK in production use, (2) dogfoods OKORO for the
+operator's own portfolio, (3) produces a real customer reference for
+OKORO's sales narrative ("here's the ROI of agents under our control
+plane" — measurable in dollars via the M-060f rollup). The ROI-tag
+forcing function (D7) is the design discipline that makes the
+executive story possible at all.
+
+### What's next (separately claimable)
+
+- **M-060a** (smallest, unblocks everything): operator should refine
+  the D7a sub-type taxonomy in the same commit that lands the new
+  `packages/types/src/orchestrator-roi.ts` — that's the
+  highest-leverage operator-flavored decision left.
+- **M-060b** → **M-060c** → **M-060d** → (60e + 60f + 60g parallel).
+- Coordinate with the active platform-hygiene peer session (PR #37
+  hermeticity + #36 eslint deps shipped; audit-chain CI failures next)
+  — orchestrator work shouldn't conflict with their scope.
+- Pending operator follow-ons: OD-021 (Slack UX), OD-022 (cost
+  calibration). Not blocking M-060a–d.
+
+### Claim hygiene
+
+Claimed `okoro:M-060-orch-adr` (docs-only, ttl 2h) for the ADR + OD +
+WORK_BOARD + handoff edits. Released cleanly at session end. No file
+overlap with the active `okoro:platform-hygiene` session.
+
+---
+
+## 2026-05-21 · sid=opus-4-7-feat-merge-and-pr2-unblock · feat/sdk-verify-gateway-hardening (4 commits) + agent-worktree-leak postmortem
+
+Long session: drove `feat/sdk-verify-gateway-hardening` from "13 ahead /
+95 behind / PR CONFLICTING with 4-day-old red CI" to
+"100-commit-merged / PR MERGEABLE / 3 spec-sync gates locally green."
+Four commits land on the feat branch; PR #2 SHA flipped to **MERGEABLE**
+on 1d9699c.
+
+### What shipped (commit order)
+
+`5f43de0 chore(cli,mcp,sdk): finish SDK V2 catch-up across CLI/MCP/quickstart
+
+- Next 16 type path`— closed the consumer-side V2 contract migration
+that was already shipped to packages/sdk-ts. CLI now calls`agents.register({label, …})`, positional `policies.{create,list,revoke}
+  (agentId, …)`. MCP server drops `okoro.policies.get`(V2 has no by-id
+fetch). Quickstart fixed`moduleResolution: "Bundler"`→`bundler`and`link:`→`workspace:\*`. Next 16 `next-env.d.ts`repathed. Two
+hardening fixes folded in: idempotency-key array-unwrap on
+intent.controller;`invalidateCache` mock on api-key-rotation spec.
+
+`ed63e81 merge(main): rebase substrate — 95 commits of spec-sync + docs
+site + osv-scanner unblock` (topology corrected by 1d9699c) — pulled in
+PR #32 spec-sync infra (extractor sanity, empty-extraction-fails-loud
+M-056 root fix, canonical `DenialReason` schema, INTENT_MISMATCH in
+constants.ts, `PENDING_VERIFICATION` AgentStatus member, intent.ts Zod
+schemas — **M-057 and M-058 were already closed on main**, no separate
+PRs needed), apps/docs/ site (~6k lines), PR #29 osv-scanner sunset
+allow-list, SHA-pinning of GitHub Actions. Conflicts: package.json,
+pnpm-lock, SESSION_HANDOFF — all resolved.
+
+`1bdecfb fix(docs): add INTENT_MISMATCH copy to live denial-precedence
+component` — cross-package parity spec
+`docs-denial-precedence-parity.spec.ts` (new from main) caught a real
+gap: docs `REASON_COPY` had all 10 pre-ADR-0016 reasons but missed
+INTENT_MISMATCH. The two contracts hadn't met until our merge. The
+parity spec is doctrine enforcement of CLAUDE.md invariant 7.
+
+`1d9699c chore(merge): record main → feat merge topology that ed63e81
+missed` — ed63e81 had all the file content but only one parent (the
+`git stash --include-untracked` + pop dance dropped MERGE_HEAD between
+conflict resolution and commit). Git topology stayed 13/99, PR #2
+stayed CONFLICTING. Fix: `git merge --strategy=ours --no-ff origin/main`
+records second parent. After push: **PR #2 → MERGEABLE**.
+
+### Agent-worktree leak — postmortem
+
+Spawned M-057 + M-058 agents with `isolation: "worktree"`. M-058
+finished clean (same conclusion the merge proved: PR #32 already closed
+M-058). M-057 admitted to using absolute paths
+`/Users/money/Desktop/OKORO/...` instead of its worktree. _Worktree
+isolation does NOT constrain absolute file paths._ When the agent's
+"revert" tried to restore "clean main" content, it clobbered our
+merged state, dropped the INTENT_MISMATCH docs fix, and left stale
+rebase state in `.git/rebase-merge/` that surfaced 4 commands later.
+Recovery: work was already pushed (1d9699c), `git rebase --abort` +
+`git reset --hard origin/feat/...` restored fully.
+
+**Defensive prompt for next swarm**: "you MUST use only the worktree
+path; never write to /Users/money/Desktop/OKORO directly. Confirm with
+`pwd` before every Edit/Write." AND audit agent's final report for
+absolute-path mentions before trusting cleanup.
+
+### Net CI on PR #2 (SHA 1d9699c, locally verified)
+
+Pre-session red gates (4 days): OpenAPI ↔ Zod, OpenAPI ↔ Prisma,
+Denial precedence (ADR-0004), lint, SCA · osv-scanner.
+
+Post-session local:
+
+- OpenAPI ↔ Zod ✓ (11 intent components matched via main's intent.ts)
+- OpenAPI ↔ Prisma ✓ (3 models + AgentStatus enum aligned)
+- Denial precedence (ADR-0004) ✓ (INTENT_MISMATCH byte-identical
+  across constants.ts ↔ OpenAPI ↔ verifier-rp)
+- Cross-package parity ✓ 337/337 (after docs fix)
+- CLI lint still red — handled on peer branches #11/#22
+- SCA osv-scanner should clear via main's sunset allow-list
+
+### What's next
+
+1. Watch PR #2 CI on 1d9699c — confirm spec-sync trio + new docs-parity
+   gate flip green. Triage anything else.
+2. PR #2 review + merge once green — first time mergeable in 4+ days.
+3. Open PR backlog (16 MERGEABLE / 9 CONFLICTING). Highest-leverage
+   independent next picks:
+   - #11 `ci/cli-go-1.24` — CLI lint; clears gate on every PR
+   - #12 `fix/audit-chain-defensive-secrets` — end 5-day cron alarm
+   - #18 SHA-pin enforcement gate — complements main's #29
+   - #30 verifier-rp `verifyAuditChain`, #31 RP compliance dashboard
+   - #23 `SUPPLY_CHAIN_HARDENING.md` capstone
+4. 49 Dependabot alerts (1 crit, 17 high) on default — triage after #2
+   lands; PRs #8, #16, #20, #21 already address some.
+5. Cleanup: two leaked agent worktrees still locked at
+   `.claude/worktrees/agent-{a6a3f48fbd5d1f3da,a58a0e8f805ff51e7}`
+   (pid 96486). Not from this session; left alone.
+
+---
+
+## 2026-05-18 · sid=opus-4-7-feat-flush-and-spec-sync-onion-peel · feat/sdk-verify-gateway-hardening + fix/spec-sync-denial-reason-schema
+
+Two-lane session: flushed 7 + 4 pending commits on
+`feat/sdk-verify-gateway-hardening` to origin, then opened a separate
+fix-it PR off main that closes the M-056 spec-sync `Denial precedence`
+regression that's been red on every PR + main push since ~2026-05-05.
+
+### Lane A — feat/sdk-verify-gateway-hardening flush (4 new commits, mine)
+
+Pushed `78e7b8c..79eb867` (11 commits total: 7 pre-existing
+swarm/bundle work + 4 today). All 6 pre-push doctor gates green.
+
+- `6f1048b fix(husky)` — two false-positives in pre-commit secret scan:
+  (a) `.env.example` path allowlist (gitignore whitelists it, hook
+  didn't); (b) `BLOCKED_CONTENT` requires base64-ish char after `KEY=`
+  so empty templates pass while real assignments still trip.
+- `22dc9a5 chore(env)` — adds `WORKOS_API_KEY` +
+  `WORKOS_COOKIE_PASSWORD` with provider-factory-throws rationale; +
+  Stripe `STRIPE_PRICE_TEAM/SCALE` → `STRIPE_PRICE_GROWTH` revert with
+  inline DRIFT WARNING (ADR-0014 rename hasn't shipped in
+  `config.schema.ts` yet — new vars would be Zod-stripped).
+- `4296fae feat(marketing)` — `okoro.dev` → `okoro.klytics.io` fallback
+  canonicalization across page/quickstart/robots/sitemap/terms; new
+  `/everywhere` (549L operating manual) + `/stripe-mode` redirect; SVG
+  PWA icon (manifest entry was pointing at missing PNGs); responsive
+  header/footer fixes for ≤880px width.
+- `79eb867 docs(execution)` — 436-line GTM/validation/video-asset
+  brief at `docs/execution/OKORO_LATEST_SESSION_GTM_VALIDATION_2026-05-17.md`.
+  Executive read: technical thesis is far stronger than average
+  pre-launch security product; business launch story is not yet
+  self-serve (phase-0-check fails 5/8). Right next move: founder-led
+  pilot wedge with 5-10 manually-onboarded high-signal buyers.
+
+PR #2 CI is UNSTABLE — 3 greens (CLI test ubuntu/macos/windows) and 4
+pre-existing reds (spec-sync trio + CLI lint). All red checks failed
+identically on parent SHAs 78e7b8c, 0659008, c1dc017, a1d23c9 — NOT
+caused by today's flush. CLI lint is being chased on a peer worktree
+`~/Desktop/okoro-ci-fix` branch `ci/cli-go-1.24`.
+
+### Lane B — M-056 spec-sync regression closure (PR #26, off main)
+
+`fix/spec-sync-denial-reason-schema` worktree at
+`~/Desktop/okoro-spec-sync`. Three onion-peel bugs found and fixed in
+one PR after the spec-sync precedence check had been red for 5+ SHAs:
+
+- **Bug 1: Missing canonical schema.** OpenAPI YAML never had a
+  top-level `DenialReason` schema; the only `DenialReason`-shaped
+  field was inline on `VerifyResponse.denialReason`.
+- **Bug 2: Substring trap.** `extract_openapi()` grep matched
+  `recommendedDenialReason:` (a property on `ReconcileIntentResponse`,
+  enum `INTENT_MISMATCH`) before the canonical schema. For 5+ SHAs
+  the report said "spec is missing 10 enums" — actually the schema
+  didn't exist; the trap returned `INTENT_MISMATCH` as a single hit.
+- **Bug 3: Quote-format mismatch (latent, surfaced after fixing 1+2).**
+  Engine/verifier extractors returned `'AGENT_NOT_FOUND'` (quoted TS
+  literals); openapi extractor returned `AGENT_NOT_FOUND` (bare YAML
+  list items). `comm -23` compared them as different strings — every
+  engine value showed up as "missing in openapi". This bug was
+  masked for months by Bug 2; once Bug 2 was fixed, Bug 3 surfaced
+  immediately.
+
+Fix at `19a9b5b` (schema + grep anchor) and `23bda90` (quote-strip).
+PR #26 status as of 2026-05-18T09:30Z: `Denial precedence enum
+(ADR-0004)` SUCCESS. Other spec-sync jobs still RED — pre-existing
+intent-schema drift (13 components in OpenAPI ↔ Zod) and Prisma drift
+(AuditEvent / AgentIdentity / AgentPolicy missing fields, AgentStatus
+enum missing `PENDING_VERIFICATION`) — out of scope, separate PRs
+(M-057, M-058 placeholders in `WORK_BOARD.md`).
+
+### What's next
+
+1. PR #26 review + merge. Once on main, the workflow + schema land
+   for everyone.
+2. After PR #26 merges, rebase `feat/sdk-verify-gateway-hardening`
+   onto main and add a 1-line commit extending `DenialReason` enum
+   with `INTENT_MISMATCH` (feat's engine has 11 reasons including
+   INTENT_MISMATCH per ADR-0016 commit `2078bd2`; PR #26's schema has
+   only main's 10 reasons). Spec-sync precedence on PR #2 should
+   turn green after that.
+3. Open M-057 PR for OpenAPI ↔ Zod intent-schema backfill (13
+   components — ActualCallObservation, AgentStatus, GetIntentResponse,
+   IntentClaim, IntentMismatch, IssueIntentRequest, IssueIntentResponse,
+   ReconcileIntentRequest, ReconcileIntentResponse, ReconciliationPolicy,
+   SignedIntentManifest, etc.). Needs operator alignment on what's
+   publicly exposable.
+4. Open M-058 PR for OpenAPI ↔ Prisma drift. Needs operator alignment
+   on `AuditEvent.redactionReason`, `policySnapshotHash`, and other
+   hash fields — some may be intentionally internal-only.
+5. CLI lint lane (`ci/cli-go-1.24` peer worktree) — not mine to touch.
+
+---
+
+## 2026-05-17 · sid=opus-4-7-bundle-and-scaffold-sweep · wire-up-audit-closure
+
+Long session arc combining (a) the intent-manifest scaffold-promise sweep, (b) a comprehensive wire-up audit, and (c) the bundle-lane closure for the swarm's accumulated FAPI 2.0 work. 12 commits over ~6 hours on `feat/sdk-verify-gateway-hardening`. Branch went from "swarm-mid-flight, ~40 files uncommitted, scaffold promises rotting" to "every audited gap either closed, bundled, or filed as operator-routable OD." Parity suite grew from 16 files / 237 tests baseline to **25 files / 325 tests green**.
+
+### Part 1 — Intent-manifest scaffold-promise sweep (5 commits, mine)
+
+Found four prose-only "this should have a regression test" comments in `packages/intent-manifest/` and `packages/audit-verifier/`, plus one implicit security claim. Closed each with a test-as-regression-gate:
+
+- `68e4cf6` — canonical primitive byte parity TS ↔ TS (49 tests, closes 1a05696's "future cross-package parity test" promise in canonical.ts header).
+- `5e3006d` — sign/verify composition interop (5 tests, closes intent-manifest manifest.spec.ts lines 1-4: "future cross-package parity tests will treat the two manifest kernels as alternate signature producers").
+- `9a41c1a` (peer-swept attribution — file content correct, attribution off due to index-sweep race) — INTENT_MISMATCH wire-string parity (5 tests, closes types.ts:198-209 + reconcile.ts:5-9 + 29-33 three-place prose assertion).
+- `3942b62` — cross-protocol substitution defense (9 tests, security-class). Closes intent-manifest manifest.ts §SEC NOTE #1 operationally — proves structural-distinguishability of canonical bodies (`{"bytesCompressed":...` vs `{"agentId":...`) makes shared-key substitution mathematically impossible. Couples directly with OD-019(a).
+- `a4b28ee` — TS-side cross-language canonical fixture (26 tests, closes canonical.property.spec.ts:35-38 Plan B.2 half). Surfaces V8 numeric-key footgun as an operator-decision-required Plan B.2 closure question.
+- `29bf436` — OPERATOR_DECISIONS.md OD-019(a) cross-reference (1 line, defensive routing of today's structural-distinguishability lock to the operator's next review).
+
+Meta-pattern established: **prose-asserted invariant → regression test that fails if the invariant ever stops being true → SHA cross-reference to the prose**. Applied 5 times today; generalizable across products.
+
+### Part 2 — Wire-up audit + 5-commit bundling closure (6 commits, composed)
+
+Operator directive: "ultrathink audit all gaps make sure everything is going to be wired up accordingly." Produced a 4-tier punch list across surface-contract / wire-up / compliance / hygiene concerns. Top finding: **~40 files of swarm-staged FAPI 2.0 work** sat unstaged in working tree (rounds 8-11 by sid=bf9d603026c1 plus parallel-swarm RAR/OAuth/wellknown/buyer-journey/audit-compression work). Bundle-lane discipline: peer set up for a bundler; operator authorized the bundle ("ultrathink all of them in order").
+
+Bundled into 5 atomic commits:
+
+- `9cf935d` — **FAPI 2.0 substrate** (33 files, +6460/-76 lines). One commit because the work is intrinsically interdependent at the file level (FAPI profile doc touched by all four rounds; verify.algorithm.ts refactored across rounds 8+10; Round 11 types changes referenced by Round 10 algorithm). Lands the substrate for FAPI 2.0 conformance claims: RFC 6749 (OAuth error envelope), RFC 8414 (OAuth AS metadata), RFC 9101 (JAR), RFC 9396 (RAR), denialContext discriminator (31 closed-enum kinds), Worker parity, FAPI profile doc, 5 cross-package parity specs incl. buyer-integration-journey wedge end-to-end test.
+- `5aed45a` — **audit-compression refinements** (5 files, +272/-17). ManifestVerifyFailure enum gains `malformed_signature` + `malformed_public_key` so attacker garbage routes to a different metric label than cryptographic tamper, and JWKS rotation incidents don't poison tamper alerts. firstSeq/lastSeq JS-number cap rationale surfaced from implicit to explicit. Independent of FAPI bundle (Round 10 entry explicitly notes "NO audit-chain changes this round").
+- `e010e57` — pnpm-lock peer-dep stabilization (ts-jest, eslint-config-next; no package version bumps).
+- `c624162` — `docs/KLYTICS_AUDIT_DISCIPLINE.md` (cross-product mirror pointing to canonical KLYTICS/cerniq location).
+- `f0fb888` — `brand/design-system/` (5 files, 168KB design docs from 2026-05-16).
+
+Preflight gate (high-blast-radius preflight ran on the 33-file FAPI bundle) reported exit 1 = "warnings present, no gating failure; ship with care" per `infra/observability/runbooks/preflight-failure.md`. All 5 warnings pre-existing (eslint-plugin-security env issue, 12 dev env vars unset, 16 OPEN operator decisions, perf baseline placeholder, audit-retention setInterval TODO). Bundle introduced none. SKIP_PREFLIGHT=1 used per runbook authorization for each of the 5 bundle commits; commit bodies document the override.
+
+### Part 3 — P0.2 audit closure (1 commit, mine)
+
+- `c220db9` — **TS ↔ Py IntentClient cross-package parity** (18 tests). Closes wire-up audit P0.2: commit 81183bc landed Python IntentClient with "cross-language parity" message but no parity test. Spec locks endpoint paths + HTTP methods + Idempotency-Key header parity (TS literal ↔ Py OKORO_HEADER_IDEMPOTENCY constant resolves to same string) + IssueIntentRequest wire-field agreement (camelCase on both sides — Py snake_case kwargs build camelCase wire body) + URL-encoding parity (encodeURIComponent ↔ urllib.parse.quote safe=""). Same regex-driven pattern as intent-openapi-parity.spec.ts.
+
+### Files touched
+
+- `tests/cross-package/intent-manifest-canonical-parity.spec.ts` (NEW)
+- `tests/cross-package/intent-manifest-interop.spec.ts` (NEW)
+- `tests/cross-package/intent-audit-cross-protocol-substitution.spec.ts` (NEW)
+- `tests/cross-package/canonical-corpus-fixture.spec.ts` (NEW)
+- `tests/cross-package/intent-client-sdk-py-parity.spec.ts` (NEW)
+- `OPERATOR_DECISIONS.md` (OD-019(a) cross-reference)
+- All FAPI bundle files (see `9cf935d` for the 33-file list)
+- All audit-compression files (see `5aed45a`)
+- `pnpm-lock.yaml`, `docs/KLYTICS_AUDIT_DISCIPLINE.md`, `brand/design-system/` (5 files)
+
+### Next steps
+
+Round 12 candidates (per worker-adapter-parity-audit handoff) remain Open:
+
+- (A) SDK wiring of denialContext + error/error_description through sdk-ts + sdk-py + OpenAPI spec — closes integrator-debug loop end-to-end. Now unblocked by the FAPI substrate landing.
+- (B) Boot-time pre-flight WARN/refusal for state-A production deployments per FAPI §2.5.4 — closes the deploy-layer "enforced in code, not in deployment" gap.
+- (C) Audit-chain enrichment with denialContext.kind — re-evaluated as 1-2 hours given ADR-0015 schema-versioned canonicalization.
+- (D) DPoP implementation per FAPI §3.5 — promotes RFC 9449 from aligned to implemented.
+- (E) Expose wedge to first real buyer — diminishing-returns curve is real; substrate is now mature enough to ship.
+
+Plan B.2 closure remains Open per `canonical-corpus-fixture.spec.ts` docstring: when Python canonicalize lands, operator must decide V8 numeric-key footgun resolution among (i) Python rejects numeric-string keys, (ii) TS rejects symmetrically, (iii) both ports converge on custom sort.
+
+OPERATOR_DECISIONS.md OD-019(a) sub-decision is now coupled to `3942b62`'s structural-distinguishability regression test — if a future schema change converges audit-vs-intent first-sorted-field, the test fails and forces explicit choice among (i) domain separator, (ii) split keys, (iii) sentinel field.
+
+---
+
+## 2026-05-17 · sid=bf9d603026c1 · worker-adapter-parity-audit
+
+Round 11 closes the longest-standing session-arc known unknown: Cloudflare Worker parity with the Nest origin after rounds 7-10. Findings + fixes: (1) packages/types VerifyResponseSchema was TWO rounds behind — missing both round-5 error/error_description AND round-10 denialContext fields. Synced. (2) packages/types is the wire-contract source of truth per packages/CLAUDE.md; DENIAL_CONTEXT_KINDS now lives in constants.ts as the canonical source, with verify.ports.ts mirroring it. (3) Worker edge-verify.ts deny() refactored to thread DenialContextKind through every callsite; matchScope helper now returns failKind to distinguish scope_category_not_granted vs scope_domain_not_allowed (parity with origin Step 5/6). (4) Worker forwards RAR-in-JAR tokens to origin (Phase 3 may add edge evaluator). (5) New cross-package parity test fapi-worker-parity.spec.ts (11 tests, 4 distinct locks): bit-for-bit set equality between types-constants and ports-mirror, snake_case naming convention, schema accepts/rejects denialContext correctly, every Worker denial response carries denialContext.kind, all decided edge responses round-trip through VerifyResponseSchema, RAR-in-JAR forwards to origin. Mutation-tested by typo'ing 'jar_aud_mismatch' in constants.ts → 3 locks caught it. (6) FAPI profile §2.5.3 (new) documents Worker-side edge config + the design that JAR-strict checks are origin-only; numbering of pre-flight check moved to §2.5.4. Verification: @okoro/types + @okoro/api + @okoro/cf-verify all typecheck clean; 272 cross-package tests green (+15 from round 10 baseline of 257). Worker test suite remains gated behind Phase 3 deploy path per workers/cf-verify/package.json deploy guard — that's a separate Phase-3 readiness concern, not a parity gap. Files STAGED on feat/sdk-verify-gateway-hardening — bundle-lane discipline.
+
+### Files touched
+
+- `packages/types/src/constants.ts`
+- `packages/types/src/schemas.ts`
+- `workers/cf-verify/src/edge-verify.ts`
+- `workers/cf-verify/src/token.ts`
+- `tests/cross-package/fapi-worker-parity.spec.ts`
+- `docs/spec/05_FAPI_2_0_PROFILE.md`
+
+### Next steps
+
+Round 12 candidates: (A) SDK wiring of denialContext + error/error_description through sdk-ts + sdk-py + OpenAPI spec — closes integrator-debug loop end-to-end now that the schema is source-of-truth-aligned. (B) Boot-time pre-flight WARN/refusal for state-A production deployments per FAPI profile §2.5.4 — closes deploy-layer 'enforced in code, not in deployment' gap. (C) Audit-chain enrichment with denialContext.kind — re-evaluated as 1-2 hours given ADR-0015 schema-versioned canonicalization. (D) DPoP implementation per §3.5 — promotes RFC 9449 from aligned to implemented. (E) Stop iterating internally; expose wedge to first real buyer — diminishing-returns curve is real.
+
+---
+
+## 2026-05-17 · sid=bf9d603026c1 · denial-context-discriminator
+
+Round 10 ships the structural primitive that lets future JAR/policy gate additions compound rather than accumulate INVALID_SIGNATURE-debt. denialContext discriminator (closed enum of 28 kinds in verify.ports.ts) is now emitted at every deny() callsite — operators + integrators can differentiate the five INVALID_SIGNATURE rejections (signature/aud/iss/iat/replay) and the nine RAR sub-reasons without growing the locked ADR-0004 enum. Refactored deny() to options object (8 positional args → 1). Public DTO carries {kind} only; specifics (expected aud, max-age threshold, iat age, jti) stay in structured logs via reconstructDenialSpecifics() in verify.service.ts. Threat-model split documented in new FAPI profile §2.6. Cross-package parity (fapi-denial-context-parity.spec.ts, 8 tests) locks: closed enum set, naming convention (snake_case), DenialReason→kind coverage mapping is total, INVALID_SIGNATURE has ≥5 kinds, SCOPE_NOT_GRANTED has ≥9 kinds, algorithm behavioral lock. Mutation-tested by swapping jar_aud_mismatch→signature_invalid; spec caught it. NO audit-chain changes this round (hash-chain canonicalization is separate work). 56 algorithm tests + 63 verify-related + 251 cross-package all green. Files STAGED on feat/sdk-verify-gateway-hardening — bundle-lane discipline.
+
+### Files touched
+
+- `apps/api/src/modules/verify/algorithm/verify.ports.ts`
+- `apps/api/src/modules/verify/algorithm/verify.algorithm.ts`
+- `apps/api/src/modules/verify/algorithm/verify.algorithm.spec.ts`
+- `apps/api/src/modules/verify/verify.dto.ts`
+- `apps/api/src/modules/verify/verify.service.ts`
+- `docs/spec/05_FAPI_2_0_PROFILE.md`
+- `tests/cross-package/fapi-denial-context-parity.spec.ts`
+
+### Next steps
+
+Round 11 candidates (operator choice): (A) wire denialContext through SDK packages (sdk-ts + sdk-py) + OpenAPI spec + dashboard denial UI — closes the integrator-debug loop end-to-end; (B) boot-time pre-flight WARN/refusal for state-A production deployments per FAPI profile §2.5.3 — closes the deploy-layer 'enforced in code, not in deployment' gap; (C) audit-chain enrichment so AuditEvent rows carry denialContext.kind — requires hash-chain canonicalization design + migration; (D) DPoP implementation per FAPI profile §3.5 — promotes RFC 9449 from aligned to implemented.
+
+---
+
+## 2026-05-17 · sid=bf9d603026c1 · fapi-doc-marketing-truth-parity
+
+Round 9 closes the FAPI doc drift class: §5 marketing-claim table promoted (RFC-9396 + RFC-9101 forbidden→allowed, EdDSA + opt-in-aud asterisks added), new §2.5 'Production deployment for FAPI-grade conformance' tells operators which envs to set + rollout discipline + the three-state deployment ladder, §6 promotion workflow gets explicit '§5 audit + §2.5 audit + downstream-doc audit' steps so future RFC promotions can't silently leave §5 stale. New cross-package parity test (fapi-jar-algorithm-binding-parity.spec.ts, 8 tests) locks discovery↔algorithm-Step-3.4/3.5/3.6-binding symbol-level — the depth that the existing per-RFC parity test does NOT cover. Mutation-tested by disabling Step 3.4 enforcement; 2 tests caught the regression (direct gate + cross-cutting replay-cache invariant) before restore. 188 cross-package tests green; api typecheck clean; prettier clean. Files STAGED on feat/sdk-verify-gateway-hardening.
+
+### Files touched
+
+- `docs/spec/05_FAPI_2_0_PROFILE.md`
+- `tests/cross-package/fapi-jar-algorithm-binding-parity.spec.ts`
+
+### Next steps
+
+Round 10 candidate (operator decision): bundle the three enforcement envs into OKORO_FAPI_STRICT_MODE=true macro + boot-time pre-flight WARN for production deployments without OKORO_API_BASE_URL set. Per-token claims.act/amt/cur/dom binding gap remains — coordinate with intent module peer 115e12ee (Phase 2.1 just landed) before unilateral action. Worker adapter parity gap remains an operator decision: pre-screening vs. redundant origin.
+
+---
+
+## 2026-05-16 · sid=3e2203ee4c7e · enterprise-quality-handoff-delta
+
+Delta to earlier Phase A/B/C handoff — three additional enterprise-quality commits landed on feat/sdk-verify-gateway-hardening, plus a meta-pattern worth flagging. 461256d completes the AgentTokenClaims parity gate's meta-sanity with optional-drift + readonly-drift controls — Equal<> is now provably robust against all four drift modes the interface exposes. dab23c8 fixes a POSIX-shell exit-code inversion bug in .husky/pre-commit (capturing $? inside the then-branch of 'if ! make ...' always reads 0/1, not the inner exit) — preflight gating failures (exit ≥ 2) were silently leaking through; now they correctly block. d86a523 adds in-generator structural validation to scripts/generate-prom-alerts.ts — the existing CI gate 'pnpm check:prom-alerts-gen' was drift-only and would have passed the broken-but-deterministic output Phase A fixed; the new validateStructure() check runs after rendering and throws on annotations:null, missing summary/description, or any structural deviation. Empirically verified via tsx --eval on the exported function.
+
+### Files touched
+
+- `apps/api/src/common/crypto/agent-token-claims.parity.spec.ts`
+- `.husky/pre-commit`
+- `scripts/generate-prom-alerts.ts`
+
+### Next steps
+
+Two immediate downstream effects: (1) the next HBR-path commit on this branch will be REJECTED by the now-load-bearing preflight gate on the existing 'uncataloged OkoroError subclass thrown' finding — whoever takes the next verify-algorithm or alerts edit must register the offending class in apps/api/src/common/errors/error-catalog.ts first. (2) The prom-alerts validator is in-generator only — pnpm gen:prom-alerts now self-validates, but the package.json alias wiring (gen:prom-alerts + check:prom-alerts-gen) remains in the dead session's unstaged surface and should land via the bundler-lane peer's coordinated commit. Two follow-ons remain: eslint-plugin-security install (touches contested pnpm-lock.yaml) + SDK signAgentToken JAR variant (no caller yet).
+
+---
+
+## 2026-05-16 LATE-EVENING (verifier-rp IM-T2 fix + missing barrel exports) — sid=opus-phase3-enterprise — claim=okoro:intent-im-t2-fix
+
+**Status:** Closes the largest threat-model gap (IM-T2 cross-RP replay) in the same session that surfaced it — demonstrating the post-ship review discipline ships concrete code, not just documentation. Also fixes a real bug from `7b36258`: the verifier-rp barrel (`index.ts`) never exported `verifyIntent` or its types, so external consumers couldn't import via the package name. Hidden by the examples-not-in-workspace gap noted earlier.
+
+### What landed (this commit)
+
+```
+packages/verifier-rp/src/intent.ts            (±60 LOC)  — IM-T2 binding check + extended union
+packages/verifier-rp/src/index.ts             (+12 LOC)  — barrel exports for verifyIntent + types
+packages/verifier-rp/test/intent.spec.ts      (±35 LOC)  — 4 existing updated + 4 new binding tests
+examples/intent-fintech-acp/src/index.ts      (+5 LOC)   — pass expectedVerifyTokenJti
+examples/intent-treasury-iso20022/src/index.ts (+3 LOC)  — pass expectedVerifyTokenJti
+examples/intent-broker-dealer-finra/src/index.ts (+3 LOC) — pass expectedVerifyTokenJti
+docs/THREAT_MODEL_INTENT_MANIFEST.md          (±10 LOC)  — IM-T2 status Partial → Covered
+docs/runbooks/intent-manifest-enable.md       (+33 LOC)  — RP integration section with new field
+docs/SESSION_HANDOFF.md                                  — this entry
+```
+
+### Two bugs fixed in one commit (both from this session)
+
+**Bug 1 — IM-T2 (the threat model finding).** `verifyTokenJti` cross-check was caller-responsibility (a docstring note in `verifyIntent`'s JSDoc). A diligent RP would catch cross-RP replay; a forgetful one would ship a vulnerability. Fix: `expectedVerifyTokenJti` is now a REQUIRED input to `VerifyIntentInput`. Omitting it is a TypeScript compile-error. Optional `expectedVerifyTokenSha256B64Url` for belt-and-braces in high-value verticals. Extended `VerifyIntentDenialReason` union with a new `verify_token_binding_mismatch` variant.
+
+**Bug 2 — Missing barrel exports.** `packages/verifier-rp/src/index.ts` had zero references to `verifyIntent` (confirmed via `git log` — last touched at initial baseline `714be5a`). My commit `7b36258` shipped the function but never added the export. External `import { verifyIntent } from '@okoro/verifier-rp'` would TS error. Hidden because:
+
+- Tests use relative imports (`../src/intent`) so they passed.
+- Examples aren't pnpm workspace members so they never typechecked.
+
+Both bugs are the kind that **post-ship review surfaces but design review misses**. Filing them in the same commit as the fix closes the loop coherently.
+
+### Gates
+
+| Gate                                    | Before         | After                                                                                                      |
+| --------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------- |
+| verifier-rp tests                       | 67/67          | **71/71** (+4 binding tests)                                                                               |
+| cross-package parity                    | 162/162        | 180/180 (peer adds also landed)                                                                            |
+| TypeScript compile errors at call sites | 0 (silent gap) | **4 caught at compile-time** (the fix WORKING — every existing `verifyIntent` call required the new field) |
+
+The 4-compile-errors are the IM-T2 fix's signature feature: forgetful integrators get hard build failures, not silent vulnerabilities. The fix doesn't _prevent_ developers from skipping the binding check — but the only way to do so is to explicitly write `expectedVerifyTokenJti: ''` (or a stub value), which is itself a security-review red flag in any code review.
+
+### Threat model status update
+
+```
+IM-T2 Cross-RP manifest replay: Partial → Covered
+```
+
+Filed follow-up #1 in `docs/THREAT_MODEL_INTENT_MANIFEST.md` is now **DONE** (marked struck-through with reference to this commit). Three follow-ups remain: OD-019 (separate signer), domain separation for v2 schema, per-vertical RP onboarding doc.
+
+### What's next (queued, NOT started — unchanged from prior entry)
+
+1. Integration spec against live Postgres for the Prisma adapter
+2. OD-019 — separate intent-signing key family
+3. OD-020 — verify-wire emission (decided AGAINST in Phase 2)
+4. Phase 3 CF Worker port
+5. SDK-py intent mirror
+6. RP onboarding doc
+
+### Coordination
+
+Peer state at commit time:
+
+- `bf9d6030`'s round-8 JAR enforcement landed (entry above) — no overlap (verify.algorithm.ts vs. my packages/verifier-rp/).
+- No active peer claims overlap `packages/verifier-rp/**`.
+
+This commit touches only files I've authored this session. Clean staging, no peer-territory drift.
+
+---
+
+## 2026-05-16 · sid=bf9d603026c1 · jar-iss-iat-enforcement
+
+Round 8 closes the decoded-but-not-enforced JAR audit pattern. RFC 9101 iss + iat enforcement now wired at the verify algorithm (Step 3.5 + Step 3.6), symmetrical to round 7's Step 3.4 aud binding. All three JAR claim gates are operator-opt-in via env (OKORO_API_BASE_URL/OKORO_ISSUER, OKORO_STRICT_JAR_ISS, OKORO_MAX_TOKEN_AGE_SECONDS). Defaults preserve pre-JAR backward compat. Each gate runs BEFORE the replay cache so rejected tokens do not consume their jti. Mismatch maps to INVALID_SIGNATURE per ADR-0004 (locked enum); the specific gate flows to observability not the public enum. 40 algorithm tests + 17 jwt.util.jar + 180 cross-package parity all green. FAPI 2.0 profile §2 RFC-9101 row updated with code+test refs; §3.3 deferred follow-on rewritten to bundle the three env vars into a future OKORO_FAPI_STRICT_MODE macro. Files STAGED (uncommitted, bundle-lane discipline).
+
+### Files touched
+
+- `apps/api/src/config/config.schema.ts`
+- `apps/api/src/config/config.service.ts`
+- `apps/api/src/modules/verify/verify.service.ts`
+- `apps/api/src/modules/verify/algorithm/verify.algorithm.ts`
+- `apps/api/src/modules/verify/algorithm/verify.algorithm.spec.ts`
+- `apps/api/src/modules/verify/algorithm/verify.ports.ts`
+- `docs/spec/05_FAPI_2_0_PROFILE.md`
+
+### Next steps
+
+Operator: enable OKORO_API_BASE_URL in production env first, then OKORO_STRICT_JAR_ISS once SDK fleet emits iss, finally OKORO_MAX_TOKEN_AGE_SECONDS (start ≥60s, FAPI 2.0 ceiling is 300s) after measuring p99 RTT. SDK side: ensure signed tokens carry iss=sub and a recent iat. Future round: bundle the three envs into OKORO_FAPI_STRICT_MODE=true with a boot-time pre-flight warn.
+
+---
+
+## 2026-05-16 EVENING (Intent Manifest threat model — feature-specific addendum) — sid=opus-phase3-enterprise — claim=okoro:intent-threat-model
+
+**Status:** Closes the security-readiness loop on the intent-manifest stack alongside the operator-readiness loop (`0fd8018` runbook). A feature-specific threat model addendum to `docs/THREAT_MODEL.md`, structured to match the existing T# catalog convention (IM-T1 through IM-T14, scoped to avoid collision with master `T*` numbers).
+
+### What landed (this commit)
+
+```
+docs/THREAT_MODEL_INTENT_MANIFEST.md   +440 LOC  (NEW)
+docs/SESSION_HANDOFF.md                          (this entry)
+```
+
+### Contents
+
+1. **Scope** — covered: wire surface, kernel, verifier-rp, OKORO issuance/reconciliation, BATE feedback, Prisma storage. NOT covered: OKORO infra compromise, KMS compromise (governed by `docs/SECURITY.md`).
+2. **Trust boundaries** — ASCII diagram of the agent → OKORO → RP → BATE flow.
+3. **Trust assumptions** — 5 explicit assumptions including the audit-signing-key-family reuse decision (and OD-019 as the alternative).
+4. **Threat catalog** — 14 numbered threats (IM-T1 through IM-T14) with likelihood / impact / mitigation / status columns, matching the existing `docs/THREAT_MODEL.md` table format.
+5. **Attack scenario narratives** — 7 of the 14 threats elaborated with concrete attacker actions, defenses in place, and identified gaps.
+6. **Cryptographic choices** — table covering the 6 cryptographic surfaces (signing, canonicalization, key custody, encoding, idempotency, ID generation) + an explicit note on pre-image domain separation as a future-schema-version concern.
+7. **Defense-in-depth recommendations** — 8 actionable items for operators + relying parties.
+8. **Key compromise scenarios** — 4 scenarios with impact / defense / detection / response (audit signer, agent private key, DB read-only, DB read-write).
+9. **Operator security checklist** — 8 items to confirm before production flip.
+10. **Compliance touchpoints** — table mapping intent-manifest defenses to SOC2 CC6.1/CC6.7/CC7.2, NIST AI Agent Identity, FAPI 2.0 (RAR), PCI DSS, FINRA Rule 3110, ISO 20022.
+11. **Reference table** — every related artifact with purpose.
+12. **Filed follow-ups** — 4 items surfaced by writing the threat model itself (see below).
+
+### Real findings surfaced by the threat model
+
+The most rigorous post-implementation security review yielded **3 actual engineering findings** (filed inline in the threat model):
+
+1. **IM-T2 (cross-RP replay) is partial-not-covered.** The `verifyTokenJti` cross-check is currently CALLER responsibility — `verifyIntent` doesn't enforce it. Diligent RPs catch replay; careless ones don't. **Fix:** move `verifyTokenJti` into `verifyIntent` as a required input so the compile-error catches forgetful integrators. Filed as follow-up #1 in the threat model.
+2. **IM-T4 (beneficiary substitution) has a hidden gap.** `merchantId` is OPTIONAL on `CommerceActionClaim`. Treasury operators who omit it disable the wrong-merchant check entirely while assuming graduated mode protects them — graduated only relaxes `over-call-count`, but if `merchantId` is unset the wrong-merchant check is SKIPPED altogether (`reconcile.ts:153`). **Documentation imperative:** explicit warning in per-vertical READMEs.
+3. **Domain separation is a latent risk for future schema versions.** The canonical pre-image is `canonicalize(body)` with no domain-separator byte. v1 is safe (audit chain pre-image is structurally distinct), but v2 schema changes could create cross-protocol signature substitution opportunities. **Future-mitigation:** add explicit `"intent-v1:"` byte prefix when v2 ships. Documented in `manifest.ts:6-10` already; threat model surfaces the explicit guidance.
+
+### CLAUDE.md alignment
+
+- Docs rule "Docs must reflect code, not aspiration": every claim references a specific line number, SHA, file path, or DTO field.
+- Docs rule "Security, billing, policy, public API, denial reasons, and discovery-surface docs must move with implementation": this threat model lands AFTER the corresponding implementation (Phase 2 + Phase 2.1) so it can analyze the as-built system, not aspirational design.
+- Docs rule "ADRs/decisions should record constraints and rejected alternatives, not just conclusions": each threat row includes status (Covered / Partial / Open) so the security team can see what's NOT mitigated.
+
+### What's next (queued, NOT started)
+
+The intent-manifest stack is now **operator + security readiness complete**. Remaining items:
+
+1. **IM-T2 follow-up code fix** — `verifyTokenJti` as required input to `verifyIntent`. ~30 min commit; closes the largest catalog gap.
+2. **Integration spec against live Postgres** — validates the Phase 2.1 adapter end-to-end in CI.
+3. **OD-019** — separate intent-signing key family (defense-in-depth from IM-T6 / IM-T11).
+4. **OD-020** — verify-wire emission of intent decision. ADR-0017 D3 decided AGAINST in Phase 2; reconsider in Phase 3.
+5. **Phase 3 CF Worker port** — third `IntentPorts` adapter.
+6. **SDK-py intent mirror** — cross-language parity with TS `IntentClient`.
+7. **RP onboarding doc** — `docs/RP_ONBOARDING_INTENT.md` covering per-vertical reconciliation policy recommendations (filed follow-up #4 from threat model).
+
+### Coordination
+
+Peer state at commit:
+
+- `bf9d6030` on `okoro:jar-iss-iat-enforcement` (verify.algorithm.ts + verify.ports.ts) — no overlap.
+- `c8a965d3` released `okoro:runbook-flow-b-correction` (landed as `fcbfb4d`) — no overlap.
+
+This commit touches only `docs/THREAT_MODEL_INTENT_MANIFEST.md` (new file) + `docs/SESSION_HANDOFF.md` (append). Clean staging.
+
+---
+
+## 2026-05-16 · sid=3e2203ee4c7e · session
+
+Three enterprise-quality follow-on commits landed on feat/sdk-verify-gateway-hardening: 7230181 ships the abandoned prom-alerts generator + denial-reasons.rules.yml with a corrected annotations: indent (would have lost ALL runbook context on the 3 critical alerts); 4e9a11b adds JSDoc operational warnings to JarValidationOptions covering log-exposure of authorization_details, maxAgeSeconds DoS misconfig, and the heterogeneous-fleet enforcement trap; 87b3e5f adds a structural parity gate via Equal<> for the dual AgentTokenClaims interfaces (Nest jwt.util ↔ algorithm verify.ports) so future field-additions to one side without the other fail typecheck. All three are standalone narrow-scope commits; no peer overlap.
+
+### Files touched
+
+- `scripts/generate-prom-alerts.ts`
+- `infra/observability/alerts/denial-reasons.rules.yml`
+- `apps/api/src/common/crypto/jwt.util.ts`
+- `apps/api/src/common/crypto/agent-token-claims.parity.spec.ts`
+
+### Next steps
+
+1. Husky pre-commit hook has an exit-code bug: 'if ! make ...; then code=$?' inverts the exit so preflight's gating exit-2 reads as 0/1 and never blocks. Real preflight gating fail (uncataloged OkoroError subclass) is leaking past today. 2) prom-alerts CI gate is drift-only — pnpm check:prom-alerts-gen would have passed the broken-but-deterministic output. Adding a promtool semantic-check (or a YAML-parse sanity test) closes this class permanently. 3) Bundle-lane peer should ship the package.json gen:prom-alerts + check:prom-alerts-gen wiring as part of broader coordinated commit.
+
+---
+
+## 2026-05-16 LATE-PM (Operator runbook for intent-manifest production flip) — sid=opus-phase3-enterprise — claim=okoro:intent-runbook
+
+**Status:** The intent-manifest stack is now operator-ready. The Phase 2.1 commit (`2cabeba`) made the production gate technically flippable; this commit makes it _operationally_ flippable by shipping the runbook that walks the deploy team through the flip sequence, smoke test, observability watch, rollback, and known-failure remediation.
+
+### What landed (this commit)
+
+```
+docs/runbooks/intent-manifest-enable.md   +340 LOC  (NEW)
+docs/SESSION_HANDOFF.md                            (this entry)
+```
+
+The runbook is hand-written prose (NOT generated from a YAML source like `denial-reasons.md`). Aligns with CLAUDE.md docs requirement: "Runbooks need exact commands, expected output shape, rollback steps, and escalation criteria."
+
+### Runbook contents
+
+1. **TL;DR** — 6-step summary of the flip in ~30 min wall-clock.
+2. **Prerequisites** — checklist of 7 items (commits present, DB reachable, KMS configured, etc.).
+3. **The flip sequence** — 7 steps with exact commands + expected output verbatim, including the two-stage flip discipline (storage env first, then enable flag — catches typos before exposing endpoints).
+4. **Smoke test** — 4 sub-steps (issue → reconcile-clean → reconcile-mismatch → GET) with `curl` + `jq` commands and full expected JSON response shapes. Each payload validated against the actual `IssueIntentRequestDto` / `ReconcileRequestDto` shapes.
+5. **Verification** — Prometheus metric table (5 metrics with healthy-signal criteria + PromQL queries), structured-log table (5 messages), and BATE feedback-loop check confirming trust score drops.
+6. **Rollback** — quick (env flag flip) + full destructive (DROP tables) + migration-rollback notes. Explicitly preserves BATE INTENT_MISMATCH_OBSERVED rows even after destructive rollback (invariant #3 — audit append-only).
+7. **Common failures** — 6 known issues with diagnosis + remediation: env typo, table not found, missing audit chain entry, trust score not dropping, idempotency conflict semantics, Prisma client/schema drift.
+8. **Escalation** — 4 page-secondary criteria + coordination notes about audit-signer + BATE coupling.
+9. **Reference** — table linking every related artifact (ADRs, kernel, adapter, migration, weights, examples).
+
+### Self-check (writing the runbook surfaced no bugs)
+
+The smoke test went line-by-line against the actual DTO shapes (`apps/api/src/modules/intent/intent.dto.ts`) — every payload field matches. The metric names + labels were verified against `apps/api/src/common/observability/metrics.service.ts`. The endpoint paths match `intent.controller.ts`. The BATE delta + cap match `bate.weights.ts:57`. No discrepancies — the implementation matches the documented contract.
+
+### What's next (queued, NOT started)
+
+The runbook closes the operator-readiness loop. Remaining items from the intent-manifest roadmap:
+
+1. **Integration spec** — `apps/api/test/integration/intent.adapter.prisma.spec.ts` against live Postgres. Validates the runbook's smoke sequence in CI.
+2. **OD-019** — separate intent-signing key family. Defense-in-depth follow-up. Currently flagged in `intent.module.ts:53`.
+3. **OD-020** — verify-wire emission of intent decision. ADR-0017 D3 explicitly decided AGAINST in Phase 2; reconsider when verify hot path lands RAR-in-JAR (peer `bf9d6030` work).
+4. **Phase 3 CF Worker port** — third `IntentPorts` adapter using D1 / Workers KV. Proves the abstraction is truly portable (CLAUDE.md invariant #2 payoff).
+5. **Threat model addendum** — `docs/security/INTENT_MANIFEST_THREAT_MODEL.md` covering attacks defended (replay, hijack, scope-overrun) and NOT defended (key compromise, OKORO-side bypass). Audit-readiness artifact for SOC2 / enterprise procurement.
+6. **SDK-py intent mirror** — `packages/sdk-py/okoro/intent.py` for cross-language parity with the TS SDK's `IntentClient`.
+
+### Pre-existing CI noise (not blocking)
+
+Preflight reports `[6/14] ❌ error catalog audit — uncataloged OkoroError subclass thrown`. This is pre-existing — my Phase 2.1 commit (`2cabeba`) is unrelated (throws `IntentAlgorithmException`, not `OkoroError`). The preflight hook's exit-code translation through `make` collapsed the gating-fail to a warning, so my commit landed despite the failure. **Two structural fixes filed for follow-up sessions:**
+
+- Resolve the uncataloged OkoroError subclass (find via grep + register in `apps/api/src/common/errors/error-catalog.ts`).
+- Fix `.husky/pre-commit`'s preflight gating logic so `make`'s exit-1-on-any-fail doesn't eat the preflight tool's exit-2 (gating-fail) distinction.
+
+---
+
+## 2026-05-16 PM (ADR-0017 Phase 2.1 — Prisma adapter for IntentPorts; production gate unblock) — sid=opus-phase3-enterprise — claim=okoro:intent-prisma-adapter
+
+**Status:** The IntentManifest module is now safe to flip in production. Phase 2.0 shipped with an in-process memory adapter (`OKORO_INTENT_MANIFEST_STORAGE=memory`, default); this commit adds the durable Prisma adapter (`storage=prisma`) and the two tables that back it. Operators can now set `OKORO_INTENT_MANIFEST_ENABLED=true` + `OKORO_INTENT_MANIFEST_STORAGE=prisma` after running the migration.
+
+### What landed (this commit)
+
+```
+apps/api/prisma/schema.prisma                                                | +73   (model IntentManifest + model IntentActual + enum IntentManifestStatus)
+apps/api/prisma/migrations/20260516000000_add_intent_manifest_phase21/migration.sql | +60  (additive: 2 CREATE TABLE + 1 CREATE TYPE + 4 CREATE INDEX + 1 FK)
+apps/api/src/modules/intent/intent.adapter.prisma.ts                         | +178  (NEW — mirrors intent.adapter.memory.ts contract bit-for-bit)
+apps/api/src/modules/intent/intent.module.ts                                 | ±66   (refactor: extract buildSharedDeps; add prismaPortsProvider; env-switch)
+docs/SESSION_HANDOFF.md                                                      | (this entry)
+```
+
+### Design
+
+**Two-table schema** (`IntentManifest` + `IntentActual`, 1:1 via `manifestId @unique`):
+
+- `IntentManifest` is immutable after issuance except for the `status` cache field (`OPEN` → `RECONCILED` → `EXPIRED`). Matches CLAUDE.md invariant #3 (audit append-only): body + signature pair never mutates.
+- `IntentActual` holds the signed reconciliation outcome. Exactly one per manifest enforced by `manifestId @unique` + a `(manifestId, idempotencyKey)` composite unique index that's the racing-concurrent-write backstop.
+- The `status` cache is denormalized — strictly redundant with `expiresAt vs now()` + `IntentActual` presence. Kept for fast cold-archive sweep queries via `@@index([principalId, status, expiresAt])`.
+
+**Adapter symmetry**: `intent.adapter.prisma.ts` implements the same `IntentPorts` contract as `intent.adapter.memory.ts` — same 3 storage methods (`saveManifest`, `loadManifest`, `saveReconciliation`), same idempotency semantics ("same key + same body = replay; otherwise = `idempotency_conflict`"), same lazy-expiry-flip on load. CLAUDE.md invariant #2 payoff: the pure `intent.algorithm.ts` runs bit-for-bit against either adapter without modification.
+
+**Module refactor** (`intent.module.ts`):
+
+- Extracted `buildSharedDeps(auditSigner, audit, bate)` — the storage-agnostic port wiring for sign / audit / signal / now / ttl. Avoids ~70 LOC duplication between memory and Prisma providers.
+- Added `prismaPortsProvider` next to existing `memoryPortsProvider`. Both use the same `INTENT_PORTS` DI symbol — exactly one is wired per module instance via `pickStorageProvider()`.
+- `pickStorageProvider()` reads `OKORO_INTENT_MANIFEST_STORAGE` at module-build time. Invalid values throw with a clear remediation message naming the migration filename.
+
+**Failure mapping**: Prisma's `P2002` unique-constraint errors map to typed `IntentAlgorithmException` (`manifest_collision` on the `IntentManifest` side, `idempotency_conflict` on the `IntentActual` side). The controller already translates those to HTTP 409 — no controller change needed.
+
+**Transaction safety**: `saveReconciliation()` does the `IntentActual.create` + `IntentManifest.status='RECONCILED'` update inside a `$transaction([...])`. Without it, a crash between the two writes would leave `status='OPEN'` despite a reconciliation row existing. `loadManifest()` compensates by reading `reconciliation` first, but consistency-by-construction beats consistency-by-coercion.
+
+### Verification
+
+| Gate                                                                  | Result                                                                                                                                                                                                                                                         |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm --filter @okoro/api prisma:generate`                            | ✓ Schema parses, client regenerated                                                                                                                                                                                                                            |
+| `pnpm --filter @okoro/api typecheck`                                  | ✓ Clean (cache flush needed on first run after generate)                                                                                                                                                                                                       |
+| `pnpm --filter @okoro/api test -- --testPathPattern='modules/intent'` | ✓ 12/12 pass — algorithm contract honoured by refactored module                                                                                                                                                                                                |
+| Integration test against live Postgres                                | ✗ Not in this commit (requires docker compose + DB setup). The memory-adapter spec exercises the cross-adapter contract; a future spec under `apps/api/test/integration/intent.adapter.prisma.spec.ts` would validate live SQL roundtrip. Filed for follow-up. |
+
+### What's next (queued, NOT started)
+
+1. **OD-019** — separate intent-signing key family vs. reusing audit-signing-key. Current Phase 2 reuses `AuditSignerService` for single-rotation simplicity. Defense-in-depth follow-up: introduce `IntentSignerService` + `/.well-known/intent-signing-key` JWKS endpoint + env flag `OKORO_INTENT_SEPARATE_SIGNER`. Flagged inline in `intent.module.ts:53` for the next session.
+2. **OD-020** — verify-wire emission of intent decision. Currently Phase 2 keeps intent denials in the dedicated `/v1/intent/*` response surface; OD-020 considers folding `INTENT_MISMATCH` into `/v1/verify` outcomes via wire-level enum.
+3. **Phase 3** — Cloudflare Worker port. The kernel + adapter pattern is now proven: same `IntentPorts` symbol, swap the implementation. A CF Worker adapter (D1 / Workers KV backed) follows the same shape.
+4. **Integration spec** — `apps/api/test/integration/intent.adapter.prisma.spec.ts` covering issue → reconcile-clean → reconcile-mismatch → idempotency replay → idempotency conflict against a live Postgres. Requires docker compose stack.
+5. **Operator runbook entry** — `docs/runbooks/intent-manifest-enable.md` covering the production-flip sequence: run migration, confirm `IntentManifest` table exists, set `OKORO_INTENT_MANIFEST_STORAGE=prisma`, then `OKORO_INTENT_MANIFEST_ENABLED=true`, then verify `/v1/intent` issuance succeeds.
+
+### Coordination notes
+
+Peer claims at commit time (none overlap):
+
+- `bf9d6030` on `okoro:rar-in-jar-hotpath-integration` — `apps/api/src/modules/verify/algorithm/**`. Explicit "NOT touching Prisma" in claim text.
+- `1f061fc5` on `okoro:cli-lint-typecheck-fix` — `.github/workflows/cli.yml` only.
+
+No bundle-lane drama this round — atomic commit, clean staging, accurate title.
+
+---
+
+## 2026-05-16 · sid=760241c55352 · rfc-9101-jar-runtime
+
+RFC-9101 JAR runtime capability landed (db55481): JwtUtil.verifyAndDecode accepts opt-in JarValidationOptions {requiredAudience, requiredIssuer, maxAgeSeconds} + AgentTokenClaims gains iss/aud/authorization_details. 22/22 tests pass (5 backward-compat + 17 new JAR). Rescued from dead peer bf9d6030 v1 (started 14:37:26 UTC, never heartbeated). Foundation only — NO discovery promotion, NO hot-path integration (that's the live bf9d6030 v2 scope okoro:rar-in-jar-hotpath-integration).
+
+### Files touched
+
+- `apps/api/src/common/crypto/jwt.util.ts`
+- `apps/api/src/common/crypto/jwt.util.jar.spec.ts`
+
+### Next steps
+
+1. bf9d6030 v2 wires hot-path RAR-in-JAR evaluation in verify.algorithm.ts (their current scope). 2) Bundle lane composes the remaining unstaged FAPI work into a coordinated multi-RFC promotion commit (wellknown.service + spec, oauth-error-mapping, oauth-as-metadata.dto, discovery.dto, 05_FAPI_2_0_PROFILE.md, fapi-rar-binding-parity.spec, fapi-buyer-integration-journey.spec). Discovery promotion of RFC-9101 belongs in that bundle, NOT this JAR runtime commit.
+
+---
+
+## 2026-05-16 MIDDAY (Intent Manifest vertical examples — three runnable adoption demos, post-bundle split) — sid=opus-phase3-enterprise — claim=okoro:intent-vertical-examples
+
+**Status:** Three intent-manifest vertical examples + `examples/README.md` refresh landed as a standalone commit after near-replay of the b27fb5c bundle-footgun pattern. End state is clean: my examples have their own commit + accurate title; peer c8a965d3's scenario harness sits in their working tree, ready for them to re-commit cleanly under `feat(scenarios)` without my work in the bundle path.
+
+### What landed (this commit)
+
+```
+examples/README.md                                  |  54 ++-  (stale 2-entry index → full 12-entry refresh)
+examples/intent-fintech-acp/                        | 319 ++   (5 files: ACP, ACME-FLORIST, $200 USD cap, strict)
+examples/intent-treasury-iso20022/                  | 333 ++   (5 files: ISO 20022 pacs.008, EUR 50k, graduated 5%)
+examples/intent-broker-dealer-finra/               | 380 ++   (5 files: FINRA 3110, 100 AAPL @ $195 NASDAQ, strict)
+```
+
+Each example: `package.json` + `tsconfig.json` + `src/index.ts` + `src/index.spec.ts` + `README.md`. Total: **16 files, ~1,086 LOC**.
+
+### Design choices
+
+1. **All three verticals use `commerce-action`**, not separate `IntentClaim` union members. The kernel locks `IntentClaim` to 3 shapes per ADR-0016 (`packages/intent-manifest/src/types.ts:88`); the verticals differentiate via the `action` verb (`acp.payment`, `iso20022.pacs.008`, `finra.equity.buy`) and `merchantId` encoding (merchant brand / beneficiary IBAN / venue identifier).
+2. **Examples run OFFLINE** — no OKORO API in the request path. Signing happens locally in the demo (OKORO holds the signer in production via M-051 KMS); verification is the same code-path the merchant runs in production against the OKORO-published JWKS at `/.well-known/audit-signing-key`. This is the wedge: relying parties adopt without OKORO roundtrips.
+3. **Examples are NOT pnpm workspace members** — matches existing convention (`acp-bridge`, `fintech-payments`, etc. are also outside `pnpm-workspace.yaml` globs). The `workspace:*` notation in `package.json` is a documentation artifact for in-monorepo development; per-example `pnpm install` is the path for standalone use.
+4. **Treasury example deliberately uses `graduated` mode** to exercise the kernel's footgun-by-design (`packages/intent-manifest/src/reconcile.ts:232`): graduated mode tolerates `over-call-count` up to `floor(maxCalls × 1.05)` but NON-count mismatches (`wrong-merchant`, `over-amount-cap`) remain STRICTLY denying. Right semantics for treasury: batch overrun forgivable, wire to wrong account unrecoverable.
+
+### Doc bug in already-shipped commit 7b36258 (caught while writing examples)
+
+The body of commit `7b36258` (Intent adoption surface) wrote `outcome: 'approved' | 'denied'` in the three-line wedge snippet. The kernel's actual discriminator field is `kind`, not `outcome`. The IDENTIFIER `outcome` is fine as the variable name (e.g. `const outcome = verifyIntent(...)`); the FIELD access is `outcome.kind`. Examples land with the correct `outcome.kind` access. Prior commit bodies are immutable per repo convention. Reader: when adopting `verifyIntent`, switch on `result.kind`, not `result.outcome`.
+
+### Adoption trajectory unblocked
+
+Marketing peer `c8a965d3`'s hook (inbox msg `36b472eb`, prior session): once `examples/intent-fintech-acp` + `intent-treasury-iso20022` + `intent-broker-dealer-finra` land, `/use-cases` Treasury + Broker-Dealer cards flip from `coming-soon` to `available`. **Unblock condition met by this commit.** The card flip is a single `apps/marketing/lib/use-cases.ts` edit on the marketing peer's side — coordinate via peer msg.
+
+### Coordination note (the non-trivial path)
+
+This nearly replayed the b27fb5c bundle-footgun pattern. Sequence:
+
+1. I wrote 16 files staged for a clean standalone commit.
+2. Before I could commit, peer `c8a965d3` ran `git add . && git commit` on their scenario harness — sweeping my staged work into their commit `a90517a` (titled `feat(scenarios)`).
+3. Peer immediately ran `git reset HEAD~1` (presumably noticing the title undersold the contents).
+4. The reset put both surfaces (mine + theirs) back into the working tree / staging area.
+5. I unstaged peer's `tests/scenarios/**` files, re-staged ONLY mine, and committed as a standalone commit under `feat(examples)`.
+
+Result: peer's scenario harness sits in their working tree, ready for them to commit cleanly under `feat(scenarios)` without my work in the bundle path. My examples sit in HEAD under accurate scope.
+
+**Filed for next session:** the bundle lane needs an enforceable "I am the bundler right now" claim with TTL (memory `feedback_okoro_bundle_lane.md` already names this pattern; the missing piece is a hook-enforced signal). Pre-commit `claude-peers conflict-check` catches path-overlap with claims; it does NOT catch bundle interleaving.
+
+### Branch state
+
+`feat/sdk-verify-gateway-hardening` is **>30 commits ahead of origin** — not pushed. My direct commits on the branch: `5e44480` (Phase 2 module + ADR + BATE), `7b36258` (adoption surface), `80f117f` (prior handoff entry), plus this commit (examples) + this handoff entry.
+
+---
+
+## 2026-05-16 AM (Intent Manifest enterprise hardening — adoption surface + BATE feedback loop + Prometheus metrics) — sid=opus-phase3-enterprise — claim=okoro:adoption-surface-commit
+
+**Status:** Phase 2 hardening LANDED in two atomic commits on `feat/sdk-verify-gateway-hardening`. Enterprise quality bar (CLAUDE.md invariants #2, #4, #7, #8 all explicitly mapped in commit bodies). Test gates green across three packages.
+
+### What landed
+
+**Commit `5e44480` — Phase 2 module + ADR-0017 + BATE feedback loop (17 files, 2,311 LOC)**
+
+- `apps/api/src/modules/intent/**` — 11-file Phase 2 issuance/reconciliation module with metrics wiring
+- `docs/decisions/0017-intent-manifest-runtime-issuance.md` — ADR (D1 separate endpoint, D2 async reconciliation, D3 no Phase 2 verify-wire emission)
+- `apps/api/prisma/schema.prisma` — `INTENT_MISMATCH_OBSERVED` added to `BateSignalType` enum
+- `apps/api/prisma/migrations/20260515000000_bate_intent_mismatch_observed/migration.sql` — additive `ALTER TYPE ... ADD VALUE`
+- `apps/api/src/modules/bate/bate.weights.ts` — `INTENT_MISMATCH_OBSERVED: -100`, per-window cap `300`, `WEIGHTS_VERSION='v1.2.0-intent-2026-05-15'`
+- `apps/api/src/modules/bate/bate.scorer.spec.ts` — 4 new tests proving cap binds, PLATINUM→VERIFIED demotion, single-mismatch arithmetic
+- `apps/api/src/common/observability/metrics.service.ts` — 5 metrics: `intentIssuedTotal{intent_kind}`, `intentIssueLatency`, `intentReconciledTotal{outcome}` (4 bounded labels: clean/mismatch_advised/mismatch_denied/replay), `intentReconcileLatency`, `intentMismatchTotal{mismatch_kind}` (8 bounded labels per kernel union)
+
+**Commit `7b36258` — Adoption surface (10 files, 1,053 LOC)**
+
+- `packages/verifier-rp/src/intent.ts` — `verifyIntent({ manifest, actuals, publicKeysByKid, now? })` with closed `VerifyIntentOutcome` union (approved | denied with `manifest_signature` | `reconciliation_mismatch`). Never throws on hostile input — Testament Book I §3 wedge made executable.
+- `packages/verifier-rp/test/intent.spec.ts` — 9 tests: approved path, signature failures (wrong-kid, tampered body), reconciliation failures (over-amount-cap, wrong-merchant, expired), hostile-input non-throwing
+- `packages/sdk-ts/src/intent.ts` — `IntentClient.{ issue, reconcile, get }` mirroring `AgentClient` shape; wired onto Okoro class as `okoro.intent`
+- `packages/sdk-ts/src/intent.spec.ts` — smoke tests verifying URL paths, methods, `Idempotency-Key` passthrough, reserved-header guard
+- `packages/sdk-ts/src/http.ts` — adds optional `headers` field to `RequestOptions` with reserved-headers guard (Content-Type, X-OKORO-API-Key, X-OKORO-Verify-Key, X-OKORO-Sdk cannot be overridden)
+- `docs/spec/OKORO_API_SPEC.yaml` — 3 endpoints + 10 component schemas; `recommendedDenialReason` declared `nullable: true` with `enum: [INTENT_MISMATCH]`
+- `tests/cross-package/intent-openapi-parity.spec.ts` — 19 tests locking bidirectional invariants (OpenAPI ↔ DTOs ↔ kernel union ↔ wire contract)
+
+### Test gates (all green)
+
+| Package       | Tests             | New                                                                               |
+| ------------- | ----------------- | --------------------------------------------------------------------------------- |
+| verifier-rp   | 67/67 PASS        | +9 intent.spec                                                                    |
+| sdk-ts        | 77/77 PASS        | +intent.spec                                                                      |
+| cross-package | 162/162 PASS      | +19 intent-openapi-parity (alongside peer bf9d6030's +22 fapi-rar-binding-parity) |
+| bate.scorer   | landed in 5e44480 | +4 INTENT_MISMATCH tests                                                          |
+
+### Closed feedback loop (the one that matters)
+
+```
+agent declares intent (POST /v1/intent — signed manifest)
+  → relying party verifies manifest signature locally (verifier-rp.verifyIntent)
+  → agent does work
+  → relying party reconciles actuals (POST /v1/intent/{id}/actuals)
+  → on mismatch: BATE.ingestSignal(INTENT_MISMATCH_OBSERVED)
+  → trust score drops by ≤300 per window
+  → next /v1/verify call returns DENIAL_REASON=TRUST_SCORE_TOO_LOW
+  → cross-relying-party signal that travels with the agent
+```
+
+No new wire surface needed — uses existing `DENIAL_REASON_PRECEDENCE` (per Phase 2 D3 sub-decision in ADR-0017).
+
+### What's next (queued, not started)
+
+1. **Examples** — `examples/intent-fintech-acp`, `examples/intent-treasury-iso20022`, `examples/intent-broker-dealer-finra`. Marketing peer `c8a965d3` (per inbox `36b472eb`) flips `/use-cases` Treasury + Broker-Dealer cards from `coming-soon` to `available` once these land. They consume the `IntentClient` surface that just shipped.
+2. **OD-018** — Phase 2.1 Postgres adapter for `IntentPorts` (memory adapter is in-process only; Phase 2 module gated behind `OKORO_INTENT_MANIFEST_ENABLED=false` by default until the durable adapter lands).
+3. **OD-019** — separate intent-signing key family vs. reusing audit-signing-key (defense in depth against signature substitution; current Phase 2 reuses `AuditSignerService` for single-rotation simplicity).
+4. **OD-020** — verify-wire emission of intent decision (currently Phase 2 keeps intent denials in the dedicated `/v1/intent/*` response surface; OD-020 considers folding `INTENT_MISMATCH` into `/v1/verify` outcomes via wire-level enum).
+5. **Phase 3** — Cloudflare Worker port. Algorithm is framework-free per CLAUDE.md invariant #2; the adoption surface that just shipped needs zero changes when the issuance backend moves from Nest to Worker.
+
+### Branch state
+
+`feat/sdk-verify-gateway-hardening` is now `7b36258` (adoption surface) → `5e44480` (Phase 2 module + ADR + BATE) → `7cd14d9` (peer's denial precedence regression guard refresh) → ... Branch is ready for PR but not pushed.
+
+### Unstaged peer work (DO NOT touch)
+
+- `apps/api/src/modules/{verify,wellknown,audit/compression}/**` — peer `bf9d6030` (RAR observability + audit chain compression)
+- `apps/marketing/**` — peer `c8a965d3` (marketing v2 + 5 new pages)
+- `packages/sdk-py/okoro/_constants.py`, `package.json`, `pnpm-lock.yaml` — peer-territory edits in flight
+- `apps/api/src/modules/verify/rar/**`, `apps/api/src/common/observability/metrics.service.ts` (peer-edited beyond my +5 intent metrics from `5e44480` — re-merge if you re-edit this file)
+
+### Hook bypasses
+
+None. Both commits passed `.husky/pre-commit` and `commit-msg` hooks. Two non-blocking warnings observed:
+
+- `lint-staged could not find any valid configuration` — repo missing `.lintstagedrc.json`; emits warning but exits 0. Worth a separate tiny PR.
+- `footer must have leading blank line` — commitlint warning on the Co-Authored-By trailer; non-blocking.
+
+---
+
+## 2026-05-15 PM (Intent Manifest Phase 2 runtime issuance — ADR-0017; agent-swarm experiment + commit-bundling cleanup) — sid=opus-phase2-financial — claim=okoro:intent-phase2-financial-ecosystem
+
+**Status:** Phase 2 runtime issuance module + ADR-0017 are LIVE in HEAD — but under a misleading commit title. The work landed via peer commit `b27fb5c` (titled `fix(sdk-py,tests): close TS↔PY drift...`) which swept up my staged intent module + ADR via the well-documented shared-tree git-add footgun (see inbox `fdb54aea` for the same mistake on the CerniQ side last session). The CODE is correct; the COMMIT MESSAGE under-describes what landed. This handoff is the durable correction.
+
+### What actually landed in `b27fb5c` (full inventory)
+
+```
+apps/api/package.json                              |   1 +    (workspace dep on @okoro/intent-manifest)
+apps/api/src/modules/intent/README.md              |  77 ++++  (module-local doc)
+apps/api/src/modules/intent/intent.adapter.memory.ts  | 146 ++  (Phase 2.0 storage)
+apps/api/src/modules/intent/intent.algorithm.spec.ts  | 422 ++  (12 jest tests, in-memory port fixture)
+apps/api/src/modules/intent/intent.algorithm.ts    | 236 ++++  (pure issueManifest + reconcileActuals)
+apps/api/src/modules/intent/intent.constants.ts    |   6 ++++  (DI symbol + env flag names)
+apps/api/src/modules/intent/intent.controller.ts   | 208 ++++  (REST + OkoroError translation)
+apps/api/src/modules/intent/intent.dto.ts          | 169 ++++  (Nest DTOs)
+apps/api/src/modules/intent/intent.module.ts       | 149 ++++  (conditional Nest wiring)
+apps/api/src/modules/intent/intent.ports.ts        | 176 ++++  (framework-free IntentPorts)
+apps/api/src/modules/intent/intent.service.ts      | 153 ++++  (orchestration + logging)
+docs/decisions/0017-intent-manifest-runtime-issuance.md | 361 (ADR-0017 — Phase 2 design + 3 sub-decisions)
+packages/sdk-py/okoro/_constants.py                |  25 +++  (TRIAL_EXHAUSTED + INTENT_MISMATCH + PLAN_LIMIT_EXCEEDED restored)
+packages/sdk-py/okoro/models.py                    |  10 +/-  (TRIAL_EXHAUSTED + INTENT_MISMATCH in StrEnum)
+tests/cross-package/denial-reason-sdk-py-parity.spec.ts | 163 (NEW — peer-authored parity gate)
+```
+
+Total: **2300 insertions across 15 files**. ~1900 lines are the intent-module surface; the rest is the sdk-py parity work the commit title describes.
+
+### Phase 2 surface (ADR-0017, fully wired)
+
+- `POST /v1/intent` — issue a signed `IntentManifest` bound to a verify-token jti
+- `POST /v1/intent/{manifestId}/actuals` — reconcile actuals; `Idempotency-Key` header required
+- `GET /v1/intent/{manifestId}` — read manifest + reconciliation outcome
+
+All gated behind `OKORO_INTENT_MANIFEST_ENABLED` env flag; `IntentModule.forRoot()` is conditional in app.module.ts (operator opt-in — module is NOT registered by default).
+
+**Three ADR-0017 sub-decisions:**
+
+| D   | Question                                                               | Outcome                             | Rationale                                                                                                                                                                                            |
+| --- | ---------------------------------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Issuance: extend `/v1/verify` or separate `/v1/intent`?                | **Separate endpoint**               | Preserves invariant #2 (verify portability — CF Worker can't host intent storage); independent rate limiting + billing + env flag rollout.                                                           |
+| D2  | Reconciliation: synchronous-at-next-verify or asynchronous `/actuals`? | **Async `/actuals`**                | Sync creates brittle ordering coupling when multiple relying parties verify same agent concurrently. Async flows through audit + BATE + webhooks; verify path sees state indirectly via trust-score. |
+| D3  | Should verify hot path emit `INTENT_MISMATCH`?                         | **Phase 2 no; reserve for Phase 3** | Wire enum already extended in `2078bd2` (Phase 1 — ADR-0016 D3). Edge worker reads KV-cached state in Phase 3 with shadow-mode rollout (M-049 pattern).                                              |
+
+**Audit + BATE wiring:** 3 audit event kinds (`intent.declared`, `intent.reconciled`, `intent.mismatch` — one per `IntentMismatchKind`) via existing `AuditService.append()`. 1 new BATE signal (`INTENT_MISMATCH_OBSERVED`, HIGH severity) fires when `result.recommendedDenialReason !== null`. BATE failure WARN-logged but does NOT block reconciliation (audit row is durable evidence).
+
+**Module shape mirrors `apps/api/src/modules/verify/algorithm/` exactly** — pure `intent.algorithm.ts` (framework-free, ports to CF Worker) + Nest adapter layer + memory-vs-Prisma storage swap via `INTENT_PORTS` DI symbol. Mirrors ADR-0012 policy-engine port pattern.
+
+### Verification
+
+- `pnpm --filter @okoro/api typecheck` → clean
+- `pnpm --filter @okoro/api test --testPathPattern=modules/intent` → **12/12 jest green** (2.86s)
+- `pnpm test:parity` → **11 suites, 114 tests green** (was 110; +4 from the new sdk-py parity spec which is now also green)
+
+### Open operator decisions (NEW, all proposed in ADR-0017)
+
+- **OD-018** — default reconciliation strictness; recommend `strict` global default + per-principal override
+- **OD-019** — manifest TTL bounds; recommend same as verify token [30, 60]s for Phase 2
+- **OD-020** — webhook delivery for `okoro.intent.mismatch_detected`; recommend at-least-once HMAC (M-008 pattern)
+
+### Agent-swarm experiment outcome
+
+Spawned 3 parallel worktree-isolated agents at session start:
+
+| Agent                                                                            | Goal                                                                                     | Outcome                                                                                                                                                    |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A — sdk-py denial-reason parity                                                  | Update `_constants.py` + `models.py` + new parity spec                                   | **Blocked on Write permission in worktree sandbox.** Did context-reading + drafted edits. (A peer later landed equivalent work in `b27fb5c`.)              |
+| B — `examples/intent-fintech-acp` Stripe ACP reference                           | Working Express + Stripe + intent reconciliation demo                                    | **Blocked on Write permission.** Set up worktree on correct base branch (`feat/sdk-verify-gateway-hardening`), created empty dirs, drafted file structure. |
+| C — Three financial-vertical integration guides (FINTECH/TREASURY/BROKER_DEALER) | Wire-level integration docs mapping IntentClaim to PCI-DSS / ISO 20022 / FINRA Rule 4530 | **Blocked on Write permission.** Drafted 370-line fintech guide content; rebased onto correct base.                                                        |
+
+**Root cause:** spawned agents in `isolation: "worktree"` mode inherit Read + Bash-allowlist but NOT Edit/Write — no overrides via `dangerouslyDisableSandbox` either. Operator-side fix: add `Edit`/`Write` allow-rules for agent worktree paths in `.claude/settings.local.json` before next swarm attempt. Until then, swarm should be limited to read-only research / analysis agents; write-heavy work stays in main session.
+
+The agents' prep work was valuable (Agent A discovered the sdk-py drift was wider than my handoff noted — `PLAN_LIMIT_EXCEEDED` was also missing — and peer `b27fb5c` picked that up; Agent B confirmed `examples/*` is NOT in `pnpm-workspace.yaml` which affects the planned example's build).
+
+### Peer activity (parallel commits in same tree)
+
+Other peer commits that landed during my session:
+
+| SHA       | What                                                                                                                                                                                      |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `40e4d18` | `chore(husky): document self-exemption + footgun guard` (peer `2b178d04` — M-3 fix)                                                                                                       |
+| `e033ea9` | `feat(audit-verifier): manifest port + corpus walker + CLI + hardening` (peer landing the audit-verifier Phase 0b/0c that was deferred from morning session + bf9d6030's FAANG hardening) |
+| `30cda45` | `polish(sdk-ts,sdk-py): fold cache-key NUL check into single pass` (peer `2b178d04` refactor on top of my `5c19bb9`)                                                                      |
+| `d597e10` | `feat(mcp-bridge)!: per-target action scoping + handler param sanitization` (peer `2b178d04` — H-2 .changeset)                                                                            |
+| `b27fb5c` | `fix(sdk-py,tests): close TS↔PY drift...` — peer-authored, swept up my intent-module + ADR-0017 (see top of entry)                                                                        |
+
+### Known operational gap (next session)
+
+The pre-commit hook chain (`pnpm lint-staged` + commitlint) was broken at the start of this session — `lint-staged`, `@commitlint/cli`, `@commitlint/config-conventional`, and `husky` were not in the root `package.json` devDependencies (referenced by `.husky/pre-commit` and `.husky/commit-msg` but absent from `package.json` since some earlier commit). I installed them locally (`pnpm add -D -w lint-staged @commitlint/cli @commitlint/config-conventional husky`) but the resulting `package.json` + `pnpm-lock.yaml` changes did NOT land in any commit this session.
+
+**Next session action:** decide whether to (a) restore those deps to `package.json` and commit, (b) remove the hook script lines that depend on them, or (c) replace with a simpler hook chain. Option (a) is safest — the hooks were intentional and the security checks downstream of `pnpm lint-staged` (BLOCKED_PATH + BLOCKED_CONTENT regexes for secrets) are still load-bearing.
+
+Peer commit `b27fb5c` was made with `--no-verify` (per its `Directive:` trailer) because the hook chain was broken. Multiple peer commits this session likely used the same workaround. Restoring the hook deps closes this footgun for the next round.
+
+### What's next
+
+1. **Restore hook deps** to root `package.json` — recommend a small `chore(root): re-add lint-staged + commitlint + husky devDependencies` commit before the next session opens with broken hooks.
+2. **Phase 2.1 ADR + implementation** — Prisma adapter for `IntentManifest` + `IntentActual`, schema migration, background expiry sweeper. Gated on OD-018 + OD-019.
+3. **Webhook delivery for `okoro.intent.mismatch_detected`** — needs OD-020 first, then wire via existing M-008 patterns.
+4. **Example + integration guides** (the agent-swarm work that got blocked) — re-attempt in main session OR grant agent-write permissions for next swarm. Specifically:
+   - `examples/intent-fintech-acp/` — Stripe ACP merchant reference (8-10 files; happy + over-amount + wrong-merchant demo modes)
+   - `examples/intent-treasury-iso20022/` — ISO 20022 treasury rail integration
+   - `examples/intent-broker-dealer-finra/` — FINRA-supervised AI trading agent
+   - `docs/INTEGRATION_GUIDE_INTENT_{FINTECH,TREASURY,BROKER_DEALER}.md` — wire-level docs mapping IntentClaim fields to per-vertical regulatory concerns
+5. **Phase 3 edge port** — `workers/cf-verify/src/intent.ts` for synchronous `INTENT_MISMATCH` denial under shadow-mode rollout.
+
+### Files left in working tree this session (unstaged, untracked)
+
+- `M package.json` + `M pnpm-lock.yaml` — hook-dep restoration (see "Known operational gap" above)
+- Various peer modifications I did not touch: `apps/api/src/modules/audit/compression/*`, `apps/api/src/modules/wellknown/*`, `apps/api/src/modules/verify/rar/` (NEW — FAPI 2.0 RAR scaffold?), `docs/INTEGRATION_ROADMAP.md`, `docs/spec/05_FAPI_2_0_PROFILE.md`, `packages/integrations/`, `apps/marketing/`, `docs/LAUNCH_RUNBOOK.md`
+
+The FAPI 2.0 RAR scaffold + INTEGRATION_ROADMAP.md + 05_FAPI_2_0_PROFILE.md hint at a separate peer building OAuth/FAPI 2.0 + RAR support. That work is OUT OF MY SCOPE and stays in their working tree.
+
+---
+
+## 2026-05-15 (M-036 Phase 0a bundle + Intent Manifest scaffold + INTENT_MISMATCH wire-level — ADR-0015 + ADR-0016) — sid=opus-bundle-intent — claim=okoro:m-036-bundle-and-intent-manifest
+
+**Status:** 5 commits landed on `feat/sdk-verify-gateway-hardening`. Bundled the M-036 Phase 0a kernel from working tree, scaffolded `@okoro/intent-manifest` as the Phase 0 backbone for intent-bound attestation (closes May-2026 landscape gap #5), then wired `INTENT_MISMATCH` into the 8 wire-level surfaces in lockstep. **Same-working-tree two-Claude scenario** with peer `okoro:review-findings-hardening` (sid=2b178d04) holding adjacent scopes — explicit coordination via `claude-peers msg` and verified staging-area cleanliness before every commit. Zero overlap with peer's edits.
+
+### Commits on this branch
+
+| SHA       | What                                                                           |
+| --------- | ------------------------------------------------------------------------------ |
+| `f19b021` | feat(audit): M-036 Phase 0a — manifest kernel + ADR-0015                       |
+| `5c19bb9` | fix(sdk-ts): boundary-reject NUL byte in cache-key fields                      |
+| `7cf3a48` | docs: THE OKORO TESTAMENT (operating doctrine) + OD-017 + M-036 status         |
+| `1a05696` | feat(intent-manifest): scaffold + lock kernel (ADR-0016)                       |
+| `2078bd2` | feat(types,api,verifier-rp): wire INTENT_MISMATCH across 8 surfaces (ADR-0016) |
+
+### What shipped — M-036 Phase 0a bundle
+
+`apps/api/src/modules/audit/compression/` (6 files, 1,001 LOC kernel + 41 jest tests green) + `docs/decisions/0015-audit-storage-compression.md`. Dep-free, schema-free, framework-free signature-bearing core for the audit-storage-compression initiative. Phases 1-3 BLOCKED ON OPERATOR via OD-017 (added in this session's `OPERATOR_DECISIONS.md` edit). Companion `THE_OKORO_TESTAMENT.md` (2164 lines, custodian: Erwin Kiess-Alfonso) lands the operating doctrine for the platform.
+
+**Phase 0b (audit-verifier portable port) + Phase 0c (CLI corpus walker) + cross-package parity test deferred to peer sid=2b178d04** — they hold `packages/audit-verifier/**` and will commit the verifier mirror + `tests/cross-package/audit-manifest-parity.spec.ts` alongside. The parity test cannot be committed unilaterally because it imports from both my Phase 0a kernel AND their not-yet-committed audit-verifier mirror; partial commit would red CI.
+
+### What shipped — Intent Manifest scaffold (NEW package)
+
+`packages/intent-manifest/` — pure-package kernel for intent-bound attestation, mirrors `@okoro/audit-verifier` shape (zero NestJS/DI/Node-only imports; `@noble/ed25519` + `@noble/hashes` only; edge-runtime safe). 24 vitest tests green (2 suites). Surface:
+
+- `IntentManifestBody` + `SignedIntentManifest` — signed declaration of agent intent for the next 30-60s window, anchored to verify-token `jti`+sha256.
+- Three `IntentClaim` variants (locked all three per ADR-0016): `http-call`, `commerce-action`, `tool-invocation` — each maps to a distinct Testament IV adoption wedge.
+- `signManifest` / `verifyManifest` — Ed25519 primitives with closed-enum `VerifyFailure` union; pattern-identical to audit-verifier.
+- `reconcileIntent(signed, actuals, opts)` — pure function returning typed `ReconciliationResult` with closed `IntentMismatchKind` enum. `assertNever` enforces discriminator exhaustiveness at compile time.
+- `INTENT_MISMATCH_DENIAL_REASON` exported as literal `'INTENT_MISMATCH'` constant — kept off `@okoro/types` runtime dep to preserve edge portability.
+
+**Operator decisions locked (full rationale in ADR-0016):**
+
+| #   | Decision                                          | Locked outcome                                                                                                                                                                                                                                                 |
+| --- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | IntentClaim envelope shape                        | Keep all three (`http-call`, `commerce-action`, `tool-invocation`) — each maps to a distinct adoption wedge per Testament IV §i-iii. Deprecation path: issuance-side rejection, never type-member removal.                                                     |
+| D2  | Reconciliation strictness + `graduated` semantics | Default `strict`; `graduated` tolerates over-call-count up to `floor(maxCalls × 1.2)` (20% default); non-count mismatches (`wrong-merchant`, `over-amount-cap`, `wrong-method`, `wrong-endpoint`, `arg-shape-mismatch`) always strict regardless of tolerance. |
+| D3  | `INTENT_MISMATCH` placement                       | Append at end of `DENIAL_REASON_PRECEDENCE` (after `ANOMALY_FLAGGED`). Forward-compatible per CLAUDE.md invariant 6 — no API minor version bump.                                                                                                               |
+
+### What shipped — wire-level INTENT_MISMATCH (8 surfaces, atomic commit 2078bd2)
+
+| Surface                                                 | Change                                                                        |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `packages/types/src/constants.ts`                       | `DENIAL_REASON_PRECEDENCE` 11→12 reasons.                                     |
+| `packages/sdk-ts/src/denial-reason.generated.ts`        | Regenerated via `pnpm gen:denial-reason`.                                     |
+| `apps/api/src/modules/verify/verify.dto.ts`             | `DenialReason` union (wire shape).                                            |
+| `apps/api/src/modules/verify/algorithm/verify.ports.ts` | `DenialReason` (worker-portable shape).                                       |
+| `apps/api/src/common/policy-engine/engine.interface.ts` | `DenialReason` (Cedar/OPA evaluator contract).                                |
+| `packages/verifier-rp/src/types.ts`                     | `DenialReason` (RP-side observability superset, preserves `REPLAY_DETECTED`). |
+| `docs/spec/OKORO_API_SPEC.yaml`                         | `VerifyResponse.denialReason.enum`.                                           |
+| `tests/cross-package/denial-precedence-enum.spec.ts`    | `CANONICAL` fixture array 10→11 entries (algorithm-chain view).               |
+
+### Verification
+
+- `pnpm test:parity` → **10 suites, 106 tests green** (was 105, +1 from peer scope audit-manifest spec). `denial-precedence-enum.spec.ts` 6/6 with updated 11-reason CANONICAL fixture.
+- `pnpm --filter @okoro/intent-manifest typecheck` → clean.
+- `pnpm --filter @okoro/intent-manifest test` → 2 suites, **24 tests green** (502ms).
+- `pnpm --filter @okoro/api typecheck` → clean (3 modified files).
+- `pnpm --filter @okoro/verifier-rp typecheck` → clean.
+- `pnpm --filter @okoro/types typecheck` → clean.
+- `pnpm --filter @okoro/sdk test` → 5 suites, **73 tests green** (post NUL-byte fix +1).
+
+### Coordination & scope notes
+
+- Peer `okoro:review-findings-hardening` (sid=2b178d04) is in the SAME working tree (advisory warning at claim time, ack'd). Two coordination messages sent via `claude-peers msg`: (1) deferring `tests/cross-package/audit-manifest-parity.spec.ts` to their commit (imports from both scopes), (2) initial trim of my claim to non-overlapping paths.
+- Peer modified `apps/api/src/modules/audit/compression/manifest.chain.ts` (and adjacent files) AFTER my `f19b021` — they added a `malformed_manifest` `ChainWalkFailure` member with a body-sanity check (intra-manifest invariants like `firstSeq > lastSeq`). Those mods stay in their working tree for their commit; my staging area was verified clean of those edits before every commit.
+- Working tree left for peer to commit: `packages/audit-verifier/src/{cli,index}.ts`, `packages/mcp-bridge/**`, `packages/sdk-py/okoro/verify_cache.py` (+tests), `packages/sdk-ts/src/cache.ts` (refactored to `.some()` form on top of my `5c19bb9`), `.husky/pre-commit`, `.changeset/scope-mcp-tools-call-action.md`, `apps/api/src/modules/audit/compression/**` (post-f19b021 mods).
+- Untracked items left for separate ownership: `apps/marketing/`, `docs/LAUNCH_RUNBOOK.md`, `.changeset/scope-mcp-tools-call-action.md`. Mystery scopes; did not touch.
+- `pnpm-lock.yaml` is dirty (249 lines) from the `pnpm install --filter @okoro/intent-manifest` triggered when scaffolding the new package, plus accumulated peer-installations. Workspace packages resolve via symlink and `@noble/*` deps already exist via audit-verifier, so frozen-lockfile CI should be fine for `@okoro/intent-manifest` even without a lockfile commit. **Recommend next session bundle pnpm-lock.yaml updates with peer's audit-verifier commit** (they likely changed deps too via M-1 kid sanitization).
+
+### Known gap — sdk-py mirror stale (predates this session, surfaced here)
+
+`packages/sdk-py/okoro/_constants.py` `DENIAL_REASON_PRECEDENCE` tuple is missing BOTH `TRIAL_EXHAUSTED` (ADR-0014, 2026-05-05) AND `INTENT_MISMATCH` (this session). `packages/sdk-py/okoro/models.py` `DenialReason` StrEnum same gap. There is no cross-package parity test enforcing TS↔PY denial-reason consistency, so the drift has gone unnoticed.
+
+Intentionally NOT fixed in this session because:
+
+1. Adding `INTENT_MISMATCH` alone would deepen pre-existing drift, not fix it.
+2. The right fix bundles `TRIAL_EXHAUSTED` + `INTENT_MISMATCH` together AND adds the missing cross-package parity test in one commit.
+3. Peer holds `packages/sdk-py/okoro/verify_cache.py` (adjacent file, but not the constants/models files).
+
+**Next session should:** create a single commit bringing sdk-py up to canonical parity (12 reasons including `PLAN_LIMIT_EXCEEDED` pre-gate), and add `tests/cross-package/denial-reason-sdk-py-parity.spec.ts` that runs the same byte-identity contract as `denial-reason-parity.spec.ts` does for sdk-ts.
+
+### Phases remaining for @okoro/intent-manifest
+
+- **Phase 1** (this commit) — kernel locked, wire-level enum extended ✅
+- **Phase 2** — runtime issuance: new `apps/api/src/modules/intent/**` module behind `OKORO_INTENT_MANIFEST_ENABLED` env flag; verify-path reconciliation via `IntentReconcilerPort` (mirrors ADR-0012 policy-engine port pattern); new audit events `intent.declared` / `intent.reconciled` / `intent.mismatch`. Separate ADR.
+- **Phase 3** — edge port for `workers/cf-verify` shadow-mode rollout (M-049 pattern).
+
+### What's next
+
+1. **Peer to commit** their audit-verifier + sdk-py + mcp-bridge + .husky + .changeset bundle. Cross-package audit-manifest parity test lands with that.
+2. **sdk-py denial-reason parity** — full canonical sync + new parity test (see "Known gap" above).
+3. **Intent Manifest Phase 2** — write ADR (mirror ADR-0012 port pattern), then scaffold `apps/api/src/modules/intent/**` issuance module behind env flag.
+4. **OD-017 operator review** — `OPERATOR_DECISIONS.md` has the eight-sub-decision row ready for sign-off; unblocks M-036 Phases 1-3.
+5. **Lockfile reconciliation commit** — after peer + sdk-py work lands, single `chore: refresh pnpm-lock.yaml after intent-manifest + audit-verifier + sdk-py installs`.
+
+---
+
+## 2026-05-12 (CLI credentials file-mode hardening — TS scaffold ↔ Go canonical parity) — sid=836a9934 — claim=okoro:cli-credentials-file-mode
+
+**Status:** Landed. Single-file security fix in unclaimed scope (`packages/cli/src/credentials.ts`); paired vitest spec green; no peer overlap (probed via `claude-peers status` before claiming, verified zero edits to `packages/cli/**` after release).
+
+### What shipped
+
+`packages/cli/src/credentials.ts` — TS scaffold now mirrors the Go canonical's credential-write contract.
+
+- **Before:** `writeFile(CREDS_PATH, ...)` ran at default umask (typically 0644), then `chmod 0o600` tightened it. On a shared-host system this left a window where `~/.okoro/credentials.json` (which holds the operator API key) was readable to other local users. `~/.okoro/` itself was created at the default 0755.
+- **After:** mirrors `packages/cli/internal/config/config.go:80-103` (`Config.Save`):
+  1. `mkdir(dir, { recursive: true, mode: 0o700 })` + idempotent `chmod(dir, 0o700)` for the already-exists case.
+  2. `writeFile(tmp, payload, { mode: 0o600 })` — perms applied at `O_CREAT` time, not retro-fitted, so the API key is never on disk world-readable.
+  3. `rename(tmp, CREDS_PATH)` for atomicity (a crash mid-save can't leave a half-written file that `JSON.parse` then chokes on). `unlink(tmp)` on rename failure.
+  4. Explicit `chmod(CREDS_PATH, 0o600)` retained as belt-and-suspenders for the overwrite-existing-file case.
+
+### Paired tests
+
+`packages/cli/src/credentials.spec.ts` (new, 5 vitest tests, `vi.mock('node:os')` to redirect `homedir()` to a per-test `mkdtemp`):
+
+1. From scratch: dir mode is exactly 0700, file mode exactly 0600.
+2. Tightening: a pre-existing 0644 credentials file becomes 0600 after `writeCredentials`.
+3. No `.tmp` sidecar leaks on the happy path.
+4. `writeCredentials` → `readCredentials` round-trip preserves the payload byte-for-byte.
+5. Final file is always parseable JSON (atomic-rename invariant).
+
+### Verification
+
+- `pnpm --filter @okoro/cli test` → **1 suite, 5 tests passed (18ms).**
+- `pnpm --filter @okoro/cli typecheck` has pre-existing errors in `commands/{agents,policies,kms}.ts` — unrelated to this change; per `MIGRATION_TS_TO_PLUGIN.md` + OD-010, the TS scaffold is being migrated to an `okoro-node` plugin behind the Go canonical, so command-layer tech debt is owned by that migration.
+
+### Why this matters / why this scope
+
+OD-010 makes the Go binary the canonical operator CLI. The TS scaffold isn't deleted — it's being converted into the `okoro-node` plugin. The Go side already used `MkdirAll(..., 0o700)` + `WriteFile(tmp, b, 0o600)` + atomic rename (the file even has a comment block explaining why). The TS side lagged the standard. Bringing TS into parity preserves the invariant on every operator-facing surface OKORO ships, not just the one OD-010 elevates.
+
+### What's next
+
+- The four open audit findings (P1 type drift, P2 breaker msg, P2 parity edge cases, P2 rowCountVouched split) are owned by the prior handoff entry — `sid=opus-autonomous-followup` documented their resolution status. Read that next.
+- Observed (but **not** OKORO scope, so untouched): `~/.claude/peers/snapshot.json` shows `last_heartbeat == started_at` for every live peer this session. The coord layer's heartbeat refresh isn't being invoked by long-running sessions — stale-detection silently broken. Belongs to peer-system maintenance, not OKORO.
+
+---
+
+## 2026-05-12 (Autonomous follow-on — actioning the 4 prior-session audit findings) — sid=opus-autonomous-followup — claim=okoro:audit-verifier-findings
+
+**Status:** Mixed. One of four findings (P2 sdk-py breaker message) committed standalone on this branch. The other three (P1 type drift, P2 parity edge cases, P2 rowCountVouched split) have **fixes prepared in the working tree but uncommitted** because they sit on top of the untracked M-036 Phase 0 scaffold (`apps/api/src/modules/audit/compression/`, `packages/audit-verifier/src/manifest.{ts,spec.ts}`, `tests/cross-package/audit-manifest-parity.spec.ts`) and must ship together with it. The M-036 owning session should sweep the working tree and bundle them in one commit. Peer `okoro:mcp-bridge-tool-scope` (sid=3e2203ee) holds `packages/mcp-bridge/**`; this session stayed strictly out of that scope.
+
+### What shipped
+
+1. **P1 — `ChainWalkFailure` type-surface drift: DEFERRED.** The fix lives in `apps/api/src/modules/audit/compression/manifest.chain.ts`, but that file (and its entire parent directory) remains uncommitted M-036 Phase 0 peer scope. Dropping `'signature_invalid'` would require partial-committing the peer's compression scaffold. The narrowing is grep-safe (zero callers depend on it) and trivially reapplied: in the `ChainWalkFailure` union, remove the `'signature_invalid'` member. Left for the M-036 owner to land alongside the rest of the compression module.
+2. **P2 — Half-open breaker contention now has a state-accurate message.** `packages/sdk-py/okoro/verify_gateway.py`: `_handle_breaker_open` takes a `state` kwarg; half-open secondary callers (whose probe is in flight) now raise `ServerError("...breaker is half-open — a probe is already in flight; secondary callers are short-circuited until the probe resolves.")` instead of the misleading "breaker is open". Behavior (503 + serve-stale fallback) unchanged.
+3. **P2 — Cross-package canonical-JSON parity test now has port-drift teeth.** `tests/cross-package/audit-manifest-parity.spec.ts` extended with 8 edge-case shapes (empty-string key, embedded `"`/`\\`/control chars in values + keys, surrogate-pair Unicode, numeric-string key sorting). The previous shapes were structurally incapable of catching drift between the two `JSON.stringify(sortKeys(...))` implementations; these would.
+4. **P2 — Audit-correct "rows vouched for" surfaced.** `packages/audit-verifier/src/manifest-corpus.ts` additively introduces `CorpusSliceResult.rowCountVouched` and `ManifestCorpusReport.totalRowsVouched`. These are non-zero only when `walked && walkOk`. Existing `rowCountTotal` / `totalRows` kept for back-compat. The vouched-vs-observed split lets SSAE 18 / SOX-grade reporting honestly attest only to rows whose entire slice chain walked clean (CLAUDE.md invariant #4 — no fabricated data).
+
+### Paired tests
+
+- `packages/audit-verifier/src/manifest-corpus.spec.ts` +1 new test (`chain break: walked slice with walkOk=false contributes 0 to rowCountVouched`) and extended the cross-slice failure-mode test to assert `goodSlice.rowCountVouched == rowCountTotal`, `badSlice.rowCountVouched == 0`, `totalRows > totalRowsVouched`.
+- `packages/sdk-py/tests/test_verify_gateway.py` — `test_half_open_serializes_to_one_probe` now asserts the new message contains both `"half-open"` and `"probe is already in flight"`.
+- `tests/cross-package/audit-manifest-parity.spec.ts` — 8 new parity shapes, all passing.
+
+### Verification
+
+- `pnpm --filter @okoro/audit-verifier test` → **4 suites, 53 tests passed** (+1 from 52).
+- `cd packages/sdk-py && python -m pytest tests/test_verify_gateway.py -q` → **17 passed** (unchanged count; existing test now exercises new branch).
+- `pnpm test:parity` → **10 suites, 105 tests passed** (audit-manifest-parity 29 tests, was 21).
+- `pnpm --filter @okoro/api typecheck` → clean.
+
+### Scope notes
+
+- Stayed entirely out of `packages/mcp-bridge/**` (active peer claim sid=3e2203ee).
+- The audit/compression module under `apps/api/src/modules/audit/compression/` remains uncommitted (peer-territory in M-036 Phase 0), but the single-line type-narrowing change here is orthogonal to the structural work and grep-verified safe.
+- All four changes are additive or strictly type-narrowing on private/internal surfaces — no public contract breakage.
+
+### What's next
+
+- Operator may want to consider whether `totalRows` should be deprecated in favor of `totalRowsVouched` in a future major (currently both shipped, with doc comments steering new callers to the vouched variant).
+- M-036 audit/compression work still uncommitted on this branch — owning session should sweep + commit when ready.
+
+---
+
+## 2026-05-12 (Autonomous audit pass — cache-key NUL hardening + landscape survey) — sid=opus-autonomous — claim=okoro:autonomous-audit-research
+
+**Status:** Landed (cache fix). Documented (audit findings + agentic-landscape gaps).
+
+### What shipped (paired SDK fix, parity-aligned)
+
+`buildCacheKey` / `build_cache_key` now reject any field containing a NUL byte at the boundary instead of silently joining and hashing.
+
+- `packages/sdk-ts/src/cache.ts` — throws `Error('cache-key field contains NUL byte')` if any of `[token, action, amount, currency, merchantId, merchantDomain]` contains `\x00`.
+- `packages/sdk-py/okoro/verify_cache.py` — same, raises `ValueError`.
+- Paired tests added: `packages/sdk-ts/src/cache.spec.ts` (1 new), `packages/sdk-py/tests/test_verify_cache.py` (1 new).
+
+**Why it matters:** The schema forbids NUL in these positions, but `build_cache_key` is on the verify hot path and a malformed token smuggled through a proxy could otherwise canonicalize to the same preimage as a different `(token, ctx)` tuple — cross-context cache poisoning in a shared backend (Redis / CF KV). Boundary rejection closes the vector loudly rather than silently hashing colliding inputs.
+
+### Verification
+
+- `pnpm --filter @okoro/sdk test` → **5 suites, 73 tests passed** (+1 from 72).
+- `cd packages/sdk-py && python -m pytest tests/test_verify_cache.py -q` → **14 passed** (+1 from 13).
+
+### Open audit findings — documented, not yet acted on
+
+These came from an autonomous critical-infra audit pass and are recorded here so the next session can decide whether to action:
+
+1. **P1: `ChainWalkFailure` type-surface drift.** `apps/api/src/modules/audit/compression/manifest.chain.ts:88-94` declares `'signature_invalid'` but `walkManifestChain` never returns it (signature verification is the caller's responsibility, per the in-file caller-contract comment). `packages/audit-verifier/src/manifest.ts:110-115` omits it. Fix: drop `'signature_invalid'` from the API-side enum so exhaustive switches on the type don't see a phantom case. Left untouched here because the compression module is still uncommitted peer scope (M-036 Phase 0).
+2. **P2: Misleading "breaker is open" message in half-open re-entry.** `packages/sdk-py/okoro/verify_gateway.py:188-189` + `~357`. When breaker is `half-open` and a probe is already in flight, secondary callers go through `_handle_breaker_open` which raises `ServerError("...breaker is open...")`. Cosmetic but operationally noisy for SRE attribution.
+3. **P2: Parity spec partially tautological.** `tests/cross-package/audit-manifest-parity.spec.ts:89-120`. Both sides of the `canonicalJson` parity test invoke `JSON.stringify(sortKeys(...))` in the same V8 process — drift is structurally impossible until either side stops using `JSON.stringify`. Real value lives in the hash/sign/walk roundtrips. Add edge-case inputs (empty-string keys, embedded quotes, embedded ` `, unpaired surrogates) to make the parity catch genuine port-drift.
+4. **P2: `manifest-corpus.ts` `rowCountTotal` not gated by `walked`.** `packages/audit-verifier/src/manifest-corpus.ts:121,150`. Aggregate `totalRows` includes rows from signature-valid manifests inside slices whose walk was skipped due to a sibling sig failure — misleading for operators reading the total as "rows we vouched for".
+
+### Agentic-landscape survey (May 2026) — gaps that map to OKORO defensibility
+
+Captured here so positioning work can pick up the thread. Sources: Claude Agent SDK docs, MCP authorization spec (draft Nov 2025 / OAuth 2.1 + PKCE + RFC 9728 PRM + CIMD), IETF `draft-sharif-agent-audit-trail-00`, SPIFFE/SPIRE for non-human identity (HashiCorp, Solo.io), Sigstore × A2A experiments, InfoQ MCP+OPA gateway pattern, Signet v0.10 trust-bundle approach.
+
+Gaps where no platform vendor will build cleanly (structurally hostile to their interests):
+
+1. **Cross-vendor agent identity bridge.** Anthropic session tokens, OpenAI agent IDs, A2A, MCP CIMD client IDs don't federate. OKORO as claims-normalizer issuing one verify token regardless of upstream identity is a wedge.
+2. **Offline-verifiable verify tokens.** Everyone ships online introspection. OKORO's signed-manifest chain + public-key-only verifier maps directly to EU AI Act Art. evidence-preservation needs (Aug 2026 deadline driving IETF AAT).
+3. **TTL-correct ephemerality.** The "30x exposure gap" (2-min task / 60-min OAuth token) is widely acknowledged but unfixed. Per-tool-call sub-minute tokens with audience+intent claims is genuinely missing surface.
+4. **Deny-list / revocation propagation.** Rekor is append-only; OAuth has no fast revocation. A signed deny-feed (compromised agent ID, leaked prompt-injection signature, bad MCP server fingerprint) pulled by downstream verifiers in seconds is unbuilt.
+5. **Intent-bound attestation.** Claude SDK hooks block by regex on tool name. Nobody binds the verify token to a declared intent manifest ("agent will call Stripe.charge ≤ $X, twice, in next 60s") that the gateway reconciles against actuals.
+
+**Strategic read:** Position OKORO as the neutral verifier + transparency log that sits _orthogonal_ to MCP / OAuth / SPIFFE and consumes their tokens — not an MCP server or IdP. The "holds only public keys, signs nothing, auditable three years later" posture aligns directly with gaps 1, 2, and 5, which are the most defensible because platform vendors are structurally disincentivized to build them in-house.
+
+### What's next
+
+- Decide on the four open audit findings above (the type-drift fix is the only one likely landing in M-036 Phase 0 peer scope).
+- Promote the landscape gaps into a positioning doc / ADR if/when the operator wants to act on intent-bound attestation or deny-list propagation as roadmap items.
+
+---
+
+## 2026-05-11 (M-036 Phase 0c — okoro-audit-verify CLI: verify-manifests subcommand + pure corpus verifier) — sid=m-036-audit-verifier-cli — claim=okoro:m-036-audit-verifier-cli
+
+**Status:** Landed. Closes the M-036 Phase-0 trilogy. An offline auditor / SIEM / GRC platform / regulated customer can now run a one-liner against an exported corpus tarball:
+
+```sh
+okoro-audit-verify verify-manifests ./audit-corpus/ \
+  --jwks-file ./okoro-audit-jwks.json --json > report.json
+```
+
+…and get a full per-slice, per-manifest, signing-key-aggregated integrity report exit-coded 0/1/2 for CI-style integration.
+
+**Coordination:** Two-way comms with sid=8e446976 (audit-AUDIT peer, sent Phase 0b green confirmation) and sid=72f76e56 (sdk-sync-facade-subpath peer, sent scope coord ping). Both threads explicit and non-overlapping: this drop is `packages/audit-verifier/**` only.
+
+### What shipped (3 new + 2 additive edits)
+
+- `packages/audit-verifier/src/manifest-corpus.ts` (NEW) — pure `verifyManifestCorpus(signed, jwks)` returning `ManifestCorpusReport` with per-manifest signature results (typed failure reasons), per-slice chain-walk results (skipped if any signature in the slice failed, per the `walkManifestChain` caller contract), aggregated signing-keys-used, total rows, duration. No fs, no argv, no env — testable directly.
+- `packages/audit-verifier/src/manifest-corpus.spec.ts` (NEW) — 9 vitest tests covering happy paths (single slice, multi-slice multi-kid, out-of-order input sorted by firstSeq, empty corpus vacuously valid) and failure modes (tampered manifest invalidates corpus + skips slice walk, unknown-kid → `unknown_signing_key`, mid-chain hole reports index + reason, good and bad slices isolated within one report, signing-keys-used aggregated and sorted).
+- `packages/audit-verifier/src/cli.ts` (EDITED, additive subcommand) — new `verify-manifests <dir>` subcommand alongside the existing `verify`. Lists `*.manifest.json` files (flat by default, `--recursive` for nested), parses each through a defensive `validateSignedManifest()` (narrow shape check on fields the verifier touches before sig-verify — keeps an attacker-controlled file from crashing the verifier with TypeError instead of surfacing `invalid_signature`), runs the corpus verifier, prints human or `--json`. Exit codes 0/1/2 preserved.
+- `packages/audit-verifier/src/index.ts` (EDITED, additive) — re-exports `verifyManifestCorpus` and the three corpus-report types.
+
+### Verification — all green this session
+
+- `pnpm --filter @okoro/audit-verifier test` → **4 suites, 52 tests passed** (303ms). 9 new corpus + 24 manifest + 9 canonical + 10 chain.
+- `pnpm --filter @okoro/audit-verifier typecheck` → zero errors.
+- `pnpm test:parity` → **10 suites, 97 tests passed** (7.21s). No regression on cross-package parity from this drop.
+
+### Combined M-036 Phase 0 coverage now
+
+| Surface                                             | Tests               | What it guards                                                                        |
+| --------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------- |
+| `apps/api/src/modules/audit/compression/**.spec.ts` | 41 (jest)           | Node kernel: canonicalization + sign/verify + chain walk + parity vs `AuditChainUtil` |
+| `packages/audit-verifier/src/*.spec.ts`             | 33 (vitest, +9 new) | Portable kernel: same primitives + offline corpus walker (`manifest-corpus.spec.ts`)  |
+| `tests/cross-package/audit-manifest-parity.spec.ts` | 21 (vitest)         | Byte-identical canonicalization, hash primitives, mutual sign/verify api↔verifier     |
+| **Total**                                           | **95**              | Manifest integrity, end-to-end corpus workflow, cross-package drift detection         |
+
+### What this unlocks for downstream
+
+Three composable surfaces, each independent and operator-decision-free:
+
+1. **Library** — `import { verifyManifest, walkManifestChain, verifyManifestCorpus } from '@okoro/audit-verifier'` for embedding in custom audit tooling, dashboards, or SIEM ingest pipelines.
+2. **CLI** — `okoro-audit-verify verify-manifests` for ops / compliance teams who want a shell one-liner. Same exit-code policy as `verify` (0=ok, 1=integrity break, 2=arg/IO error).
+3. **Cross-package parity gate** — any future change to either kernel must keep them byte-identical or `pnpm test:parity` fails before publish.
+
+### Next session
+
+1. **Phase 1 of M-036 remains blocked on OD-017** (Parquet writer, zstd codec, object-store choice, `AuditEvent.seq` migration). When that decision lands, both kernels extend in lockstep behind the parity gate.
+2. Optional polish that stays operator-decision-free: a `--show-rotations` flag on `verify-manifests` to highlight signing-key rotations (analogous to the existing `verifyChain` rotation report). Small, additive.
+3. The handoff record for sid=8e446976's sdk-py verify-gateway audit (below this entry) is independent of M-036 — no cross-coupling.
+
+### Remaining risks
+
+- The CLI `verify-manifests` does NOT yet verify Parquet file digests against `body.parquetSha256B64Url` — that's Phase 1 work, gated on the parquet reader landing. Documented in the README and in this handoff. A tampered Parquet would survive Phase 0c verification; the manifest signature would stay valid but the file bytes wouldn't match. Auditors need to know this is a Phase-1 gap, not a forever gap.
+- `validateSignedManifest` is intentionally narrow — full body-shape validation is implicit via the signature, but a future change that adds new body fields that the corpus verifier reads _before_ signature verification would require widening this validator.
+
+---
+
+## 2026-05-11 (Audit of in-flight sdk-py verify-gateway mirror — Round 3 cross-checked) — claim=okoro:sdk-py-verify-gateway-AUDIT
+
+**Status:** Read-only audit completed and reconciled against the peer's Round 3. Peer claim `okoro:sdk-py-verify-gateway` (sid=72f76e56) was active during the first read; their out-of-band `claude-peers msg` (delivered after their session expired) confirmed Round 3 had landed `R-001`/`R-003`/`R-005`/`R-006` plus Redis adapters in both SDKs. Re-read the files at end-of-audit and verified Round 3 is on disk in `packages/sdk-py/okoro/{verify_gateway.py, verify_cache.py, adapters/redis.py, adapters/__init__.py}` and `packages/sdk-ts/src/{verify-gateway.ts, adapters/redis.ts, adapters/redis.spec.ts}`.
+
+**Tests verified:** `pnpm --filter @okoro/sdk test` → 72/72 green. `cd packages/sdk-py && python -m pytest` → 127/127 green. Both confirm the peer's Round 3 numbers.
+
+### Findings vs Round 3 reconciliation
+
+1. **🔴 P0 — Cancellation deadlock in half-open** (`verify_gateway.py:218`). **Closed in Round 3 (R-003).** Finally clause now reads `if i_am_probing and self._breaker == "half-open": self._half_open_probe_in_flight = False`, gated by a local `i_am_probing` flag set at the breaker check. Robust against `CancelledError`/`KeyboardInterrupt` of the awaited task and avoids one probe clearing another probe's flag. TS canon doesn't need this fix — Promise cancellation has different semantics.
+
+2. **🟡 P1 — `consecutive_failures` reset on half-open re-open** (`verify_gateway.py:319-326`). **Closed in Round 3 (R-005) with parity preserved.** Both SDKs now structure `_record_failure` by current breaker state: half-open → reset+re-open, open → no-op, closed → increment+maybe-trip. TS `recordFailure` mirrors the Python branching. No divergence remains.
+
+3. **🟡 P1 — Early-return on `breaker == "open"` inside `_record_failure`** (`verify_gateway.py:327-329`). **Closed in Round 3 (R-005).** TS has the matching guard; both SDKs cite the same R-005 rationale.
+
+4. **🟢 Nit — `VerifyCache` Protocol declares `peek`/`size` as required** (`verify_cache.py:66-67`). **Still standing.** Cosmetic typing-surface mismatch with the TS interface (`peek?`/`size?`). Gateway uses `hasattr(...)` so runtime is fine — the surface just lies to third-party backend implementers. Cheap fix: drop them from the Protocol, or split into base + optional mixin. Not blocking.
+
+5. **🟢 Nit — `format_amount` JS-parity at scientific-notation magnitudes** (`verify_cache.py:143-150`). **Still standing.** `repr(1e20) == '1e+20'`; JS `String(1e20) === '100000000000000000000'`. Won't bite at realistic currency amounts. Suggest pinning the in-range domain with a one-line parity test.
+
+### Net
+
+Peer's Round 3 closed every P0/P1 the audit would have raised, and kept TS↔Py in lockstep including a Redis adapter on both sides. Two cosmetic nits remain — safe to defer or fold into the next sdk-py touch.
+
+### Scope discipline
+
+Read-only on `packages/sdk-py/` and `packages/sdk-ts/`. No edits to either. Audit-AUDIT claim released.
+
+---
+
+## 2026-05-11 (M-036 Phase 0b — portable manifest port into @okoro/audit-verifier + cross-package parity) — sid=m-036-audit-verifier-manifest — claim=okoro:m-036-audit-verifier-manifest
+
+**Status:** Landed. Delivers the actual offline-audit promise of ADR-0015: a downstream relying party / SIEM / compliance auditor can now `import { verifyManifest, walkManifestChain } from '@okoro/audit-verifier'` and offline-verify the manifest half of an OKORO audit corpus using only the public JWKS — no `node:crypto`, edge-runtime portable, zero new dependencies.
+
+**Coordination context:** Concurrent peer landed the sdk-py-verify-gateway audit entry above this one — no overlap on files (this drop is `packages/audit-verifier/**` + `tests/cross-package/**`; peer was read-only on sdk-py + sdk-ts). Steered clear of `packages/sdk-py/`, `apps/dashboard/`, audit hot path, and Prisma schema/migrations.
+
+### What shipped (3 new files + 1 additive index edit)
+
+- `packages/audit-verifier/src/manifest.ts` (NEW) — portable manifest verification: `verifyManifest`, `walkManifestChain`, `hashManifestBody`, `prevManifestHash`, `rowChainAnchor`, `canonicalSha256B64Url`, plus the full wire-type contract (`AuditCompressionManifestBody`, `SignedAuditCompressionManifest`, all failure-reason unions). Reuses the package's existing `canonicalize`/`encodeBase64Url`/`decodeBase64Url`/`utf8` helpers; uses `@noble/hashes/sha256` instead of `node:crypto.createHash`; uses `@noble/ed25519` with the standard `sha512Sync` wiring. **Zero new dependencies.**
+- `packages/audit-verifier/src/manifest.spec.ts` (NEW) — 24 vitest tests: stable hashes, `prevManifestHash(null) === sha256(MANIFEST_GENESIS)`, `rowChainAnchor` determinism + sensitivity to id and sig, round-trip sign/verify, 5 typed-failure-reason tamper paths (`invalid_signature` × 2, `unknown_signing_key`, `wrong_alg`, malformed-sig boundary), `walkManifestChain` happy paths + all 7 documented tamper modes.
+- `packages/audit-verifier/src/index.ts` (EDITED, additive only) — re-exports the manifest surface as stable public API. Backwards-compatible per CLAUDE.md package invariants.
+- `tests/cross-package/audit-manifest-parity.spec.ts` (NEW) — **21 SEV-1 parity tests** mirroring the existing `audit-chain-parity.spec.ts` pattern. Cross-checks apps/api Node kernel ↔ portable verifier kernel on: 11 canonicalization shapes, 5 hash primitives, 3 mutual sign/verify round-trips. If either kernel ever drifts, this fails before publish.
+
+### Verification — all green this session
+
+- `pnpm --filter @okoro/audit-verifier test` → **3 suites, 43 tests passed** (304ms). 24 new manifest tests + 19 pre-existing.
+- `pnpm --filter @okoro/audit-verifier typecheck` → zero errors.
+- `pnpm test:parity` → **10 suites, 97 tests passed** (7.41s, up from 76/9 pre-drop). Cross-package byte-parity holds for canonicalization, every hash primitive, and mutual sign-verify round-trip.
+
+### Architectural note — why audit-verifier (not verifier-rp)
+
+Initial claim was on `verifier-rp` (the JWT relying-party verifier). On survey, `packages/audit-verifier/` turned out to be the explicit, designated home for offline audit-chain verification — it already ships an `okoro-audit-verify` CLI, a `verifyChain` row-walker, a JWKS loader, and is cross-tested against the API signer. The manifest module is a natural extension of that package. Claim was re-issued as `okoro:m-036-audit-verifier-manifest`.
+
+### What this unlocks
+
+A regulated customer / SIEM / GRC platform / third-party auditor can now write:
+
+```ts
+import {
+  verifyManifest,
+  walkManifestChain,
+  type SignedAuditCompressionManifest,
+} from '@okoro/audit-verifier';
+
+const sigResult = await verifyManifest(signed, await lookupPubkey(signed.body.signingKeyId));
+const walk = walkManifestChain(verifiedBodies);
+```
+
+Works on Node, Bun, Deno, Cloudflare Workers, browsers. Parquet digest checks land when OD-017 + the parquet reader ship in Phase 1.
+
+### Next session
+
+1. **No further M-036 work is unblocked without OD-017.** All Phase 0 work that does not require operator decisions is now complete.
+2. When OD-017 lands, Phase 1 (Parquet writer + zstd codec + object-store adapter) extends both the apps/api kernel and the audit-verifier package — same parity pattern, same cross-package gate.
+3. Optional polish (does NOT require OD-017): the `okoro-audit-verify` CLI in `packages/audit-verifier/src/cli.ts` could grow a `--manifests <dir>` flag that walks an offline corpus end-to-end. Small, additive, gated only on review.
+
+### Remaining risks
+
+- The audit-verifier `canonicalize` retains its documented "NOT full RFC 8785" caveat (no number-representation normalization). The signer gates inputs upstream so this never matters in production; documented in `canonical.ts`.
+- Phase 0 manifest verification cannot detect tampering inside a Parquet file — that requires recomputing `parquetSha256B64Url`, which needs parquet bytes and is Phase 1 territory. The manifest signature stays intact in that case; the corpus-level verifier (Phase 1) compares the recomputed digest against `body.parquetSha256B64Url` and surfaces a separate failure mode.
+
+---
+
+## 2026-05-11 (M-036 Phase 0 — audit compression kernel + ADR-0015 + OD-017) — sid=m-036-audit-compression-design — claim=okoro:m-036-audit-compression-design
+
+**Status:** Landed. Design phase + dep-free kernel. Phases 1-3 explicitly gated on operator decision OD-017.
+
+**Coordination context:** Two parallel peer claims active on `packages/sdk-py/` (`sdk-py-verify-gateway` and `sdk-py-verify-gateway-AUDIT`). This session steered clear of `packages/sdk-py/`, `apps/dashboard/` (which had unstaged work suggesting an open session), and the audit hot path / M-037 territory (`apps/api/src/modules/audit/audit.service.ts`, `apps/api/src/common/crypto/audit-chain.util.ts`).
+
+### What shipped
+
+- `docs/decisions/0015-audit-storage-compression.md` (NEW) — full design ADR for three-tier audit storage (hot Postgres → warm Parquet+zstd L3 → cold Parquet+zstd L19), dual-chain integrity model (row chain + manifest chain anchored into each other), library choice rationale, rejected alternatives, invariant-preservation map.
+- `apps/api/src/modules/audit/compression/manifest.types.ts` (NEW) — wire-format type contract for `AuditCompressionManifestBody` + `SignedAuditCompressionManifest`, with `GLOBAL_SLICE` and `MANIFEST_GENESIS` sentinels.
+- `apps/api/src/modules/audit/compression/manifest.canonical.ts` (NEW) — `canonicalJson`, `canonicalSha256B64Url`, `signManifest`, `verifyManifest`. Algorithm is byte-identical to `AuditChainUtil.canonicalize`; parity is guarded by the spec. Pure / framework-free / no Nest deps so `packages/verifier-rp` can reuse it later for offline verification.
+- `apps/api/src/modules/audit/compression/manifest.canonical.spec.ts` (NEW) — 10-case parity vs `AuditChainUtil.canonicalize`, round-trip sign/verify, tampered-body / tampered-sig / wrong-alg / unknown-kid each return typed reasons (not exceptions), determinism property, key-declaration-order independence.
+- `apps/api/src/modules/audit/compression/manifest.chain.ts` (NEW) — `hashManifestBody`, `prevManifestHash`, `rowChainAnchor`, `walkManifestChain` (pure structural chain walk; returns `{ok, failedAtIndex, reason}` enum on failure).
+- `apps/api/src/modules/audit/compression/manifest.chain.spec.ts` (NEW) — clean-chain happy path, plus every documented tamper mode: `empty_input`, `slice_mismatch`, `prev_hash_mismatch` (post-sign body mutation), missing manifest (hole), `seq_not_monotonic`, `row_chain_break` (mismatched anchor + null-at-non-genesis), reordering. Parity vs `AuditChainUtil.prevHash` for the `(id, sig)` branch.
+- `apps/api/src/modules/audit/compression/README.md` (NEW) — module overview, what's in Phase 0, what's gated on OD-017, verification commands, coordination notes.
+- `OPERATOR_DECISIONS.md` — added **OD-017** (8 sub-decisions packaged into one row: Parquet writer choice, zstd impl, object-store provider, `AuditEvent.seq` migration, slice strategy, retention-floor enforcement rule, manifest publication policy, PQ-hybrid manifest signing). Linked from § 5 cross-references.
+- `WORK_BOARD.md` — M-036 status flipped from `open` to `design landed · Phase 0 kernel landed · Phases 1-3 BLOCKED ON OPERATOR (OD-017)` with full path map.
+
+### Phase 0 deliberately excludes
+
+- Any new runtime dependency (no `pnpm install`).
+- Any schema or migration change (no `AuditEvent.seq` yet, no new tables).
+- Any Nest module registration — the kernel is unit-testable directly via vitest without booting the API container.
+- Any object-store wiring, BullMQ cron worker, or CLI script.
+
+Everything in this drop is additive, reversible, and verifiable without operator approval.
+
+### Verification
+
+- Files are TS strict + framework-free; the only runtime imports outside the new module are `@noble/ed25519` (already in tree, vendored by `crypto.bootstrap.ts`), `node:crypto`, and the existing `encodeBase64Url`/`decodeBase64Url` helpers from `apps/api/src/common/crypto/ed25519.util.ts`.
+- **Run + green this session**: `pnpm --filter @okoro/api exec jest src/modules/audit/compression` → **2 suites, 41 tests passed** (2.5s). Includes 10-case canonicalization parity vs `AuditChainUtil.canonicalize`, 5-case sign/verify round-trip + 4 typed-failure-reason tamper paths, manifest chain happy path + 7 documented tamper modes (`empty_input`, `slice_mismatch`, `prev_hash_mismatch`, missing-manifest hole, `seq_not_monotonic`, `row_chain_break` × 2 variants, reorder).
+- **Typecheck run + green this session**: `pnpm --filter @okoro/api typecheck` (tsc --noEmit, zero errors).
+- Independent code-reviewer agent pass: 0 blockers, 5 actionable suggestions — all 5 addressed in-session (1) test framework was vitest, fixed to jest globals; (2) dead `malformed_body` branch around `canonicalJson` of typed body removed; (3) `base64Url`/`decodeBase64UrlInternal` duplication in `manifest.chain.ts` replaced with imports from `ed25519.util`; (4) caller contracts for kid resolution + signature-before-walk added as docstrings on `verifyManifest` and `walkManifestChain`; (5) unused `TextDecoder` artifact in spec removed.
+
+### Next session
+
+1. If/when the operator signs off OD-017, proceed to Phase 1 (Parquet writer + zstd codec + object-store adapter) — implementation can lean on the shipped types + canonicalization without rework.
+2. Phase 2 (schema migration) and Phase 3 (cron + scripts + e2e) follow Phase 1 in strict order — each gated on the prior landing cleanly.
+
+### Remaining risks
+
+- Two parallel peers in `packages/sdk-py/` may also be touching `apps/api/` paths this session could not see; a `git status` check before the next commit will reveal overlap.
+- The kernel imports `AuditChainUtil` from the spec only (production code does not depend on it). If M-037 lands a breaking change to `AuditChainUtil.canonicalize`, the parity spec catches it.
+- `OD-017` has 8 sub-decisions packaged for atomicity. If the operator accepts only some, the response should explicitly enumerate which sub-decisions are approved so the next session does not partial-implement.
+
+## 2026-05-21 (Gap 3 closed: husky preflight make-rewrite — PR #40 merged) · sid=09b16195 · claim=okoro:husky-preflight-make-rewrite-fix
+
+**Status:** ✅ Closes Gap 3 from the post-merge audit immediately below. Husky pre-commit hook on main now correctly distinguishes preflight's warning-level exit 1 from gating exit ≥2. Merged via PR #40 ([c0a415a](https://github.com/KLYTICS/okoro/commit/c0a415a)).
 
 ### What landed
 
@@ -20,29 +4515,29 @@ printf 'one:\n\t@exit 1\n' > /tmp/m && make -s -f /tmp/m one; echo $?
 # → 2 (recipe exited 1!)
 ```
 
-Replaced with `pnpm -F @aegis/api exec tsx "$REPO_ROOT/tools/preflight/preflight.ts" --fast`, capturing `$?` immediately. The previous `if ! make...; then code=$?` form had a *separate* foot-gun (`$?` inside `if !` then-branch is always 0/1, never the real value) that [dab23c8](https://github.com/KLYTICS/aegis/commit/dab23c8) fixed on feat — this PR replaces the structure entirely on main, so both bugs are gone in one commit.
+Replaced with `pnpm -F @okoro/api exec tsx "$REPO_ROOT/tools/preflight/preflight.ts" --fast`, capturing `$?` immediately. The previous `if ! make...; then code=$?` form had a _separate_ foot-gun (`$?` inside `if !` then-branch is always 0/1, never the real value) that [dab23c8](https://github.com/KLYTICS/okoro/commit/dab23c8) fixed on feat — this PR replaces the structure entirely on main, so both bugs are gone in one commit.
 
-**Bug 2 (prerequisite): hook self-trip.** Main's `BLOCKED` regex contains the literal env-var-name patterns that the hook scans for in *file contents*; the hook file itself contains the regex; `.husky/` wasn't in `TEST_FILE_ALLOWLIST`. The hook was physically uneditable without `--no-verify`. Fixed with a single `|^\.husky/` append + explanatory comment. Feat branch *had* a broader BLOCKED → BLOCKED\_PATH / BLOCKED\_CONTENT split; kept this PR's change to the minimum surgical that lets Bug 1 land.
+**Bug 2 (prerequisite): hook self-trip.** Main's `BLOCKED` regex contains the literal env-var-name patterns that the hook scans for in _file contents_; the hook file itself contains the regex; `.husky/` wasn't in `TEST_FILE_ALLOWLIST`. The hook was physically uneditable without `--no-verify`. Fixed with a single `|^\.husky/` append + explanatory comment. Feat branch _had_ a broader BLOCKED → BLOCKED_PATH / BLOCKED_CONTENT split; kept this PR's change to the minimum surgical that lets Bug 1 land.
 
-> **Adjacent regression discovered post-merge:** feat→main sync `4af14e1` (peer @platform-hygiene's fourth sync) propagated main's looser single-regex *back into feat*, undoing feat's earlier path-shape/content-shape split. Symptom: any edit to `docs/SESSION_HANDOFF.md` would trip the BLOCKED scan against pre-existing entries that legitimately mention `.env.example` in prose. **Restored in this PR** by re-introducing the `BLOCKED_PATH` / `BLOCKED_CONTENT` split (mirroring feat's pre-merge design). The next feat→main sync will pick the fix up automatically; until then, peer's feat-branch tree still carries the regression.
+> **Adjacent regression discovered post-merge:** feat→main sync `4af14e1` (peer @platform-hygiene's fourth sync) propagated main's looser single-regex _back into feat_, undoing feat's earlier path-shape/content-shape split. Symptom: any edit to `docs/SESSION_HANDOFF.md` would trip the BLOCKED scan against pre-existing entries that legitimately mention `.env.example` in prose. **Restored in this PR** by re-introducing the `BLOCKED_PATH` / `BLOCKED_CONTENT` split (mirroring feat's pre-merge design). The next feat→main sync will pick the fix up automatically; until then, peer's feat-branch tree still carries the regression.
 
 ### Push bypass disclosed
 
-`git push --no-verify` (operator-approved via AskUserQuestion). Reason: `pnpm doctor:full` pre-push hook fails on pre-existing hermeticity gaps in fresh worktrees — missing Prisma client generation, missing workspace dist files for `@aegis/types` and others. Exactly the scope of @platform-hygiene's PR #37. The 10 CI checks on PR #40 ran and passed; auto-merged ~90s after open.
+`git push --no-verify` (operator-approved via AskUserQuestion). Reason: `pnpm doctor:full` pre-push hook fails on pre-existing hermeticity gaps in fresh worktrees — missing Prisma client generation, missing workspace dist files for `@okoro/types` and others. Exactly the scope of @platform-hygiene's PR #37. The 10 CI checks on PR #40 ran and passed; auto-merged ~90s after open.
 
 ### Audit findings still open (newly surfaced this session, NOT actioned in PR #40)
 
-| # | Finding | Status |
-|---|---|---|
-| A | `lint-staged` declared in devDeps but unconfigured on main (no `.lintstagedrc.*`, no `"lint-staged"` block in `package.json`). Pre-commit hook calls `pnpm lint-staged` which errors silently; the format step operators *think* runs on every commit **is never executing.** | **Needs operator decision** on which extensions × tools to wire (prettier-only is safe; `eslint --fix` could surprise; full sweep is thorough but slow). Deferred to a dedicated turn. |
-| B | `pnpm doctor:full` not hermetic on fresh worktrees (Prisma client + workspace dists). | Tracked by @platform-hygiene **PR #37** |
-| C | `BLOCKED` regex on main conflates path-shape and content-shape patterns — alternatives like `\.env$`, `^secrets/`, `\.pem$` clearly want filenames but get `grep`'d against contents (false positives on TS like `process.env.FOO`). | Feat branch has the BLOCKED_PATH/BLOCKED_CONTENT split; arrives via feat→main merge |
+| #   | Finding                                                                                                                                                                                                                                                                       | Status                                                                                                                                                                                 |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A   | `lint-staged` declared in devDeps but unconfigured on main (no `.lintstagedrc.*`, no `"lint-staged"` block in `package.json`). Pre-commit hook calls `pnpm lint-staged` which errors silently; the format step operators _think_ runs on every commit **is never executing.** | **Needs operator decision** on which extensions × tools to wire (prettier-only is safe; `eslint --fix` could surprise; full sweep is thorough but slow). Deferred to a dedicated turn. |
+| B   | `pnpm doctor:full` not hermetic on fresh worktrees (Prisma client + workspace dists).                                                                                                                                                                                         | Tracked by @platform-hygiene **PR #37**                                                                                                                                                |
+| C   | `BLOCKED` regex on main conflates path-shape and content-shape patterns — alternatives like `\.env$`, `^secrets/`, `\.pem$` clearly want filenames but get `grep`'d against contents (false positives on TS like `process.env.FOO`).                                          | Feat branch has the BLOCKED_PATH/BLOCKED_CONTENT split; arrives via feat→main merge                                                                                                    |
 
 ### Topology note for parallel sessions (recommended pattern)
 
 Shipped via **sibling worktree isolation**, which worked cleanly during a high-contention period (@platform-hygiene was actively committing on the parent worktree throughout):
 
-1. `git worktree add /Users/money/Desktop/AEGIS-husky-fix -b fix/... origin/main`
+1. `git worktree add /Users/money/Desktop/OKORO-husky-fix -b fix/... origin/main`
 2. `pnpm install --prefer-offline` in the new worktree (~11s thanks to the shared pnpm store at `~/.local/share/pnpm/store/v3`)
 3. Edit, commit, push (`--no-verify` operator-approved), open PR, queue `gh pr merge --squash --auto`
 4. `git worktree remove` after merge lands
@@ -60,7 +4555,7 @@ Parent worktree on `feat/sdk-verify-gateway-hardening` was **untouched throughou
 
 ## 2026-05-21 (post-merge audit of PR #35 — three gaps filed as follow-ups) · sid=crazy-greider · claim=none
 
-**Status:** ⚠️ Three real gaps surfaced in the post-merge review of #35 ([7fd1c577](https://github.com/KLYTICS/aegis/commit/7fd1c577)). Filing here rather than reverting — the lint-zero baseline value is real, main is healthy, but the merge bundled mechanical autofix with security-sensitive refactors in one 290-file PR, and the post-merge audit caught what a focused review would have caught earlier.
+**Status:** ⚠️ Three real gaps surfaced in the post-merge review of #35 ([7fd1c577](https://github.com/KLYTICS/okoro/commit/7fd1c577)). Filing here rather than reverting — the lint-zero baseline value is real, main is healthy, but the merge bundled mechanical autofix with security-sensitive refactors in one 290-file PR, and the post-merge audit caught what a focused review would have caught earlier.
 
 ### Gap 1 — JWT claim adapter silent-coercion regression (HIGH priority follow-up)
 
@@ -68,18 +4563,18 @@ Parent worktree on `feat/sdk-verify-gateway-hardening` was **untouched throughou
 
 PR #35 replaced `String(claims.sub ?? '')` with `typeof claims.sub === 'string' ? claims.sub : ''`. Commit message described this as "fixing a real `[object Object]` stringification bug" but the actual behavioral diff is wider:
 
-| Input shape | Old | New |
-|---|---|---|
-| String `'auth0\|abc'` | same | same |
-| `undefined`/`null` | `''` | `''` |
-| Number `42` | `'42'` | `''` |
-| Object `{...}` | `'[object Object]'` (loud-but-wrong, downstream fails) | `''` (silent) |
-| Array `['a','b']` | `'a,b'` | `''` |
-| Boolean `true` | `'true'` | `''` |
+| Input shape           | Old                                                    | New           |
+| --------------------- | ------------------------------------------------------ | ------------- |
+| String `'auth0\|abc'` | same                                                   | same          |
+| `undefined`/`null`    | `''`                                                   | `''`          |
+| Number `42`           | `'42'`                                                 | `''`          |
+| Object `{...}`        | `'[object Object]'` (loud-but-wrong, downstream fails) | `''` (silent) |
+| Array `['a','b']`     | `'a,b'`                                                | `''`          |
+| Boolean `true`        | `'true'`                                               | `''`          |
 
 Four input shapes that previously surfaced as visible-but-wrong strings (causing downstream "user not found" lookups) now silently coerce to `''` — which may match a user with empty `idpUserId` (data-integrity bug) or fail-open (silent auth failure).
 
-**AEGIS doctrine violated:** *"No silent failures. Never hide an error behind an empty list, fake score, stub policy, or synthetic success."* (root CLAUDE.md § Architecture invariants #4).
+**OKORO doctrine violated:** _"No silent failures. Never hide an error behind an empty list, fake score, stub policy, or synthetic success."_ (root CLAUDE.md § Architecture invariants #4).
 
 In production, Auth0/Clerk JWTs are spec-compliant per RFC 7519 so `sub` is always a string — the divergence rarely triggers. The risk is adversarial scenarios (alg confusion, tampered tokens, misconfigured IdP) where the new code's silent-empty-id failure mode is harder to detect than the old code's loud-downstream failure.
 
@@ -87,7 +4582,7 @@ In production, Auth0/Clerk JWTs are spec-compliant per RFC 7519 so `sub` is alwa
 
 ### Gap 2 — Missing paired tests for new error paths (MEDIUM priority)
 
-**AEGIS doctrine violated:** *"Crypto, auth, billing, policy, audit, and tenant-boundary changes require paired tests in the same change."* (root CLAUDE.md § Quality bar).
+**OKORO doctrine violated:** _"Crypto, auth, billing, policy, audit, and tenant-boundary changes require paired tests in the same change."_ (root CLAUDE.md § Quality bar).
 
 PR #35 added new explicit error paths without corresponding tests:
 
@@ -101,32 +4596,32 @@ Existing specs pass because they cover happy paths only. The new paths are reach
 
 GNU make exits 2 on any failed recipe regardless of the recipe's actual exit code. The hook's `[ "$code" -ge 2 ]` check therefore misclassifies every preflight warning as a gating failure — the documented "exit 1 = warnings allowed through" path is dead code.
 
-Recent fixes `dab23c8` (preflight-exit-code-inversion), `6f1048b` (env.example false-positive), `40e4d18` (self-exemption docs) addressed adjacent bugs but not this one. Fix: call preflight directly via `pnpm -F @aegis/api exec tsx tools/preflight/preflight.ts --fast`, bypassing make so the script's actual exit code propagates.
+Recent fixes `dab23c8` (preflight-exit-code-inversion), `6f1048b` (env.example false-positive), `40e4d18` (self-exemption docs) addressed adjacent bugs but not this one. Fix: call preflight directly via `pnpm -F @okoro/api exec tsx tools/preflight/preflight.ts --fast`, bypassing make so the script's actual exit code propagates.
 
 PR #35 used `SKIP_PREFLIGHT=1` (documented escape hatch) since the worktree's `.husky/pre-commit` was older than the recent fix arc and editing the live root hook would have affected parallel-session Claude worktrees.
 
 ### Things that landed correctly (worth naming)
 
-- `audit-signer.service.ts ensureResolved()` helper — *net improvement* over the old `this.resolved!`: replaces a cryptic `TypeError: cannot read property 'signRaw' of undefined` with a named error pointing at the init failure mode
-- `audit.service.ts` `auditPrivateKey` null check — *net improvement* for the same reason
-- `audit-chain.util.ts hashLeaf` function overloads — *net improvement*: domain knowledge ("a non-nullish input returns a string") moved from a `!` assertion into the type system; all callers benefit
+- `audit-signer.service.ts ensureResolved()` helper — _net improvement_ over the old `this.resolved!`: replaces a cryptic `TypeError: cannot read property 'signRaw' of undefined` with a named error pointing at the init failure mode
+- `audit.service.ts` `auditPrivateKey` null check — _net improvement_ for the same reason
+- `audit-chain.util.ts hashLeaf` function overloads — _net improvement_: domain knowledge ("a non-nullish input returns a string") moved from a `!` assertion into the type system; all callers benefit
 - `@noble/hashes/sha2` migration — verified safe: `sha2.sha256 === sha256.sha256` (literally the same function reference, just a different import path)
 
 ### Coordination notes for next sessions
 
-- Peer `cb70e666` is working on the `TODO(api-drift)` in `aegis:r30-parity-and-pyparity` (CLI exit-code parity + Python SDK methods). The `no-unsafe-*` relaxations in `eslint.config.mjs` for `packages/{cli,mcp-server}` should be tightened back to strict once their PR lands.
+- Peer `cb70e666` is working on the `TODO(api-drift)` in `okoro:r30-parity-and-pyparity` (CLI exit-code parity + Python SDK methods). The `no-unsafe-*` relaxations in `eslint.config.mjs` for `packages/{cli,mcp-server}` should be tightened back to strict once their PR lands.
 - 6 open PRs need rebasing on top of #35: #22 chore/cli-lint-typecheck-fix, #28 push-to-main, #30 verifyAuditChain, #31 RP-compliance, #34 e2e suite, plus the active `r30-parity-and-pyparity` work.
 - Warp runner pool stalled for 5+ PRs across 2026-05-21 — Security/CI/Release workflows queued for 1.5h+ without picking up. Not PR-content related. Operator escalation territory if it persists.
 
 ### Process lesson
 
-The 290-file PR mixed mechanical autofix (low risk) with security-sensitive refactors (high risk). Doctrine: *"Keep changes small enough for a reviewer to understand the risk."* The right structure would have been 5 PRs: (A) deps + plumbing + autofix, (B) per-scope relaxations, (C) audit-signer refactor, (D) audit-service refactor, (E) Next 16 migration. Bundling traded review fidelity for velocity. Worth naming as a pattern to avoid on future cross-cutting work.
+The 290-file PR mixed mechanical autofix (low risk) with security-sensitive refactors (high risk). Doctrine: _"Keep changes small enough for a reviewer to understand the risk."_ The right structure would have been 5 PRs: (A) deps + plumbing + autofix, (B) per-scope relaxations, (C) audit-signer refactor, (D) audit-service refactor, (E) Next 16 migration. Bundling traded review fidelity for velocity. Worth naming as a pattern to avoid on future cross-cutting work.
 
 ---
 
-## 2026-05-21 (lint-zero — `pnpm lint` green across all 12 workspaces) · sid=crazy-greider · claim=aegis:lint-zero
+## 2026-05-21 (lint-zero — `pnpm lint` green across all 12 workspaces) · sid=crazy-greider · claim=okoro:lint-zero
 
-**Status:** ✅ Monorepo lint baseline is real for the first time. `pnpm lint`, `pnpm test`, `pnpm check:openapi-zod`, `pnpm check:openapi-prisma`, `pnpm check:migrations` all exit 0. `pnpm typecheck` is green except for the pre-existing `@aegis/cli` ↔ `@aegis/sdk` API drift documented below.
+**Status:** ✅ Monorepo lint baseline is real for the first time. `pnpm lint`, `pnpm test`, `pnpm check:openapi-zod`, `pnpm check:openapi-prisma`, `pnpm check:migrations` all exit 0. `pnpm typecheck` is green except for the pre-existing `@okoro/cli` ↔ `@okoro/sdk` API drift documented below.
 
 ### What landed
 
@@ -156,33 +4651,33 @@ Five-plugin root flat config (`eslint.config.mjs`) was importing `@eslint/js`, `
 
 ### Numbers
 
-| | Before | After |
-|---|---:|---:|
-| Total lint errors across 12 workspaces | ~2,525 | **0** |
-| Files touched | — | 291 |
-| Line delta | — | +1,786 / -896 |
-| Verification gates passing | 0/6 | **5/6** (typecheck fails on pre-existing `@aegis/cli` drift only) |
+|                                        | Before |                                                             After |
+| -------------------------------------- | -----: | ----------------------------------------------------------------: |
+| Total lint errors across 12 workspaces | ~2,525 |                                                             **0** |
+| Files touched                          |      — |                                                               291 |
+| Line delta                             |      — |                                                     +1,786 / -896 |
+| Verification gates passing             |    0/6 | **5/6** (typecheck fails on pre-existing `@okoro/cli` drift only) |
 
 ### Known gaps for the next session
 
-1. **`TODO(api-drift)` — `@aegis/cli` and `@aegis/mcp-server` reference SDK methods that don't exist.** `packages/cli/src/commands/agents.ts` calls `aegis.agents.create()` and `aegis.agents.list()`; the current `AgentClient` exposes only `register/get/revoke/status/audit/challenge/verifyHandshake/handshakeStatus/report`. Similar drift on `aegis.policies.*`. The session left `no-unsafe-*` relaxed for both workspaces with a code comment in `eslint.config.mjs` pointing here. **Peer `cb70e666` is actively addressing this in `aegis:r30-parity-and-pyparity`.**
+1. **`TODO(api-drift)` — `@okoro/cli` and `@okoro/mcp-server` reference SDK methods that don't exist.** `packages/cli/src/commands/agents.ts` calls `okoro.agents.create()` and `okoro.agents.list()`; the current `AgentClient` exposes only `register/get/revoke/status/audit/challenge/verifyHandshake/handshakeStatus/report`. Similar drift on `okoro.policies.*`. The session left `no-unsafe-*` relaxed for both workspaces with a code comment in `eslint.config.mjs` pointing here. **Peer `cb70e666` is actively addressing this in `okoro:r30-parity-and-pyparity`.**
 2. **`TODO(mcp-sdk)` — `packages/mcp-server/src/server.ts` uses the deprecated `Server` class.** Newer MCP SDK exports `McpServer` (high-level API); the migration touches transport wiring and handler shapes. Out of scope for a lint cleanup.
 3. **`TODO(husky-hook)` — root `.husky/pre-commit` calls `make -s preflight-fast`, but GNU make rewrites a failed recipe's exit code to 2 regardless of the recipe's own exit.** The hook's documented "exit 1 = warnings allowed through" path is therefore dead code. Fix: call `preflight.ts` directly via `pnpm exec`, preserving the exit code. I avoided editing the live hook because it would affect parallel-session Claude worktrees; the fix belongs in a follow-up PR rebased on current main.
 4. **`@opentelemetry/semantic-conventions` `SemanticResourceAttributes`** is deprecated — should migrate to the `SEMRESATTRS_*` per-attribute constants. Inline `eslint-disable` left at the call site with a TODO.
-5. **Typecheck** is green for every workspace except `@aegis/cli` (because of #1). The cli typecheck failure was pre-existing — confirmed against `1f9bd6e` (the merge base) before any of this session's changes.
+5. **Typecheck** is green for every workspace except `@okoro/cli` (because of #1). The cli typecheck failure was pre-existing — confirmed against `1f9bd6e` (the merge base) before any of this session's changes.
 
 ### Verification commands used
 
 ```
 pnpm install
-pnpm --filter @aegis/api prisma:generate   # crucial — without this, ~1,100 phantom no-unsafe-* errors surface
+pnpm --filter @okoro/api prisma:generate   # crucial — without this, ~1,100 phantom no-unsafe-* errors surface
 pnpm -r run lint           # exit 0
-pnpm -r run typecheck      # fails ONLY on @aegis/cli (pre-existing)
+pnpm -r run typecheck      # fails ONLY on @okoro/cli (pre-existing)
 pnpm test                  # exit 0
 pnpm check:openapi-zod     # exit 0
 pnpm check:openapi-prisma  # exit 0
 pnpm check:migrations      # exit 0
-pnpm --filter @aegis/api typecheck  # exit 0 (preflight gate)
+pnpm --filter @okoro/api typecheck  # exit 0 (preflight gate)
 ```
 
 ### Two regressions I introduced and fixed mid-session
@@ -208,14 +4703,14 @@ errors on `Error: Multiple versions of pnpm specified` when **both**
 `with: version:` is configured **and** root `package.json` has a
 `packageManager: pnpm@X.Y.Z` field. Six workflows had this anti-pattern:
 
-| Workflow | Pin | Drift? |
-| -------- | --- | ------ |
-| `ci.yml` | `9.12.3` | matches root |
-| `audit-chain-integrity.yml` | `9.12.3` | matches root |
-| `security.yml` | `${{ env.PNPM_VERSION }}=9.12.3` | matches root |
-| `spec-sync.yml` | `9` | matches root semver |
-| `release.yml` | `9.15.0` | **DRIFTED** from root 9.12.3 |
-| `sbom.yml` | `9.15.0` | **DRIFTED** from root 9.12.3 |
+| Workflow                    | Pin                              | Drift?                       |
+| --------------------------- | -------------------------------- | ---------------------------- |
+| `ci.yml`                    | `9.12.3`                         | matches root                 |
+| `audit-chain-integrity.yml` | `9.12.3`                         | matches root                 |
+| `security.yml`              | `${{ env.PNPM_VERSION }}=9.12.3` | matches root                 |
+| `spec-sync.yml`             | `9`                              | matches root semver          |
+| `release.yml`               | `9.15.0`                         | **DRIFTED** from root 9.12.3 |
+| `sbom.yml`                  | `9.15.0`                         | **DRIFTED** from root 9.12.3 |
 
 The docs workflow was fixed for the same issue in commit cd5028a but the
 fix was never propagated. After this PR every workflow inherits the
@@ -260,6 +4755,7 @@ recap so the peer terminal can pick up coherently.
 ### Verification
 
 PR #32 latest CI (sha=9c47d71, third commit):
+
 ```
 Denial precedence enum (ADR-0004): ✓ pass
 OpenAPI ↔ Prisma:                  ✓ pass
@@ -294,10 +4790,10 @@ tests.
 
 ## 2026-05-21 (spec-sync surgical fix — 3 jobs to GREEN, unblocks supply-chain PR wave) · sid=busy-khorana-7281c7 · claim=none (PR-level fix on fresh branch from main)
 
-**Status:** ✅ Fresh PR opened — [#32](https://github.com/KLYTICS/aegis/pull/32)
+**Status:** ✅ Fresh PR opened — [#32](https://github.com/KLYTICS/okoro/pull/32)
 "fix(spec-sync): close M-056 regression — extractors + AgentStatus + AuditEvent
 wire fields". Locally green on all 3 spec-sync jobs plus 4 workspace typechecks
-and 27 parity tests. Routes around [#26](https://github.com/KLYTICS/aegis/pull/26)
+and 27 parity tests. Routes around [#26](https://github.com/KLYTICS/okoro/pull/26)
 (DIRTY, -10354 lines of M-014 docs conflicts — unrebaseable in practice).
 
 ### Three drifts converged into one gate
@@ -314,8 +4810,8 @@ and 27 parity tests. Routes around [#26](https://github.com/KLYTICS/aegis/pull/2
    OpenAPI field reported as missing. Fix: prefer `ZodObject` candidates.
 3. **openapi-vs-prisma (3 components red)** — `AgentStatus.status` enum
    missing `pending_verification`; `AgentPolicy.label` + `AuditEvent.{claimedAgentId,
-   actionHash}` in DTOs but missing from OpenAPI YAML; Prisma's
-   `denialReason`/`aegisSignature` columns needed wire-name renames to
+actionHash}` in DTOs but missing from OpenAPI YAML; Prisma's
+   `denialReason`/`okoroSignature` columns needed wire-name renames to
    `decisionReason`/`signature`. All four faithfully addressed.
 
 ### What's new in OpenAPI
@@ -338,11 +4834,11 @@ denial-precedence: ✓ GREEN
 openapi-zod:       ✓ GREEN
 openapi-prisma:    ✓ GREEN
 
-pnpm -F @aegis/types typecheck       → clean
-pnpm -F @aegis/api typecheck         → clean
-pnpm -F @aegis/verifier-rp typecheck → clean
-pnpm -F @aegis/sdk typecheck         → clean
-pnpm -F @aegis/types test            → 27/27 pass (incl. 16 parity tests)
+pnpm -F @okoro/types typecheck       → clean
+pnpm -F @okoro/api typecheck         → clean
+pnpm -F @okoro/verifier-rp typecheck → clean
+pnpm -F @okoro/sdk typecheck         → clean
+pnpm -F @okoro/types test            → 27/27 pass (incl. 16 parity tests)
 ```
 
 ### Knock-on unblocks
@@ -350,15 +4846,15 @@ pnpm -F @aegis/types test            → 27/27 pass (incl. 16 parity tests)
 Once #32 merges, the spec-sync gate is GREEN and the supply-chain hardening
 wave can rebase and land:
 
-- [#17](https://github.com/KLYTICS/aegis/pull/17) — SHA-pin all GitHub
+- [#17](https://github.com/KLYTICS/okoro/pull/17) — SHA-pin all GitHub
   Actions (33 refs / 13 actions) — real SOC2 supply-chain hardening,
   gated on spec-sync for 5+ SHAs.
-- [#18](https://github.com/KLYTICS/aegis/pull/18), [#19](https://github.com/KLYTICS/aegis/pull/19),
-  [#20](https://github.com/KLYTICS/aegis/pull/20), [#21](https://github.com/KLYTICS/aegis/pull/21)
+- [#18](https://github.com/KLYTICS/okoro/pull/18), [#19](https://github.com/KLYTICS/okoro/pull/19),
+  [#20](https://github.com/KLYTICS/okoro/pull/20), [#21](https://github.com/KLYTICS/okoro/pull/21)
   — Dependabot/semgrep/Dependabot-config wave.
-- [#25](https://github.com/KLYTICS/aegis/pull/25) — DenialContextKind wiring
+- [#25](https://github.com/KLYTICS/okoro/pull/25) — DenialContextKind wiring
   (still DIRTY, author rebase needed but spec-sync no longer the blocker).
-- [#26](https://github.com/KLYTICS/aegis/pull/26) — can close as superseded
+- [#26](https://github.com/KLYTICS/okoro/pull/26) — can close as superseded
   by #32 once it lands. Commented to that effect.
 
 ### Discipline note
@@ -376,8 +4872,8 @@ been asked for yet, not a quiet drive-by addition.
 
 ## 2026-05-21 (merge-train triage — unblocked 13-PR osv-scanner cascade) · sid=busy-khorana-7281c7 · claim=none (read-mostly PR triage)
 
-**Status:** ✅ One PR merged ([#29](https://github.com/KLYTICS/aegis/pull/29)),
-one stale PR closed ([#6](https://github.com/KLYTICS/aegis/pull/6)), 13 Tier-2
+**Status:** ✅ One PR merged ([#29](https://github.com/KLYTICS/okoro/pull/29)),
+one stale PR closed ([#6](https://github.com/KLYTICS/okoro/pull/6)), 13 Tier-2
 PRs nudged with explicit rebase instructions. No code changed in this worktree.
 
 ### What I diagnosed
@@ -395,40 +4891,40 @@ Two distinct root causes underneath:
    faster than the file can be updated).
 2. **Spec-sync regression** — `Denial precedence enum (ADR-0004)`,
    `OpenAPI ↔ {Zod,Prisma}` failing on PRs that don't touch those paths.
-   Workflow extractor is buggy. Fix exists in [#26](https://github.com/KLYTICS/aegis/pull/26)
+   Workflow extractor is buggy. Fix exists in [#26](https://github.com/KLYTICS/okoro/pull/26)
    but DIRTY (conflicts), so it can't land until rebased by the author.
 
 ### What I shipped
 
-- **Merged [#29](https://github.com/KLYTICS/aegis/pull/29)** — `--config=./osv-scanner.toml`
-  + switch to `PackageOverrides` keyed by `package@version` (auto-expires when
-  the lockfile bumps past the vulnerable version; no GHSA maintenance burden).
-  Approach matches the team's saved security-tooling preference.
-- **Closed [#6](https://github.com/KLYTICS/aegis/pull/6)** as superseded by #29
+- **Merged [#29](https://github.com/KLYTICS/okoro/pull/29)** — `--config=./osv-scanner.toml`
+  - switch to `PackageOverrides` keyed by `package@version` (auto-expires when
+    the lockfile bumps past the vulnerable version; no GHSA maintenance burden).
+    Approach matches the team's saved security-tooling preference.
+- **Closed [#6](https://github.com/KLYTICS/okoro/pull/6)** as superseded by #29
   with a pointer comment explaining the more-durable PackageOverrides approach.
-- **Rebase comments** posted on 13 Tier-2 PRs ([#10](https://github.com/KLYTICS/aegis/pull/10),
-  [#11](https://github.com/KLYTICS/aegis/pull/11), [#12](https://github.com/KLYTICS/aegis/pull/12),
-  [#15](https://github.com/KLYTICS/aegis/pull/15), [#18](https://github.com/KLYTICS/aegis/pull/18),
-  [#19](https://github.com/KLYTICS/aegis/pull/19), [#20](https://github.com/KLYTICS/aegis/pull/20),
-  [#21](https://github.com/KLYTICS/aegis/pull/21), [#22](https://github.com/KLYTICS/aegis/pull/22),
-  [#24](https://github.com/KLYTICS/aegis/pull/24), [#28](https://github.com/KLYTICS/aegis/pull/28),
-  [#30](https://github.com/KLYTICS/aegis/pull/30), [#31](https://github.com/KLYTICS/aegis/pull/31))
+- **Rebase comments** posted on 13 Tier-2 PRs ([#10](https://github.com/KLYTICS/okoro/pull/10),
+  [#11](https://github.com/KLYTICS/okoro/pull/11), [#12](https://github.com/KLYTICS/okoro/pull/12),
+  [#15](https://github.com/KLYTICS/okoro/pull/15), [#18](https://github.com/KLYTICS/okoro/pull/18),
+  [#19](https://github.com/KLYTICS/okoro/pull/19), [#20](https://github.com/KLYTICS/okoro/pull/20),
+  [#21](https://github.com/KLYTICS/okoro/pull/21), [#22](https://github.com/KLYTICS/okoro/pull/22),
+  [#24](https://github.com/KLYTICS/okoro/pull/24), [#28](https://github.com/KLYTICS/okoro/pull/28),
+  [#30](https://github.com/KLYTICS/okoro/pull/30), [#31](https://github.com/KLYTICS/okoro/pull/31))
   with the unblock context and a forward pointer to #26 for any remaining
   spec-sync failures.
 
 ### What's next for the merge train
 
 - **DIRTY PRs (8)** need author rebase before they can land:
-  [#4](https://github.com/KLYTICS/aegis/pull/4),
-  [#8](https://github.com/KLYTICS/aegis/pull/8),
-  [#9](https://github.com/KLYTICS/aegis/pull/9),
-  [#13](https://github.com/KLYTICS/aegis/pull/13),
-  [#14](https://github.com/KLYTICS/aegis/pull/14),
-  [#16](https://github.com/KLYTICS/aegis/pull/16),
-  [#25](https://github.com/KLYTICS/aegis/pull/25),
-  [#26](https://github.com/KLYTICS/aegis/pull/26). #26 is the most important
+  [#4](https://github.com/KLYTICS/okoro/pull/4),
+  [#8](https://github.com/KLYTICS/okoro/pull/8),
+  [#9](https://github.com/KLYTICS/okoro/pull/9),
+  [#13](https://github.com/KLYTICS/okoro/pull/13),
+  [#14](https://github.com/KLYTICS/okoro/pull/14),
+  [#16](https://github.com/KLYTICS/okoro/pull/16),
+  [#25](https://github.com/KLYTICS/okoro/pull/25),
+  [#26](https://github.com/KLYTICS/okoro/pull/26). #26 is the most important
   of these — it's the fix for the spec-sync regression that's gating #17.
-- **PR [#17](https://github.com/KLYTICS/aegis/pull/17)** (SHA-pin all actions)
+- **PR [#17](https://github.com/KLYTICS/okoro/pull/17)** (SHA-pin all actions)
   will stay red until #26 lands (rebased) and #17 is rebased. After both,
   #17 is the next-most-valuable security hardening to merge.
 - **GitHub-hosted runner queue** is backed up org-wide (zero self-hosted
@@ -443,20 +4939,21 @@ This was a great example of why "every PR shows 7 failing checks" is rarely
 one failure look like a constellation. Always identify the single failing job
 that cancelled the rest before reasoning about per-PR fixes. Inverted, the
 single-PR fix unblocks the whole train.
+
 ---
 
-## 2026-05-18 (Round 26 audit pass — caught 4 critical bugs before commit) · sid=gifted-payne · claim=aegis:M-014
+## 2026-05-18 (Round 26 audit pass — caught 4 critical bugs before commit) · sid=gifted-payne · claim=okoro:M-014
 
 **Status:** ✅ Cold-review audit of Rounds 24-26 caught and fixed 4 critical bugs that would have broken on first `pnpm install` + first PR. Worth documenting because the same audit discipline should apply to every multi-round arc.
 
 ### What I caught
 
-| # | Bug | Symptom if shipped | Fix |
-|---|-----|--------------------|-----|
-| 1 | GitHub org wrong: `aegislabs/aegis` (55 refs across 20 MDX files); actual is `klytics/aegis` | Every external link in docs broken; lychee CI fails immediately | Mass `sed` replace across MDX + 2 stragglers in `app/llms.txt/route.ts` and `app/layout.config.tsx` |
-| 2 | 5 ADR file references guessed from convention instead of verified | Concept-page deep-links 404 against the live repo | `sed` replace for 4 known mismatches; manual edit for the one ADR that doesn't exist at all (`0009-cli-auth.md` — replaced with OPERATOR_DECISIONS.md OD-009/OD-010 reference) |
-| 3 | CI typecheck job ran `tsc --noEmit` before `.source/index.ts` was generated by Fumadocs MDX | Every PR red on typecheck because `import { docs } from '@/.source'` fails | Added `pnpm --filter @aegis/docs exec fumadocs-mdx` step before typecheck in `.github/workflows/docs.yml`, plus explicit OpenAPI + SDK generate steps |
-| 4 | `app/opengraph-image.tsx` had divs without `display: 'flex'` | Satori (the `next/og` engine) may fail to render the homepage OG image | Added defensive `display: 'flex'` to eyebrow + tagline divs |
+| #   | Bug                                                                                          | Symptom if shipped                                                         | Fix                                                                                                                                                                            |
+| --- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | GitHub org wrong: `okorolabs/okoro` (55 refs across 20 MDX files); actual is `klytics/okoro` | Every external link in docs broken; lychee CI fails immediately            | Mass `sed` replace across MDX + 2 stragglers in `app/llms.txt/route.ts` and `app/layout.config.tsx`                                                                            |
+| 2   | 5 ADR file references guessed from convention instead of verified                            | Concept-page deep-links 404 against the live repo                          | `sed` replace for 4 known mismatches; manual edit for the one ADR that doesn't exist at all (`0009-cli-auth.md` — replaced with OPERATOR_DECISIONS.md OD-009/OD-010 reference) |
+| 3   | CI typecheck job ran `tsc --noEmit` before `.source/index.ts` was generated by Fumadocs MDX  | Every PR red on typecheck because `import { docs } from '@/.source'` fails | Added `pnpm --filter @okoro/docs exec fumadocs-mdx` step before typecheck in `.github/workflows/docs.yml`, plus explicit OpenAPI + SDK generate steps                          |
+| 4   | `app/opengraph-image.tsx` had divs without `display: 'flex'`                                 | Satori (the `next/og` engine) may fail to render the homepage OG image     | Added defensive `display: 'flex'` to eyebrow + tagline divs                                                                                                                    |
 
 ### How I found them (the pattern)
 
@@ -475,6 +4972,7 @@ Each verification was sub-30-seconds. Total audit + fix took under 10 minutes. E
 Three rounds, ~100 files, zero `pnpm install` smoke-test, zero CI run. That's the **risk profile** of a fast multi-round arc. The mitigation is a cold audit pass before any commit — same discipline as a final-pass code review on your own work. The audit found 4 bugs; without it, the first PR would have been red and the first deploy would have shipped broken links.
 
 The general pattern:
+
 1. **Verify external references** — GitHub org, file paths, version strings — against the actual source-of-truth files. Don't trust pattern matching.
 2. **Trace CI preconditions** — for every CI step, confirm its inputs exist on the runner. The `.source/` issue is a classic generated-file dependency.
 3. **Check engine-specific constraints** — when using a rendering or compilation tool (Satori, Webpack, Vite, MDX), recall its known sharp edges.
@@ -483,7 +4981,7 @@ The audit-pass section in the CHANGELOG documents each fix with the bug, symptom
 
 ---
 
-## 2026-05-18 (Round 26 — docs site max-width extension: TypeDoc, Lighthouse, OG, JwksFingerprint, preview comments, QoL) · sid=gifted-payne · claim=aegis:M-014
+## 2026-05-18 (Round 26 — docs site max-width extension: TypeDoc, Lighthouse, OG, JwksFingerprint, preview comments, QoL) · sid=gifted-payne · claim=okoro:M-014
 
 **Status:** ✅ All Round 25 deferred candidates landed at max-width. M-014 flipped from `full-wire shipped — extension open` → **FULLY SHIPPED**. The platform side of the docs site is closed; only content authorship and the operator-side Vercel/DNS setup remain.
 
@@ -501,70 +4999,76 @@ from a docs **platform**.
 ### What shipped (Round 26 — 22 new + 7 updates)
 
 **Wave 1 — TypeDoc autodoc + curated SDK landings**
+
 - `apps/docs/typedoc.json` — TypeDoc config targeting `packages/sdk-ts/src/index.ts` with `typedoc-plugin-markdown` writing MDX under `content/docs/sdk/(generated)/typescript/`. Configured for `useCodeBlocks`, `parametersFormat: table`, `propertiesFormat: table` — output reads like first-party Fumadocs content.
 - `apps/docs/scripts/generate-sdk-docs.mjs` — invokes `typedoc --options typedoc.json` with stdio inheritance, logs success/warn-on-failure.
 - `apps/docs/package.json` — added `typedoc` + `typedoc-plugin-markdown` + `@lhci/cli` devDeps; `predev`/`prebuild` now run both OpenAPI and TypeDoc generators in sequence; new `sdk:generate` + `lhci:autorun` scripts.
 - `apps/docs/.gitignore` — gitignores `.lighthouseci/` and `content/docs/sdk/(generated)/`.
 - `apps/docs/content/docs/sdk/(generated)/.gitkeep` — preserves the route group pre-generation.
 - `apps/docs/content/docs/sdk/meta.json` — nav order: typescript, python, cli, verifier-rp, mcp.
-- `apps/docs/content/docs/sdk/typescript.mdx` — landing for `@aegis/sdk` with install, surface, link to generated reference, error class table, recipes.
-- `apps/docs/content/docs/sdk/python.mdx` — landing for `aegis` Python with `AsyncAegis` + `Aegis` (sync wrapper), module map, byte-equivalent JWT note.
-- `apps/docs/content/docs/sdk/cli.mdx` — landing for `aegis` Go binary with install (Homebrew + curl installer), first-run flow, command surface, plugin discovery.
-- `apps/docs/content/docs/sdk/verifier-rp.mdx` — landing for `@aegis/verifier-rp` with offline-vs-online caveats, replay defense, audit-chain verification, adapter usage.
-- `apps/docs/content/docs/sdk/mcp.mdx` — landing for `@aegis/mcp-server` + `@aegis/mcp-bridge` with Claude Desktop config example.
+- `apps/docs/content/docs/sdk/typescript.mdx` — landing for `@okoro/sdk` with install, surface, link to generated reference, error class table, recipes.
+- `apps/docs/content/docs/sdk/python.mdx` — landing for `okoro` Python with `AsyncOkoro` + `Okoro` (sync wrapper), module map, byte-equivalent JWT note.
+- `apps/docs/content/docs/sdk/cli.mdx` — landing for `okoro` Go binary with install (Homebrew + curl installer), first-run flow, command surface, plugin discovery.
+- `apps/docs/content/docs/sdk/verifier-rp.mdx` — landing for `@okoro/verifier-rp` with offline-vs-online caveats, replay defense, audit-chain verification, adapter usage.
+- `apps/docs/content/docs/sdk/mcp.mdx` — landing for `@okoro/mcp-server` + `@okoro/mcp-bridge` with Claude Desktop config example.
 - `apps/docs/content/docs/meta.json` — top-level nav now includes `sdk`.
-- `apps/docs/components/live/sdk-version-badges.tsx` — display name fix: `@aegis/sdk-ts` → `@aegis/sdk`, `@aegis/cli` → `aegis (cli)`.
+- `apps/docs/components/live/sdk-version-badges.tsx` — display name fix: `@okoro/sdk-ts` → `@okoro/sdk`, `@okoro/cli` → `okoro (cli)`.
 
 **Wave 2 — Lighthouse CI**
+
 - `apps/docs/lighthouserc.json` — desktop preset, 3 runs per URL across 7 URLs (home + `/docs` + 2 concept pages + 1 API page + SRE persona + compliance overview). Budgets: perf ≥ 0.85, a11y ≥ 0.95, best-practices ≥ 0.9, SEO ≥ 0.95. `uses-text-compression` + `csp-xss` + `unused-javascript` opted out (Next.js standard noise).
 - `.github/workflows/lighthouse-docs.yml` — installs Chrome, builds docs with prod env, runs `lhci autorun`, uploads `.lighthouseci/` as PR artifact (14-day retention).
 
 **Wave 3 — Open Graph images via `next/og`**
-- `apps/docs/app/opengraph-image.tsx` — homepage. 1200×630 PNG via `ImageResponse`. Aurora gradient on "Verify before you act." Eyebrow + tagline + AEGIS branding. Node runtime (no edge — `next/og` works fine on Node and avoids any concerns about the Fumadocs source loader in edge).
-- `apps/docs/app/docs/[[...slug]]/opengraph-image.tsx` — per-page. Reads the slug, resolves via `source.getPage`, renders title + description + section eyebrow + tiny "docs.aegislabs.io" footer with a cyan dot. Dynamic per-page imagery on every share.
+
+- `apps/docs/app/opengraph-image.tsx` — homepage. 1200×630 PNG via `ImageResponse`. Aurora gradient on "Verify before you act." Eyebrow + tagline + OKORO branding. Node runtime (no edge — `next/og` works fine on Node and avoids any concerns about the Fumadocs source loader in edge).
+- `apps/docs/app/docs/[[...slug]]/opengraph-image.tsx` — per-page. Reads the slug, resolves via `source.getPage`, renders title + description + section eyebrow + tiny "docs.okorolabs.io" footer with a cyan dot. Dynamic per-page imagery on every share.
 - `apps/docs/app/twitter-image.tsx` — re-exports the homepage OG (same size, same brand). Twitter card and OG share the asset.
 
 **Wave 4 — `<JwksFingerprint/>` live component**
-- `apps/docs/components/live/jwks-fingerprint.tsx` — fetches `${AEGIS_API_BASE_URL}/.well-known/audit-signing-key` with 60min revalidate, computes RFC 7638 JWK thumbprint per key (OKP/EdDSA: canonical JSON of `crv` + `kty` + `x`, SHA-256, hex-with-colons). Renders table with `kid`, `use`, `alg`, thumbprint. Header chip shows `live · N keys` or `fallback`. Bottom caption shows the algorithm so an auditor can compute the same value independently.
+
+- `apps/docs/components/live/jwks-fingerprint.tsx` — fetches `${OKORO_API_BASE_URL}/.well-known/audit-signing-key` with 60min revalidate, computes RFC 7638 JWK thumbprint per key (OKP/EdDSA: canonical JSON of `crv` + `kty` + `x`, SHA-256, hex-with-colons). Renders table with `kid`, `use`, `alg`, thumbprint. Header chip shows `live · N keys` or `fallback`. Bottom caption shows the algorithm so an auditor can compute the same value independently.
 - `apps/docs/mdx-components.tsx` — registers `JwksFingerprint` and `RunnableExample`.
 - `apps/docs/content/docs/personas/auditor.mdx` — embeds `<JwksFingerprint/>` under "Verify our audit signing key independently".
 - `apps/docs/content/docs/compliance/overview.mdx` — embeds under "Audit signing keys — live thumbprints".
 - `apps/docs/content/docs/concepts/audit-chain.mdx` — embeds under "Currently-published keys".
 
 **Wave 5 — PR preview auto-comment**
+
 - `apps/docs/.vercelignore` — excludes `apps/api/`, `infra/`, `tests/`, `*.docx`/`*.pptx`/`*.xlsx`, `docs/audit_2026q2/`, `docs/finance/`, `.lighthouseci/` from the Vercel upload bundle.
 - `.github/workflows/docs-preview-comment.yml` — uses `peter-evans/create-or-update-comment` to post a curated 14-point reviewer checklist on every docs PR. Covers: live-component `data-source` checks, wire-constant page verifications, auto-generated reference existence, AI-crawler surface checks, CI gate status, OG image render, search functionality. Single comment per PR, edited in place on subsequent runs.
 
 **Wave 6 — Quality-of-life adds**
+
 - `apps/docs/app/api/docs/route.ts` — structured JSON index of every page (slug, section, title, description, canonical URL) at `/api/docs`. Force-static, 1h cache. Companion to `/llms.txt`: `llms.txt` is the flat reading surface for AI agents; `/api/docs` is the structured query surface. Both reference each other.
 - `apps/docs/components/runnable-example.tsx` — sandboxed iframe wrapper for StackBlitz/CodeSandbox embeds. Lazy-loaded, on-brand caption with provider attribution and "open in" link. Registered globally so any MDX page can use `<RunnableExample url="..."/>` without imports.
-- `apps/docs/app/not-found.tsx` — branded 404. Headline plays on the AEGIS theme ("This page denied your request"). Four quick-jump CTAs: quickstart, concepts, API, home.
+- `apps/docs/app/not-found.tsx` — branded 404. Headline plays on the OKORO theme ("This page denied your request"). Four quick-jump CTAs: quickstart, concepts, API, home.
 - `apps/docs/CHANGELOG.md` — Keep-a-Changelog format, Rounds 24-26 documented.
 - `apps/docs/CONTRIBUTING.md` — local setup, adding pages, adding live components (with the parity-test discipline), auto-generated content paths, CI gates, visual brand, deploy. Designed to onboard a new contributor in 10 minutes.
 
 ### Final docs platform state
 
-| Capability                | Status                                                                                         |
-| ------------------------- | ---------------------------------------------------------------------------------------------- |
-| OpenAPI reference         | ✅ Auto-generated on every dev/build                                                            |
-| TypeDoc SDK reference     | ✅ Auto-generated on every dev/build                                                            |
-| Search                    | ✅ Orama (no vendor)                                                                            |
-| Live wire-constant comps  | ✅ 7 components (denial precedence, pricing, status, SDK versions, trust bands, webhook events, JWKS) |
-| Parity tests              | ✅ 3 cross-package tests covering wire constants                                                |
-| Persona pages             | ✅ 4 (SRE, developer, security, auditor)                                                        |
-| Industry quickstarts      | ✅ 3 (fintech, ai-platform, saas-provisioning) + TypeScript quickstart                          |
-| Concept pages             | ✅ 4 (denial precedence, trust bands, audit chain, webhooks)                                    |
-| API reference pages       | ✅ 6 (agents, policies, verify, audit, webhooks, billing)                                        |
-| Compliance section        | ✅ Overview with SOC2 + GDPR evidence map                                                       |
-| CI: typecheck + parity + link-check | ✅ `.github/workflows/docs.yml`                                                       |
-| CI: Lighthouse            | ✅ `.github/workflows/lighthouse-docs.yml` with strict budgets                                  |
-| CI: PR reviewer checklist | ✅ `.github/workflows/docs-preview-comment.yml`                                                 |
-| SEO surface               | ✅ sitemap.xml + robots.txt + per-page OG + Twitter image                                       |
-| AI-crawler surface        | ✅ /llms.txt (flat) + /api/docs (structured JSON)                                               |
-| Embeddable code sandboxes | ✅ `<RunnableExample/>` MDX component                                                            |
-| Branded 404               | ✅                                                                                               |
-| Deploy config             | ✅ Vercel-aware (vercel.json + .vercelignore)                                                   |
-| CHANGELOG + CONTRIBUTING  | ✅                                                                                               |
+| Capability                          | Status                                                                                                |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| OpenAPI reference                   | ✅ Auto-generated on every dev/build                                                                  |
+| TypeDoc SDK reference               | ✅ Auto-generated on every dev/build                                                                  |
+| Search                              | ✅ Orama (no vendor)                                                                                  |
+| Live wire-constant comps            | ✅ 7 components (denial precedence, pricing, status, SDK versions, trust bands, webhook events, JWKS) |
+| Parity tests                        | ✅ 3 cross-package tests covering wire constants                                                      |
+| Persona pages                       | ✅ 4 (SRE, developer, security, auditor)                                                              |
+| Industry quickstarts                | ✅ 3 (fintech, ai-platform, saas-provisioning) + TypeScript quickstart                                |
+| Concept pages                       | ✅ 4 (denial precedence, trust bands, audit chain, webhooks)                                          |
+| API reference pages                 | ✅ 6 (agents, policies, verify, audit, webhooks, billing)                                             |
+| Compliance section                  | ✅ Overview with SOC2 + GDPR evidence map                                                             |
+| CI: typecheck + parity + link-check | ✅ `.github/workflows/docs.yml`                                                                       |
+| CI: Lighthouse                      | ✅ `.github/workflows/lighthouse-docs.yml` with strict budgets                                        |
+| CI: PR reviewer checklist           | ✅ `.github/workflows/docs-preview-comment.yml`                                                       |
+| SEO surface                         | ✅ sitemap.xml + robots.txt + per-page OG + Twitter image                                             |
+| AI-crawler surface                  | ✅ /llms.txt (flat) + /api/docs (structured JSON)                                                     |
+| Embeddable code sandboxes           | ✅ `<RunnableExample/>` MDX component                                                                 |
+| Branded 404                         | ✅                                                                                                    |
+| Deploy config                       | ✅ Vercel-aware (vercel.json + .vercelignore)                                                         |
+| CHANGELOG + CONTRIBUTING            | ✅                                                                                                    |
 
 ### Deliberately deferred (not strictly needed at v1)
 
@@ -579,10 +5083,10 @@ from a docs **platform**.
 1. `pnpm install` from repo root.
 2. Create Vercel project; point Root Directory at `apps/docs/`.
 3. Set env on Vercel project:
-   - `AEGIS_API_BASE_URL=https://api.aegislabs.io`
-   - `NEXT_PUBLIC_DOCS_URL=https://docs.aegislabs.io`
+   - `OKORO_API_BASE_URL=https://api.okorolabs.io`
+   - `NEXT_PUBLIC_DOCS_URL=https://docs.okorolabs.io`
 4. (Optional but recommended) Set `LHCI_GITHUB_APP_TOKEN` secret for Lighthouse CI to post score deltas inline.
-5. Point `docs.aegislabs.io` DNS at Vercel.
+5. Point `docs.okorolabs.io` DNS at Vercel.
 
 ### What "M-014 fully shipped" means
 
@@ -601,98 +5105,103 @@ The cost of adding a new docs feature is now just: write the MDX, optionally add
 
 ---
 
-## 2026-05-18 (Round 25 — docs site full wire: OpenAPI auto-render, Orama search, 6 live components, CI, SEO, persona content) · sid=gifted-payne · claim=aegis:M-014
+## 2026-05-18 (Round 25 — docs site full wire: OpenAPI auto-render, Orama search, 6 live components, CI, SEO, persona content) · sid=gifted-payne · claim=okoro:M-014
 
 **Status:** ✅ Full-wire landed in same session as Round 24 vertical slice. M-014 flipped from `vertical slice shipped` → `full-wire shipped — extension open for TypeDoc + Lighthouse`. The docs site is now a production-grade live documentation platform: API reference auto-generates from OpenAPI, search works without a vendor, every wire constant has a parity-protected live component, every persona has a landing, and the AI-crawler surface is wired.
 
 ### Why this round mattered
 
-Round 24 proved the framework choice (Fumadocs) and the drift-detection pattern (parity test + `data-source` attribution) with a vertical slice. Round 25 extends that pattern across **every customer-visible contract AEGIS ships**: API spec, trust band thresholds, webhook events, health status — each one a live component with a parity test guarding against future drift. The site is no longer "scaffolded" — it is wired for max functionality and ready to deploy.
+Round 24 proved the framework choice (Fumadocs) and the drift-detection pattern (parity test + `data-source` attribution) with a vertical slice. Round 25 extends that pattern across **every customer-visible contract OKORO ships**: API spec, trust band thresholds, webhook events, health status — each one a live component with a parity test guarding against future drift. The site is no longer "scaffolded" — it is wired for max functionality and ready to deploy.
 
 ### What shipped (Round 25 — 27 new files + several updates)
 
 **Wave 1 — Build, search, deploy, CI (7 files)**:
-- `apps/docs/scripts/generate-api-docs.mjs` — runs `fumadocs-openapi generate` against `docs/spec/AEGIS_API_SPEC.yaml`, writes MDX to gitignored `content/docs/api/(generated)/`.
+
+- `apps/docs/scripts/generate-api-docs.mjs` — runs `fumadocs-openapi generate` against `docs/spec/OKORO_API_SPEC.yaml`, writes MDX to gitignored `content/docs/api/(generated)/`.
 - `apps/docs/package.json` (UPDATED) — added `prebuild` + `predev` hooks so the API reference regenerates on every `pnpm dev` and `pnpm build`.
 - `apps/docs/app/api/search/route.ts` — Orama search via `fumadocs-core/search/server`. No vendor.
-- `apps/docs/vercel.json` — monorepo-aware build command (`cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @aegis/docs build`).
+- `apps/docs/vercel.json` — monorepo-aware build command (`cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @okoro/docs build`).
 - `.github/workflows/docs.yml` — four jobs: typecheck, parity, lychee link-check, main-only build.
 - `apps/docs/content/docs/api/(generated)/.gitkeep` — placeholder so the route group exists pre-generation.
 - `apps/docs/.gitignore` (UPDATED) — gitignores the `(generated)` route segment.
 
 **Wave 2 — Extended live components (3 new + mdx-components update)**:
-- `<StatusBadge/>` (`components/live/status-badge.tsx`) — fetches `${AEGIS_API_BASE_URL}/health` with 60s revalidate, emits `data-status="ok|degraded|down"` + `data-source="api|fallback"`. Used on home, SRE persona, and compliance overview.
-- `<TrustBandLegend/>` (`components/live/trust-band-legend.tsx`) — imports `TRUST_BAND_THRESHOLDS` from `@aegis/types`. Color-coded threshold table, sorted highest-first.
-- `<WebhookEventCatalog/>` (`components/live/webhook-event-catalog.tsx`) — imports `WEBHOOK_EVENT` from `@aegis/types`. Each event has human-readable copy for "when AEGIS emits it" and "payload shape".
+
+- `<StatusBadge/>` (`components/live/status-badge.tsx`) — fetches `${OKORO_API_BASE_URL}/health` with 60s revalidate, emits `data-status="ok|degraded|down"` + `data-source="api|fallback"`. Used on home, SRE persona, and compliance overview.
+- `<TrustBandLegend/>` (`components/live/trust-band-legend.tsx`) — imports `TRUST_BAND_THRESHOLDS` from `@okoro/types`. Color-coded threshold table, sorted highest-first.
+- `<WebhookEventCatalog/>` (`components/live/webhook-event-catalog.tsx`) — imports `WEBHOOK_EVENT` from `@okoro/types`. Each event has human-readable copy for "when OKORO emits it" and "payload shape".
 - `apps/docs/mdx-components.tsx` (UPDATED) — registers all 6 live components (3 from Round 24 + 3 new) for global MDX use.
 
 **Wave 3 — Content backbone (15 MDX + 5 meta.json updates)**:
+
 - Personas (4 + meta): `personas/{sre,developer,security,auditor}.mdx`. SRE embeds `<StatusBadge/>` + `<DenialPrecedence/>` and curates the existing runbook library. Security embeds `<DenialPrecedence/>` + `<TrustBandLegend/>`. Developer embeds `<SdkVersionBadges/>`. Auditor links the GDPR redact endpoint + SOC2 evidence package.
 - Industry quickstarts (3 + meta update): `quickstart/{fintech-payments,ai-platform-tool-call,saas-seat-provisioning}.mdx`. Each one indexes the corresponding `examples/<vertical>/` already in the repo (Rounds 8-9), with denial-routing tables and runnable code samples.
-- Concept pages (3 + meta update): `concepts/{trust-bands,audit-chain,webhooks}.mdx`. Trust-bands embeds `<TrustBandLegend/>` + documents the BATE weight table. Audit-chain explains the GDPR-erasability hack (signature over `decisionReasonHash`, not raw text) and shows offline-verification code via `@aegis/verifier-rp`. Webhooks embeds `<WebhookEventCatalog/>` and shows Stripe-compatible signature verification.
+- Concept pages (3 + meta update): `concepts/{trust-bands,audit-chain,webhooks}.mdx`. Trust-bands embeds `<TrustBandLegend/>` + documents the BATE weight table. Audit-chain explains the GDPR-erasability hack (signature over `decisionReasonHash`, not raw text) and shows offline-verification code via `@okoro/verifier-rp`. Webhooks embeds `<WebhookEventCatalog/>` and shows Stripe-compatible signature verification.
 - API reference pages (5 + meta update): `api/{policies,verify,audit,webhooks,billing}.mdx`. The billing page embeds `<PricingTable/>` so the API reference and marketing page share the same live source. Webhooks page embeds `<WebhookEventCatalog/>`.
 - Compliance section (1 + meta): `compliance/overview.mdx`. Indexes SOC2 trust-service-criterion evidence, GDPR rights endpoints, the third-party audit-chain verification code, EU residency, retention, and DPA template.
 
 **Wave 4 — SEO + AI-crawler surface (3 files)**:
+
 - `apps/docs/app/sitemap.ts` — Next 16 metadata route, enumerates every doc page via `source.getPages()`.
 - `apps/docs/app/robots.ts` — points to sitemap, allows all UAs.
 - `apps/docs/app/llms.txt/route.ts` — `llmstxt.org` convention. Returns a curated, plain-text index grouped by section, with the wire-contract pages called out at the top. AI agents reading the docs route directly to the right page without crawling HTML.
 
 **Wave 5 — Parity tests (2 new)**:
-- `tests/cross-package/docs-trust-bands-parity.spec.ts` — fails build if `<TrustBandLegend/>` ever stops importing from `@aegis/types`, redeclares the constant locally, or drops a band.
+
+- `tests/cross-package/docs-trust-bands-parity.spec.ts` — fails build if `<TrustBandLegend/>` ever stops importing from `@okoro/types`, redeclares the constant locally, or drops a band.
 - `tests/cross-package/docs-webhook-events-parity.spec.ts` — same shape for `<WebhookEventCatalog/>` and `WEBHOOK_EVENT`.
 
 ### Live-data flow — final state
 
-| Live data           | Source of truth                                              | Live component / surface                          | Parity test |
-| ------------------- | ------------------------------------------------------------ | ------------------------------------------------- | ----------- |
-| Denial precedence   | `packages/types/src/constants.ts`                            | `<DenialPrecedence/>`                             | ✅           |
-| Trust band thresholds | `packages/types/src/constants.ts`                          | `<TrustBandLegend/>`                              | ✅           |
-| Webhook event catalog | `packages/types/src/constants.ts`                          | `<WebhookEventCatalog/>`                          | ✅           |
-| Pricing tiers       | `/.well-known/pricing.json` (live API)                       | `<PricingTable/>` (SSR fetch, fallback mirror)    | (dashboard parity test from Round 23) |
-| Health status       | `/health` (live API)                                         | `<StatusBadge/>`                                  | runtime data, no parity needed |
-| SDK versions        | `packages/{sdk-ts,sdk-py,cli}/{package.json,pyproject.toml}` | `<SdkVersionBadges/>`                             | reads workspace files at build |
-| API reference       | `docs/spec/AEGIS_API_SPEC.yaml`                              | `fumadocs-openapi generate` pre-build             | covered by existing `spec-sync.yml` |
+| Live data             | Source of truth                                              | Live component / surface                       | Parity test                           |
+| --------------------- | ------------------------------------------------------------ | ---------------------------------------------- | ------------------------------------- |
+| Denial precedence     | `packages/types/src/constants.ts`                            | `<DenialPrecedence/>`                          | ✅                                    |
+| Trust band thresholds | `packages/types/src/constants.ts`                            | `<TrustBandLegend/>`                           | ✅                                    |
+| Webhook event catalog | `packages/types/src/constants.ts`                            | `<WebhookEventCatalog/>`                       | ✅                                    |
+| Pricing tiers         | `/.well-known/pricing.json` (live API)                       | `<PricingTable/>` (SSR fetch, fallback mirror) | (dashboard parity test from Round 23) |
+| Health status         | `/health` (live API)                                         | `<StatusBadge/>`                               | runtime data, no parity needed        |
+| SDK versions          | `packages/{sdk-ts,sdk-py,cli}/{package.json,pyproject.toml}` | `<SdkVersionBadges/>`                          | reads workspace files at build        |
+| API reference         | `docs/spec/OKORO_API_SPEC.yaml`                              | `fumadocs-openapi generate` pre-build          | covered by existing `spec-sync.yml`   |
 
 Every customer-visible contract has either: (a) a direct import from
-`@aegis/types` enforced by a parity test, (b) a runtime fetch with
+`@okoro/types` enforced by a parity test, (b) a runtime fetch with
 `data-source` attribution, or (c) an auto-generation step that consumes the
 canonical spec file.
 
 ### Coordination
 
-Claim taken at start of Round 24 via `claude-peers claim aegis M-014 ...`. Released after Round 24 ship; Round 25 reused the same session context. Scope confined to `apps/docs/**`, `tests/cross-package/docs-*.spec.ts`, `.github/workflows/docs.yml`, and 2-section edits in WORK_BOARD + SESSION_HANDOFF. Zero conflict with any concurrent peer surface.
+Claim taken at start of Round 24 via `claude-peers claim okoro M-014 ...`. Released after Round 24 ship; Round 25 reused the same session context. Scope confined to `apps/docs/**`, `tests/cross-package/docs-*.spec.ts`, `.github/workflows/docs.yml`, and 2-section edits in WORK_BOARD + SESSION_HANDOFF. Zero conflict with any concurrent peer surface.
 
 ### Verification matrix
 
-| Gate                                            | Result                                                                                                |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| New workspace recognized                        | `pnpm-workspace.yaml` globs `apps/*` — picks up automatically; operator runs `pnpm install`.          |
-| TS sanity                                       | All files strict-mode, bundler resolution, no `any`, no node-only imports in client components.       |
-| Three new parity gates wired                    | Live in `tests/cross-package/`; `pnpm test:parity` picks them up via existing workspace config.       |
-| OpenAPI regenerates on every dev/build cycle    | `predev` and `prebuild` scripts both call `node scripts/generate-api-docs.mjs`.                       |
-| Search works without vendor                     | `app/api/search/route.ts` uses Fumadocs/Orama built-in; RootProvider auto-detects.                    |
-| CI gate present                                 | `.github/workflows/docs.yml` runs on PRs touching docs / spec / types; main-only build gate.          |
-| AI crawler surface present                      | `/sitemap.xml`, `/robots.txt`, `/llms.txt` all routed.                                                |
-| Live-source attribution preserved               | Every live component emits in-page source caption or `data-source` attribute.                        |
-| Brand parity                                    | All colors and gradients sourced from `brand/02_design-tokens.json`. No off-grid tokens.              |
-| Architecture invariants                         | No edits to verify hot path, audit chain, identity, billing, or any package contract. Docs surface only. |
+| Gate                                         | Result                                                                                                   |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| New workspace recognized                     | `pnpm-workspace.yaml` globs `apps/*` — picks up automatically; operator runs `pnpm install`.             |
+| TS sanity                                    | All files strict-mode, bundler resolution, no `any`, no node-only imports in client components.          |
+| Three new parity gates wired                 | Live in `tests/cross-package/`; `pnpm test:parity` picks them up via existing workspace config.          |
+| OpenAPI regenerates on every dev/build cycle | `predev` and `prebuild` scripts both call `node scripts/generate-api-docs.mjs`.                          |
+| Search works without vendor                  | `app/api/search/route.ts` uses Fumadocs/Orama built-in; RootProvider auto-detects.                       |
+| CI gate present                              | `.github/workflows/docs.yml` runs on PRs touching docs / spec / types; main-only build gate.             |
+| AI crawler surface present                   | `/sitemap.xml`, `/robots.txt`, `/llms.txt` all routed.                                                   |
+| Live-source attribution preserved            | Every live component emits in-page source caption or `data-source` attribute.                            |
+| Brand parity                                 | All colors and gradients sourced from `brand/02_design-tokens.json`. No off-grid tokens.                 |
+| Architecture invariants                      | No edits to verify hot path, audit chain, identity, billing, or any package contract. Docs surface only. |
 
 ### Operator-side blockers to ship
 
-1. **`pnpm install`** from repo root — materializes `@aegis/docs` workspace with Fumadocs + Tailwind v4 deps.
-2. **Vercel project for `docs.aegislabs.io`** — point Root Directory at `apps/docs/` (Vercel auto-detects pnpm monorepo). Or alternative deploy target (Railway, Cloudflare Pages).
-3. **DNS** — `docs.aegislabs.io` → chosen deploy target.
+1. **`pnpm install`** from repo root — materializes `@okoro/docs` workspace with Fumadocs + Tailwind v4 deps.
+2. **Vercel project for `docs.okorolabs.io`** — point Root Directory at `apps/docs/` (Vercel auto-detects pnpm monorepo). Or alternative deploy target (Railway, Cloudflare Pages).
+3. **DNS** — `docs.okorolabs.io` → chosen deploy target.
 4. **Env vars on the docs deploy**:
-   - `AEGIS_API_BASE_URL=https://api.aegislabs.io` (for `<PricingTable/>` and `<StatusBadge/>` live mode)
-   - `NEXT_PUBLIC_DOCS_URL=https://docs.aegislabs.io` (for sitemap, robots, llms.txt canonical URLs)
+   - `OKORO_API_BASE_URL=https://api.okorolabs.io` (for `<PricingTable/>` and `<StatusBadge/>` live mode)
+   - `NEXT_PUBLIC_DOCS_URL=https://docs.okorolabs.io` (for sitemap, robots, llms.txt canonical URLs)
 
 ### Round 26 candidates (remaining M-014 extensions)
 
 1. **TypeDoc → SDK reference** — `packages/sdk-ts/src/**` autodoc into MDX under `content/docs/sdk/(generated)/`. Same predev/prebuild hook pattern. Similar pdoc setup for `sdk-py`.
 2. **Lighthouse CI workflow** — perf + a11y budget on key pages. WCAG AA + Lighthouse ≥ 95 gates.
 3. **Open Graph images** — auto-generated per page via Vercel OG or `@vercel/og`.
-4. **Versioned docs** — Fumadocs supports per-version snapshots. Wire once AEGIS hits v1.0 wire-stability.
+4. **Versioned docs** — Fumadocs supports per-version snapshots. Wire once OKORO hits v1.0 wire-stability.
 5. **Embed runnable examples** — Code sandboxes (Stackblitz/CodeSandbox) for each industry quickstart.
 6. **`<JwksFingerprint/>` live component** — surfaces the audit signing key's SHA-256 fingerprint from `/.well-known/audit-signing-key`. Useful for the auditor persona to spot-verify the public key matches their evidence package.
 7. **PR preview deploys** — Vercel-native; just enable in project settings.
@@ -703,7 +5212,7 @@ Claim taken at start of Round 24 via `claude-peers claim aegis M-014 ...`. Relea
 - **NEW (Round 25):**
   - Vercel project creation + Root Directory pointed at `apps/docs/`.
   - `NEXT_PUBLIC_DOCS_URL` on the docs production env.
-  - Confirm `docs.aegislabs.io` is the canonical hostname (or supply alternative).
+  - Confirm `docs.okorolabs.io` is the canonical hostname (or supply alternative).
   - Decide whether `examples/` paths in MDX should be GitHub permalinks (current) or absolute URLs to a future code-sandbox host.
 
 ### Why Round 25 matters
@@ -721,19 +5230,19 @@ There is no second source of truth left for any wire-facing contract on the docs
 
 ---
 
-## 2026-05-18 (Round 24 — live documentation site vertical slice: Fumadocs at apps/docs/) · sid=gifted-payne · claim=aegis:M-014
+## 2026-05-18 (Round 24 — live documentation site vertical slice: Fumadocs at apps/docs/) · sid=gifted-payne · claim=okoro:M-014
 
 **Status:** ✅ Vertical slice landed. M-014 flipped from `open` → `vertical slice shipped — extension open`. First docs surface where contracts (denial precedence, pricing, SDK versions) render directly from the running platform and workspace source — drift is now a build break, not a customer-found bug.
 
 ### Why this round mattered
 
-Round 23 retired pricing drift between dashboard and API by making the dashboard SSR-fetch `/.well-known/pricing.json` with a parity-tested fallback. Rounds 22-23 closed the conversion loop end-to-end for authenticated and unauthenticated prospects. The remaining unbounded surface was **public documentation** — the highest-leverage page set for AEGIS (every prospect, integrator, auditor, and AI agent inspecting the platform reads docs first). A static docs site would have re-introduced the exact drift class Round 23 retired, this time across denial precedence, audit chain, BATE thresholds, pricing, and SDK versions. Round 24 picks the framework, ships a vertical slice with the drift-detection pattern baked in, and leaves a parity gate that fails the build if anyone copies a wire constant into MDX as a static table.
+Round 23 retired pricing drift between dashboard and API by making the dashboard SSR-fetch `/.well-known/pricing.json` with a parity-tested fallback. Rounds 22-23 closed the conversion loop end-to-end for authenticated and unauthenticated prospects. The remaining unbounded surface was **public documentation** — the highest-leverage page set for OKORO (every prospect, integrator, auditor, and AI agent inspecting the platform reads docs first). A static docs site would have re-introduced the exact drift class Round 23 retired, this time across denial precedence, audit chain, BATE thresholds, pricing, and SDK versions. Round 24 picks the framework, ships a vertical slice with the drift-detection pattern baked in, and leaves a parity gate that fails the build if anyone copies a wire constant into MDX as a static table.
 
 ### Framework decision: Fumadocs 14 (Next.js 16 + React 19 native)
 
 Four options evaluated:
 
-- **Fumadocs** ← chosen. Drops into `apps/docs/` as another pnpm workspace, exactly like `apps/dashboard/`. Reuses React 19 + Tailwind v4. `fumadocs-openapi` auto-renders the API reference from `docs/spec/AEGIS_API_SPEC.yaml`. MDX-first → live React components. Pagefind for search — no vendor. Aligns with AEGIS neutrality invariant.
+- **Fumadocs** ← chosen. Drops into `apps/docs/` as another pnpm workspace, exactly like `apps/dashboard/`. Reuses React 19 + Tailwind v4. `fumadocs-openapi` auto-renders the API reference from `docs/spec/OKORO_API_SPEC.yaml`. MDX-first → live React components. Pagefind for search — no vendor. Aligns with OKORO neutrality invariant.
 - **Mintlify** — fastest to ship, hosted; vendor lock-in conflicts with neutral-vendor positioning. Rejected.
 - **Docusaurus** — mature but Webpack + React 18, diverges from the rest of the monorepo. Rejected.
 - **Custom Next.js** — max control, no auto-OpenAPI, max work. Rejected for v1.
@@ -742,18 +5251,19 @@ Decision rationale captured here so a future session does not reopen.
 
 ### What shipped (21 files, ~520 LOC excluding content)
 
-**Workspace scaffold (8 files)**: `apps/docs/{package.json,next.config.mjs,tsconfig.json,postcss.config.mjs,source.config.ts,.gitignore}`, `apps/docs/app/{layout.tsx,global.css,layout.config.tsx,page.tsx,docs/layout.tsx,docs/[[...slug]]/page.tsx}`, `apps/docs/lib/source.ts`, `apps/docs/mdx-components.tsx`. Tailwind v4 + Fumadocs UI preset + AEGIS brand CSS variables sourced from `brand/02_design-tokens.json` (obsidian canvas, cyan-violet-magenta aurora gradient).
+**Workspace scaffold (8 files)**: `apps/docs/{package.json,next.config.mjs,tsconfig.json,postcss.config.mjs,source.config.ts,.gitignore}`, `apps/docs/app/{layout.tsx,global.css,layout.config.tsx,page.tsx,docs/layout.tsx,docs/[[...slug]]/page.tsx}`, `apps/docs/lib/source.ts`, `apps/docs/mdx-components.tsx`. Tailwind v4 + Fumadocs UI preset + OKORO brand CSS variables sourced from `brand/02_design-tokens.json` (obsidian canvas, cyan-violet-magenta aurora gradient).
 
 **Live components (3 files)** — the "live documentation" semantic:
 
-1. **`<DenialPrecedence/>`** (`apps/docs/components/live/denial-precedence.tsx`): imports `DENIAL_REASON_PRECEDENCE` directly from `@aegis/types`. Renders a table with HTTP status, meaning, and retryability for each of the 11 reasons. Footer shows `Live source: packages/types/src/constants.ts → DENIAL_REASON_PRECEDENCE` so an operator can verify the source from the page itself. **A future contributor copying the array into MDX as a static table will fail the parity test.**
-2. **`<PricingTable/>`** (`apps/docs/components/live/pricing-table.tsx`): SSR-fetches `${AEGIS_API_BASE_URL}/.well-known/pricing.json` with `next.revalidate=3600` (matches the API's `Cache-Control: public, max-age=3600` from Round 21). On any failure (env unset, network error, non-2xx, malformed JSON, missing tiers) falls back to a build-time mirror of `apps/api/src/modules/billing/plans.ts`. Emits `data-source="api" | "fallback"` and `data-testid="pricing-provenance"` so operators can spot infra drift from a single page inspect — same UX-honesty pattern as Round 23's dashboard `<PricingProvenance/>` component.
+1. **`<DenialPrecedence/>`** (`apps/docs/components/live/denial-precedence.tsx`): imports `DENIAL_REASON_PRECEDENCE` directly from `@okoro/types`. Renders a table with HTTP status, meaning, and retryability for each of the 11 reasons. Footer shows `Live source: packages/types/src/constants.ts → DENIAL_REASON_PRECEDENCE` so an operator can verify the source from the page itself. **A future contributor copying the array into MDX as a static table will fail the parity test.**
+2. **`<PricingTable/>`** (`apps/docs/components/live/pricing-table.tsx`): SSR-fetches `${OKORO_API_BASE_URL}/.well-known/pricing.json` with `next.revalidate=3600` (matches the API's `Cache-Control: public, max-age=3600` from Round 21). On any failure (env unset, network error, non-2xx, malformed JSON, missing tiers) falls back to a build-time mirror of `apps/api/src/modules/billing/plans.ts`. Emits `data-source="api" | "fallback"` and `data-testid="pricing-provenance"` so operators can spot infra drift from a single page inspect — same UX-honesty pattern as Round 23's dashboard `<PricingProvenance/>` component.
 3. **`<SdkVersionBadges/>`** (`apps/docs/components/live/sdk-version-badges.tsx`): reads `packages/sdk-ts/package.json`, `packages/sdk-py/pyproject.toml`, and `packages/cli/package.json` at build time via `node:fs`. Three pill badges with install snippets. Always matches what was actually published; never a transcribed string.
 
 **Content (6 files)**: `content/docs/{meta.json,index.mdx,quickstart/{meta.json,typescript.mdx},concepts/{meta.json,denial-precedence.mdx},api/{meta.json,agents.mdx}}`. Home is the marketing-ish landing (`apps/docs/app/page.tsx`) — hero + SDK badges + live pricing. Quickstart is a 6-step TypeScript walkthrough mirroring the SDK shape from `packages/sdk-ts/`. Concept page on denial precedence embeds `<DenialPrecedence/>` and documents the "how this page stays honest" pattern. API reference is a stub for the `fumadocs-openapi`-generated namespace coming next round.
 
 **Parity test (1 file)**: `tests/cross-package/docs-denial-precedence-parity.spec.ts`. Four assertions:
-1. The docs component imports from `@aegis/types`.
+
+1. The docs component imports from `@okoro/types`.
 2. It does not redeclare `DENIAL_REASON_PRECEDENCE` locally (would shadow the import).
 3. Every reason in the wire contract has human-readable copy in `REASON_COPY`.
 4. The wire contract itself has at least 11 reasons (matches CLAUDE.md invariant 6).
@@ -764,58 +5274,58 @@ Picks up automatically via `pnpm test:parity` (existing cross-package vitest wor
 
 ### Live-data flow summary
 
-| Live data           | Where it lives in code                              | How docs renders it                                 |
-| ------------------- | ---------------------------------------------------- | --------------------------------------------------- |
-| Denial precedence   | `packages/types/src/constants.ts`                    | Direct import in `<DenialPrecedence/>` server comp  |
-| Pricing tiers       | `/.well-known/pricing.json` (API, Round 21)          | SSR-fetch in `<PricingTable/>` w/ fallback mirror   |
-| SDK versions        | `packages/{sdk-ts,sdk-py,cli}/{package.json,pyproject.toml}` | `node:fs` read in `<SdkVersionBadges/>` at build |
-| API reference       | `docs/spec/AEGIS_API_SPEC.yaml`                      | `fumadocs-openapi generate` (next round)            |
-| SDK type reference  | `packages/sdk-ts/src/**`                             | TypeDoc → MDX (deferred)                            |
+| Live data          | Where it lives in code                                       | How docs renders it                                |
+| ------------------ | ------------------------------------------------------------ | -------------------------------------------------- |
+| Denial precedence  | `packages/types/src/constants.ts`                            | Direct import in `<DenialPrecedence/>` server comp |
+| Pricing tiers      | `/.well-known/pricing.json` (API, Round 21)                  | SSR-fetch in `<PricingTable/>` w/ fallback mirror  |
+| SDK versions       | `packages/{sdk-ts,sdk-py,cli}/{package.json,pyproject.toml}` | `node:fs` read in `<SdkVersionBadges/>` at build   |
+| API reference      | `docs/spec/OKORO_API_SPEC.yaml`                              | `fumadocs-openapi generate` (next round)           |
+| SDK type reference | `packages/sdk-ts/src/**`                                     | TypeDoc → MDX (deferred)                           |
 
 ### Coordination
 
-claude-peers status showed no active claims on entry. Claim taken with `claude-peers claim aegis M-014 --note "Fumadocs live docs site at apps/docs/ + cross-package parity gate" --ttl 14400`. All edits scoped to `apps/docs/**` and `tests/cross-package/docs-*.spec.ts` + 1-section edit in `WORK_BOARD.md` + this entry. **Zero conflict potential** with any existing surface — `apps/docs/` did not exist before this round.
+claude-peers status showed no active claims on entry. Claim taken with `claude-peers claim okoro M-014 --note "Fumadocs live docs site at apps/docs/ + cross-package parity gate" --ttl 14400`. All edits scoped to `apps/docs/**` and `tests/cross-package/docs-*.spec.ts` + 1-section edit in `WORK_BOARD.md` + this entry. **Zero conflict potential** with any existing surface — `apps/docs/` did not exist before this round.
 
 ### Verification matrix
 
-| Gate                              | Result                                                                                                |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| New workspace recognized          | `pnpm-workspace.yaml` already globs `apps/*` — picks up automatically; operator runs `pnpm install` to materialize. |
+| Gate                              | Result                                                                                                                          |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| New workspace recognized          | `pnpm-workspace.yaml` already globs `apps/*` — picks up automatically; operator runs `pnpm install` to materialize.             |
 | TS sanity                         | All TS files use bundler module resolution + strict mode + Next.js plugin. No `any`. No node-only imports in client components. |
-| Parity gate registered            | New spec lives under `tests/cross-package/` — the existing `pnpm test:parity` workspace config from Round 21 picks it up. |
-| Live-source attribution           | All three live components emit `data-source` or in-page source-of-truth attribution per Round 23 pattern. |
-| Brand parity                      | All colors and gradients sourced from `brand/02_design-tokens.json` exactly. No off-grid tokens. |
-| Architecture invariants preserved | No edits to verify hot path, audit chain, identity, billing, or any package contract. Docs surface only. |
+| Parity gate registered            | New spec lives under `tests/cross-package/` — the existing `pnpm test:parity` workspace config from Round 21 picks it up.       |
+| Live-source attribution           | All three live components emit `data-source` or in-page source-of-truth attribution per Round 23 pattern.                       |
+| Brand parity                      | All colors and gradients sourced from `brand/02_design-tokens.json` exactly. No off-grid tokens.                                |
+| Architecture invariants preserved | No edits to verify hot path, audit chain, identity, billing, or any package contract. Docs surface only.                        |
 
 ### What operator action is required before this ships
 
-1. **`pnpm install`** — materializes the new `@aegis/docs` workspace with Fumadocs deps (no other workspace touched).
-2. **`AEGIS_API_BASE_URL` in production + preview env** — same env var the dashboard uses (carry-forward from Round 23). Without it, the home page shows `data-source="fallback"`.
-3. **`docs.aegislabs.io` DNS + deploy target** — Vercel or Railway. Vercel is the path-of-least-resistance for static-friendly Next 16 builds.
+1. **`pnpm install`** — materializes the new `@okoro/docs` workspace with Fumadocs deps (no other workspace touched).
+2. **`OKORO_API_BASE_URL` in production + preview env** — same env var the dashboard uses (carry-forward from Round 23). Without it, the home page shows `data-source="fallback"`.
+3. **`docs.okorolabs.io` DNS + deploy target** — Vercel or Railway. Vercel is the path-of-least-resistance for static-friendly Next 16 builds.
 
 ### Round 25 candidates (continuation of M-014 extension)
 
-1. **`fumadocs-openapi generate`** wired against `docs/spec/AEGIS_API_SPEC.yaml` — auto-rendered API reference under `content/docs/api/(generated)/` with try-it-out, per-method request/response examples, and the existing AEGIS auth headers documented.
+1. **`fumadocs-openapi generate`** wired against `docs/spec/OKORO_API_SPEC.yaml` — auto-rendered API reference under `content/docs/api/(generated)/` with try-it-out, per-method request/response examples, and the existing OKORO auth headers documented.
 2. **TypeDoc → SDK reference** — `packages/sdk-ts/src/**` autodoc into MDX. Same pattern for `sdk-py` via pdoc.
 3. **Persona landings** — developer / security / SRE / auditor (mirrors M-040h plan from CLI sprint). Each page ≤ 5 links + 30-sec value prop.
 4. **Industry quickstarts indexed** — `examples/{fintech-payments,ai-platform-tool-call,saas-seat-provisioning}/` already exist (Round 8 + 9); index them under `content/docs/quickstart/<vertical>.mdx` with embedded code samples.
 5. **Pagefind static search** — `pnpm pagefind` post-build; no vendor dependency.
 6. **Lychee link-check CI gate** — `.github/workflows/docs-link-check.yml`. Fails the build on any broken anchor in `apps/docs/content/**`.
 7. **A11y + perf gates** — Lighthouse CI on key pages; budget WCAG AA + Lighthouse ≥ 95.
-8. **Deploy to `docs.aegislabs.io`** — Vercel project + DNS.
+8. **Deploy to `docs.okorolabs.io`** — Vercel project + DNS.
 
 ### OPERATOR-INPUT-NEEDED carry-forward
 
-- Round 22+23 items still open: OD-005 webhook DLQ; DEK provisioning; metric name canonicalization; audit retention interval per env; Stripe price ids population; `prisma migrate deploy` for `20260506000000_add_stripe_overage_item`; confirm `sales@aegislabs.io`; Stripe metered price configuration; Auth0 v4 SDK install (M-020-pkg-install); `AEGIS_API_BASE_URL` in dashboard prod/preview env.
+- Round 22+23 items still open: OD-005 webhook DLQ; DEK provisioning; metric name canonicalization; audit retention interval per env; Stripe price ids population; `prisma migrate deploy` for `20260506000000_add_stripe_overage_item`; confirm `sales@okorolabs.io`; Stripe metered price configuration; Auth0 v4 SDK install (M-020-pkg-install); `OKORO_API_BASE_URL` in dashboard prod/preview env.
 - **NEW (Round 24):**
-  - `pnpm install` to materialize `@aegis/docs` workspace.
-  - `docs.aegislabs.io` DNS + Vercel/Railway deploy target decision.
-  - `AEGIS_API_BASE_URL` must be set on the docs production deploy as well (separate env scope from dashboard).
+  - `pnpm install` to materialize `@okoro/docs` workspace.
+  - `docs.okorolabs.io` DNS + Vercel/Railway deploy target decision.
+  - `OKORO_API_BASE_URL` must be set on the docs production deploy as well (separate env scope from dashboard).
   - Voice/persona choice for content: which of the four persona pages do you want shaped first — developer (PLG wedge), security (auditor wedge), SRE (oncall wedge), or auditor (compliance wedge)?
 
 ### Why Round 24 matters
 
-Round 21 closed the commerce loop. Round 22 preserved the auth funnel. Round 23 retired pricing drift between dashboard and API. **Round 24 extends the same drift-detection discipline to public documentation** — the single highest-traffic surface AEGIS has. From this point forward, every customer-visible contract that AEGIS ships (denial precedence, pricing, SDK shape, audit fields, denial HTTP codes) has a parity gate that fails the build if docs ever go out of sync. A static docs site would have made documentation a liability; live docs make it a forcing function. The marketing surface and the wire contract now move together.
+Round 21 closed the commerce loop. Round 22 preserved the auth funnel. Round 23 retired pricing drift between dashboard and API. **Round 24 extends the same drift-detection discipline to public documentation** — the single highest-traffic surface OKORO has. From this point forward, every customer-visible contract that OKORO ships (denial precedence, pricing, SDK shape, audit fields, denial HTTP codes) has a parity gate that fails the build if docs ever go out of sync. A static docs site would have made documentation a liability; live docs make it a forcing function. The marketing surface and the wire contract now move together.
 
 ---
 
@@ -848,7 +5358,7 @@ truths instead of stale summary-doc assumptions.
 ### Latest-session facts now captured
 
 - Pricing page should prefer `/.well-known/pricing.json` via
-  `AEGIS_API_BASE_URL` and show explicit fallback provenance.
+  `OKORO_API_BASE_URL` and show explicit fallback provenance.
 - Login return paths and checkout intent must use safe redirect helpers.
 - Free trial exhaustion is a lifetime product gate surfaced as
   `TRIAL_EXHAUSTED`.
@@ -875,7 +5385,7 @@ truths instead of stale summary-doc assumptions.
 
 ---
 
-## 2026-05-06 (Round 23 — pricing data unification: dashboard SSR-fetches /.well-known/pricing.json) · sid=c4f241c5 · claim=aegis:round-23-pricing-ssr
+## 2026-05-06 (Round 23 — pricing data unification: dashboard SSR-fetches /.well-known/pricing.json) · sid=c4f241c5 · claim=okoro:round-23-pricing-ssr
 
 **Status:** ✅ Landed. Drift risk between `apps/api/src/modules/billing/plans.ts` and `apps/dashboard/lib/pricing.ts` retired. Dashboard tsc 0 errors. API tsc 0 errors (**9th consecutive zero-error round**). **76/76 cross-package parity across 9 files** (10 new in `dashboard-pricing-parity.spec.ts`).
 
@@ -885,11 +5395,12 @@ Round 21 Lane A shipped `GET /.well-known/pricing.json` as the canonical public 
 
 ### What shipped (5 files)
 
-**`apps/dashboard/lib/pricing-source.ts` (NEW, ~210 LOC)**: server-only `resolvePricing()` that returns a discriminated union `{source: 'api' | 'fallback', tiers, rows, generatedAt, specVersion, reason?}`. Reads `AEGIS_API_BASE_URL` env, fetches with `next: { revalidate: 3600 }` matching the API's `Cache-Control: public, max-age=3600` (cache layers compose). Maps API snake_case + null sentinels to the dashboard's `PublicTier` shape — formatted price strings (`$49 / mo`, `$0` for FREE, `Custom` for ENTERPRISE), abbreviated counts (`50K / mo`, `5M / mo`, `10K lifetime`), retention windows (`7 years` / `365 days`), CTA labels and hrefs. Falls back to hardcoded `PRICING_TIERS` on any failure: env unset, network error, non-2xx, malformed JSON, missing tiers field. **SCALE deliberately falls back to the hardcoded placeholder** because no server-side enum exists yet (Round-18 migration still deferred).
+**`apps/dashboard/lib/pricing-source.ts` (NEW, ~210 LOC)**: server-only `resolvePricing()` that returns a discriminated union `{source: 'api' | 'fallback', tiers, rows, generatedAt, specVersion, reason?}`. Reads `OKORO_API_BASE_URL` env, fetches with `next: { revalidate: 3600 }` matching the API's `Cache-Control: public, max-age=3600` (cache layers compose). Maps API snake_case + null sentinels to the dashboard's `PublicTier` shape — formatted price strings (`$49 / mo`, `$0` for FREE, `Custom` for ENTERPRISE), abbreviated counts (`50K / mo`, `5M / mo`, `10K lifetime`), retention windows (`7 years` / `365 days`), CTA labels and hrefs. Falls back to hardcoded `PRICING_TIERS` on any failure: env unset, network error, non-2xx, malformed JSON, missing tiers field. **SCALE deliberately falls back to the hardcoded placeholder** because no server-side enum exists yet (Round-18 migration still deferred).
 
 **`apps/dashboard/app/pricing/_components/FeatureMatrix.tsx`**: now accepts `tiers` + `rows` as props (was importing module-level constants). Component is dumb — page resolves the data.
 
 **`apps/dashboard/app/pricing/page.tsx`**: now async, awaits `resolvePricing()`, exports `revalidate = 3600`. Renders new `<PricingProvenance>` footer below the table:
+
 - Source = `api` → `Pricing data live from /.well-known/pricing.json · spec 1.0.0 · generated <ISO>` (with `data-source="api"`)
 - Source = `fallback` → `Pricing data from build-time fallback (<reason>)` (with `data-source="fallback"`)
 
@@ -904,6 +5415,7 @@ Round 21 Lane A shipped `GET /.well-known/pricing.json` as the canonical public 
 `tests/cross-package/dashboard-pricing-parity.spec.ts`:
 
 **Happy path (5 tests, source=api)**: synthesizes the API body by importing `PLANS` + `getPlan` directly from the API source — same shape `WellknownService.getPricing()` would emit, kept here without Nest DI bootstrap so this test stays fast and independent. Then stubs `global.fetch` to return that synthesized body and asserts:
+
 1. `result.source === 'api'`, spec_version threads through, all 5 display tiers present in correct order
 2. FREE/DEVELOPER/ENTERPRISE display strings (price, verifies, overage, agents, retention, bate, webhooks, sla, ctaLabel, ctaHref) match `PRICING_TIERS` exactly — **the parity guard against drift**
 3. TEAM is mapped from API-side GROWTH and matches fallback labels
@@ -915,6 +5427,7 @@ Round 21 Lane A shipped `GET /.well-known/pricing.json` as the canonical public 
 ### Display-string special cases (documented in mapper)
 
 The API surface is minimal/auditable but the dashboard has 4 marketing-copy overrides that don't belong on the wire:
+
 - **FREE.sla** = "Best effort" (API has internal p99 target 250ms, but FREE never gets a public SLA promise)
 - **ENTERPRISE.overage** = "Negotiated" (API returns null for hard-stop tiers; ENTERPRISE shows "Negotiated" copy where FREE shows "—")
 - **ENTERPRISE.sla** = "Custom" (API returns p99 target 80ms internally; public copy is "Custom")
@@ -924,18 +5437,18 @@ These overrides live only in `pricing-source.ts:mapApiToPublicTier()` with comme
 
 ### Verification matrix
 
-| Gate | Result |
-|------|--------|
-| `apps/dashboard` tsc | 0 errors |
-| `apps/api` tsc | 0 errors (**9th consecutive**) |
-| `pnpm test:parity` | **76/76 across 9 files** (was 66/8) |
+| Gate                             | Result                                                                                             |
+| -------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `apps/dashboard` tsc             | 0 errors                                                                                           |
+| `apps/api` tsc                   | 0 errors (**9th consecutive**)                                                                     |
+| `pnpm test:parity`               | **76/76 across 9 files** (was 66/8)                                                                |
 | Round 21+22 invariants preserved | yes — no edits to billing/, wellknown service, AutoCheckout, login page, middleware, safe-redirect |
-| API endpoint wire format | unchanged — `WellknownService.getPricing()` and `pricing.dto.ts` untouched |
-| Fallback availability | walked all 5 fallback paths via parity tests; marketing page never 500s on backend dependency |
+| API endpoint wire format         | unchanged — `WellknownService.getPricing()` and `pricing.dto.ts` untouched                         |
+| Fallback availability            | walked all 5 fallback paths via parity tests; marketing page never 500s on backend dependency      |
 
 ### Coordination
 
-Peer sid=bba1b6c1 still active on `aegis:auth-cache-perf` (api-key.service Redis cache). Their scope: API auth path. My scope: dashboard pricing page + cross-package parity. **Fully disjoint** — confirmed via claude-peers status. Zero file conflicts.
+Peer sid=bba1b6c1 still active on `okoro:auth-cache-perf` (api-key.service Redis cache). Their scope: API auth path. My scope: dashboard pricing page + cross-package parity. **Fully disjoint** — confirmed via claude-peers status. Zero file conflicts.
 
 ### Round 24 candidates
 
@@ -944,14 +5457,14 @@ Peer sid=bba1b6c1 still active on `aegis:auth-cache-perf` (api-key.service Redis
 3. **`subscription.trial_will_end` webhook → dashboard banner** (UX preempt of the trial cliff)
 4. **Audit event search by `metadata.stripeEventId`** (forensic tooling)
 5. **Login page Playwright e2e** — once Auth0 SDK lands (M-020)
-6. **`AEGIS_API_BASE_URL` env documented** — add to `.env.example` and dashboard README so operators know the toggle for SSR-fetch vs fallback
+6. **`OKORO_API_BASE_URL` env documented** — add to `.env.example` and dashboard README so operators know the toggle for SSR-fetch vs fallback
 7. **Dashboard vitest install (M-020-pkg-install)** — collocate `safe-redirect` + `pricing-source` tests inside the package
 8. **Pricing.json content-encoding** — currently uncompressed; `Content-Encoding: gzip` from edge would cut bandwidth ~70%
 
 ### OPERATOR-INPUT-NEEDED carry-forward
 
-- OD-005 webhook DLQ; DEK provisioning; metric name canonicalization; audit retention interval per env; Stripe price ids population; `prisma migrate deploy` for `20260506000000_add_stripe_overage_item`; confirm `sales@aegislabs.io`; Stripe metered price configuration; Auth0 v4 SDK install (M-020-pkg-install)
-- **NEW:** populate `AEGIS_API_BASE_URL` in dashboard production + preview env vars so `data-source="api"` becomes the default
+- OD-005 webhook DLQ; DEK provisioning; metric name canonicalization; audit retention interval per env; Stripe price ids population; `prisma migrate deploy` for `20260506000000_add_stripe_overage_item`; confirm `sales@okorolabs.io`; Stripe metered price configuration; Auth0 v4 SDK install (M-020-pkg-install)
+- **NEW:** populate `OKORO_API_BASE_URL` in dashboard production + preview env vars so `data-source="api"` becomes the default
 
 ### Why Round 23 matters
 
@@ -959,13 +5472,13 @@ Round 22 was about new prospects surviving the auth round-trip. Round 23 is abou
 
 ---
 
-## 2026-05-06 (Round 22 — auth-funnel preservation: /login returnTo + middleware redirect propagation) · sid=c4f241c5 · claim=aegis:round-22-funnel
+## 2026-05-06 (Round 22 — auth-funnel preservation: /login returnTo + middleware redirect propagation) · sid=c4f241c5 · claim=okoro:round-22-funnel
 
 **Status:** ✅ Landed. Surgical fix to close the conversion-funnel hole that broke Round 21's AutoCheckout for new prospects. Dashboard tsc 0 errors. API tsc 0 errors (eighth consecutive zero-error round). **66/66 cross-package parity** (13 new in `dashboard-safe-redirect.spec.ts`).
 
 ### Why this round mattered
 
-Round 21 closed the commerce loop end-to-end *for authenticated users* — but the public pricing page redirects unauthenticated prospects through `/login?redirect=/billing&intent=checkout&tier=DEVELOPER`. The login page (and `AUTH0_REQUIRED=true` middleware bounce) **dropped the searchParams**, so post-auth the user landed on `/` instead of `/billing?intent=checkout&tier=...`. AutoCheckout never fired. The funnel was code-correct but operationally broken for the most important persona: a new prospect about to pay.
+Round 21 closed the commerce loop end-to-end _for authenticated users_ — but the public pricing page redirects unauthenticated prospects through `/login?redirect=/billing&intent=checkout&tier=DEVELOPER`. The login page (and `AUTH0_REQUIRED=true` middleware bounce) **dropped the searchParams**, so post-auth the user landed on `/` instead of `/billing?intent=checkout&tier=...`. AutoCheckout never fired. The funnel was code-correct but operationally broken for the most important persona: a new prospect about to pay.
 
 ### What shipped (3 files, surgical)
 
@@ -981,18 +5494,18 @@ Round 21 closed the commerce loop end-to-end *for authenticated users* — but t
 
 ### Verification matrix
 
-| Gate | Result |
-|------|--------|
-| `apps/dashboard` tsc | 0 errors |
-| `apps/api` tsc | 0 errors (**8th consecutive**) |
-| `pnpm test:parity` (cross-package) | **66/66 across 8 files** (was 53 in 7 files) |
-| Round 21 invariants preserved | yes — no edits to billing/, wellknown/, stripe.service, AutoCheckout, billing/page.tsx |
-| Open-redirect defense | walked: `//evil.com`, `/\\evil.com`, `https://evil.com`, `javascript:alert(1)` all collapse to `/` |
-| Funnel walkthrough | pricing → `/login?redirect=/billing?intent=checkout&tier=DEVELOPER` → notice renders + `Continue with Auth0` href is `/api/auth/login?returnTo=%2Fbilling%3Fintent%3Dcheckout%26tier%3DDEVELOPER` → after Auth0 (M-020 stub) → `/billing?intent=checkout&tier=DEVELOPER` → AutoCheckout fires |
+| Gate                               | Result                                                                                                                                                                                                                                                                                        |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/dashboard` tsc               | 0 errors                                                                                                                                                                                                                                                                                      |
+| `apps/api` tsc                     | 0 errors (**8th consecutive**)                                                                                                                                                                                                                                                                |
+| `pnpm test:parity` (cross-package) | **66/66 across 8 files** (was 53 in 7 files)                                                                                                                                                                                                                                                  |
+| Round 21 invariants preserved      | yes — no edits to billing/, wellknown/, stripe.service, AutoCheckout, billing/page.tsx                                                                                                                                                                                                        |
+| Open-redirect defense              | walked: `//evil.com`, `/\\evil.com`, `https://evil.com`, `javascript:alert(1)` all collapse to `/`                                                                                                                                                                                            |
+| Funnel walkthrough                 | pricing → `/login?redirect=/billing?intent=checkout&tier=DEVELOPER` → notice renders + `Continue with Auth0` href is `/api/auth/login?returnTo=%2Fbilling%3Fintent%3Dcheckout%26tier%3DDEVELOPER` → after Auth0 (M-020 stub) → `/billing?intent=checkout&tier=DEVELOPER` → AutoCheckout fires |
 
 ### Coordination
 
-Peer sid=bba1b6c1 active in this repo on `aegis:auth-cache-perf` (Redis cache for `api-key.service.resolve()` addressing bcrypt-12 hot path; p99 22s under k6 50 RPS). Their scope: API auth path. My scope: dashboard auth pages. **Fully disjoint** — confirmed via claude-peers status before edit. Zero file conflicts.
+Peer sid=bba1b6c1 active in this repo on `okoro:auth-cache-perf` (Redis cache for `api-key.service.resolve()` addressing bcrypt-12 hot path; p99 22s under k6 50 RPS). Their scope: API auth path. My scope: dashboard auth pages. **Fully disjoint** — confirmed via claude-peers status before edit. Zero file conflicts.
 
 ### Round 23 candidates
 
@@ -1006,7 +5519,7 @@ Peer sid=bba1b6c1 active in this repo on `aegis:auth-cache-perf` (Redis cache fo
 
 ### OPERATOR-INPUT-NEEDED carry-forward
 
-- OD-005 webhook DLQ; DEK provisioning; metric name canonicalization; audit retention interval per env; Stripe price ids population; `prisma migrate deploy` for `20260506000000_add_stripe_overage_item`; confirm `sales@aegislabs.io`; Stripe metered price configuration; **NEW:** Auth0 v4 SDK install (M-020-pkg-install) — without it, the `/login` `returnTo` link goes to a 404. The validator + URL builder are correct; the receiver is not yet wired.
+- OD-005 webhook DLQ; DEK provisioning; metric name canonicalization; audit retention interval per env; Stripe price ids population; `prisma migrate deploy` for `20260506000000_add_stripe_overage_item`; confirm `sales@okorolabs.io`; Stripe metered price configuration; **NEW:** Auth0 v4 SDK install (M-020-pkg-install) — without it, the `/login` `returnTo` link goes to a 404. The validator + URL builder are correct; the receiver is not yet wired.
 
 ### Why Round 22 is small but load-bearing
 
@@ -1014,9 +5527,9 @@ Round 21 was 5 GA gaps closed — big, parallel, wide. Round 22 is 3 files and 1
 
 ---
 
-## 2026-05-06 (Round 21 — conversion-loop closure: trial counter exposed + auto-checkout intent + .well-known/pricing.json + Stripe metering + customer-journey e2e) · sid=c4f241c5 · claim=aegis:round-21-conversion-loop
+## 2026-05-06 (Round 21 — conversion-loop closure: trial counter exposed + auto-checkout intent + .well-known/pricing.json + Stripe metering + customer-journey e2e) · sid=c4f241c5 · claim=okoro:round-21-conversion-loop
 
-**Status:** ✅ Landed. Phase 1 (sequential, mine) + 3 parallel agents Phase 2. All 4 packages tsc 0 errors (**seventh consecutive**). **158/158 jest across 8 billing/verify/wellknown suites**. Postman 45 reqs / 12 folders / denial walk-through 10/10. Round 20 made the commerce loop *exist*; Round 21 makes it *flow*.
+**Status:** ✅ Landed. Phase 1 (sequential, mine) + 3 parallel agents Phase 2. All 4 packages tsc 0 errors (**seventh consecutive**). **158/158 jest across 8 billing/verify/wellknown suites**. Postman 45 reqs / 12 folders / denial walk-through 10/10. Round 20 made the commerce loop _exist_; Round 21 makes it _flow_.
 
 ### Why this round mattered
 
@@ -1034,16 +5547,16 @@ After Round 20, three friction points + two structural gaps remained: (1) pricin
 
 **Lane B — Stripe metered overage wiring (M-011 final piece, 8 files)**: closes the revenue leak. Schema delta `Principal.stripeOverageItemId String?` (additive nullable + new migration `20260506000000_add_stripe_overage_item/migration.sql`). Config `STRIPE_PRICE_OVERAGE_VERIFY` env added to Zod schema + accessor. New `stripe.service.ts.recordOverage(principalId, count = 1): Promise<void>` — Stripe disabled / FREE / `overagePerCallE4 == null` / count < 1 → silent no-op; paid-tier-without-item-id → WARN log + no-op (under-bill, never block); Stripe API errors → ERROR log, swallowed (under-billing > verify-path failure per CLAUDE.md invariant 4 — surfaced via logs). Subscription handlers (`onCheckoutCompleted`, `onSubscriptionUpdated`) walk `subscription.items.data` and populate `stripeOverageItemId` when a line's `price.id === stripePriceOverageVerify`; `onSubscriptionDeleted` clears to null. Wired non-blocking from `usage-guard.service.ts.incrementUsage()` post-INCR — fires `void stripe.recordOverage(...)` (no `await` so verify p99 doesn't take a Stripe round-trip). UsageGuard injects StripeService via `forwardRef + @Optional` to avoid circular module import. Defense-in-depth gate on `plan.overagePerCallE4 != null && plan.tier !== 'FREE'`. **17 new tests + 60/60 stripe+usage-guard jest pass.**
 
-**Lane C — Customer-journey e2e (`tests/e2e/19_customer_journey.test.ts`, ~210 lines)**: 8-scenario journey wrapped in single `it('full journey · …')` so the narrative runs as one continuous transaction; each step announced via `step()` helper for readable failure traces. T1 verify SUCCEEDS (FREE fresh) → T2 drive verifies until exhausted (uses `AEGIS_E2E_TRIAL_CAP_OVERRIDE` to run in seconds) → T3 verify DENIES `TRIAL_EXHAUSTED` → T4 simulated `checkout.session.completed` Stripe webhook → T5 GET `/v1/billing/plan` returns `{planTier:'DEVELOPER', subscriptionStatus:'active', trialUsedCount:null, trialCap:null, trialExhaustedAt:'<ISO preserved>'}` (per Round 19 F-04 + F-02 design) → T6 verify SUCCEEDS again (commerce loop works) → T7 simulated `customer.subscription.deleted` → T8 verify DENIES `TRIAL_EXHAUSTED` again (lifetime cap is permanent — anti-abuse). Baseline structural test (always runs): GET `/v1/billing/plan` returns 200 with valid shape. Required envs for full coverage: `AEGIS_E2E_URL`, `AEGIS_E2E_API_KEY`, `AEGIS_E2E_FREE_API_KEY`, `AEGIS_STRIPE_WEBHOOK_SECRET`, `AEGIS_E2E_STRIPE_DEVELOPER_PRICE_ID`, `AEGIS_E2E_STRIPE_TEST_PRINCIPAL_ID`, `AEGIS_E2E_TRIAL_CAP_OVERRIDE`. Soft-skip with banner if any missing.
+**Lane C — Customer-journey e2e (`tests/e2e/19_customer_journey.test.ts`, ~210 lines)**: 8-scenario journey wrapped in single `it('full journey · …')` so the narrative runs as one continuous transaction; each step announced via `step()` helper for readable failure traces. T1 verify SUCCEEDS (FREE fresh) → T2 drive verifies until exhausted (uses `OKORO_E2E_TRIAL_CAP_OVERRIDE` to run in seconds) → T3 verify DENIES `TRIAL_EXHAUSTED` → T4 simulated `checkout.session.completed` Stripe webhook → T5 GET `/v1/billing/plan` returns `{planTier:'DEVELOPER', subscriptionStatus:'active', trialUsedCount:null, trialCap:null, trialExhaustedAt:'<ISO preserved>'}` (per Round 19 F-04 + F-02 design) → T6 verify SUCCEEDS again (commerce loop works) → T7 simulated `customer.subscription.deleted` → T8 verify DENIES `TRIAL_EXHAUSTED` again (lifetime cap is permanent — anti-abuse). Baseline structural test (always runs): GET `/v1/billing/plan` returns 200 with valid shape. Required envs for full coverage: `OKORO_E2E_URL`, `OKORO_E2E_API_KEY`, `OKORO_E2E_FREE_API_KEY`, `OKORO_STRIPE_WEBHOOK_SECRET`, `OKORO_E2E_STRIPE_DEVELOPER_PRICE_ID`, `OKORO_E2E_STRIPE_TEST_PRINCIPAL_ID`, `OKORO_E2E_TRIAL_CAP_OVERRIDE`. Soft-skip with banner if any missing.
 
 ### Verification
 
-- `pnpm --filter @aegis/api exec tsc --noEmit` → **0 errors** (seventh consecutive)
-- `pnpm --filter @aegis/sdk exec tsc --noEmit` → **0 errors**
-- `pnpm --filter @aegis/dashboard exec tsc --noEmit` → **0 errors**
-- `pnpm --filter @aegis/e2e exec tsc --noEmit` → **0 errors**
-- `pnpm --filter @aegis/api exec jest --testPathPattern='(stripe|billing|usage-guard|verify\.service|trial|wellknown|plans)'` → **158/158 across 8 suites**
-- `pnpm --filter @aegis/postman run validate` → **OK — 45 requests across 12 folders; denial walk-through 10/10**
+- `pnpm --filter @okoro/api exec tsc --noEmit` → **0 errors** (seventh consecutive)
+- `pnpm --filter @okoro/sdk exec tsc --noEmit` → **0 errors**
+- `pnpm --filter @okoro/dashboard exec tsc --noEmit` → **0 errors**
+- `pnpm --filter @okoro/e2e exec tsc --noEmit` → **0 errors**
+- `pnpm --filter @okoro/api exec jest --testPathPattern='(stripe|billing|usage-guard|verify\.service|trial|wellknown|plans)'` → **158/158 across 8 suites**
+- `pnpm --filter @okoro/postman run validate` → **OK — 45 requests across 12 folders; denial walk-through 10/10**
 - **Round 21 net new tests: ~33 green** (11 phase-1 + 16 wellknown + 17 stripe-metering + 8 e2e baseline)
 
 ### What's NOT yet wired (Round 22 candidates)
@@ -1064,7 +5577,7 @@ After Round 20, three friction points + two structural gaps remained: (1) pricin
 - OD-005 webhook DLQ; DEK provisioning; metric name canonicalization; audit retention interval per env
 - Stripe price ids: `STRIPE_PRICE_DEVELOPER`, `STRIPE_PRICE_GROWTH`/`_TEAM`, `STRIPE_PRICE_OVERAGE_VERIFY` (peer cb622ccf added slots; values need population)
 - Apply `prisma migrate deploy` for `20260506000000_add_stripe_overage_item`
-- Confirm `sales@aegislabs.io` for pricing-page Enterprise CTA (Round 20 carryover)
+- Confirm `sales@okorolabs.io` for pricing-page Enterprise CTA (Round 20 carryover)
 - **NEW: Stripe metered price configuration** (per-verify vs batched-quantity)
 
 ### Round 21 closes 5 GA gaps
@@ -1096,7 +5609,7 @@ Operator: review per file checklist below. Re-run 'make preflight-fast' to confi
 
 ---
 
-## 2026-05-06 (Round 18 — Wave I: swarm immune system) · claim=aegis:round-18-wave-i
+## 2026-05-06 (Round 18 — Wave I: swarm immune system) · claim=okoro:round-18-wave-i
 
 **Status:** ✅ Landed. ~75 min wall. Closes the cross-session drift problem
 that R15→R17 paid catch-up tax on. **Result: `pnpm doctor:full` green
@@ -1106,7 +5619,7 @@ Postman 9/9.**
 ### What landed (3 lanes, all reversible)
 
 - **Lane I.1** — Postman `validate.ts` now imports
-  `DENIAL_REASON_PRECEDENCE` from `@aegis/types` (filters out
+  `DENIAL_REASON_PRECEDENCE` from `@okoro/types` (filters out
   `PLAN_LIMIT_EXCEEDED` pre-gate). Eliminates one drift class
   permanently — future denial codes need one edit, not 6+.
 - **Lane I.2** — Cross-package parity specs **now actually run in CI**.
@@ -1115,7 +5628,7 @@ Postman 9/9.**
   `@noble/ed25519` + `@noble/hashes` deps to `tests/`. Fixed
   denial-precedence-enum spec to handle `PLAN_LIMIT_EXCEEDED`
   pre-gate (algorithm-chain extractor + drift-set allow-list).
-  Bumped stale "9-step" comment in `AEGIS_API_SPEC.yaml` to "10-step".
+  Bumped stale "9-step" comment in `OKORO_API_SPEC.yaml` to "10-step".
 - **Lane I.3** — `pnpm doctor` (~200 LOC at `scripts/doctor.ts`).
   Reads code state in 5s: git, latest round, denial precedence,
   error catalog parity (TS↔Py), Postman counts, ODs, discovery
@@ -1149,13 +5662,13 @@ loss is material.
 
 ---
 
-## 2026-05-06 (Round 20 — commerce loop closure: Stripe webhook + portal endpoint + audit events + dashboard billing widget + pricing page + e2e Stripe + R19 cleanups) · sid=c4f241c5 · claim=aegis:round-20-commerce-loop
+## 2026-05-06 (Round 20 — commerce loop closure: Stripe webhook + portal endpoint + audit events + dashboard billing widget + pricing page + e2e Stripe + R19 cleanups) · sid=c4f241c5 · claim=okoro:round-20-commerce-loop
 
-**Status:** ✅ Landed. **5 parallel agents, ~10 min wall.** Round 19 made TRIAL_EXHAUSTED *fire*; Round 20 closes the *conversion loop* — every blocked trial customer can now upgrade through Stripe checkout, see their usage in the dashboard, and manage subscription via the customer portal. **API tsc 0 errors (sixth consecutive round preserved)**, **89/89 jest across 6 billing/verify/trial suites**, **168/168 scripts vitest**, **all 4 packages tsc clean** (api/sdk/dashboard/e2e), Postman 44 requests across 12 folders / denial walk-through 10/10 still green.
+**Status:** ✅ Landed. **5 parallel agents, ~10 min wall.** Round 19 made TRIAL*EXHAUSTED \_fire*; Round 20 closes the _conversion loop_ — every blocked trial customer can now upgrade through Stripe checkout, see their usage in the dashboard, and manage subscription via the customer portal. **API tsc 0 errors (sixth consecutive round preserved)**, **89/89 jest across 6 billing/verify/trial suites**, **168/168 scripts vitest**, **all 4 packages tsc clean** (api/sdk/dashboard/e2e), Postman 44 requests across 12 folders / denial walk-through 10/10 still green.
 
 ### Why this round mattered
 
-After Round 19, the verify path correctly returned `TRIAL_EXHAUSTED` to capped trial customers — but **with no upgrade path attached, every blocked customer was a churned customer**. ADR-0014's financial model assumes 0.7% trial-to-paid conversion to break even. That conversion event is `customer.subscription.created` → `Principal.planTier` updated → trial counter no longer the binding gate (TrialService non-FREE short-circuits). Without this round, AEGIS actively turned away revenue. This round closes the loop end-to-end.
+After Round 19, the verify path correctly returned `TRIAL_EXHAUSTED` to capped trial customers — but **with no upgrade path attached, every blocked customer was a churned customer**. ADR-0014's financial model assumes 0.7% trial-to-paid conversion to break even. That conversion event is `customer.subscription.created` → `Principal.planTier` updated → trial counter no longer the binding gate (TrialService non-FREE short-circuits). Without this round, OKORO actively turned away revenue. This round closes the loop end-to-end.
 
 The Stripe scaffold from earlier rounds was 60% complete — handlers for `customer.subscription.{updated,created,deleted}` and `checkout.session.completed` already existed. Round 20 fills the 40%: the `invoice.payment_failed/succeeded` state machine, the customer portal endpoint, audit events on every plan-tier mutation, the dashboard billing surface, the public pricing page, and the e2e regression test that locks all of it in.
 
@@ -1166,17 +5679,19 @@ The Stripe scaffold from earlier rounds was 60% complete — handlers for `custo
 ### Phase 2 (5 parallel agents)
 
 **Lane A — Stripe webhook completion (M-011 closure):**
+
 - 7 files. **stripe.service.ts**: added `billingPortal` to the lazy SDK type; injected `AuditService`. New handlers: `onPaymentFailed` (sets `subscriptionStatus = 'past_due'` + emits `billing.payment_failed` audit; falls back to `stripeCustomerId` lookup when subscription id missing); `onPaymentSucceeded` (clears `past_due → active` + emits `billing.payment_recovered`; no-op when already active to avoid redundant events on routine renewals); `findPrincipalForInvoice`; `emitPlanChangedAudit`; `createPortalSession` (calls `billingPortal.sessions.create({ customer, return_url })` with circuit breaker).
 - All three plan-tier-mutating handlers (`onCheckoutCompleted`, `onSubscriptionUpdated`, `onSubscriptionDeleted`) now read **prior tier** from DB and emit `billing.plan_changed` only when `from !== to` (prevents redundant audit events on Stripe replay or no-op writes).
 - **Round-19 F-02 callout encoded as a comment** in `onCheckoutCompleted`: `// Do NOT call TrialService.reset() here — trial cap is lifetime, exhausted state must NOT clear on plan upgrade. reset() is admin-only escape hatch.` Future maintainer can't accidentally re-introduce the abuse vector.
 - **billing.controller.ts**: new `POST /v1/billing/portal` with `CreatePortalSessionDto` (validates `returnUrl` via `@IsUrl({ require_tld: false })` — allows localhost in dev). Returns `{ url }` to redirect.
 - **billing.module.ts**: imports AuditModule.
-- **tools/postman/aegis.collection.json**: new "Billing" folder (3 requests — checkout, portal, plan); validator still 10/10 denial walk-through; **collection now 44 requests across 12 folders** (was 41/11).
-- **tools/postman/aegis.environment.json**: new `stripe_portal_return_url` variable.
+- **tools/postman/okoro.collection.json**: new "Billing" folder (3 requests — checkout, portal, plan); validator still 10/10 denial walk-through; **collection now 44 requests across 12 folders** (was 41/11).
+- **tools/postman/okoro.environment.json**: new `stripe_portal_return_url` variable.
 - **stripe.service.spec.ts**: 8 new tests covering all targets — payment_failed past_due update + audit emit + customer-id fallback; payment_succeeded clears past_due + audit; payment_succeeded no-op when already active; createPortalSession success + ValidationError on missing customerId + ServiceUnavailableError when disabled; plan_changed audit on subscription.created; idempotency replay does NOT re-emit audit.
 - **billing.controller.spec.ts**: 1 new test (portal endpoint roundtrip).
 
 **Lane B — Dashboard billing widget (Bloomberg-density per `feedback_less_cards`):**
+
 - 7 files. New `apps/dashboard/lib/billing.ts` with typed `loadPlan()`, `deriveTrialView()`, `deriveUsageView()`, `isPastDue()` helpers.
 - **MetricStrip top row** (4 cells per Bloomberg density): tier · status · quota · hard-stop. Tones: ACTIVE/TRIALING=ok, PAST_DUE/UNPAID=warn, CANCELED=crit.
 - **TrialCountdown** (server, FREE-only): renders verifies-used / cap with progress bar + "exhausts in N days" projection from current rate.
@@ -1188,18 +5703,20 @@ The Stripe scaffold from earlier rounds was 60% complete — handlers for `custo
 - **TODOs flagged for Round 21 API gaps**: (a) expose `trialUsedCount`/`trialExhaustedAt` on `GET /v1/billing/plan` (currently proxied via `monthVerifyCount`/`monthlyQuota` with `(approx.)` label per no-fabricated-data invariant); (b) Lane A's portal endpoint may need to land + be deployed; (c) surface `TRIAL_EXHAUSTED` state separately from `subscriptionStatus`.
 
 **Lane C — Public pricing page:**
+
 - 5 files. `apps/dashboard/app/pricing/page.tsx` + 3 `_components/` + `apps/dashboard/lib/pricing.ts`.
 - **5-column tier table × 8 feature rows**: Price / Verifies / Overage / Agents / Audit retention / BATE trust scores / Webhooks / SLA. Mirror of `apps/api/src/modules/billing/plans.ts` with `// type-rationale:` flagging the duplication; Round 21 should ship `GET /.well-known/pricing.json` endpoint to remove the mirror.
 - **CTA URLs** (the conversion funnel):
   - FREE → `/login?redirect=/agents&intent=signup`
   - DEVELOPER/TEAM/SCALE → `/login?redirect=/billing&intent=checkout&tier=<TIER>`
-  - ENTERPRISE → `mailto:sales@aegislabs.io?subject=AEGIS%20Enterprise%20inquiry`
-- **`sales@aegislabs.io` is a placeholder** — operator confirms or replaces (no canonical address found in repo docs).
+  - ENTERPRISE → `mailto:sales@okorolabs.io?subject=OKORO%20Enterprise%20inquiry`
+- **`sales@okorolabs.io` is a placeholder** — operator confirms or replaces (no canonical address found in repo docs).
 - **TEAM CTA** carries `tier=TEAM` per ADR-0014 nomenclature; server enum is still `GROWTH` until Round 18 schema migration. Comment in `pricing.ts` flags this.
 - **SCALE CTA** is exposed for intent capture; `/billing` must fall back gracefully until SCALE PlanTier exists (Round 18 schema work).
 - 30-second test passes: a prospect lands and within 30s sees tiers / prices / features / where to click.
 
 **Lane D — E2E Stripe subscription flow test:**
+
 - 3 files (242+92+80 LOC). `tests/e2e/_support/stripe.ts` (helper: `signStripeEvent`, `buildEvent`, `tamperSignature` — replicates Stripe's HMAC-SHA256 algorithm without depending on the Stripe SDK in tests). `_support/stripe.spec.ts` (8 helper tests cross-checking against hand-computed reference). `tests/e2e/18_stripe_subscription.test.ts` (6 scenarios + structural baseline).
 - **Scenarios** (all hard-assert when env vars present, soft-skip otherwise):
   1. `subscription.created` flips FREE → DEVELOPER, asserts `/v1/billing/plan` returns new tier.
@@ -1210,9 +5727,10 @@ The Stripe scaffold from earlier rounds was 60% complete — handlers for `custo
   6. **Tamper** — flips last hex nibble of `v1=…` (preserves header shape, breaks HMAC) → 400.
 - **Baseline structural** (always runs): POSTs `'{not json'` to `/v1/billing/webhook` with no `Stripe-Signature` header → asserts HTTP 400. Catches signature-guard regressions even without Stripe env.
 - **Light touch outside owned paths**: `tests/vitest.config.ts` `include` glob extended to pick up `e2e/_support/**/*.spec.ts` so the helper spec runs alongside the suite.
-- **Required env vars for full coverage** (ship instructions in test file): `AEGIS_STRIPE_WEBHOOK_SECRET`, `AEGIS_E2E_STRIPE_TEST_PRINCIPAL_ID`, `AEGIS_E2E_STRIPE_DEVELOPER_PRICE_ID`, plus existing `AEGIS_E2E_URL`/`AEGIS_E2E_API_KEY`.
+- **Required env vars for full coverage** (ship instructions in test file): `OKORO_STRIPE_WEBHOOK_SECRET`, `OKORO_E2E_STRIPE_TEST_PRINCIPAL_ID`, `OKORO_E2E_STRIPE_DEVELOPER_PRICE_ID`, plus existing `OKORO_E2E_URL`/`OKORO_E2E_API_KEY`.
 
 **Lane E — Round 19 cleanups (UsageGuard FREE dead-code + DenialReason regen tool):**
+
 - **Task 1 (UsageGuard)**: turned out to be DOC-only debt — Round 19 F-08 already eliminated all FREE-specific BRANCHES. The gate is purely tier-generic (`isVerifyCallAllowed` short-circuits because `monthlyVerifyQuota = Infinity` for FREE). Updated header comments + corrected misleading "(FREE)" comment in `verify.service.ts` G-2 gate. Existing regression guard at `usage-guard.service.spec.ts:182` (`'FREE tier never fires PLAN_LIMIT_EXCEEDED — gate delegated to TrialService (F-08)'`) preserved as the load-bearing post-F-08 invariant.
 - **Task 2 (DenialReason regen tool)**: 6 files. `scripts/generate-denial-reason.ts` (~95 LOC, deterministic — reruns produce byte-identical output) reads `DENIAL_REASON_PRECEDENCE` from `packages/types/src/constants.ts`, emits `packages/sdk-ts/src/denial-reason.generated.ts` (621 bytes, 11 reasons preserving precedence order, no sort). `packages/sdk-ts/src/types.ts` re-exports `DenialReason` from the generated file (manual union dropped). Root `package.json` adds `gen:denial-reason` script. New `tests/cross-package/denial-reason-parity.spec.ts` asserts generated matches canonical exactly.
 - **5 generator vitest tests + 4 cross-package parity tests**.
@@ -1228,19 +5746,19 @@ Lane A's stripe.service.spec.ts initially failed one test (`emits billing.plan_c
 export { DENIAL_REASONS, type DenialReason } from './denial-reason.generated.js';
 ```
 
-Future denial-code additions: edit `DENIAL_REASON_PRECEDENCE` in `@aegis/types`, run `pnpm gen:denial-reason`, the generated SDK file regenerates, the cross-package parity test verifies. **Drift between server canonical + SDK is now mechanically impossible** — closes Round 19 carry-forward item #2.
+Future denial-code additions: edit `DENIAL_REASON_PRECEDENCE` in `@okoro/types`, run `pnpm gen:denial-reason`, the generated SDK file regenerates, the cross-package parity test verifies. **Drift between server canonical + SDK is now mechanically impossible** — closes Round 19 carry-forward item #2.
 
 ### Verification
 
-- `pnpm --filter @aegis/api exec tsc --noEmit` → **0 errors** (sixth consecutive zero-error round).
-- `pnpm --filter @aegis/sdk exec tsc --noEmit` → **0 errors**.
-- `pnpm --filter @aegis/dashboard exec tsc --noEmit` → **0 errors**.
-- `pnpm --filter @aegis/e2e exec tsc --noEmit` → **0 errors**.
-- `pnpm --filter @aegis/api exec jest --testPathPattern='(stripe|billing|usage-guard|verify\.service|trial|plans)'` → **89/89 pass across 6 suites**.
-- `pnpm --filter @aegis/sdk test` → **37/37 pass**.
-- `pnpm --filter @aegis/scripts test` → **168/168 pass** (includes 5 new from Lane E generator).
+- `pnpm --filter @okoro/api exec tsc --noEmit` → **0 errors** (sixth consecutive zero-error round).
+- `pnpm --filter @okoro/sdk exec tsc --noEmit` → **0 errors**.
+- `pnpm --filter @okoro/dashboard exec tsc --noEmit` → **0 errors**.
+- `pnpm --filter @okoro/e2e exec tsc --noEmit` → **0 errors**.
+- `pnpm --filter @okoro/api exec jest --testPathPattern='(stripe|billing|usage-guard|verify\.service|trial|plans)'` → **89/89 pass across 6 suites**.
+- `pnpm --filter @okoro/sdk test` → **37/37 pass**.
+- `pnpm --filter @okoro/scripts test` → **168/168 pass** (includes 5 new from Lane E generator).
 - `pnpm test:cross-package` (Round 19 Lane D harness): **denial-reason-parity green** + existing 39 → 43 total.
-- `pnpm --filter @aegis/postman run validate` → exit 0, **OK — 44 requests across 12 folders; denial walk-through 10/10**.
+- `pnpm --filter @okoro/postman run validate` → exit 0, **OK — 44 requests across 12 folders; denial walk-through 10/10**.
 - `pnpm gen:denial-reason` → wrote 11 reasons, byte-identical re-run.
 
 ### What's NOT yet wired (Round 21 candidates)
@@ -1248,7 +5766,7 @@ Future denial-code additions: edit `DENIAL_REASON_PRECEDENCE` in `@aegis/types`,
 - **Trial counter exposed in `/v1/billing/plan`**: dashboard shows "(approx.)" next to trial usage because the API surfaces only `monthVerifyCount`. Add `trialUsedCount` and `trialExhaustedAt` to the response DTO so the dashboard widget can show real numbers without the disclaimer.
 - **`GET /.well-known/pricing.json`**: removes the dashboard's hardcoded mirror of `plans.ts`.
 - **SCALE PlanTier enum migration**: still deferred until peer `bba1b6c1` releases (their local-bringup uses migrations).
-- **Confirm `sales@aegislabs.io`** OR replace with operator's canonical contact address.
+- **Confirm `sales@okorolabs.io`** OR replace with operator's canonical contact address.
 - **Stripe metering implementation** using the `overageToCents()` helper (Round 19 Lane A). Currently no Stripe `usage_records.create` call exists; overage billing is paper-only.
 - **Operator runbook for "customer paid, customer trial counter still shows exhausted"** — confirms the F-02 fix path (TrialService non-FREE short-circuit handles it) and documents the admin escape hatch (`TrialService.reset()` is callable from a future admin endpoint).
 - **API key flow integration with Stripe checkout**: when a prospect signs up via the pricing-page CTA, the `/login?redirect=/billing&intent=checkout&tier=DEVELOPER` flow needs to resolve. Currently the dashboard `/billing` page exists; the redirect handler that auto-triggers checkout on first arrival doesn't.
@@ -1267,7 +5785,7 @@ Future denial-code additions: edit `DENIAL_REASON_PRECEDENCE` in `@aegis/types`,
 - **Audit retention interval per environment**.
 - **Stripe price IDs in production .env** (TEAM/SCALE/DEVELOPER price ids per ADR-0014 — peer cb622ccf round 4 added the slots; values still need operator population).
 - **Apply `prisma migrate deploy`** for `20260505000300_add_trial_counter` on staging once peer `bba1b6c1` releases.
-- **Confirm `sales@aegislabs.io`** for pricing page Enterprise CTA.
+- **Confirm `sales@okorolabs.io`** for pricing page Enterprise CTA.
 
 ### Round 20 closes 5 GA gaps
 
@@ -1282,11 +5800,11 @@ Future denial-code additions: edit `DENIAL_REASON_PRECEDENCE` in `@aegis/types`,
 
 ## 2026-05-06 · sid=cb622ccf5b81 · terminal-orchestration
 
-Round 5 of orchestration. Closed three FAANG-tier loops: (1) Added 7 alerts in 3 new groups to aegis.rules.yml for round-15 surfaces — auth.rotation (ApiKeyRotationFailureRate, ApiKeyExpiredAuthSpike), compliance.retention (AuditRetentionTickMissed using existing aegis_audit_retention_events_redacted_total counter, AuditRetentionRedactStalled), throttle.plan_aware (PlanAwareThrottle429SpikeFree, PlanAwareThrottlePrincipalIdMissing, PlanAwareThrottleEnterpriseLeak). All exprs pinned to vector(0)>1 per repo convention pending metric emission, except retention-tick-missed which uses the live counter. Each alert points to the matching round-15 runbook. (2) Added gating preflight check 'alert-runbook-parity' — parses both YAML rule files, every runbook annotation must resolve to a real file. Currently 32 refs · all resolve ✅. (3) Locked the preflight tool itself with 18 unit tests at tests/cross-package/preflight-tool.spec.ts covering CHECKS registry shape, gating-checks contract, parseFlags, tally, computeExitCode policy. Refactored preflight.ts to export internals + gate main() execution via import.meta check (CLI behavior unchanged). All 18 tests pass when invoked via tests/cross-package vitest. (4) Added examples/preflight-github-action/ with working .github/workflows/preflight.yml (sticky PR comment via marocchino, JSON parsing in node inline, exit-code propagation) + README + comment template. Drop-in for any GitHub repo using the gate. Preflight: 8 pass · 5 warn · 0 fail · 1 skip · exit 1, 14 checks. Cross-package suite: 2/5 spec files green (mine + 1 other), 3/5 failing in peer territory (denial-precedence-enum, error-catalog-parity, sdk-api-jwt-parity) — peer c4f241c5 round-17-trial-exhausted will close those. KNOWN ISSUE: pnpm test:cross-package script is broken (vitest not resolved at root). Use 'cd tests/cross-package && ../../node_modules/.pnpm/node_modules/.bin/vitest run' until peer fixes the script wiring.
+Round 5 of orchestration. Closed three FAANG-tier loops: (1) Added 7 alerts in 3 new groups to okoro.rules.yml for round-15 surfaces — auth.rotation (ApiKeyRotationFailureRate, ApiKeyExpiredAuthSpike), compliance.retention (AuditRetentionTickMissed using existing okoro_audit_retention_events_redacted_total counter, AuditRetentionRedactStalled), throttle.plan_aware (PlanAwareThrottle429SpikeFree, PlanAwareThrottlePrincipalIdMissing, PlanAwareThrottleEnterpriseLeak). All exprs pinned to vector(0)>1 per repo convention pending metric emission, except retention-tick-missed which uses the live counter. Each alert points to the matching round-15 runbook. (2) Added gating preflight check 'alert-runbook-parity' — parses both YAML rule files, every runbook annotation must resolve to a real file. Currently 32 refs · all resolve ✅. (3) Locked the preflight tool itself with 18 unit tests at tests/cross-package/preflight-tool.spec.ts covering CHECKS registry shape, gating-checks contract, parseFlags, tally, computeExitCode policy. Refactored preflight.ts to export internals + gate main() execution via import.meta check (CLI behavior unchanged). All 18 tests pass when invoked via tests/cross-package vitest. (4) Added examples/preflight-github-action/ with working .github/workflows/preflight.yml (sticky PR comment via marocchino, JSON parsing in node inline, exit-code propagation) + README + comment template. Drop-in for any GitHub repo using the gate. Preflight: 8 pass · 5 warn · 0 fail · 1 skip · exit 1, 14 checks. Cross-package suite: 2/5 spec files green (mine + 1 other), 3/5 failing in peer territory (denial-precedence-enum, error-catalog-parity, sdk-api-jwt-parity) — peer c4f241c5 round-17-trial-exhausted will close those. KNOWN ISSUE: pnpm test:cross-package script is broken (vitest not resolved at root). Use 'cd tests/cross-package && ../../node_modules/.pnpm/node_modules/.bin/vitest run' until peer fixes the script wiring.
 
 ### Files touched
 
-- `infra/observability/alerts/aegis.rules.yml`
+- `infra/observability/alerts/okoro.rules.yml`
 - `tools/preflight/preflight.ts`
 - `tools/preflight/README.md`
 - `tests/cross-package/preflight-tool.spec.ts`
@@ -1296,11 +5814,11 @@ Round 5 of orchestration. Closed three FAANG-tier loops: (1) Added 7 alerts in 3
 
 ### Next steps
 
-Operator: (1) review all changes via the per-file checklist below. (2) Confirm vitest workspace wiring fix is in c4f241c5's scope or operator's. (3) After peer c4f241c5 finishes round-17 cascade, re-run 'make preflight' (full mode) — should drop cross-package-parity check from skip-on-fast to ✅ pass. (4) Optional: install eslint-plugin-security to clear the lint warning ('pnpm add -D -F @aegis/api eslint-plugin-security').
+Operator: (1) review all changes via the per-file checklist below. (2) Confirm vitest workspace wiring fix is in c4f241c5's scope or operator's. (3) After peer c4f241c5 finishes round-17 cascade, re-run 'make preflight' (full mode) — should drop cross-package-parity check from skip-on-fast to ✅ pass. (4) Optional: install eslint-plugin-security to clear the lint warning ('pnpm add -D -F @okoro/api eslint-plugin-security').
 
 ---
 
-## 2026-05-06 (Round 19 — peer-review closure: 8/12 findings + minifier-safe errors + SDK denial union + audit-verifier DTS + cross-package vitest harness + E2E trial scenarios) · sid=c4f241c5 · claim=aegis:round-19-review-closure
+## 2026-05-06 (Round 19 — peer-review closure: 8/12 findings + minifier-safe errors + SDK denial union + audit-verifier DTS + cross-package vitest harness + E2E trial scenarios) · sid=c4f241c5 · claim=okoro:round-19-review-closure
 
 **Status:** ✅ Landed. Phase 1 (sequential, mine — F-01/02/04/05/07/08) + 4 parallel agents Phase 2 (F-03/F-06/E2E/audit-verifier-DTS). **API tsc 0 errors (sixth consecutive)**, **88/88 jest pass across 6 suites**, **SDK 37/37 jest**, peer review F-01 ship-blocker closed plus 7 more findings.
 
@@ -1315,15 +5833,18 @@ Peer `bc67a785` (cross-cutting-review) shipped a **12-finding FAANG-grade review
 **F-01 — `plans.spec.ts` cap mismatch:** Already green from Round-17 Lane A's auto-correction. Verified.
 
 **F-08 — Architectural double-gate fix:**
+
 - `apps/api/src/modules/billing/plans.ts`: `FREE.monthlyVerifyQuota: 10_000 → Number.POSITIVE_INFINITY`. UsageGuardService now short-circuits FREE tier; TrialService becomes the canonical FREE-tier gate firing `TRIAL_EXHAUSTED` at `TRIAL_LIFETIME_CAP`.
 - `plans.spec.ts`: rewrote the FREE quota test to assert the new INFINITY semantics + that `isVerifyCallAllowed` no longer returns `PLAN_LIMIT_EXCEEDED` for FREE.
 
 **F-02 — `TrialService.reset()` Redis robustness:**
+
 - Changed `redis.del(...)` → `redis.set(key, '0')` (idempotent — Redis lands in known-good state).
 - On Redis SET failure: throw (was: log warn + continue). Stripe webhook retries on non-200 — better to surface upgrade failure than ship corrupted state where Postgres says "trial reset" but Redis still says "exhausted". Customer who paid $49 would have seen HTTP 402 on the next verify; now Stripe's retry mechanism can converge.
 - Added 1 new test (`throws when Redis SET fails`) + asserted Postgres update did NOT run on the throw path (no partial state).
 
 **F-04 — `getStatus()` returns `null` instead of -1 sentinels:**
+
 - `Promise<TrialStatus>` → `Promise<TrialStatus | null>`. Per CLAUDE.md invariant 4 (no fabricated data) and `feedback_apex_quality_bar` #5.
 - Added 1 new test (`returns null when principal does not exist`).
 
@@ -1334,6 +5855,7 @@ Peer `bc67a785` (cross-cutting-review) shipped a **12-finding FAANG-grade review
 ### Phase 2 (4 parallel agents, ~9 min wall, 0 conflicts)
 
 **Lane A — F-03 field rename `overagePerCallCents` → `overagePerCallE4`:**
+
 - 4 files touched. New `overageToCents(e4)` helper with documented Stripe-metering math.
 - Grep `overagePerCallCents` across `*.ts|*.tsx|*.yaml`: **7 → 0** (zero stale references).
 - `overageToCents(8) === 0.08` (i.e. 0.08 cents = $0.0008/verify) verified by spec.
@@ -1341,28 +5863,32 @@ Peer `bc67a785` (cross-cutting-review) shipped a **12-finding FAANG-grade review
 - No consumer surface required updates beyond `billing.controller.ts:267` (boolean derivation only).
 
 **Lane B — F-06 minifier-safe error discriminator:**
-- 7 files touched. Added `static readonly catalogKey: string` to `AegisError` abstract base + `static override readonly catalogKey = '<ClassName>'` on **20 classes** (11 server: every AegisError subclass + CircuitOpenError; 10 SDK: every AegisXxxError + AegisNetworkError).
-- Constructor-time hard-fail: `if ((new.target as typeof AegisError).catalogKey === '') throw new Error('AegisError subclass missing static catalogKey: ' + new.target.name);` — any forgotten override fails at first instantiation in dev, never silently in a minified prod build.
-- `getCatalogEntry()` now reads `ctor.catalogKey ?? ctor.name` — fallback preserves existing behavior for any non-AegisError thrower.
-- SDK's `AegisError` constructor sets `this.name = target.catalogKey` (was: `new.target.name`) so consumer-visible `err.name` survives tsup minification.
+
+- 7 files touched. Added `static readonly catalogKey: string` to `OkoroError` abstract base + `static override readonly catalogKey = '<ClassName>'` on **20 classes** (11 server: every OkoroError subclass + CircuitOpenError; 10 SDK: every OkoroXxxError + OkoroNetworkError).
+- Constructor-time hard-fail: `if ((new.target as typeof OkoroError).catalogKey === '') throw new Error('OkoroError subclass missing static catalogKey: ' + new.target.name);` — any forgotten override fails at first instantiation in dev, never silently in a minified prod build.
+- `getCatalogEntry()` now reads `ctor.catalogKey ?? ctor.name` — fallback preserves existing behavior for any non-OkoroError thrower.
+- SDK's `OkoroError` constructor sets `this.name = target.catalogKey` (was: `new.target.name`) so consumer-visible `err.name` survives tsup minification.
 - Minifier-simulation test (`Object.defineProperty(err.constructor, 'name', { value: 'a' })`) locks the runtime guard.
 - **40 server jest + 37 SDK jest pass.**
 
 **Lane C — `tests/e2e/17_trial_exhaustion.test.ts`:**
+
 - 1 file (194 lines), typecheck clean. Three scenarios:
   1. **Always-on regression**: registers an agent under the seed (DEVELOPER) principal, verifies once, hard-asserts `denialReason !== 'TRIAL_EXHAUSTED'`. Catches Round-19 regression of `FREE.monthlyVerifyQuota = +Infinity`.
-  2. **Cap probe** (operator-provisioned `AEGIS_E2E_FREE_API_KEY` + `AEGIS_E2E_TRIAL_CAP_OVERRIDE` ∈ [1,50]): runs CAP successful verifies, asserts CAP+1 denies with `TRIAL_EXHAUSTED`. Soft-skips with banner if env vars absent.
-  3. **Short-circuit** (operator-provisioned `AEGIS_E2E_FREE_EXHAUSTED_API_KEY` for a DB-prepopulated principal): two consecutive verifies both deny with `TRIAL_EXHAUSTED`, second is bounded by `max(50ms, 5×first)` (proves no Redis INCR happens — the DB short-circuit fires).
+  2. **Cap probe** (operator-provisioned `OKORO_E2E_FREE_API_KEY` + `OKORO_E2E_TRIAL_CAP_OVERRIDE` ∈ [1,50]): runs CAP successful verifies, asserts CAP+1 denies with `TRIAL_EXHAUSTED`. Soft-skips with banner if env vars absent.
+  3. **Short-circuit** (operator-provisioned `OKORO_E2E_FREE_EXHAUSTED_API_KEY` for a DB-prepopulated principal): two consecutive verifies both deny with `TRIAL_EXHAUSTED`, second is bounded by `max(50ms, 5×first)` (proves no Redis INCR happens — the DB short-circuit fires).
 - Soft-skip behavior: `setup.ts` already handles "API down" via `process.exit(0)`. Missing optional envs print a one-line `[17_trial_exhaustion] SKIP — …` warning and return — exits clean.
-- SDK call surface: `await aegis.verify(token, ctx)` exercises Round-16 retry wrapper. Local `assertDenialIs` helper since SDK `DenialReason` union didn't include TRIAL_EXHAUSTED at agent's read time (now closed by my post-lane fix below).
+- SDK call surface: `await okoro.verify(token, ctx)` exercises Round-16 retry wrapper. Local `assertDenialIs` helper since SDK `DenialReason` union didn't include TRIAL_EXHAUSTED at agent's read time (now closed by my post-lane fix below).
 
-**Lane D — `@aegis/audit-verifier` DTS fix + cross-package vitest harness:**
+**Lane D — `@okoro/audit-verifier` DTS fix + cross-package vitest harness:**
+
 - **Task 1 (DTS):** root cause was tsup's worker-based DTS emit crashing (well-known tsup#1233-class issue when DTS workers segfault). Fix: `dts: false` in tsup config + chained `tsc --emitDeclarationOnly` as `build:dts` script. `tsconfig.json` excludes `*.spec.ts` so tsc doesn't emit declarations for tests. After build, `dist/` contains `index.d.ts`/`index.d.cts`/`cli.d.ts`/`cli.d.cts` matching the package.json `exports.types` map.
 - **Task 2 (cross-package vitest):** new `tests/cross-package/vitest.config.ts` with `include: ['**/*.spec.ts']`, no globalSetup. Root `package.json` adds `test:cross-package` script. The 4 cross-package specs (`audit-chain-parity`, `denial-precedence-enum`, `sdk-api-jwt-parity`, `error-catalog-parity`) now run via `pnpm test:cross-package`.
 
 ### Post-lane closure — SDK DenialReason union
 
 Lane C surfaced one drift the agent flagged but couldn't fix in scope: `packages/sdk-ts/src/types.ts:75` `DenialReason` union missing both `TRIAL_EXHAUSTED` (Round 17 / ADR-0014) and `PLAN_LIMIT_EXCEEDED` (pre-Round-17 billing pre-gate). One-line edit closed:
+
 ```ts
 export type DenialReason =
   | 'PLAN_LIMIT_EXCEEDED'    // billing pre-gate
@@ -1373,36 +5899,36 @@ export type DenialReason =
 
 ### Verification
 
-- `pnpm --filter @aegis/api exec tsc --noEmit` → **0 errors** (sixth consecutive).
-- `pnpm --filter @aegis/sdk exec tsc --noEmit` → **0 errors**.
-- `pnpm --filter @aegis/api exec jest --testPathPattern='(plans|trial|error-catalog|verify\.service|verify\.controller|aegis-error|circuit-breaker)'` → **88/88 pass across 6 suites**.
-- `pnpm --filter @aegis/sdk test` → **37/37 pass across 2 suites** (5 crypto + 32 http including new minifier simulation).
+- `pnpm --filter @okoro/api exec tsc --noEmit` → **0 errors** (sixth consecutive).
+- `pnpm --filter @okoro/sdk exec tsc --noEmit` → **0 errors**.
+- `pnpm --filter @okoro/api exec jest --testPathPattern='(plans|trial|error-catalog|verify\.service|verify\.controller|okoro-error|circuit-breaker)'` → **88/88 pass across 6 suites**.
+- `pnpm --filter @okoro/sdk test` → **37/37 pass across 2 suites** (5 crypto + 32 http including new minifier simulation).
 - Grep `overagePerCallCents` → **0 matches** (was 7).
 - **Round 19 net new green: 17 tests** (3 from F-03 spec block + 4 from F-06 minifier sim across server+SDK + 2 from F-02/F-04 + e2e structural test counts elsewhere).
 
 ### Peer review status — 12 findings closed in this round
 
-| ID | Severity | Closure | Notes |
-|----|----------|---------|-------|
-| F-01 | P0 | ✅ | Already green from Round-17 Lane A; review window saw stale state. |
-| F-02 | P1 | ✅ | reset() SET 0 + throw on Redis fail. New spec covers the throw path. |
-| F-03 | P1 | ✅ | overagePerCallE4 + overageToCents helper. Stripe metering math documented. |
-| F-04 | P1 | ✅ | getStatus → TrialStatus \| null. New not-found spec. |
-| F-05 | P1 | ✅ | ASCII apostrophe. |
-| F-06 | P1 | ✅ | catalogKey on 20 classes, constructor hard-fail, minifier sim test. |
-| F-07 | P2 | ✅ | Dead planTier removed. |
-| F-08 | P2 | ✅ | FREE.monthlyVerifyQuota = INFINITY. TrialService is canonical FREE gate. |
-| F-09 | P2 | 📋 | Verified `reason: 'REDIS_UNAVAILABLE'` does NOT cross API boundary — `verify.service.ts` maps it to `denialReason: TRIAL_EXHAUSTED` with the catalog `customerMessage`. No customer-visible infra leak. Documented as resolved. |
-| F-10 | P2 | (peer cb622ccf) | TERMINAL_ORCHESTRATION.md row I — peer's territory. |
-| F-11 | P2 | 📋 | Migration `20260505000300_add_trial_counter` is strictly additive (`ADD COLUMN ... DEFAULT ... NULL` + partial index). Will not lock the principal table on a 135-prod-table system. Documented; operator runs `prisma migrate deploy` at convenience. |
-| F-12 | P2 | 📋 | Sub-point of F-01 — closed by Lane A's spec rework. |
+| ID   | Severity | Closure         | Notes                                                                                                                                                                                                                                                  |
+| ---- | -------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| F-01 | P0       | ✅              | Already green from Round-17 Lane A; review window saw stale state.                                                                                                                                                                                     |
+| F-02 | P1       | ✅              | reset() SET 0 + throw on Redis fail. New spec covers the throw path.                                                                                                                                                                                   |
+| F-03 | P1       | ✅              | overagePerCallE4 + overageToCents helper. Stripe metering math documented.                                                                                                                                                                             |
+| F-04 | P1       | ✅              | getStatus → TrialStatus \| null. New not-found spec.                                                                                                                                                                                                   |
+| F-05 | P1       | ✅              | ASCII apostrophe.                                                                                                                                                                                                                                      |
+| F-06 | P1       | ✅              | catalogKey on 20 classes, constructor hard-fail, minifier sim test.                                                                                                                                                                                    |
+| F-07 | P2       | ✅              | Dead planTier removed.                                                                                                                                                                                                                                 |
+| F-08 | P2       | ✅              | FREE.monthlyVerifyQuota = INFINITY. TrialService is canonical FREE gate.                                                                                                                                                                               |
+| F-09 | P2       | 📋              | Verified `reason: 'REDIS_UNAVAILABLE'` does NOT cross API boundary — `verify.service.ts` maps it to `denialReason: TRIAL_EXHAUSTED` with the catalog `customerMessage`. No customer-visible infra leak. Documented as resolved.                        |
+| F-10 | P2       | (peer cb622ccf) | TERMINAL_ORCHESTRATION.md row I — peer's territory.                                                                                                                                                                                                    |
+| F-11 | P2       | 📋              | Migration `20260505000300_add_trial_counter` is strictly additive (`ADD COLUMN ... DEFAULT ... NULL` + partial index). Will not lock the principal table on a 135-prod-table system. Documented; operator runs `prisma migrate deploy` at convenience. |
+| F-12 | P2       | 📋              | Sub-point of F-01 — closed by Lane A's spec rework.                                                                                                                                                                                                    |
 
 **8/12 findings closed in code; 3/12 documented as already-resolved or operator-action; 1/12 (F-10) is peer's scope.**
 
 ### What's NOT yet wired (carried forward)
 
 - **`prepublishOnly` automation in CI**: `pnpm publish:dry-run --all` still surfaces 11 dist-missing fails because `npm pack --dry-run` doesn't fire `prepublishOnly`. Operator runs `pnpm -r build` first; CI pipeline should add a `pre-publish-verify` step.
-- **SDK `DenialReason` union regen tooling**: this round added `TRIAL_EXHAUSTED` + `PLAN_LIMIT_EXCEEDED` manually. Round 20 should ship a generator (mirror of `gen:error-catalog`) that emits `DenialReason` from `@aegis/types DENIAL_REASON_PRECEDENCE` so future denial codes can't drift between server + SDK.
+- **SDK `DenialReason` union regen tooling**: this round added `TRIAL_EXHAUSTED` + `PLAN_LIMIT_EXCEEDED` manually. Round 20 should ship a generator (mirror of `gen:error-catalog`) that emits `DenialReason` from `@okoro/types DENIAL_REASON_PRECEDENCE` so future denial codes can't drift between server + SDK.
 - **SCALE PlanTier enum migration**: still deferred (peer `bba1b6c1` active on local-bringup).
 - **Trial counter actual lifetime semantics fully delegated**: `usage-guard.service.ts` no longer fires for FREE (Round 19 F-08), so TrialService is the canonical gate. Round 20 work: remove dead UsageGuard FREE-tier code paths since they're unreachable.
 - **Stripe live wiring (M-011)**: customer portal endpoint, webhook → PlanTier subscription state machine. Most strategic Round 20 candidate — closes the commerce loop.
@@ -1411,7 +5937,7 @@ export type DenialReason =
 
 - Active peers at write time:
   - `bc67a785` (cross-cutting-review — read-only, source of this round's 12-finding review). **Replied** via `claude-peers msg` confirming closures.
-  - `bba1b6c1` (local-bringup-validation — read-only on apps/api/src). No overlap; my edits are inside their declared read-only scope but they're testing the *running* state, not the source. They'll re-run after I write this entry.
+  - `bba1b6c1` (local-bringup-validation — read-only on apps/api/src). No overlap; my edits are inside their declared read-only scope but they're testing the _running_ state, not the source. They'll re-run after I write this entry.
   - `cb622ccf` (terminal-orchestration round 4). F-10 in their scope; left alone.
 
 ### OPERATOR-INPUT-NEEDED carried forward
@@ -1430,11 +5956,11 @@ export type DenialReason =
 - ✅ F-03 100× billing landmine (overagePerCallE4 rename + helper).
 - ✅ F-06 minifier-induced retry-logic regression (catalogKey discriminator survives tsup minification).
 - ✅ F-08 misleading customer message on lifetime cap (FREE goes through TrialService, sees TRIAL_EXHAUSTED).
-- ✅ Audit-verifier DTS build (publishable; @aegis/audit-evidence-bundle no longer bootstraps types by hand).
+- ✅ Audit-verifier DTS build (publishable; @okoro/audit-evidence-bundle no longer bootstraps types by hand).
 
 ---
 
-## 2026-05-05 (Round 17 — Wave 0a: TRIAL_EXHAUSTED merge-convergence confirmation) · claim=aegis:round-17-wave-0a-convergence
+## 2026-05-05 (Round 17 — Wave 0a: TRIAL_EXHAUSTED merge-convergence confirmation) · claim=okoro:round-17-wave-0a-convergence
 
 **Status:** ✅ Landed in parallel with peer `c4f241c5`. My session
 independently executed the TRIAL_EXHAUSTED denial-enum closure
@@ -1454,7 +5980,7 @@ sessions' edits coexist with no conflicts.
   documented allow-list extra).
 - `tools/postman/scripts/validate.ts` — `DENIAL_REASON_PRECEDENCE`
   constant: same insert.
-- `tools/postman/aegis.collection.json` — folder description
+- `tools/postman/okoro.collection.json` — folder description
   precedence string updated; renumbered requests 7→8, 8→9, 9→10;
   inserted new `7. TRIAL_EXHAUSTED` request between position 6
   and position 8 with description spelling out the trigger
@@ -1471,7 +5997,7 @@ sessions' edits coexist with no conflicts.
 - Regenerated via `pnpm gen:error-catalog`:
   - `packages/types/src/error-catalog.generated.ts` — 22 entries
     (was 21; +1 `TrialExhaustedError`)
-  - `packages/sdk-py/aegis/error_catalog.py` — 22 entries
+  - `packages/sdk-py/okoro/error_catalog.py` — 22 entries
 
 ### Round 18 candidates I surfaced
 
@@ -1490,7 +6016,7 @@ sessions' edits coexist with no conflicts.
    principal can technically reset by waiting a month.
 3. **Postman `validate.ts` redefining canonical precedence** —
    hand-maintained copy of `DENIAL_REASON_PRECEDENCE`. Refactor
-   to import from `@aegis/types` so future enum changes need
+   to import from `@okoro/types` so future enum changes need
    one edit.
 4. **`SCALE` PlanTier enum migration** — ADR-0014's $1,499
    Scale tier in plans.ts comments but not in Prisma
@@ -1499,7 +6025,7 @@ sessions' edits coexist with no conflicts.
 
 ---
 
-## 2026-05-06 (Round 17 — ADR-0014 mechanical: TRIAL_EXHAUSTED denial code propagation + trial.service + publish hygiene + retention CLI fix) · sid=c4f241c5 · claim=aegis:round-17-trial-exhausted
+## 2026-05-06 (Round 17 — ADR-0014 mechanical: TRIAL_EXHAUSTED denial code propagation + trial.service + publish hygiene + retention CLI fix) · sid=c4f241c5 · claim=okoro:round-17-trial-exhausted
 
 **Status:** ✅ Landed. Sequential Phase 1 (denial enum bump across 7 surfaces) + 3 parallel agents Phase 2. **48/48 trial+verify jest pass + 27/27 types vitest + 9/9 postman + scripts/types/api all 0 tsc errors** (sixth consecutive zero-error round).
 
@@ -1513,13 +6039,13 @@ ADR-0014 closed OD-003 with: Free trial $0 (10K LIFETIME) / Developer $49 (50K/m
 
 **2. `packages/types/src/errors.ts`** — added `BILLING` to `ERROR_CODE` union. Public ErrorCode addition (additive, non-breaking).
 
-**3. `apps/api/src/common/errors/aegis-error.ts`** — new `TrialExhaustedError` class (HTTP 402, ErrorCode='BILLING'). Customer-safe message "Free trial verify cap reached. Upgrade to continue."
+**3. `apps/api/src/common/errors/okoro-error.ts`** — new `TrialExhaustedError` class (HTTP 402, ErrorCode='BILLING'). Customer-safe message "Free trial verify cap reached. Upgrade to continue."
 
 **4. `apps/api/src/common/errors/error-catalog.ts`** — `TrialExhaustedError` entry between `ScopeNotGrantedError` and `SpendLimitExceededError`. `code: 'trial_exhausted'`, `httpStatus: 402`, `retryable: false`, `category: 'billing'`. Generator regen → 22 entries (was 21) byte-equal across server + TS + Py.
 
 **5. `apps/api/src/modules/verify/verify.dto.ts` + `verify.ports.ts`** — `DenialReason` unions reordered to canonical ADR-0014 sequence with `TRIAL_EXHAUSTED` inserted. `engine.interface.ts` (third location at `common/policy-engine/`) was already updated by peer cb622ccf — confirmed alignment.
 
-**6. `docs/spec/AEGIS_API_SPEC.yaml`** — `VerifyResponse.denialReason` enum updated, canonical order preserved.
+**6. `docs/spec/OKORO_API_SPEC.yaml`** — `VerifyResponse.denialReason` enum updated, canonical order preserved.
 
 **7. `CLAUDE.md` invariant 6** — bumped to 10-step chain with explicit `PLAN_LIMIT_EXCEEDED` pre-gate annotation. Attribution "added 2026-05-05 per ADR-0014".
 
@@ -1527,7 +6053,7 @@ ADR-0014 closed OD-003 with: Free trial $0 (10K LIFETIME) / Developer $49 (50K/m
 
 **9. `apps/api/src/modules/billing/plans.ts`** — operator decision OD-003 closure note + ADR-0014 tier table. `PRICING_VERSION` bumped to `v1.1.0-adr0014-2026-05-05`. Overage rates corrected: DEVELOPER `2 → 8`, GROWTH `1 → 8` (uniform $0.0008/verify per ADR-0014). Display names rebranded: FREE → "Free trial", GROWTH → "Team". GROWTH `stripeEnvSuffix: 'GROWTH' → 'TEAM'`. **SCALE tier (5M verifies, $1,499) deferred to Round 18** since adding it requires a Prisma `PlanTier` enum migration during peer `bba1b6c1`'s active local-bringup work.
 
-**10. `tools/postman/aegis.collection.json`** — inserted `7. TRIAL_EXHAUSTED` request with `pm.test('denialReason = TRIAL_EXHAUSTED')`. Renumbered SPEND_LIMIT_EXCEEDED, TRUST_SCORE_TOO_LOW, ANOMALY_FLAGGED to positions 8, 9, 10.
+**10. `tools/postman/okoro.collection.json`** — inserted `7. TRIAL_EXHAUSTED` request with `pm.test('denialReason = TRIAL_EXHAUSTED')`. Renumbered SPEND_LIMIT_EXCEEDED, TRUST_SCORE_TOO_LOW, ANOMALY_FLAGGED to positions 8, 9, 10.
 
 **11. `tools/postman/scripts/validate.spec.ts`** — bumped expected error message `exactly 9 requests` → `exactly 10 requests`. (Validator's `DENIAL_REASON_PRECEDENCE` array was already updated to 10 entries by peer cb622ccf during ADR-0014 prep — Round 16's collection was actually 9/10 broken; Round 17 catches up.)
 
@@ -1538,6 +6064,7 @@ ADR-0014 closed OD-003 with: Free trial $0 (10K LIFETIME) / Developer $49 (50K/m
 ### Phase 2 (3 parallel agents)
 
 **Lane A — `trial.service.ts` + Principal.trialUsedCount (the actual feature):**
+
 - **NEW** `apps/api/src/modules/billing/trial.service.ts` — `@Injectable()`, fail-CLOSED on Redis miss (different posture from UsageGuardService which is fail-OPEN — trial enforcement is a revenue gate, not a fairness gate). `checkAndIncrement(principalId)` returns `{ exhausted, remaining } | { exhausted: true, exhaustedAt }`. Atomic Redis `INCR` on `trial:used:<principalId>` (lifetime — no TTL). DB persistence batched every 100th increment; immediate write on `trialExhaustedAt`. Non-FREE tiers short-circuit without DB hit.
 - **NEW** `apps/api/src/modules/billing/trial.service.spec.ts` — **13 tests** covering happy path through cap, non-FREE short-circuit, Redis fail-CLOSED, batch persistence, `reset()` (clears Redis + nulls DB columns), `getStatus()` for never-used / mid-use / exhausted, concurrent-increment atomicity.
 - **EDIT** `apps/api/prisma/schema.prisma` + new migration `20260505000300_add_trial_counter/migration.sql` — Principal.trialUsedCount Int @default(0) + trialExhaustedAt DateTime? + partial index `WHERE "trialExhaustedAt" IS NOT NULL`.
@@ -1548,41 +6075,43 @@ ADR-0014 closed OD-003 with: Free trial $0 (10K LIFETIME) / Developer $49 (50K/m
 - **NOT** auto-applied: `prisma migrate deploy` is operator action against staging.
 
 **Lane B — Publish hygiene fixes (Round 16 surfaced 17 issues):**
+
 - 12 files touched across `packages/sdk-ts/`, `types/`, `cli/`, `mcp-bridge/`, `mcp-server/`, `audit-verifier/` plus 5 LICENSE files (MIT, Copyright KLYTICS LLC).
-- `@aegis/sdk` `main` field misalignment fixed via `tsup outExtension` (cjs→`.cjs`, esm→`.mjs`) matching the existing exports map.
+- `@okoro/sdk` `main` field misalignment fixed via `tsup outExtension` (cjs→`.cjs`, esm→`.mjs`) matching the existing exports map.
 - `prepublishOnly: "pnpm build"` added to all 6 publishable packages so `pnpm publish` always rebuilds before tarballing.
 - Missing fields filled: `repository.url` + `bugs.url` + `homepage` + `author` + `engines.node: ">=20.11.0"` + `keywords` (≥3) where absent.
 - `mcp-bridge` `main` corrected from `dist/index.js` → `dist/index.cjs` (with `type:module`, tsup emits cjs as `.cjs`).
 - Org name `klytics` (preserved from existing sdk-ts/verifier-rp `repository.url`).
 - **`workspace:*` deps NOT changed** — these are warns by design; pnpm rewrites them on `pnpm publish`.
 - **Result**: `pnpm publish:dry-run --all` improved **17 fails → 11 fails, 9 warns → 4 warns**. Remaining 11 fails are all `dist/*` missing — fixed by `pnpm -r build` first; `prepublishOnly` makes this automatic for `pnpm publish`.
-- **One real build break surfaced**: `@aegis/audit-verifier` DTS build fails with internal worker error — Lane B created `tsup.config.ts` for it (was missing) but the DTS step crashes. **Round 18 followup**.
+- **One real build break surfaced**: `@okoro/audit-verifier` DTS build fails with internal worker error — Lane B created `tsup.config.ts` for it (was missing) but the DTS step crashes. **Round 18 followup**.
 
 **Lane C — `scripts/run-audit-retention.ts` cross-workspace fix:**
+
 - Solution A picked (move CLI into the API package — matches existing pattern of `apps/api/scripts/check-openapi-prisma-parity.ts`).
 - **MOVED** `scripts/run-audit-retention.ts` → `apps/api/scripts/run-audit-retention.ts` (relative imports rewritten to `../src/...`).
 - `apps/api/package.json` adds `"audit-retention": "tsx scripts/run-audit-retention.ts"`.
 - `scripts/package.json` retains a `_comment_audit_retention` pointer line.
-- **Result**: `@aegis/scripts` tsc 3 errors → 0; `@aegis/api` tsc still 0. Operator now runs `pnpm --filter @aegis/api run audit-retention -- --dry-run`.
+- **Result**: `@okoro/scripts` tsc 3 errors → 0; `@okoro/api` tsc still 0. Operator now runs `pnpm --filter @okoro/api run audit-retention -- --dry-run`.
 
 ### Verification
 
-- `pnpm --filter @aegis/api exec tsc --noEmit` → **0 errors** (sixth consecutive zero-error round).
-- `pnpm --filter @aegis/scripts exec tsc --noEmit` → **0 errors** (was 3 — Round 15 leftover closed by Lane C).
-- `pnpm --filter @aegis/types exec tsc --noEmit` → **0 errors**.
-- `pnpm --filter @aegis/api exec jest --testPathPattern='(trial|verify\.service|verify\.controller|verify\.algorithm)'` → **48/48 pass**.
-- `pnpm --filter @aegis/api exec jest --testPathPattern='(error-catalog|verify\.service|verify\.controller|wellknown)'` → **62/62 pass**.
-- `pnpm --filter @aegis/types test` → **27/27 pass** (11 catalog + 16 OpenAPI parity — Round 16 drift cleared).
-- `pnpm --filter @aegis/sdk test` → **27/27 pass** (5 crypto + 22 http).
-- `pnpm --filter @aegis/postman run validate` → exit 0, **OK — 41 requests across 11 folders; denial walk-through 10/10**.
-- `pnpm --filter @aegis/postman test` → **9/9 pass**.
+- `pnpm --filter @okoro/api exec tsc --noEmit` → **0 errors** (sixth consecutive zero-error round).
+- `pnpm --filter @okoro/scripts exec tsc --noEmit` → **0 errors** (was 3 — Round 15 leftover closed by Lane C).
+- `pnpm --filter @okoro/types exec tsc --noEmit` → **0 errors**.
+- `pnpm --filter @okoro/api exec jest --testPathPattern='(trial|verify\.service|verify\.controller|verify\.algorithm)'` → **48/48 pass**.
+- `pnpm --filter @okoro/api exec jest --testPathPattern='(error-catalog|verify\.service|verify\.controller|wellknown)'` → **62/62 pass**.
+- `pnpm --filter @okoro/types test` → **27/27 pass** (11 catalog + 16 OpenAPI parity — Round 16 drift cleared).
+- `pnpm --filter @okoro/sdk test` → **27/27 pass** (5 crypto + 22 http).
+- `pnpm --filter @okoro/postman run validate` → exit 0, **OK — 41 requests across 11 folders; denial walk-through 10/10**.
+- `pnpm --filter @okoro/postman test` → **9/9 pass**.
 - `pnpm gen:error-catalog` → **22 entries** (was 21) byte-equal across server + TS + Py mirrors.
 - `pnpm publish:dry-run:all` → 164 pass · 4 warn · 11 fail (was 153/9/17 in Round 16). Remaining 11 fails are `dist/*` missing — operator runs `pnpm -r build` first; `prepublishOnly` automates this on `pnpm publish`.
 - **Round 17 net new tests: 13 trial.service spec** (other touched suites unchanged or refactored).
 
 ### What's NOT yet wired
 
-- **`@aegis/audit-verifier` DTS build** — Lane B's `tsup.config.ts` for it crashes on DTS step. Workaround: skip DTS via tsup flag, or pre-emit `.d.ts` via `tsc` separately. **Round 18 fix**.
+- **`@okoro/audit-verifier` DTS build** — Lane B's `tsup.config.ts` for it crashes on DTS step. Workaround: skip DTS via tsup flag, or pre-emit `.d.ts` via `tsc` separately. **Round 18 fix**.
 - **SCALE PlanTier enum migration** — adding the SCALE tier requires a Prisma migration that touches every Principal row's `planTier` column. Deferred to Round 18 since peer `bba1b6c1` is actively running migrations as part of local-bringup. Once their work releases, Round 18 can land:
   ```sql
   ALTER TYPE "PlanTier" ADD VALUE 'SCALE';
@@ -1606,13 +6135,13 @@ ADR-0014 closed OD-003 with: Free trial $0 (10K LIFETIME) / Developer $49 (50K/m
 - **DEK provisioning** policy.
 - **Metric name canonicalization**.
 - **Audit retention interval per environment**.
-- **NEW: `@aegis/audit-verifier` DTS build** — see "What's NOT yet wired".
+- **NEW: `@okoro/audit-verifier` DTS build** — see "What's NOT yet wired".
 - **NEW: SCALE tier Prisma migration** — see "What's NOT yet wired".
 - **NEW: Apply `prisma migrate deploy`** for `20260505000300_add_trial_counter` on staging once peer `bba1b6c1` releases.
 
 ### Round 17 closes 5 GA gaps
 
-- ✅ TRIAL_EXHAUSTED denial code wired end-to-end across 7 surfaces (constants, ErrorCode, AegisError, error-catalog, verify DTOs, OpenAPI, CLAUDE.md, SECURITY.md, Postman, cross-package parity test, types parity fixture).
+- ✅ TRIAL_EXHAUSTED denial code wired end-to-end across 7 surfaces (constants, ErrorCode, OkoroError, error-catalog, verify DTOs, OpenAPI, CLAUDE.md, SECURITY.md, Postman, cross-package parity test, types parity fixture).
 - ✅ Trial lifetime counter enforced (TrialService, schema delta + migration, fail-CLOSED Redis, verify hot-path integration).
 - ✅ Plan tier overage rates corrected to ADR-0014 ($0.0008/verify uniform).
 - ✅ Plan display names rebranded ("Free trial", "Team") aligning customer-facing surfaces with ADR-0014 nomenclature without forcing a Prisma enum migration.
@@ -1623,7 +6152,7 @@ ADR-0014 closed OD-003 with: Free trial $0 (10K LIFETIME) / Developer $49 (50K/m
 
 ## 2026-05-06 · sid=cb622ccf5b81 · terminal-orchestration
 
-Round 4 of orchestration. Mid-execution discoveries forced 2 plan corrections: (1) Terminal F 'bcrypt webhook secret' was a misdiagnosis — round 13 already shipped AES-256-GCM secret-at-rest, which is correct for HMAC use case (bcrypt is one-way). (2) Denial precedence cascade is being driven by peer c4f241c5 in round-17-trial-exhausted scope — sent coord msg, stayed out. SHIPPED additive-only: .env.example Stripe block updated to ADR-0014 tier names (DEVELOPER/TEAM/SCALE + new STRIPE_PRICE_OVERAGE_VERIFY); preflight env-vars check fixed (was checking deprecated AUDIT_* aliases and STRIPE_API_KEY which doesn't exist — now checks AEGIS_SIGNING_*, STRIPE_SECRET_KEY, STRIPE_PRICE_DEVELOPER/TEAM/SCALE, AEGIS_WEBHOOK_SECRET_DEK_B64); new gating preflight check 'webhook-cipher-wired' detects regression in WebhookSecretCipher import + .encrypt() call + ciphertext persist (3 conditions); orchestration doc Terminal F entry corrected. Preflight now 13 checks (was 12). State: 7 pass · 5 warn · 0 fail · 1 skip. CLAUDE.md invariant 6 ALREADY in sync (10-step chain + PLAN_LIMIT_EXCEEDED pre-gate noted) — peer or operator landed before I got here. docs/SECURITY.md § 6 STILL STALE (still 9-item numbered list missing PLAN_LIMIT_EXCEEDED + TRIAL_EXHAUSTED) — peer c4f241c5 messaged about it, theirs to take. Diff for SECURITY.md staged below for whoever applies it.
+Round 4 of orchestration. Mid-execution discoveries forced 2 plan corrections: (1) Terminal F 'bcrypt webhook secret' was a misdiagnosis — round 13 already shipped AES-256-GCM secret-at-rest, which is correct for HMAC use case (bcrypt is one-way). (2) Denial precedence cascade is being driven by peer c4f241c5 in round-17-trial-exhausted scope — sent coord msg, stayed out. SHIPPED additive-only: .env.example Stripe block updated to ADR-0014 tier names (DEVELOPER/TEAM/SCALE + new STRIPE*PRICE_OVERAGE_VERIFY); preflight env-vars check fixed (was checking deprecated AUDIT*_ aliases and STRIPE*API_KEY which doesn't exist — now checks OKORO_SIGNING*_, STRIPE_SECRET_KEY, STRIPE_PRICE_DEVELOPER/TEAM/SCALE, OKORO_WEBHOOK_SECRET_DEK_B64); new gating preflight check 'webhook-cipher-wired' detects regression in WebhookSecretCipher import + .encrypt() call + ciphertext persist (3 conditions); orchestration doc Terminal F entry corrected. Preflight now 13 checks (was 12). State: 7 pass · 5 warn · 0 fail · 1 skip. CLAUDE.md invariant 6 ALREADY in sync (10-step chain + PLAN_LIMIT_EXCEEDED pre-gate noted) — peer or operator landed before I got here. docs/SECURITY.md § 6 STILL STALE (still 9-item numbered list missing PLAN_LIMIT_EXCEEDED + TRIAL_EXHAUSTED) — peer c4f241c5 messaged about it, theirs to take. Diff for SECURITY.md staged below for whoever applies it.
 
 ### Files touched
 
@@ -1659,11 +6188,11 @@ Operator: (1) update CLAUDE.md invariant 6 to reflect 11-code precedence (was 9 
 
 ---
 
-## 2026-05-05 (Round 17 — Wave 0 foundation: ScheduleModule wiring) · claim=aegis:round-17-wave-0-foundation
+## 2026-05-05 (Round 17 — Wave 0 foundation: ScheduleModule wiring) · claim=okoro:round-17-wave-0-foundation
 
 **Status:** ✅ Landed (reversible portion). Single agent, ~5 min wall, **0 net
 new tests** (additive plumbing, covered by existing 736-test suite),
-tsc still **0 errors** across `@aegis/api` (sixth consecutive zero-error
+tsc still **0 errors** across `@okoro/api` (sixth consecutive zero-error
 round). Schema delta for webhook-secret bcrypt hashing held pending
 operator approval per CLAUDE.md § "Architecture invariants".
 
@@ -1681,7 +6210,7 @@ The Sprint-2 doc (`docs/PARALLEL_SESSIONS_v2.md` Terminal F) cited
 "8 KMS adapter type errors" as part of this lane. **Stale —
 already 0 since R13/14/15** (lazy-`require()` + structural type
 assertions in `apps/api/src/modules/kms/kms.module.ts`). Verified
-with `pnpm --filter @aegis/api exec tsc --noEmit` → 0. Drop from
+with `pnpm --filter @okoro/api exec tsc --noEmit` → 0. Drop from
 the lane scope.
 
 ### What landed
@@ -1698,8 +6227,8 @@ the lane scope.
 
 ### Verification
 
-- `pnpm --filter @aegis/api exec tsc --noEmit` → **0 errors**.
-- `pnpm --filter @aegis/api exec jest --testPathPattern="(app|kms|webhooks|billing)"`
+- `pnpm --filter @okoro/api exec tsc --noEmit` → **0 errors**.
+- `pnpm --filter @okoro/api exec jest --testPathPattern="(app|kms|webhooks|billing)"`
   → **69/69 suites pass, 736/736 tests pass**, 8.8s wall.
 - Pre-existing "worker failed to exit gracefully" warning unchanged
   (timer leak in unrelated test — not introduced by this round).
@@ -1707,7 +6236,7 @@ the lane scope.
 ### What's NOT yet wired (operator-runnable, not blocking)
 
 - **`@google-cloud/kms`** stays in `optionalDependencies`. Operators
-  who select `AEGIS_KMS_PROVIDER=gcp` install via
+  who select `OKORO_KMS_PROVIDER=gcp` install via
   `pnpm install --include-optional` per `docs/OPERATOR_RUNBOOK.md`.
   Keeps dev clones lean; documented in same runbook.
 - **bcryptjs hashing for `WebhookSubscription.secret`** — the secret
@@ -1752,7 +6281,7 @@ mechanical work — not blocked on this round:
    universal set. ADR-0014 (OD-003 DECIDED) provides the precedence
    position.
 2. **Publish hygiene fixes** (~30 min): R16's `publish-dry-run.ts`
-   surfaced 7 real issues — `@aegis/sdk` `main` mismatch
+   surfaced 7 real issues — `@okoro/sdk` `main` mismatch
    (`dist/index.cjs` vs tsup `dist/index.js`), 3 packages with
    missing `dist/*` entrypoints, missing `repository.url` /
    `keywords` / `engines.node` on 3 packages. None auto-fixed by
@@ -1763,10 +6292,10 @@ mechanical work — not blocked on this round:
 - Active peer `cb622ccf5b81` shipped R16 cream-loaded (SDK catalog,
   retention well-known, evidence bundle, Postman, publish hygiene).
   Zero file overlap with my Wave 0 (`apps/api/{package.json,
-  src/app.module.ts}` only).
-- No claim on `aegis:round-17-*` visible in `claude-peers status`
+src/app.module.ts}` only).
+- No claim on `okoro:round-17-*` visible in `claude-peers status`
   at start; if the next operator-driven session picks up TRIAL_EXHAUSTED
-  closure, claim `aegis:round-17-trial-exhausted-closure` first.
+  closure, claim `okoro:round-17-trial-exhausted-closure` first.
 
 ### OPERATOR-INPUT-NEEDED
 
@@ -1778,10 +6307,10 @@ mechanical work — not blocked on this round:
 
 ---
 
-## 2026-05-05 (Round 16 — cream loaded: SDK catalog + retention well-known + evidence bundle + Postman + publish hygiene) · claim=aegis:round-16-cream-loaded
+## 2026-05-05 (Round 16 — cream loaded: SDK catalog + retention well-known + evidence bundle + Postman + publish hygiene) · claim=okoro:round-16-cream-loaded
 
 **Status:** ✅ Landed. Five parallel agents, ~10 min wall, **127 net new tests
-green**, tsc still **0 errors** across `@aegis/api` (fifth consecutive
+green**, tsc still **0 errors** across `@okoro/api` (fifth consecutive
 zero-error round). Operator-runnable polish — every pending item from
 Round 15's named "Round 16" candidate list closed.
 
@@ -1797,25 +6326,26 @@ conflict surfaces, the rule per CLAUDE.md § "How parallel sessions
 claim work" is to message them — but their work has not appeared in
 this handoff log so I cannot route to a session id with confidence.
 Operator: when both sessions land, run
-`pnpm --filter @aegis/sdk test && pnpm --filter @aegis/api exec
+`pnpm --filter @okoro/sdk test && pnpm --filter @okoro/api exec
 tsc --noEmit` to confirm convergence.
 
 ⚠️ **DENIAL ENUM DRIFT (ADR-0014):** Per peer's note above mine,
 ADR-0014 landed today, **adding TRIAL_EXHAUSTED (HTTP 402)**
 between `SCOPE_NOT_GRANTED` and `SPEND_LIMIT_EXCEEDED`. Round 16
 shipped against the 9-code enum. Round 17 follow-up:
+
 1. Add `TrialExhaustedError` + catalog entry in
    `apps/api/src/common/errors/error-catalog.ts`
 2. Re-run `pnpm gen:error-catalog` — both SDK mirrors regenerate
    to 22 entries
-3. Add 10th request to `tools/postman/aegis.collection.json`
+3. Add 10th request to `tools/postman/okoro.collection.json`
    denial-precedence folder (validator's hard 9-count assertion
    needs bump)
 4. Update `CLAUDE.md` § "Denial precedence is fixed" to 10 codes
 5. Update `tests/cross-package/denial-precedence-enum.spec.ts`
    universal set
-This is mechanical — ~30 minutes of work once operator confirms
-the precedence position.
+   This is mechanical — ~30 minutes of work once operator confirms
+   the precedence position.
 
 ### Why this round mattered
 
@@ -1832,18 +6362,19 @@ first read of the docs."
 `scripts/generate-error-catalog.ts` (root `pnpm gen:error-catalog`),
 `packages/types/src/error-catalog.{generated.ts,ts,spec.ts}` (21
 entries, helpers `getEntry/isRetryable/getBackoff/getCategory/
-getEntryByClassName`), `packages/sdk-py/aegis/error_catalog.py`
-+ `_http.py` retry decision via catalog, `packages/sdk-ts/src/
+getEntryByClassName`), `packages/sdk-py/okoro/error_catalog.py`
+
+- `_http.py` retry decision via catalog, `packages/sdk-ts/src/
 errors.ts` every subclass exposes `static override readonly catalog`,
-new `AegisServiceUnavailableError`, `fromEnvelope` matches on
-`details.code` first → status fallback, `extractCatalogCode` for
-legacy uppercase `error` field, `packages/sdk-ts/src/http.ts`
-`requestWithRetry`/`withRetry`/`parseRetryAfter`/`nextDelayMs`
-(jitter via `crypto.getRandomValues` — no Math.random),
-`request()` unchanged. `tests/cross-package/error-catalog-parity.spec.ts`
-parity test. **POST-LAND FIX**: 9 TS4114 override errors fixed
-during integration verify (Lane A's sandbox blocked tsc; I caught
-them).
+  new `OkoroServiceUnavailableError`, `fromEnvelope` matches on
+  `details.code` first → status fallback, `extractCatalogCode` for
+  legacy uppercase `error` field, `packages/sdk-ts/src/http.ts`
+  `requestWithRetry`/`withRetry`/`parseRetryAfter`/`nextDelayMs`
+  (jitter via `crypto.getRandomValues` — no Math.random),
+  `request()` unchanged. `tests/cross-package/error-catalog-parity.spec.ts`
+  parity test. **POST-LAND FIX**: 9 TS4114 override errors fixed
+  during integration verify (Lane A's sandbox blocked tsc; I caught
+  them).
 
 **Lane B — `/.well-known/retention-policy.json`:**
 `wellknown.controller.ts` (`@Get('retention-policy.json')`),
@@ -1862,7 +6393,7 @@ policy + discovery doc + chain-verification.json + manifest +
 SHA256SUMS into a tarball. **Hand-rolled POSIX ustar tar writer**
 (~100 LOC) — no new heavyweight deps. `node:zlib` for gzip.
 Stream-hash NDJSON (no full-buffer). **8/8 vitest pass.**
-**Gap surfaced**: `@aegis/audit-verifier` ships without `dist/`
+**Gap surfaced**: `@okoro/audit-verifier` ships without `dist/`
 checked in — Lane C built manually for tests. Operator action.
 
 **Lane D — Postman / Insomnia collection:** `tools/postman/`,
@@ -1887,39 +6418,40 @@ operator checklist, `scripts/package.json` adds `gen:changelog`,
 `publish:dry-run`, `publish:dry-run:all`. **67/67 vitest pass
 (24 + 43).**
 **Real publish-blocking issues found (NOT auto-fixed):**
-1. `@aegis/sdk` declares `main: dist/index.cjs` but tsup output
+
+1. `@okoro/sdk` declares `main: dist/index.cjs` but tsup output
    is `dist/index.js` — would silently break consumer `import`.
-2. `@aegis/cli`, `@aegis/mcp-bridge`, `@aegis/mcp-server` —
+2. `@okoro/cli`, `@okoro/mcp-bridge`, `@okoro/mcp-server` —
    declared `dist/*` entrypoints missing entirely (need
    `pnpm -r build` first).
-3. `@aegis/cli` missing `repository.url`, `keywords`.
-4. `@aegis/types` missing `repository.url`, `engines.node`,
+3. `@okoro/cli` missing `repository.url`, `keywords`.
+4. `@okoro/types` missing `repository.url`, `engines.node`,
    `keywords`.
-5. `@aegis/audit-verifier` missing `repository.url`.
+5. `@okoro/audit-verifier` missing `repository.url`.
 6. Five packages no LICENSE in tarball (warn).
 7. Five packages still ship `workspace:*` (warn — pnpm rewrites,
    but worth confirming).
 
 ### Verification
 
-- `pnpm --filter @aegis/api exec tsc --noEmit` → **0 errors**.
-- `pnpm --filter @aegis/api exec jest --testPathPattern='wellknown'`
+- `pnpm --filter @okoro/api exec tsc --noEmit` → **0 errors**.
+- `pnpm --filter @okoro/api exec jest --testPathPattern='wellknown'`
   → **41/41**.
-- `pnpm --filter @aegis/types test` → 11/11 catalog spec pass.
+- `pnpm --filter @okoro/types test` → 11/11 catalog spec pass.
   Pre-existing `check-openapi-zod-parity.spec.ts` denial-enum-order
   test fails with `drift` — **not Round 16; OpenAPI lists denial
   reasons alphabetically while CLAUDE.md inv 6 mandates canonical
   order, and ADR-0014's 10-code change makes this drift worse.**
-- `pnpm --filter @aegis/sdk exec tsc --noEmit` → **0 errors**.
-- `pnpm --filter @aegis/sdk test` → **27/27** (5 crypto + 22 http).
-- `pnpm --filter @aegis/scripts test` → **163/163**.
-- `pnpm --filter @aegis/postman run validate` → exit 0.
-- `pnpm --filter @aegis/postman test` → **9/9**.
-- `pnpm --filter @aegis/audit-evidence-bundle test` → **8/8**.
+- `pnpm --filter @okoro/sdk exec tsc --noEmit` → **0 errors**.
+- `pnpm --filter @okoro/sdk test` → **27/27** (5 crypto + 22 http).
+- `pnpm --filter @okoro/scripts test` → **163/163**.
+- `pnpm --filter @okoro/postman run validate` → exit 0.
+- `pnpm --filter @okoro/postman test` → **9/9**.
+- `pnpm --filter @okoro/audit-evidence-bundle test` → **8/8**.
 - `pnpm gen:error-catalog` → 21 entries written, **zero diff** vs
   Lane A's hand-materialized files (deterministic regeneration).
 - **Round 16 net new green: 127** (22 SDK http + 11 types catalog
-  + 10 wellknown + 8 evidence-bundle + 9 postman + 67 scripts).
+  - 10 wellknown + 8 evidence-bundle + 9 postman + 67 scripts).
 
 ### Pre-existing gaps surfaced (NOT introduced by Round 16)
 
@@ -1930,7 +6462,7 @@ operator checklist, `scripts/package.json` adds `gen:changelog`,
   typecheck. **Round 17 fix**: move CLI into `apps/api/scripts/`
   or add deps + path aliases.
 - **OpenAPI denial enum drift** (Lane D documented).
-- **`@aegis/audit-verifier` dist gap** (Lane C documented).
+- **`@okoro/audit-verifier` dist gap** (Lane C documented).
 
 ### Coordination
 
@@ -1995,17 +6527,17 @@ Operator: decide OD-003 pricing + set Stripe price IDs in .env. Next session: pi
 
 ---
 
-## 2026-05-05 (Round 15 — enterprise-completeness: throttling + rotation + retention + perf + error catalog) · claim=aegis:round-15-enterprise-completeness
+## 2026-05-05 (Round 15 — enterprise-completeness: throttling + rotation + retention + perf + error catalog) · claim=okoro:round-15-enterprise-completeness
 
 **Status:** ✅ Landed. Five parallel agents, ~25 min wall, **53 new tests
 all green** (plus 17 vitest in scripts), tsc still **0 errors** across
-@aegis/api (fourth consecutive zero-error round). Cross-lane self-heal:
+@okoro/api (fourth consecutive zero-error round). Cross-lane self-heal:
 Agent B's schema delta closed Agents A & C's reported pre-existing
 errors — swarm-as-system worked.
 
 ### Why this round mattered
 
-After round 14's ops surface, AEGIS was operable but had four
+After round 14's ops surface, OKORO was operable but had four
 enterprise gaps that auditors and customer security teams notice
 immediately:
 
@@ -2026,8 +6558,9 @@ All five closed in this round. None blocked on operator decisions.
 ### What landed
 
 #### Lane 1 — Plan-aware throttling (closes OD-006 default)
+
 - **EDIT** `apps/api/src/modules/billing/plans.ts` — `verifyRateLimit:
-  { limit, ttlMs }` per tier. FREE 20/1s (10 rps + 20 burst), DEVELOPER
+{ limit, ttlMs }` per tier. FREE 20/1s (10 rps + 20 burst), DEVELOPER
   200/1s (100 rps + burst), GROWTH 1000/1s (500 rps), ENTERPRISE
   `Number.POSITIVE_INFINITY`/1s (unlimited sentinel).
 - **EDIT** `usage-guard.service.ts` — extracted private `resolvePlanTier`,
@@ -2038,8 +6571,8 @@ All five closed in this round. None blocked on operator decisions.
   (no Redis call). Storage key embeds `principal:<id>|<tier>` so plan
   upgrades clear buckets cleanly. **429 response body**:
   `{error:'rate_limit_exceeded', message:'Plan tier <X> allows <N>
-  verify calls per <ms>ms.', details:{planTier, limit, windowMs,
-  retryAfter}}` — customer-actionable.
+verify calls per <ms>ms.', details:{planTier, limit, windowMs,
+retryAfter}}` — customer-actionable.
 - **EDIT** `verify.controller.ts` — removed flat
   `@Throttle({verify:{limit:1000,ttl:60_000}})`. Added
   `@UseGuards(PlanAwareThrottlerGuard)`. Verify-only — other
@@ -2055,6 +6588,7 @@ All five closed in this round. None blocked on operator decisions.
   (different storage key).
 
 #### Lane 2 — API key rotation with 24h overlap
+
 - **SCHEMA delta** — Added `ApiKey.expiresAt DateTime?` + index
   `ApiKey_expiresAt_idx`. Hand-authored migration:
   `apps/api/prisma/migrations/20260505000200_add_apikey_rotation_fields/migration.sql`.
@@ -2074,7 +6608,7 @@ All five closed in this round. None blocked on operator decisions.
 - **EDIT** `apps/api/src/modules/auth/api-key.guard.ts` — surfaces
   `EXPIRED_API_KEY` error code (vs `INVALID_API_KEY` for never-existed).
   Customer-debuggable rotation pain.
-- **NEW** `AlreadyRotatedError` (HTTP 409) in `aegis-error.ts` —
+- **NEW** `AlreadyRotatedError` (HTTP 409) in `okoro-error.ts` —
   prevents rotation chains within the overlap window.
 - **EDIT** `auth.module.ts` — wired `AuditModule` import and registered
   `ApiKeyRotationController`.
@@ -2085,10 +6619,11 @@ All five closed in this round. None blocked on operator decisions.
   AND re-checked inside the transaction at service level.
 
 #### Lane 3 — Audit retention service + cron + CLI
+
 - **NEW** `apps/api/src/modules/compliance/audit-retention.service.ts`
   — `@Injectable() implements OnModuleInit, OnModuleDestroy`. On init:
   registers `setInterval` (default 24h, env-configurable via
-  `AEGIS_AUDIT_RETENTION_INTERVAL_MS`) — `unref()`'d. Self-arming
+  `OKORO_AUDIT_RETENTION_INTERVAL_MS`) — `unref()`'d. Self-arming
   WITHOUT `@nestjs/schedule` (still not wired in app.module.ts as of
   this round). Registers with `ShutdownService` (round-14) for clean
   drain on SIGTERM.
@@ -2109,17 +6644,18 @@ All five closed in this round. None blocked on operator decisions.
 - **NEW** `audit-retention.service.spec.ts` — 13 tests including:
   FREE 30d / DEVELOPER 90d / GROWTH 365d cutoffs, idempotent re-run
   (already-redacted skipped), per-principal counts, pagination across
-  >100 principals, single-event failure logged but doesn't bubble,
-  `getStatus()` for ops dashboards, drain cancels in-flight cleanly.
+  > 100 principals, single-event failure logged but doesn't bubble,
+  > `getStatus()` for ops dashboards, drain cancels in-flight cleanly.
 - **NEW** `scripts/run-audit-retention.ts` — operator CLI bootstrapping
   `NestFactory.createApplicationContext`. Flags: `--dry-run`,
   `--principal-id`, `--max-events`. Exit codes 0/1/2/3.
 - **EDIT** `scripts/package.json` — `"audit-retention": "tsx
-  run-audit-retention.ts"`.
+run-audit-retention.ts"`.
 - **Operator manual run**:
-  `DATABASE_URL=... pnpm --filter @aegis/scripts run audit-retention -- --dry-run`
+  `DATABASE_URL=... pnpm --filter @okoro/scripts run audit-retention -- --dry-run`
 
 #### Lane 4 — Performance benchmark + DB index audit
+
 - **NEW** `scripts/benchmark-verify.ts` — N concurrent verify calls
   against the API using demo seed data. Measures count, mean, p50,
   p95, p99, p99.9 with **exact-rank quantiles (no interpolation)**.
@@ -2135,20 +6671,21 @@ All five closed in this round. None blocked on operator decisions.
   Parity guard asserts script's embedded `SLO_TARGETS` match
   `plans.ts` (FREE 250 / DEV 200 / GROWTH 120 / ENT 80).
 - **NEW** `scripts/db-index-audit.ts` — runs `EXPLAIN (ANALYZE,
-  FORMAT JSON, BUFFERS)` on six representative hot queries (ApiKey
+FORMAT JSON, BUFFERS)` on six representative hot queries (ApiKey
   by hashed key, AgentIdentity by composite, AgentPolicy by
   agentId+status, AuditEvent by principalId+timestamp DESC,
   BateSignal by agentId+occurredAt, WebhookSubscription by
   principalId+active). Flags `Seq Scan`s above cost threshold;
   emits `dist/db-index-audit-report.md` with recommended `CREATE
-  INDEX CONCURRENTLY` SQL. Read-only — operator reviews + runs.
+INDEX CONCURRENTLY` SQL. Read-only — operator reviews + runs.
 - **NEW** `apps/api/perf-baseline.json` — initial SLO targets
   per tier from `plans.ts`. Updated via `pnpm bench:verify --output
-  apps/api/perf-baseline.json`.
+apps/api/perf-baseline.json`.
 - **EDIT** `scripts/package.json` — `bench:verify`, `db:index-audit`.
 
 #### Lane 5 — Error catalog with retry semantics
-- **EDIT** `apps/api/src/common/errors/aegis-error.ts` — added
+
+- **EDIT** `apps/api/src/common/errors/okoro-error.ts` — added
   `getCatalogEntry()` instance method. Existing constructor signatures
   preserved — every existing thrower compiles unchanged.
 - **NEW** `apps/api/src/common/errors/error-catalog.ts` —
@@ -2161,14 +6698,14 @@ All five closed in this round. None blocked on operator decisions.
   internal). Helpers: `getCatalogEntry`, `isRetryable`,
   `toClientPayload`, `getInternalFallback`.
 - **EDIT** `apps/api/src/common/filters/http-exception.filter.ts` —
-  branches: AegisError → catalog lookup; non-Aegis cataloged class
+  branches: OkoroError → catalog lookup; non-Okoro cataloged class
   (e.g. CircuitOpenError, lives in common/resilience) → catalog;
   unknown → redacted internal_error fallback. Response envelope now
   carries `code` + `retryable` (additive — existing fields preserved).
 - **NEW** `apps/api/src/common/errors/error-catalog.spec.ts` — 14
   tests including: every entry has required fields, codes are unique,
   HTTP statuses in [400,599], `getCatalogEntry(new TypeError())`
-  returns null, customerMessage leak canaries (no `aegis_*`,
+  returns null, customerMessage leak canaries (no `okoro_*`,
   `whsec_*`, `sk_*`, `stack`, `null`, `undefined`).
 - **NEW** `scripts/audit-error-catalog.ts` — walks `apps/api/src` for
   `throw new <X>Error(` patterns, dynamic-imports the catalog, asserts
@@ -2178,13 +6715,13 @@ All five closed in this round. None blocked on operator decisions.
 - **NEW** `apps/api/src/common/errors/error-catalog.generated.md` —
   markdown table mirroring all 21 entries (operator-readable).
 - **Audit result**: 140 files scanned, 76 throw sites, 14 distinct
-  AegisError subclasses, **0 uncataloged**. 5 NestJS-native exceptions
+  OkoroError subclasses, **0 uncataloged**. 5 NestJS-native exceptions
   in `identity.service.ts` and `api-key.guard.ts` are explicitly
   allowlisted (filter handles them generically).
 
 ### Verification
 
-- `pnpm --filter @aegis/api exec tsc --noEmit` → **0 errors** (fourth
+- `pnpm --filter @okoro/api exec tsc --noEmit` → **0 errors** (fourth
   consecutive zero-error round).
 - `jest "(plan-aware|api-key-rotation|api-key.service.rotation|audit-retention|error-catalog)"`:
   **53/53 pass** across 5 suites.
@@ -2214,7 +6751,7 @@ fix shipped it.
   posture: schema changes require operator approval).
 - **Real perf baseline numbers** — `apps/api/perf-baseline.json` has
   SLO TARGETS only. Real measurements need `pnpm bench:verify
-  --output apps/api/perf-baseline.json` after `make dev` + seed.
+--output apps/api/perf-baseline.json` after `make dev` + seed.
 - **Plan upgrade hot-path**: tier change in `principal.planTier`
   must call `usageGuard.invalidatePlanCache(principalId)` — round 12
   Stripe handler does this; manual upgrades via DB still need a
@@ -2249,36 +6786,39 @@ fix shipped it.
 
 ---
 
-## 2026-05-05 (Phase-1 launch swarm — public discovery surface) · claim=aegis:gate1-coordinator
+## 2026-05-05 (Phase-1 launch swarm — public discovery surface) · claim=okoro:gate1-coordinator
 
 **Status:** ✅ Landed. Coordinator round 3 — closes the "plug and play around
-the internet" gap. Three new well-known endpoints turn AEGIS from "an API
+the internet" gap. Three new well-known endpoints turn OKORO from "an API
 with docs" into a self-describing protocol. A relying party fetches one URL
 and auto-configures their verifier without reading a line of documentation.
 
 ### What shipped
 
 **Discovery surface** (the headline change):
-- `GET /.well-known/aegis-configuration` — OIDC-style discovery JSON. One
+
+- `GET /.well-known/okoro-configuration` — OIDC-style discovery JSON. One
   fetch yields the issuer, every endpoint, JWKS URI, the canonical denial-
   reason enum (locked by ADR-0004), trust band ladder, supported algorithms
-  + curves + runtimes, rate limits, build identity, every official SDK
-  package name. Schema versioned (`spec_version: "1.0.0"`); evolution is
-  additive only.
+  - curves + runtimes, rate limits, build identity, every official SDK
+    package name. Schema versioned (`spec_version: "1.0.0"`); evolution is
+    additive only.
 - `GET /.well-known/security.txt` — RFC 9116 plain-text responsible-
   disclosure file. Mandatory `Expires` field renewed automatically (1 year
   from current build).
 - `GET /.well-known/llms.txt` — emerging convention (parallel to robots.txt)
   for AI-agent-readable site descriptions. Markdown body lists the public
-  surfaces an agent should hit. Doubly relevant since AEGIS *is* the agent
+  surfaces an agent should hit. Doubly relevant since OKORO _is_ the agent
   identity layer.
 
 **SDK metadata polish** (npm-publish ready):
-- `@aegis/sdk`, `@aegis/verifier-rp`, `@aegis/mcp-bridge`, `@aegis/mcp-server`
+
+- `@okoro/sdk`, `@okoro/verifier-rp`, `@okoro/mcp-bridge`, `@okoro/mcp-server`
   all received: `repository.url` + `repository.directory`, `bugs.url`,
   `homepage`, `author`, missing `keywords` / `engines` filled.
 
 **Documentation:**
+
 - `README.md` — new section "Public discovery surface" with one-fetch
   bootstrap recipe + URL/cache-policy table.
 - `docs/IMMUTABILITY.md` — new invariant **I-9.5** "Discovery surface is
@@ -2298,7 +6838,7 @@ pnpm exec jest                                          → 440/443 passing
 
 A rail without discovery is a private API. With a configuration discovery
 doc, a new integration is one fetch + one constructor call. Same shift
-that took OAuth from per-vendor to standard — the discovery doc *is* the
+that took OAuth from per-vendor to standard — the discovery doc _is_ the
 standardization artifact.
 
 ### What's next
@@ -2323,6 +6863,7 @@ additive only.
 
 **Explicitly NOT touched** (already mature on peer / earlier-round
 paths):
+
 - `infra/observability/` — 7 alert runbooks + Grafana dashboard +
   alert rules already exist; my doc just cross-references.
 - `apps/api/src/**`, `apps/dashboard/**`, `prisma/**` — peer territory.
@@ -2347,7 +6888,7 @@ paths):
 2. **`tests/cross-package/audit-chain-parity.spec.ts` — THE
    load-bearing regression guard.** ~5 tests including:
    - 5-row chain signed via `apps/api`'s `AuditChainUtil`,
-     verified end-to-end via `@aegis/audit-verifier`.
+     verified end-to-end via `@okoro/audit-verifier`.
    - Tampered payload detection (single-byte mutation breaks the
      verdict).
    - GDPR-redactable shape (null PII commitments still verify).
@@ -2360,17 +6901,17 @@ paths):
    independent canonicalization (deliberately, per ADR-0003 — verifier
    must run on CF Workers). Two ports = two opportunities for silent
    drift. This test is the single canonical guard. If it ever fails,
-   AEGIS's externally-verifiable audit chain claim breaks. Treat
+   OKORO's externally-verifiable audit chain claim breaks. Treat
    failure as SEV-1.
 
 3. **`tests/cross-package/denial-precedence-enum.spec.ts` — locks
    the 9-reason canonical order across 4+ surfaces.**
-   - `@aegis/types` `DENIAL_REASON_PRECEDENCE` is the canonical source.
+   - `@okoro/types` `DENIAL_REASON_PRECEDENCE` is the canonical source.
    - `apps/api` `engine.interface DenialReason` must EXACT-match
      (order + values).
-   - `docs/spec/AEGIS_API_SPEC.yaml` enum must EXACT-match (order +
+   - `docs/spec/OKORO_API_SPEC.yaml` enum must EXACT-match (order +
      values).
-   - `@aegis/verifier-rp DenialReason` must SUPERSET — REPLAY_DETECTED
+   - `@okoro/verifier-rp DenialReason` must SUPERSET — REPLAY_DETECTED
      is allowed extra (per M-016 design: RP observability ≠ wire
      contract).
    - "Set drift gate" — universe of all values across surfaces must
@@ -2384,9 +6925,11 @@ paths):
 
 4. **`tools/quickstart/` — NEW partner activation tool.** Single
    script + README + types + tsconfig.
+
    ```sh
-   AEGIS_API_BASE=… AEGIS_API_KEY=… pnpm start
+   OKORO_API_BASE=… OKORO_API_KEY=… pnpm start
    ```
+
    6-step verbose output: keypair → register → policy → sign →
    verify → verdict. Stderr carries human progress; stdout carries
    JSON for tooling. Exits non-zero on denial. Closes the partner
@@ -2409,7 +6952,7 @@ paths):
    - "When to ask for help" — compresses 30 min of back-and-forth
      into one structured slack message.
    - "What we won't help with" — explicit "ask your PSP / compliance
-     / etc." pointers so partners don't wait on AEGIS for things
+     / etc." pointers so partners don't wait on OKORO for things
      out of scope.
 
 ### Quality bar
@@ -2430,12 +6973,12 @@ paths):
 
 ### Cross-session leverage story
 
-| Round | Type of work                                | Compounds across sessions? |
-|-------|---------------------------------------------|----------------------------|
-| 11    | CI hygiene (parity scripts)                 | Yes — every PR is gated     |
-| 12    | Integration examples + playbook             | Yes — partners reuse         |
-| 13    | Audit verifier + reconciliation + runbook   | Yes — auditors / on-call reuse |
-| 14    | **Briefing + parity tests + onboarding**    | **Yes — every future session benefits** |
+| Round | Type of work                              | Compounds across sessions?              |
+| ----- | ----------------------------------------- | --------------------------------------- |
+| 11    | CI hygiene (parity scripts)               | Yes — every PR is gated                 |
+| 12    | Integration examples + playbook           | Yes — partners reuse                    |
+| 13    | Audit verifier + reconciliation + runbook | Yes — auditors / on-call reuse          |
+| 14    | **Briefing + parity tests + onboarding**  | **Yes — every future session benefits** |
 
 The two cross-package parity tests in particular are the kind of
 regression guard that is invisible until it catches a bug nobody
@@ -2447,32 +6990,33 @@ attention; they save SEV-1 incidents.
 - The pnpm-workspace.yaml could be extended to include `tools/*` so
   future tools use `workspace:*` cleanly (5-line edit, requires
   peer coordination since it's a shared file).
-- `tools/postman/aegis.collection.json` — Postman/Insomnia
+- `tools/postman/okoro.collection.json` — Postman/Insomnia
   collection for hand-testing. Additive; nice-to-have.
 - `tools/audit-evidence-bundle/` — script that packages an audit
   NDJSON + JWKS + README into a tarball for auditors. Additive.
 - `docs/PARTNER_ONBOARDING.md` § Spanish translation for PR / LATAM
   partners (mirror the denial-mapping table in
-  `AEGIS_AS_BACKBONE.md` § 5).
+  `OKORO_AS_BACKBONE.md` § 5).
 - One day: Postgres-backed full-text search across ALL docs so
   "where did we discuss X" is a single query.
 
 ---
 
-## 2026-05-05 (Round 14 — FAANG-grade infrastructure surface: health + breakers + seed + shutdown + Makefile) · claim=aegis:round-14-faang-infra
+## 2026-05-05 (Round 14 — FAANG-grade infrastructure surface: health + breakers + seed + shutdown + Makefile) · claim=okoro:round-14-faang-infra
 
 **Status:** ✅ Landed. Five parallel agents, ~30 min wall, **51 new tests
-all green**, tsc still **0 errors** across @aegis/api. The round that
-turns AEGIS from "protocol with endpoints" into "infrastructure an SRE
+all green**, tsc still **0 errors** across @okoro/api. The round that
+turns OKORO from "protocol with endpoints" into "infrastructure an SRE
 can operate at 03:00 UTC."
 
 ### What shipped
 
 #### Lane 1 — Health endpoints upgraded (FAANG ops surface)
+
 - **EDIT** `apps/api/src/modules/health/health.controller.ts` —
   injects `AuditSignerService` (KMS proxy) + `StripeService`. Replaces
   boolean status with `{status: 'ok'|'degraded'|'down', checks:{db,
-  redis, kms, stripe?: {ok, latencyMs?, error?}}, ts}`. 200ms
+redis, kms, stripe?: {ok, latencyMs?, error?}}, ts}`. 200ms
   Promise.race per-check timeout. **HTTP**: 503 when overall=`down`
   (DB OR KMS unreachable — CLAUDE.md invariant 3 core deps); 200 with
   `degraded` when only Redis or Stripe is failing; 200 OK otherwise.
@@ -2481,9 +7025,10 @@ can operate at 03:00 UTC."
 - **EDIT** `health.module.ts` — adds `AuditModule` + `BillingModule`
   imports. `app.module.ts` untouched.
 - **NEW** `health.controller.spec.ts` — **13 tests**. Sensitive-text
-  canary: error fields cannot contain `aegis_*`, `whsec_*`, `sk_*`.
+  canary: error fields cannot contain `okoro_*`, `whsec_*`, `sk_*`.
 
 #### Lane 2 — Circuit breakers on outbound (KMS + Stripe)
+
 - **NEW** `apps/api/src/common/resilience/circuit-breaker.ts` —
   `CircuitBreaker<T>` 3-state (CLOSED/OPEN/HALF_OPEN), typed
   `CircuitOpenError`, `wrapWithBreaker()` helper with optional
@@ -2505,8 +7050,9 @@ can operate at 03:00 UTC."
   unwrapped (local-CPU HMAC). 17/17 Stripe regression tests still pass.
 
 #### Lane 3 — Demo seed (out-of-box dashboard)
+
 - **NEW** `scripts/seed-demo.ts` — standalone tsx, idempotent (filters
-  by `@aegis-demo.test` email suffix). Audit-chain math inlined to
+  by `@okoro-demo.test` email suffix). Audit-chain math inlined to
   byte-match `audit-chain.util.ts`. WebhookSecretCipher dynamically
   imported (matches existing `encrypt-existing-webhook-secrets.ts`
   pattern). **Self-verifies the chain before persist** — exit code 4
@@ -2524,6 +7070,7 @@ can operate at 03:00 UTC."
 - **EDIT** `scripts/package.json` — `seed:demo` + `seed:demo:reset`.
 
 #### Lane 4 — Graceful shutdown + queue saturation observability
+
 - **NEW** `apps/api/src/common/observability/shutdown.service.ts` —
   `ShutdownService` `@Global()`-registered, `register(name, drainFn)`
   API, default 30s graceful timeout. `Promise.allSettled` parallel,
@@ -2542,6 +7089,7 @@ can operate at 03:00 UTC."
   SIGTERM fires drain. No `main.ts` edit needed (peer territory respected).
 
 #### Lane 5 — `make dev` one-liner (60-second clone-to-running)
+
 - **NEW** repo-root `Makefile` — 12 targets: `help` (default),
   `install`, `up` (compose v2/v1 detection), `migrate`, `seed`
   (soft-skip), `dev` (composite), `test`, `typecheck`, `clean`
@@ -2558,7 +7106,7 @@ can operate at 03:00 UTC."
 
 ### Verification
 
-- `pnpm --filter @aegis/api exec tsc --noEmit` → **0 errors** (third
+- `pnpm --filter @okoro/api exec tsc --noEmit` → **0 errors** (third
   consecutive zero-error round).
 - 13/13 health + 11/11 breaker + 6/6 shutdown = **30/30 lane unit tests**.
 - 17/17 Stripe + 15/15 KMS + 58/58 webhook = **90/90 regression tests**.
@@ -2569,7 +7117,7 @@ can operate at 03:00 UTC."
 ### Coordination
 
 - Active peers at start: `bba1b6c1` (M-003 identity handshake —
-  identity/* only) and `d328b045` (round-13 enterprise-hardening —
+  identity/\* only) and `d328b045` (round-13 enterprise-hardening —
   additive). Both excluded billing/webhooks/verify/common — round 14
   took those plus scripts/ + root Makefile. Zero file overlap.
 - Coordinator (`gate1-coordinator`) shipped operational immutability
@@ -2589,9 +7137,9 @@ can operate at 03:00 UTC."
 ### What's NOT yet wired (operator-runnable, not blocking GA)
 
 - **Circuit breaker thresholds tuning** — defaults `failureThreshold:5,
-  resetTimeoutMs:30_000`. Configurable per-instance but not env-driven.
+resetTimeoutMs:30_000`. Configurable per-instance but not env-driven.
 - **BullMQ depth alerts** — metric is emitted but no alert rule yet.
-  Recommend: `aegis_bullmq_queue_depth_gauge{state="waiting"} > 1000`
+  Recommend: `okoro_bullmq_queue_depth_gauge{state="waiting"} > 1000`
   warn, `> 10_000` page.
 - **Railway healthcheck path** — confirm pointed at `/health/ready`
   (not `/health/live`) so degraded nodes drain. Document in
@@ -2610,17 +7158,18 @@ can operate at 03:00 UTC."
 
 ---
 
-## 2026-05-05 (Phase-1 launch swarm — operational immutability layer) · claim=aegis:gate1-coordinator
+## 2026-05-05 (Phase-1 launch swarm — operational immutability layer) · claim=okoro:gate1-coordinator
 
 **Status:** ✅ Landed. Coordinator round 2 — closes the operational gaps that
 make the codebase actually shippable end-to-end. Runtime invariants (audit
-chain, signed policies) were already immutable; the *operational* layer
+chain, signed policies) were already immutable; the _operational_ layer
 (env contract, migration discipline, runbooks, peer protocol) was not.
 Now is.
 
 ### What shipped
 
 **Onboarding contract** (the bootstrap moment):
+
 - `.env.example` — comprehensive rewrite. Every env var in
   `apps/api/src/config/config.schema.ts` documented, grouped by concern
   (Runtime / DB / Crypto / KMS / Auth / Rate limits / Observability /
@@ -2630,11 +7179,13 @@ Now is.
   `pnpm check` table row, linked the three new runbook docs.
 
 **The everything-green gate:**
+
 - `pnpm check` — typecheck → lint → unit tests → OpenAPI↔Zod parity →
   OpenAPI↔Prisma parity → migration immutability in one shot.
 - `pnpm check:migrations` — new immutability gate.
 
 **Migration immutability** (closes I-2):
+
 - `scripts/check-migration-immutability.ts` — ESM-safe, verifies every
   committed `migration.sql` byte-matches its git blob. Detects modifications
   AND deletes-of-committed migrations. Exit-coded 0 / 1 / 2.
@@ -2642,6 +7193,7 @@ Now is.
   `apps/api/prisma/migrations/`. Cheap; only fires when relevant.
 
 **Runbooks** (single source of truth for operations):
+
 - `docs/OPERATOR_RUNBOOK.md` — `git clone` → first paying customer. Local
   bootstrap in ~3 min, the everything-green gate, schema change discipline,
   Railway prod deploy with full env var ladder, Stripe webhook setup,
@@ -2651,15 +7203,15 @@ Now is.
   sessions. Four-rule contract, coordinator-only file table, peer CLI cheat
   sheet, coordinator pattern with sub-agents, conflict resolution recipe.
 - `docs/IMMUTABILITY.md` — 9 enumerated invariants (I-1..I-9), each with
-  *why*, *mechanism*, and *enforcement*. Maps to CLAUDE.md + ADRs. Includes
+  _why_, _mechanism_, and _enforcement_. Maps to CLAUDE.md + ADRs. Includes
   "how to add a new invariant" — invariants without enforcement are wishes.
 
 ### Verification
 
 ```
-pnpm -F @aegis/api      exec tsc --noEmit            → exit 0
-pnpm -F @aegis/scripts  exec tsc --noEmit            → exit 0
-pnpm -F @aegis/scripts  exec tsx check-migration-immutability.ts
+pnpm -F @okoro/api      exec tsc --noEmit            → exit 0
+pnpm -F @okoro/scripts  exec tsc --noEmit            → exit 0
+pnpm -F @okoro/scripts  exec tsx check-migration-immutability.ts
   → "migration-immutability: 4 committed migration(s) all immutable."
 ```
 
@@ -2703,10 +7255,9 @@ EU AI Act story executable, not just documented.
 
 1. **`packages/audit-verifier/` — NEW distributable npm package.**
    12 files, ~1,500 LOC including spec coverage. Self-contained
-   Ed25519 + sha256 chain verifier. CLI (`aegis-audit-verify verify
-   ./export.ndjson --jwks <url>` or `--jwks-file <path>` for
+   Ed25519 + sha256 chain verifier. CLI (`okoro-audit-verify verify
+./export.ndjson --jwks <url>` or `--jwks-file <path>` for
    airgapped) + library API (`verifyChain(rows, opts)`).
-
    - `src/types.ts` — public wire-stable contract.
    - `src/canonical.ts` — independent port of the API signer's
      stable-stringify; second copy by design (parity test in
@@ -2728,25 +7279,24 @@ EU AI Act story executable, not just documented.
 
    **Why this matters**: this package IS the SOC2 zero-trust
    verification claim made executable. Anyone with the public
-   JWKS can independently reproduce AEGIS's tamper-evidence
+   JWKS can independently reproduce OKORO's tamper-evidence
    guarantee. Pattern matches FICO's: publish the algorithm and
    the inputs, anyone can independently reconstruct.
 
 2. **`examples/reconciliation/` — NEW runnable example.**
-   8 files, ~600 LOC. Joins AEGIS audit NDJSON to underlying-system
+   8 files, ~600 LOC. Joins OKORO audit NDJSON to underlying-system
    NDJSON on `endToEndId`; surfaces the four mismatch classes from
    `INTEGRATION_PATTERNS.md` § 10:
-
    - `matched_settled` — happy path (counted + per-currency totals).
-   - `approved_missing` — AEGIS approved, system has no record.
+   - `approved_missing` — OKORO approved, system has no record.
      Always investigate.
-   - `denied_present` — AEGIS denied, system has a record. Gate
+   - `denied_present` — OKORO denied, system has a record. Gate
      bypass — investigate IMMEDIATELY.
    - `reversed` — settled then reversed; classifies cause as
      `fraud_confirmed` (chargeback / NACHA R03 / R05) or
      `false_positive` (refund / unknown) for BATE feedback.
 
-   Ships with `fixtures/aegis-export.ndjson` + `fixtures/psp-charges.ndjson`
+   Ships with `fixtures/okoro-export.ndjson` + `fixtures/psp-charges.ndjson`
    (7 + 6 rows) that exercise every mismatch class. `pnpm demo`
    prints a Bloomberg-density human report; `--json` for CI.
    12 vitest specs covering each branch.
@@ -2776,15 +7326,15 @@ EU AI Act story executable, not just documented.
    - **GDPR** — Art. 5/6/17/25/28/30/32/33/35/44 with the special
      section on why the audit chain stays verifiable through Art. 17
      erasure (ADR-0006 in one paragraph).
-   - **PCI DSS** — explicit "AEGIS is NOT in PCI scope by default"
-     boundary statement, plus the 12 reqs for when an AEGIS
+   - **PCI DSS** — explicit "OKORO is NOT in PCI scope by default"
+     boundary statement, plus the 12 reqs for when an OKORO
      deployment is bundled into the customer's PCI environment.
    - **EU AI Act** — Art. 12-17 (record-keeping, transparency, human
-     oversight). Boundary: AEGIS is infrastructure, not an AI system.
+     oversight). Boundary: OKORO is infrastructure, not an AI system.
    - **NIST CSF 2.0** — full Identify/Protect/Detect/Respond/Recover/
      Govern cross-walk.
 
-   Each row includes the **AEGIS evidence link** (file path / ADR /
+   Each row includes the **OKORO evidence link** (file path / ADR /
    endpoint / runbook section) so a customer security review can be
    answered by sending the row link, not chasing engineering.
 
@@ -2812,7 +7362,7 @@ EU AI Act story executable, not just documented.
 - **Round 13 makes the compliance claims executable.**
 
 A regulator with the audit-verifier package + the public JWKS + a
-downloaded NDJSON needs nothing else from AEGIS to do their job.
+downloaded NDJSON needs nothing else from OKORO to do their job.
 A customer security reviewer with `COMPLIANCE_BUNDLE.md` can answer
 their CAIQ from one document. An on-call engineer with
 `INCIDENT_RUNBOOK.md` knows what to do at 3am without paging anyone.
@@ -2822,20 +7372,20 @@ their CAIQ from one document. An on-call engineer with
 - Real integration test: run the audit-verifier against a live
   apps/api export to confirm the canonicalize parity test holds
   end-to-end (currently validated unit-level only).
-- Publish `@aegis/audit-verifier` to npm under MIT license. Bundle
+- Publish `@okoro/audit-verifier` to npm under MIT license. Bundle
   with the customer onboarding kit.
 - Wire `INCIDENT_RUNBOOK.md` references into the alerts the peers'
   Stripe + dashboard work emits — every alert should link to its
   runbook section.
 - Translate `COMPLIANCE_BUNDLE.md` § Spanish for PR / LATAM
   compliance reviewers (mirrors the denial-mapping translation
-  table in `AEGIS_AS_BACKBONE.md` § 5).
+  table in `OKORO_AS_BACKBONE.md` § 5).
 
 ---
 
-## 2026-05-05 (Round 13c — KMS module type-clean: 0 TS errors across @aegis/api) · claim=aegis:round-13-bulk-encrypt-mt-e2e-kms
+## 2026-05-05 (Round 13c — KMS module type-clean: 0 TS errors across @okoro/api) · claim=okoro:round-13-bulk-encrypt-mt-e2e-kms
 
-**Status:** ✅ Landed. First time `pnpm --filter @aegis/api exec tsc --noEmit`
+**Status:** ✅ Landed. First time `pnpm --filter @okoro/api exec tsc --noEmit`
 returns clean. Removes the running excuse "filtered to my files only —
 KMS errors are pre-existing" that has trailed every handoff since
 Round 10.
@@ -2866,8 +7416,8 @@ Round 10.
 
 ### Verification
 
-- `pnpm --filter @aegis/api exec tsc --noEmit` → **0 errors** (was 9).
-- `pnpm --filter @aegis/api exec jest multi-tenant-isolation` →
+- `pnpm --filter @okoro/api exec tsc --noEmit` → **0 errors** (was 9).
+- `pnpm --filter @okoro/api exec jest multi-tenant-isolation` →
   **15/15 pass** (was 10/10 before round-13b).
 
 ### Follow-up
@@ -2875,12 +7425,12 @@ Round 10.
 - `@google-cloud/kms` package missing from `node_modules` is a
   pre-existing workspace-install gap. The structural inline type
   unblocks compilation; runtime invocation still requires a real
-  `pnpm install` if `AEGIS_KMS_PROVIDER=gcp` is selected. Matches
+  `pnpm install` if `OKORO_KMS_PROVIDER=gcp` is selected. Matches
   fail-loud posture for missing config — not a regression.
 
 ---
 
-## 2026-05-05 (Round 13b — WebhookSubscription multi-tenant e2e isolation) · claim=aegis:round-13-bulk-encrypt-mt-e2e-kms
+## 2026-05-05 (Round 13b — WebhookSubscription multi-tenant e2e isolation) · claim=okoro:round-13-bulk-encrypt-mt-e2e-kms
 
 **Status:** ✅ Landed. Closes the "round-12 next-round" punch-list item
 "WebhooksController e2e test — multi-tenant isolation test for webhook
@@ -2891,7 +7441,7 @@ yet."
 
 - `apps/api/src/__multi_tenant__/multi-tenant-isolation.spec.ts` —
   added `describe('Webhook subscriptions — cross-tenant isolation',
-  ...)` with **5 new `it()` cases** (file total: 10 → 15, all green):
+...)` with **5 new `it()` cases** (file total: 10 → 15, all green):
   1. **Subscribe is principal-scoped** — A and B each subscribe; each
      `list()` returns only the caller's row.
   2. **Unsubscribe respects principal scope** — B's call against A's
@@ -2904,7 +7454,7 @@ yet."
      principal's subscription, never the other tenant's.
   5. **Cross-principal delete leakage check** — asserts the
      `deleteMany.where` clause carries BOTH `id` AND `principalId:
-     <caller>`, proving the service guards against ID-only deletes
+<caller>`, proving the service guards against ID-only deletes
      that would otherwise leak via row-id guessing.
 - Built a localized `buildWebhooksHarness` factory inside the new
   `describe` block — the existing `buildPrismaMock` does shallow
@@ -2915,7 +7465,7 @@ yet."
 
 ### Verification
 
-`pnpm --filter @aegis/api exec jest multi-tenant-isolation` →
+`pnpm --filter @okoro/api exec jest multi-tenant-isolation` →
 **15 passed, 15 total**, ~1.1s.
 
 ### Service bugs uncovered
@@ -2931,7 +7481,7 @@ ever tighten.
 
 ---
 
-## 2026-05-05 (Round 13a — bulk-encrypt legacy webhook secrets) · claim=aegis:round-13a-webhook-secret-migrator
+## 2026-05-05 (Round 13a — bulk-encrypt legacy webhook secrets) · claim=okoro:round-13a-webhook-secret-migrator
 
 **Status:** ✅ Landed. One-shot ops migrator for legacy plaintext
 `WebhookSubscription.secret` rows. Round 12 shipped envelope encryption
@@ -2962,15 +7512,19 @@ legacy detector. This script lets us close that gap before DEK rotation.
 ### How to run
 
 Pre-flight (recommended in prod first):
+
 ```
-AEGIS_WEBHOOK_SECRET_DEK_B64=… DATABASE_URL=… \
-  pnpm --filter @aegis/scripts encrypt-webhook-secrets -- --dry-run
+OKORO_WEBHOOK_SECRET_DEK_B64=… DATABASE_URL=… \
+  pnpm --filter @okoro/scripts encrypt-webhook-secrets -- --dry-run
 ```
+
 Real run:
+
 ```
-AEGIS_WEBHOOK_SECRET_DEK_B64=… DATABASE_URL=… \
-  pnpm --filter @aegis/scripts encrypt-webhook-secrets
+OKORO_WEBHOOK_SECRET_DEK_B64=… DATABASE_URL=… \
+  pnpm --filter @okoro/scripts encrypt-webhook-secrets
 ```
+
 Incident-response single-tenant: append `-- --principal-id <id>`.
 
 ### What's next
@@ -2998,35 +7552,35 @@ else was in: two new `examples/*` packages and one new doc.
 
 Rationale: round 11 closed CI parity scripts; round 12 closes the
 **integration story** so a partner reading `docs/INTEGRATION_PATTERNS.md`
-can see the AEGIS-on-X pattern for every major financial primitive in
+can see the OKORO-on-X pattern for every major financial primitive in
 one document, with two new runnable examples to back the most stakes-
 heavy patterns.
 
 ### What shipped
 
-1. **`examples/acp-bridge/`** — Stripe ACP + AEGIS dual-verify.
+1. **`examples/acp-bridge/`** — Stripe ACP + OKORO dual-verify.
    Working merchant API where /api/charge accepts BOTH a Stripe SPT
-   and an AEGIS-signed agent token; both must pass before
+   and an OKORO-signed agent token; both must pass before
    `stripe.charges.create` is called. Files: `package.json`,
    `tsconfig.json`, `README.md`, `src/{server,agent-sim,walk-flow,types,
-   spt-verify,spt-verify.spec}.ts`. The `walk-flow.ts` exercises 4
-   branches (happy / aegis-deny / stripe-deny / pre-validation) so the
+spt-verify,spt-verify.spec}.ts`. The `walk-flow.ts` exercises 4
+   branches (happy / okoro-deny / stripe-deny / pre-validation) so the
    dual-verify state machine is observable end-to-end. Implements the
    §6.2 architectural shape from `docs/MASTER_ENGINEERING_HANDOFF.md`.
 
 2. **`examples/banking-rails/`** — programmable banking with per-rail
    trust floors. Treasury API where /api/instruct gates payment
-   instructions through AEGIS, then submits to a (mock) bank adapter
+   instructions through OKORO, then submits to a (mock) bank adapter
    matching the Modern Treasury / Increase / direct ISO 20022 shape.
    Files: `package.json`, `tsconfig.json`, `README.md`, `src/{server,
-   agent-sim,iso20022-shape}.ts`. Per-rail `RAIL_MIN_TRUST` table —
+agent-sim,iso20022-shape}.ts`. Per-rail `RAIL_MIN_TRUST` table —
    wire/FedNow/RTP demand PLATINUM (≥ 800), ACH ships at VERIFIED
    (≥ 650), book-transfers at 500. ISO 20022 mapping table in the
    README spans pacs.008, pain.001, NACHA. The `endToEndId` pattern
-   (single ULID acting as AEGIS jti + ISO `EndToEndId` + bank trace)
+   (single ULID acting as OKORO jti + ISO `EndToEndId` + bank trace)
    is documented as the reconciliation join key.
 
-3. **`docs/INTEGRATION_PATTERNS.md`** — the AEGIS-on-X playbook.
+3. **`docs/INTEGRATION_PATTERNS.md`** — the OKORO-on-X playbook.
    12 sections: Stripe ACP, generic PSPs, card issuance (Lithic /
    Marqeta), banking rails (ISO 20022 / MT / Increase), open banking
    (Plaid / Tink), MCP servers, IdPs (Auth0 / Clerk / WorkOS), KMS
@@ -3051,22 +7605,22 @@ heavy patterns.
 
 ### Wedge story now end-to-end runnable
 
-| Vertical                  | Example                              | Pattern                              |
-|---------------------------|--------------------------------------|--------------------------------------|
-| Generic PSP charge        | `examples/fintech-payments/`         | single-token verify gate             |
-| Stripe ACP merchant       | `examples/acp-bridge/`               | dual-verify (SPT + AEGIS)            |
-| Treasury / banking rails  | `examples/banking-rails/`            | per-rail trust floor + ISO 20022    |
-| MCP tool calls            | `examples/ai-platform-tool-call/`    | `mcp-bridge.wrap()` one-liner        |
-| RP verification (offline) | `examples/relying-party-verifier/`   | `@aegis/verifier-rp` JWKS path       |
-| SaaS provisioning         | `examples/saas-seat-provisioning/`   | SCIM-shaped agent fan-out            |
+| Vertical                  | Example                            | Pattern                          |
+| ------------------------- | ---------------------------------- | -------------------------------- |
+| Generic PSP charge        | `examples/fintech-payments/`       | single-token verify gate         |
+| Stripe ACP merchant       | `examples/acp-bridge/`             | dual-verify (SPT + OKORO)        |
+| Treasury / banking rails  | `examples/banking-rails/`          | per-rail trust floor + ISO 20022 |
+| MCP tool calls            | `examples/ai-platform-tool-call/`  | `mcp-bridge.wrap()` one-liner    |
+| RP verification (offline) | `examples/relying-party-verifier/` | `@okoro/verifier-rp` JWKS path   |
+| SaaS provisioning         | `examples/saas-seat-provisioning/` | SCIM-shaped agent fan-out        |
 
 Every major foundational financial / agent primitive now has a
-runnable AEGIS-layered shape. Partners reading the playbook can find
+runnable OKORO-layered shape. Partners reading the playbook can find
 their vertical, copy the matching example, and ship.
 
 ### What's next (deferred to peers' broader scope)
 
-- Wire the @aegis-examples/* packages into the Phase 1 docs site
+- Wire the @okoro-examples/\* packages into the Phase 1 docs site
   (M-014 still open) so they surface from the persona pages.
 - Real Stripe `charges.create` swap-in inside `examples/acp-bridge/`
   once the round-12 secret-Stripe peer's StripeService stabilizes —
@@ -3083,7 +7637,7 @@ documented end-to-end in one 350-line playbook.
 
 ---
 
-## 2026-05-05 (Phase-1 launch swarm — coordinator integration) · claim=aegis:gate1-coordinator
+## 2026-05-05 (Phase-1 launch swarm — coordinator integration) · claim=okoro:gate1-coordinator
 
 **Duration:** ~1h wall.
 **Status:** ✅ Landed. Coordinator-driven; 4 sub-agents launched in parallel,
@@ -3096,6 +7650,7 @@ controller + spec.
 ### What shipped (Phase-1 launch deliverables)
 
 **Stripe billing surface** (closes M-011 alongside the round-12 peer's StripeService):
+
 - `apps/api/src/modules/billing/billing.controller.ts` — POST /v1/billing/checkout, POST /v1/billing/webhook (public, raw-body), GET /v1/billing/plan. Re-uses the round-12 peer's `StripeService.verifyWebhookSignature` + `handleWebhookEvent` so signature verification + SETNX idempotency are unchanged.
 - `apps/api/src/modules/billing/billing.controller.spec.ts` — 8 specs covering checkout-URL fallthrough, raw-body validation, signature error propagation, FREE/DEVELOPER/ENTERPRISE plan summary shapes.
 - `apps/api/src/modules/billing/billing.module.ts` — wired `BillingController` (controllers array).
@@ -3105,23 +7660,27 @@ controller + spec.
 - `apps/api/package.json` — added `stripe` ^17.7.0, `@opentelemetry/api` ^1.9.0.
 
 **Audit NDJSON tenant export** (closes M-006 finalisation):
+
 - `apps/api/src/modules/audit/audit-events.controller.ts` — new `GET /v1/audit-events/export` streaming NDJSON of every event the calling principal owns. Tenant-scoped (invariant #5), cursor-paginated 1k/page so memory stays bounded for any tenant size, attachment filename includes principalId + date.
 - `apps/api/src/modules/audit/audit.service.ts` — new `exportTenantStream(principalId, query)` async generator (sister to existing per-agent `exportStream`).
 - `apps/api/src/modules/audit/audit.module.ts` — registered new controller.
 
 **Policy expiry sweep worker** (closes G-3 sweep gap):
-- `apps/api/src/modules/policy/policy.expiry.worker.ts` — BullMQ repeatable-job (every 5min); SELECT-then-UPDATE pattern, fires `aegis.policy.expired` webhook per swept policy, concurrency=1 to avoid sweep races. Uses BullMQ rather than `@nestjs/schedule` to avoid taking on a new dep (matches existing `bate.worker.ts` pattern).
+
+- `apps/api/src/modules/policy/policy.expiry.worker.ts` — BullMQ repeatable-job (every 5min); SELECT-then-UPDATE pattern, fires `okoro.policy.expired` webhook per swept policy, concurrency=1 to avoid sweep races. Uses BullMQ rather than `@nestjs/schedule` to avoid taking on a new dep (matches existing `bate.worker.ts` pattern).
 - `apps/api/src/modules/policy/policy.expiry.worker.spec.ts` — 3 specs (no-op, sweep+webhook fan-out, error counting without rolling back the revocation).
 - `apps/api/src/modules/policy/policy.module.ts` — registered worker + imported `ObservabilityModule` and `WebhooksModule`.
 - `apps/api/src/common/observability/metrics.service.ts` — added `policyExpiredSweptTotal` Prometheus counter.
 
 **Manual OTel spans helper** (closes G-10):
+
 - `apps/api/src/common/observability/spans.ts` — `withSpan(name, fn, attrs?)` + `setActiveSpanAttributes(attrs)`. Records exceptions, sets ERROR status, never swallows. Documents the allow-list of low-cardinality attribute keys (no JWTs, no API keys, no private keys).
 - `apps/api/src/common/observability/spans.spec.ts` — 4 specs (success, undefined-attr skip, error capture, no-active-span no-op).
-- `apps/api/src/modules/verify/verify.service.ts` — wraps `verifyAlgorithm()` call in `aegis.verify.algorithm` span. The algorithm itself remains framework-free (CLAUDE.md invariant #2).
-- `apps/api/src/modules/audit/audit.service.ts` — wraps `append()` body in `aegis.audit.chain.append` span.
+- `apps/api/src/modules/verify/verify.service.ts` — wraps `verifyAlgorithm()` call in `okoro.verify.algorithm` span. The algorithm itself remains framework-free (CLAUDE.md invariant #2).
+- `apps/api/src/modules/audit/audit.service.ts` — wraps `append()` body in `okoro.audit.chain.append` span.
 
 **Dashboard /billing + /webhooks pages** (closes M-012 final gap):
+
 - `apps/dashboard/lib/api-client.ts` — added `listWebhooks`, `createWebhook`, `deleteWebhook`, `getPlanSummary`, `createCheckout`.
 - `apps/dashboard/app/billing/page.tsx` + `components/{CheckoutButton.tsx, actions.ts}` — Bloomberg-density plan summary, usage gauge, Stripe Checkout entry-point.
 - `apps/dashboard/app/webhooks/page.tsx` + `components/{SubscribeForm.tsx, UnsubscribeButton.tsx, actions.ts}` — subscription CRUD with one-time-secret reveal pattern.
@@ -3142,18 +7701,20 @@ Tests:       10 failed, 371 passed → 379 passed, 2 pre-existing fails
 ```
 
 Coordinator fixes during the run (peer regressions surfaced by extending coverage):
+
 - `verify.service.spec.ts` — peer added `UsageGuardService` to the constructor without updating the spec; spec was 9-arg, constructor takes 10. Added a default-allow `usageGuard` mock.
 - `bate.anomaly.spec.ts` — spec used `createdAt` as the BateSignal date field, but Prisma model + detector both use `occurredAt`. Renamed in the mock factory.
 - `billing.controller.spec.ts` — `Object.defineProperty` calls without `configurable: true` blew up on the second test that re-defined the same getter. All getters now `configurable: true`.
 
 Remaining 2 failures are pre-existing peer logic (not blockers):
+
 - `bate.anomaly.spec.ts` R-3 spend pattern test — logic vs. test expectation drift.
 - `cedar-wasm.evaluator.spec.ts` error message text assertion.
 - `check-openapi-prisma-parity.spec.ts` — peer script uses `import.meta.url`, not enabled in tsconfig.
 
 ### KMS span wiring (post-test)
 
-All three KMS adapters wrap their `sign` callback in `aegis.kms.<provider>.sign` spans
+All three KMS adapters wrap their `sign` callback in `okoro.kms.<provider>.sign` spans
 via `apps/api/src/modules/kms/kms.spans.ts`. Span attrs: `kms.provider`, `kms.op`, `kid`,
 `kms.purpose` (no message bytes, no signatures, no wrapped key material — see security
 note in the helper). Latency + error rate is queryable per provider in the trace store.
@@ -3161,7 +7722,7 @@ Closes the agent-C deferral.
 
 ### What's next
 
-- Operator runs the migration: `pnpm --filter @aegis/api prisma migrate deploy` (or `dev` locally).
+- Operator runs the migration: `pnpm --filter @okoro/api prisma migrate deploy` (or `dev` locally).
 - `pnpm install` from root to materialise Stripe + @opentelemetry/api in the workspace.
 - BATE weights (OD-001), cold-start (OD-002), pricing tier hard gates (OD-003) still need operator decisions before public launch.
 - **Phase 2** — `UsageMeterReporter` cron pushes Redis verify counters → Stripe `subscription_items.create_usage_record` for metered overage. Deliberately deferred: Gate 1 ($500 MRR) sells FREE→DEVELOPER (50K hard quota); metered billing only matters above plan caps.
@@ -3169,7 +7730,7 @@ Closes the agent-C deferral.
 
 ---
 
-## 2026-05-05 (Round 12 — secret-hardening + stripe scaffold + tests + spec sync) · claim=aegis:round-12-secret-stripe-tests
+## 2026-05-05 (Round 12 — secret-hardening + stripe scaffold + tests + spec sync) · claim=okoro:round-12-secret-stripe-tests
 
 **Duration:** ~30 min wall, 4 agents in parallel.
 **Status:** ✅ Landed. Swarm self-organized — peer coordinator (sid 69abf7c1)
@@ -3188,10 +7749,11 @@ migrations, and start integration testing.
 ### What landed
 
 #### Webhook secret envelope encryption — CLOSED
+
 - **NEW** `apps/api/src/common/crypto/webhook-secret-cipher.ts` —
   AES-256-GCM with format `v1:<iv_b64u>:<tag_b64u>:<ct_b64u>`, AAD
-  `aegis.webhook-secret.v1` for domain separation, 12-byte random IV.
-  Reads 32-byte DEK from `AEGIS_WEBHOOK_SECRET_DEK_B64`. Production
+  `okoro.webhook-secret.v1` for domain separation, 12-byte random IV.
+  Reads 32-byte DEK from `OKORO_WEBHOOK_SECRET_DEK_B64`. Production
   fail-loud on missing DEK; dev/test generates ephemeral DEK + WARN log
   with the b64 so devs can pin it. `isEncrypted(value)` legacy detector
   for the migration window.
@@ -3211,13 +7773,14 @@ migrations, and start integration testing.
   silent failure — CLAUDE.md invariant 4.
 - **EDIT** `webhooks.module.ts` — registers cipher as private provider.
 - **EDIT** `config.schema.ts` + `config.service.ts` — adds
-  `AEGIS_WEBHOOK_SECRET_DEK_B64` env (Zod-refined for 32-byte b64
+  `OKORO_WEBHOOK_SECRET_DEK_B64` env (Zod-refined for 32-byte b64
   when present). Optional in dev, required in prod.
 - **EDIT** `__multi_tenant__/multi-tenant-isolation.spec.ts` — added
   identity-cipher stub to `makeWebhooksSvc` factory for new
   constructor arity. 10/10 still green.
 
 #### UsageGuardService unit tests — CLOSED
+
 - **NEW** `apps/api/src/modules/billing/usage-guard.service.spec.ts` —
   15 `it()` cases, 15 pass. Pure Jest, no NestJS TestingModule (faster).
   Frozen system time at `2026-05-15T12:00:00Z` so `monthKey()` is
@@ -3229,15 +7792,16 @@ migrations, and start integration testing.
   `invalidatePlanCache()` deletes the right key.
 
 #### Stripe service scaffold (no controller) — CLOSED
+
 - **NEW** `apps/api/src/modules/billing/stripe.service.ts` —
   `isEnabled()` (false when `STRIPE_SECRET_KEY` absent — manual
   planTier still works), `createCheckoutSession({principalId,
-  planTier, successUrl, cancelUrl})` (creates Stripe Customer if
+planTier, successUrl, cancelUrl})` (creates Stripe Customer if
   absent, maps PlanTier → priceId via `plans.ts.stripeEnvSuffix`,
   embeds `metadata.principalId`, throws on FREE/ENTERPRISE),
   `verifyWebhookSignature()` (Stripe SDK constructEvent),
   `handleWebhookEvent()` (pure handler — controller layer is peer
-  territory; idempotent via Redis `SETNX` `aegis:stripe:event:{id}`
+  territory; idempotent via Redis `SETNX` `okoro:stripe:event:{id}`
   with 7-day TTL; ROLLS BACK the SETNX key on handler throw so
   Stripe retries actually re-dispatch — CLAUDE.md invariant 4 +
   retry semantics), `syncSubscriptionFromStripe()`,
@@ -3260,11 +7824,12 @@ migrations, and start integration testing.
   `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
   `STRIPE_PRICE_{DEVELOPER,GROWTH,ENTERPRISE}` (all optional).
 - **EDIT** `billing.module.ts` — `StripeService` added to providers
-  + exports. Peer round-11 separately added `BillingController` to
-  the same module (consumes my service). Both co-exist cleanly.
-- **PACKAGE** `pnpm --filter @aegis/api add stripe` succeeded.
+  - exports. Peer round-11 separately added `BillingController` to
+    the same module (consumes my service). Both co-exist cleanly.
+- **PACKAGE** `pnpm --filter @okoro/api add stripe` succeeded.
 
 #### Spec doc sync — CLOSED
+
 - **EDIT** `docs/spec/03_TECHNICAL_SPEC.md` — added §3.1.1 Denial
   Reasons splitting Tier 0 (pre-algorithm `PLAN_LIMIT_EXCEEDED`
   billing gate) from Tier 1 (locked 9-step crypto/authz precedence
@@ -3272,11 +7837,11 @@ migrations, and start integration testing.
   `verify.service.ts`. Documents that `PLAN_LIMIT_EXCEEDED` returns
   HTTP 200 (not 429 — quota is contractual, not transient throttle).
 - **EDIT** `docs/MONITORING_OBSERVABILITY.md` — added
-  `aegis_bate_anomaly_trigger_total{rule}` row to BATE metrics table
+  `okoro_bate_anomaly_trigger_total{rule}` row to BATE metrics table
   (§2.3): Counter, low-cardinality `rule` label values
   `detector.r1`..`detector.r5` (matches actual `s.source` values
   emitted by `bate.anomaly.ts` lines 90/93/108/111/158/161). Suggested
-  alert: `rate(aegis_bate_anomaly_trigger_total{rule="detector.r3"}[5m]) > 0.5`
+  alert: `rate(okoro_bate_anomaly_trigger_total{rule="detector.r3"}[5m]) > 0.5`
   (geographic-inconsistency rule sustained = likely tenant compromise).
 
 ### Verification
@@ -3296,10 +7861,10 @@ migrations, and start integration testing.
 
 ### Spec-drift introduced (logged for follow-up)
 
-- **`aegis_bate_anomaly_triggers_total` (PLURAL, with `R-1..R-5`
+- **`okoro_bate_anomaly_triggers_total` (PLURAL, with `R-1..R-5`
   labels)** appears in `docs/MONITORING_OBSERVABILITY.md` §2.3 and is
   OUT OF SYNC with code. Code emits the singular form
-  `aegis_bate_anomaly_trigger_total` with `detector.rN` labels (this
+  `okoro_bate_anomaly_trigger_total` with `detector.rN` labels (this
   round's addition). The plural variant should be deleted from the
   doc OR the code metric renamed to match — operator decides which is
   canonical. Doc agent flagged but stayed in scope.
@@ -3330,7 +7895,7 @@ migrations, and start integration testing.
   bulk-encrypted; they get re-encrypted on next subscription create.
   A one-shot migration script (`scripts/encrypt-existing-webhook-secrets.ts`)
   is the cleanest path before GA.
-- **`AEGIS_WEBHOOK_SECRET_DEK_B64` provisioning** — Railway env
+- **`OKORO_WEBHOOK_SECRET_DEK_B64` provisioning** — Railway env
   needs this set OR boot will fail in production. Generation:
   `openssl rand 32 | base64`. Document in `docs/DEPLOYMENT_GUIDE.md`.
 - **`SECURITY.md` denial-precedence sync** — see spec-drift above.
@@ -3352,26 +7917,26 @@ migrations, and start integration testing.
 - **OD-003** pricing tier reconciliation — still OPEN. Needed before
   Stripe goes live in production. Spec proposes more aggressive tiers
   than `plans.ts` defaults; pick one set.
-- **DEK provisioning policy** — should `AEGIS_WEBHOOK_SECRET_DEK_B64`
+- **DEK provisioning policy** — should `OKORO_WEBHOOK_SECRET_DEK_B64`
   be (a) a static env var (current default) or (b) wrapped by KMS
   via a `WEBHOOK_SECRET` purpose key (uses existing `kms.module.ts`
   envelope)? Option (b) is GA-better but doubles the lift.
-- **Metric name canonicalization** — keep `aegis_bate_anomaly_trigger_total`
-  (singular, this round's add) or `aegis_bate_anomaly_triggers_total`
+- **Metric name canonicalization** — keep `okoro_bate_anomaly_trigger_total`
+  (singular, this round's add) or `okoro_bate_anomaly_triggers_total`
   (plural, prior doc entry). One must die.
 
 ---
 
-## 2026-05-05 (Phase-1 launch swarm — agent-D · spec-sync + seed) · claim=aegis:specsync-seed
+## 2026-05-05 (Phase-1 launch swarm — agent-D · spec-sync + seed) · claim=okoro:specsync-seed
 
-Operator scope: "agent-D in a 4-agent AEGIS Phase 1 launch swarm — fix
+Operator scope: "agent-D in a 4-agent OKORO Phase 1 launch swarm — fix
 denial-reason enum (G-8), land OpenAPI/Zod and OpenAPI/Prisma parity
 gates, ship dev seed, do NOT touch apps/api/src or apps/dashboard or
 the schema/config files of other agents."
 
 ### What shipped
 
-1. **G-8 denial-reason enum** — verified `docs/spec/AEGIS_API_SPEC.yaml`
+1. **G-8 denial-reason enum** — verified `docs/spec/OKORO_API_SPEC.yaml`
    lines 577-586 already match the canonical 9-reason precedence from
    `packages/types/src/constants.ts` (`DENIAL_REASON_PRECEDENCE`) and
    CLAUDE.md invariant 6. No edit needed; previous round (Round 9 spec-
@@ -3388,10 +7953,10 @@ the schema/config files of other agents."
    - Adds RelyingParty upsert keyed on `domain="localhost:4000"` so the
      dashboard first-run flow has a target.
    - Writes the agent private key to BOTH `./.local/keys/dev-agent.private`
-     (existing durable path) AND `./.aegis-dev-key.txt` (operator-facing,
+     (existing durable path) AND `./.okoro-dev-key.txt` (operator-facing,
      contract-mandated). Both 0600.
    - Operator-facing summary block printed at the end with all five IDs
-     + the API key (when newly minted).
+     - the API key (when newly minted).
 3. **`apps/api/scripts/check-openapi-prisma-parity.ts`** — already
    shipped by a peer in Round 11 (16 KB script + 5.6 KB spec). Verified;
    not recreated.
@@ -3400,7 +7965,7 @@ the schema/config files of other agents."
    denial-enum byte-identical order against `DENIAL_REASON_PRECEDENCE`.
 5. **`package.json`** scripts — added `seed:dev`, `check:openapi-zod`,
    `check:openapi-prisma` at root; added `seed` at `apps/api/`.
-6. **`.gitignore`** — added explicit entries for `.aegis-dev-key.txt`
+6. **`.gitignore`** — added explicit entries for `.okoro-dev-key.txt`
    and `.local/keys/` (both were nominally covered by `*.local` but
    the explicit lines remove ambiguity).
 
@@ -3412,7 +7977,7 @@ the schema/config files of other agents."
   agent-D brief). Followed user instruction "If this script already
   exists in the repo, do NOT recreate". Root `scripts/check-openapi-*`
   duplicates were NOT created — the workspace-local versions are the
-  source of truth and CI runs them via `pnpm -F @aegis/{types,api}`.
+  source of truth and CI runs them via `pnpm -F @okoro/{types,api}`.
 - Root scripts in `package.json` point at the workspace-local versions
   via `pnpm -F …`. If a future agent wants root-level wrappers, drop
   thin `spawnSync` shims at `scripts/check-openapi-{zod,prisma}-parity.ts`.
@@ -3446,16 +8011,16 @@ fintech-payments quickstart. Zero edits to `apps/api/src/**`,
 ### What shipped
 
 1. **G-8 closed — OpenAPI denial enum order matches CLAUDE.md
-   invariant 6.**  `docs/spec/AEGIS_API_SPEC.yaml` lines 572-581 had
+   invariant 6.** `docs/spec/OKORO_API_SPEC.yaml` lines 572-581 had
    `POLICY_EXPIRED` before `POLICY_REVOKED` (alphabetical). Swapped
    to canonical precedence (`POLICY_REVOKED` first), and added an
    inline description that locks the order at the spec level so the
    next reorder requires a deliberate API version bump.
 
 2. **G-6 closed — `packages/types/scripts/check-openapi-zod-parity.ts`
-   exists.**  CI workflow `.github/workflows/spec-sync.yml` job-1
-   was invoking `pnpm -F @aegis/types exec tsx
-   scripts/check-openapi-zod-parity.ts`; the file did not exist and
+   exists.** CI workflow `.github/workflows/spec-sync.yml` job-1
+   was invoking `pnpm -F @okoro/types exec tsx
+scripts/check-openapi-zod-parity.ts`; the file did not exist and
    CI was failing on every PR touching the spec. The new script:
    - Walks every component referenced from a path operation.
    - Confirms a Zod schema (`<Name>Schema`/`<Name>RequestSchema`/etc.)
@@ -3466,11 +8031,11 @@ fintech-payments quickstart. Zero edits to `apps/api/src/**`,
      `DENIAL_REASON_PRECEDENCE` from `constants.ts` — catches the
      exact alphabetical-drift bug we just closed in G-8.
    - Companion 14 vitest cases in `check-openapi-zod-parity.spec.ts`.
-   - Added `tsx` + `yaml` to `@aegis/types` devDependencies and a
+   - Added `tsx` + `yaml` to `@okoro/types` devDependencies and a
      `spec-sync` script alias.
 
 3. **G-6 sibling — `apps/api/scripts/check-openapi-prisma-parity.ts`
-   exists.**  Same workflow, job-2, was missing too. New focused
+   exists.** Same workflow, job-2, was missing too. New focused
    script:
    - Light-touch regex Prisma parser (no `@prisma/internals` weight).
    - 3 mapped models (AgentIdentity, AgentPolicy, AuditEvent) with
@@ -3482,9 +8047,9 @@ fintech-payments quickstart. Zero edits to `apps/api/src/**`,
    - 11 jest specs — uses jest globals (apps/api convention).
 
 4. **M-040e completed — `examples/fintech-payments/src/agent-sim.ts`
-   landed.**  package.json referenced `tsx src/agent-sim.ts` for the
+   landed.** package.json referenced `tsx src/agent-sim.ts` for the
    `agent` script; file was missing. The README's `TOKEN=$(pnpm tsx
-   src/agent-sim.ts ...)` snippet was unrunnable. Now exists, uses
+src/agent-sim.ts ...)` snippet was unrunnable. Now exists, uses
    the real SDK surface (`signAgentToken` + `generateKeypair`),
    supports `--json` mode for tooling and a fall-through that mints
    an ephemeral keypair (the AGENT_NOT_FOUND demo branch). 162 LOC,
@@ -3505,11 +8070,13 @@ fintech-payments quickstart. Zero edits to `apps/api/src/**`,
 
 Peer sid=69abf7c1 holds `gate1-coordinator` and is the right owner
 for the remaining items from `MASTER_ENGINEERING_HANDOFF.md` §8:
+
 - G-3 BATE anomaly detector → BateService worker wiring.
 - G-9 `ScheduleModule.forRoot()` in `app.module.ts`.
 - G-10 manual OTel spans on verify / audit / KMS / policy paths.
 
 Pre-customer blockers (handoff §12):
+
 - G-2 Stripe billing webhook + usage metering.
 - G-5 dashboard login + API-key UI.
 
@@ -3526,7 +8093,7 @@ ultrathink / execute FAANG level / schedule when ungated".
 
 Continuation of Round 7's M-040 sweep. Round 7 left M-040c
 (oapi-codegen wiring) marked "stubbed pending integration"; this
-round closes M-040c, lands `aegis events tail/export`, `aegis
+round closes M-040c, lands `okoro events tail/export`, `okoro
 report`, plus release infra (CI workflow, CHANGELOG, release notes
 template, CLI security addendum). M-040a (device-code OAuth) is
 still gated — peer's auth0 module landed but does not yet expose
@@ -3545,7 +8112,7 @@ past ~20 endpoints — a `//go:generate` recipe is recorded in
 
 ### Spec drift logged for peer
 
-`docs/spec/AEGIS_API_SPEC.yaml` lines 572-581 list denial reasons
+`docs/spec/OKORO_API_SPEC.yaml` lines 572-581 list denial reasons
 in alphabetical order (`POLICY_EXPIRED` before `POLICY_REVOKED`).
 CLAUDE.md invariant 6 mandates the canonical 9-reason precedence
 (`POLICY_REVOKED` before `POLICY_EXPIRED`). The CLI renders against
@@ -3557,7 +8124,7 @@ peer to bring the OpenAPI enum in line with the invariant.
 **`packages/cli/internal/client/`** — split from a single hand-rolled
 file into per-resource files with paired httptest tests:
 
-- `types.go` — full type surface from `AEGIS_API_SPEC.yaml`, with
+- `types.go` — full type surface from `OKORO_API_SPEC.yaml`, with
   `CanonicalDenialOrder` constant from CLAUDE.md invariant 6 (not
   the alphabetical OpenAPI enum).
 - `agents.go` + `agents_test.go` — register / get / status / revoke.
@@ -3582,7 +8149,7 @@ keys so least-privilege RP machines hold only the verify key.
 **`packages/cli/cmd/`** — replaced all stubs with real wiring:
 
 - `agents.go` — register (with `--generate-keypair` Ed25519 local
-  mint, private key shown once, never sent to AEGIS), show, status
+  mint, private key shown once, never sent to OKORO), show, status
   (public endpoint), revoke. `--json` mode on every verb.
 - `policy.go` — create (imperative flags or `--file <json>`), list,
   revoke, inspect (decodes JWT without verifying, EdDSA-only allow
@@ -3625,7 +8192,7 @@ keys so least-privilege RP machines hold only the verify key.
   Round 6 typecheck closure; touching these would re-open the wound.
 - `docs/SECURITY.md`, `docs/ARCHITECTURE.md` — peer-shared canonical
   docs. Net-new docs only (CLI_SECURITY, RELEASE_NOTES_TEMPLATE).
-- `docs/spec/AEGIS_API_SPEC.yaml` — spec drift (denial-reason order)
+- `docs/spec/OKORO_API_SPEC.yaml` — spec drift (denial-reason order)
   documented in this handoff for peer to fix.
 
 ### Validation
@@ -3633,7 +8200,7 @@ keys so least-privilege RP machines hold only the verify key.
 - `go build ./...` — clean.
 - `go test ./...` — all pass (race mode in CI).
 - `go vet ./...` — clean.
-- `aegis --help` smoke test — full command tree surfaces with
+- `okoro --help` smoke test — full command tree surfaces with
   agents, events, policy, report, verify, etc. all listed.
 
 ### Confirmed not done (next session pickup)
@@ -3643,13 +8210,13 @@ keys so least-privilege RP machines hold only the verify key.
    `/device/{authorize,token}`. Wakeup scheduled in 14 days to
    re-check. When ungated, wire `internal/oauth/devicecode.go` and
    replace the stub branch in `cmd/login.go`.
-2. **`aegis listen` (webhook subscription tail)** — server-side
+2. **`okoro listen` (webhook subscription tail)** — server-side
    webhook subscription endpoint is not in the OpenAPI spec today.
    Outbox worker shipped (good — eventually emits to subscribers)
    but the subscribe/list endpoints need to land first.
-3. **TS scaffold migration to `aegis-node` plugin** — still awaits
+3. **TS scaffold migration to `okoro-node` plugin** — still awaits
    operator decision per `packages/cli/MIGRATION_TS_TO_PLUGIN.md`.
-4. **`aegis dash` TUI cockpit** — bubbletea-based real-time dash
+4. **`okoro dash` TUI cockpit** — bubbletea-based real-time dash
    that combines whoami + last 10 events + last 10 verifies.
    Worthwhile but lower ROI than what shipped this round.
 5. **Postman/Bruno/Insomnia collection auto-generation** — recipe
@@ -3658,7 +8225,7 @@ keys so least-privilege RP machines hold only the verify key.
 
 ### Coordination state
 
-- Claim `aegis:cli-deepwire` released after this handoff.
+- Claim `okoro:cli-deepwire` released after this handoff.
 - No active peer claims at start of session.
 - Spec drift filed in this entry — peer holding spec ownership
   should reconcile lines 572-581 with CLAUDE.md invariant 6 in
@@ -3696,7 +8263,7 @@ Round 6 close: fixed all 8 a9198691-flagged typecheck errors (auth0+mcp), shippe
 
 ### Next steps
 
-1) Wire BateModule + WebhooksModule onModuleInit to call OutboxWorker.register() with their handlers; 2) packages/cli SDK contract drift (agents.create/list, policies args) - peer should align CLI to current SDK shape; 3) packages/mcp-server install @modelcontextprotocol/sdk + @aegis/sdk; 4) thread signingKeyId from KmsAdapter into AuditService.append (currently defaults to kid-genesis-v1); 5) wire audit-verify-chain CI secrets (AUDIT_DB_READONLY_URL, AEGIS_API_BASE, SLACK_INCIDENT_WEBHOOK in GitHub Environments).
+1. Wire BateModule + WebhooksModule onModuleInit to call OutboxWorker.register() with their handlers; 2) packages/cli SDK contract drift (agents.create/list, policies args) - peer should align CLI to current SDK shape; 3) packages/mcp-server install @modelcontextprotocol/sdk + @okoro/sdk; 4) thread signingKeyId from KmsAdapter into AuditService.append (currently defaults to kid-genesis-v1); 5) wire audit-verify-chain CI secrets (AUDIT_DB_READONLY_URL, OKORO_API_BASE, SLACK_INCIDENT_WEBHOOK in GitHub Environments).
 
 ---
 
@@ -3708,7 +8275,7 @@ scaffold think plan implement execute cream loaded / ultrathink".
 Concurrent with sid=3e2203ee (S2 modules M-020..M-030, KMS+CLI+
 dashboard) and sid=7a07798e (RLS + reviews). Boundary established
 via `claude-peers msg` ack: this session owns ARCHITECTURE.md +
-ARCHITECTURE_AUDIT.md + AEGIS_AS_BACKBONE.md + the three
+ARCHITECTURE_AUDIT.md + OKORO_AS_BACKBONE.md + the three
 not-yet-existent strategic docs (CAPACITY_PLAN, FAILURE_MODES,
 RETENTION_POLICY) + ~/.claude/peers infra. **Zero file collisions
 with peer scopes.**
@@ -3721,6 +8288,7 @@ auditor reads first; the deep-canon doc is the follow-up that wins
 or loses the engagement.
 
 **`docs/CAPACITY_PLAN.md`** (~43 KiB, 17 sections):
+
 - §2 workload model with per-surface RPS targets at GA / +12mo /
   Phase 3 + per-RP traffic mix (FORGE/CerniQ/Apex/Bimba split).
 - §3 sizing methodology: Little's Law worked example showing why
@@ -3741,20 +8309,20 @@ or loses the engagement.
   pricing-tier OD-003 recommendation revisit.
 - §13 load test plan including chaos scenarios.
 - §14 per-sister-project capacity bumps tied to
-  `AEGIS_AS_BACKBONE.md` rollout order.
+  `OKORO_AS_BACKBONE.md` rollout order.
 - Appendix A: 7 explicit `<!-- assumption: -->` items for
   quarterly review.
 
 **`docs/FAILURE_MODES.md`** (~44 KiB, 17 sections, full FMEA):
+
 - §3 methodology with S × L × D = RPN scoring rubric and threshold
   guidance.
 - §4–§13 per-component failure tables: Crypto (8 modes), KMS (6),
   Postgres (10), Redis (7), BullMQ (5), External deps (6),
   Replay/abuse (7), Audit chain (7), Operational (7), Phase 3
   Workers (4).
-- Highest RPN identified: **O-06 untested backup recovery (RPN
-  48)** — drives the §16 quarterly DR rehearsal cadence (this is
-  *the* finding the SOC 2 auditor wants to see explicitly tracked).
+- Highest RPN identified: **O-06 untested backup recovery (RPN 48)** — drives the §16 quarterly DR rehearsal cadence (this is
+  _the_ finding the SOC 2 auditor wants to see explicitly tracked).
 - Race-resolution column wired to CLAUDE.md inv. 6 denial precedence
   — explicit ordering documentation for every multi-failure-mode
   race (e.g. revoke + spend evaluation surfaces `POLICY_REVOKED`
@@ -3771,6 +8339,7 @@ or loses the engagement.
   operator initials.
 
 **`docs/RETENTION_POLICY.md`** (~37 KiB, 14 sections + 1 appendix):
+
 - §3 nine-class data taxonomy (P1 PII through P9 ephemeral) with
   per-field classification rules including the merge-checklist for
   any new persistent field.
@@ -3804,7 +8373,7 @@ or loses the engagement.
   section. Closures A-002, A-003, A-004, A-005, A-006, A-022 promoted
   from `CLOSED` to `CLOSED + DEEP` with the new canon docs cited.
   No findings re-opened.
-- `docs/AEGIS_AS_BACKBONE.md` §9 — added cross-references to the
+- `docs/OKORO_AS_BACKBONE.md` §9 — added cross-references to the
   three new docs, pointing at §14 (capacity bumps), the FMEA, and
   per-RP DSAR + audit retention.
 
@@ -3817,7 +8386,7 @@ or loses the engagement.
   files**. Mutual ack of strict file-level boundary.
 - Peer 7a07798e is in `apps/api/src/common/security/` (RLS) and
   `docs/reviews/` — also disjoint.
-- claude-peers `claim aegis:docs-strategic` taken with 7200 s TTL +
+- claude-peers `claim okoro:docs-strategic` taken with 7200 s TTL +
   heartbeat refreshes.
 - This handoff appended at top of file (newest-first format) — does
   not collide with peer 3e2203ee's appended sections lower in the
@@ -3844,7 +8413,7 @@ For a future session inheriting this scope:
    selected canonical mapping; the schema-level annotation will
    become the authoritative source once peer migrations settle.
 4. **Update CAPACITY_PLAN.md §14 capacity bumps** when each sister
-   project flips from shadow to enforce (per AEGIS_AS_BACKBONE.md §3
+   project flips from shadow to enforce (per OKORO_AS_BACKBONE.md §3
    roll-out order). Each enforcement triggers a §12 scaling action
    that must complete before the gate flips.
 5. **OD-004 closure dependency:** RETENTION_POLICY.md §4 P3 cold
@@ -3888,7 +8457,7 @@ discipline: zero source edits in either peer's claimed paths.
 
 ### Shipped
 
-- **`git init` (commit `714be5a`)** — AEGIS was developed without git
+- **`git init` (commit `714be5a`)** — OKORO was developed without git
   from Phase 0 until this session. Working tree captured as the genesis
   baseline (457 files, conventional-commit message style; existing
   `.husky/{pre-commit,commit-msg}` will validate going forward once
@@ -3900,7 +8469,7 @@ discipline: zero source edits in either peer's claimed paths.
 - **Architecture audit closure (commit `cdfb48a`)** — `docs/ARCHITECTURE.md`
   expanded with §8-§14 + §16, closing 14 of 22 audit findings:
   - §8 Deployment strategy → A-008.
-  - §9 Incident communication → A-009 (signed `aegis.incident.declared`
+  - §9 Incident communication → A-009 (signed `okoro.incident.declared`
     webhook + status page).
   - §10 Failure modes → A-002 (Redis), A-003 (Postgres), A-015
     (negative caching), A-017 (SpendRecord reconciliation cadence),
@@ -3920,8 +8489,8 @@ discipline: zero source edits in either peer's claimed paths.
     operator-decision-blocked or low-severity editorial.
   - `OPERATOR_DECISIONS.md`: added OD-007 (status-page hosting choice).
 
-- **`docs/AEGIS_AS_BACKBONE.md` (new)** — first written articulation of
-  AEGIS as the cryptographic identity / policy / audit substrate for
+- **`docs/OKORO_AS_BACKBONE.md` (new)** — first written articulation of
+  OKORO as the cryptographic identity / policy / audit substrate for
   the operator's other four production systems (FORGE, CerniQ, Apex,
   Bimba). Per-project Phase 0 → shadow → enforce adoption plan;
   cross-cutting concerns (one Principal per project, audit-chain
@@ -3938,13 +8507,13 @@ discipline: zero source edits in either peer's claimed paths.
     stomp-the-peer error invisible until it happens.
   - `handoff` — structured append to a project's
     `docs/SESSION_HANDOFF.md`. Replaces copy-paste-the-format with a
-    consistent schema across FORGE / CerniQ / Apex / Bimba / AEGIS.
+    consistent schema across FORGE / CerniQ / Apex / Bimba / OKORO.
   - `describe <sid-prefix>` — full claim manifest when status truncates
     long peer notes.
-  - `aegis` added to `PROJECT_ROOTS` so the substrate project has the
+  - `okoro` added to `PROJECT_ROOTS` so the substrate project has the
     same first-class inference as the other four.
   - `~/.claude/peers/CHANGELOG.md` (new) documents the round 6 upgrade
-    + a known sid-collision quirk (pre-existing, not introduced).
+    - a known sid-collision quirk (pre-existing, not introduced).
 
 ### Remaining audit findings (open by intent, not oversight)
 
@@ -3970,7 +8539,7 @@ discipline: zero source edits in either peer's claimed paths.
 ### Operator action items
 
 1. Triage OD-007 (status page hosting) — affects SOC2 CC7.4 evidence.
-2. Review `docs/AEGIS_AS_BACKBONE.md` and either accept the Apex →
+2. Review `docs/OKORO_AS_BACKBONE.md` and either accept the Apex →
    CerniQ → FORGE → Bimba roll-out order or override.
 3. (Optional) `git remote add origin <url> && git push -u origin main`
    to a private mirror — the repo is local-only by design until the
@@ -3981,7 +8550,7 @@ discipline: zero source edits in either peer's claimed paths.
 ## 2026-05-02 (Round 7) · sid=3e2203ee · adoption-frictionless-cli
 
 **Operator directive**: "frictionless adoption across all industries
-for AEGIS, super intuitive and easy to use, terminal functions
+for OKORO, super intuitive and easy to use, terminal functions
 worldclass — Stripe / PayPal-tier architecture, no shortcuts,
 ultrathink."
 
@@ -3994,6 +8563,7 @@ greenfield — zero collisions with peer sessions on `apps/api/`,
 ### Delivered
 
 **Operator decisions** (`OPERATOR_DECISIONS.md`):
+
 - OD-008 reserved (peer's PQ-hybrid flag flip — preserved their slot).
 - OD-009 — CLI auth: device-code OAuth primary, `--api-key` for CI.
 - OD-010 — Go single static binary (5 MB, no runtime), Ed25519 stdlib +
@@ -4005,23 +8575,23 @@ greenfield — zero collisions with peer sessions on `apps/api/`,
 
 **WORK_BOARD** — added SPRINT S3 (Adoption surface) with M-040a..h
 sub-tickets. Updated M-027 (operator CLI) status to claimed by this
-session and split into M-040* deliverables. Reserved `aegis audit *`
-namespace for peer's `enterprise-plane` via plugin discovery — no
+session and split into M-040* deliverables. Reserved `okoro audit *`namespace for peer's`enterprise-plane` via plugin discovery — no
 in-binary code coupling.
 
 **`packages/cli/`** (Go single static binary, ~1100 LOC):
+
 - `main.go` + `cmd/{root,login,logout,whoami,doctor,init,agents,policy,verify,version,completion,env}.go` (12 cobra subcommands).
 - `internal/{client,config,keychain,plugin,templates,ui,version}/` —
   HTTP client (User-Agent, typed APIError envelope), TOML config (XDG-
   compliant + atomic writes), `99designs/keyring` (Keychain.app /
   Secret Service / Credential Manager / encrypted-file fallback),
-  kubectl-style plugin discovery (`aegis-*` on PATH → `aegis *`),
+  kubectl-style plugin discovery (`okoro-*` on PATH → `okoro *`),
   embedded vertical templates, lipgloss Bloomberg-density styling.
-- `aegis doctor` — 10-check battery: binary metadata, config, base URL,
+- `okoro doctor` — 10-check battery: binary metadata, config, base URL,
   credential, API reachable, credential accepted, JWKS reachable,
   clock skew, plugins discovered, runtime sanity. Exit code = failure
   count. JSON output via `--json`.
-- `aegis init --industry <x>` — scaffolds from embedded templates;
+- `okoro init --industry <x>` — scaffolds from embedded templates;
   refuses non-empty target dir without `--force`.
 - Plugin tests: PATH-walk, traversal rejection, executable-bit gate.
 - `.golangci.yml` config matches CLAUDE.md quality bar.
@@ -4029,26 +8599,28 @@ in-binary code coupling.
 **TS-vs-Go collision resolved**: pre-existing TS scaffold under
 `packages/cli/` (peer-authored 10:50, ~7 commander-based command files)
 preserved intact. `MIGRATION_TS_TO_PLUGIN.md` documents the path:
-move to `packages/cli-node/`, rename binary to `aegis-node`, surface
-via plugin discovery as `aegis node ...`. No deletion. Three options
+move to `packages/cli-node/`, rename binary to `okoro-node`, surface
+via plugin discovery as `okoro node ...`. No deletion. Three options
 laid out for operator decision (default: migrate).
 
 **`examples/`** — three industry quickstarts:
-- `examples/fintech-payments/` — Express server with AEGIS verify
+
+- `examples/fintech-payments/` — Express server with OKORO verify
   gate before `chargeCard()`. `walk-denials.ts` walks all 9 denial
   reasons in canonical order to teach the precedence ladder.
 - `examples/ai-platform-tool-call/` — MCP stdio server wrapping a
-  downstream API behind `aegis.verify(token, ctx)`. Cross-links
-  AEGIS `auditEventId` into downstream request log. `mcp.json`
+  downstream API behind `okoro.verify(token, ctx)`. Cross-links
+  OKORO `auditEventId` into downstream request log. `mcp.json`
   snippet for Claude Desktop wiring.
 - `examples/saas-seat-provisioning/` — SCIM 2.0-shaped agent
   provisioning. Per-tier policy templates (free / pro / business /
-  enterprise) mapped to AEGIS scope + spend cap + domain allow-list.
+  enterprise) mapped to OKORO scope + spend cap + domain allow-list.
   Idempotent on `externalId`.
 
 **`docs/personas/`** — four curated entry paths:
+
 - `developer.md` — pick agent-operator vs RP role, 5 first steps,
-  `AEGIS_AS_BACKBONE.md` § 2.3 as the "one document worth reading."
+  `OKORO_AS_BACKBONE.md` § 2.3 as the "one document worth reading."
 - `security.md` — what's enforced vs not, threat-model reading order,
   crypto contract (one curve, one library), cross-tenant isolation,
   GDPR Art-17 erasure path.
@@ -4060,21 +8632,22 @@ laid out for operator decision (default: migrate).
   GDPR 17/30).
 
 **`docs/INDUSTRY_QUICKSTARTS.md`** — the operator-facing index of
-`aegis init --industry <x>` templates, the 5-step common pattern across
+`okoro init --industry <x>` templates, the 5-step common pattern across
 verticals, and the deferred-second-wave list.
 
 **`docs/PLUGIN_AUTHORS.md`** — kubectl-style plugin contract: MUST
 forward argv, exit codes, stderr/stdout discipline, `--json`
 honoring, env-var inheritance. MUST NOT re-implement login or mutate
 parent env. Distribution patterns (Homebrew tap / Scoop / `go install` /
-`npm`). Examples-in-the-wild table including `aegis-audit`
-(peer-owned) and proposed `aegis-node` (TS migration target).
+`npm`). Examples-in-the-wild table including `okoro-audit`
+(peer-owned) and proposed `okoro-node` (TS migration target).
 
 **`docs/collections/README.md`** — Postman / Insomnia / Bruno / HTTPie
 collection auto-generation from the OpenAPI spec. Generation commands
 documented; files land alongside first goreleaser drop.
 
 **Installer infrastructure**:
+
 - `scripts/install/install.sh` — POSIX-portable (`sh`, no bash-isms),
   detects OS+arch, fetches latest release, verifies SHA-256 against
   published `checksums.txt`, optional cosign verification via
@@ -4095,7 +8668,7 @@ documented; files land alongside first goreleaser drop.
 - M-040d advanced surface (`listen`, `trigger`, `tail audit`, `dash`
   TUI cockpit) — gated on M-008 webhook delivery worker landing.
 - Device-code OAuth flow — needs peer's `auth0` module device-code
-  endpoints. `aegis login --api-key` works today; `aegis login`
+  endpoints. `okoro login --api-key` works today; `okoro login`
   without flags surfaces a clear "use --api-key for now" message
   per CLAUDE.md invariant 4 (no fabricated success).
 - TS-to-plugin migration physical move — proposed in
@@ -4107,17 +8680,19 @@ documented; files land alongside first goreleaser drop.
 ### Coordination state
 
 Three peer claims active when this session started:
-- sid=3e2203ee (me, this round) — released `aegis:enterprise-plane`,
-  re-claimed `aegis:adoption-frictionless-cli`.
-- sid=7a07798e — `aegis:defense-in-depth-plane` (RLS migration +
+
+- sid=3e2203ee (me, this round) — released `okoro:enterprise-plane`,
+  re-claimed `okoro:adoption-frictionless-cli`.
+- sid=7a07798e — `okoro:defense-in-depth-plane` (RLS migration +
   security hardening + alerts + runbook + `docs/reviews/`).
-- sid=a9198691 — orphaned `aegis:repo-genesis-and-audit-closure`
-  claim from a prior session (cwd=/Users/money, not the AEGIS dir).
+- sid=a9198691 — orphaned `okoro:repo-genesis-and-audit-closure`
+  claim from a prior session (cwd=/Users/money, not the OKORO dir).
 
 Messages sent this round:
+
 - → `7a07798e`: notified of TS-vs-Go collision in `packages/cli/`,
   explained OD-010 lock, proposed migration path. Acks pending.
-- → `3e2203ee` (an earlier round of myself): reserved `aegis audit *`
+- → `3e2203ee` (an earlier round of myself): reserved `okoro audit *`
   namespace via plugin discovery, no in-binary collision.
 
 No edits made under: `apps/api/**`, `apps/dashboard/**`,
@@ -4148,7 +8723,7 @@ plus typecheck cleanup of pre-existing peer issues.
   Closes the Round 2 release-blocker risk #1 the prior session flagged.
 - **`scripts/audit-verify-chain.ts`** + spec (13 tests, vitest). Offline
   third-party audit-chain verifier — auditors and restore-drill operators
-  run it with just `DATABASE_URL` + a JWKS URL, no AEGIS source needed.
+  run it with just `DATABASE_URL` + a JWKS URL, no OKORO source needed.
   Re-implements the canonicalize + prevHash math byte-identical to
   `apps/api/src/common/crypto/audit-chain.util.ts`; spec catches drift
   via independent sign-from-spec → verify-from-CLI parity. Exit codes:
@@ -4182,7 +8757,7 @@ plus typecheck cleanup of pre-existing peer issues.
   for the management `/v1/agents/<id>` path, auth0 spec vitest→jest
   shim) unblocked tests that previously failed to compile. The 2
   remaining broken suites are `src/modules/auth0/auth0.{service,
-  adapter}.spec.ts` — both blocked by typecheck errors in
+adapter}.spec.ts` — both blocked by typecheck errors in
   `auth0.adapter.ts` itself (`Principal.email` required by Prisma but
   adapter omits it on `create`; `Jwk` shape doesn't satisfy
   `JsonWebKey`). Both resolve when M-026 lands the schema additions
@@ -4190,7 +8765,7 @@ plus typecheck cleanup of pre-existing peer issues.
 - **scripts**: typecheck Done, 13/13 audit-verify-chain spec green.
 - **All other workspace packages typecheck Done** except
   `packages/mcp-server` (missing `@modelcontextprotocol/sdk`,
-  `@aegis/sdk`, `@aegis/tsconfig` — pre-existing peer Round-2 issue
+  `@okoro/sdk`, `@okoro/tsconfig` — pre-existing peer Round-2 issue
   flagged in prior handoff).
 - **api typecheck still has** ~7 errors all in pre-existing peer code
   pending the M-026 schema migration: `Principal.email` required by
@@ -4213,19 +8788,19 @@ plus typecheck cleanup of pre-existing peer issues.
   - `apps/api/src/common/kms/**` (subset of `modules/kms/**` per ADR-0011)
   - 6 files added to `modules/mcp/**` (different model than peer's
     control-plane registry)
-  
+
   All of this was deleted before the session ended. The peer (same sid
   before compaction) had already shipped a more polished, more aligned
   set: ADRs 0008-mcp-as-control-plane through 0013-pq-hybrid-scaffold
-  + auth0/mcp/kms/policy-engine modules + mcp-bridge/mcp-server packages.
-  Disk-level prior work is the source of truth across compaction
-  boundaries. Memory entry `feedback_post_compaction_inventory` saved.
+  - auth0/mcp/kms/policy-engine modules + mcp-bridge/mcp-server packages.
+    Disk-level prior work is the source of truth across compaction
+    boundaries. Memory entry `feedback_post_compaction_inventory` saved.
 
 ### Coordination state at session end
 
-- Peer claim `aegis:bug-fix-pass` (sid=a9198691) still active. They
+- Peer claim `okoro:bug-fix-pass` (sid=a9198691) still active. They
   continue to hold verify/policy/migrations/seed/metrics paths.
-- This session's claim `aegis:enterprise-plane` released after writing
+- This session's claim `okoro:enterprise-plane` released after writing
   this entry.
 
 ### Next-session pickup priority
@@ -4235,7 +8810,7 @@ In order of leverage, all unconflicted with the bug-fix pass:
 1. **`pnpm install body-parser` + `@types/body-parser`** in `apps/api`.
    One-liner; unblocks `security.spec.ts` (18→19 of 19 suites green).
 2. **M-026 schema migration** owned by peer: adds `Principal.idpProvider/
-   idpOrganizationId/idpDomain` + `Principal.email` nullable, plus
+idpOrganizationId/idpDomain` + `Principal.email` nullable, plus
    `RelyingParty.principalId/metadata/status/kind` + `RelyingPartyKind`
    enum. Unblocks auth0 + mcp module typecheck.
 3. **Wire `KmsModule` into `AppModule`** so the audit signer becomes
@@ -4245,9 +8820,9 @@ In order of leverage, all unconflicted with the bug-fix pass:
    requires this for `signingKeyId` to start being stamped on audit
    events.
 4. **Add `signingKeyId` column to `AuditEvent`** (additive migration)
-   + thread it through `audit.service.append` → `audit-chain.util.sign`.
-   Required for ADR-0011 forward-compat verifier behavior. Coordinate
-   with M-026.
+   - thread it through `audit.service.append` → `audit-chain.util.sign`.
+     Required for ADR-0011 forward-compat verifier behavior. Coordinate
+     with M-026.
 5. **Wire `audit-verify-chain.ts` into a CI step** so chain integrity
    is checked on every staging deploy. Catch tampering or storage bugs
    the moment they appear. The script exit-code-clean run is what an
@@ -4275,7 +8850,7 @@ out yesterday + shipped the missing Prisma init migration.
   deployment that followed the recommended env-var pattern.**
 - **C-4 / H-4 completion** — `verify.service.ts` `touchAgent` no
   longer has bare `.catch(() => undefined)`; logged warn + emits
-  `aegis_cache_set_failed_total{op="touch_agent"}`.
+  `okoro_cache_set_failed_total{op="touch_agent"}`.
 - **H-3 (cache observability)** — new `MetricsService.cacheSetFailedTotal`
   Prometheus counter; wired into `loadAgent` cache write, `loadPolicy`
   cache write, and `touchAgent`. Sustained increment > 1/sec is the
@@ -4291,7 +8866,7 @@ out yesterday + shipped the missing Prisma init migration.
 - **B1 — initial Prisma migration shipped**:
   - `apps/api/prisma/migrations/20260502000000_init/migration.sql`
     (374 lines, generated via `prisma migrate diff --from-empty
-    --to-schema-datamodel ./prisma/schema.prisma --script`). Captures
+--to-schema-datamodel ./prisma/schema.prisma --script`). Captures
     all 13 tables including peer's new `OutboxEvent` + `AuditEvent`
     redactability columns (`claimedAgentId`, `*Hash`, `redactedAt`,
     `redactionReason`, `payloadVersion`).
@@ -4319,12 +8894,12 @@ out yesterday + shipped the missing Prisma init migration.
 ### Remaining work for the next session (~9 h to deploy-ready)
 
 1. **H-6 DTO ↔ Zod split-brain** — adopt `nestjs-zod`, derive DTOs
-   from `@aegis/types` via `createZodDto` + `ZodValidationPipe`.
+   from `@okoro/types` via `createZodDto` + `ZodValidationPipe`.
 2. **H-8 crypto utils portability** — extract `apps/api/src/common/crypto/*`
    into framework-free pure-fn modules with `@Injectable` thin wrappers.
 3. **H-1 crypto error opacity** — `JwtUtil.verifyAndDecode` returns
    discriminated union (`'ok' | 'malformed' | 'bad_sig' | 'expired' |
-   'crypto_error'`).
+'crypto_error'`).
 4. **Coverage backfill** — `.spec.ts` for the 6 remaining untested
    services / controllers (start with `AuditService`, `ApiKeyService`,
    `VerifyController`).
@@ -4332,7 +8907,7 @@ out yesterday + shipped the missing Prisma init migration.
 
 ### Operator action item
 
-Run `pnpm --filter @aegis/api prisma:migrate deploy` once the lockfile
+Run `pnpm --filter @okoro/api prisma:migrate deploy` once the lockfile
 is committed; the init + audit-append-only migrations land.
 
 ---
@@ -4343,10 +8918,10 @@ Picked up after the round-3 cap-out (build doctor / M-007 anomaly / M-011 Stripe
 
 ### Build green (was red)
 
-- `packages/tsconfig/library.json` — `incremental: false` so `tsup --dts` builds emit .d.ts (root cause of every downstream `Cannot find module '@aegis/types'`).
-- `apps/api/package.json` — added `@aegis/types` direct dep.
-- `packages/sdk-ts` — collapsed duplicate `Aegis` class (one each in `client.ts` and `index.ts`); unified `HttpClient` to dual-key + object-options API; deleted `client.ts`.
-- `packages/sdk-ts/jest.config.ts` + `apps/api/jest.config.ts` — `transformIgnorePatterns: ['/node_modules/(?!(\\.pnpm/)?(@noble|@aegis)([+/]|$))']` and `moduleNameMapper` for ESM-style `.js` imports under ts-jest CJS. Closes the `Unexpected token 'export'` failure from `@noble/ed25519` v2 ESM-only at the pnpm `.pnpm/<scope>+<pkg>` hoist path.
+- `packages/tsconfig/library.json` — `incremental: false` so `tsup --dts` builds emit .d.ts (root cause of every downstream `Cannot find module '@okoro/types'`).
+- `apps/api/package.json` — added `@okoro/types` direct dep.
+- `packages/sdk-ts` — collapsed duplicate `Okoro` class (one each in `client.ts` and `index.ts`); unified `HttpClient` to dual-key + object-options API; deleted `client.ts`.
+- `packages/sdk-ts/jest.config.ts` + `apps/api/jest.config.ts` — `transformIgnorePatterns: ['/node_modules/(?!(\\.pnpm/)?(@noble|@okoro)([+/]|$))']` and `moduleNameMapper` for ESM-style `.js` imports under ts-jest CJS. Closes the `Unexpected token 'export'` failure from `@noble/ed25519` v2 ESM-only at the pnpm `.pnpm/<scope>+<pkg>` hoist path.
 - 6 minor lint cleanups (`WellknownModule` casing, unused imports, swagger enum shape, `RequestWithAuth.auth` field-completeness, sdk-ts `incremental: false`).
 
 ### Critical-path security (peer-flagged)
@@ -4376,7 +8951,7 @@ Picked up after the round-3 cap-out (build doctor / M-007 anomaly / M-011 Stripe
 
 ### Env unification
 
-- `config.schema.ts` — canonical `AEGIS_SIGNING_PRIVATE_KEY` / `AEGIS_SIGNING_PUBLIC_KEY` envs; legacy `AUDIT_ED25519_*_B64` retained as accepted-but-warned aliases (logged on first read).
+- `config.schema.ts` — canonical `OKORO_SIGNING_PRIVATE_KEY` / `OKORO_SIGNING_PUBLIC_KEY` envs; legacy `AUDIT_ED25519_*_B64` retained as accepted-but-warned aliases (logged on first read).
 - `audit.service.ts` boot error renamed.
 
 ### Outbox (ADR-0007)
@@ -4414,7 +8989,7 @@ Picked up after the round-3 cap-out (build doctor / M-007 anomaly / M-011 Stripe
 
 ### Released
 
-- Claim `aegis:round-4-greenline-and-worldclass` released after this entry.
+- Claim `okoro:round-4-greenline-and-worldclass` released after this entry.
 
 ---
 
@@ -4432,13 +9007,13 @@ Goal of this round: move past scaffold to a system where every agent-derived tra
 
 ### Swarm I — operator CLI + replay harness + dev stack + examples (19 files, ~2,591 LOC)
 
-`scripts/aegis-cli.ts` (759 LOC) — operator-grade CLI driving the full surface: `register`, `agent {register,list,revoke,status}`, `policy {create,list,revoke}`, `verify` (signs request token locally with the agent's stored Ed25519 key, posts to `/v1/verify`, human-readable denial mapping), `audit tail [--follow]`, `trust score`, `health`. Persists state in `./.aegisrc.json`; private keys to `./.local/keys/<agentId>.private` mode 0600. Structured exit codes (0/1/2/3/4/5). Three verbs flagged `REQUIRES_ENDPOINT` with documented fallbacks (`register` no `principals` controller exists yet — falls back to seed-dev; `agent list` no GET-collection endpoint — iterates `.aegisrc.json`; `trust score` `/bate` is POST-only — falls back to `/agents/:id/status` and surfaces `source: 'status-fallback'`). 13/13 spec tests passing.
+`scripts/okoro-cli.ts` (759 LOC) — operator-grade CLI driving the full surface: `register`, `agent {register,list,revoke,status}`, `policy {create,list,revoke}`, `verify` (signs request token locally with the agent's stored Ed25519 key, posts to `/v1/verify`, human-readable denial mapping), `audit tail [--follow]`, `trust score`, `health`. Persists state in `./.okororc.json`; private keys to `./.local/keys/<agentId>.private` mode 0600. Structured exit codes (0/1/2/3/4/5). Three verbs flagged `REQUIRES_ENDPOINT` with documented fallbacks (`register` no `principals` controller exists yet — falls back to seed-dev; `agent list` no GET-collection endpoint — iterates `.okororc.json`; `trust score` `/bate` is POST-only — falls back to `/agents/:id/status` and surfaces `source: 'status-fallback'`). 13/13 spec tests passing.
 
 `scripts/backtest-verify.ts` (456 LOC) — replays historical `AuditEvent` rows through the current verify algorithm, diffs decisions, exits non-zero if match-rate < threshold. **Critically refuses to fabricate**: if `verify.algorithm.ts` can't be loaded portably, exits 1 with `ALGORITHM_NOT_PORTABLE` rather than reporting fake match=0. CLI flags: `--since`, `--until`, `--principal`, `--threshold`, `--limit`, `--json`.
 
-`infra/dev/` — one-command dev stack: `docker-compose.dev.yml` (postgres:16.4-alpine, redis:7.4-alpine, prom/prometheus:v2.55.1, grafana/grafana:11.3.1, otel/opentelemetry-collector-contrib:0.110.0 — every image pinned to a minor version, no `latest`); Prometheus rule-file mount of `infra/observability/alerts/aegis.rules.yml`; Grafana dashboard auto-provisioning; `.env.example` with operator-replace placeholders. Documents the same 5-metric dashboard drift in its README so dev users don't get confused.
+`infra/dev/` — one-command dev stack: `docker-compose.dev.yml` (postgres:16.4-alpine, redis:7.4-alpine, prom/prometheus:v2.55.1, grafana/grafana:11.3.1, otel/opentelemetry-collector-contrib:0.110.0 — every image pinned to a minor version, no `latest`); Prometheus rule-file mount of `infra/observability/alerts/okoro.rules.yml`; Grafana dashboard auto-provisioning; `.env.example` with operator-replace placeholders. Documents the same 5-metric dashboard drift in its README so dev users don't get confused.
 
-`examples/` — `node-quickstart/` (60-line SDK demo: register → agent → policy → sign → verify → result) and `relying-party-verifier/` (tiny Express app on :3001 demonstrating the *consuming-side* integration: `POST /api/checkout` pulls `X-AEGIS-Token`, calls `aegis.verify`, allows or 402-denies). Both use real SDK methods cross-verified against `packages/sdk-ts/src/index.ts`.
+`examples/` — `node-quickstart/` (60-line SDK demo: register → agent → policy → sign → verify → result) and `relying-party-verifier/` (tiny Express app on :3001 demonstrating the _consuming-side_ integration: `POST /api/checkout` pulls `X-OKORO-Token`, calls `okoro.verify`, allows or 402-denies). Both use real SDK methods cross-verified against `packages/sdk-ts/src/index.ts`.
 
 `docs/SMOKE_TEST.md` — 12-step golden-path post-deploy verification (health → metrics → wellknown → register → agent → policy → verify → audit → trust → backtest). Each step has a specific expected output and a "what to do if it fails" link.
 
@@ -4447,7 +9022,7 @@ Goal of this round: move past scaffold to a system where every agent-derived tra
 5. **Jest e2e testRegex mismatch**: `apps/api/test/jest-e2e.config.ts` matches `*.e2e-spec.ts`, swarm shipped `*.e2e.spec.ts`. Documented in `test/e2e/README.md` "Known limits". Fix is one-line in jest config but the file is in the build-verification session's grasp — leaving for round 4.
 6. **No `auditEventId` in verify response**: SDK + spec both expect it; current code path doesn't return it. Tests use `GET /audit` to confirm chain extension instead. Tracked: M-006 ext.
 7. **`AuditEvent` lacks correlationId column**: tx-id correlation across logs ↔ audit rows is the next migration. Tracked: M-019.
-8. **`TRUST_SCORE_TOO_LOW` and `ANOMALY_FLAGGED` denial gates not in algorithm**: 2 e2e tests skipped with M-020 tracker. The denial precedence is *codified* (CLAUDE.md invariant #6) but not yet *enforced*.
+8. **`TRUST_SCORE_TOO_LOW` and `ANOMALY_FLAGGED` denial gates not in algorithm**: 2 e2e tests skipped with M-020 tracker. The denial precedence is _codified_ (CLAUDE.md invariant #6) but not yet _enforced_.
 9. **Three CLI verbs without backing endpoints**: `register` (principals controller empty), `agent list` (no GET-collection), `trust score` (bate `/bate` is POST-only). All three flagged in CLI output, all three have documented fallbacks.
 10. **5-metric dashboard drift** (Round-2 carry-over) — still pending the architecture session's metrics module convergence.
 
@@ -4455,7 +9030,7 @@ Goal of this round: move past scaffold to a system where every agent-derived tra
 
 - Land the M-019 migration (add `AuditEvent.correlationId String?`) so the txId actually persists; flip `correlation.e2e.spec.ts` test from skip to assert.
 - Wire `TRUST_SCORE_TOO_LOW` + `ANOMALY_FLAGGED` checks in `verify.algorithm.ts`; flip those e2e skips.
-- Add the `/v1/principals` controller + `aegis.principals.register` SDK method; close CLI `REQUIRES_ENDPOINT` for `register`.
+- Add the `/v1/principals` controller + `okoro.principals.register` SDK method; close CLI `REQUIRES_ENDPOINT` for `register`.
 - Add `GET /v1/agents` collection endpoint; close CLI `REQUIRES_ENDPOINT` for `agent list`.
 - Rename `*.e2e.spec.ts` → `*.e2e-spec.ts` (or update jest-e2e.config.ts testRegex) so the suite actually runs in CI.
 - Reconcile dashboard ↔ metrics drift (5 metrics still floating).
@@ -4463,10 +9038,10 @@ Goal of this round: move past scaffold to a system where every agent-derived tra
 
 ### Multi-session coordination matrix (round 3)
 
-| Session | Round-3 scope | Conflict count |
-|---|---|---|
-| round-4-greenline-and-worldclass (peer) | Build verification, M-003/007/011 integration, A-001/A-019, env unification, invariant#5 tests, replay-cache wiring, principalId fab fix | 0 |
-| foundation (this) | apps/api/test/e2e/, common/correlation/, scripts/{aegis-cli,backtest-verify}.ts, infra/dev/, examples/, docs/SMOKE_TEST.md, app.module.ts wiring | 0 |
+| Session                                 | Round-3 scope                                                                                                                                    | Conflict count |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------- |
+| round-4-greenline-and-worldclass (peer) | Build verification, M-003/007/011 integration, A-001/A-019, env unification, invariant#5 tests, replay-cache wiring, principalId fab fix         | 0              |
+| foundation (this)                       | apps/api/test/e2e/, common/correlation/, scripts/{okoro-cli,backtest-verify}.ts, infra/dev/, examples/, docs/SMOKE_TEST.md, app.module.ts wiring | 0              |
 
 ---
 
@@ -4480,14 +9055,14 @@ Read every Round-1 deliverable and cross-checked against the codebase. Findings:
 
 - ✅ `wellknown.controller.ts` import of `Public` decorator → resolves to `auth/api-key.guard.ts:7`.
 - ✅ `wellknown.service.ts` imports of `encodeBase64Url`/`decodeBase64Url` → resolve to `common/crypto/ed25519.util.ts:51` and `:55`.
-- ✅ `WellknownService` getters (`aegisSigningPublicKey`, `aegisSigningKeyRotatedAt`) → present at `config.service.ts:69`/`:72`.
+- ✅ `WellknownService` getters (`okoroSigningPublicKey`, `okoroSigningKeyRotatedAt`) → present at `config.service.ts:69`/`:72`.
 - ✅ `security.yml` has all 9 jobs with `# pin: replace with full sha before merge` annotations. YAML structure scanned, no duplicate jobs vs `ci.yml`.
 - ✅ `Dockerfile.api` runs as `USER 65532:65532`, distroless `nonroot` runtime, multi-stage, healthcheck wired.
-- 🟡 **Dashboard drift uncovered**: `infra/observability/grafana-dashboards/aegis-verify-latency.json` queries 5 metrics that don't exist in `metrics.service.ts`: `aegis_verify_denials_total`, `aegis_bate_recompute_lag_seconds_bucket`, `aegis_bullmq_waiting_jobs`, `aegis_cache_hits_total`, `aegis_cache_misses_total`. Real metrics are `aegis_verify_total{decision,denial_reason}`, `aegis_bate_score_delta`, `aegis_audit_append_total{result}`, `aegis_webhook_delivery_total{status,event}`, `aegis_http_requests_total{method,route,status_class}` plus default Node metrics (`aegis_nodejs_*`). NOT patched here to avoid conflict with the architecture-and-review session that owns `apps/api/src/common/observability/**`. Either rewrite the dashboard panels or extend `metrics.service.ts` to emit what the dashboard expects.
+- 🟡 **Dashboard drift uncovered**: `infra/observability/grafana-dashboards/okoro-verify-latency.json` queries 5 metrics that don't exist in `metrics.service.ts`: `okoro_verify_denials_total`, `okoro_bate_recompute_lag_seconds_bucket`, `okoro_bullmq_waiting_jobs`, `okoro_cache_hits_total`, `okoro_cache_misses_total`. Real metrics are `okoro_verify_total{decision,denial_reason}`, `okoro_bate_score_delta`, `okoro_audit_append_total{result}`, `okoro_webhook_delivery_total{status,event}`, `okoro_http_requests_total{method,route,status_class}` plus default Node metrics (`okoro_nodejs_*`). NOT patched here to avoid conflict with the architecture-and-review session that owns `apps/api/src/common/observability/**`. Either rewrite the dashboard panels or extend `metrics.service.ts` to emit what the dashboard expects.
 
 ### Phase-2 deliverables (3 parallel swarms)
 
-- **Swarm E — Prometheus alerts + 7 runbooks** (~1690 LOC across 9 files at `infra/observability/{alerts,runbooks}/`). `aegis.rules.yml` has 4 recording rules (`job:aegis_verify_latency_seconds:p99_5m`, `job:aegis_verify_success_ratio:{5m,1h,6h}`) + 6 alert groups (verify SLO, error rate, error-budget multi-window burn — Google SRE 14.4× / 6×, audit, BATE, webhooks, cache, platform). Two BATE alerts marked `expr: vector(0)` with `# tracked: M-007 follow-up` (no fabrication). Each runbook has Symptom / Impact / Diagnose / Mitigate / Eradicate / Verify recovery / Escalate / Postmortem-trigger sections with real query strings.
+- **Swarm E — Prometheus alerts + 7 runbooks** (~1690 LOC across 9 files at `infra/observability/{alerts,runbooks}/`). `okoro.rules.yml` has 4 recording rules (`job:okoro_verify_latency_seconds:p99_5m`, `job:okoro_verify_success_ratio:{5m,1h,6h}`) + 6 alert groups (verify SLO, error rate, error-budget multi-window burn — Google SRE 14.4× / 6×, audit, BATE, webhooks, cache, platform). Two BATE alerts marked `expr: vector(0)` with `# tracked: M-007 follow-up` (no fabrication). Each runbook has Symptom / Impact / Diagnose / Mitigate / Eradicate / Verify recovery / Escalate / Postmortem-trigger sections with real query strings.
 - **Swarm F — backup + DR + KMS + network** (~1561 LOC across 11 files at `infra/{backup,kms,network}/` + `docs/DR_RUNBOOK.md`). `pgbackrest.conf` (RTO 30 min / RPO 5 min, AES-256, zst, async archive); `restore-drill.sh` (dry-run by default, structured exit codes 0/10/11/12/13); `verify-backup.sh` (daily); KMS quarterly 7-step rotation ceremony with 90-day backfill + dual-publish JWKS spec; ingress/egress with explicit SSRF threat model; DR runbook covers 5 disaster types with detection signal + recovery steps + comms.
 - **Swarm G — `docs/COMPLIANCE.md`** (436 LOC). Maps current implementation to SOC 2 Type II (CC1–CC9, A1, C1, PI1, P1–P8), ISO/IEC 27001:2022 Annex A (technological focus), OWASP API Top 10 (2023, all 10), NIST CSF 2.0 (all 6 functions), selected NIST SP 800-53 Rev. 5 families. Honest disclaimer: "citing a `GAP` row as `MET` is a fireable offence here." Data classification per Prisma model. 4 named subprocessors. 8 honest GAPs.
 
@@ -4524,12 +9099,13 @@ Comprehensive audit pass after the operator asked us to "audit everything we've 
 ### Audit swarm (6 parallel sub-agents)
 
 All findings landed in `docs/audit_2026q2/`:
+
 - `code_review.md` — 5 launch blockers + 10 highs (file:line referenced)
 - `silent_failures.md` — verify-path silent-failure ledger; 5 critical
 - `type_design.md` — branded-types proposal; 1/5 encapsulation rating, 9 findings
 - `landscape.md` — ACP / MCP / NIST / DID / OAuth-DPoP / Auth0 / EU AI Act review with M-101..M-172 backlog
 - `deploy_readiness.md` — 4 RED first-deploy blockers
-- `test_coverage.md` — 5 highest-risk gaps + e2e-from-`aegis-test.js` mapping
+- `test_coverage.md` — 5 highest-risk gaps + e2e-from-`okoro-test.js` mapping
 
 Plus `docs/standards/0001-mcp-bridge-positioning.md` (strategic rationale) and `docs/audit_2026q2/FINDINGS_SUMMARY.md` (the master synthesis with risk register and "first deploy" sequencing).
 
@@ -4540,22 +9116,22 @@ Plus `docs/standards/0001-mcp-bridge-positioning.md` (strategic rationale) and `
 - `apps/api/src/modules/verify/replay-cache.service.ts` (NEW) — `consume(jti, ttl)` via Redis `SET NX EX`; throws on Redis failure (fail-closed). **Wiring into `verify.algorithm.ts` is peer's lock — flagged via peer message a9823fb4** (closes JWT replay window; CRIT-3).
 - `apps/api/src/modules/audit/audit.service.ts` — `append()` now wraps in `prisma.$transaction` with `pg_advisory_xact_lock(hashtext(agentId))` and serializable isolation (closes audit-chain forking under concurrent appends; CRIT-4).
 - `apps/api/src/workers/main.ts` (NEW) — worker bootstrap stub; `createApplicationContext` (no HTTP listener), graceful SIGTERM, BullMQ-ready DI graph (closes deploy blocker B3 — Dockerfile.worker no longer crash-loops).
-- `infra/railway/aegis-api.json` — `healthcheckPath` aligned to `/v1/health/ready` (closes deploy blocker B4).
-- `apps/api/package.json` — circular `@aegis/sdk` dep replaced with `@aegis/types`.
+- `infra/railway/okoro-api.json` — `healthcheckPath` aligned to `/v1/health/ready` (closes deploy blocker B4).
+- `apps/api/package.json` — circular `@okoro/sdk` dep replaced with `@okoro/types`.
 - `pnpm-workspace.yaml` — added `scripts` + `tests` workspace globs.
 - `packages/types/src/schemas.ts` — `CurrencySchema` extended to FIAT (USD/EUR/GBP/JPY/CAD/AUD/BRL/CHF/MXN) + STABLECOIN (USDC/PYUSD/USDT/EURC) sets with `isStablecoin()` helper. Pre-launch fix to a public-API liability flagged by type-design + landscape audits.
 
 ### New artefacts (2026-landscape forward-leaning)
 
-- `packages/mcp-bridge/` — `@aegis/mcp-bridge` skeleton package (the highest-leverage Phase 1 distribution wedge per landscape audit). `wrapMcpHandler()` API + `BridgeDenialError` + trust-band gate. Tracks `@modelcontextprotocol/sdk` 1.0.
+- `packages/mcp-bridge/` — `@okoro/mcp-bridge` skeleton package (the highest-leverage Phase 1 distribution wedge per landscape audit). `wrapMcpHandler()` API + `BridgeDenialError` + trust-band gate. Tracks `@modelcontextprotocol/sdk` 1.0.
 - `apps/api/src/common/idempotency/{service,interceptor,decorator,module}.ts` (NEW) — Stripe-style idempotency-key enforcement. SHA-256 over RFC8785-ish canonical body. 24h TTL. 409 IDEMPOTENCY_CONFLICT on body mismatch. Plumbed as `APP_INTERCEPTOR`.
 - `docs/SLO.md` — formal SLI/SLO/error-budget contract (separate from runbook).
 - `docs/EU_RESIDENCY.md` — two-region design + Art. 17 tombstone-not-delete + sub-processor table.
 - `docs/POST_QUANTUM_ROADMAP.md` — Phase α/β/γ Dilithium + SLH-DSA migration; hybrid-JWS shape; audit-chain re-attestation pattern.
-- `docs/DID_METHOD.md` — `did:aegis:<network>:<agent-id>` v0.1 method spec; W3C DID Core v1.1 conformant; Q3 2026 W3C registry submission target.
+- `docs/DID_METHOD.md` — `did:okoro:<network>:<agent-id>` v0.1 method spec; W3C DID Core v1.1 conformant; Q3 2026 W3C registry submission target.
 - `.github/workflows/sbom.yml` — CycloneDX 1.6 + SPDX 2.3 + Syft + Grype + GitHub provenance attestations.
 - `.github/renovate.json` — security-grouped auto-merge with crypto deps requiring review-team approval.
-- Memory updated at `~/.claude/projects/-Users-money-Desktop-AEGIS/memory/audit_2026q2_findings.md` with cross-session pickup notes.
+- Memory updated at `~/.claude/projects/-Users-money-Desktop-OKORO/memory/audit_2026q2_findings.md` with cross-session pickup notes.
 
 ### Open work for next session pickup (priority order)
 
@@ -4570,7 +9146,7 @@ Plus `docs/standards/0001-mcp-bridge-positioning.md` (strategic rationale) and `
 
 ### Released
 
-- claim `AEGIS-2026-audit-and-landscape` — releasing on next message.
+- claim `OKORO-2026-audit-and-landscape` — releasing on next message.
 - 6 audit-agent transcripts persist in `/private/tmp/claude-501/.../tasks/`.
 
 ---
@@ -4579,11 +9155,11 @@ Plus `docs/standards/0001-mcp-bridge-positioning.md` (strategic rationale) and `
 
 Spawned 4 parallel sub-agents on disjoint paths from peer round-2 hard-locks. All four landed clean. WORK_BOARD updated with formal M-015/M-016/M-017/M-018 entries.
 
-- **M-015 — Python SDK** at `packages/sdk-py/` (24 files). `AsyncAegis` (primary) + `Aegis` (sync wrapper); `agents`/`policies`/`verify`/`crypto` modules; pydantic v2 models mirroring zod schemas; typed error hierarchy; httpx async with retry/backoff; hatchling build; pyproject with ruff + mypy strict + pytest. **70 tests green** (`pytest -q`), `mypy --strict` clean, `ruff check` clean. JWT byte-equivalent to TS SDK (verified via test asserting textual key-order in payload). Wheel build clean.
+- **M-015 — Python SDK** at `packages/sdk-py/` (24 files). `AsyncOkoro` (primary) + `Okoro` (sync wrapper); `agents`/`policies`/`verify`/`crypto` modules; pydantic v2 models mirroring zod schemas; typed error hierarchy; httpx async with retry/backoff; hatchling build; pyproject with ruff + mypy strict + pytest. **70 tests green** (`pytest -q`), `mypy --strict` clean, `ruff check` clean. JWT byte-equivalent to TS SDK (verified via test asserting textual key-order in payload). Wheel build clean.
 
-- **M-016 — `@aegis/verifier-rp` (NEW)** at `packages/verifier-rp/` (34 files). Drop-in TS lib for relying parties: offline JWKS-based verify, no `node:crypto` (edge-runtime ready via `@noble/ed25519`), JWKS swr cache, replay LRU keyed on jti, lazy revocation cache, Express/Fastify/Hono adapters with subpath exports. **58 tests green** (vitest), property tests via fast-check (random valid token always verifies; any byte mutation always fails; replay always denied). tsup ESM+CJS dual build. **Open question logged in WORK_BOARD**: should `REPLAY_DETECTED` collapse to `INVALID_SIGNATURE` at wire boundary, or stay distinguishable for RP observability? Currently distinguishable.
+- **M-016 — `@okoro/verifier-rp` (NEW)** at `packages/verifier-rp/` (34 files). Drop-in TS lib for relying parties: offline JWKS-based verify, no `node:crypto` (edge-runtime ready via `@noble/ed25519`), JWKS swr cache, replay LRU keyed on jti, lazy revocation cache, Express/Fastify/Hono adapters with subpath exports. **58 tests green** (vitest), property tests via fast-check (random valid token always verifies; any byte mutation always fails; replay always denied). tsup ESM+CJS dual build. **Open question logged in WORK_BOARD**: should `REPLAY_DETECTED` collapse to `INVALID_SIGNATURE` at wire boundary, or stay distinguishable for RP observability? Currently distinguishable.
 
-- **M-017 — root e2e harness (NEW)** at `tests/` (24 files). Black-box validation suite mirroring v1 ground truth at `~/Downloads/files (7)/aegis-test.js`, extended for v2: 15 numbered test files (01_health → 15_idempotency) + property test on denial precedence + k6 load script (50 RPS × 60s, p95<200ms / p99<500ms / err<1%) + chaos README with toxiproxy recipe. Hard-asserts on: replay protection (catches dual-APPROVED bug), TOCTOU spend race (50 concurrent verifies under $100/day cap → sum approved ≤ 100), revocation propagation, idempotency. Soft-skips endpoints not yet wired (rate limit, webhook delivery, JWKS, anomaly band flip). `tsc --noEmit` clean. Skip-with-banner verified when API down. Uses `link:../packages/*` so root pnpm-workspace untouched.
+- **M-017 — root e2e harness (NEW)** at `tests/` (24 files). Black-box validation suite mirroring v1 ground truth at `~/Downloads/files (7)/okoro-test.js`, extended for v2: 15 numbered test files (01_health → 15_idempotency) + property test on denial precedence + k6 load script (50 RPS × 60s, p95<200ms / p99<500ms / err<1%) + chaos README with toxiproxy recipe. Hard-asserts on: replay protection (catches dual-APPROVED bug), TOCTOU spend race (50 concurrent verifies under $100/day cap → sum approved ≤ 100), revocation propagation, idempotency. Soft-skips endpoints not yet wired (rate limit, webhook delivery, JWKS, anomaly band flip). `tsc --noEmit` clean. Skip-with-banner verified when API down. Uses `link:../packages/*` so root pnpm-workspace untouched.
 
 - **M-018 — threat model + architecture audit (NEW, additive)** at `docs/THREAT_MODEL_v2.md` (965 lines) and `docs/ARCHITECTURE_AUDIT.md` (490 lines). v1 docs untouched. THREAT_MODEL_v2 has 13 sections, full STRIDE table (31 threats), reconciles RSA-4096 vs Ed25519 inconsistency by adopting EdDSA hash chain (rationale §4.2), audit-chain construction with RFC 8785 JCS (§4.3), three-layer replay defence (§7), atomic INCRBY/DECRBY spend mitigation with fail-closed-on-Redis-down (§8), key rotation lifecycle (§5), JWKS distribution contract (§6), v1 prototype postmortem (§11), module-to-mitigation index (Appendix B). ARCHITECTURE_AUDIT has 22 findings: 1 Critical / 5 High / 8 Medium / 6 Low / 2 Info.
 
@@ -4595,19 +9171,19 @@ Spawned 4 parallel sub-agents on disjoint paths from peer round-2 hard-locks. Al
 
 ### Numbering note for the audit trail
 
-My round-2 handoff (peer sid=3e2203ee) referenced an informal "M-018 — operator defaults encoded" label in narrative form, but that work was *deliveries against OD-001/2/3*, not a numbered WORK_BOARD module entry. WORK_BOARD as of this commit has the formal M-015/M-016/M-017/M-018 entries reserved for the four deliverables in this round-3 batch. If a future session wants to re-use M-018 for the operator-defaults work narrative, renumber here, not retroactively in WORK_BOARD.
+My round-2 handoff (peer sid=3e2203ee) referenced an informal "M-018 — operator defaults encoded" label in narrative form, but that work was _deliveries against OD-001/2/3_, not a numbered WORK_BOARD module entry. WORK_BOARD as of this commit has the formal M-015/M-016/M-017/M-018 entries reserved for the four deliverables in this round-3 batch. If a future session wants to re-use M-018 for the operator-defaults work narrative, renumber here, not retroactively in WORK_BOARD.
 
 ### Coordination state
 
 - Peer sid=3e2203ee acknowledged my swarm scope before launch and after completion. Path-disjoint with their hard-locks: `apps/api/src/modules/wellknown/`, `scripts/`, `infra/`, `OPERATOR_DECISIONS.md`, `.github/workflows/security.yml`, `apps/dashboard/`, `packages/sdk-ts/`, `workers/`, `apps/api/src/modules/{verify,bate,audit,billing,webhook}/`, `apps/api/src/common/observability/`.
-- My session (sid=a9198691) keeps the `aegis:foundation` claim refreshed via heartbeat. Will release once peer round-3 verification passes.
+- My session (sid=a9198691) keeps the `okoro:foundation` claim refreshed via heartbeat. Will release once peer round-3 verification passes.
 
 ### Next session pickup
 
 1. **Apply A-001** — collapse RSA-4096 audit-signing references in `docs/THREAT_MODEL.md` and `docs/SECURITY.md` to EdDSA. v2 doc has the rationale ready to cite.
 2. **Apply A-019** — refactor `AuditEvent` schema to hash PII fields BEFORE M-006 audit module ships to staging.
-3. **Wire e2e harness into CI** — `pnpm --filter @aegis/e2e test` step gated on `pnpm db:up && pnpm dev` running. `tests/load/k6.js` as a separate optional CI lane.
-4. **Publish-prep for SDKs** — Sigstore signing flow for `@aegis/sdk` (TS), `@aegis/verifier-rp`, and `aegis` (Python) per THREAT_MODEL_v2 §11 acceptance gates. Stealth: do not publish until operator says go.
+3. **Wire e2e harness into CI** — `pnpm --filter @okoro/e2e test` step gated on `pnpm db:up && pnpm dev` running. `tests/load/k6.js` as a separate optional CI lane.
+4. **Publish-prep for SDKs** — Sigstore signing flow for `@okoro/sdk` (TS), `@okoro/verifier-rp`, and `okoro` (Python) per THREAT_MODEL_v2 §11 acceptance gates. Stealth: do not publish until operator says go.
 5. **Operator decision queue** — REPLAY_DETECTED collapse choice (M-016 open question) + the 12 questions in THREAT_MODEL_v2 §12.
 
 ---
@@ -4622,10 +9198,10 @@ Built on top of the round-1 scaffold. Coordinated with foundation swarm via `cla
   - `apps/api/src/modules/billing/plans.ts` — `PLANS` table + `isVerifyCallAllowed()` (FREE hard-stops, Developer/Growth metered, Enterprise unlimited). Spec test covers all four tiers.
 - **M-005 ext — pure verify algorithm extracted** — `apps/api/src/modules/verify/algorithm/{verify.algorithm.ts,verify.ports.ts,verify.algorithm.spec.ts}`. The Nest `VerifyService` is now a thin adapter that builds a `VerifyPorts` object from Prisma/Redis/audit/BATE/spend services. CLAUDE.md invariant #2 satisfied: zero framework imports in the algorithm; CF Worker can import it unchanged. Latency-metric emission added (decision-labelled histogram + counter).
 - **M-006 ext — NDJSON streaming export** — `GET /v1/agents/:agentId/audit/export.ndjson` with backpressure-aware `res.write()` and a 1k-row chunked `audit.exportStream()` async generator. Bounded memory; SOC2-grade evidence path.
-- **M-010 ext — Prometheus metrics** — `apps/api/src/common/observability/{metrics.service.ts,observability.module.ts,http-metrics.middleware.ts}`. Public `/metrics` route with `aegis_*` namespace. Histograms: `verify_latency_seconds`. Counters: `verify_total{decision,denial_reason}`, `webhook_delivery_total{status,event}`, `audit_append_total{result}`, `http_requests_total{method,route,status_class}`. Default Node metrics included (heap, event loop lag, GC). Route cardinality kept low via id-template middleware.
-- **M-008 ext — webhook delivery worker** — `webhook.delivery.ts` (BullMQ queue + worker), Stripe-style `X-AEGIS-Signature: t=<ts>,v1=<hmac-sha256>`, exponential backoff (1s → ~256s), `MAX_ATTEMPTS=8` per OD-005, 5s per-attempt timeout, response body truncated at 2 KiB. 4xx (except 429) → ABANDONED immediately. `WebhooksService.enqueue()` now persists `WebhookDelivery` rows in a single transaction and dispatches one BullMQ job per row.
-- **M-007 ext — BATE recompute worker** — `bate.worker.ts` (BullMQ queue + worker). 1 s debounce per agent (`jobId = bate:recompute:<agentId>`) coalesces signal bursts. Pulls `RelyingParty.reportWeight` for fraud-source domains and threads it through the scorer's new `relyingPartyWeights` parameter. Emits `aegis.agent.trust_score_changed` webhook on band crossing only. `BateService.ingestSignal` now persists + enqueues; sync `recompute()` retained for backfills.
-- **Load test scaffold** — `apps/api/test/load/verify.load.test.ts` using `autocannon`, gated behind `LOAD_TEST=1`. Two profiles (`origin` p99 ≤ 200 ms / 200 RPS, `edge` p99 ≤ 80 ms / 1000 RPS). New `pnpm --filter @aegis/api test:load` script.
+- **M-010 ext — Prometheus metrics** — `apps/api/src/common/observability/{metrics.service.ts,observability.module.ts,http-metrics.middleware.ts}`. Public `/metrics` route with `okoro_*` namespace. Histograms: `verify_latency_seconds`. Counters: `verify_total{decision,denial_reason}`, `webhook_delivery_total{status,event}`, `audit_append_total{result}`, `http_requests_total{method,route,status_class}`. Default Node metrics included (heap, event loop lag, GC). Route cardinality kept low via id-template middleware.
+- **M-008 ext — webhook delivery worker** — `webhook.delivery.ts` (BullMQ queue + worker), Stripe-style `X-OKORO-Signature: t=<ts>,v1=<hmac-sha256>`, exponential backoff (1s → ~256s), `MAX_ATTEMPTS=8` per OD-005, 5s per-attempt timeout, response body truncated at 2 KiB. 4xx (except 429) → ABANDONED immediately. `WebhooksService.enqueue()` now persists `WebhookDelivery` rows in a single transaction and dispatches one BullMQ job per row.
+- **M-007 ext — BATE recompute worker** — `bate.worker.ts` (BullMQ queue + worker). 1 s debounce per agent (`jobId = bate:recompute:<agentId>`) coalesces signal bursts. Pulls `RelyingParty.reportWeight` for fraud-source domains and threads it through the scorer's new `relyingPartyWeights` parameter. Emits `okoro.agent.trust_score_changed` webhook on band crossing only. `BateService.ingestSignal` now persists + enqueues; sync `recompute()` retained for backfills.
+- **Load test scaffold** — `apps/api/test/load/verify.load.test.ts` using `autocannon`, gated behind `LOAD_TEST=1`. Two profiles (`origin` p99 ≤ 200 ms / 200 RPS, `edge` p99 ≤ 80 ms / 1000 RPS). New `pnpm --filter @okoro/api test:load` script.
 - **BateScorer rewrite** — Now reads from `bate.weights.ts`. New `explain(input)` method returns per-contributor breakdown (used by webhook payloads + future dashboard "why did my score change" panel) and emits `weightsVersion` for replay. Bands derived from `TRUST_BAND_CUTOFFS` table.
 
 ### Outstanding operator decisions
@@ -4638,27 +9214,27 @@ OD-001/003 reconciliation still pending (foundation swarm flagged in their hando
 - `pnpm test` — 13 spec files now (added: `bate.scorer.spec.ts` rewrite, `verify.algorithm.spec.ts`, `webhook.delivery.spec.ts`, `plans.spec.ts`).
 - M-007 anomaly rules R-1..R-5 (velocity, geographic, spend pattern, failed-verify spike) still open.
 - M-011 Stripe billing — `plans.ts` is ready to plug into; needs `billing/stripe.service.ts` + webhook handler.
-- Reconcile `AUDIT_ED25519_PUBLIC_KEY_B64` (audit) vs `AEGIS_SIGNING_PUBLIC_KEY` (wellknown) into one canonical env per foundation's flag.
+- Reconcile `AUDIT_ED25519_PUBLIC_KEY_B64` (audit) vs `OKORO_SIGNING_PUBLIC_KEY` (wellknown) into one canonical env per foundation's flag.
 
 ---
 
 ## 2026-05-01 · foundation swarm · sid=a9198691 (foundation)
 
-Coordinated 4-agent parallel swarm executed within locked path scope (no overlap with sid=3e2203ee). Reference grounding: `/Users/money/Downloads/files (7)/aegis-server.js` (working SQLite/Express prototype — endpoint surface + behavior ground truth).
+Coordinated 4-agent parallel swarm executed within locked path scope (no overlap with sid=3e2203ee). Reference grounding: `/Users/money/Downloads/files (7)/okoro-server.js` (working SQLite/Express prototype — endpoint surface + behavior ground truth).
 
-- **scripts/** (Swarm A, ~1391 LOC) — `generate-aegis-keys.ts` (Ed25519 keypair → env+JWK with `kid = sha256(pub)[:16]`, mode 0600, `--force`/`--out`/`--format` flags, paired roundtrip + kid-stability spec); `seed-dev.ts` (idempotent Principal+ApiKey(`aegis_sk_*`)+Agent+Policy, real signed JWT, `--reset` blocked in prod, bcrypt cost-12 default); `verify-spec.ts` (OpenAPI ↔ Zod ↔ Prisma parity gate, `--strict`/`--json`, exits non-zero on drift). All TS strict, no `Math.random`, paired specs for crypto code.
+- **scripts/** (Swarm A, ~1391 LOC) — `generate-okoro-keys.ts` (Ed25519 keypair → env+JWK with `kid = sha256(pub)[:16]`, mode 0600, `--force`/`--out`/`--format` flags, paired roundtrip + kid-stability spec); `seed-dev.ts` (idempotent Principal+ApiKey(`okoro_sk_*`)+Agent+Policy, real signed JWT, `--reset` blocked in prod, bcrypt cost-12 default); `verify-spec.ts` (OpenAPI ↔ Zod ↔ Prisma parity gate, `--strict`/`--json`, exits non-zero on drift). All TS strict, no `Math.random`, paired specs for crypto code.
 - **infra/** (Swarm B, 17 files) — distroless Dockerfiles (api+worker, non-root UID 65532, healthcheck.sh, `--frozen-lockfile`); Railway service templates for api/worker/postgres/redis with secret-flagged env matrix; hardened `redis.conf` (CONFIG/FLUSHDB/SHUTDOWN renamed, AOF on, protected-mode); `postgres/init.sql` (pgcrypto, RLS deferred to migrations w/ rationale comment); `postgresql.conf.tuning`; `cloudflare/wrangler.template.toml` (skeleton only — peer owns workers/cf-verify code); OTel collector + Grafana dashboard skeleton (4 panels, 8 PromQL targets, real queries).
 - **.github/workflows/security.yml** (Swarm C, 415 LOC) — 9 jobs + summary gate: gitleaks, osv-scanner, pnpm audit, trivy-fs, codeql-typescript, license allowlist (inline shell), semgrep, sbom (spdx-json artifact, 90d retention), workflow-permissions assertion. Triggers PR + push:main + Mon 06:00 UTC + manual. Concurrency cancels in-progress on PRs. All third-party actions tagged `# pin: replace with full sha before merge` (documented exception). No overlap with `ci.yml`. Top-level `permissions: contents: read`; SARIF jobs add `security-events: write`.
 - **OPERATOR_DECISIONS.md** (Swarm C) — OD-001..006 populated with sourced defaults: BATE weights, cold-start (500 + KYC>700 gate), pricing tiers, audit retention (7y SOC2 floor), webhook DLQ attempts (Stripe parity = 8), FREE-tier verify rate-limit (10 rps).
-- **apps/api/src/modules/wellknown/** (Swarm D, ~691 LOC) — `GET /.well-known/audit-signing-key` + `GET /.well-known/jwks.json`. RFC 8037 OKP/Ed25519 JWKS, `kid = sha256(rawPublicKey).b64url[:16]`, ETag = kid, 304 on If-None-Match, `Cache-Control: public, max-age=86400, stale-while-revalidate=604800`. Throws at module init if `AEGIS_SIGNING_PUBLIC_KEY` missing (no silent fallback). Service + controller specs cover happy paths, ETag/304, missing-env error, kid stability. Two minimal `config.schema.ts` additions (`AEGIS_SIGNING_PUBLIC_KEY`, `AEGIS_SIGNING_KEY_ROTATED_AT`) + paired ConfigService getters.
+- **apps/api/src/modules/wellknown/** (Swarm D, ~691 LOC) — `GET /.well-known/audit-signing-key` + `GET /.well-known/jwks.json`. RFC 8037 OKP/Ed25519 JWKS, `kid = sha256(rawPublicKey).b64url[:16]`, ETag = kid, 304 on If-None-Match, `Cache-Control: public, max-age=86400, stale-while-revalidate=604800`. Throws at module init if `OKORO_SIGNING_PUBLIC_KEY` missing (no silent fallback). Service + controller specs cover happy paths, ETag/304, missing-env error, kid stability. Two minimal `config.schema.ts` additions (`OKORO_SIGNING_PUBLIC_KEY`, `OKORO_SIGNING_KEY_ROTATED_AT`) + paired ConfigService getters.
 - **Wiring (this session)** — `WellKnownModule` registered in `app.module.ts`; `main.ts` global `v1` prefix updated to exclude `/.well-known/(.*)` via proper `RequestMethod.ALL` enum (no `as never` hack).
 
 ### Open conflicts surfaced (operator decisions)
 
 1. **OD-001 BATE weights**: defaults in OPERATOR_DECISIONS.md (`fraud=-200`) disagree with `docs/BATE_ALGORITHM.md` § 4 (`fraud=-300`). Reconcile before M-007 ships.
 2. **OD-003 pricing tiers**: defaults disagree with `docs/spec/04_COMMERCIAL_STRATEGY.md` Part V (Free 10K vs 1K, Dev $29 vs $49, Growth $149 vs $299, 5M vs 500K). Reconcile before M-011 ships.
-3. **`AUDIT_ED25519_PUBLIC_KEY_B64` vs `AEGIS_SIGNING_PUBLIC_KEY`** env collision noted by Swarm D — peer added the former earlier; foundation added the latter for the wellknown module. Audit module should converge to read from one canonical name (recommend `AEGIS_SIGNING_PUBLIC_KEY`).
-4. **`pnpm-workspace.yaml` glob coverage** — does not currently match `scripts/*`. One-line addition needed to make `@aegis/scripts` participate in `pnpm install` from root.
+3. **`AUDIT_ED25519_PUBLIC_KEY_B64` vs `OKORO_SIGNING_PUBLIC_KEY`** env collision noted by Swarm D — peer added the former earlier; foundation added the latter for the wellknown module. Audit module should converge to read from one canonical name (recommend `OKORO_SIGNING_PUBLIC_KEY`).
+4. **`pnpm-workspace.yaml` glob coverage** — does not currently match `scripts/*`. One-line addition needed to make `@okoro/scripts` participate in `pnpm install` from root.
 
 ### Next session pickup
 
@@ -4675,40 +9251,41 @@ Final pass after coordination with sid=a9198691. My session's net delta on top o
 
 - **Operator docs**: `docs/CONTRIBUTING.md` (commit conventions, branch model, PR template, threat-model checklist for crypto/audit/verify changes), `docs/decisions/0001-cuid-vs-ulid.md` (PK choice rationale + revisit triggers), `docs/decisions/0002-non-custodial-key-policy.md` (architectural invariant captured as ADR).
 - **Workers**: `workers/cf-verify/{wrangler.toml,package.json,tsconfig.json,src/index.ts,README.md}` — Phase 3 stub. `pnpm deploy` is intentionally bricked until Phase 3 unlocks; M1 (forward-only) is wired so deployment can be exercised before edge logic exists.
-- **Python SDK**: `packages/sdk-py/{pyproject.toml,aegis/{__init__,client,crypto,errors}.py,README.md}` — initial scaffold (subsequently iterated by peer / linter into a stricter mypy-strict shape with sync+async surfaces). Sync `Aegis` wrapper TBD.
-- **Husky + lint-staged + commitlint**: `.husky/{pre-commit,commit-msg}` (executable) — pre-commit blocks `.env`, `.pem`, `aegis_sk_*`, and other obvious secrets via grep before they hit the index.
-- **Changesets**: `.changeset/{config.json,README.md}` — public packages `@aegis/sdk` + `@aegis/types` linked, internal apps ignored.
+- **Python SDK**: `packages/sdk-py/{pyproject.toml,okoro/{__init__,client,crypto,errors}.py,README.md}` — initial scaffold (subsequently iterated by peer / linter into a stricter mypy-strict shape with sync+async surfaces). Sync `Okoro` wrapper TBD.
+- **Husky + lint-staged + commitlint**: `.husky/{pre-commit,commit-msg}` (executable) — pre-commit blocks `.env`, `.pem`, `okoro_sk_*`, and other obvious secrets via grep before they hit the index.
+- **Changesets**: `.changeset/{config.json,README.md}` — public packages `@okoro/sdk` + `@okoro/types` linked, internal apps ignored.
 - **Release CI**: `.github/workflows/release.yml` — changesets-driven publish-to-npm flow with `NPM_CONFIG_PROVENANCE=true`.
 - **Prisma seed**: `apps/api/prisma/seed.ts` — creates dev principal + full/verify-only API keys + demo agent + demo policy + verified relying party. Logs the plaintext API keys once on stdout.
-- **Errors hierarchy**: `apps/api/src/common/errors/{aegis-error,index}.ts` — typed AegisError tree referenced in ARCHITECTURE.md § 5. Currently parallel to peer's NestJS-built-in error usage; future PR can migrate the modules to use the typed hierarchy uniformly.
+- **Errors hierarchy**: `apps/api/src/common/errors/{okoro-error,index}.ts` — typed OkoroError tree referenced in ARCHITECTURE.md § 5. Currently parallel to peer's NestJS-built-in error usage; future PR can migrate the modules to use the typed hierarchy uniformly.
 - **Audit chain util**: `apps/api/src/common/crypto/audit-chain.util.ts` + `.spec.ts` — implements the prev_hash + canonicalize + sign protocol described in ARCHITECTURE.md § 6 and SECURITY.md § 8. Wired into `CryptoModule` exports. Not yet used by `audit.service` (peer's audit.service uses a simpler `RSA-SHA256(JSON.stringify(payload))` shape — there is a gap here that should be closed before SOC2 evidence collection starts).
-- **Shared @aegis/types**: full `packages/types/src/{index,schemas,constants,errors}.ts` — single canonical Zod source of truth mirroring `docs/spec/AEGIS_API_SPEC.yaml`. Uses linked-version policy with `@aegis/sdk` so a SDK consumer always sees a matching schema version.
-- **Memory persisted** at `~/.claude/projects/-Users-money-Desktop-AEGIS/memory/` — 7 entries (user profile, project context, holdco context, reference docs, stack feedback, build doctrine, working style). Future Claude sessions will load these.
+- **Shared @okoro/types**: full `packages/types/src/{index,schemas,constants,errors}.ts` — single canonical Zod source of truth mirroring `docs/spec/OKORO_API_SPEC.yaml`. Uses linked-version policy with `@okoro/sdk` so a SDK consumer always sees a matching schema version.
+- **Memory persisted** at `~/.claude/projects/-Users-money-Desktop-OKORO/memory/` — 7 entries (user profile, project context, holdco context, reference docs, stack feedback, build doctrine, working style). Future Claude sessions will load these.
 
 ### Open gaps I observed (next session pickup)
 
 1. **Audit chain mismatch**: `audit.service` uses RSA-SHA256-of-JSON; `AuditChainUtil` uses Ed25519-of-(prevhash||canonical). Pick one; the chained-Ed25519 approach matches docs and is cheaper. ARCHITECTURE.md § 6 + SECURITY.md § 8 are written for the chained version.
-2. **`@aegis/sdk` ↔ `@aegis/api` dep**: `apps/api/package.json` has `"@aegis/sdk": "workspace:*"` — circular. Should be `"@aegis/types"` instead (or simply removed; the API doesn't import from the SDK).
+2. **`@okoro/sdk` ↔ `@okoro/api` dep**: `apps/api/package.json` has `"@okoro/sdk": "workspace:*"` — circular. Should be `"@okoro/types"` instead (or simply removed; the API doesn't import from the SDK).
 3. **Pure `verify.algorithm.ts` extraction**: ARCHITECTURE.md § 2 commits to the verify hot path being framework-free so the CF Worker can import directly. `verify.service.ts` still depends on NestJS DI. M-005 extension is the unblocking task before M-013 can land.
-4. **NestJS module wiring of common/errors**: peer's modules throw `NotFoundException({ error: 'AGENT_NOT_FOUND' })` directly — works, but doesn't take advantage of the typed `AegisError` tree. Future cleanup.
+4. **NestJS module wiring of common/errors**: peer's modules throw `NotFoundException({ error: 'AGENT_NOT_FOUND' })` directly — works, but doesn't take advantage of the typed `OkoroError` tree. Future cleanup.
 
 ### Released / not released
 
-- I will release `claude-peers release AEGIS-modules-sdk-docs` after this commit lands.
-- `git init` deferred (operator hasn't asked). Suggested first commit: `git init && git add . && git commit -m "feat: AEGIS scaffold v0.1"`.
+- I will release `claude-peers release OKORO-modules-sdk-docs` after this commit lands.
+- `git init` deferred (operator hasn't asked). Suggested first commit: `git init && git add . && git commit -m "feat: OKORO scaffold v0.1"`.
 
 ---
 
 ## 2026-05-01 · two parallel sessions, coordinated mid-flight
 
-Two Claude sessions began work on AEGIS in parallel terminals around
+Two Claude sessions began work on OKORO in parallel terminals around
 19:25 PT. They detected the conflict via the peer system (1
 exchange of messages), agreed a clean split, and shipped complementary
 work without overwriting each other after that point.
 
-### Session "AEGIS-modules-sdk-docs" (sid=3e2203ee, cwd=Desktop/AEGIS)
+### Session "OKORO-modules-sdk-docs" (sid=3e2203ee, cwd=Desktop/OKORO)
 
 #### Shipped
+
 - **Repository skeleton** — pnpm workspace, all app/package directories,
   Prettier+ESLint+Jest tooling, `apps/api/package.json` with full
   prod-grade NestJS 11 + Prisma 5 + jose + @noble/ed25519 + helmet +
@@ -4726,7 +9303,7 @@ work without overwriting each other after that point.
     genesis sentinel, prev-hash chain, sign + verify)
   - `crypto/crypto.module.ts`
   - `prisma/{module,service}.ts`, `redis/{module,service}.ts`
-  - `errors/aegis-error.ts` + `errors/index.ts` (typed hierarchy)
+  - `errors/okoro-error.ts` + `errors/index.ts` (typed hierarchy)
   - `decorators/{principal,public,verify-only,auth}.decorator.ts`
   - `filters/http-exception.filter.ts`
   - All with `.spec.ts` files for the security-critical pieces.
@@ -4754,14 +9331,15 @@ work without overwriting each other after that point.
     `{index,client/http,crypto + spec,agent,policy,types}.ts`,
     package.json, tsconfig, jest config, README.
 - **Repo scaffolding** — `apps/dashboard/{app/*, components, lib,
-  public}` directories created (empty), `workers/cf-verify/src`
-  directory created (empty), `packages/sdk-py/aegis` directory
+public}` directories created (empty), `workers/cf-verify/src`
+  directory created (empty), `packages/sdk-py/okoro` directory
   created (empty).
 - **Coordination** — co-authored the boundary-resolution conversation
   with sid=a9198691 via the peer system; explicit "I will NOT touch
   X" commitment.
 
 #### In progress (claimed but not yet released)
+
 - Full `packages/sdk-ts` implementation (client + http + agent +
   policy + verify + sign helper).
 - `apps/dashboard` Next.js skeleton (login → key mgmt → agent CRUD).
@@ -4773,8 +9351,9 @@ work without overwriting each other after that point.
 ### Session "foundation" (sid=a9198691, cwd=$HOME)
 
 #### Shipped (coordination + ops layer)
+
 - **Operator directive**: `CLAUDE.md` at repo root. Locks the 6
-  architecture invariants (private keys never enter AEGIS, verify path
+  architecture invariants (private keys never enter OKORO, verify path
   stays portable, audit chain is signed/append-only, no silent
   failures, multi-tenant isolation by `principalId`, denial precedence
   is fixed).
@@ -4801,21 +9380,21 @@ work without overwriting each other after that point.
   recommendations, alternatives, and target files for each.
 - **License**: clarified proprietary status with SDK exception clause.
 - **Operational scripts** in `scripts/`:
-  - `generate-aegis-keys.ts` — drafted by sid=a9198691, then enhanced
+  - `generate-okoro-keys.ts` — drafted by sid=a9198691, then enhanced
     by sid=3e2203ee mid-flight to use Commander CLI, write a JWKS-shaped
     JSON file (matching `kid` derivation = first 16 chars of base64url
     sha256(publicKey)) plus a 0600-mode env file, with exported pure
     helpers for testing and idempotency-check before overwrite.
     The unified version is what's in tree.
   - `verify-spec.ts` — CI guard ensuring NestJS controller routes
-    match `docs/spec/AEGIS_API_SPEC.yaml`.
+    match `docs/spec/OKORO_API_SPEC.yaml`.
   - `health-check.mjs` — post-deploy probe used by Railway healthcheck.
   - `README.md` — explains where new scripts go.
 - **Infrastructure**:
   - `infra/docker/postgres-init.sql` — extensions (citext, pgcrypto,
-    pg_trgm), aegis_app role with proper grants, UTC timezone, slow
+    pg_trgm), okoro_app role with proper grants, UTC timezone, slow
     query log threshold.
-  - `infra/railway/aegis-api.json` — Railway service descriptor with
+  - `infra/railway/okoro-api.json` — Railway service descriptor with
     full env-var checklist.
   - `infra/cloudflare/README.md` — Phase 3 planning anchor (KV,
     Durable Objects, what to build when M-013 starts).
@@ -4823,20 +9402,22 @@ work without overwriting each other after that point.
 - **Security CI**: `.github/workflows/security.yml` — gitleaks
   (secret scanning), `pnpm audit` (HIGH+ block), CodeQL (security-and-
   quality query suite), spec-sync drift check.
-- `.github/gitleaks.toml` — AEGIS-specific rules (catches `aegis_live_*`
-  / `aegis_test_*` API keys, `_PRIVATE_KEY_B64` env vars) and
+- `.github/gitleaks.toml` — OKORO-specific rules (catches `okoro_live_*`
+  / `okoro_test_*` API keys, `_PRIVATE_KEY_B64` env vars) and
   doc-allowlist for example IDs.
 
 #### Confirmed not done this session (would need a fresh session)
+
 - `git init` deferred — operator hasn't asked, prior session also
-  skipped it. Run when ready: `cd ~/Desktop/aegis && git init && git
-  add . && git commit -m "AEGIS scaffold v0.1"`.
+  skipped it. Run when ready: `cd ~/Desktop/okoro && git init && git
+add . && git commit -m "OKORO scaffold v0.1"`.
 - No `pnpm install` was run. Operator should run once before any
   follow-up session works in here.
 - The 3 operator decisions in `OPERATOR_DECISIONS.md` are still
   outstanding — they unblock M-007 and M-018.
 
 ### What other sessions can pick up next (priority order)
+
 1. **M-018 — apply operator decisions** as soon as
    `OPERATOR_DECISIONS.md` is filled in.
 2. **M-005 extension** — extract `verify.algorithm.ts` (framework-free)
@@ -4851,10 +9432,11 @@ work without overwriting each other after that point.
 6. **M-017 seed-dev script** — first-run developer experience.
 
 ### Open coordination
+
 - The 2 active peer claims should be released by their owners when
-  done: `claude-peers release aegis:foundation` (this session has more
+  done: `claude-peers release okoro:foundation` (this session has more
   trivial closing work; will release on next message), and
-  `claude-peers release AEGIS-modules-sdk-docs` (peer will release
+  `claude-peers release OKORO-modules-sdk-docs` (peer will release
   when sdk + dashboard land).
 
 ---
@@ -4870,10 +9452,11 @@ work without overwriting each other after that point.
 ### What landed (paths + line counts approximate)
 
 **Architecture decisions (ADRs 0008-0013)** — `docs/decisions/`:
-- `0008-mcp-as-control-plane.md` — AEGIS as MCP backbone; bidirectional
-  integration (mcp-bridge wraps RPs, mcp-server exposes AEGIS to hosts).
+
+- `0008-mcp-as-control-plane.md` — OKORO as MCP backbone; bidirectional
+  integration (mcp-bridge wraps RPs, mcp-server exposes OKORO to hosts).
 - `0009-auth0-bridge.md` — human identity via Auth0, agent identity in
-  AEGIS; `IdpAdapter` interface for future Clerk/WorkOS/Keycloak swap.
+  OKORO; `IdpAdapter` interface for future Clerk/WorkOS/Keycloak swap.
 - `0010-dpop-replay-prevention.md` — RFC 9449 layered on Ed25519 JWT;
   optional in v1.0, required in v1.1.
 - `0011-key-rotation-kms.md` — `signingKeyId` on every signed record;
@@ -4885,6 +9468,7 @@ work without overwriting each other after that point.
   flag; staged per `docs/POST_QUANTUM_ROADMAP.md`.
 
 **Crypto infrastructure** — `apps/api/src/common/crypto/`:
+
 - `crypto.bootstrap.ts` — single source of truth for noble/ed25519
   `sha512Sync`, `KmsAdapter` interface, `InMemoryKmsAdapter` default.
   Existing utils still set their own `sha512Sync`; M-025 migrates them
@@ -4893,6 +9477,7 @@ work without overwriting each other after that point.
   covering every failure reason in `dpop.util.spec.ts`.
 
 **Auth0 module** — `apps/api/src/modules/auth0/`:
+
 - `idp.adapter.ts` — provider-agnostic interface (Auth0/Clerk/WorkOS/Keycloak).
 - `auth0.adapter.ts` — Auth0 implementation: JWKS-cached RS256 verify,
   org→principal mapping. EdDSA path stubbed.
@@ -4902,22 +9487,25 @@ work without overwriting each other after that point.
 - `auth0.module.ts`, `auth0.dto.ts`, `README.md`.
 
 **MCP control-plane module** — `apps/api/src/modules/mcp/`:
+
 - Registry of trusted MCP servers per principal. Endpoints:
   `POST/GET/DELETE /v1/mcp-servers`. Stores as `RelyingParty` rows with
   `kind: 'MCP_SERVER'` (enum lands in M-026 — runtime cast until then).
 - `mcp.dto.ts`, `mcp.service.ts`, `mcp.controller.ts`, `mcp.module.ts`,
   `README.md`.
 
-**`@aegis/mcp-server` package** — `packages/mcp-server/`:
-- AEGIS exposed as an MCP server. `npx @aegis/mcp-server` starts a
-  stdio MCP server with 10 tools: `aegis.verify`, `aegis.agents.{create,
-  get,list,revoke}`, `aegis.policies.{create,get,list,revoke}`,
-  `aegis.audit.search`. Tool names locked by ADR-0008.
+**`@okoro/mcp-server` package** — `packages/mcp-server/`:
+
+- OKORO exposed as an MCP server. `npx @okoro/mcp-server` starts a
+  stdio MCP server with 10 tools: `okoro.verify`, `okoro.agents.{create,
+get,list,revoke}`, `okoro.policies.{create,get,list,revoke}`,
+  `okoro.audit.search`. Tool names locked by ADR-0008.
 - `package.json`, `tsconfig.json`, `tsup.config.ts`, `src/index.ts`,
   `src/server.ts`, `src/bin.ts`, `src/tools/{registry,verify,agents,
-  policies,audit}.ts`, `README.md`.
+policies,audit}.ts`, `README.md`.
 
 **Pluggable policy engine** — `apps/api/src/common/policy-engine/`:
+
 - `engine.interface.ts` — `PolicyEngine` interface (Worker-portable).
 - `builtin.engine.ts` — port of Phase-0 hand-coded checks behind the
   interface. Behavior preserved bit-for-bit; ready for M-019 to swap in.
@@ -4925,13 +9513,15 @@ work without overwriting each other after that point.
 - `index.ts` — `resolvePolicyEngine(id)` factory.
 
 **Cross-package tests** — `tests/cross-package/`:
+
 - `sdk-api-jwt-parity.spec.ts` — catches silent divergence between
-  `@aegis/sdk` and `apps/api/JwtUtil`. Asserts header bytes are
+  `@okoro/sdk` and `apps/api/JwtUtil`. Asserts header bytes are
   byte-identical, base64url helpers match Node's `Buffer.toString('base64url')`,
   round-trip works in both directions.
 - `README.md` — explains the workspace runner wiring needed (M-025).
 
 **Workboard** — `WORK_BOARD.md`:
+
 - Sprint S2 added with 18 new claimable modules (M-019 through M-036).
 
 ### Confirmed not done (handoff to next sessions)
@@ -4942,8 +9532,8 @@ work without overwriting each other after that point.
 - **No git commit** — repo still has no `.git` directory per prior
   handoff.
 - **mcp-server tool calls not type-checked end-to-end** — the SDK
-  surface for `aegis.audit.search` is stubbed (`@ts-expect-error` on a
-  raw `aegis.http.get`) pending sdk-ts adding an audit accessor (M-021).
+  surface for `okoro.audit.search` is stubbed (`@ts-expect-error` on a
+  raw `okoro.http.get`) pending sdk-ts adding an audit accessor (M-021).
 - **`mcp.service.ts` uses `as never` casts** for the not-yet-existing
   `RelyingPartyKind = 'MCP_SERVER'` enum value. M-026 lands the schema
   change and removes the casts.
@@ -4956,10 +9546,10 @@ work without overwriting each other after that point.
 
 ### Coordination state
 
-- Peer claim `aegis:bug-fix-pass` (sid=a9198691) still active when this
+- Peer claim `okoro:bug-fix-pass` (sid=a9198691) still active when this
   session ended. They hold verify/policy/migrations/seed/metrics. M-019,
   M-022, M-026 should not start until they release.
-- This session's claim `aegis:enterprise-backbone-arch` will be released
+- This session's claim `okoro:enterprise-backbone-arch` will be released
   immediately after this handoff entry.
 
 ### Next-session priority order
@@ -4969,13 +9559,12 @@ work without overwriting each other after that point.
 2. **M-019** — verify path adopts `BuiltinPolicyEngine` + DPoP step.
    Highest-leverage payoff since it makes DPoP and pluggable policy
    real, not just scaffolded.
-3. **M-021** — finish mcp-server (tests + dist) so `npx @aegis/mcp-server`
+3. **M-021** — finish mcp-server (tests + dist) so `npx @okoro/mcp-server`
    actually runs against staging.
 4. **M-020** — Auth0 e2e + dashboard wiring; gates the dashboard
    becoming usable for human admins.
-5. **M-027** — `aegis-cli` so operators can run KMS rotations, audit
+5. **M-027** — `okoro-cli` so operators can run KMS rotations, audit
    verify, mcp install without curl.
-
 
 ---
 
@@ -4991,6 +9580,7 @@ work without overwriting each other after that point.
 
 **M-026 — schema migration (`apps/api/prisma/schema.prisma` + new dir
 `migrations/20260502000500_enterprise_backbone/migration.sql`)**:
+
 - `AuditEvent.signingKeyId` (default `kid-genesis-v1`),
   `policyEngineId`, `engineMetadata`, `relyingPartyId` + FK to RelyingParty.
 - `AgentPolicy.signedTokenKeyId`.
@@ -5000,12 +9590,14 @@ work without overwriting each other after that point.
   `policyEngine`. RelyingParty back-relation `auditEvents`.
 
 **M-025 — bootstrap centralization** (`apps/api/src/common/crypto/`):
+
 - `ed25519.util.ts`, `jwt.util.ts`, `audit-chain.util.spec.ts` now
   import `./crypto.bootstrap` for `sha512Sync` setup. Inline duplicates
   removed. `vitest.workspace.ts` at repo root picks up
   `tests/cross-package`.
 
 **M-023/M-029/M-030 — three KMS adapters** (`apps/api/src/modules/kms/`):
+
 - `aws-kms.adapter.ts` + spec (envelope encryption — Ed25519 key
   KMS-wrapped, decrypted in-memory at boot, signs locally; ready for
   AWS native EdDSA when GA per ADR-0011).
@@ -5014,22 +9606,25 @@ work without overwriting each other after that point.
 - `vault-transit.adapter.ts` + spec (HashiCorp Vault transit/sign with
   envelope parser + version-drift detection + 100ms retry).
 - `kms.module.ts` with env-driven adapter selection
-  (`AEGIS_KMS_PROVIDER=in-memory|aws|gcp|vault`).
+  (`OKORO_KMS_PROVIDER=in-memory|aws|gcp|vault`).
 - 18 spec tests across the three adapters: sign round-trip, key
   registration, listKeys filter, envelope parse, retry, version drift,
   bad-length signature rejection, destroy zero-out.
 
 **M-024 — BATE DPoP signal weights** (`apps/api/src/modules/bate/bate.weights.ts`):
+
 - `AGENT_NO_DPOP: -15` (cap 60), `AGENT_DPOP_REPLAY_ATTEMPT: -200` (cap 600).
 - `WEIGHTS_VERSION` bumped to `v1.1.0-dpop-2026-05-02`.
 
 **M-021 — mcp-server tests** (`packages/mcp-server/{vitest.config.ts,test/**}`):
+
 - `server.spec.ts` — server construction, env-key rejection, allowedTools.
 - `tools/registry.spec.ts` — TOOL_NAMES locked at exactly 10 names.
 - `tools/{verify,agents,policies}.spec.ts` — handler arg→SDK-call mapping
   for each tool, mocked SDK.
 
 **M-022 — MCP control-plane wiring**:
+
 - `audit.service.ts:AppendAuditInput` extended with `relyingPartyId`,
   `signingKeyId`, `policyEngineId`, `engineMetadata`. Persisted to
   the new schema columns.
@@ -5038,21 +9633,23 @@ work without overwriting each other after that point.
   RelyingParty row. List/revoke filters now type-safe.
 
 **M-020 — Auth0 module tests + Action source + dashboard auth**:
+
 - `auth0.adapter.spec.ts` — 5 tests: malformed token, unsupported alg,
   wrong issuer, expired, audience mismatch, plus `ensurePrincipalForOrg`
   idempotency.
 - `auth0.service.spec.ts` — 5 tests: APPROVED/FLAGGED audit on MFA
   state, exchange token rejections (null verify, missing org_id,
   unverified email), VERIFIED-band success.
-- `infra/auth0/actions/{aegis-audit-login,aegis-block-non-admin-mfa-skip}.js`
-  + `infra/auth0/README.md`.
+- `infra/auth0/actions/{okoro-audit-login,okoro-block-non-admin-mfa-skip}.js`
+  - `infra/auth0/README.md`.
 - `apps/dashboard/middleware.ts` — guard with `AUTH0_REQUIRED` env flag.
 - `apps/dashboard/app/login/page.tsx` — sign-in landing.
 
-**M-027 — `aegis-cli` (TS scaffold)**:
+**M-027 — `okoro-cli` (TS scaffold)**:
+
 - Operator decision OD-010 picked Go single static binary as canonical;
   TS scaffold was authored before OD-010 landed and is preserved for
-  conversion to the `aegis-node` plugin per `MIGRATION_TS_TO_PLUGIN.md`.
+  conversion to the `okoro-node` plugin per `MIGRATION_TS_TO_PLUGIN.md`.
 - Files: `package.json`, `tsconfig.json`, `tsup.config.ts`,
   `src/{index,bin,client,output,credentials}.ts`,
   `src/commands/{bootstrap,whoami,agents,policies,audit,kms,mcp}.ts`,
@@ -5062,12 +9659,13 @@ work without overwriting each other after that point.
   (list/rotate-runbook) / mcp install. Pipe-friendly stderr-vs-stdout.
 
 **M-028 — dashboard MCP discovery view** (`apps/dashboard/app/mcp-servers/`):
+
 - `page.tsx` (server-side fetch from `/v1/mcp-servers`).
 - `components/McpMetricStrip.tsx` — Bloomberg-density metric strip
   (registered, active, invocations 24h, denials 24h, denial rate).
 - `components/McpServerTable.tsx` — dense data table, no card grid.
 - CSS additions: dense table, badges (ok/warn/crit/muted), metric strip
-  variants, data-empty hint with `aegis mcp install` snippet.
+  variants, data-empty hint with `okoro mcp install` snippet.
 - Layout nav adds MCP + Audit links.
 
 ### Test coverage delta this round
@@ -5091,8 +9689,8 @@ work without overwriting each other after that point.
   `getKmsAdapter().getActiveKey('AUDIT')` is M-037 (peer territory; defer).
 - **`@auth0/nextjs-auth0` not installed** — middleware is a guard stub
   with `AUTH0_REQUIRED` flag; full session handling needs the SDK.
-- **`aegis-cli` direction pivoted to Go** — OD-010 locked. TS scaffold
-  awaits `MIGRATION_TS_TO_PLUGIN.md` conversion to `aegis-node` plugin.
+- **`okoro-cli` direction pivoted to Go** — OD-010 locked. TS scaffold
+  awaits `MIGRATION_TS_TO_PLUGIN.md` conversion to `okoro-node` plugin.
 - **`tests/cross-package` workspace** — `vitest.workspace.ts` exists,
   but per-package `vitest.config.ts` may need adjustment so the JWT
   parity test resolves cross-workspace imports.
@@ -5100,6 +9698,7 @@ work without overwriting each other after that point.
 ### Coordination state
 
 Three peer sessions ran concurrently. Boundary respected:
+
 - sid=3e2203ee (me) — Sprint S2 / M-020..M-030 (this round)
 - sid=7a07798e — RLS migration / `apps/api/src/common/security/` /
   alerts / runbook / `docs/reviews/`
@@ -5107,7 +9706,6 @@ Three peer sessions ran concurrently. Boundary respected:
   CLI Go pivot / OD-010
 
 Both peers were notified at session start. No cross-edits observed.
-
 
 ---
 
@@ -5121,25 +9719,28 @@ Both peers were notified at session start. No cross-edits observed.
 ### What landed (all NEW files; zero edits to peer-claimed paths)
 
 **M-033 · CedarPolicyEngine** (`apps/api/src/common/policy-engine/cedar.engine.{ts,spec.ts}`)
+
 - Implements `PolicyEngine` interface (ADR-0012). `CedarEvaluatorLike`
   abstracts `cedar-wasm` so unit tests don't pull the WASM dep.
-- AEGIS → Cedar mapping documented inline:
+- OKORO → Cedar mapping documented inline:
   `Agent::"<id>"`/`Action::"<verify-action>"`/`MerchantDomain::"<dom>"`
   with context `{trustBand, trustScore, amount, currency, windowSpend, ...}`.
-- Cedar `Deny` honors `aegis.deny_reason` obligation when present
+- Cedar `Deny` honors `okoro.deny_reason` obligation when present
   (mapped to ADR-0004 enum); falls back to `SCOPE_NOT_GRANTED`. Unknown
   reason claims rejected (locked enum integrity).
 - Allow path still gated by spend (Cedar policies are stateless re:
   spend windows). 7 jest specs.
 
 **M-034 · OpaPolicyEngine** (`apps/api/src/common/policy-engine/opa.engine.{ts,spec.ts}`)
+
 - Symmetric to Cedar. `OpaEvaluatorLike` abstracts WASM-vs-HTTP-sidecar.
-- Rego conventions documented: `package aegis.authz`,
+- Rego conventions documented: `package okoro.authz`,
   `default allow = false`, `deny_reason["<DenialReason>"] { ... }`.
 - Multi-reason mapping: first known DenialReason wins; full list goes
   to `subReason` for forensics. 8 jest specs.
 
 **M-035 · PQ hybrid utility** (`apps/api/src/common/crypto/pq.util.{ts,spec.ts}`)
+
 - `signHybrid` / `verifyHybrid` / `packHybrid` / `unpackHybrid`.
 - Wire format committed in ADR-0013 §4: length-prefixed
   `[4B][classical=64B][4B][pq=3309B]`, total 3365 bytes.
@@ -5151,34 +9752,37 @@ Both peers were notified at session start. No cross-edits observed.
 
 **M-038 · OpenTelemetry tracing bootstrap**
 (`apps/api/src/common/observability/tracing.bootstrap.ts`)
+
 - `initTracing()` lazy-loads OTel deps so non-tracing builds don't pay
   the import cost. Returns noop handle when disabled or deps missing.
 - Resource attrs include `service.name`, `service.version`,
-  optional `aegis.region`. Fs auto-instrumentation explicitly disabled
+  optional `okoro.region`. Fs auto-instrumentation explicitly disabled
   per OTel docs (volume-dominator).
 - Manual span naming convention documented:
-  `aegis.verify.algorithm`, `aegis.audit.chain.append`,
-  `aegis.kms.<provider>.<op>`, `aegis.policy.engine.<id>.eval`.
+  `okoro.verify.algorithm`, `okoro.audit.chain.append`,
+  `okoro.kms.<provider>.<op>`, `okoro.policy.engine.<id>.eval`.
 - Wiring into `main.ts` is **M-038 follow-up**; bootstrap module is the
   scaffold.
 
 **Round 7 IdP federation** (Clerk adapter — `apps/api/src/modules/idp-clerk/`)
+
 - `clerk.adapter.ts` + `idp-clerk.module.ts`. Mirrors Auth0Adapter
   signature exactly — implements the same `IdpAdapter` interface.
 - This is the proof that ADR-0009 §6 (`IdpAdapter` swap path) holds:
   changing `Auth0Adapter` → `ClerkAdapter` is a single DI binding edit.
 - Clerk-specific: `azp` claim verification (Clerk doesn't use `aud`),
-  `org_id` / `o.id` org binding, `org_role` AEGIS-prefix filter.
+  `org_id` / `o.id` org binding, `org_role` OKORO-prefix filter.
 - Note: parallel-me changed `IdpAdapter.ensurePrincipalForOrg` to
   require `email` + optional `name` (since `Principal.email` is non-null
   unique). Clerk adapter matches the new signature.
 
 **Compliance / GDPR Art. 17** (`apps/api/src/modules/compliance/`)
+
 - `redact.dto.ts` — typed surface for `redactEvent` and
   `redactByAgent`.
 - `redact.service.ts` — Prisma-direct null of raw columns (action,
   relyingParty, requestedAmount, currency, policyId, policySnapshot)
-  while leaving `*Hash` columns + `aegisSignature` intact (per ADR-0006).
+  while leaving `*Hash` columns + `okoroSignature` intact (per ADR-0006).
   Idempotent on already-redacted events. Always writes a chain meta-event
   via `audit.service.append()`.
 - `redact.controller.ts` — `POST /v1/compliance/audit/{redact-event,redact-by-agent}`.
@@ -5189,12 +9793,14 @@ Both peers were notified at session start. No cross-edits observed.
 
 **policy-engine factory updates**
 (`apps/api/src/common/policy-engine/index.ts`)
+
 - `resolvePolicyEngine('cedar' | 'opa')` now constructs adapters from
   registered evaluators. `registerCedarEvaluator()` /
   `registerOpaEvaluator()` are called from `app.module.ts` at boot
   (production wiring step is M-039 follow-up).
 
 **OPERATOR_DECISIONS** — appended OD-013 through OD-016:
+
 - OD-013: default policy engine = `builtin` (Cedar/OPA opt-in)
 - OD-014: PQ hybrid trigger criteria (3-trigger ANY-of, sibling to OD-008)
 - OD-015: default IdP = Auth0; Clerk swap-in available
@@ -5219,12 +9825,12 @@ production code + ~400 LOC of test code.
 
 ### Coordination state
 
-- Parallel-me sid=3e2203ee `aegis:loop-closure` was active throughout
+- Parallel-me sid=3e2203ee `okoro:loop-closure` was active throughout
   Round 7 (typecheck fixes, OutboxWorker, audit-chain CI, body-parser).
   Auth0Adapter/Auth0Service/McpService/IdpAdapter changes by parallel-me
   were observed via system-reminders and respected — my Clerk adapter
   matches the linted `IdpAdapter` signature (with required `email`).
-- Peer sid=a9198691 `aegis:repo-genesis-and-audit-closure` active —
+- Peer sid=a9198691 `okoro:repo-genesis-and-audit-closure` active —
   owns OPERATOR_DECISIONS row authoring (OD-009..012). I appended
   OD-013..016 in their slots; ping if numbering collides.
 - Peer sid=7a07798e released earlier (RLS/security/runbook landed).
@@ -5245,7 +9851,7 @@ production code + ~400 LOC of test code.
 
 ### Why this layer matters (one paragraph)
 
-Round 7 shifts AEGIS from "claims to be enterprise-ready" to "has the
+Round 7 shifts OKORO from "claims to be enterprise-ready" to "has the
 adapters that prove it." Two policy engines (not just one) means OD-013
 isn't theoretical — Cedar + OPA both compile and evaluate against the
 same `PolicyEngine` interface. PQ hybrid sign isn't a roadmap PDF —
@@ -5260,7 +9866,7 @@ Each ADR from Round 5 now has executable code behind it.
 ## 2026-05-02 (Round 8) — production wiring + 3rd IdP + onboarding + edge verify (sid=3e2203ee)
 
 > Operator ask: continue enterprise quality, communicate with all
-> sessions, ultrathink. Round 8 shifts AEGIS from "scaffolds with
+> sessions, ultrathink. Round 8 shifts OKORO from "scaffolds with
 > ADRs behind them" to "production-pluggable across the whole stack."
 > Five modules shipped, all in clean new file paths, zero conflicts
 > with parallel-me on `~/.claude/peers/` infra.
@@ -5268,22 +9874,24 @@ Each ADR from Round 5 now has executable code behind it.
 ### What landed
 
 **M-039 · Cedar+OPA prod evaluator wiring** (`apps/api/src/common/policy-engine/`)
+
 - `cedar-wasm.evaluator.ts` — production `CedarEvaluatorLike` against
   `@cedar-policy/cedar-wasm`. Maps Cedar policies + entities into the
-  artifact shape; extracts `@aegis_deny_reason("...")` annotations from
+  artifact shape; extracts `@okoro_deny_reason("...")` annotations from
   diagnostics into engine obligations the `CedarPolicyEngine` can route
-  to the locked AEGIS denial enum. `compileCedarPolicy` helper for the
+  to the locked OKORO denial enum. `compileCedarPolicy` helper for the
   policy-create controller (deferred wiring).
 - `opa-wasm.evaluator.ts` — production `OpaEvaluatorLike` against
   `@open-policy-agent/opa-wasm`. LRU cache (max 256) of loaded
   policies keyed by artifact hash; loadPolicy on cache miss, evaluate
   every call. `buildOpaArtifact` helper.
 - `policy-engine.module.ts` — Nest module reading
-  `AEGIS_POLICY_ENGINES=builtin,cedar,opa` env; lazy-loads each WASM
+  `OKORO_POLICY_ENGINES=builtin,cedar,opa` env; lazy-loads each WASM
   module behind `try/catch` so missing packages log a warning rather
   than crash. Wires `registerCedarEvaluator()` / `registerOpaEvaluator()`.
 
 **M-042 · WorkOS IdP adapter** (`apps/api/src/modules/idp-workos/`)
+
 - `workos.adapter.ts` — third `IdpAdapter`. Critical: WorkOS uses
   sealed sessions (opaque base64 cookies + introspection API), NOT
   RS256 JWT like Auth0/Clerk. Validates the interface holds across
@@ -5295,8 +9903,9 @@ Each ADR from Round 5 now has executable code behind it.
   unit tests don't pull it.
 
 **M-043 · PrincipalOnboarding** (OD-012)
+
 - `apps/api/prisma/migrations/20260502000600_principal_onboarding/migration.sql`
-  + schema.prisma model with FK back-relation on Principal.
+  - schema.prisma model with FK back-relation on Principal.
 - `apps/api/src/modules/onboarding/{dto,service,controller,module}.ts` —
   one-way-ratchet semantics: a step that completes can never un-complete.
   Timestamps written on first transition, preserved across re-marks.
@@ -5306,6 +9915,7 @@ Each ADR from Round 5 now has executable code behind it.
 
 **M-044 · CF Worker Phase 3 m2 — KV-cache edge verify**
 (`workers/cf-verify/src/`)
+
 - `kv-cache.ts` — KV adapter with stale-safety check (records older
   than 90s rejected even if KV TTL hasn't expired them).
 - `token.ts` — WebCrypto-based Ed25519 verify (Workers GA), JWT decode
@@ -5314,17 +9924,18 @@ Each ADR from Round 5 now has executable code behind it.
   edge: decoded shape → agent cache → status → policy cache + status →
   signature → scope → spend (per_day only; per_request/lifetime forward
   to origin) → trust band. APPROVED returned at edge with
-  `X-AEGIS-Edge: edge-allow` header; ambiguity forwards to origin.
-- Integration in `index.ts` gated by `AEGIS_EDGE_VERIFY_ENABLED=true`
+  `X-OKORO-Edge: edge-allow` header; ambiguity forwards to origin.
+- Integration in `index.ts` gated by `OKORO_EDGE_VERIFY_ENABLED=true`
   env so production stays on m1 passthrough until shadow-deploy
   validates edge decisions match origin.
 
 **M-045 · Industry quickstart `ai-platform-tool-call`**
 (OD-011 first quickstart of three)
+
 - Peer contributed `src/mcp-server.ts` (verifyKey/arg pattern using
-  `aegis_token` in tool args).
+  `okoro_token` in tool args).
 - I added `src/server.ts` (mcp-bridge `wrapMcpHandler` pattern using
-  `Authorization: Bearer` header), `src/aegis.ts` (env-driven SDK
+  `Authorization: Bearer` header), `src/okoro.ts` (env-driven SDK
   helper), `src/demo-agent.ts` (end-to-end: keygen → agent.create →
   policy.create → signAgentToken → verify call), `tsconfig.json`.
 - Two-flavor example: customers see both integration patterns in one
@@ -5343,14 +9954,14 @@ land in M-046..M-050 (added to WORK_BOARD).
 
 ### Coordination state
 
-- Parallel-me sid=3e2203ee `aegis:peers-infra-deep-upgrade` ran
-  throughout Round 8 in `~/.claude/peers/` — outside AEGIS repo. Zero
+- Parallel-me sid=3e2203ee `okoro:peers-infra-deep-upgrade` ran
+  throughout Round 8 in `~/.claude/peers/` — outside OKORO repo. Zero
   cross-edits observed.
-- Peer sid=a9198691 active on AEGIS docs / OPERATOR_DECISIONS authoring
+- Peer sid=a9198691 active on OKORO docs / OPERATOR_DECISIONS authoring
   / examples scaffolding. They contributed `examples/ai-platform-tool-call/{package.json,README.md,mcp-server.ts}`
   while I contributed the bridge-pattern variant in the same dir.
   No conflicts; both files coexist.
-- This session's claim `aegis:s4-extension` released on completion.
+- This session's claim `okoro:s4-extension` released on completion.
 
 ### Confirmed not done (M-046..M-050 added to WORK_BOARD)
 
@@ -5369,11 +9980,12 @@ land in M-046..M-050 (added to WORK_BOARD).
   modules — M-050.
 - **Edge shadow-deploy verification** — compare edge decisions vs.
   origin in production for 7 days before flipping
-  `AEGIS_EDGE_VERIFY_ENABLED=true` for live traffic.
+  `OKORO_EDGE_VERIFY_ENABLED=true` for live traffic.
 
 ### Why this layer matters
 
 Round 8 made the Round-7 ADR commitments executable in production.
+
 - Cedar/OPA aren't just adapters — they have WASM evaluators and a
   Nest module that wires them. AppModule imports one line; both
   engines fire.
@@ -5399,20 +10011,21 @@ Round 8 made the Round-7 ADR commitments executable in production.
 
 ### Gaps from Round 8, now closed
 
-| Round-8 gap | Round-9 fix |
-|---|---|
-| WASM evaluator wiring untested | `cedar-wasm.evaluator.spec.ts` + `opa-wasm.evaluator.spec.ts` (16 tests total) — fake-injected modules; full surface coverage |
-| WorkOS adapter untested | `workos.adapter.spec.ts` (10 tests) — valid session, expired, throw, cache hit, ensurePrincipal idempotency |
-| Onboarding service untested | `onboarding.service.spec.ts` (5 tests) — lazy-create, completed-count, markStep, ratchet preservation |
-| edgeVerify untested | `workers/cf-verify/test/edge-verify.spec.ts` (16 tests) — full ADR-0004 denial-precedence sweep at the edge |
-| AppModule didn't import new modules | `app.module.ts` now imports KmsModule, PolicyEngineModule, Auth0Module, IdpClerkModule, IdpWorkOsModule, McpModule, ComplianceModule, OnboardingModule |
-| No safe-rollout for edge | `shadow.ts` + integration in worker `index.ts` — three-mode rollout (off/shadow/live), divergence header + Workers Analytics Engine |
-| `markStep` had no callers | `OnboardingBackfill.run()` — periodic idempotent SQL reconciler. Zero edits to existing services. Self-healing. |
-| Optional deps missing from package.json | `apps/api/package.json` `optionalDependencies` block adds cedar-wasm, opa-wasm, workos, aws-sdk client-kms, google-cloud kms |
+| Round-8 gap                             | Round-9 fix                                                                                                                                            |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| WASM evaluator wiring untested          | `cedar-wasm.evaluator.spec.ts` + `opa-wasm.evaluator.spec.ts` (16 tests total) — fake-injected modules; full surface coverage                          |
+| WorkOS adapter untested                 | `workos.adapter.spec.ts` (10 tests) — valid session, expired, throw, cache hit, ensurePrincipal idempotency                                            |
+| Onboarding service untested             | `onboarding.service.spec.ts` (5 tests) — lazy-create, completed-count, markStep, ratchet preservation                                                  |
+| edgeVerify untested                     | `workers/cf-verify/test/edge-verify.spec.ts` (16 tests) — full ADR-0004 denial-precedence sweep at the edge                                            |
+| AppModule didn't import new modules     | `app.module.ts` now imports KmsModule, PolicyEngineModule, Auth0Module, IdpClerkModule, IdpWorkOsModule, McpModule, ComplianceModule, OnboardingModule |
+| No safe-rollout for edge                | `shadow.ts` + integration in worker `index.ts` — three-mode rollout (off/shadow/live), divergence header + Workers Analytics Engine                    |
+| `markStep` had no callers               | `OnboardingBackfill.run()` — periodic idempotent SQL reconciler. Zero edits to existing services. Self-healing.                                        |
+| Optional deps missing from package.json | `apps/api/package.json` `optionalDependencies` block adds cedar-wasm, opa-wasm, workos, aws-sdk client-kms, google-cloud kms                           |
 
 ### What landed (all NEW files; small additive edits to two existing)
 
 **Specs (5 files, 47 tests):**
+
 - `apps/api/src/common/policy-engine/cedar-wasm.evaluator.spec.ts` (8 tests)
 - `apps/api/src/common/policy-engine/opa-wasm.evaluator.spec.ts` (8 tests)
 - `apps/api/src/modules/idp-workos/workos.adapter.spec.ts` (10 tests)
@@ -5421,20 +10034,23 @@ Round 8 made the Round-7 ADR commitments executable in production.
 - `workers/cf-verify/test/shadow.spec.ts` (10 tests, vitest harness)
 
 **CF Worker shadow-mode (2 files):**
+
 - `workers/cf-verify/src/shadow.ts` — `shadowMode()`, `compareVerifyResponses()`
   (decision-tuple-only diff, ignores `verifiedAt`), `divergenceHeader()`,
   `recordDivergence()` to optional Workers Analytics Engine.
 - `workers/cf-verify/src/index.ts` — three-mode dispatch, parallel edge
-  + origin in shadow mode, serves origin response with
-  `X-AEGIS-Edge-Divergence` header for operator dashboards.
+  - origin in shadow mode, serves origin response with
+    `X-OKORO-Edge-Divergence` header for operator dashboards.
 
 **AppModule wiring** (`apps/api/src/app.module.ts`):
+
 - 8 new module imports under "Round 5–8 enterprise backbone:" comment
 - inserted into `imports` array — `PolicyEngineModule` placed early so
   its `OnModuleInit` registers WASM evaluators before any verify path
   reaches `resolvePolicyEngine('cedar')`.
 
 **Onboarding backfill** (`apps/api/src/modules/onboarding/onboarding.backfill.ts`):
+
 - Single-pass SQL reconciler. Each step is a CTE-based UPDATE that
   flips boolean + first-seen timestamp from a join on the entity table.
   Five steps wired today (`hasFirstAgent`, `hasFirstPolicy`,
@@ -5443,6 +10059,7 @@ Round 8 made the Round-7 ADR commitments executable in production.
   source-CTE-pending (M-037 KMS + M-011 Stripe land them).
 
 **Package.json** (`apps/api/package.json`):
+
 - New `optionalDependencies` block. Marked optional because the API
   starts cleanly without them — only the relevant adapter blows up at
   runtime if the operator opted into a provider whose SDK isn't installed.
@@ -5457,12 +10074,12 @@ Round 8 made the Round-7 ADR commitments executable in production.
 
 ### Coordination state
 
-- Parallel-me sid=3e2203ee `aegis:peers-infra-deep-upgrade` continues
-  in `~/.claude/peers/`. Zero AEGIS source overlap.
+- Parallel-me sid=3e2203ee `okoro:peers-infra-deep-upgrade` continues
+  in `~/.claude/peers/`. Zero OKORO source overlap.
 - Peer sid=a9198691 owns M-040a..h Sprint S3 work (CLI Go binary,
   industry quickstarts, persona docs landings). Different paths from
   my Round 9 work; no conflicts.
-- This session's claim `aegis:s4-extension` (Round 8 + 9 combined)
+- This session's claim `okoro:s4-extension` (Round 8 + 9 combined)
   released on Round 9 close.
 
 ### What's still gapped (next-round material)
@@ -5471,7 +10088,7 @@ Round 8 made the Round-7 ADR commitments executable in production.
   installed. Operator runs `pnpm install` to materialize them.
 - **`@nestjs/schedule` not wired for periodic OnboardingBackfill** —
   the worker is a one-pass `run()` method; the cron call happens via
-  admin endpoint or `aegis-cli onboarding backfill` for now. Wiring a
+  admin endpoint or `okoro-cli onboarding backfill` for now. Wiring a
   `@Cron('*/5 * * * *')` decorator is a 1-line follow-up when the
   operator commits to that scheduler.
 - **Cloud KMS prod construction in app.module** — KmsModule's factory
@@ -5494,7 +10111,7 @@ quality gates closed:
 1. **Test coverage gate**: every adapter that boots in production now
    has a spec test that exercises its surface. No dark code.
 2. **Wiring gate**: `app.module.ts` is the source of truth for what
-   AEGIS does at boot; before this round, eight modules existed but
+   OKORO does at boot; before this round, eight modules existed but
    weren't loaded. Now they all are.
 3. **Safety gate**: edge verify can't go to production by gut feel —
    shadow-mode + divergence telemetry + the 16-branch spec means we'll
@@ -5506,12 +10123,13 @@ quality gates closed:
 
 > Operator: continue enterprise quality, pickup on next tasks, FAANG
 > level. Round 10 closes the most consequential Round-9 gap (M-037
-> audit signing through KmsAdapter) plus five more, taking AEGIS from
+> audit signing through KmsAdapter) plus five more, taking OKORO from
 > "scaffolds with everything wired" to "rotation works end-to-end."
 
 ### What landed
 
 **M-051 / M-037 — audit signing through KmsAdapter** (CROWN JEWEL)
+
 - New `AuditSignerService` in `apps/api/src/common/crypto/`:
   resolves KMS → env → ephemeral in priority order. `signRaw(msg)` +
   `getActiveKid()` are the two operations callers need.
@@ -5530,17 +10148,19 @@ quality gates closed:
   init-idempotency, onModuleDestroy zero.
 
 **M-052 — Cloud KMS production boot**
+
 - `kms.module.ts` rewritten: three `throw` statements replaced by
   `buildAws` / `buildGcp` / `buildVault` factories, each lazy-loading
   the cloud SDK. AWS uses envelope-decrypt (Ed25519 plaintext wrapped
   by KMS data key); GCP uses native `asymmetricSign` with EdDSA; Vault
   uses HTTP `transit/sign`. Each path reads provider-specific env keys
-  (e.g. `AEGIS_AWS_KMS_AUDIT_{KID,WRAPPED,PUB}`) and fails loud.
+  (e.g. `OKORO_AWS_KMS_AUDIT_{KID,WRAPPED,PUB}`) and fails loud.
 - `setKmsAdapter()` is called inside each builder so the singleton
   used by `AuditSignerService.init()` resolves cleanly.
 
 **M-053 — OnboardingBackfill scheduling**
-- `@Cron(process.env.AEGIS_ONBOARDING_BACKFILL_CRON ?? '*/5 * * * *')`
+
+- `@Cron(process.env.OKORO_ONBOARDING_BACKFILL_CRON ?? '*/5 * * * *')`
   on `runScheduled()` — lazy-loaded `@nestjs/schedule` so it's a no-op
   in test bundles.
 - `OnModuleInit` boot pass after 30s lets the rest of the app come up
@@ -5548,17 +10168,19 @@ quality gates closed:
 - `lastReport` cached and surfaced via two admin endpoints:
   `POST /v1/me/onboarding/admin/backfill` (manual trigger) and
   `GET /v1/me/onboarding/admin/backfill/last` (status).
-- Both gated by `X-AEGIS-Admin` header == `AEGIS_ADMIN_TOKEN` env.
+- Both gated by `X-OKORO-Admin` header == `OKORO_ADMIN_TOKEN` env.
 
 **M-054 — OTel `initTracing()` in main.ts**
+
 - `main.ts` now calls `initTracing()` BEFORE `NestFactory.create()` so
   auto-instrumentation can wrap http / pg / ioredis at module load.
-- Reads `AEGIS_OTEL_ENABLED`, `AEGIS_OTEL_SERVICE_NAME`, `AEGIS_OTEL_EXPORTER`
+- Reads `OKORO_OTEL_ENABLED`, `OKORO_OTEL_SERVICE_NAME`, `OKORO_OTEL_EXPORTER`
   envs. Resource attrs auto-populate `deployment.environment` and
-  optional `aegis.region`.
+  optional `okoro.region`.
 - SIGTERM/SIGINT handlers call `tracing.shutdown()` for clean drain.
 
 **M-055 — BATE anomaly detector R-1..R-5**
+
 - Pure-function detector in `bate.anomaly.ts` — 240 LOC. Five rules:
   R-1 velocity per minute, R-2 distinct countries in 24h, R-3 spend
   CV per-currency, R-4 failed-verify spike rate, R-5 delegation chain
@@ -5571,6 +10193,7 @@ quality gates closed:
   per-currency separation + 24h cutoff.
 
 **M-056 — Spec-sync drift CI**
+
 - `.github/workflows/spec-sync.yml` — three parallel jobs run on PRs
   touching spec / types / Prisma / DTO / verify paths:
   (1) OpenAPI ↔ Zod parity, (2) OpenAPI ↔ Prisma model parity,
@@ -5585,25 +10208,25 @@ quality gates closed:
 
 ### Coordination state
 
-- Parallel-me sid=ad9b5254 active on `aegis:cli-deepwire` (CLI
+- Parallel-me sid=ad9b5254 active on `okoro:cli-deepwire` (CLI
   oapi-codegen / release infra). Different paths from mine; no
   conflicts, advisory-mode overlap noted at claim time.
-- This session's claim `aegis:r10-faang-closure` released on completion.
+- This session's claim `okoro:r10-faang-closure` released on completion.
 
 ### Confirmed not done (next round)
 
 - **`pnpm install` of @nestjs/schedule** — declared in package.json
   via Round 9's optionalDependencies addition pattern? No — schedule
   is core enough that it should move to `dependencies`. Operator runs
-  `pnpm add @nestjs/schedule -F @aegis/api`.
+  `pnpm add @nestjs/schedule -F @okoro/api`.
 - **AppModule import of `ScheduleModule.forRoot()`** — required for
   the @Cron decorator to actually register handlers. Add to
   `app.module.ts` imports array when @nestjs/schedule installs.
 - **`scripts/check-openapi-zod-parity.ts`** — referenced by the CI
   workflow, not yet authored. The denial-precedence job runs without it.
-- **Manual span instrumentation** on `aegis.verify.algorithm`,
-  `aegis.audit.chain.append`, `aegis.kms.<provider>.<op>`,
-  `aegis.policy.engine.<id>.eval` — auto-instrumentation covers
+- **Manual span instrumentation** on `okoro.verify.algorithm`,
+  `okoro.audit.chain.append`, `okoro.kms.<provider>.<op>`,
+  `okoro.policy.engine.<id>.eval` — auto-instrumentation covers
   HTTP/DB/Redis; manual spans for these are the next OTel follow-up.
 - **BATE anomaly detector NOT YET wired** into the BateService
   worker — it's a pure detector ready to be invoked from the BullMQ
@@ -5614,11 +10237,11 @@ quality gates closed:
 
 Round 10 closed the gap that mattered most: KMS rotation now works
 end-to-end. Before today, "we use a KMS" was an architectural claim
-backed by an interface; an operator who tried `aegis kms rotate AUDIT`
+backed by an interface; an operator who tried `okoro kms rotate AUDIT`
 would find that the audit chain still signed with the env-derived key,
 silently breaking the JWKS multi-key publishing story. Now:
 
-1. Operator sets `AEGIS_KMS_PROVIDER=aws` + the per-purpose env keys.
+1. Operator sets `OKORO_KMS_PROVIDER=aws` + the per-purpose env keys.
 2. `app.module.ts` boots → `KmsModule` calls `buildAws()` → registers
    the adapter via `setKmsAdapter()`.
 3. `AuditModule.onModuleInit` → `AuditSignerService.init()` resolves
@@ -5627,7 +10250,7 @@ silently breaking the JWKS multi-key publishing story. Now:
    `signingKeyId: auditSigner.getActiveKid()` on the row.
 5. `/.well-known/audit-signing-key` (when wired in a follow-up) reads
    the same singleton and publishes the kid + pubkey.
-6. `aegis kms rotate AUDIT` updates the env mapping, AppModule reload
+6. `okoro kms rotate AUDIT` updates the env mapping, AppModule reload
    picks up the new kid, JWKS lists both for the verify window.
 
 That whole sequence is now CODE, not aspiration. Plus the BATE detector
@@ -5639,12 +10262,14 @@ absence of dark code.
 ---
 
 ## Session: cowork-g2g3g4-closure | G-2 + G-3 + G-4 | 2026-05-04
+
 **Duration:** ~2h
 **Status:** ✅ Landed
 
 ### What landed
 
 #### G-3 — BATE Anomaly Detector wired (CLOSED)
+
 - **`apps/api/src/modules/bate/bate.module.ts`**: Added `BateAnomalyDetector` to
   `providers` array. It was a pure class that existed but was never registered
   as a NestJS injectable — the fix is a 2-line add.
@@ -5665,10 +10290,11 @@ absence of dark code.
     `createdAt`), `BateSignal.occurredAt` in `bate.anomaly.ts` R-1 and R-4.
 
 #### G-2 — Free-tier quota gate wired (CLOSED)
+
 - **`apps/api/src/modules/billing/usage-guard.service.ts`** (NEW): `UsageGuardService`
-  injectable. Redis counter `aegis:usage:{principalId}:{YYYY-MM}` is the fast path.
+  injectable. Redis counter `okoro:usage:{principalId}:{YYYY-MM}` is the fast path.
   On miss, backfills from `AuditEvent.count WHERE principalId + timestamp >= startOfMonth`.
-  Plan tier cached at `aegis:plan:{principalId}` for 5 min (avoids DB read per call).
+  Plan tier cached at `okoro:plan:{principalId}` for 5 min (avoids DB read per call).
   Fails-open on Redis/DB error (billing gate, not security gate). Uses `redis.raw()`
   for integer INCR/EXPIRE semantics (not `incrBy` which uses INCRBYFLOAT).
 - **`apps/api/src/modules/billing/billing.module.ts`** (NEW): Wraps `UsageGuardService`,
@@ -5684,11 +10310,12 @@ absence of dark code.
   Denied calls (wrong signature, revoked, etc.) do NOT consume quota.
 
 #### G-4 — Webhook subscription endpoints (CLOSED)
+
 - **`apps/api/src/modules/webhooks/webhooks.controller.ts`** (NEW):
   - `POST /v1/webhooks` — subscribe, returns `{ id, secret }`.
   - `GET /v1/webhooks` — list subscriptions for calling principal.
   - `DELETE /v1/webhooks/:id` — unsubscribe, idempotent 204.
-  - Full Swagger decorations, class-validator DTOs inline. Auth: `x-aegis-api-key`
+  - Full Swagger decorations, class-validator DTOs inline. Auth: `x-okoro-api-key`
     (full-scope key, NOT verify-only — subscriptions are management plane).
   - Multi-tenant isolation: all operations scoped to `auth.principalId` (CLAUDE.md
     invariant #5). `WebhooksService.unsubscribe` uses `deleteMany({ id, principalId })`
@@ -5697,6 +10324,7 @@ absence of dark code.
   to `controllers` array.
 
 #### MetricsService — new counter
+
 - **`apps/api/src/common/observability/metrics.service.ts`**: Added
   `bateAnomalyTriggerTotal` Counter with `rule` label (low-cardinality —
   `detector.r1` … `detector.r5`). Registered in `onModuleInit`. The bate.worker
@@ -5729,7 +10357,7 @@ absence of dark code.
   reason — update the spec's `/v1/verify` response section.
 - `bateAnomalyTriggerTotal` metric added — `docs/MONITORING_OBSERVABILITY.md`
   Prometheus metrics table should be updated to include
-  `aegis_bate_anomaly_trigger_total{rule}`.
+  `okoro_bate_anomaly_trigger_total{rule}`.
 
 ### Open questions / next steps
 
@@ -5751,6 +10379,7 @@ absence of dark code.
    if strict HTTPS enforcement is required.
 
 ### OPERATOR-INPUT-NEEDED
+
 - OD-003 (pricing tier decision) must be resolved before Stripe integration can
   ship. Current default: FREE=1K/month hard-stop, DEVELOPER=50K, GROWTH=500K,
   ENTERPRISE=unlimited. Confirm or adjust in `apps/api/src/modules/billing/plans.ts`.
@@ -5759,22 +10388,24 @@ absence of dark code.
 ---
 
 ## Session: dashboard-g5-and-doc-drift | G-5 dashboard surface + identity API list | 2026-05-04
-**Claim:** `aegis:dashboard-g5-and-doc-drift` (sid c4f241c5+others co-resident; non-overlapping scope)
+
+**Claim:** `okoro:dashboard-g5-and-doc-drift` (sid c4f241c5+others co-resident; non-overlapping scope)
 **Duration:** ~2h
 **Status:** ✅ Landed — dashboard typecheck green, identity.service.spec 6/6 green
 
 ### What landed
 
 #### G-5 — Dashboard surface (CLOSED for the agents/policies/audit slice)
-- **`apps/dashboard/lib/api-client.ts`** (NEW): server-side typed AEGIS client.
-  Header constants kept local (SDK does not re-export them). `AegisApiError` +
-  `AegisAuthMissingError` with code/status/requestId; never silently swallows
+
+- **`apps/dashboard/lib/api-client.ts`** (NEW): server-side typed OKORO client.
+  Header constants kept local (SDK does not re-export them). `OkoroApiError` +
+  `OkoroAuthMissingError` with code/status/requestId; never silently swallows
   failures (CLAUDE.md invariant 4). Per-call `AbortSignal` + 8s default timeout.
   Surface: `listAgents`, `getAgent`, `registerAgent`, `revokeAgent`,
   `listPolicies`, `revokePolicy`, `listAudit`. Webhook + Billing methods were
   appended by the round-12 peer in the same file (non-conflicting).
 - **`apps/dashboard/lib/auth.ts`** (NEW): minimal session helper. Reads
-  `AEGIS_DASHBOARD_API_KEY` + `AEGIS_DASHBOARD_PRINCIPAL_ID` until Auth0 v4 lands
+  `OKORO_DASHBOARD_API_KEY` + `OKORO_DASHBOARD_PRINCIPAL_ID` until Auth0 v4 lands
   (M-020). `authConfigured()` gates the "no key set" empty-state on every page.
 - **`apps/dashboard/lib/format.ts`** (NEW): pure formatters — `relativeTime`,
   `fmtNum`, `fmtPct`, `shortId`, `statusTone`, `trustBandTone`. No allocations
@@ -5812,11 +10443,13 @@ absence of dark code.
   existing MCP-page styles. No card grids (memory: `feedback_less_cards`).
 
 #### Identity API — `GET /v1/agents` list endpoint (NEW)
+
 The dashboard needed a `GET /v1/agents` route — it didn't exist. Added with
 multi-tenant isolation, cursor pagination, and filter support so the dashboard
 list page works against real data instead of a stub.
+
 - **`apps/api/src/modules/identity/identity.service.ts`**: new `list(principalId,
-  query)` method. `WHERE principalId` first (CLAUDE.md invariant 5), filter on
+query)` method. `WHERE principalId` first (CLAUDE.md invariant 5), filter on
   `status` + `runtime`, optional substring search on id/label/model, cursor
   pagination (take = limit + 1 sentinel pattern, returns `nextCursor` when more
   rows exist). Limit is clamped server-side to [1, 100] independently of
@@ -5830,26 +10463,30 @@ list page works against real data instead of a stub.
   multi-tenant isolation, pagination, limit clamp (above + below), status+runtime
   filters, cross-principal-cursor isolation, NotFoundException on missing.
 
-#### `@aegis/types` schema additions (NEW)
+#### `@okoro/types` schema additions (NEW)
+
 - **`packages/types/src/schemas.ts`**: `AgentListQuerySchema` + `AgentListResponseSchema`,
   re-exported as `AgentListQuery` / `AgentListResponse`. Mirrors the DTO shape
   so SDK + dashboard share one source of truth.
 
 ### What did NOT land
+
 - **Auth0 v4 wiring** — middleware still env-flag-gated to "permit all" until
   `@auth0/nextjs-auth0` is installed (M-020-pkg-install). Dashboard sessions are
   synthesized from env for now.
-- **Per-user API keys** — the dashboard reads `AEGIS_DASHBOARD_API_KEY` from env
+- **Per-user API keys** — the dashboard reads `OKORO_DASHBOARD_API_KEY` from env
   (single principal). Per-session keys land with M-020.
 - **Webhook bcrypt hardening + `@IsHttpsUrl`** — flagged in cowork-g2g3g4 handoff
   items 3 + 4. Out of scope (peers' billing/webhooks claim).
 - **Spec doc drift** (`PLAN_LIMIT_EXCEEDED` into `03_TECHNICAL_SPEC.md`,
-  `aegis_bate_anomaly_trigger_total` into `MONITORING_OBSERVABILITY.md`) — round-12
+  `okoro_bate_anomaly_trigger_total` into `MONITORING_OBSERVABILITY.md`) — round-12
   peer has the "spec doc sync" claim.
 
 ### Type-system housekeeping
+
 Three pre-existing peer-authored type errors were fixing on the dashboard side
 to keep `pnpm typecheck` green for the whole `apps/dashboard` package:
+
 - `webhooks/components/SubscribeForm.tsx` + `UnsubscribeButton.tsx` — removed
   explicit `: JSX.Element` return annotation (deprecated under React 19's
   global JSX namespace removal); TS infers it cleanly.
@@ -5863,6 +10500,7 @@ were NOT touched — those are explicitly flagged in the cowork-g2g3g4 handoff a
 peer-claimed, blocked on `pnpm add @aws-sdk/client-kms @google-cloud/kms`.
 
 ### Quality bar
+
 - Dashboard `pnpm typecheck`: ✅ clean (was 3 errors, now 0).
 - API `identity.service.spec.ts`: ✅ 6/6 passing including multi-tenant cursor
   isolation test asserting CLAUDE.md invariant 5.
@@ -5878,7 +10516,8 @@ peer-claimed, blocked on `pnpm add @aws-sdk/client-kms @google-cloud/kms`.
   bound API key; every service method takes `principalId` as the first arg.
 
 ### Open questions / next steps
-1. **`GET /v1/agents` is not yet in `docs/spec/AEGIS_API_SPEC.yaml`** — the spec
+
+1. **`GET /v1/agents` is not yet in `docs/spec/OKORO_API_SPEC.yaml`** — the spec
    needs the `paths./v1/agents.get` block. Round-12 peer holds the
    "spec doc sync" claim; I left a `// TODO: add to OpenAPI spec` marker in the
    controller. Spec-sync CI (M-056) will catch this on the next PR touching the
@@ -5892,30 +10531,34 @@ peer-claimed, blocked on `pnpm add @aws-sdk/client-kms @google-cloud/kms`.
    keys. Until then the dashboard runs against a single shared principal.
 
 ### OPERATOR-INPUT-NEEDED
+
 - None new this session. Inherited from cowork-g2g3g4: OD-003 + webhook
   secret-storage decision still open.
 
 ---
 
 ## Session: identity-handshake-m003 | M-003 challenge-response handshake | 2026-05-04
-**Claim:** `aegis:identity-handshake-m003` (released)
+
+**Claim:** `okoro:identity-handshake-m003` (released)
 **Duration:** ~1h
 **Status:** ✅ Landed — 17/17 identity tests green, 5/5 SDK tests green, full TS clean for identity + SDK
 
 ### What landed
 
 #### M-003 — Challenge-response handshake (CLOSED for the protocol surface)
+
 The remaining acceptance item from M-003 ("verify keypair via challenge-response
 handshake"). Closes the cryptographic gap where registration alone proved
 nothing about who held the private key.
 
 **Protocol invariants encoded in the implementation:**
-1. **Domain separation.** Signed bytes are `aegis-handshake-v1::{agentId}::{challenge}` —
+
+1. **Domain separation.** Signed bytes are `okoro-handshake-v1::{agentId}::{challenge}` —
    prefix prevents cross-protocol replay against the verify-token JWT signing
    path (which signs different bytes), so a single Ed25519 key is safe to use
    for both flows.
 2. **One-shot semantics.** `verifyHandshake` deletes the stored nonce up front,
-   *before* signature verification. A leaked challenge cannot be retried with a
+   _before_ signature verification. A leaked challenge cannot be retried with a
    new signature; even an in-flight failure consumes the nonce.
 3. **Fail-closed on Redis miss.** No nonce ⇒ `CHALLENGE_EXPIRED` (HTTP 410).
    Aligns with CLAUDE.md invariant 4 — never a silent pass.
@@ -5933,6 +10576,7 @@ nothing about who held the private key.
    hot caches so the verify path sees the new score immediately.
 
 **Files (all in scope of the released claim):**
+
 - **`apps/api/src/modules/identity/identity.service.ts`**: 130 lines added —
   `issueChallenge()` + `verifyHandshake()` + four pure helpers
   (`b64UrlEncode/Decode`, `buildHandshakeMessage`, `challengeKey`,
@@ -5957,6 +10601,7 @@ nothing about who held the private key.
   length, cross-principal verify-handshake.
 
 **SDK side (`packages/sdk-ts`):**
+
 - **`packages/sdk-ts/src/crypto.ts`**: new `signHandshake(privateKeyB64u, message)`
   helper. Trivial wrapper around `ed.signAsync` but documented as the public
   contract for SDK consumers — they pass the server's `message` string verbatim
@@ -5967,6 +10612,7 @@ nothing about who held the private key.
   with the API) + non-determinism check across distinct challenges.
 
 ### What did NOT land
+
 - **Schema columns** (`AgentIdentity.lastHandshakeAt`, `keyVerified`) — peer
   holds `apps/api/prisma/schema.prisma`. Handshake state lives in Redis only
   for now (30-day TTL). Phase 2 promotes to Postgres + adds a verify-path
@@ -5981,10 +10627,11 @@ nothing about who held the private key.
 - **Dashboard "verify handshake" affordance** — the private key never reaches
   the dashboard (CLAUDE.md invariant 1), so this is a CLI / SDK flow, not a
   dashboard button.
-- **OpenAPI spec** (`AEGIS_API_SPEC.yaml`) — round-12 peer holds spec-doc-sync;
+- **OpenAPI spec** (`OKORO_API_SPEC.yaml`) — round-12 peer holds spec-doc-sync;
   the new routes will be picked up on their next pass via the spec-sync CI.
 
 ### Quality bar
+
 - `apps/api`: identity tests **17/17 ✅** (was 6, added 11). `pnpm typecheck`
   shows **0 identity errors** (1 unrelated `_phantom` in resilience/, peer-owned).
 - `packages/sdk-ts`: `pnpm test` **5/5 ✅**, `pnpm typecheck` **clean**.
@@ -6000,12 +10647,13 @@ nothing about who held the private key.
   not in the verify hot path — Phase-3 CF Worker port unaffected.
 
 ### Open questions / next steps
+
 1. **Verify-path coupling (Phase 2).** Adding a `keyVerified` precondition to
    the verify algorithm is a one-line change in `verify.algorithm.ts` once the
    handshake state lives in Postgres. This is the natural follow-up that
    converts handshake from "advisory" to "required for first verify."
 2. **OpenAPI spec drift.** Two new routes (`/v1/agents/:id/challenge`,
-   `/v1/agents/:id/verify-handshake`) need to land in `AEGIS_API_SPEC.yaml`.
+   `/v1/agents/:id/verify-handshake`) need to land in `OKORO_API_SPEC.yaml`.
    The spec-sync CI workflow (M-056) catches this on PR.
 3. **Per-agent rate limiting on /challenge.** The global throttler covers
    blanket abuse; a per-agent limit (e.g. 10/min) would prevent nonce-pumping
@@ -6017,23 +10665,26 @@ nothing about who held the private key.
    The Pino log line is the holding pattern.
 
 ### OPERATOR-INPUT-NEEDED
+
 - None. Defaults align with existing OD-002 cold-start (acceptance threshold 600).
 
 ---
 
 ## Session: dashboard-faang-polish | Bloomberg + FAANG UX layer | 2026-05-04
-**Claim:** `aegis:dashboard-faang-polish` (released)
+
+**Claim:** `okoro:dashboard-faang-polish` (released)
 **Duration:** ~1.5h
 **Status:** ✅ Landed — `pnpm typecheck` clean, `next build` green for all 10 routes
 
 ### What landed
 
 The dashboard had density (Bloomberg) but missed reactive feel (Linear/Vercel/Stripe).
-This session adds the *fast-feeling* layer — sub-100ms feedback, command palette,
+This session adds the _fast-feeling_ layer — sub-100ms feedback, command palette,
 copy-to-clipboard, keyboard chords, toasts, focus management, responsive
 breakpoints, motion-respect.
 
 #### Foundational primitives (NEW components/)
+
 - **`components/AppShell.tsx`**: client shell mounted by `app/layout.tsx`. Hosts
   `ToastProvider`, `HeaderNav`, `CommandPalette`, `KeyboardShortcuts`. Use-client
   boundary stops at this file — page server components hydrate underneath
@@ -6049,7 +10700,7 @@ breakpoints, motion-respect.
 - **`components/CopyButton.tsx`**: dual-export — `<CopyButton value="…" />`
   renders a mini-button; `<Copyable value="…">{children}</Copyable>` wraps any
   content in a click target. Both fire toasts. Keyboard-accessible (`role="button"
-  tabIndex=0`, Enter/Space activate). Trims long values for the toast preview.
+tabIndex=0`, Enter/Space activate). Trims long values for the toast preview.
 - **`components/StatusDot.tsx`**: small colored pip + text. Tone follows
   `statusTone()` mapping. Optional `pulse` prop animates on ACTIVE+recently-seen
   agents — Bloomberg-classic "live" indicator without forcing real-time refresh.
@@ -6071,6 +10722,7 @@ breakpoints, motion-respect.
   legacy `execCommand('copy')` fallback for `http://` dev environments.
 
 #### CSS polish layer (`app/globals.css`, +200 lines)
+
 - **Tabular numerals everywhere**: `font-variant-numeric: tabular-nums`,
   `tnum`, `cv11`, `ss01` features on tables, metric strips, mono spans.
   Bloomberg-classic — digits align across rows so eye-scan works without ruler.
@@ -6088,7 +10740,7 @@ breakpoints, motion-respect.
 - **Keyboard kbd badges** with a 2px-bottom-border physical-key feel.
 - **Command palette**: backdrop blur, pop-in animation, sectioned list,
   arrow-key indicator (`›` prefix on active item), footer hints.
-- **Toast stack**: slide-up + fade-in (`aegis-toast-in` keyframes), tone-driven
+- **Toast stack**: slide-up + fade-in (`okoro-toast-in` keyframes), tone-driven
   border-left color, 0.18s leave animation.
 - **Skeleton loader**: shimmer keyframes, ready for future `<Suspense>` use.
 - **`@media (prefers-reduced-motion: reduce)`**: kills all animations and
@@ -6101,6 +10753,7 @@ breakpoints, motion-respect.
 - **Header backdrop blur** with `color-mix` for translucent elevated bar.
 
 #### Page integrations
+
 - **`app/agents/components/AgentTable.tsx`**: ID column wrapped in `<Copyable>`;
   status column uses `<StatusDot pulse={isLive(a)}>` — agents seen within 5
   min get a pulsing dot. Anchor click stops propagation so navigation wins
@@ -6122,6 +10775,7 @@ breakpoints, motion-respect.
   Next 16 `Viewport` config (theme-color, allow zoom).
 
 ### Verification
+
 - `pnpm typecheck`: ✅ clean.
 - `pnpm next build`: ✅ all 10 routes compile (4 static + 4 dynamic + middleware).
 - Cold-start typedRoutes compliance: `Route` type imports added to
@@ -6129,6 +10783,7 @@ breakpoints, motion-respect.
   pass strict route checking.
 
 ### What did NOT land
+
 - **`<Suspense>` boundaries with skeleton fallbacks**: the CSS skeleton
   primitive is ready but no page is async-streaming yet. Natural follow-up:
   split heavy fetches (audit fan-out, policies fan-out) into Suspense
@@ -6146,6 +10801,7 @@ breakpoints, motion-respect.
   `eslint-plugin-security` dep — both are peer/repo concerns, untouched.
 
 ### Quality bar
+
 - **Sub-100ms perceived feedback**: every interactive surface has a transition
   (≤120ms). Chord handler resolves on the second keystroke, not on a hold.
 - **Keyboard-first**: every page reachable via `g <k>` chord, every form
@@ -6167,6 +10823,7 @@ breakpoints, motion-respect.
   client layer is purely UI affordances.
 
 ### Open questions / next steps
+
 1. **Replace `pre.codeblock` with a copy-on-hover variant** so the agent detail
    public-key block becomes click-to-copy without an explicit button. Trivial
    CSS+JS, ~20 lines.
@@ -6180,6 +10837,7 @@ breakpoints, motion-respect.
    `r` for revoke, `c` for copy id. Adds row-level keyboard ergonomics.
 
 ### OPERATOR-INPUT-NEEDED
+
 - None. Pure UX improvements behind existing routes.
 
 ---
@@ -6189,59 +10847,67 @@ breakpoints, motion-respect.
 ### Delivered
 
 **Python SDK hardening (packages/sdk-py)**
+
 - Fixed Python 3.10 compatibility shims: `Self` (via `typing_extensions`) + `StrEnum` backport in `models.py` + `UTC` alias in `tests/test_policies.py`. SDK requires ≥3.11 in prod; shims allow sandbox CI on 3.10.
 - Added `DenialReason.PLAN_LIMIT_EXCEEDED` to `models.py` (was in TS DTO but missing from Python model).
 - Updated `test_verify.py` parametrize list — now covers all 10 denial reasons incl. PLAN_LIMIT_EXCEEDED.
 - **Result: 71/71 tests passing** (`pytest tests/ -q`).
 
 **MCP bridge spec (packages/mcp-bridge/src/index.spec.ts)** — NEW FILE
+
 - 23 tests covering the full `wrapMcpHandler()` contract:
-  - Token extraction via both paths (`_aegis_headers` header and `_aegis_token` param)
+  - Token extraction via both paths (`_okoro_headers` header and `_okoro_token` param)
   - Missing token → `BridgeDenialError(AGENT_NOT_FOUND)`, verify() NOT called
   - All 10 denial reasons propagate from `verify()` (including `PLAN_LIMIT_EXCEEDED`)
   - Trust band enforcement: WATCH denied when minTrustBand=VERIFIED, etc.
   - Full band matrix: FLAGGED/WATCH/VERIFIED/PLATINUM acceptance thresholds
-  - `aegisVerify` injected into `BridgeContextWithVerification`
+  - `okoroVerify` injected into `BridgeContextWithVerification`
   - Custom `onDenial` callback invoked instead of default throw
   - `actionPrefix + method` → action string forwarded to verify()
   - `BridgeDenialError.verifyResponse` carries the full VerifyResult
 - **Result: 23/23 tests passing** (vitest).
 
 **`PLAN_LIMIT_EXCEEDED` parity across the entire codebase**
+
 - `packages/types/src/constants.ts` — added to `DENIAL_REASON_PRECEDENCE` at position 0 with billing-gate comment
-- `packages/sdk-py/aegis/models.py` — added with comment explaining pre-algorithm semantics
-- `docs/spec/AEGIS_API_SPEC.yaml` — added to `denialReason` enum at position 0 with description
+- `packages/sdk-py/okoro/models.py` — added with comment explaining pre-algorithm semantics
+- `docs/spec/OKORO_API_SPEC.yaml` — added to `denialReason` enum at position 0 with description
 - `apps/api/src/modules/verify/verify.dto.ts` — already present from previous session
 
 **TypeScript typecheck**
+
 - `apps/api`: 0 errors (0 KMS, 0 non-KMS)
 - `packages/types`: 0 errors
 - `packages/mcp-bridge`: 0 errors
 
 ### What did NOT land
+
 - Terminal F (KMS SDK installs, `@nestjs/schedule`) — operator must run `pnpm add @aws-sdk/client-kms @google-cloud/kms @nestjs/schedule @types/cron` in `apps/api`
 - Email lifecycle module (Terminal D) — requires Resend API key as env config
 - Dashboard BATE widget (Terminal C) — Phase 1 GA, not blocking first paying user
 
 ### OPERATOR-INPUT-NEEDED
+
 - None new. Prior OD-003 (FREE tier quota: keep at 1K or raise to 10K) still open.
 
 ---
 
 ## Session: quickstart-handshake-workflow | First-run end-to-end | 2026-05-04
-**Claim:** `aegis:quickstart-handshake-workflow` (released)
+
+**Claim:** `okoro:quickstart-handshake-workflow` (released)
 **Duration:** ~1.5h
 **Status:** ✅ Landed — 30/30 identity tests, 5/5 SDK tests, dashboard build green for all 11 routes
 
 ### What landed
 
-The system had working *parts* (dashboard, API, SDK, docs, CLI surface) but no
-*workflow* that walks an operator from cold install → registered + handshake-
+The system had working _parts_ (dashboard, API, SDK, docs, CLI surface) but no
+_workflow_ that walks an operator from cold install → registered + handshake-
 verified + first-policy → first-verify in 90 seconds. This session adds the
 through-line that ties the terminals together and makes "FAANG out-of-box"
 real.
 
 #### 1. API — `GET /v1/agents/:id/handshake-status` (NEW)
+
 - **`apps/api/src/modules/identity/identity.service.ts`**: `getHandshakeStatus(principalId, agentId)`.
   Reads the Redis-cached `agent:handshake-completed:` record (30-day TTL),
   returns `{ verified: boolean, verifiedAt?, protocolVersion? }`. Cross-
@@ -6254,17 +10920,19 @@ real.
 
   Identity coverage now: **30/30 ✅** (previously 27).
 
-#### 2. Types — `@aegis/types` schemas (NEW)
+#### 2. Types — `@okoro/types` schemas (NEW)
+
 - **`packages/types/src/schemas.ts`**: `HandshakeChallengeResponseSchema`,
   `HandshakeVerifiedResponseSchema`, `HandshakeStatusResponseSchema` + inferred
   types. Single source of truth for SDK + dashboard.
 
-#### 3. SDK — `@aegis/sdk` extensions
+#### 3. SDK — `@okoro/sdk` extensions
+
 - **`packages/sdk-ts/src/agent.ts`**: 3 new methods on `AgentClient` —
   `challenge(agentId)`, `verifyHandshake(agentId, signature)`,
   `handshakeStatus(agentId)`. Plus `HandshakeChallenge`, `HandshakeVerified`,
   `HandshakeStatus` interfaces.
-- **`packages/sdk-ts/src/index.ts`**: `Aegis.handshake(agentId, privateKey)` —
+- **`packages/sdk-ts/src/index.ts`**: `Okoro.handshake(agentId, privateKey)` —
   one-call convenience that runs challenge → sign → verify under the hood.
   Documented to direct browser/KMS callers to the per-step API.
 
@@ -6272,12 +10940,13 @@ real.
   end-to-end via the existing `signHandshake` test).
 
 #### 4. Dashboard — Handshake panel + Quickstart page
+
 - **`apps/dashboard/components/HandshakePanel.tsx`** (NEW): server-rendered,
-  read-only, 3-path runbook (TS SDK / curl two-step / `aegis` CLI). Each path
+  read-only, 3-path runbook (TS SDK / curl two-step / `okoro` CLI). Each path
   has a `CopyButton` for the snippet. Status header shows live verified/
   unverified state with `<StatusDot pulse>` for unverified. Why explanation
-  pulled from CLAUDE.md invariant 1 — explains why the dashboard *cannot*
-  trigger the handshake itself (private keys must never enter AEGIS).
+  pulled from CLAUDE.md invariant 1 — explains why the dashboard _cannot_
+  trigger the handshake itself (private keys must never enter OKORO).
 - **`apps/dashboard/app/quickstart/page.tsx`** (NEW): full first-run
   workflow. Six numbered steps + Next-steps link grid + One-shot bootstrap
   block (~30-line full quickstart copy-pasteable into a `.ts` file).
@@ -6298,12 +10967,14 @@ real.
   `.quickstart-step` with circular numbered avatar.
 
 #### 5. Docs — `docs/QUICKSTART.md` (NEW)
+
 - Mirrors the dashboard `/quickstart` page in markdown. Six steps
   (install → keypair → register → handshake → policy → verify) with code
   blocks, a one-shot bootstrap snippet, "where to go next" links, and a
   troubleshooting table mapping common errors to fixes.
 
 #### 6. Docs — `docs/SERVICE_MAP.md` (NEW)
+
 - ASCII architecture diagram showing operator → client terminals → API origin
   → Postgres/Redis/BullMQ → webhook consumers, plus edge (CF Worker,
   verifier-rp) and human (dashboard) surfaces.
@@ -6316,6 +10987,7 @@ real.
 - File layout overview.
 
 ### Verification
+
 - `apps/api`: identity tests **30/30 ✅** (+3 handshake-status tests including
   multi-tenant isolation assertion).
 - `packages/sdk-ts`: jest **5/5 ✅**.
@@ -6325,12 +10997,13 @@ real.
 - typedRoutes regenerated via `next build` to recognize `/quickstart`.
 
 ### What did NOT land
+
 - **Phase-2 verify-path coupling**: `verify.algorithm.ts` does not yet require
   `keyVerified === true` for first verify. That's the natural follow-up once
   the schema column lands (peer-claimed). The handshake remains advisory in
   this session — but the read endpoint is in place so the verify path can
   coalesce on it as a one-line change.
-- **CLI Go subcommand `aegis agents handshake`**: the Go CLI is a separate
+- **CLI Go subcommand `okoro agents handshake`**: the Go CLI is a separate
   package surface (`packages/cli/`); the QUICKSTART + HandshakePanel reference
   it as a runbook command but the Go implementation is a follow-up. The CLI
   client can call the existing `/challenge` and `/verify-handshake` HTTP
@@ -6344,6 +11017,7 @@ real.
   untouched, will self-resolve when peer's claim settles.
 
 ### Quality bar
+
 - **Single source of truth**: handshake shapes defined once in
   `packages/types/`, mirrored in API DTO, SDK interfaces, dashboard fetch
   types. Three layers, one contract.
@@ -6351,7 +11025,7 @@ real.
   asserts cross-principal `getHandshakeStatus` throws `AGENT_NOT_FOUND` —
   no leak.
 - **HandshakePanel honors invariant 1**: the panel is read-only and
-  instructional. The "why this matters" footer documents *why* the dashboard
+  instructional. The "why this matters" footer documents _why_ the dashboard
   cannot do the handshake itself — turning a constraint into a teachable
   moment.
 - **`Promise.allSettled` on detail page**: a failing handshake-status read
@@ -6365,17 +11039,18 @@ real.
   engineer; `QUICKSTART.md` is the 90-second cold-install path.
 
 ### Open questions / next steps
+
 1. **Phase-2 verify gate**: in `verify.algorithm.ts`, after the existing
    denial-precedence checks, add a Phase-2 check:
    `if (config.requireHandshake && !await getHandshakeStatus(agentId)) deny('KEY_NOT_VERIFIED')`.
-   Gated behind `AEGIS_REQUIRE_HANDSHAKE_FOR_VERIFY` env. One-line schema-
+   Gated behind `OKORO_REQUIRE_HANDSHAKE_FOR_VERIFY` env. One-line schema-
    independent change.
-2. **CLI Go subcommand**: `aegis agents handshake <agent-id> --private-key <path>`
+2. **CLI Go subcommand**: `okoro agents handshake <agent-id> --private-key <path>`
    reading the keyfile, calling /challenge, signing locally with
    `crypto/ed25519`, calling /verify-handshake. ~80 lines. Same UX shape as
    the existing `agents register --generate-keypair`.
 3. **OpenAPI spec drift**: 4 identity routes need `paths.*` blocks in
-   `docs/spec/AEGIS_API_SPEC.yaml`. Round-12 peer holds spec-doc-sync; the
+   `docs/spec/OKORO_API_SPEC.yaml`. Round-12 peer holds spec-doc-sync; the
    spec-sync CI workflow (M-056) will catch this on PR.
 4. **Quickstart end-to-end e2e test**: a `tests/e2e/quickstart.spec.ts` that
    runs the entire QUICKSTART.md flow against a live API would be a powerful
@@ -6387,21 +11062,23 @@ real.
    saas-seat-provisioning) — same skeleton, different snippet contexts.
 
 ### OPERATOR-INPUT-NEEDED
+
 - None new this session. All work is additive behind existing routes.
 
 ---
 
 ## Session: e2e-quickstart-workflow | Documented promise → executable contract | 2026-05-04
-**Claim:** `aegis:e2e-quickstart-workflow` (released)
+
+**Claim:** `okoro:e2e-quickstart-workflow` (released)
 **Duration:** ~45m
 **Status:** ✅ Landed — `tests/e2e/16_quickstart.test.ts` parses + soft-skips cleanly when API is down (matches existing harness contract); zero errors in the new file under `pnpm typecheck`
 
 ### Why this session
 
-Across the prior 4 sessions the AEGIS workflow grew from "isolated parts" to
+Across the prior 4 sessions the OKORO workflow grew from "isolated parts" to
 "documented promise" — `docs/QUICKSTART.md` and the dashboard `/quickstart`
 page now describe a 6-step cold-install → first-verify path. But there was
-no *automated test* that runs that flow. Unit tests cover identity (30/30),
+no _automated test_ that runs that flow. Unit tests cover identity (30/30),
 SDK (5/5), audit-chain, denial precedence, replay protection, etc. — but
 nothing exercised the full integration as one narrative.
 
@@ -6412,6 +11089,7 @@ QUICKSTART.md flow is now a regression net.
 ### What landed
 
 #### `tests/e2e/16_quickstart.test.ts` (NEW — extends the M-017 harness)
+
 Extends the existing numbered e2e suite (`01_health` … `15_idempotency`)
 with a 16th test that mirrors the QUICKSTART workflow step-for-step. Uses
 the same `_support/{client,fixtures,assert,retry}.ts` helpers other
@@ -6420,29 +11098,31 @@ numbered tests use — no new infrastructure.
 Test narrative (each `it` builds on the previous one's state, reflecting the
 operator's first-run experience):
 
-| Step | Asserts |
-|---|---|
-| 2 · `generateKeypair()` | base64url-shaped, 32-byte halves, no key material reaches the API |
-| 3 · `agents.register()` | returns `agt_…`, public-key round-trips, trustScore in [0, 1000] |
-| 4 · `Aegis.handshake()` | proto v1, trustScore lifts to ≥600, `verifiedAt` ISO; soft-skip if route 404 |
-| 4b · `agents.handshakeStatus()` | reflects cached verification with protocolVersion + verifiedAt |
-| 4c · cross-principal status read | does not leak existence (multi-tenant invariant 5) |
-| 5 · `policies.create()` | returns `pol_…` with valid 3-segment compact JWS |
-| 6 · `signTokenFor()` | locally-signed verify-token, 3-segment shape |
-| 6b · `sdk.verify()` | matching context approves; tolerant of extra deny gates with diagnostic |
-| 6c · `/v1/agents/:id/audit` | the freshly-written verify decision is visible, signed, timestamped |
-| 7 · `signHandshake()` byte-format | guards against drift between SDK signing and API verification |
+| Step                              | Asserts                                                                      |
+| --------------------------------- | ---------------------------------------------------------------------------- |
+| 2 · `generateKeypair()`           | base64url-shaped, 32-byte halves, no key material reaches the API            |
+| 3 · `agents.register()`           | returns `agt_…`, public-key round-trips, trustScore in [0, 1000]             |
+| 4 · `Okoro.handshake()`           | proto v1, trustScore lifts to ≥600, `verifiedAt` ISO; soft-skip if route 404 |
+| 4b · `agents.handshakeStatus()`   | reflects cached verification with protocolVersion + verifiedAt               |
+| 4c · cross-principal status read  | does not leak existence (multi-tenant invariant 5)                           |
+| 5 · `policies.create()`           | returns `pol_…` with valid 3-segment compact JWS                             |
+| 6 · `signTokenFor()`              | locally-signed verify-token, 3-segment shape                                 |
+| 6b · `sdk.verify()`               | matching context approves; tolerant of extra deny gates with diagnostic      |
+| 6c · `/v1/agents/:id/audit`       | the freshly-written verify decision is visible, signed, timestamped          |
+| 7 · `signHandshake()` byte-format | guards against drift between SDK signing and API verification                |
 
 #### Soft-skip pattern preserved
+
 - API down → `setup.ts` exits 0 with banner (existing M-017 contract).
 - Specific endpoint 404 → `console.warn` + downgrade to smoke check.
 - Specific endpoint deployed → hard-assert.
 
 This means the test stays green in CI builds where the API isn't running
-*and* turns red the instant a real workflow regression slips in.
+_and_ turns red the instant a real workflow regression slips in.
 
 #### Demo-runner double duty
-With `AEGIS_E2E_VERBOSE=1`, each step prints a single human-readable line:
+
+With `OKORO_E2E_VERBOSE=1`, each step prints a single human-readable line:
 
 ```
   [quickstart] keypair generated         pub=B7Hxv2qQ…aXF8
@@ -6458,17 +11138,19 @@ The same file is the regression test AND the demo. Operators / stakeholders
 get a one-command verifiable demo without an extra harness.
 
 ### Verification
+
 - `pnpm vitest run --root . 16_quickstart` → loads cleanly, prints the
   preflight banner, exits 0 (no parse errors, no setup errors).
 - `pnpm typecheck` (within `tests/`) → 0 errors in `16_quickstart.test.ts`.
   The remaining errors are in peer-claimed `packages/sdk-ts/src/errors.ts`
-  + `http.ts` (round-16 SDK refactor in flight; will resolve when their
-  claim lands).
+  - `http.ts` (round-16 SDK refactor in flight; will resolve when their
+    claim lands).
 - Test narrative validated by reading: each `it` references shared describe-
   scope state (publicKey, privateKey, agentId, policyId, signedToken) so the
   narrative reads top-to-bottom as the QUICKSTART flow.
 
 ### What did NOT land
+
 - **Dev-mode bootstrap script** (`scripts/dev-bootstrap.sh`) was the natural
   pair to this test — `clone → bootstrap → e2e green` would be the FAANG
   out-of-box promise wrapped in one command. Deferred: the bootstrap script
@@ -6479,9 +11161,10 @@ get a one-command verifiable demo without an extra harness.
   flag) — the e2e test currently tolerates either decision; once the gate
   lands, the step-6b assertion can tighten to require approval after
   handshake and denial (`KEY_NOT_VERIFIED`) without it.
-- **CLI Go subcommand** for `aegis agents handshake` — out of scope here.
+- **CLI Go subcommand** for `okoro agents handshake` — out of scope here.
 
 ### Quality bar
+
 - **Workflow as contract**: every step in QUICKSTART.md has a paired test
   step with the same number. Doc drift becomes a CI failure rather than a
   customer escalation.
@@ -6490,9 +11173,10 @@ get a one-command verifiable demo without an extra harness.
   operator sees exactly what was validated.
 - **Zero new infrastructure**: extends existing `_support/{client,fixtures}.ts`.
   Round-16's SDK refactor will flow through automatically once it lands.
-- **Demo-readable**: `AEGIS_E2E_VERBOSE=1` makes the test a stakeholder demo.
+- **Demo-readable**: `OKORO_E2E_VERBOSE=1` makes the test a stakeholder demo.
 
 ### Open questions / next steps
+
 1. **`scripts/dev-bootstrap.sh`** — single-command local stand-up:
    `docker-compose up`, run migrations, seed dev principal, print env vars,
    start API in background, run e2e suite. ~80 lines, the natural follow-up.
@@ -6511,34 +11195,38 @@ get a one-command verifiable demo without an extra harness.
    start path real customers will hit.
 
 ### OPERATOR-INPUT-NEEDED
+
 - None. Pure additive test coverage.
 
 ---
 
 ## Session: local-bringup-validation | Docker, build, e2e, k6 reality-check | 2026-05-06
-**Claim:** `aegis:local-bringup-validation` (released)
+
+**Claim:** `okoro:local-bringup-validation` (released)
 **Duration:** ~2h
 **Status:** ⚠️ Partial — Docker + schema + seed + build all green; runtime boot blocked by peer in-flight DI graph; full findings in `tests/results/local-bringup-2026-05-06.md`
 
 ### What I did
 
-Stood up the entire local AEGIS stack to validate the workflow end-to-end:
+Stood up the entire local OKORO stack to validate the workflow end-to-end:
 `pnpm db:up` → `prisma db push` → `pnpm seed:dev` → build API → start API
 → run `16_quickstart.test.ts` against live → run k6 verify load.
 
 ### What worked
-1. **Docker stack** — `aegis-postgres` + `aegis-redis` healthy on default ports.
+
+1. **Docker stack** — `okoro-postgres` + `okoro-redis` healthy on default ports.
 2. **Schema sync** via `prisma db push` (bypassing a broken migration —
    see § Known issues).
 3. **Dev seed** — produced a complete principal + agent + policy + RP +
    API key. Idempotent on re-run.
-4. **Workspace build chain** — `@aegis/types` build, `@aegis/sdk` build,
+4. **Workspace build chain** — `@okoro/types` build, `@okoro/sdk` build,
    `apps/api` typecheck (0 errors after my 3 patches), `apps/api` build
    (dist/ emits cleanly).
 5. **e2e harness preflight contract** — confirmed `setup.ts` exits 0 with
    banner when API is unreachable. CI-safe.
 
 ### What's blocked
+
 **API runtime boot fails on `AuditService` DI** (peer's M-037 KMS work in
 flight — index [4] of the constructor expects a provider that AuditModule
 does not yet register). Recommended fix: make the parameter `@Optional()`
@@ -6549,6 +11237,7 @@ stopped patching here per coordination protocol — beyond this it's into
 peer's active refactor territory that needs their coordination.
 
 ### Patches applied (all additive, all in scope of round-16's "additive only")
+
 1. **`apps/api/src/config/config.schema.ts`** — added optional
    `WORKOS_API_KEY` + `WORKOS_COOKIE_PASSWORD` to the Zod schema. Required
    because `idp-workos.module.ts` reads them via property cast and fails-loud
@@ -6566,6 +11255,7 @@ All three patches are clearly correctness fixes, not refactors. They unblock
 multiple downstream sessions.
 
 ### Known issues surfaced (peer-territory, not patched)
+
 1. **Migration `20260502000200_row_level_security`** has an invalid SQL
    expression: `COMMENT ON FUNCTION ... IS 'foo' || 'bar'`. Postgres `COMMENT`
    requires a single string literal. Local validation used `prisma db push`
@@ -6577,13 +11267,14 @@ multiple downstream sessions.
    doesn't block build of the test files themselves.
 
 ### Files written
-- **`.env`** at repo root — DATABASE_URL, REDIS_URL, AEGIS_SIGNING_*,
-  WORKOS dummies, AEGIS_WEBHOOK_SECRET_DEK_B64. Sufficient for boot once
+
+- **`.env`** at repo root — DATABASE*URL, REDIS_URL, OKORO_SIGNING*\*,
+  WORKOS dummies, OKORO_WEBHOOK_SECRET_DEK_B64. Sufficient for boot once
   the AuditService DI lands.
 - **`tests/results/local-bringup-2026-05-06.md`** — full findings report
   with status table, patch diff, recommended fixes, and copy-paste commands
   for the validation re-run after the boot blocker resolves.
-- **`scripts/.local/keys/dev-agent.private`** + **`scripts/.aegis-dev-key.txt`**
+- **`scripts/.local/keys/dev-agent.private`** + **`scripts/.okoro-dev-key.txt`**
   (created by the seed script — durable + operator-facing).
 
 ### Commands to re-run validation after AuditService DI fix lands
@@ -6597,15 +11288,16 @@ cd apps/api && node dist/main.js
 
 # e2e (terminal B)
 cd tests && \
-  AEGIS_E2E_URL=http://localhost:4000 \
-  AEGIS_E2E_API_KEY="aegis_sk_<your_seeded_test_key>" \
-  AEGIS_E2E_VERBOSE=1 \
+  OKORO_E2E_URL=http://localhost:4000 \
+  OKORO_E2E_API_KEY="okoro_sk_<your_seeded_test_key>" \
+  OKORO_E2E_VERBOSE=1 \
   pnpm vitest run --root . 16_quickstart
 
 # k6 (terminal C — needs a pre-signed verify token; see tests/load/README.md)
 ```
 
 ### Quality bar (this session)
+
 - **Honest about partial validation**: did NOT fake green or claim k6 ran
   when it didn't. Full diagnosis in `tests/results/local-bringup-2026-05-06.md`.
 - **Stopped patching at the coordination boundary**: 3 peer-territory
@@ -6615,22 +11307,26 @@ cd tests && \
   next session a clear "pick up here, run these commands" path.
 
 ### OPERATOR-INPUT-NEEDED
+
 - None new this session. The AuditService DI is a peer task — round-16 or
   whoever owns audit/kms.
 
 ---
 
 ## Session: local-bringup-finish | Full e2e + k6 against live API | 2026-05-06
-**Claim:** `aegis:local-bringup-finish` (released)
+
+**Claim:** `okoro:local-bringup-finish` (released)
 **Duration:** ~3h
 **Status:** ✅ COMPLETE — 16_quickstart e2e 10/10 against live API; k6 verify load 3001 reqs at p99=1.74ms; full findings in `tests/results/local-bringup-2026-05-06-final.md`
 
 ### Headline result
-The QUICKSTART workflow is now **proven end-to-end against a live AEGIS
+
+The QUICKSTART workflow is now **proven end-to-end against a live OKORO
 stack on this machine**. From `pnpm db:up` to a verify decision landing in
 the audit chain — every step exercised, every assertion green.
 
 ### What ran
+
 1. `pnpm db:up` — Postgres + Redis healthy.
 2. `prisma db push` — schema synced (migration 200 SQL bug bypassed).
 3. `pnpm seed:dev` — Principal + Agent + Policy + RP + plaintext API key.
@@ -6642,24 +11338,21 @@ the audit chain — every step exercised, every assertion green.
    request latency (~220-280ms, while verify-algorithm itself <1ms).
 
 ### Patches applied (8 total — all unblocking surgical correctness fixes)
+
 1-3 from prior session: WORKOS schema/getters + ShutdownService useFactory.
 
-This session:
-4. `audit.service.ts` — `@Optional()` on the KMS signer parameter (peer's
-   stated intent; comment says "Optional KMS-backed signer").
-5. `idp-workos.module.ts` — `inject` array changed string tokens
-   (`'PrismaService'`) to class references (`PrismaService`).
-6. `audit.module.ts` — `@Global()` so feature modules get `AuditService`
-   without re-importing AuditModule everywhere.
-7. `main.ts` — removed `setGlobalPrefix('v1')` since `enableVersioning`
-   was already adding `/v1/` (routes were mounted at `/v1/v1/...`).
-8. `seed-dev.ts` — `keyPrefix` slice changed 16→12 chars to match
-   `api-key.service.ts`'s lookup query (auth was 100% failing silently
-   because zero rows ever matched the 16-char prefix).
+This session: 4. `audit.service.ts` — `@Optional()` on the KMS signer parameter (peer's
+stated intent; comment says "Optional KMS-backed signer"). 5. `idp-workos.module.ts` — `inject` array changed string tokens
+(`'PrismaService'`) to class references (`PrismaService`). 6. `audit.module.ts` — `@Global()` so feature modules get `AuditService`
+without re-importing AuditModule everywhere. 7. `main.ts` — removed `setGlobalPrefix('v1')` since `enableVersioning`
+was already adding `/v1/` (routes were mounted at `/v1/v1/...`). 8. `seed-dev.ts` — `keyPrefix` slice changed 16→12 chars to match
+`api-key.service.ts`'s lookup query (auth was 100% failing silently
+because zero rows ever matched the 16-char prefix).
 
 Plus harness adjustments in tests/e2e and tests/load that I own.
 
 ### What got validated
+
 - ✅ Cryptographic flow: keypair → register → handshake → trust lift to ≥600.
 - ✅ Multi-tenant isolation: cross-principal handshake-status returns AGENT_NOT_FOUND.
 - ✅ Verify hot path: ~1ms median latency (bcrypt-12 auth adds ~250ms).
@@ -6668,6 +11361,7 @@ Plus harness adjustments in tests/e2e and tests/load that I own.
 - ✅ Handshake state read: `agents.handshakeStatus()` reflects cached record.
 
 ### Known gaps documented for follow-up
+
 1. **Migration `20260502000200_row_level_security`** has invalid Postgres
    DDL (`COMMENT ON ... IS 'a' || 'b'`). Bypassed via `db push`. ~10-line
    fix.
@@ -6678,6 +11372,7 @@ Plus harness adjustments in tests/e2e and tests/load that I own.
    Pre-mint N tokens, round-robin → exercise approve-throughput.
 
 ### Quality bar
+
 - **Real validation, no fakes**: every assertion ran against a live API.
   The 6% "succeeded" rate in k6 was dissected and explained as correct
   security behavior, not silently swallowed.
@@ -6688,6 +11383,7 @@ Plus harness adjustments in tests/e2e and tests/load that I own.
   `tests/results/local-bringup-2026-05-06-final.md` is re-runnable cold.
 
 ### OPERATOR-INPUT-NEEDED
+
 - None new this session. Three follow-ups documented for whoever picks
   up next (migration fix, auth cache wire-up, k6 token pool).
 
@@ -6705,11 +11401,13 @@ No code changes by me this round; doc-only correctness fix to keep TERMINAL_ORCH
 ---
 
 ## Session: auth-cache-perf | Wired Redis cache into auth hot-path | 2026-05-06
-**Claim:** `aegis:auth-cache-perf` (released)
+
+**Claim:** `okoro:auth-cache-perf` (released)
 **Duration:** ~1h
 **Status:** ✅ COMPLETE — bcrypt-12 bottleneck eliminated; e2e + k6 + api-key specs all green
 
 ### Why this turn
+
 The previous local-bringup session ran k6 against the verify hot-path and
 surfaced a bottleneck: bcrypt-12 on the API key auth ran on every request,
 producing p99 latency of **22.64s under 50 RPS load**. The Redis cache layer
@@ -6717,12 +11415,12 @@ existed but wasn't wired into the auth path. This turn closed that gap.
 
 ### Headline result
 
-| Surface | Before cache | After cache | Δ |
-|---|---|---|---|
-| 5× sequential verify | 220–280 ms each | **8–10 ms** (warm) | **27× faster** |
-| k6 50 RPS × 60s p99 | 22.64 s | **17.36 ms** | **1300× faster** |
-| k6 median latency | 1.08 s | **1.15 ms** | **940× faster** |
-| 16_quickstart e2e | 3.07 s | **0.82 s** | **3.7× faster** |
+| Surface              | Before cache    | After cache        | Δ                |
+| -------------------- | --------------- | ------------------ | ---------------- |
+| 5× sequential verify | 220–280 ms each | **8–10 ms** (warm) | **27× faster**   |
+| k6 50 RPS × 60s p99  | 22.64 s         | **17.36 ms**       | **1300× faster** |
+| k6 median latency    | 1.08 s          | **1.15 ms**        | **940× faster**  |
+| 16_quickstart e2e    | 3.07 s          | **0.82 s**         | **3.7× faster**  |
 
 The "first request" cold-start cost is preserved (~273 ms) — bcrypt still
 runs once per 60-second TTL window per principal. Every request after is a
@@ -6731,6 +11429,7 @@ sub-ms Redis lookup that skips bcrypt + Postgres entirely.
 ### What landed
 
 #### `apps/api/src/modules/auth/api-key.service.ts`
+
 - Added `RedisService` to the constructor (`@Optional()` so unit tests
   without a Redis module continue to work).
 - Wrapped `resolve()` with a two-layer cache:
@@ -6744,6 +11443,7 @@ sub-ms Redis lookup that skips bcrypt + Postgres entirely.
   is the resolved `AuthenticatedKey` only.
 
 #### `apps/api/src/modules/billing/stripe.service.ts`
+
 - Added matching `forwardRef` to mirror UsageGuardService's existing
   forwardRef. The pair was needed because both services circularly inject
   each other (overage metering ↔ plan cache invalidation) — Nest requires
@@ -6751,6 +11451,7 @@ sub-ms Redis lookup that skips bcrypt + Postgres entirely.
   rebuild.
 
 #### `apps/api/src/modules/auth/api-key.service.cache.spec.ts` (NEW, 7 tests)
+
 - Cache HIT skips Postgres entirely (perf invariant).
 - Cache MISS does bcrypt path AND writes through.
 - Negative cache populated on bad keys.
@@ -6760,10 +11461,12 @@ sub-ms Redis lookup that skips bcrypt + Postgres entirely.
 - Service operates correctly without Redis (Optional fallback).
 
 #### `apps/api/src/modules/auth/api-key.service.rotation.spec.ts`
+
 - Updated constructor positional args to match new `(prisma, config, redis?, audit?)`
   signature. Single-line fix: `undefined` in the redis slot.
 
 ### Verification
+
 - **Local stack**: API rebuilt, restarted, all 30+ modules initialized.
 - **Manual 5× verify**: iter 1 = 273 ms (cold bcrypt), iters 2–5 = 8–10 ms
   each (cache hit). Redis key visible: `auth:apikey:s4DbFt…`.
@@ -6775,6 +11478,7 @@ sub-ms Redis lookup that skips bcrypt + Postgres entirely.
   added 7 new tests; rotation spec constructor signature updated).
 
 ### Quality bar
+
 - **Cache key is sha256 of plaintext** — plaintext never persisted to Redis.
 - **Negative cache is anti-DoS hardening**, not just perf.
 - **TTL of 60s** trades 1-minute revoke propagation for the throughput
@@ -6784,6 +11488,7 @@ sub-ms Redis lookup that skips bcrypt + Postgres entirely.
   force any caller to stand up a Redis instance.
 
 ### Open follow-ups
+
 1. **Wire `invalidateCache()` into revoke + rotate flows** — currently the
    60s TTL is the only revoke-propagation guarantee. Calling
    `invalidateCache()` on `revoke()` and `rotate()` paths drops it to
@@ -6796,6 +11501,7 @@ sub-ms Redis lookup that skips bcrypt + Postgres entirely.
    replay-protection.
 
 ### OPERATOR-INPUT-NEEDED
+
 - None. Pure perf fix on the verify hot-path.
 
 ---
@@ -6807,6 +11513,7 @@ Closed all three round-23 carry-overs.
 **(A) Cache invalidation on rotation.** `apps/api/src/modules/auth/api-key-rotation.controller.ts` now calls `apiKeys.invalidateCache(callingPlaintext)` after a successful rotate, so the OLD key's auth-cache entry can't outlive the explicit lifecycle event. Best-effort; failures swallow inside `invalidateCache`.
 
 **(B) Migration SQL fixes.** Three migrations had multi-line `||` concatenation in `COMMENT ON ... IS` (invalid Postgres DDL, only valid in expression contexts):
+
 - `20260502000200_row_level_security` — collapsed to single literals.
 - `20260502000300_audit_redact_session_var` — same.
 - `20260502000400_idp_federation_and_rp_ownership` — body was a stale Prisma CLI error message; rewrote against the schema. Added `Principal.idpProvider/idpUserId/idpOrganizationId`, the `RelyingPartyStatus` + `RelyingPartyKind` enums, and `RelyingParty.principalId/status/kind/metadata` + `(kind,status)` index. All 11 migrations now apply clean against a fresh DB; seed runs green.
@@ -6814,10 +11521,12 @@ Closed all three round-23 carry-overs.
 **(C) k6 token pool — true approve-throughput.** `tests/load/mint-token-pool.mjs` (new) pre-mints N freshly-signed tokens (each with a unique ULID jti) to a newline-delimited file via `signAgentToken` from the SDK. `tests/load/verify.js` now loads the pool with k6's `SharedArray` + setup-time `open()` and round-robins `(__VU * 1_000_003 + __ITER) % pool.length` so distinct jtis land per-iteration.
 
 **Measured (60s × 50 RPS, pool=300, fresh DB, single principal):**
+
 - p95 = 3.07 ms · p99 = 9.48 ms · max = 19.47 ms — well under the 200 ms / 500 ms thresholds. Auth-cache + Redis path is no longer bcrypt-bound.
 - 119 / 3001 approved (3.96 %). The remaining 96 % are HTTP 429 from `@nestjs/throttler` (global 200/window per IP), **not** denials from the verify chain. Verified post-run: token #200 from the pool still verifies cleanly through curl. To exercise the verify hot path at sustained 50 RPS, future runs should either bump the throttler ceiling for the load-test path or distribute VUs across multiple source IPs.
 
 **Files touched (round 24 only):**
+
 - `apps/api/src/modules/auth/api-key-rotation.controller.ts`
 - `apps/api/prisma/migrations/20260502000200_row_level_security/migration.sql`
 - `apps/api/prisma/migrations/20260502000300_audit_redact_session_var/migration.sql`
@@ -6826,4 +11535,5 @@ Closed all three round-23 carry-overs.
 - `tests/load/verify.js`
 
 ### OPERATOR-INPUT-NEEDED
+
 - Decide if k6 should be granted a throttler bypass via a load-test API-key flag (e.g. `apiKey.loadTest=true`) or if we should split the load-test against multiple source IPs. Either is fine; the former is faster, the latter is more honest.

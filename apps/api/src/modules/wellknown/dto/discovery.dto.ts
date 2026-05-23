@@ -174,4 +174,88 @@ export class AegisConfigurationDto {
     example: 'https://api.aegislabs.io/.well-known/pricing.json',
   })
   pricing_uri!: string;
+
+  // ─────────────────────────────────────────────────────────────────────
+  // FAPI-2.0-aligned discoverable metadata (added 1.1.0, additive only).
+  //
+  // These fields let a relying party / buyer auto-verify which financial-
+  // grade standards AEGIS bindingly implements vs. is positionally aligned
+  // with. The split between "implemented" and "aligned" is deliberate and
+  // honest — claiming FAPI 2.0 Advanced when JAR input isn't yet wired
+  // would set buyer expectations we can't meet.
+  //
+  // Authority for the binding contract: docs/spec/05_FAPI_2_0_PROFILE.md.
+  // ─────────────────────────────────────────────────────────────────────
+
+  @ApiProperty({
+    description:
+      'IANA-style identifier for the AEGIS FAPI profile. Names the specific binding of FAPI 2.0 concepts to AEGIS primitives. Authority: docs/spec/05_FAPI_2_0_PROFILE.md.',
+    example: 'aegis-fapi-2.0-aligned-1.0',
+  })
+  fapi_profile!: string;
+
+  @ApiProperty({
+    description:
+      'In-repo binding spec for AEGIS ↔ FAPI 2.0 + adjacent RFCs. The authoritative contract any AEGIS-compliant implementation conforms to.',
+    example: 'https://docs.aegislabs.io/spec/05_FAPI_2_0_PROFILE',
+  })
+  fapi_profile_spec_uri!: string;
+
+  @ApiProperty({
+    description:
+      'Standards AEGIS bindingly implements today — every entry is a citable claim a buyer can verify against the running code or its tests.',
+    example: ['RFC-8032', 'RFC-7517', 'RFC-9116'],
+  })
+  standards_implemented!: string[];
+
+  @ApiProperty({
+    description:
+      'Standards AEGIS is positionally aligned with but NOT YET bindingly compliant — the discovery shape mirrors them, but a wire-level contract test would fail. Roadmap detailed in fapi_profile_spec_uri.',
+    example: ['RFC-6749', 'RFC-8414', 'RFC-9396', 'RFC-9101', 'RFC-9449', 'RFC-9421'],
+  })
+  standards_aligned!: string[];
+
+  @ApiProperty({
+    description:
+      'JWS signing algorithms AEGIS uses for its OWN outputs (audit events, signed receipts). FAPI 2.0 §6.1 field name preserved for ecosystem familiarity. EdDSA = Ed25519 per RFC 8037 §3.1.',
+    example: ['EdDSA'],
+  })
+  signing_alg_values_supported!: string[];
+
+  @ApiProperty({
+    description:
+      'JWS signing algorithms AEGIS accepts on INBOUND agent signatures. Today this is over canonical-JSON envelopes; JAR (RFC 9101) JWT input via the same algorithms is on the Q3 2026 roadmap and gated behind the same EdDSA set.',
+    example: ['EdDSA'],
+  })
+  agent_signing_alg_values_supported!: string[];
+
+  @ApiProperty({
+    description:
+      'Agent authentication method identifiers. Today AEGIS uses a bespoke canonical-JSON envelope (`ed25519_canonical_json`); FAPI 2.0 `private_key_jwt` (RFC 7523) over the same Ed25519 keypair is the planned standards-equivalent path.',
+    example: ['ed25519_canonical_json'],
+  })
+  agent_authentication_methods_supported!: string[];
+
+  @ApiProperty({
+    description:
+      'Registered RAR (RFC 9396) `authorization_details` types. A FAPI client can statically check this list before submitting an authorization_details array to /v1/verify/rar/evaluate. New types are additive and require operator review.',
+    example: ['trading_order', 'payment_initiation', 'data_access', 'agent_action'],
+  })
+  authorization_details_types_supported!: string[];
+
+  @ApiProperty({
+    description:
+      'Operator privacy / security policy URL. RFC 8414 § `op_policy_uri`. Operator-overridable via AEGIS_OP_POLICY_URI env.',
+    example: 'https://aegis.klytics.io/security',
+    required: false,
+  })
+  op_policy_uri?: string;
+
+  @ApiProperty({
+    description:
+      'Operator terms-of-service URL. RFC 8414 § `op_tos_uri`. Operator-overridable via AEGIS_OP_TOS_URI env.',
+    example: 'https://aegis.klytics.io/terms',
+    required: false,
+  })
+  op_tos_uri?: string;
 }

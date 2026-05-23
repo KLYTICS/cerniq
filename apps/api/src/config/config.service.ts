@@ -167,6 +167,25 @@ export class AppConfigService {
     }
   }
 
+  // ── RFC 9101 (JAR) enforcement knobs ───────────────────────────────
+  // Both optional and OFF by default. The verify algorithm reads these
+  // via VerifyPorts.maxTokenAgeSeconds() and VerifyPorts.requireIssMatchesSub().
+  // Enabling either is a fleet-wide enforcement decision — coordinate
+  // SDK rollout first. See config.schema.ts for the deployment-footgun
+  // notes.
+
+  /** Max allowed `now - iat` for an inbound JWT in seconds. Returns
+   *  `undefined` when env unset (gate disabled). */
+  get maxTokenAgeSeconds(): number | undefined {
+    return this.config.AEGIS_MAX_TOKEN_AGE_SECONDS;
+  }
+
+  /** Whether to enforce `claims.iss === claims.sub` when iss is present.
+   *  Default false → gate disabled. */
+  get strictJarIss(): boolean {
+    return this.config.AEGIS_STRICT_JAR_ISS;
+  }
+
   get corsOrigins(): string | string[] {
     const raw = this.config.CORS_ORIGINS;
     if (raw === '*') return '*';

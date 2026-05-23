@@ -10,7 +10,7 @@
 
 import { z } from 'zod';
 
-import { DENIAL_REASON_PRECEDENCE, WEBHOOK_EVENT } from './constants.js';
+import { DENIAL_CONTEXT_KINDS, DENIAL_REASON_PRECEDENCE, WEBHOOK_EVENT } from './constants.js';
 
 // ── Primitives ───────────────────────────────────────────────────
 
@@ -29,15 +29,45 @@ export const PublicKeyB64UrlSchema = z
 // Compact JWS / JWT — three base64url segments separated by dots.
 export const JwtTokenSchema = z
   .string()
-  .regex(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, 'must be a compact JWT (header.payload.signature)');
+  .regex(
+    /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/,
+    'must be a compact JWT (header.payload.signature)',
+  );
 
 // ── Enums ────────────────────────────────────────────────────────
 
-export const AgentRuntimeSchema = z.enum(['openai', 'anthropic', 'google', 'huggingface', 'custom']);
-export const AgentStatusSchema = z.enum(['pending_verification', 'active', 'suspended', 'revoked']);
+export const AgentRuntimeSchema = z.enum([
+  'openai',
+  'anthropic',
+  'google',
+  'huggingface',
+  'custom',
+]);
+/**
+ * AgentStatus enum — the lifecycle states of an agent record. Renamed
+ * from `AgentStatusSchema` on 2026-05-21 (M-057) so the name
+ * `AgentStatusSchema` could be reclaimed by the AgentStatus OpenAPI
+ * RESPONSE component (the object returned by GET /v1/agents/:id/status).
+ *
+ * Backward compat: `AgentStatusValue` (the inferred string union) is
+ * unchanged. The Prisma-side parity script (scripts/verify-spec.ts)
+ * now resolves `AgentStatus` (Prisma enum) → `AgentStatusEnumSchema`.
+ */
+export const AgentStatusEnumSchema = z.enum([
+  'pending_verification',
+  'active',
+  'suspended',
+  'revoked',
+]);
 export const TrustBandSchema = z.enum(['PLATINUM', 'VERIFIED', 'WATCH', 'FLAGGED']);
 export const PolicyStatusSchema = z.enum(['active', 'expired', 'revoked']);
-export const PolicyCategorySchema = z.enum(['commerce', 'data-read', 'data-write', 'communication', 'scheduling']);
+export const PolicyCategorySchema = z.enum([
+  'commerce',
+  'data-read',
+  'data-write',
+  'communication',
+  'scheduling',
+]);
 // Currency codes — extended in 2026 Q2 audit (a4814df0 / type_design).
 // The original USD/EUR/GBP closed enum was a public-API liability:
 // ACP merchants in 2026 routinely accept JPY/CAD/AUD/BRL plus stablecoins
@@ -48,7 +78,17 @@ export const PolicyCategorySchema = z.enum(['commerce', 'data-read', 'data-write
 // Public-API stability: adding values here is non-breaking; removing
 // values is breaking. Renames forbidden — the enum value IS the wire
 // format.
-export const FIAT_CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'BRL', 'CHF', 'MXN'] as const;
+export const FIAT_CURRENCIES = [
+  'USD',
+  'EUR',
+  'GBP',
+  'JPY',
+  'CAD',
+  'AUD',
+  'BRL',
+  'CHF',
+  'MXN',
+] as const;
 export const STABLECOIN_CURRENCIES = ['USDC', 'PYUSD', 'USDT', 'EURC'] as const;
 export const CurrencySchema = z.enum([...FIAT_CURRENCIES, ...STABLECOIN_CURRENCIES]);
 
@@ -56,6 +96,34 @@ export const CurrencySchema = z.enum([...FIAT_CURRENCIES, ...STABLECOIN_CURRENCI
 export const isStablecoin = (c: z.infer<typeof CurrencySchema>): boolean =>
   (STABLECOIN_CURRENCIES as readonly string[]).includes(c);
 export const DenialReasonSchema = z.enum(DENIAL_REASON_PRECEDENCE);
+
+/**
+ * RFC 6749 §5.2 canonical OAuth error codes — the closed set AEGIS
+ * emits via the verify response `error` field. Source-of-truth lives in
+ * the API mapping table at apps/api/src/modules/verify/oauth-error-mapping.ts
+ * but the SET is locked here so SDK consumers can rely on it.
+ */
+export const OAUTH_ERROR_CODES = [
+  'invalid_request',
+  'invalid_client',
+  'invalid_grant',
+  'invalid_token',
+  'invalid_scope',
+  'unauthorized_client',
+  'access_denied',
+  'server_error',
+  'temporarily_unavailable',
+] as const;
+export const OAuthErrorCodeSchema = z.enum(OAUTH_ERROR_CODES);
+
+/**
+ * Round-10 denial discriminator. See constants.ts DENIAL_CONTEXT_KINDS
+ * JSDoc + docs/spec/05_FAPI_2_0_PROFILE.md §2.6.
+ */
+export const DenialContextKindSchema = z.enum(DENIAL_CONTEXT_KINDS);
+export const DenialContextSchema = z.object({
+  kind: DenialContextKindSchema,
+});
 export const SignalSeveritySchema = z.enum(['low', 'medium', 'high', 'critical']);
 export const ReportEventTypeSchema = z.enum([
   'fraud_confirmed',
@@ -82,7 +150,8 @@ export const SpendLimitSchema = z
     maxPerMonth: z.number().positive().finite().optional(),
   })
   .refine(
-    (v) => v.maxPerTransaction !== undefined || v.maxPerDay !== undefined || v.maxPerMonth !== undefined,
+    (v) =>
+      v.maxPerTransaction !== undefined || v.maxPerDay !== undefined || v.maxPerMonth !== undefined,
     'At least one of maxPerTransaction / maxPerDay / maxPerMonth must be set.',
   );
 
@@ -122,25 +191,37 @@ export const AgentIdentitySchema = z.object({
   runtime: AgentRuntimeSchema,
   model: z.string().nullable().optional(),
   label: z.string().nullable().optional(),
-  status: AgentStatusSchema,
+  status: AgentStatusEnumSchema,
   trustScore: z.number().int().min(0).max(1000),
   trustBand: TrustBandSchema,
   registeredAt: IsoDateTimeSchema,
   lastSeenAt: IsoDateTimeSchema.nullable().optional(),
 });
 
-export const AgentStatusResponseSchema = z.object({
+/**
+ * AgentStatus RESPONSE shape — the object returned by
+ * GET /v1/agents/:id/status. This name MUST match the OpenAPI component
+ * `AgentStatus` so the spec-sync gate at
+ * packages/types/scripts/check-openapi-zod-parity.ts finds it via its
+ * `${ComponentName}Schema` lookup (M-057, 2026-05-21).
+ *
+ * `AgentStatusResponseSchema` is preserved as an alias to keep older
+ * consumers compiling — both names point at the same object.
+ */
+export const AgentStatusSchema = z.object({
   agentId: AgentIdSchema,
-  status: AgentStatusSchema,
+  status: AgentStatusEnumSchema,
   trustScore: z.number().int().min(0).max(1000),
   trustBand: TrustBandSchema,
   lastSeenAt: IsoDateTimeSchema.nullable().optional(),
 });
 
+export const AgentStatusResponseSchema = AgentStatusSchema;
+
 export const AgentListQuerySchema = z.object({
   limit: z.number().int().min(1).max(100).optional(),
   cursor: AgentIdSchema.optional(),
-  status: AgentStatusSchema.optional(),
+  status: AgentStatusEnumSchema.optional(),
   runtime: AgentRuntimeSchema.optional(),
   search: z.string().min(1).max(120).optional(),
 });
@@ -232,15 +313,23 @@ export const VerifyResponseSchema = z
     verifiedAt: IsoDateTimeSchema,
     ttl: z.number().int().min(0).max(300),
     auditEventId: z.string().nullable().optional(),
+    // Round 5 (2026-05-15) — RFC 6749 §5.2 canonical OAuth error envelope.
+    // Populated whenever `denialReason` is set; null on approval.
+    error: OAuthErrorCodeSchema.nullable().optional(),
+    error_description: z.string().nullable().optional(),
+    // Round 10 (2026-05-16) — closed-enum discriminator below the locked
+    // ADR-0004 denial-precedence enum. Public-safe `{ kind }` only;
+    // specifics flow to operator-side structured logs. See
+    // docs/spec/05_FAPI_2_0_PROFILE.md §2.6.
+    denialContext: DenialContextSchema.nullable().optional(),
   })
   // T-1 fix — runtime-enforce the cross-field invariants we documented in
   // ADR-0004 + verify.algorithm.ts. Static-type discriminated union is kept
   // out of the wire shape for backward compatibility; consumers wanting the
   // narrowed type use the `isVerifyApproved` / `isVerifyDenied` guards below.
-  .refine(
-    (r) => (r.valid ? r.denialReason === null : r.denialReason !== null),
-    { message: 'valid=true requires denialReason=null; valid=false requires denialReason set' },
-  )
+  .refine((r) => (r.valid ? r.denialReason === null : r.denialReason !== null), {
+    message: 'valid=true requires denialReason=null; valid=false requires denialReason set',
+  })
   .refine(
     (r) => !r.valid || (r.agentId !== null && r.principalId !== null && r.trustBand !== null),
     { message: 'valid=true requires agentId, principalId, and trustBand to be non-null' },
@@ -287,7 +376,7 @@ export const ReportRequestSchema = z.object({
 // ── Inferred types (export the names consumers actually use) ────
 
 export type AgentRuntime = z.infer<typeof AgentRuntimeSchema>;
-export type AgentStatusValue = z.infer<typeof AgentStatusSchema>;
+export type AgentStatusValue = z.infer<typeof AgentStatusEnumSchema>;
 export type TrustBand = z.infer<typeof TrustBandSchema>;
 export type PolicyStatus = z.infer<typeof PolicyStatusSchema>;
 export type PolicyCategory = z.infer<typeof PolicyCategorySchema>;
@@ -309,6 +398,8 @@ export type PolicyCreateResponse = z.infer<typeof PolicyCreateResponseSchema>;
 export type AgentPolicy = z.infer<typeof AgentPolicySchema>;
 export type VerifyRequest = z.infer<typeof VerifyRequestSchema>;
 export type VerifyResponse = z.infer<typeof VerifyResponseSchema>;
+export type DenialContext = z.infer<typeof DenialContextSchema>;
+export type OAuthErrorCode = z.infer<typeof OAuthErrorCodeSchema>;
 export type AuditEventRecord = z.infer<typeof AuditEventSchema>;
 export type AuditLogResponse = z.infer<typeof AuditLogResponseSchema>;
 export type ReportRequest = z.infer<typeof ReportRequestSchema>;

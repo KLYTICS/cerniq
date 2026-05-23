@@ -269,6 +269,119 @@ paths:
         '202':
           description: Report accepted (async processing)
 
+  # ─────────────────────────────────────────────────
+  # INTENT MANIFEST (ADR-0017, gated AEGIS_INTENT_MANIFEST_ENABLED)
+  # ─────────────────────────────────────────────────
+
+  /v1/intent:
+    post:
+      tags:
+        - intent
+      summary: Issue a signed intent manifest
+      description: |
+        Mint a signed `IntentManifest` declaring what the agent intends to
+        do in the next 30-60 second window, bound to a verify-token jti.
+        The relying party reconciles observed actuals against the manifest
+        via POST /v1/intent/{manifestId}/actuals.
+
+        Requires the management API key (NOT the verify-only key).
+        Module is gated behind AEGIS_INTENT_MANIFEST_ENABLED — operators
+        opt in via env flag (see ADR-0017).
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueIntentRequest'
+      responses:
+        '201':
+          description: Manifest issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueIntentResponse'
+        '400':
+          description: Invalid request (e.g. ttlSeconds out of bounds [30, 60])
+        '401':
+          description: Authentication required
+        '404':
+          description: Agent not found (or not owned by caller — anti-enumeration)
+        '409':
+          description: Manifest id collision (retry with fresh id)
+        '503':
+          description: Signing service unavailable (KMS outage)
+
+  /v1/intent/{manifestId}/actuals:
+    post:
+      tags:
+        - intent
+      summary: Reconcile observed actuals against a stored intent manifest
+      description: |
+        Idempotent per (manifestId, Idempotency-Key). Same key + same
+        body returns the prior result (replay); same key + different
+        body returns 409. Reconciliation outcome generates audit events
+        (intent.reconciled, intent.mismatch) + BATE signals + webhooks.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: manifestId
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+          description: REQUIRED per ADR-0017. Scoped to the manifestId.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReconcileIntentRequest'
+      responses:
+        '200':
+          description: Reconciliation complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconcileIntentResponse'
+        '400':
+          description: Invalid actuals shape OR missing Idempotency-Key header
+        '404':
+          description: Manifest not found (or cross-tenant — anti-enumeration)
+        '409':
+          description: Idempotency conflict (same key, different body)
+        '410':
+          description: Manifest expired OR already reconciled
+
+  /v1/intent/{manifestId}:
+    get:
+      tags:
+        - intent
+      summary: Read a stored intent manifest + reconciliation outcome
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: manifestId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Manifest + reconciliation state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetIntentResponse'
+        '404':
+          description: Manifest not found (or cross-tenant)
+
 # ─────────────────────────────────────────────────
 # COMPONENTS
 # ─────────────────────────────────────────────────
@@ -592,6 +705,7 @@ components:
             - SPEND_LIMIT_EXCEEDED
             - TRUST_SCORE_TOO_LOW
             - ANOMALY_FLAGGED
+            - INTENT_MISMATCH
         verifiedAt:
           type: string
           format: date-time
@@ -615,8 +729,10 @@ components:
         `VerifyResponse.denialReason` and is NOT enumerated here because
         the engine type does not include it. Reconciling that drift is
         tracked in the M-056 regression handoff.
-        When ADR-0016 (`INTENT_MISMATCH`) lands on main, extend this
-        enum and the `VerifyResponse.denialReason` inline list together.
+        ADR-0016 added `INTENT_MISMATCH` as the canonical denial reason
+        for intent-bound attestation failures (strict-mode reconciliation
+        or breached `maxCalls` / `maxAmount` claims). Wire-locked across
+        constants.ts ↔ verifier-rp ↔ this enum since 2026-05-15.
       enum:
         - AGENT_NOT_FOUND
         - AGENT_REVOKED
@@ -628,6 +744,7 @@ components:
         - SPEND_LIMIT_EXCEEDED
         - TRUST_SCORE_TOO_LOW
         - ANOMALY_FLAGGED
+        - INTENT_MISMATCH
 
     AuditEvent:
       type: object
@@ -715,3 +832,181 @@ components:
           type: integer
         requestId:
           type: string
+
+    # ── Intent Manifest schemas (ADR-0017) ──────────────────────────
+
+    IntentClaim:
+      type: object
+      required: [kind, maxCalls]
+      properties:
+        kind:
+          type: string
+          enum: [http-call, commerce-action, tool-invocation]
+        maxCalls:
+          type: integer
+          minimum: 1
+          description: |
+            Upper bound on the number of actuals reconciled against
+            this manifest. Strict mode denies on first overshoot;
+            graduated mode tolerates up to floor(maxCalls * 1.2).
+      additionalProperties: true
+      description: |
+        Discriminated union over three claim shapes. Per-shape fields
+        (url+method, action+merchantId+amountCap, toolName+argsHash)
+        are pass-through and validated by the kernel — see
+        packages/intent-manifest types.ts § Section 2.
+
+    ReconciliationPolicy:
+      type: object
+      required: [strictness]
+      properties:
+        strictness:
+          type: string
+          enum: [strict, advisory, graduated]
+          description: |
+            ADR-0016 D2. strict denies any mismatch; advisory logs
+            only; graduated tolerates over-call-count up to
+            floor(maxCalls * (1 + tolerance/100)), default 20%.
+        tolerance:
+          type: number
+          minimum: 0
+          description: |
+            Only meaningful when strictness=graduated. Non-count
+            mismatches always strict regardless of tolerance.
+
+    SignedIntentManifest:
+      type: object
+      required: [body, signingKeyId, signatureB64Url]
+      properties:
+        body:
+          type: object
+          additionalProperties: true
+          description: |
+            IntentManifestBody. Fields:
+            schemaVersion (1), manifestId, issuedAt, expiresAt,
+            principalId, agentId, intent (IntentClaim), reconciliation
+            (ReconciliationPolicy), verifyTokenJti,
+            verifyTokenSha256B64Url.
+        signingKeyId:
+          type: string
+        signatureB64Url:
+          type: string
+
+    IssueIntentRequest:
+      type: object
+      required: [agentId, verifyTokenJti, verifyTokenSha256B64Url, intent]
+      properties:
+        agentId:
+          type: string
+        verifyTokenJti:
+          type: string
+        verifyTokenSha256B64Url:
+          type: string
+        intent:
+          $ref: '#/components/schemas/IntentClaim'
+        reconciliation:
+          $ref: '#/components/schemas/ReconciliationPolicy'
+        ttlSeconds:
+          type: integer
+          minimum: 30
+          maximum: 60
+          description: Server clamps to [30, 60] per Phase 2 bounds (OD-019 may widen).
+
+    IssueIntentResponse:
+      type: object
+      required: [manifestId, signedManifest, expiresAt]
+      properties:
+        manifestId:
+          type: string
+        signedManifest:
+          $ref: '#/components/schemas/SignedIntentManifest'
+        expiresAt:
+          type: integer
+          description: Unix epoch seconds.
+
+    ActualCallObservation:
+      type: object
+      required: [observedAt, kind, payload]
+      properties:
+        observedAt:
+          type: integer
+          description: Unix epoch seconds when the relying party observed the actual.
+        kind:
+          type: string
+          enum: [http-call, commerce-action, tool-invocation]
+        payload:
+          type: object
+          additionalProperties: true
+
+    ReconcileIntentRequest:
+      type: object
+      required: [actuals]
+      properties:
+        actuals:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActualCallObservation'
+
+    IntentMismatch:
+      type: object
+      required: [kind, detail, detectedAt]
+      properties:
+        kind:
+          type: string
+          enum:
+            - over-call-count
+            - wrong-endpoint
+            - wrong-method
+            - wrong-merchant
+            - over-amount-cap
+            - arg-shape-mismatch
+            - manifest-expired
+            - manifest-not-yet-valid
+        detail:
+          type: string
+        detectedAt:
+          type: integer
+
+    ReconcileIntentResponse:
+      type: object
+      required: [manifestId, actualCount, mismatches, recommendedDenialReason]
+      properties:
+        manifestId:
+          type: string
+        actualCount:
+          type: integer
+        mismatches:
+          type: array
+          items:
+            $ref: '#/components/schemas/IntentMismatch'
+        recommendedDenialReason:
+          type: string
+          nullable: true
+          enum:
+            - INTENT_MISMATCH
+          description: |
+            INTENT_MISMATCH on strict mode mismatch OR breached
+            graduated tolerance. null on clean match OR advisory mode
+            (nullable per OpenAPI 3 — `null` is permitted alongside
+            the enum value but does NOT appear in the enum list).
+        idempotencyReplay:
+          type: boolean
+          description: True if this call replayed an existing idempotency-key.
+
+    GetIntentResponse:
+      type: object
+      required: [manifest, actuals, reconciliation, status]
+      properties:
+        manifest:
+          $ref: '#/components/schemas/SignedIntentManifest'
+        actuals:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActualCallObservation'
+        reconciliation:
+          oneOf:
+            - $ref: '#/components/schemas/ReconcileIntentResponse'
+            - type: 'null'
+        status:
+          type: string
+          enum: [OPEN, RECONCILED, EXPIRED]

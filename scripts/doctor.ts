@@ -127,7 +127,7 @@ const catalogPy = safeRead(join(REPO_ROOT, 'packages', 'sdk-py', 'aegis', 'error
 // shape; the count comes from the className-keyed entry rows.
 const tsCount = catalogTs ? (catalogTs.match(/className:\s*['"]/g) ?? []).length || (catalogTs.match(/code:\s*['"]/g) ?? []).length : 0;
 const pyCount = catalogPy ? (catalogPy.match(/"className":\s*"/g) ?? []).length : 0;
-console.log(`  TS mirror: ${tsCount} entries  ${tsCount === 22 ? ok('') : warn('expected 22 (TrialExhaustedError + 21)')}`);
+console.log(`  TS mirror: ${tsCount} entries  ${tsCount === 23 ? ok('') : warn('expected 23 (TrialExhaustedError + IntentAlgorithmException + 21)')}`);
 console.log(`  Py mirror: ${pyCount} entries  ${pyCount === tsCount ? ok('parity with TS') : bad('PARITY DRIFT')}`);
 if (pyCount !== tsCount && tsCount > 0) exitCode = 1;
 
@@ -159,7 +159,7 @@ if (postmanRaw) {
     ) as { item?: unknown[] } | undefined;
     const denialLeaves = denialFolder?.item?.length ?? 0;
     console.log(`  folders: ${folders}, leaf requests: ${leaves}`);
-    console.log(`  denial walkthrough: ${denialLeaves} leaves  ${denialLeaves === 10 ? ok('matches 10-step chain') : warn('expected 10')}`);
+    console.log(`  denial walkthrough: ${denialLeaves} leaves  ${denialLeaves === 11 ? ok('matches 11-step chain') : warn('expected 11')}`);
   } catch {
     console.log(`  ${bad('JSON parse failed')}`);
     exitCode = 1;

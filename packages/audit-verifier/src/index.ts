@@ -26,6 +26,38 @@ export { canonicalize, decodeBase64Url, encodeBase64Url, sortKeys, utf8 } from '
 export { loadJwksFromFile, loadJwksFromUrl, lookupPublicKey, validateJwks } from './jwks.js';
 export { buildSignedMessage, computePrevHash, verifyChain, verifyRow } from './chain.js';
 
+// Audit compression — manifest verification surface (ADR-0015 / M-036).
+// Lets a relying party verify the manifest half of a compressed audit
+// corpus offline using only the published AEGIS audit JWKS. Parquet
+// digest checks land separately when OD-017 + the parquet reader ship.
+export {
+  GLOBAL_SLICE,
+  MANIFEST_GENESIS,
+  canonicalSha256B64Url,
+  hashManifestBody,
+  prevManifestHash,
+  rowChainAnchor,
+  verifyManifest,
+  walkManifestChain,
+} from './manifest.js';
+export type {
+  AuditCompressionManifestBody,
+  ChainWalkFailure,
+  ChainWalkResult,
+  CompressionTier,
+  ManifestSignatureAlg,
+  ManifestVerifyFailure,
+  ManifestVerifyResult,
+  SignedAuditCompressionManifest,
+  SliceStrategy,
+} from './manifest.js';
+export { verifyManifestCorpus } from './manifest-corpus.js';
+export type {
+  CorpusManifestResult,
+  CorpusSliceResult,
+  ManifestCorpusReport,
+} from './manifest-corpus.js';
+
 /** Convenience helper: parse an NDJSON file or string into AuditEventRow[]
  *  via line-streaming. Permissive — silently drops blank lines and rejects
  *  non-object lines with a clear error so callers can inspect the row id. */

@@ -1,4 +1,18 @@
+import { readFile, readdir } from 'node:fs/promises';
+import { join } from 'node:path';
+
+import {
+  loadJwksFromFile,
+  loadJwksFromUrl,
+  parseAuditNdjson,
+  verifyChain,
+  verifyManifestCorpus,
+  type ChainReport,
+  type SignedAuditCompressionManifest,
+} from '@aegis/audit-verifier';
+
 import { client } from '../client.js';
+import { resolveCredentials } from '../credentials.js';
 import { emitJson, emitTable, info, ok, err } from '../output.js';
 
 interface AuditEvent {
@@ -12,7 +26,14 @@ interface AuditEvent {
   aegisSignature?: string;
 }
 
-export async function auditSearch(opts: { agentId?: string; from?: string; to?: string; decision?: string; limit?: number; json?: boolean }): Promise<void> {
+export async function auditSearch(opts: {
+  agentId?: string;
+  from?: string;
+  to?: string;
+  decision?: string;
+  limit?: number;
+  json?: boolean;
+}): Promise<void> {
   const aegis = await client();
   const params = new URLSearchParams();
   if (opts.agentId) params.set('agent_id', opts.agentId);
@@ -23,53 +44,222 @@ export async function auditSearch(opts: { agentId?: string; from?: string; to?: 
   // @ts-expect-error - http accessor on Aegis client
   const result = (await aegis.http.get(`/v1/audit-events?${params.toString()}`)) as { events: AuditEvent[] };
   if (opts.json) emitJson(result);
-  else emitTable(result.events.map((e) => ({
-    id: e.id.slice(0, 12) + '…',
-    timestamp: e.timestamp,
-    agent: (e.agentId ?? '-').slice(0, 16),
-    action: e.action,
-    decision: e.decision,
-    denial: e.denialReason ?? '',
-  })));
+  else
+    emitTable(
+      result.events.map((e) => ({
+        id: e.id.slice(0, 12) + '…',
+        timestamp: e.timestamp,
+        agent: (e.agentId ?? '-').slice(0, 16),
+        action: e.action,
+        decision: e.decision,
+        denial: e.denialReason ?? '',
+      })),
+    );
 }
 
 /**
- * Pull the JWKS, fetch a window of audit events, recompute the chain
- * locally. Reports the count of verified events and any breaks.
+ * Independently verify the AEGIS audit chain against the published JWKS.
  *
- * Implements ADR-0011 §6 — a third-party verifier independently re-derives
- * each event's expected signature from prev_hash + canonical(payload) +
- * the published public key for that event's signingKeyId.
+ * Closes the M-016 surface in the operator CLI. Pulls the verification-
+ * shaped NDJSON from `/v1/audit-events/export`, parses each row as a
+ * canonical AuditEventRow, fetches the JWKS, and hands both to
+ * `@aegis/audit-verifier`'s `verifyChain`. The verifier walks every row
+ * — recomputes prev_hash, canonicalizes the payload, checks the Ed25519
+ * signature — and surfaces any breaks.
+ *
+ * This is the same primitive that `aegis-audit-verify` (the standalone
+ * binary in `@aegis/audit-verifier`) ships. Using it here keeps the
+ * chain-verification algorithm single-sourced; the CLI is just a
+ * convenience wrapper around the same library a third-party auditor
+ * would install. See ADR-0011 §6 for the third-party verifier design
+ * and `docs/SECURITY.md` § "Audit chain integrity" for the operational
+ * story.
+ *
+ * Flags:
+ *   --from <iso>           Lower bound on event timestamp (inclusive).
+ *   --to <iso>             Upper bound on event timestamp (exclusive).
+ *   --no-fail-fast         Walk every row even after a break.
+ *   --max-row-detail <n>   Cap per-row detail in JSON output (default 100).
+ *   --json                 Emit the full ChainReport as JSON to stdout.
  */
-export async function auditVerify(opts: { from?: string; to?: string }): Promise<void> {
-  const aegis = await client();
-  // @ts-expect-error - http accessor
-  const jwks = (await aegis.http.get('/v1/.well-known/audit-signing-key')) as { keys: { kid: string; x: string }[] };
-  const pubByKid = new Map(jwks.keys.map((k) => [k.kid, k.x]));
-  info(`fetched ${pubByKid.size} audit signing key(s)`);
+export async function auditVerify(opts: {
+  from?: string;
+  to?: string;
+  failFast?: boolean;
+  maxRowDetail?: number;
+  json?: boolean;
+}): Promise<void> {
+  const creds = await resolveCredentials();
+  if (!creds) {
+    err('not logged in: run `aegis bootstrap` or set AEGIS_API_KEY env');
+    process.exit(2);
+  }
 
+  const baseUrl = creds.baseUrl.replace(/\/+$/, '');
+
+  // The audit-signing JWKS is a public discovery endpoint — no auth required.
+  // `@aegis/audit-verifier`'s loadJwksFromUrl validates the shape (kty=OKP,
+  // crv=Ed25519, base64url x) before returning.
+  const jwksUrl = `${baseUrl}/v1/.well-known/audit-signing-key`;
+  const jwks = await loadJwksFromUrl(jwksUrl);
+  info(`fetched ${jwks.keys.length} audit signing key(s) from ${jwksUrl}`);
+
+  // The export endpoint streams NDJSON in chronological order so a chain
+  // verifier can walk forward with `event[i-1].id + signature` as the
+  // prev_hash inputs for event[i]. It's verification-shaped: every field
+  // the canonical payload requires is present, unlike the display-shaped
+  // /v1/audit-events DTO.
   const params = new URLSearchParams();
   if (opts.from) params.set('from', opts.from);
   if (opts.to) params.set('to', opts.to);
-  // @ts-expect-error - http accessor
-  const result = (await aegis.http.get(`/v1/audit-events?${params.toString()}&limit=200`)) as { events: AuditEvent[] };
+  const exportUrl = `${baseUrl}/v1/audit-events/export${params.toString() ? `?${params.toString()}` : ''}`;
 
-  let verified = 0;
-  let unknownKid = 0;
-  for (const ev of result.events) {
-    const kid = ev.signingKeyId ?? 'kid-genesis-v1';
-    const pub = pubByKid.get(kid);
-    if (!pub) {
-      unknownKid++;
+  const res = await fetch(exportUrl, {
+    headers: {
+      'X-AEGIS-API-Key': creds.apiKey,
+      Accept: 'application/x-ndjson',
+    },
+  });
+  if (!res.ok) {
+    err(`fetch ${exportUrl} → HTTP ${res.status} ${res.statusText}`);
+    process.exit(2);
+  }
+  const ndjson = await res.text();
+  const rows = parseAuditNdjson(ndjson);
+  info(`streamed ${rows.length} audit event row(s) from ${exportUrl}`);
+
+  // Defaults mirror the audit-verifier binary's defaults: fail-fast on so
+  // breaks surface at the first violation; max-row-detail at 100 to bound
+  // JSON output size. Callers (operator running `aegis audit verify
+  // --no-fail-fast --max-row-detail 1000`) can override.
+  const report: ChainReport = await verifyChain(rows, {
+    jwks,
+    failFast: opts.failFast ?? true,
+    maxRowDetail: opts.maxRowDetail ?? 100,
+  });
+
+  if (opts.json) {
+    emitJson(report);
+    if (!report.valid) process.exit(1);
+    return;
+  }
+
+  const tag = report.valid ? '✓ INTACT' : '✗ BROKEN';
+  ok(`AEGIS audit chain — ${tag}`);
+  info(`rows verified : ${report.totalRows}`);
+  info(`signing keys  : ${report.signingKeys.join(', ') || '(none)'}`);
+  info(`rotations     : ${report.rotationEvents.length}`);
+  for (const r of report.rotationEvents) {
+    info(`  • atIndex=${r.atIndex}  ${r.fromKid} → ${r.toKid}`);
+  }
+  info(`duration      : ${report.durationMs}ms`);
+  if (report.firstBreak) {
+    err(`first break   : row ${report.firstBreak.index} (${report.firstBreak.eventId})`);
+    err(`  kid         : ${report.firstBreak.signingKeyId}`);
+    err(`  signature   : ${report.firstBreak.signatureValid ? 'ok' : 'INVALID'}`);
+    err(`  chain link  : ${report.firstBreak.chainLinkValid ? 'ok' : 'INVALID'}`);
+    err(`  reason      : ${report.firstBreak.reason ?? '(none)'}`);
+    process.exit(1);
+  }
+}
+
+/**
+ * Verify a directory of signed audit-compression manifests.
+ *
+ * Operator-side companion to `aegis-audit-verify verify-manifests`
+ * (the standalone binary). Walks <dir> for *.manifest.json files
+ * (optionally --recursive), parses each as SignedAuditCompressionManifest,
+ * hands the array to verifyManifestCorpus() from @aegis/audit-verifier.
+ *
+ * Manifest verification covers a different surface than chain
+ * verification: sealed-archive cohesion per ADR-0015, not row-level
+ * Ed25519 chain links. A SOC 2 auditor reviewing a customer's archived
+ * audit retention runs THIS command against the customer's manifest
+ * directory; chain integrity inside each sealed slice is implied by
+ * the manifest signature.
+ *
+ * Flags:
+ *   --jwks <url>       Fetch JWKS from URL (HTTPS).
+ *   --jwks-file <path> Read JWKS from a local file (airgapped path).
+ *   --recursive        Walk subdirectories of <dir>.
+ *   --json             Emit the full ManifestCorpusReport as JSON.
+ *
+ * Note: --jwks-file is the dominant flag for this command since
+ * archived-manifest verification is often done in airgapped
+ * compliance environments. --jwks (URL) is provided for symmetry
+ * with `aegis audit verify`.
+ */
+export async function auditVerifyManifests(
+  dir: string,
+  opts: {
+    jwks?: string;
+    jwksFile?: string;
+    recursive?: boolean;
+    json?: boolean;
+  } = {},
+): Promise<void> {
+  if (!opts.jwks && !opts.jwksFile) {
+    err('one of --jwks <url> or --jwks-file <path> is required');
+    process.exit(2);
+  }
+  if (opts.jwks && opts.jwksFile) {
+    err('use --jwks OR --jwks-file, not both');
+    process.exit(2);
+  }
+
+  const jwks = opts.jwksFile
+    ? await loadJwksFromFile(opts.jwksFile)
+    : await loadJwksFromUrl(opts.jwks!);
+  info(`fetched ${jwks.keys.length} audit signing key(s)`);
+
+  const manifests = await loadManifestsFromDir(dir, opts.recursive ?? false);
+  if (manifests.length === 0) {
+    err(`no *.manifest.json files found under ${dir}`);
+    process.exit(2);
+  }
+  info(`loaded ${manifests.length} manifest(s) from ${dir}${opts.recursive ? ' (recursive)' : ''}`);
+
+  const report = await verifyManifestCorpus(manifests, jwks);
+
+  if (opts.json) {
+    emitJson(report);
+    if (!report.valid) process.exit(1);
+    return;
+  }
+
+  const tag = report.valid ? '✓ INTACT' : '✗ BROKEN';
+  ok(`AEGIS manifest corpus — ${tag}`);
+  info(`manifests verified : ${report.totalManifests}`);
+  info(`slices             : ${report.totalSlices}`);
+  info(`signing keys       : ${report.signingKeysUsed.join(', ') || '(none)'}`);
+  info(`duration           : ${report.durationMs}ms`);
+  if (!report.valid) process.exit(1);
+}
+
+/**
+ * Walk a directory for *.manifest.json files. CLI plumbing —
+ * intentionally duplicated from the @aegis/audit-verifier standalone
+ * binary rather than exported, because file walking is convenience
+ * plumbing, not verification algorithm. The single-sourced-algorithm
+ * property is at verifyManifestCorpus(); how each CLI translates
+ * filesystem layout into the function's input shape is its own
+ * UX concern.
+ */
+async function loadManifestsFromDir(
+  dir: string,
+  recursive: boolean,
+): Promise<SignedAuditCompressionManifest[]> {
+  const out: SignedAuditCompressionManifest[] = [];
+  const entries = await readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (recursive) out.push(...(await loadManifestsFromDir(path, true)));
       continue;
     }
-    // Full chain reconstruction lives in the @aegis/verifier-rp package
-    // (M-016 ships a Node verifier; this CLI stops at presence checking
-    // until that lands). Real signature recomputation is a 2-line call:
-    //   import { verifyChainEvent } from '@aegis/verifier-rp';
-    //   verified += await verifyChainEvent(ev, pub) ? 1 : 0;
-    if (ev.aegisSignature) verified++;
+    if (!entry.name.endsWith('.manifest.json')) continue;
+    const text = await readFile(path, 'utf8');
+    out.push(JSON.parse(text) as SignedAuditCompressionManifest);
   }
-  if (unknownKid > 0) err(`${unknownKid} event(s) reference an unknown signing kid`);
-  ok(`audit chain spot-checked: ${verified}/${result.events.length} signatures present`);
+  return out;
 }
