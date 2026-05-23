@@ -22,6 +22,11 @@ on:
   push:
     branches: [main]
 
+# Explicit minimum-permission token per OpenSSF Scorecard `token-permissions`.
+# Read-only — typecheck, parity tests, lychee link-check, next build only.
+permissions:
+  contents: read
+
 jobs:
   typecheck:
     name: typecheck

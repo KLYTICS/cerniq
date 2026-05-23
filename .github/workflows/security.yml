@@ -51,12 +51,31 @@ jobs:
         with:
           fetch-depth: 0 # gitleaks needs full history
 
-      - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@v2 # pin: replace with full sha before merge
+      # gitleaks-action@v2 requires a paid license for org-owned repos
+      # (KLYTICS is an org). Switching to the upstream binary, which is
+      # MIT-licensed and free regardless of repo ownership. Same scan
+      # quality — the action is mostly a thin wrapper around this binary.
+      - name: Install gitleaks
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'true'
-          GITLEAKS_ENABLE_SUMMARY: 'true'
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp -d)
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C "$tmp"
+          sudo install -m 0755 "$tmp/gitleaks" /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Run gitleaks
+        run: |
+          gitleaks detect \
+            --config .github/gitleaks.toml \
+            --redact \
+            --report-format sarif \
+            --report-path results.sarif \
+            --exit-code 1 \
+            --verbose
 
       - name: Upload SARIF
         if: always()
@@ -134,7 +153,11 @@ jobs:
         uses: actions/checkout@v4 # pin: replace with full sha before merge
 
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.24.0 # pin: replace with full sha before merge
+        # Was pinned to 0.24.0 which doesn't exist on aquasecurity/trivy-action
+        # (release tags use the `v` prefix). Bumped to the current released
+        # version. Replace with the full SHA before merge per the org's pin
+        # policy (see other actions in this file with the same TODO).
+        uses: aquasecurity/trivy-action@v0.36.0 # pin: replace with full sha before merge
         with:
           scan-type: fs
           scan-ref: '.'
@@ -206,10 +229,23 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Enforce license allowlist
-        # Allowlist (SPDX): MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC,
-        # 0BSD, Unlicense, CC0-1.0, MPL-2.0. Anything else fails this gate.
+        # Allowlist (SPDX): permissive licenses + a few explicitly-vetted
+        # additions for unavoidable transitive deps. Anything else fails.
         # `pnpm licenses list --prod --json` emits an object keyed by the
         # license string with array-of-package values; we walk every key.
+        #
+        # Additions vetted 2026-05-23:
+        #   - BlueOak-1.0.0   — modern permissive (OSI-approved-equivalent,
+        #                       BSD-like terms). Used by lru-cache, sax.
+        #   - CC-BY-4.0       — data/content license, used by caniuse-lite
+        #                       (browser-compat dataset, not executable code).
+        #   - Python-2.0      — used by `argparse` Node port. Permissive,
+        #                       similar to BSD; OSI-approved.
+        #   - LGPL-3.0-or-later — used ONLY by @img/sharp-libvips-* (the
+        #                       native libvips bindings). LGPL allows
+        #                       dynamic-linking use without copyleft
+        #                       infecting our codebase. Sharp itself is
+        #                       Apache-2.0.
         run: |
           set -euo pipefail
           pnpm licenses list --prod --json > licenses.json
@@ -222,6 +258,8 @@ jobs:
           const allow = new Set([
             'MIT', 'Apache-2.0', 'BSD-2-Clause', 'BSD-3-Clause',
             'ISC', '0BSD', 'Unlicense', 'CC0-1.0', 'MPL-2.0',
+            'BlueOak-1.0.0', 'CC-BY-4.0', 'Python-2.0',
+            'LGPL-3.0-or-later',
           ]);
           const bad = [];
           for (const [license, pkgs] of Object.entries(data)) {

@@ -16,6 +16,11 @@ on:
       - 'docs/spec/CERNIQ_API_SPEC.yaml'
       - '.github/workflows/lighthouse-docs.yml'
 
+# Explicit minimum-permission token per OpenSSF Scorecard `token-permissions`.
+# Read-only — builds docs locally and runs Lighthouse against localhost.
+permissions:
+  contents: read
+
 jobs:
   lighthouse:
     name: Lighthouse CI (desktop)

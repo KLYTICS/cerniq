@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# Explicit minimum-permission token per OpenSSF Scorecard `token-permissions`.
+# Read-only — this workflow runs build/lint/test/typecheck and never writes
+# back to the repo or posts to the API.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

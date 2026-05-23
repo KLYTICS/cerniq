@@ -37,6 +37,12 @@ on:
   repository_dispatch:
     types: [deployed-staging, deployed-production]
 
+# Explicit minimum-permission token per OpenSSF Scorecard `token-permissions`.
+# Read-only — runs the same audit-verify-chain script an SOC2 auditor would
+# run; verifies the chain against the published JWKS without mutation.
+permissions:
+  contents: read
+
 concurrency:
   # One verifier at a time per environment. A long-running verification
   # would otherwise pile up under heavy cron+deploy interleavings.
