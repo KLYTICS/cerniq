@@ -1,0 +1,61 @@
+name: mirror-from-radicle
+
+# Pulls the latest signed state from a Radicle public seeder and force-pushes
+# the refs allowed by scripts/mirror-policy.sh out to this GitHub repo.
+#
+# Radicle is canonical; this workflow makes GitHub a derivative read-only view.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # every 15 minutes — gossip lag is typically under a minute
+  workflow_dispatch:           # manual trigger for ad-hoc syncs
+
+concurrency:
+  group: mirror-from-radicle
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Radicle CLI
+        run: |
+          curl -sSf https://radicle.xyz/install | sh
+          echo "$HOME/.radicle/bin" >> "$GITHUB_PATH"
+
+      - name: Fetch from Radicle canonical
+        env:
+          CERNIQ_RID: rad:z3JUSaS2iRrV1raoSaqXxowLDHq6b
+        run: |
+          rad clone "$CERNIQ_RID" --no-confirm canonical
+          cd canonical
+          git fetch --all --tags
+
+      - name: Stage policy script
+        working-directory: canonical
+        run: cp scripts/mirror-policy.sh /tmp/mirror-policy.sh && chmod +x /tmp/mirror-policy.sh
+
+      - name: Discover mirrorable refs
+        working-directory: canonical
+        id: refs
+        run: |
+          # Enumerate every local ref (after `rad clone`, branches land as local heads).
+          git for-each-ref --format='%(refname)' refs/heads refs/tags \
+            | /tmp/mirror-policy.sh \
+            | tee /tmp/decisions.txt
+          grep '^mirror ' /tmp/decisions.txt | awk '{print $2}' > /tmp/to-mirror.txt
+          echo "count=$(wc -l < /tmp/to-mirror.txt | tr -d ' ')" >> "$GITHUB_OUTPUT"
+
+      - name: Push allowed refs to this GitHub repo
+        if: steps.refs.outputs.count != '0'
+        working-directory: canonical
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git remote add gh "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          while read -r ref; do
+            git push --force gh "$ref:$ref"
+          done < /tmp/to-mirror.txt
