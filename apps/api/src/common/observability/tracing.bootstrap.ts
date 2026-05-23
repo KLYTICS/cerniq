@@ -88,21 +88,34 @@ export async function initTracing(opts: TracingBootstrapOptions = {}): Promise<T
   // Lazy-load the OTel deps so unit tests / non-tracing deployments don't
   // pay the import cost. The deps are optional in `package.json` and the
   // module fails closed (returns a noop handle) if any are missing.
+  //
+  // 2026-05-23 OTel 2.x migration:
+  //   - `@opentelemetry/resources` 2.x ditched the `new Resource({...})`
+  //     constructor in favor of the `resourceFromAttributes()` helper.
+  //   - `@opentelemetry/semantic-conventions` moved from the
+  //     `SemanticResourceAttributes.X` deprecated map to named
+  //     `ATTR_X` constants. Both still ship in current versions; we use
+  //     the named exports to clear the eslint-no-deprecated suppression.
+  //   - `@opentelemetry/sdk-trace-base` renamed `instrumentationLibrary`
+  //     → `instrumentationScope` on `ReadableSpan`. Sorted by aligning
+  //     all OTel package versions in the same install (the type mismatch
+  //     went away once sdk-node 0.218 + sdk-trace-base 2.7 + exporter
+  //     0.218 all match).
   let NodeSDK: typeof NodeSDKType;
-  let Resource: typeof import('@opentelemetry/resources').Resource;
+  let resourceFromAttributes: typeof import('@opentelemetry/resources').resourceFromAttributes;
   let getNodeAutoInstrumentations: typeof import('@opentelemetry/auto-instrumentations-node').getNodeAutoInstrumentations;
   let OTLPTraceExporter: typeof import('@opentelemetry/exporter-trace-otlp-http').OTLPTraceExporter;
   let ConsoleSpanExporter: typeof import('@opentelemetry/sdk-trace-base').ConsoleSpanExporter;
-  let SemanticResourceAttributes: Record<string, string>;
+  let ATTR_SERVICE_NAME: string;
+  let ATTR_SERVICE_VERSION: string;
   try {
     ({ NodeSDK } = await import('@opentelemetry/sdk-node'));
-    ({ Resource } = await import('@opentelemetry/resources'));
+    ({ resourceFromAttributes } = await import('@opentelemetry/resources'));
     ({ getNodeAutoInstrumentations } = await import('@opentelemetry/auto-instrumentations-node'));
     ({ OTLPTraceExporter } = await import('@opentelemetry/exporter-trace-otlp-http'));
     ({ ConsoleSpanExporter } = await import('@opentelemetry/sdk-trace-base'));
-    // eslint-disable-next-line @typescript-eslint/no-deprecated -- The newer SEMRESATTRS_* exports require a larger refactor of the resource map. Tracked in M-TBD.
-    SemanticResourceAttributes = (await import('@opentelemetry/semantic-conventions'))
-      .SemanticResourceAttributes;
+    ({ ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } =
+      await import('@opentelemetry/semantic-conventions'));
   } catch (err) {
     // OTel deps missing — log on stderr and continue without tracing.
     process.stderr.write(
@@ -119,9 +132,9 @@ export async function initTracing(opts: TracingBootstrapOptions = {}): Promise<T
         : new OTLPTraceExporter();
 
   sdk = new NodeSDK({
-    resource: new Resource({
-      [SemanticResourceAttributes.SERVICE_NAME]: opts.serviceName ?? 'cerniq-api',
-      [SemanticResourceAttributes.SERVICE_VERSION]: process.env.CERNIQ_VERSION ?? '0.0.0',
+    resource: resourceFromAttributes({
+      [ATTR_SERVICE_NAME]: opts.serviceName ?? 'cerniq-api',
+      [ATTR_SERVICE_VERSION]: process.env.CERNIQ_VERSION ?? '0.0.0',
       ...opts.resourceAttributes,
     }),
     traceExporter: exporter,
