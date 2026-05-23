@@ -11,7 +11,7 @@ import respx
 
 from okoro import AsyncOkoro, Keypair, generate_keypair
 
-BASE_URL = "https://api.okorolabs.io/v1"
+BASE_URL = "https://api.okoroapp.com/v1"
 
 
 @pytest.fixture

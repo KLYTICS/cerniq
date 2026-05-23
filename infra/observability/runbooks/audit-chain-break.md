@@ -10,6 +10,7 @@
 ## Symptom
 
 Either:
+
 1. `okoro_audit_append_total{result="error"}` is incrementing at
    > 0.01/s for 5 min — appends are throwing.
 2. Or: verify traffic is flowing but audit appends have been zero
@@ -83,7 +84,7 @@ There is no "minor" version of this alert. Treat every firing as P0.
    `/.well-known/audit-signing-key` endpoint:
 
    ```bash
-   curl -fsSL https://api.okorolabs.io/.well-known/audit-signing-key | jq
+   curl -fsSL https://api.okoroapp.com/.well-known/audit-signing-key | jq
    ```
 
    The `kid` in the JWKS must match the kid the API process computes

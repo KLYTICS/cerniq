@@ -4,8 +4,8 @@
   "description": "OKORO operator CLI — manage agents, policies, KMS, audit, and MCP from the terminal.",
   "type": "module",
   "license": "MIT",
-  "author": "OKORO Labs <hello@okorolabs.io>",
-  "homepage": "https://okorolabs.io",
+  "author": "OKORO Labs <hello@okoroapp.com>",
+  "homepage": "https://okoroapp.com",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/klytics/okoro.git",

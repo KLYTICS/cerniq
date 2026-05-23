@@ -4,8 +4,8 @@
   "description": "OKORO exposed as an MCP server. Lets Claude Desktop / Cursor / any MCP host call OKORO verify, agents, policies, and audit tools natively.",
   "type": "module",
   "license": "MIT",
-  "author": "OKORO Labs <hello@okorolabs.io>",
-  "homepage": "https://okorolabs.io/mcp",
+  "author": "OKORO Labs <hello@okoroapp.com>",
+  "homepage": "https://okoroapp.com/mcp",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/klytics/okoro.git",

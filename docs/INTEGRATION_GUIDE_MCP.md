@@ -1,4 +1,5 @@
 # OKORO — MCP Integration Guide
+
 ## Claude Desktop, Cursor, Cline, and Any MCP Server
 
 > **The wedge.** Every MCP server in the wild is a potential OKORO relying party. One `wrap()` call is all it takes.  
@@ -12,6 +13,7 @@
 The Model Context Protocol (MCP) connects AI agents (Claude, GPT, Gemini) to tools and services. But MCP has no built-in answer to: "which AI agent made this call, and should I trust it?"
 
 OKORO answers that question. Every `wrap()` call:
+
 - Requires the calling agent to present a signed JWT (proof of identity)
 - Enforces your policy (spend limits, scope gates, trust thresholds)
 - Appends a signed audit event (cryptographic proof of what happened)
@@ -34,6 +36,7 @@ pnpm add @okoro/mcp-bridge @okoro/sdk
 ### 2.2 Wrap Your MCP Server
 
 Before (unprotected):
+
 ```typescript
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -49,6 +52,7 @@ await server.connect(transport);
 ```
 
 After (OKORO-protected, 3 lines changed):
+
 ```typescript
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -90,6 +94,7 @@ For every incoming tool call:
 ### 3.1 How Claude Sends OKORO Tokens
 
 Claude Desktop's OKORO integration (when configured) automatically:
+
 1. Loads the agent's Ed25519 key from the local keychain
 2. Signs a JWT for each tool call with 30-second TTL
 3. Includes the token in `params._okoroToken`
@@ -207,7 +212,7 @@ export function wrapForCline(server: MCPServer): MCPServer {
     trustBandMinimum: 'VERIFIED',
     // Limit filesystem spend to prevent runaway operations
     spendLimit: {
-      amount: 10000,  // 10K file operations per day
+      amount: 10000, // 10K file operations per day
       currency: 'OPS',
       window: 'day',
     },
@@ -233,7 +238,7 @@ import * as fs from 'node:fs/promises';
 
 const server = new Server(
   { name: 'okoro-fs-server', version: '1.0.0' },
-  { capabilities: { tools: {} } }
+  { capabilities: { tools: {} } },
 );
 
 // Declare tools
@@ -251,7 +256,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
-      name: 'write_file', 
+      name: 'write_file',
       description: 'Write content to a file',
       inputSchema: {
         type: 'object',
@@ -268,7 +273,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 // Implement tools — context is injected by OKORO wrapper
 server.setRequestHandler(CallToolRequestSchema, async (req, context: OkoroMcpContext) => {
   const { name, arguments: args } = req.params;
-  
+
   // context.agentId, context.trustBand, context.trustScore are available
   console.log(`Tool call from agent ${context.agentId} (${context.trustBand})`);
 
@@ -276,7 +281,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req, context: OkoroMcpCon
     const content = await fs.readFile(args.path as string, 'utf-8');
     return { content: [{ type: 'text', text: content }] };
   }
-  
+
   if (name === 'write_file') {
     // Example: require PLATINUM band for file writes
     if (context.trustBand === 'WATCH' || context.trustBand === 'FLAGGED') {
@@ -355,6 +360,7 @@ okoro.getOnboardingStatus()               → PrincipalOnboarding
 Example: "Claude, register my new agent and give it permission to make payments up to $100"
 
 Claude will:
+
 1. Call `okoro.registerAgent(...)` to create the agent
 2. Call `okoro.applyPolicy(...)` to set the spend limit
 3. Return the agent ID and a summary of what was configured
@@ -371,14 +377,14 @@ const delegation = await okoro.agents.delegate({
   from: 'orchestrator-agent-id',
   to: 'subagent-id',
   scopes: ['payment:read'], // subset of orchestrator's scopes
-  maxDepth: 2,              // prevent infinite delegation chains
-  ttlSeconds: 300,          // delegation expires in 5 minutes
+  maxDepth: 2, // prevent infinite delegation chains
+  ttlSeconds: 300, // delegation expires in 5 minutes
 });
 
 // Sub-agent includes the delegation chain in its verify token
 const token = await signToken({
   sub: 'subagent-id',
-  act: delegation.chain,    // attestation chain
+  act: delegation.chain, // attestation chain
   scopes: ['payment:read'],
 });
 
@@ -399,7 +405,7 @@ When an agent is revoked, MCP servers should stop accepting its tokens within 30
 import { OkoroVerifier } from '@okoro/verifier-rp';
 
 const verifier = new OkoroVerifier({
-  okoroUrl: 'https://api.okorolabs.io',
+  okoroUrl: 'https://api.okoroapp.com',
   apiKey: process.env.OKORO_API_KEY,
 });
 
@@ -411,15 +417,15 @@ app.post('/webhooks/okoro', async (req, res) => {
     .update((req as any).rawBody)
     .digest('hex');
   if (sig !== expected) return res.status(401).send('Invalid signature');
-  
+
   const event = req.body;
-  
+
   if (event.type === 'agent.revoked') {
     // Bust the verifier's local cache for this agent
     await verifier.invalidateAgent(event.data.agentId);
     console.log(`Agent ${event.data.agentId} revoked — cache busted`);
   }
-  
+
   res.json({ received: true });
 });
 ```
@@ -430,7 +436,7 @@ If webhooks aren't configured, verifier-rp polls revocation status:
 
 ```typescript
 const verifier = new OkoroVerifier({
-  okoroUrl: 'https://api.okorolabs.io',
+  okoroUrl: 'https://api.okoroapp.com',
   apiKey: process.env.OKORO_API_KEY,
   revocationPollInterval: 30_000, // 30 seconds (default)
   // Revoked agents are cached for max 5 minutes
@@ -444,6 +450,7 @@ const verifier = new OkoroVerifier({
 ### "Token not found in request"
 
 `@okoro/mcp-bridge` looks for the token in:
+
 1. `params._okoroToken` (preferred for MCP tool calls)
 2. `headers['x-okoro-token']` (for HTTP transports)
 3. `params.okoroToken` (legacy format)
@@ -489,4 +496,4 @@ okoro agents get --id [AGENT_ID] --show-trust-breakdown
 
 ---
 
-*MCP integration guide version: 1.0 | OKORO Phase 1*
+_MCP integration guide version: 1.0 | OKORO Phase 1_

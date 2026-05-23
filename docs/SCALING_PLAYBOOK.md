@@ -1,4 +1,5 @@
 # OKORO — Scaling Playbook
+
 ## Traffic Surge Handling, Connection Pools, Redis Tuning, CF Workers Rollout
 
 > **Owner:** Engineering Lead  
@@ -41,6 +42,7 @@ railway status --service api
 ```
 
 Memory breakdown per API instance:
+
 - NestJS process: ~200MB base
 - Prisma client connection pool (20 connections): ~100MB
 - Redis client: ~20MB
@@ -56,11 +58,12 @@ Add replicas when CPU > 70% sustained or you need HA:
 # Each replica is independent — Railway load balances automatically
 
 # Verify both replicas are healthy
-curl -s https://api.okorolabs.io/health | jq .status
+curl -s https://api.okoroapp.com/health | jq .status
 # Check from multiple IPs to hit different replicas
 ```
 
 **State that must be external (not per-replica):**
+
 - Session data: none (stateless JWT verify)
 - Spend counters: Redis (shared)
 - JTI replay cache: Redis (shared)
@@ -94,7 +97,7 @@ Before scaling, confirm DB is actually the bottleneck:
 # Quick check from psql:
 psql $DATABASE_URL -c "
   SELECT count(*) as active_connections, state
-  FROM pg_stat_activity 
+  FROM pg_stat_activity
   WHERE datname = 'okoro'
   GROUP BY state;
 "
@@ -119,12 +122,14 @@ const prismaRead = new PrismaClient({ datasources: { db: { url: process.env.DATA
 ```
 
 Queries to route to read replica:
+
 - `GET /v1/audit` (export queries)
 - `GET /v1/agents` (listing, not hot path)
 - `GET /v1/policies` (listing)
 - BATE signal aggregation queries
 
 Queries that MUST use primary:
+
 - `POST /v1/verify` (reads are part of transaction)
 - `POST /v1/agents` (writes)
 - Any mutation
@@ -153,7 +158,7 @@ Before scaling hardware, optimize queries:
 
 ```sql
 -- Find the slowest queries
-SELECT 
+SELECT
   LEFT(query, 80) as query,
   calls,
   ROUND(mean_exec_time::numeric, 1) as avg_ms,
@@ -177,15 +182,16 @@ ORDER BY seq_tup_read DESC;
 
 Key categories and TTLs:
 
-| Key Pattern | Purpose | TTL | Size Estimate |
-|-------------|---------|-----|---------------|
-| `okoro:jti:{jti}` | Replay prevention | 30s (token TTL) | 50 bytes × active_rps |
-| `okoro:spend:{agentId}:{date}` | Daily spend counter | 24h | 100 bytes × agents |
-| `okoro:revoke:{agentId}` | Revocation cache | 5min (CDN-like) | 50 bytes × revoked_agents |
-| `okoro:rl:{ip}:{window}` | Rate limiting | 1 min | 50 bytes × unique_ips |
-| `okoro:bate:signals:{agentId}` | BATE signal buffer | 1h | 1KB × active_agents |
+| Key Pattern                    | Purpose             | TTL             | Size Estimate             |
+| ------------------------------ | ------------------- | --------------- | ------------------------- |
+| `okoro:jti:{jti}`              | Replay prevention   | 30s (token TTL) | 50 bytes × active_rps     |
+| `okoro:spend:{agentId}:{date}` | Daily spend counter | 24h             | 100 bytes × agents        |
+| `okoro:revoke:{agentId}`       | Revocation cache    | 5min (CDN-like) | 50 bytes × revoked_agents |
+| `okoro:rl:{ip}:{window}`       | Rate limiting       | 1 min           | 50 bytes × unique_ips     |
+| `okoro:bate:signals:{agentId}` | BATE signal buffer  | 1h              | 1KB × active_agents       |
 
 Memory calculation for 10K agents at 100 RPS:
+
 - JTI cache: 100 req/s × 30s TTL × 50 bytes = ~150KB
 - Spend counters: 10K agents × 100 bytes = 1MB
 - Revocation cache: ~1K revoked agents × 50 bytes = 50KB
@@ -215,14 +221,14 @@ redis-cli -u $REDIS_URL INFO memory | grep -E "used_memory_human|maxmemory_human
 
 OKORO is designed to fail closed on Redis unavailability:
 
-| Redis Down | Behavior | User Impact |
-|-----------|---------|------------|
-| JTI cache unavailable | ANOMALY_FLAGGED (fail-closed) | Verify denied until Redis recovers |
-| Spend counter unavailable | ANOMALY_FLAGGED (fail-closed) | Verify denied |
-| Rate limit cache unavailable | Rate limiting disabled | Potential abuse window |
-| Revocation cache unavailable | Falls through to DB | Slight latency increase, correct behavior |
+| Redis Down                   | Behavior                      | User Impact                               |
+| ---------------------------- | ----------------------------- | ----------------------------------------- |
+| JTI cache unavailable        | ANOMALY_FLAGGED (fail-closed) | Verify denied until Redis recovers        |
+| Spend counter unavailable    | ANOMALY_FLAGGED (fail-closed) | Verify denied                             |
+| Rate limit cache unavailable | Rate limiting disabled        | Potential abuse window                    |
+| Revocation cache unavailable | Falls through to DB           | Slight latency increase, correct behavior |
 
-The fail-closed behavior for JTI and spend is intentional (CLAUDE.md Invariant: no silent failures). 
+The fail-closed behavior for JTI and spend is intentional (CLAUDE.md Invariant: no silent failures).
 
 ### 4.4 Redis Sentinel / Cluster (Phase 2+)
 
@@ -269,7 +275,7 @@ OKORO_EDGE_MODE = "shadow"
 wrangler deploy --env production
 
 # Monitor divergence rate:
-curl https://api.okorolabs.io/metrics | grep edge_divergence
+curl https://api.okoroapp.com/metrics | grep edge_divergence
 # Target: <0.1% divergence before promoting to live
 ```
 
@@ -305,6 +311,7 @@ Rollback at any step: update Cloudflare page rule to bypass Worker.
 The tricky part: spend counters live in Redis (origin), but edge decisions need them.
 
 Strategy:
+
 1. Edge checks KV for approximate spend counter (synced every 1 second).
 2. If within 20% of limit: forward to origin for precise check.
 3. If clearly under limit: approve at edge without origin call.
@@ -347,7 +354,7 @@ if (current > limit * 0.8) {
 
 ```bash
 # Step 1: Quantify the surge
-curl -s "https://api.okorolabs.io/metrics" | grep "okoro_http_requests_total"
+curl -s "https://api.okoroapp.com/metrics" | grep "okoro_http_requests_total"
 # Baseline is ~N req/min. If 10x: real surge.
 
 # Step 2: Is it legitimate or abuse?
@@ -396,7 +403,7 @@ As a last resort, when infrastructure is fully saturated:
 
 ```typescript
 // In verify.controller.ts: emergency load shedding
-if (await redisService.get('okoro:load_shed') === 'active') {
+if ((await redisService.get('okoro:load_shed')) === 'active') {
   // Shed 50% of FREE tier traffic
   if (principal.tier === 'free' && Math.random() < 0.5) {
     throw new ServiceUnavailableException({
@@ -409,6 +416,7 @@ if (await redisService.get('okoro:load_shed') === 'active') {
 ```
 
 Enable load shedding:
+
 ```bash
 redis-cli -u $REDIS_URL SET okoro:load_shed active EX 3600
 # Disable:
@@ -423,31 +431,31 @@ redis-cli -u $REDIS_URL DEL okoro:load_shed
 
 Target p99 < 200ms. Budget breakdown:
 
-| Component | Expected | Alarm |
-|-----------|---------|-------|
-| Network (Railway) | 10ms | > 30ms |
-| Agent DB lookup | 15ms | > 50ms |
-| Revocation cache (Redis) | 2ms | > 10ms |
-| Ed25519 verify | 0.5ms | > 5ms |
-| JTI replay (Redis) | 2ms | > 10ms |
-| Policy DB lookup | 10ms | > 40ms |
-| Spend (Redis INCRBY) | 2ms | > 10ms |
-| BATE compute | 1ms | > 10ms |
-| Audit write (DB) | 5ms | > 30ms |
-| Audit KMS sign | 20ms | > 100ms |
-| **Total budget** | **~68ms** | **> 200ms** |
+| Component                | Expected  | Alarm       |
+| ------------------------ | --------- | ----------- |
+| Network (Railway)        | 10ms      | > 30ms      |
+| Agent DB lookup          | 15ms      | > 50ms      |
+| Revocation cache (Redis) | 2ms       | > 10ms      |
+| Ed25519 verify           | 0.5ms     | > 5ms       |
+| JTI replay (Redis)       | 2ms       | > 10ms      |
+| Policy DB lookup         | 10ms      | > 40ms      |
+| Spend (Redis INCRBY)     | 2ms       | > 10ms      |
+| BATE compute             | 1ms       | > 10ms      |
+| Audit write (DB)         | 5ms       | > 30ms      |
+| Audit KMS sign           | 20ms      | > 100ms     |
+| **Total budget**         | **~68ms** | **> 200ms** |
 
 The 200ms p99 SLO has ~3x headroom at expected p99 (~68ms). This absorbs DB jitter and queue depth.
 
 ### 7.2 Throughput Limits
 
-| Bottleneck | Limit | Mitigation |
-|-----------|-------|-----------|
-| Single Railway replica | ~200 RPS | Add replicas |
-| PostgreSQL direct connections | 100 connections | PgBouncer |
-| Redis single node | ~100K ops/sec | Redis Cluster |
-| NestJS event loop | ~1000 concurrent requests | Cluster mode or more replicas |
-| Ed25519 verify | ~50K ops/sec per core | Pure CPU — never a bottleneck |
+| Bottleneck                    | Limit                     | Mitigation                    |
+| ----------------------------- | ------------------------- | ----------------------------- |
+| Single Railway replica        | ~200 RPS                  | Add replicas                  |
+| PostgreSQL direct connections | 100 connections           | PgBouncer                     |
+| Redis single node             | ~100K ops/sec             | Redis Cluster                 |
+| NestJS event loop             | ~1000 concurrent requests | Cluster mode or more replicas |
+| Ed25519 verify                | ~50K ops/sec per core     | Pure CPU — never a bottleneck |
 
 ### 7.3 Load Test Procedure
 
@@ -456,7 +464,7 @@ Run before every major scaling event:
 ```bash
 # Phase 1 baseline (run on staging, target production capacity)
 k6 run tests/load/verify.js \
-  -e BASE_URL=https://staging.api.okorolabs.io/v1 \
+  -e BASE_URL=https://staging.api.okoroapp.com/v1 \
   -e API_KEY=$STAGING_KEY \
   --out json=load-test-results.json
 
@@ -474,25 +482,25 @@ k6 run tests/load/verify.js \
 
 ### 8.1 Storage Growth
 
-| Table | Growth Rate | 100K verifies/day | 1M verifies/day |
-|-------|------------|-------------------|----------------|
-| AuditEvent | 1KB/event | 100MB/day → 3GB/month | 1GB/day → 30GB/month |
-| SpendRecord | 100B/event | 10MB/day | 100MB/day |
-| BateSignal | 50B/signal | 5MB/day | 50MB/day |
+| Table       | Growth Rate | 100K verifies/day     | 1M verifies/day      |
+| ----------- | ----------- | --------------------- | -------------------- |
+| AuditEvent  | 1KB/event   | 100MB/day → 3GB/month | 1GB/day → 30GB/month |
+| SpendRecord | 100B/event  | 10MB/day              | 100MB/day            |
+| BateSignal  | 50B/signal  | 5MB/day               | 50MB/day             |
 
 At 1M verifies/day, AuditEvent fills 30GB/month. Partition + archive plan is mandatory (see DATABASE_OPERATIONS.md §6.2).
 
 ### 8.2 Cost Projections
 
-| Scale | Railway API | Railway DB | Redis | Cloudflare | Total/month |
-|-------|------------|-----------|-------|-----------|-------------|
-| Phase 1 (500 RPS) | $20-50 | $20 | $10 | $5 | **~$75** |
-| Phase 2 (5K RPS) | $100-200 | $50 | $30 | $20 | **~$300** |
-| Phase 3 (50K RPS) | $100 (backstop only) | $200 | $100 | $200 | **~$600** |
+| Scale             | Railway API          | Railway DB | Redis | Cloudflare | Total/month |
+| ----------------- | -------------------- | ---------- | ----- | ---------- | ----------- |
+| Phase 1 (500 RPS) | $20-50               | $20        | $10   | $5         | **~$75**    |
+| Phase 2 (5K RPS)  | $100-200             | $50        | $30   | $20        | **~$300**   |
+| Phase 3 (50K RPS) | $100 (backstop only) | $200       | $100  | $200       | **~$600**   |
 
 Phase 3 Cloudflare Workers pricing: $0.50/million requests beyond free tier. At 50K RPS = 4.3B req/month → ~$2,150/month CF cost. Offset by massive Railway savings (edge absorbs 95% of traffic).
 
 ---
 
-*Scaling playbook version: 1.0 | OKORO Phase 1*  
-*Next review: when hitting 50% of Phase 1 capacity targets*
+_Scaling playbook version: 1.0 | OKORO Phase 1_  
+_Next review: when hitting 50% of Phase 1 capacity targets_

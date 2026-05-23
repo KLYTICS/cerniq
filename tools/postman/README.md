@@ -24,7 +24,7 @@ Walk-through** folder gives you a reproducible tour through every
 2. Top-right environment dropdown → select **OKORO Local**.
 3. Click the eye icon next to the dropdown → fill in:
    - `base_url` — e.g. `http://localhost:3000` for `pnpm dev`, or
-     `https://api.okorolabs.io` for production.
+     `https://api.okoroapp.com` for production.
    - `api_key` — your full-scope API key (`okoro_…`). Used everywhere
      except `/v1/verify`.
    - `verify_key` — your verify-only key (`okorov_…`). Used **only** by

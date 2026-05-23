@@ -125,27 +125,27 @@ with Okoro(api_key="okoro_sk_...") as okoro:
 
 ## Configuration
 
-| Argument        | Default                              | Notes                                                      |
-| --------------- | ------------------------------------ | ---------------------------------------------------------- |
-| `api_key`       | required for management calls        | Header `X-OKORO-API-Key`                                   |
-| `verify_key`    | required only for `verify()`         | Header `X-OKORO-Verify-Key`                                |
-| `base_url`      | `https://api.okorolabs.io/v1`        | Override for sandbox/self-hosted                           |
-| `timeout_ms`    | `5000`                               | Per-request timeout                                        |
-| `user_agent`    | `okoro-python/<version>`             | Sent on every request                                      |
-| `max_retries`   | `3`                                  | Exponential backoff (250ms, 500ms, 1000ms) on 5xx + connect errors |
+| Argument      | Default                       | Notes                                                              |
+| ------------- | ----------------------------- | ------------------------------------------------------------------ |
+| `api_key`     | required for management calls | Header `X-OKORO-API-Key`                                           |
+| `verify_key`  | required only for `verify()`  | Header `X-OKORO-Verify-Key`                                        |
+| `base_url`    | `https://api.okoroapp.com/v1` | Override for sandbox/self-hosted                                   |
+| `timeout_ms`  | `5000`                        | Per-request timeout                                                |
+| `user_agent`  | `okoro-python/<version>`      | Sent on every request                                              |
+| `max_retries` | `3`                           | Exponential backoff (250ms, 500ms, 1000ms) on 5xx + connect errors |
 
 ## Errors
 
 All HTTP failures raise a typed `OkoroError` subclass:
 
-| Status | Exception              |
-| ------ | ---------------------- |
-| 400    | `ValidationError`      |
-| 401    | `AuthError`            |
-| 403    | `AuthError`            |
-| 404    | `NotFoundError`        |
-| 429    | `RateLimitedError`     |
-| 5xx    | `ServerError`          |
+| Status | Exception          |
+| ------ | ------------------ |
+| 400    | `ValidationError`  |
+| 401    | `AuthError`        |
+| 403    | `AuthError`        |
+| 404    | `NotFoundError`    |
+| 429    | `RateLimitedError` |
+| 5xx    | `ServerError`      |
 
 `OkoroError` exposes `.status_code`, `.request_id`, `.code`, and `.details`.
 

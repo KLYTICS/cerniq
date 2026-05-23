@@ -6,7 +6,7 @@ last-reviewed: 2026-05-02
 
 # OKORO for security engineers — what's enforced and what isn't
 
-OKORO is a *cryptographic gate* for agent actions. It supplies what an
+OKORO is a _cryptographic gate_ for agent actions. It supplies what an
 identity / authorization / audit substrate should: per-agent identity
 rooted in Ed25519, scoped policy as signed JWT, append-only audit chain
 signed by OKORO, and a behavioral trust score that the relying party
@@ -21,8 +21,7 @@ sets thresholds against. Nothing else.
   scope, spend cap, domain allow-list, TTL. Revocation is immediate
   via Redis-backed revocation cache — a relying party verifying online
   sees revocation in <1s.
-- **Denial precedence is fixed.** The 9 reasons (CLAUDE.md invariant
-  6) are ordered so RPs always get the *most-restrictive* reason on
+- **Denial precedence is fixed.** The 9 reasons (CLAUDE.md invariant 6) are ordered so RPs always get the _most-restrictive_ reason on
   any request that fails multiple checks. Operators learn one ladder.
 - **Audit is append-only and signed.** Hash-chained, OKORO-signed,
   exportable as NDJSON for SOC2 / FINRA / COSSEC evidence. Tamper
@@ -89,7 +88,7 @@ Read in this order:
 ## Reporting a security issue
 
 - Public issues: do **not** open a GitHub issue. Email
-  security@okorolabs.io with PGP-encrypted details.
+  security@okoroapp.com with PGP-encrypted details.
 - The default response window is 72 hours. Coordinated disclosure
   follows the 90-day standard.
 

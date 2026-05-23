@@ -4,7 +4,7 @@
 > **Author:** session foundation-audit-q2 · 2026-05-01
 > **Companion:** `docs/audit_2026q2/landscape.md` § 3
 > **Decision sought:** Ship `@okoro/mcp-bridge` (Node + Python) as a
-> Phase 1 deliverable, *parallel* to (not blocking) M-001 SDK and the
+> Phase 1 deliverable, _parallel_ to (not blocking) M-001 SDK and the
 > Phase 1 MVP launch.
 >
 > **Sourcing note:** Live web access was unavailable in this session.
@@ -18,7 +18,7 @@
 
 Ship `@okoro/mcp-bridge` as a Phase 1 distribution wedge with a
 deliberately narrow scope (~1–2 engineer-weeks). The package is small,
-the upside is asymmetric, and the cost of *not* shipping it grows fast
+the upside is asymmetric, and the cost of _not_ shipping it grows fast
 through 2026.
 
 The rest of this document is the rationale.
@@ -29,29 +29,35 @@ The rest of this document is the rationale.
 
 A drop-in middleware/wrapper for any MCP server (HTTP-transport or
 stdio) that adds **OKORO agent identity verification** to every tool
-call, *in addition to* the MCP server's existing OAuth user
+call, _in addition to_ the MCP server's existing OAuth user
 authentication. It does not replace MCP auth; it composes with it.
 
 ### Wire shape (Node, illustrative)
 
 ```ts
 // Before (existing MCP server)
-import { McpServer } from "@modelcontextprotocol/sdk";
-const server = new McpServer({ /* ... */ });
+import { McpServer } from '@modelcontextprotocol/sdk';
+const server = new McpServer({
+  /* ... */
+});
 
 // After
-import { McpServer } from "@modelcontextprotocol/sdk";
-import { withOkoro } from "@okoro/mcp-bridge";
+import { McpServer } from '@modelcontextprotocol/sdk';
+import { withOkoro } from '@okoro/mcp-bridge';
 
 const server = withOkoro(
-  new McpServer({ /* ... */ }),
+  new McpServer({
+    /* ... */
+  }),
   {
     apiKey: process.env.OKORO_VERIFY_KEY,
     // Optional:
     minTrustScore: 600,
-    requireScope: "data-read",
-    onDeny: (reason, ctx) => { /* logging hook */ },
-  }
+    requireScope: 'data-read',
+    onDeny: (reason, ctx) => {
+      /* logging hook */
+    },
+  },
 );
 ```
 
@@ -62,7 +68,7 @@ The wrapper:
 2. Calls `POST /v1/verify` on OKORO using the verify-only key.
 3. Applies denial-precedence rules from `docs/SECURITY.md` § 6.
 4. On approval, attaches `okoro: { agentId, principalId, trustScore,
-   trustBand, scopesGranted }` to the per-call context, where tool
+trustBand, scopesGranted }` to the per-call context, where tool
    handlers can read it.
 5. Emits an OKORO audit event with the MCP `tool_name` as the action.
 
@@ -87,12 +93,12 @@ mcp.add_middleware(okoro_middleware(
 
 ## 2. Why this is the highest-leverage Phase 1 surface
 
-### 2a. The MCP ecosystem is the only surface where OKORO can be picked up *passively*
+### 2a. The MCP ecosystem is the only surface where OKORO can be picked up _passively_
 
 To adopt OKORO via the SDK (M-001), a developer must:
 
 1. Decide they want agent identity verification.
-2. Sign up at `okorolabs.io`.
+2. Sign up at `okoroapp.com`.
 3. Install `@okoro/sdk`.
 4. Modify outbound code to sign requests.
 5. Modify inbound (relying-party) code to verify.
@@ -106,8 +112,8 @@ To adopt OKORO via the MCP bridge:
 2. Every downstream agent automatically has its identity
    verified — the agent author does **nothing**.
 
-This converts OKORO from a *thing developers must opt in to* into a
-*thing the underlying server requires*. The 95% of agent developers
+This converts OKORO from a _thing developers must opt in to_ into a
+_thing the underlying server requires_. The 95% of agent developers
 who would never read the OKORO docs now interact with OKORO by virtue
 of using a popular MCP server.
 
@@ -121,8 +127,8 @@ count Q2 2026]
 Each MCP server is, structurally, a relying party — exactly the
 audience OKORO has been struggling to reach via direct enterprise
 sales (per `docs/spec/04_COMMERCIAL_STRATEGY.md` § F1, the chicken-
-and-egg problem). MCP server authors are the *low-cost relying-party
-funnel* the GTM doc has been looking for.
+and-egg problem). MCP server authors are the _low-cost relying-party
+funnel_ the GTM doc has been looking for.
 
 ### 2c. It compounds with everything else on the backlog
 
@@ -134,7 +140,7 @@ funnel* the GTM doc has been looking for.
   story.
 - **NIST trust framework (M-120):** "here is a working open-source
   bridge that implements per-agent identity, least privilege, and
-  audit" is the *demonstration* a NIST IR draft will look for.
+  audit" is the _demonstration_ a NIST IR draft will look for.
 
 ### 2d. The cost is bounded
 
@@ -151,7 +157,7 @@ Total: **≤ 2 engineer-weeks**, parallelisable across two sessions.
 
 ---
 
-## 3. Why this is *not* a trap
+## 3. Why this is _not_ a trap
 
 A reasonable objection: "MCP is one ecosystem; chasing it ties OKORO
 to MCP." Three reasons that's wrong.
@@ -162,8 +168,8 @@ to MCP." Three reasons that's wrong.
    coupling, only marketing coupling.
 2. **The bridge is a demonstration, not a dependency.** OKORO's
    neutrality story explicitly lists "MCP / non-MCP / custom" as the
-   point. Shipping a *bridge* (one of N integrations) reinforces
-   neutrality; shipping an *MCP-native OKORO* would weaken it.
+   point. Shipping a _bridge_ (one of N integrations) reinforces
+   neutrality; shipping an _MCP-native OKORO_ would weaken it.
 3. **Every alternative wedge is heavier.** The realistic alternatives
    are:
    - LangChain / CrewAI / AutoGen integration (these change every 6
@@ -173,7 +179,7 @@ to MCP." Three reasons that's wrong.
      active-sale, see § 2a).
 
    The MCP bridge is the lowest-cost, highest-leverage option of the
-   four. Ship it *in addition to* the SDK, not instead of.
+   four. Ship it _in addition to_ the SDK, not instead of.
 
 ---
 
@@ -182,7 +188,7 @@ to MCP." Three reasons that's wrong.
 It does not. MCP auth covers **the user's authorisation to call the
 tool** via OAuth 2.1. It does not cover:
 
-- *Which agent* is acting on behalf of that user.
+- _Which agent_ is acting on behalf of that user.
 - Whether the agent has been seen behaving anomalously elsewhere.
 - Whether the agent's policy permits this specific dollar amount /
   domain / data scope.
@@ -190,11 +196,12 @@ tool** via OAuth 2.1. It does not cover:
   identity for non-repudiation.
 
 These are OKORO's primitives. They compose cleanly with MCP auth —
-OKORO sits *above* the OAuth layer, not inside it.
+OKORO sits _above_ the OAuth layer, not inside it.
 
 ---
 
 ## 5. Counter-argument considered: "We should wait for MCP auth to
+
 stabilise"
 
 The MCP authorisation spec was finalised in March 2025 and updated for
@@ -222,7 +229,7 @@ months. Waiting longer trades certainty for missed adoption.
 ### Explicitly out of scope (v0.1)
 
 - Stdio MCP transport (HTTP first; stdio is a v0.2).
-- Any agent-runtime SDK changes (the bridge sits on the *server* side).
+- Any agent-runtime SDK changes (the bridge sits on the _server_ side).
 - DPoP enforcement (M-141 ships first; bridge picks it up free).
 - Commerce-specific scope (this is an MCP server bridge, not an ACP
   bridge — keep it boring).
@@ -250,5 +257,5 @@ distribution wedge to the LangChain integration path described in
 
 ---
 
-*End of standards-positioning brief 0001. Next standards brief expected
-on `did:web` issuer document and JWKS layout.*
+_End of standards-positioning brief 0001. Next standards brief expected
+on `did:web` issuer document and JWKS layout._

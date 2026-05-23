@@ -10,7 +10,7 @@
  *   k6 run apps/api/test/load/verify.k6.js
  *
  *   # Staging
- *   OKORO_BASE_URL=https://api.staging.okorolabs.io \
+ *   OKORO_BASE_URL=https://api.staging.okoroapp.com \
  *     OKORO_VERIFY_KEY=$STAGING_VERIFY_KEY \
  *     OKORO_FIXTURE_TOKEN=$STAGING_FIXTURE_TOKEN \
  *     k6 run apps/api/test/load/verify.k6.js
@@ -64,18 +64,18 @@ export const options = {
       preAllocatedVUs: 100,
       maxVUs: 400,
       stages: [
-        { duration: '30s', target: 50 },   // ramp to nominal
-        { duration: '60s', target: 50 },   // hold nominal
-        { duration: '30s', target: 200 },  // ramp to peak
-        { duration: '60s', target: 200 },  // hold peak
-        { duration: '30s', target: 0 },    // drain
+        { duration: '30s', target: 50 }, // ramp to nominal
+        { duration: '60s', target: 50 }, // hold nominal
+        { duration: '30s', target: 200 }, // ramp to peak
+        { duration: '60s', target: 200 }, // hold peak
+        { duration: '30s', target: 0 }, // drain
       ],
     },
   },
   thresholds: {
     [`http_req_duration{endpoint:verify}`]: [`p(99)<${P99_BUDGET_MS}`],
-    http_req_failed: ['rate<0.001'],                              // < 0.1%
-    okoro_verify_denial_rate: ['rate<0.001'],                      // ditto
+    http_req_failed: ['rate<0.001'], // < 0.1%
+    okoro_verify_denial_rate: ['rate<0.001'], // ditto
   },
   noConnectionReuse: false,
   discardResponseBodies: false,
@@ -123,7 +123,9 @@ export default function () {
       verifyDenialRate.add(true);
       // Denial in a steady-state load test is unexpected (we use a fixture
       // token). Record the reason as a tag so the report shows what went wrong.
-      verifyServerLatency.add(res.timings.duration, { denial_reason: body.denialReason || 'unknown' });
+      verifyServerLatency.add(res.timings.duration, {
+        denial_reason: body.denialReason || 'unknown',
+      });
     }
   }
 

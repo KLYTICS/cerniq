@@ -19,13 +19,13 @@ audience: OKORO contributors + sister-project operators (FORGE, CerniQ, Apex, Bi
 
 The operator runs five concurrent production-grade systems:
 
-| System  | Domain                                              | Agent surface                               |
-|---------|------------------------------------------------------|----------------------------------------------|
-| FORGE   | Manufacturing execution (CMMS, scheduling, SPC)     | Operator copilot, AI rail, CAPA agents       |
-| CerniQ  | ALM for Puerto Rico cooperativas (40+ quant models) | Close cockpit, AI analyst (pending)          |
-| Apex    | KLytics APEX FX command center                      | Reconcile workflow, paper-trade runway       |
-| Bimba   | Space mission intelligence OS                       | Mission analyst agents (Phase 1 baseline)    |
-| OKORO   | Neutral identity / policy / audit for AI agents     | (substrate — has no first-party agents)      |
+| System | Domain                                              | Agent surface                             |
+| ------ | --------------------------------------------------- | ----------------------------------------- |
+| FORGE  | Manufacturing execution (CMMS, scheduling, SPC)     | Operator copilot, AI rail, CAPA agents    |
+| CerniQ | ALM for Puerto Rico cooperativas (40+ quant models) | Close cockpit, AI analyst (pending)       |
+| Apex   | KLytics APEX FX command center                      | Reconcile workflow, paper-trade runway    |
+| Bimba  | Space mission intelligence OS                       | Mission analyst agents (Phase 1 baseline) |
+| OKORO  | Neutral identity / policy / audit for AI agents     | (substrate — has no first-party agents)   |
 
 Each system today **invents its own** answer to:
 
@@ -70,8 +70,8 @@ cross-cutting payment substrate for early SaaS.
   passing the agent's public key. The agent generates the private key
   client-side and never shares it.
 - Per-decision verify call wrapping each consequential action — the
-  RP's existing authorization layer is *not* replaced; OKORO sits
-  *underneath* it as a final cryptographic gate.
+  RP's existing authorization layer is _not_ replaced; OKORO sits
+  _underneath_ it as a final cryptographic gate.
 
 ### 2.3 Recommended consumption pattern
 
@@ -119,8 +119,8 @@ Phase 1 (shadow) are non-disruptive; Phase 2 (enforce) is the cutover.
   log delta to a side table. No UX change. Validates that OKORO denials
   match the operator's policy intent before enforcing.
 - **Phase 2 (enforce)**: OKORO verify is the gate. RBAC remains
-  upstream (role-based access to the *function*); OKORO gates *agent
-  authorization* within the function.
+  upstream (role-based access to the _function_); OKORO gates _agent
+  authorization_ within the function.
 - **Risk**: FORGE has 1 088 tests (Bible matrix). Shadow phase must
   not regress any. Plan a `--filter okoro-shadow` test ring.
 
@@ -129,7 +129,7 @@ Phase 1 (shadow) are non-disruptive; Phase 2 (enforce) is the cutover.
 - **Agent surfaces**: agent layer (12 contracts, 4 core agents — see
   `project_cerniq_agent_layer.md`), terminal & swarm CLI dispatch
   (`scripts/swarm/`), pending AI analyst.
-- **Phase 0**: OKORO becomes the *trust gate* for the agent layer's
+- **Phase 0**: OKORO becomes the _trust gate_ for the agent layer's
   per-tenant HTTP surface (`project_cerniq_agent_api.md`). The
   cost-breaker pattern stays CerniQ-side; OKORO handles identity +
   policy + audit upstream.
@@ -189,7 +189,7 @@ future ADR — for now, the slice-and-verify protocol is documented in
 
 ### 4.3 Cross-project denial taxonomy
 
-The 9 OKORO denial reasons (CLAUDE.md invariant 6) are *neutral* —
+The 9 OKORO denial reasons (CLAUDE.md invariant 6) are _neutral_ —
 they do not encode FORGE / CerniQ / Apex / Bimba domain semantics.
 Each project translates OKORO denials into its own user-facing
 language. Translation tables live per-project in
@@ -208,17 +208,17 @@ inside its own Principal.
 Each project copies this template to its own repo at
 `docs/okoro-denial-mapping.md`:
 
-| OKORO denialReason       | RP user message (English)                          | RP user message (Spanish, where applicable)         | RP UX surface           |
-|--------------------------|----------------------------------------------------|------------------------------------------------------|--------------------------|
-| `AGENT_NOT_FOUND`        | "Agent identity not recognized."                   | "Identidad de agente no reconocida."                 | Toast + audit row        |
-| `AGENT_REVOKED`          | "This agent's access has been revoked."            | "El acceso de este agente ha sido revocado."         | Modal + force re-auth    |
-| `INVALID_SIGNATURE`      | "The request signature could not be verified."     | "La firma de la solicitud no pudo ser verificada."   | Toast + retry-once       |
-| `POLICY_REVOKED`         | "The policy authorizing this action was revoked."  | "La política que autorizaba esta acción fue revocada." | Modal + admin alert    |
-| `POLICY_EXPIRED`         | "The authorizing policy has expired."              | "La política que autoriza ha expirado."              | Modal + reissue prompt   |
-| `SCOPE_NOT_GRANTED`      | "This agent isn't authorized for this action."     | "Este agente no está autorizado para esta acción."   | Inline + admin alert     |
-| `SPEND_LIMIT_EXCEEDED`   | "This action would exceed the spend limit."        | "Esta acción excedería el límite de gasto."          | Modal + budget review    |
-| `TRUST_SCORE_TOO_LOW`    | "Action blocked: agent trust score below threshold." | "Acción bloqueada: puntuación de confianza demasiado baja." | Modal + manual override |
-| `ANOMALY_FLAGGED`        | "Action paused for review (unusual activity)."     | "Acción pausada para revisión (actividad inusual)."  | Modal + ops queue        |
+| OKORO denialReason     | RP user message (English)                            | RP user message (Spanish, where applicable)                 | RP UX surface           |
+| ---------------------- | ---------------------------------------------------- | ----------------------------------------------------------- | ----------------------- |
+| `AGENT_NOT_FOUND`      | "Agent identity not recognized."                     | "Identidad de agente no reconocida."                        | Toast + audit row       |
+| `AGENT_REVOKED`        | "This agent's access has been revoked."              | "El acceso de este agente ha sido revocado."                | Modal + force re-auth   |
+| `INVALID_SIGNATURE`    | "The request signature could not be verified."       | "La firma de la solicitud no pudo ser verificada."          | Toast + retry-once      |
+| `POLICY_REVOKED`       | "The policy authorizing this action was revoked."    | "La política que autorizaba esta acción fue revocada."      | Modal + admin alert     |
+| `POLICY_EXPIRED`       | "The authorizing policy has expired."                | "La política que autoriza ha expirado."                     | Modal + reissue prompt  |
+| `SCOPE_NOT_GRANTED`    | "This agent isn't authorized for this action."       | "Este agente no está autorizado para esta acción."          | Inline + admin alert    |
+| `SPEND_LIMIT_EXCEEDED` | "This action would exceed the spend limit."          | "Esta acción excedería el límite de gasto."                 | Modal + budget review   |
+| `TRUST_SCORE_TOO_LOW`  | "Action blocked: agent trust score below threshold." | "Acción bloqueada: puntuación de confianza demasiado baja." | Modal + manual override |
+| `ANOMALY_FLAGGED`      | "Action paused for review (unusual activity)."       | "Acción pausada para revisión (actividad inusual)."         | Modal + ops queue       |
 
 Severity ordering is **fixed** (CLAUDE.md invariant 6). Translation is
 RP-local; do not re-prioritize.
@@ -227,20 +227,20 @@ RP-local; do not re-prioritize.
 
 Per `OPERATOR_DECISIONS.md`:
 
-| OD     | Why it blocks adoption                                       |
-|--------|---------------------------------------------------------------|
-| OD-001 | BATE weights — until locked, `TRUST_SCORE_TOO_LOW` thresholds are interim |
+| OD     | Why it blocks adoption                                                                    |
+| ------ | ----------------------------------------------------------------------------------------- |
+| OD-001 | BATE weights — until locked, `TRUST_SCORE_TOO_LOW` thresholds are interim                 |
 | OD-002 | Cold-start policy — affects every newly registered agent at FORGE / CerniQ / Apex / Bimba |
-| OD-003 | Pricing tiers — affects whether each sister project is on Free / Developer / Growth |
-| OD-004 | Audit retention horizon — affects per-project SOC2 evidence offer |
-| OD-005 | Webhook DLQ depth — affects per-project event-loss SLOs |
-| OD-006 | Verify rate limit — affects per-project capacity planning |
+| OD-003 | Pricing tiers — affects whether each sister project is on Free / Developer / Growth       |
+| OD-004 | Audit retention horizon — affects per-project SOC2 evidence offer                         |
+| OD-005 | Webhook DLQ depth — affects per-project event-loss SLOs                                   |
+| OD-006 | Verify rate limit — affects per-project capacity planning                                 |
 
 A new entry **OD-007** is proposed:
 
 > **OD-007 — Status page hosting choice.** Statuspage / self-hosted /
 > Cloudflare Status API. Default: self-hosted on the dashboard
-> (`status.okorolabs.io` reads `incidents.{open,history}.json` published
+> (`status.okoroapp.com` reads `incidents.{open,history}.json` published
 > from management API). Due: before Phase 1 GA.
 
 ## 7. Roll-out order
@@ -271,17 +271,17 @@ shadow period per project before flipping the gate.
 
 ## 9. Cross-references
 
-| Topic                    | Source                                                       |
-|--------------------------|--------------------------------------------------------------|
-| Architecture             | `docs/ARCHITECTURE.md`                                       |
-| Capacity plan (per-RP capacity bumps) | `docs/CAPACITY_PLAN.md` §14                       |
-| Failure modes (per-component FMEA)    | `docs/FAILURE_MODES.md`                            |
-| Retention policy (per-RP DSAR + audit retention) | `docs/RETENTION_POLICY.md`              |
-| Threat model             | `docs/THREAT_MODEL_v2.md`                                    |
-| Identity contract        | `docs/spec/OKORO_API_SPEC.yaml` § Identity                   |
-| Policy contract          | `docs/spec/OKORO_API_SPEC.yaml` § Policy                     |
-| Verify contract          | `docs/spec/OKORO_API_SPEC.yaml` § Verify                     |
-| BATE algorithm           | `docs/BATE_ALGORITHM.md`                                     |
-| MCP control plane        | `docs/decisions/0008-mcp-as-control-plane.md`                |
-| Auth0 bridge             | `docs/decisions/0009-auth0-bridge.md`                        |
-| Operator decisions       | `OPERATOR_DECISIONS.md`                                      |
+| Topic                                            | Source                                        |
+| ------------------------------------------------ | --------------------------------------------- |
+| Architecture                                     | `docs/ARCHITECTURE.md`                        |
+| Capacity plan (per-RP capacity bumps)            | `docs/CAPACITY_PLAN.md` §14                   |
+| Failure modes (per-component FMEA)               | `docs/FAILURE_MODES.md`                       |
+| Retention policy (per-RP DSAR + audit retention) | `docs/RETENTION_POLICY.md`                    |
+| Threat model                                     | `docs/THREAT_MODEL_v2.md`                     |
+| Identity contract                                | `docs/spec/OKORO_API_SPEC.yaml` § Identity    |
+| Policy contract                                  | `docs/spec/OKORO_API_SPEC.yaml` § Policy      |
+| Verify contract                                  | `docs/spec/OKORO_API_SPEC.yaml` § Verify      |
+| BATE algorithm                                   | `docs/BATE_ALGORITHM.md`                      |
+| MCP control plane                                | `docs/decisions/0008-mcp-as-control-plane.md` |
+| Auth0 bridge                                     | `docs/decisions/0009-auth0-bridge.md`         |
+| Operator decisions                               | `OPERATOR_DECISIONS.md`                       |

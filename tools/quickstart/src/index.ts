@@ -16,7 +16,7 @@
 //     src/walk-denials.ts for that.
 //
 // Required env:
-//   OKORO_API_BASE     base URL (e.g. https://api.okorolabs.io)
+//   OKORO_API_BASE     base URL (e.g. https://api.okoroapp.com)
 //   OKORO_API_KEY      management key (okoro_sk_…) for the registration
 //
 // Optional:
@@ -27,7 +27,7 @@
 
 import { Okoro, generateKeypair, signAgentToken } from '@okoro/sdk';
 
-const API_BASE = process.env.OKORO_API_BASE ?? 'https://api.okorolabs.io';
+const API_BASE = process.env.OKORO_API_BASE ?? 'https://api.okoroapp.com';
 const API_KEY = requireEnv('OKORO_API_KEY');
 const VERIFY_KEY = process.env.OKORO_VERIFY_KEY ?? API_KEY;
 
@@ -35,7 +35,9 @@ async function main(): Promise<number> {
   step('1', 'Generate Ed25519 keypair (client-side; private never sent)');
   const kp = await generateKeypair();
   process.stderr.write(`     publicKey  ${kp.publicKey}\n`);
-  process.stderr.write(`     privateKey ${kp.privateKey.slice(0, 16)}…  (truncated; never persisted)\n`);
+  process.stderr.write(
+    `     privateKey ${kp.privateKey.slice(0, 16)}…  (truncated; never persisted)\n`,
+  );
 
   step('2', 'Register the agent with OKORO — public key only');
   const okoroMgmt = new Okoro({ baseUrl: API_BASE, apiKey: API_KEY });
@@ -118,8 +120,12 @@ function requireEnv(name: string): string {
     process.stderr.write('\n');
     process.stderr.write('Quick setup:\n');
     process.stderr.write('  1. Boot OKORO locally: cd /path/to/okoro && pnpm db:up && pnpm dev\n');
-    process.stderr.write('  2. Mint an API key (see docs/RUNBOOK.md § "Issuing the first API key")\n');
-    process.stderr.write('  3. OKORO_API_BASE=http://localhost:4000 OKORO_API_KEY=okoro_sk_… pnpm start\n');
+    process.stderr.write(
+      '  2. Mint an API key (see docs/RUNBOOK.md § "Issuing the first API key")\n',
+    );
+    process.stderr.write(
+      '  3. OKORO_API_BASE=http://localhost:4000 OKORO_API_KEY=okoro_sk_… pnpm start\n',
+    );
     process.exit(2);
   }
   return v;
@@ -128,6 +134,8 @@ function requireEnv(name: string): string {
 main()
   .then((code) => process.exit(code))
   .catch((err: unknown) => {
-    process.stderr.write(`quickstart: fatal — ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
+    process.stderr.write(
+      `quickstart: fatal — ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`,
+    );
     process.exit(1);
   });

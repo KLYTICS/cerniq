@@ -28,24 +28,24 @@ This document is the synthesis of:
 
 ### 1.1 Engineering posture
 
-| Surface | State | Reference |
-|---|---|---|
-| Phase 1 GA gates G-1…G-4 | **All closed** | `docs/OKORO_MASTER_STATE_2026_05.md` PART I table |
-| `/v1/verify` hot path (10-step gate ladder) | Live, pure algorithm portable to CF Workers | `apps/api/src/modules/verify/algorithm/verify.algorithm.ts` |
-| Stripe checkout + webhook + planTier flip | **Live, tested e2e** | `apps/api/src/modules/billing/stripe.service.ts` |
-| Stripe metered overage (`recordOverage`) | Wired non-blocking from `usage-guard.service` | Round 21 Lane B, `SESSION_HANDOFF.md` |
-| Pricing tier (ADR-0014) | $49 / $299 / $1,499 + $0.0008 overage; FREE = 10K lifetime cap | `apps/api/src/modules/billing/plans.ts` |
-| Trial cap → `TRIAL_EXHAUSTED` denial | Live, in denial-precedence chain | `verify.algorithm.ts`, `trial.service.ts` |
-| Public pricing page → AutoCheckout intent | One-click from /pricing to Stripe Checkout | `apps/dashboard/app/billing/page.tsx` (Round 21 Phase 1) |
-| Auth-funnel returnTo preservation | Open-redirect-hardened | `apps/dashboard/lib/safe-redirect.ts` (Round 22) |
-| `/.well-known/pricing.json` public mirror | Live + dashboard SSR-fetches with build-fallback | Round 23, `wellknown.controller.ts` |
-| `/.well-known/audit-signing-key` (G-1) | Live, JWKS, ETag-cached | `apps/api/src/modules/wellknown/` |
-| Append-only audit chain (Ed25519 + RFC8785) | Live, GDPR-survivable, externally verifiable | `apps/api/src/modules/audit/`, `packages/audit-verifier` |
-| BATE engine (5 anomaly rules + 4 bands) | Live; weights = OD-001 default until operator confirms | `apps/api/src/modules/bate/` |
-| Webhooks (signed delivery, BullMQ retries) | Live | `apps/api/src/modules/webhooks/` |
-| API-key auth bcrypt-12 hot-path | **Fixed** by peer `bba1b6c1` 2026-05-06 (Redis cache) | `apps/api/src/modules/auth/api-keys.service.ts` |
-| Cross-package parity tests | **76/76 across 9 files** | Round 23 |
-| TypeScript zero-error rounds | **9 consecutive** in `apps/api`; dashboard at 0 | Round 23 |
+| Surface                                     | State                                                          | Reference                                                   |
+| ------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------- |
+| Phase 1 GA gates G-1…G-4                    | **All closed**                                                 | `docs/OKORO_MASTER_STATE_2026_05.md` PART I table           |
+| `/v1/verify` hot path (10-step gate ladder) | Live, pure algorithm portable to CF Workers                    | `apps/api/src/modules/verify/algorithm/verify.algorithm.ts` |
+| Stripe checkout + webhook + planTier flip   | **Live, tested e2e**                                           | `apps/api/src/modules/billing/stripe.service.ts`            |
+| Stripe metered overage (`recordOverage`)    | Wired non-blocking from `usage-guard.service`                  | Round 21 Lane B, `SESSION_HANDOFF.md`                       |
+| Pricing tier (ADR-0014)                     | $49 / $299 / $1,499 + $0.0008 overage; FREE = 10K lifetime cap | `apps/api/src/modules/billing/plans.ts`                     |
+| Trial cap → `TRIAL_EXHAUSTED` denial        | Live, in denial-precedence chain                               | `verify.algorithm.ts`, `trial.service.ts`                   |
+| Public pricing page → AutoCheckout intent   | One-click from /pricing to Stripe Checkout                     | `apps/dashboard/app/billing/page.tsx` (Round 21 Phase 1)    |
+| Auth-funnel returnTo preservation           | Open-redirect-hardened                                         | `apps/dashboard/lib/safe-redirect.ts` (Round 22)            |
+| `/.well-known/pricing.json` public mirror   | Live + dashboard SSR-fetches with build-fallback               | Round 23, `wellknown.controller.ts`                         |
+| `/.well-known/audit-signing-key` (G-1)      | Live, JWKS, ETag-cached                                        | `apps/api/src/modules/wellknown/`                           |
+| Append-only audit chain (Ed25519 + RFC8785) | Live, GDPR-survivable, externally verifiable                   | `apps/api/src/modules/audit/`, `packages/audit-verifier`    |
+| BATE engine (5 anomaly rules + 4 bands)     | Live; weights = OD-001 default until operator confirms         | `apps/api/src/modules/bate/`                                |
+| Webhooks (signed delivery, BullMQ retries)  | Live                                                           | `apps/api/src/modules/webhooks/`                            |
+| API-key auth bcrypt-12 hot-path             | **Fixed** by peer `bba1b6c1` 2026-05-06 (Redis cache)          | `apps/api/src/modules/auth/api-keys.service.ts`             |
+| Cross-package parity tests                  | **76/76 across 9 files**                                       | Round 23                                                    |
+| TypeScript zero-error rounds                | **9 consecutive** in `apps/api`; dashboard at 0                | Round 23                                                    |
 
 ### 1.2 What's NOT yet done that matters
 
@@ -58,7 +58,7 @@ require new architecture:
    - `prisma migrate deploy` for `20260506000000_add_stripe_overage_item` (additive nullable; safe). 5 min.
    - Set `OKORO_API_BASE_URL` in dashboard production + preview env vars so `/pricing` reads `data-source="api"` instead of build-time fallback. 5 min.
    - Set `OKORO_DASHBOARD_API_KEY` + `OKORO_DASHBOARD_PRINCIPAL_ID`. 5 min.
-   - Confirm `sales@okorolabs.io` MX exists for the ENTERPRISE CTA. 10 min in DNS.
+   - Confirm `sales@okoroapp.com` MX exists for the ENTERPRISE CTA. 10 min in DNS.
    - `OKORO_API_KEY_BCRYPT_COST=12` in production (`docs/PRODUCTION_CHECKLIST.md`). Already documented.
 
 2. **Stripe metered price configuration decision** (operator)
@@ -85,14 +85,14 @@ require new architecture:
 
 `docs/finance/OKORO_Financial_Model_v1.xlsx` Trial_Economics:
 
-| Quantity | Value |
-|---|---|
-| Fully-loaded cost per trial | $1.26 |
-| Blended ARPU month-1 | $184 |
-| Blended LTV (PV-discounted) | $3,686 |
-| LTV-based break-even conversion | **0.026%** |
-| Modeled conversion (steady state) | 18% |
-| Headroom vs LTV break-even | ~700× |
+| Quantity                          | Value      |
+| --------------------------------- | ---------- |
+| Fully-loaded cost per trial       | $1.26      |
+| Blended ARPU month-1              | $184       |
+| Blended LTV (PV-discounted)       | $3,686     |
+| LTV-based break-even conversion   | **0.026%** |
+| Modeled conversion (steady state) | 18%        |
+| Headroom vs LTV break-even        | ~700×      |
 
 **Implication.** The constraint is not unit economics. It is reputation,
 abuse, and bandwidth — that is, surface area exposed to qualified prospects
@@ -109,7 +109,7 @@ revenue loop works. If any step fails, that step is the next ticket.
 # 1. Deploy: API to Railway, dashboard to Vercel.
 # 2. Set Stripe to test mode. Use test card 4242 4242 4242 4242.
 
-export OKORO_API_BASE=https://api-staging.okorolabs.io
+export OKORO_API_BASE=https://api-staging.okoroapp.com
 export OKORO_API_KEY=okoro_sk_test_<your_test_principal_full_scope>
 
 # Step 1 — register an Ed25519 agent (proves identity surface)
@@ -151,10 +151,10 @@ pnpm --filter @okoro/e2e test --testPathPattern='19_customer_journey'
 #   T8: verify DENIES TRIAL_EXHAUSTED again (lifetime cap is permanent — anti-abuse)
 
 # Step 5 — read the public audit-signing key and independently verify a sig
-curl https://api-staging.okorolabs.io/.well-known/audit-signing-key
+curl https://api-staging.okoroapp.com/.well-known/audit-signing-key
 # pipe the latest audit event through packages/audit-verifier
 pnpm --filter @okoro/audit-verifier exec verify-chain \
-  --jwks-url https://api-staging.okorolabs.io/.well-known/audit-signing-key \
+  --jwks-url https://api-staging.okoroapp.com/.well-known/audit-signing-key \
   --events ./events.ndjson
 # expect: "chain valid; n events verified"
 
@@ -162,6 +162,7 @@ kill $SERVER
 ```
 
 This sequence proves, without slides:
+
 - **Identity** works (Ed25519, no key transmission).
 - **Policy** works (signed JWT with scope + spend cap).
 - **Verify** works (the hot path under realistic load).
@@ -169,7 +170,7 @@ This sequence proves, without slides:
 - **Audit** is independently verifiable (any third party can check the chain).
 
 The artifact every design partner gets after the call is a Loom of you running
-this smoke test against `api.okorolabs.io` plus the response payloads in JSON.
+this smoke test against `api.okoroapp.com` plus the response payloads in JSON.
 
 ---
 
@@ -183,7 +184,7 @@ parallel with engineering sessions running on `WORK_BOARD.md`.
 **Operator actions (you, Erwin):**
 
 - [ ] **Stripe live mode setup.** In Stripe dashboard, create products: `OKORO Developer`, `OKORO Team`, `OKORO Scale`, plus a metered usage product `OKORO Verify Overage` priced at $0.80 / 1,000 verifies (recommendation in §1.2.2 above). Copy the price IDs into Railway env.
-- [ ] **DNS.** `api.okorolabs.io` → Railway. `dashboard.okorolabs.io` (or `app.okorolabs.io`) → Vercel. `okorolabs.io` → marketing site. `sales@okorolabs.io` MX → your inbox of choice.
+- [ ] **DNS.** `api.okoroapp.com` → Railway. `dashboard.okoroapp.com` (or `app.okoroapp.com`) → Vercel. `okoroapp.com` → marketing site. `sales@okoroapp.com` MX → your inbox of choice.
 - [ ] **Apply migration:** `cd apps/api && pnpm prisma migrate deploy` against Railway DATABASE_URL.
 - [ ] **Webhook secret rotation:** generate `OKORO_WEBHOOK_SECRET_DEK_B64` (32 random bytes, base64), set in production.
 - [ ] **Smoke test from §2 against staging.** Record a Loom of it. This is your design-partner pitch artifact.
@@ -199,13 +200,13 @@ parallel with engineering sessions running on `WORK_BOARD.md`.
 **The list.** From `docs/OKORO_MASTER_STATE_2026_05.md` PART III.5 (the ACP
 compatibility vector) plus the wedge logic in `docs/WEDGE_PROOF.md`:
 
-| Persona | Fit | Where to find them | Pitch |
-|---|---|---|---|
-| **MCP server authors handling sensitive APIs** | Highest fit. Three lines of code, instant trust score. | `awesome-mcp-servers` GitHub list (top 30); MCP Discord; Anthropic dev forum | "You wrap a sensitive API in MCP. Your tool callers carry no identity. OKORO gives you Ed25519-signed agent identity in 3 lines: `wrap(server, { okoro })`." |
-| **AI fintech / agent-payments startups** | Stripe ACP merchants. Identity is the gap ACP explicitly leaves open. | Stripe Sessions 2025 ACP launch attendees; Y Combinator Spring/Summer 2026 batches; OpenAI fintech partner page | "ACP solves the payment leg. OKORO is the trust layer that says whether to accept the request before you charge. One verify call." |
-| **LangChain / CrewAI / AutoGen heavy users** | Python SDK shipping; LangChain integration guide already written | LangChain Discord, CrewAI Slack, AutoGen forum | "Your agents don't have identity that survives a session restart. OKORO gives them a portable cryptographic identity + scoped policies you can revoke." |
-| **Compliance-driven AI teams (FSI, healthcare, legaltech)** | Audit chain + JWKS verifier + GDPR-survivable design = SOC2 evidence | LinkedIn search "AI compliance", "agentic AI" + (CISO OR "head of security") | "Your auditor will eventually ask 'how do you know this LLM made that decision under what authority?' OKORO is the answer with cryptographic proof." |
-| **MCP server hosting platforms (Cloudflare AI Gateway, similar)** | Integration partner > customer; one win = many downstream customers | Direct outbound | "Bundle OKORO as an opt-in trust layer for your hosted MCP servers. Your customers want it; you don't have to build it." |
+| Persona                                                           | Fit                                                                   | Where to find them                                                                                              | Pitch                                                                                                                                                        |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **MCP server authors handling sensitive APIs**                    | Highest fit. Three lines of code, instant trust score.                | `awesome-mcp-servers` GitHub list (top 30); MCP Discord; Anthropic dev forum                                    | "You wrap a sensitive API in MCP. Your tool callers carry no identity. OKORO gives you Ed25519-signed agent identity in 3 lines: `wrap(server, { okoro })`." |
+| **AI fintech / agent-payments startups**                          | Stripe ACP merchants. Identity is the gap ACP explicitly leaves open. | Stripe Sessions 2025 ACP launch attendees; Y Combinator Spring/Summer 2026 batches; OpenAI fintech partner page | "ACP solves the payment leg. OKORO is the trust layer that says whether to accept the request before you charge. One verify call."                           |
+| **LangChain / CrewAI / AutoGen heavy users**                      | Python SDK shipping; LangChain integration guide already written      | LangChain Discord, CrewAI Slack, AutoGen forum                                                                  | "Your agents don't have identity that survives a session restart. OKORO gives them a portable cryptographic identity + scoped policies you can revoke."      |
+| **Compliance-driven AI teams (FSI, healthcare, legaltech)**       | Audit chain + JWKS verifier + GDPR-survivable design = SOC2 evidence  | LinkedIn search "AI compliance", "agentic AI" + (CISO OR "head of security")                                    | "Your auditor will eventually ask 'how do you know this LLM made that decision under what authority?' OKORO is the answer with cryptographic proof."         |
+| **MCP server hosting platforms (Cloudflare AI Gateway, similar)** | Integration partner > customer; one win = many downstream customers   | Direct outbound                                                                                                 | "Bundle OKORO as an opt-in trust layer for your hosted MCP servers. Your customers want it; you don't have to build it."                                     |
 
 **Outreach mechanics (from `docs/BETA_ONBOARDING_RUNBOOK.md` §3.1):**
 
@@ -242,17 +243,17 @@ For each of the 5 partners:
 From `OPERATOR_DECISIONS.md`, decisions whose silence-default ships
 automatically but where an explicit operator nod accelerates Day-1 deploy:
 
-| ID | Recommendation | Reason now matters |
-|---|---|---|
-| OD-001 BATE weights | Accept the OD-001 default verbatim and lock in `bate.weights.ts` | Cold-start signals from design partners need a defensible score the moment they verify |
-| OD-002 Cold-start trust | Accept default: start at 500, +150 KYC bonus | Avoids first design partner's agent reading 0 / 1000 |
-| OD-004 Audit retention | 7 years (default) — confirm in production env | Required for SOC2 readiness collateral when the first compliance-driven partner asks |
-| OD-005 Webhook DLQ attempts | Accept default 8 attempts (Stripe parity) | Webhooks fire on every band crossing — bad delivery loops eat Redis |
-| OD-006 FREE rate limit | Accept default 10 rps + 20 burst | Already encoded as `verifyRateLimit` in `plans.ts` |
-| OD-007 Status page | Self-hosted at `status.okorolabs.io` with `incidents.{open,history}.json` (default) | First incident before this is wired = no story for partners |
-| OD-009 / OD-010 CLI | Device-code OAuth, Go binary (defaults) | The CLI is referenced in every quickstart; design partners will install it Day 1 |
-| OD-011 Quickstart industries | Accept default: fintech-payments, ai-platform-tool-call, saas-seat-provisioning | Already scaffolded in `examples/` |
-| OD-013 Default policy engine | Accept `builtin` as the per-principal default | Cedar/OPA require customer-authored policies — kills first-verify activation |
+| ID                           | Recommendation                                                                      | Reason now matters                                                                     |
+| ---------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| OD-001 BATE weights          | Accept the OD-001 default verbatim and lock in `bate.weights.ts`                    | Cold-start signals from design partners need a defensible score the moment they verify |
+| OD-002 Cold-start trust      | Accept default: start at 500, +150 KYC bonus                                        | Avoids first design partner's agent reading 0 / 1000                                   |
+| OD-004 Audit retention       | 7 years (default) — confirm in production env                                       | Required for SOC2 readiness collateral when the first compliance-driven partner asks   |
+| OD-005 Webhook DLQ attempts  | Accept default 8 attempts (Stripe parity)                                           | Webhooks fire on every band crossing — bad delivery loops eat Redis                    |
+| OD-006 FREE rate limit       | Accept default 10 rps + 20 burst                                                    | Already encoded as `verifyRateLimit` in `plans.ts`                                     |
+| OD-007 Status page           | Self-hosted at `status.okoroapp.com` with `incidents.{open,history}.json` (default) | First incident before this is wired = no story for partners                            |
+| OD-009 / OD-010 CLI          | Device-code OAuth, Go binary (defaults)                                             | The CLI is referenced in every quickstart; design partners will install it Day 1       |
+| OD-011 Quickstart industries | Accept default: fintech-payments, ai-platform-tool-call, saas-seat-provisioning     | Already scaffolded in `examples/`                                                      |
+| OD-013 Default policy engine | Accept `builtin` as the per-principal default                                       | Cedar/OPA require customer-authored policies — kills first-verify activation           |
 
 Single message in Slack/email reply to this doc with `accept all defaults` is
 sufficient — the next session encodes them in `OPERATOR_DECISIONS.md` § 3 and
@@ -287,6 +288,6 @@ the same commit.
 
 ---
 
-*This doc is alive — overwrite freely as Round 24 progresses. The single
+_This doc is alive — overwrite freely as Round 24 progresses. The single
 binding artifacts remain `CLAUDE.md`, `OPERATOR_DECISIONS.md`, ADR-0014, and
-the financial model.*
+the financial model._

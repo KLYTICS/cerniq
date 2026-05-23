@@ -6,14 +6,14 @@ info:
     The OKORO API provides verified identity, scoped authorization, and behavioral
     attestation for AI agents. Neutral, platform-agnostic, ACP-compatible.
   contact:
-    email: dev@okorolabs.io
+    email: dev@okoroapp.com
   license:
     name: Proprietary
 
 servers:
-  - url: https://api.okorolabs.io/v1
+  - url: https://api.okoroapp.com/v1
     description: Production
-  - url: https://sandbox.okorolabs.io/v1
+  - url: https://sandbox.okoroapp.com/v1
     description: Sandbox
 
 tags:
@@ -292,14 +292,14 @@ components:
       required: true
       schema:
         type: string
-        example: "agt_01HZ9YZXM4QT3B7P8WKJD6R5V"
+        example: 'agt_01HZ9YZXM4QT3B7P8WKJD6R5V'
     PolicyId:
       name: policyId
       in: path
       required: true
       schema:
         type: string
-        example: "pol_01HZ9YZXM4QT3B7P8WKJD6R5V"
+        example: 'pol_01HZ9YZXM4QT3B7P8WKJD6R5V'
 
   responses:
     BadRequest:
@@ -328,7 +328,6 @@ components:
             $ref: '#/components/schemas/Error'
 
   schemas:
-
     AgentRegistrationRequest:
       type: object
       required: [publicKey, runtime, principalId]
@@ -336,27 +335,27 @@ components:
         publicKey:
           type: string
           description: Ed25519 public key (base64url encoded)
-          example: "MCowBQYDK2VwAyEA..."
+          example: 'MCowBQYDK2VwAyEA...'
         runtime:
           type: string
           enum: [openai, anthropic, google, custom]
         model:
           type: string
-          example: "gpt-4o"
+          example: 'gpt-4o'
         principalId:
           type: string
           description: Your OKORO principal (human/org) ID
         label:
           type: string
           description: Human-readable label for this agent
-          example: "Shopping agent for erwin@klytics.io"
+          example: 'Shopping agent for erwin@klytics.io'
 
     AgentRegistrationResponse:
       type: object
       properties:
         agentId:
           type: string
-          example: "agt_01HZ9YZXM4QT3B7P8WKJD6R5V"
+          example: 'agt_01HZ9YZXM4QT3B7P8WKJD6R5V'
         verificationToken:
           type: string
           description: Sign this with your private key to confirm keypair ownership
@@ -430,7 +429,7 @@ components:
           format: date-time
         label:
           type: string
-          example: "Book flights under $500"
+          example: 'Book flights under $500'
 
     PolicyCreateResponse:
       type: object
@@ -496,17 +495,17 @@ components:
           items:
             type: string
           description: MCC codes (e.g. ["3000-3299"] for airlines)
-          example: ["3000-3299", "5411"]
+          example: ['3000-3299', '5411']
         allowedDomains:
           type: array
           items:
             type: string
-          example: ["delta.com", "united.com"]
+          example: ['delta.com', 'united.com']
         dataScopes:
           type: array
           items:
             type: string
-          example: ["read:email", "write:calendar"]
+          example: ['read:email', 'write:calendar']
         validFrom:
           type: string
           format: date-time
@@ -523,19 +522,19 @@ components:
           description: Signed OKORO token from the agent (JWT format)
         action:
           type: string
-          example: "commerce.purchase"
+          example: 'commerce.purchase'
         amount:
           type: number
           example: 450.00
         currency:
           type: string
-          example: "USD"
+          example: 'USD'
         merchantId:
           type: string
-          example: "delta-airlines"
+          example: 'delta-airlines'
         merchantDomain:
           type: string
-          example: "delta.com"
+          example: 'delta.com'
         context:
           type: object
           additionalProperties: true
@@ -561,7 +560,7 @@ components:
           type: array
           items:
             type: string
-          example: ["commerce", "commerce.purchase"]
+          example: ['commerce', 'commerce.purchase']
         spendRemaining:
           type: object
           properties:

@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 
-const SITE = process.env.NEXT_PUBLIC_DOCS_URL ?? 'https://docs.okorolabs.io';
+const SITE = process.env.NEXT_PUBLIC_DOCS_URL ?? 'https://docs.okoroapp.com';
 
 export default function robots(): MetadataRoute.Robots {
   return {

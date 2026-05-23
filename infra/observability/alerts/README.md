@@ -32,11 +32,11 @@ weekly metric review — not an alert.
 
 ## Severity ladder
 
-| Severity | Routing | First-touch SLA | Examples |
-|---|---|---|---|
-| `critical` | PagerDuty page → on-call phone | 5 min | SLO breach, audit chain break, error budget fast-burn |
-| `warning` | PagerDuty notify (no page) → Slack `#okoro-oncall` | 30 min | SLO warning thresholds, DLQ spikes, cache hit rate (when exporter ships) |
-| `info` | Slack `#okoro-ops` only | business hours | Cache utilisation, queue depth trends, baseline drift |
+| Severity   | Routing                                            | First-touch SLA | Examples                                                                 |
+| ---------- | -------------------------------------------------- | --------------- | ------------------------------------------------------------------------ |
+| `critical` | PagerDuty page → on-call phone                     | 5 min           | SLO breach, audit chain break, error budget fast-burn                    |
+| `warning`  | PagerDuty notify (no page) → Slack `#okoro-oncall` | 30 min          | SLO warning thresholds, DLQ spikes, cache hit rate (when exporter ships) |
+| `info`     | Slack `#okoro-ops` only                            | business hours  | Cache utilisation, queue depth trends, baseline drift                    |
 
 The PagerDuty escalation contact is **OD-007 (TBD operator decision)** —
 runbooks reference it as `${ESCALATION_CONTACT}`.
@@ -73,7 +73,7 @@ Optional:
 - `runbook` — repo-relative path, e.g.
   `infra/observability/runbooks/verify-latency-slo-breach.md`.
 - `runbook_url` — absolute URL, e.g.
-  `https://docs.okorolabs.io/runbooks/verify-latency-slo-breach`.
+  `https://docs.okoroapp.com/runbooks/verify-latency-slo-breach`.
   Convention: filename without `.md` suffix.
 
 ## Recording rules
@@ -88,7 +88,7 @@ expression into a third alert, promote it to a recording rule first.
 
 1. **Pick or create the runbook.**
    `cp infra/observability/runbooks/_template.md
-       infra/observability/runbooks/<my-alert>.md` — wait, no template
+ infra/observability/runbooks/<my-alert>.md` — wait, no template
    today; copy `error-budget-burn.md`, it's the closest to the
    skeleton. Fill **every** section. No "TBD" except for
    `${ESCALATION_CONTACT}` (which is genuinely OD-007 pending).

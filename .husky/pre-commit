@@ -52,7 +52,13 @@ fi
 # is also exempt. Keep this directory limited to hook scripts; do NOT use
 # it for secret material.
 BLOCKED_PATH='(^|/)\.env(\.[^/]+)?$|(^|/)secrets/|\.pem$|\.key$'
-BLOCKED_CONTENT='okoro_sk_[A-Za-z0-9]+|okoro_vk_[A-Za-z0-9]+|JWT_ED25519_PRIVATE_KEY_B64=[A-Za-z0-9+/=_-]|AUDIT_SIGNING_KEY_B64=[A-Za-z0-9+/=_-]'
+## Real okoro_sk_/okoro_vk_ keys are base58-encoded 21 random bytes (~28 chars
+## from the bitcoin base58 alphabet `[1-9A-HJ-NP-Za-km-z]`). Tightening to
+## {20,} excludes placeholders like `okoro_sk_xxx`, `okoro_vk_REPLACE_ME`, and
+## template literals like `okoro_vk_seed_${...}` while still catching any real
+## leaked key. Underscores, `_`, `<`, and the base58-forbidden chars (0OIl) are
+## the give-away that the string is a placeholder, not a real key.
+BLOCKED_CONTENT='okoro_sk_[1-9A-HJ-NP-Za-km-z]{20,}|okoro_vk_[1-9A-HJ-NP-Za-km-z]{20,}|JWT_ED25519_PRIVATE_KEY_B64=[A-Za-z0-9+/=_-]|AUDIT_SIGNING_KEY_B64=[A-Za-z0-9+/=_-]'
 TEST_FILE_ALLOWLIST='\.(spec|test|fixture|mock|stub)\.(ts|tsx|js|jsx|mjs|cjs)$|/tests?/|/__tests?__/|/test/|/_stubs/|tools/postman/|^\.husky/'
 
 STAGED=$(git diff --cached --name-only)

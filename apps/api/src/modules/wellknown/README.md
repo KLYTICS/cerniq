@@ -52,10 +52,10 @@ convention (RFC 8615) and breaks tooling that probes the canonical path.
 
 ## Configuration
 
-| Env var                          | Required | Notes                                                                                              |
-| -------------------------------- | -------- | -------------------------------------------------------------------------------------------------- |
-| `OKORO_SIGNING_PUBLIC_KEY`       | yes      | base64url-encoded raw 32-byte Ed25519 public key. Boot fails fast if missing or wrong length.     |
-| `OKORO_SIGNING_KEY_ROTATED_AT`   | no       | ISO-8601 timestamp the current key was activated. If absent: process-start is captured at module init and the service is flagged DEGRADED (logged warning). |
+| Env var                        | Required | Notes                                                                                                                                                       |
+| ------------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OKORO_SIGNING_PUBLIC_KEY`     | yes      | base64url-encoded raw 32-byte Ed25519 public key. Boot fails fast if missing or wrong length.                                                               |
+| `OKORO_SIGNING_KEY_ROTATED_AT` | no       | ISO-8601 timestamp the current key was activated. If absent: process-start is captured at module init and the service is flagged DEGRADED (logged warning). |
 
 Generate a key with: `pnpm --filter @okoro/scripts run keys`.
 
@@ -78,17 +78,17 @@ Why these choices:
 
 ```bash
 # Plain JSON helper.
-curl -sSf https://api.okorolabs.io/.well-known/audit-signing-key | jq
+curl -sSf https://api.okoroapp.com/.well-known/audit-signing-key | jq
 
 # JWKS (note the content type).
 curl -sSf -H 'Accept: application/jwk-set+json' \
-  https://api.okorolabs.io/.well-known/jwks.json | jq
+  https://api.okoroapp.com/.well-known/jwks.json | jq
 
 # Cache-aware: capture the ETag and re-fetch.
-ETAG=$(curl -sSfI https://api.okorolabs.io/.well-known/audit-signing-key | awk -F': ' '/^etag/i {print $2}' | tr -d '\r')
+ETAG=$(curl -sSfI https://api.okoroapp.com/.well-known/audit-signing-key | awk -F': ' '/^etag/i {print $2}' | tr -d '\r')
 curl -sSf -o /dev/null -w '%{http_code}\n' \
   -H "If-None-Match: $ETAG" \
-  https://api.okorolabs.io/.well-known/audit-signing-key
+  https://api.okoroapp.com/.well-known/audit-signing-key
 # -> 304
 ```
 
@@ -104,7 +104,7 @@ import { sha512 } from '@noble/hashes/sha512';
 ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
 
 // 1. Fetch the OKORO audit-signing key.
-const res = await fetch('https://api.okorolabs.io/.well-known/audit-signing-key');
+const res = await fetch('https://api.okoroapp.com/.well-known/audit-signing-key');
 const { publicKey, kid } = await res.json();
 
 // 2. base64url-decode helpers.
@@ -117,7 +117,11 @@ const b64u = (s: string) => Uint8Array.from(Buffer.from(s, 'base64url'));
 const signingInput = `${event.prevSig ?? ''}${canonicalJson(event)}`;
 
 // 4. Verify.
-const ok = await ed.verifyAsync(b64u(event.signature), new TextEncoder().encode(signingInput), b64u(publicKey));
+const ok = await ed.verifyAsync(
+  b64u(event.signature),
+  new TextEncoder().encode(signingInput),
+  b64u(publicKey),
+);
 if (!ok) throw new Error(`OKORO audit signature invalid for kid=${kid}`);
 ```
 
@@ -126,7 +130,7 @@ For JWKS-native tooling (e.g. `jose`):
 ```ts
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 
-const jwks = createRemoteJWKSet(new URL('https://api.okorolabs.io/.well-known/jwks.json'));
+const jwks = createRemoteJWKSet(new URL('https://api.okoroapp.com/.well-known/jwks.json'));
 // Use `jwks` wherever a key resolver is accepted. OKORO audit signatures
 // today are detached Ed25519 over canonicalised JSON, NOT compact JWS;
 // the JWKS view exists for tools that want a uniform key-discovery path.

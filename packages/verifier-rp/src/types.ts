@@ -152,7 +152,7 @@ export type RevocationWebhookHandler = (agentId: string) => void;
 export interface OkoroVerifierConfig {
   /**
    * Base URL for the OKORO API. Used for JWKS fetch and agent status fetch.
-   * Default: `https://api.okorolabs.io/v1`.
+   * Default: `https://api.okoroapp.com/v1`.
    */
   baseUrl?: string;
   /**

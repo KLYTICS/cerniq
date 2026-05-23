@@ -36,7 +36,7 @@ import type {
   VerifyOutcomeSuccess,
 } from './types.js';
 
-const DEFAULT_BASE_URL = 'https://api.okorolabs.io/v1';
+const DEFAULT_BASE_URL = 'https://api.okoroapp.com/v1';
 const DEFAULT_JWKS_TTL = 3600;
 const DEFAULT_REVOCATION_TTL = 30;
 const DEFAULT_REPLAY_MAX = 10_000;
@@ -228,18 +228,11 @@ export class OkoroVerifier {
         : new VerifyError('REVOCATION_FETCH_FAILED', 'revocation lookup failed', err);
     }
     if (snapshot.status === 'revoked' || snapshot.status === 'suspended') {
-      return this.failWithClaims(
-        'AGENT_REVOKED',
-        `agent status=${snapshot.status}`,
-        parsed,
-      );
+      return this.failWithClaims('AGENT_REVOKED', `agent status=${snapshot.status}`, parsed);
     }
 
     // Min trust score gate (relying-party-side policy override).
-    if (
-      context.minTrustScore !== undefined &&
-      snapshot.trustScore < context.minTrustScore
-    ) {
+    if (context.minTrustScore !== undefined && snapshot.trustScore < context.minTrustScore) {
       return this.failWithClaims(
         'TRUST_SCORE_TOO_LOW',
         `trustScore=${snapshot.trustScore} < required=${context.minTrustScore}`,

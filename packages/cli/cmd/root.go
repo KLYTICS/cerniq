@@ -30,7 +30,7 @@ var rootCmd = &cobra.Command{
 	Long: `okoro is the operator-grade CLI for the OKORO agent gateway.
 
 Built for parity with the public API: every verb you see in
-docs.okorolabs.io exists here, plus terminal-first ergonomics
+docs.okoroapp.com exists here, plus terminal-first ergonomics
 (login via device-code OAuth, OS-keychain credential caching,
 Bloomberg-density status output, kubectl-style plugin discovery).
 
@@ -71,7 +71,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&flagAPIKey, "api-key", "",
 		"OKORO API key (overrides keychain + OKORO_API_KEY env)")
 	rootCmd.PersistentFlags().StringVar(&flagBaseURL, "base-url", "",
-		"OKORO API base URL (default: from config or https://api.okorolabs.io)")
+		"OKORO API base URL (default: from config or https://api.okoroapp.com)")
 	rootCmd.PersistentFlags().BoolVar(&flagJSON, "json", false,
 		"emit machine-readable JSON instead of human-formatted output")
 	rootCmd.PersistentFlags().BoolVar(&flagNoColor, "no-color", false,

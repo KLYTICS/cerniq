@@ -12,13 +12,7 @@ import {
   OkoroServiceUnavailableError,
   OkoroValidationError,
 } from './errors.js';
-import {
-  HttpClient,
-  nextDelayMs,
-  parseRetryAfter,
-  withRetry,
-  type RetryOptions,
-} from './http.js';
+import { HttpClient, nextDelayMs, parseRetryAfter, withRetry, type RetryOptions } from './http.js';
 
 const NEVER_SLEEP: RetryOptions['sleep'] = async () => undefined;
 
@@ -49,7 +43,9 @@ describe('OkoroError.catalogKey (F-06 minification safety)', () => {
     // err.name was set from the static catalogKey at construction time.
     expect(err.name).toBe('OkoroAuthenticationError');
     // And the static survives mangling on the constructor reference itself.
-    expect((err.constructor as unknown as { catalogKey: string }).catalogKey).toBe('OkoroAuthenticationError');
+    expect((err.constructor as unknown as { catalogKey: string }).catalogKey).toBe(
+      'OkoroAuthenticationError',
+    );
   });
 });
 
@@ -82,7 +78,9 @@ describe('parseRetryAfter', () => {
 });
 
 describe('nextDelayMs (catalog-driven backoff)', () => {
-  const mkEntry = (backoff: 'none' | 'linear' | 'exponential' | 'on_retry_after_header' | undefined) => ({
+  const mkEntry = (
+    backoff: 'none' | 'linear' | 'exponential' | 'on_retry_after_header' | undefined,
+  ) => ({
     className: 'Whatever',
     code: 'whatever',
     httpStatus: 500,
@@ -93,21 +91,68 @@ describe('nextDelayMs (catalog-driven backoff)', () => {
   });
 
   test('none/undefined backoff returns null', () => {
-    expect(nextDelayMs({ attempt: 1, entry: mkEntry('none'), retryAfterSeconds: undefined, isNetwork: false })).toBeNull();
-    expect(nextDelayMs({ attempt: 1, entry: mkEntry(undefined), retryAfterSeconds: undefined, isNetwork: false })).toBeNull();
+    expect(
+      nextDelayMs({
+        attempt: 1,
+        entry: mkEntry('none'),
+        retryAfterSeconds: undefined,
+        isNetwork: false,
+      }),
+    ).toBeNull();
+    expect(
+      nextDelayMs({
+        attempt: 1,
+        entry: mkEntry(undefined),
+        retryAfterSeconds: undefined,
+        isNetwork: false,
+      }),
+    ).toBeNull();
   });
 
   test('linear schedule is 100/200/400', () => {
-    expect(nextDelayMs({ attempt: 1, entry: mkEntry('linear'), retryAfterSeconds: undefined, isNetwork: false })).toBe(100);
-    expect(nextDelayMs({ attempt: 2, entry: mkEntry('linear'), retryAfterSeconds: undefined, isNetwork: false })).toBe(200);
-    expect(nextDelayMs({ attempt: 3, entry: mkEntry('linear'), retryAfterSeconds: undefined, isNetwork: false })).toBe(400);
-    expect(nextDelayMs({ attempt: 99, entry: mkEntry('linear'), retryAfterSeconds: undefined, isNetwork: false })).toBe(400);
+    expect(
+      nextDelayMs({
+        attempt: 1,
+        entry: mkEntry('linear'),
+        retryAfterSeconds: undefined,
+        isNetwork: false,
+      }),
+    ).toBe(100);
+    expect(
+      nextDelayMs({
+        attempt: 2,
+        entry: mkEntry('linear'),
+        retryAfterSeconds: undefined,
+        isNetwork: false,
+      }),
+    ).toBe(200);
+    expect(
+      nextDelayMs({
+        attempt: 3,
+        entry: mkEntry('linear'),
+        retryAfterSeconds: undefined,
+        isNetwork: false,
+      }),
+    ).toBe(400);
+    expect(
+      nextDelayMs({
+        attempt: 99,
+        entry: mkEntry('linear'),
+        retryAfterSeconds: undefined,
+        isNetwork: false,
+      }),
+    ).toBe(400);
   });
 
   test('exponential schedule is 100/400/1600 with ±10% jitter', () => {
     for (const attempt of [1, 2, 3]) {
       const target = [100, 400, 1600][attempt - 1] ?? 0;
-      const delay = nextDelayMs({ attempt, entry: mkEntry('exponential'), retryAfterSeconds: undefined, isNetwork: false });
+      const delay = nextDelayMs({
+        attempt,
+        entry: mkEntry('exponential'),
+        retryAfterSeconds: undefined,
+        isNetwork: false,
+      });
       expect(delay).not.toBeNull();
       expect(delay!).toBeGreaterThanOrEqual(Math.floor(target * 0.9));
       expect(delay!).toBeLessThanOrEqual(Math.ceil(target * 1.1));
@@ -115,24 +160,59 @@ describe('nextDelayMs (catalog-driven backoff)', () => {
   });
 
   test('on_retry_after_header honors header in seconds and caps at 60s', () => {
-    expect(nextDelayMs({ attempt: 1, entry: mkEntry('on_retry_after_header'), retryAfterSeconds: 5, isNetwork: false })).toBe(5_000);
-    expect(nextDelayMs({ attempt: 1, entry: mkEntry('on_retry_after_header'), retryAfterSeconds: 999, isNetwork: false })).toBe(60_000);
-    expect(nextDelayMs({ attempt: 1, entry: mkEntry('on_retry_after_header'), retryAfterSeconds: 0, isNetwork: false })).toBe(0);
+    expect(
+      nextDelayMs({
+        attempt: 1,
+        entry: mkEntry('on_retry_after_header'),
+        retryAfterSeconds: 5,
+        isNetwork: false,
+      }),
+    ).toBe(5_000);
+    expect(
+      nextDelayMs({
+        attempt: 1,
+        entry: mkEntry('on_retry_after_header'),
+        retryAfterSeconds: 999,
+        isNetwork: false,
+      }),
+    ).toBe(60_000);
+    expect(
+      nextDelayMs({
+        attempt: 1,
+        entry: mkEntry('on_retry_after_header'),
+        retryAfterSeconds: 0,
+        isNetwork: false,
+      }),
+    ).toBe(0);
   });
 
   test('on_retry_after_header without header falls back to linear schedule', () => {
-    expect(nextDelayMs({ attempt: 1, entry: mkEntry('on_retry_after_header'), retryAfterSeconds: undefined, isNetwork: false })).toBe(100);
+    expect(
+      nextDelayMs({
+        attempt: 1,
+        entry: mkEntry('on_retry_after_header'),
+        retryAfterSeconds: undefined,
+        isNetwork: false,
+      }),
+    ).toBe(100);
   });
 
   test('network errors take exponential schedule even without a catalog entry', () => {
-    const delay = nextDelayMs({ attempt: 1, entry: undefined, retryAfterSeconds: undefined, isNetwork: true });
+    const delay = nextDelayMs({
+      attempt: 1,
+      entry: undefined,
+      retryAfterSeconds: undefined,
+      isNetwork: true,
+    });
     expect(delay).not.toBeNull();
     expect(delay!).toBeGreaterThanOrEqual(90);
     expect(delay!).toBeLessThanOrEqual(110);
   });
 
   test('non-network with no catalog entry returns null', () => {
-    expect(nextDelayMs({ attempt: 1, entry: undefined, retryAfterSeconds: undefined, isNetwork: false })).toBeNull();
+    expect(
+      nextDelayMs({ attempt: 1, entry: undefined, retryAfterSeconds: undefined, isNetwork: false }),
+    ).toBeNull();
   });
 });
 
@@ -161,9 +241,9 @@ describe('withRetry (public API)', () => {
     });
     const sleep = jest.fn(async () => undefined);
     const onRetry = jest.fn();
-    await expect(
-      withRetry(fn, { maxAttempts: 3, sleep, onRetry }),
-    ).rejects.toBeInstanceOf(OkoroInternalError);
+    await expect(withRetry(fn, { maxAttempts: 3, sleep, onRetry })).rejects.toBeInstanceOf(
+      OkoroInternalError,
+    );
     expect(fn).toHaveBeenCalledTimes(3);
     expect(sleep).toHaveBeenCalledTimes(2);
     expect(onRetry).toHaveBeenCalledTimes(2);
@@ -243,7 +323,7 @@ describe('HttpClient.requestWithRetry', () => {
     };
     return new HttpClient({
       apiKey: 'sk_test',
-      baseUrl: 'https://api.okorolabs.io',
+      baseUrl: 'https://api.okoroapp.com',
       timeoutMs: 1_000,
       fetch: fetchFn,
     });
@@ -257,7 +337,11 @@ describe('HttpClient.requestWithRetry', () => {
           headers: { 'content-type': 'application/json' },
         }),
     ]);
-    const result = await client.requestWithRetry<{ ok: boolean }>('/agents', { method: 'GET' }, { sleep: NEVER_SLEEP });
+    const result = await client.requestWithRetry<{ ok: boolean }>(
+      '/agents',
+      { method: 'GET' },
+      { sleep: NEVER_SLEEP },
+    );
     expect(result.ok).toBe(true);
   });
 

@@ -6,10 +6,10 @@ staging weekly.
 
 ## Tests
 
-| File              | Target                              | Budget                  |
-|-------------------|-------------------------------------|-------------------------|
-| `verify.k6.js`    | `POST /v1/verify` hot path          | p99 < 200 ms (Phase 1)  |
-|                   |                                     | p99 < 80 ms (Phase 3)   |
+| File           | Target                     | Budget                 |
+| -------------- | -------------------------- | ---------------------- |
+| `verify.k6.js` | `POST /v1/verify` hot path | p99 < 200 ms (Phase 1) |
+|                |                            | p99 < 80 ms (Phase 3)  |
 
 ## Running locally
 
@@ -31,7 +31,7 @@ k6 run apps/api/test/load/verify.k6.js
 ## Running against staging
 
 ```sh
-OKORO_BASE_URL=https://api.staging.okorolabs.io \
+OKORO_BASE_URL=https://api.staging.okoroapp.com \
   OKORO_VERIFY_KEY=$STAGING_VERIFY_KEY \
   OKORO_FIXTURE_TOKEN=$STAGING_FIXTURE_TOKEN \
   k6 run apps/api/test/load/verify.k6.js
@@ -43,7 +43,7 @@ Same as staging but with the edge URL and a tighter budget:
 
 ```sh
 P99_BUDGET_MS=80 \
-  OKORO_BASE_URL=https://okoro.okorolabs.io \
+  OKORO_BASE_URL=https://okoro.okoroapp.com \
   OKORO_VERIFY_KEY=$EDGE_VERIFY_KEY \
   OKORO_FIXTURE_TOKEN=$STAGING_FIXTURE_TOKEN \
   k6 run apps/api/test/load/verify.k6.js

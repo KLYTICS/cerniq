@@ -6,7 +6,7 @@ Anyone — relying party, customer, regulator, SOC2 auditor — can install this
 package and independently verify the tamper-evidence of an OKORO audit log
 export, without trusting OKORO's API at runtime. The only thing required is
 the OKORO audit-signing JWKS (publicly available at
-`https://api.okorolabs.io/.well-known/audit-signing-key`).
+`https://api.okoroapp.com/.well-known/audit-signing-key`).
 
 This is the **zero-trust verification** half of the audit-chain story. OKORO
 publishes the algorithm and the public keys; you run the verifier. If the
@@ -16,9 +16,10 @@ how.
 
 ## Why this exists
 
-> "We have a signed audit chain" is a *claim*. `@okoro/audit-verifier` makes
+> "We have a signed audit chain" is a _claim_. `@okoro/audit-verifier` makes
 > the claim **executable**. A regulator with this package + the public JWKS
-> + a downloaded NDJSON export needs nothing else from OKORO to do their job.
+>
+> - a downloaded NDJSON export needs nothing else from OKORO to do their job.
 
 This pattern matches FICO's: FICO publishes the score algorithm and the
 inputs, and lenders can independently reconstruct the score. We publish the
@@ -31,7 +32,7 @@ independently verify the chain.
 npm install -g @okoro/audit-verifier
 # or run without installing:
 npx @okoro/audit-verifier verify ./export.ndjson \
-  --jwks https://api.okorolabs.io/.well-known/audit-signing-key
+  --jwks https://api.okoroapp.com/.well-known/audit-signing-key
 ```
 
 ## CLI
@@ -56,14 +57,14 @@ Exit codes:
 
 ```sh
 okoro-audit-verify verify ./export.ndjson \
-  --jwks https://api.okorolabs.io/.well-known/audit-signing-key
+  --jwks https://api.okoroapp.com/.well-known/audit-signing-key
 ```
 
 ### Airgapped (regulated environments)
 
 ```sh
 # step 1 — download the JWKS from a network-connected machine
-curl -fsSL https://api.okorolabs.io/.well-known/audit-signing-key \
+curl -fsSL https://api.okoroapp.com/.well-known/audit-signing-key \
      -o okoro-audit-jwks.json
 
 # step 2 — hand-carry the JWKS + the NDJSON export into the sealed environment
@@ -77,7 +78,7 @@ okoro-audit-verify verify ./export.ndjson --jwks-file ./okoro-audit-jwks.json
 ```ts
 import { verifyChain, parseAuditNdjson, loadJwksFromUrl } from '@okoro/audit-verifier';
 
-const jwks = await loadJwksFromUrl('https://api.okorolabs.io/.well-known/audit-signing-key');
+const jwks = await loadJwksFromUrl('https://api.okoroapp.com/.well-known/audit-signing-key');
 const ndjson = await fs.readFile('./export.ndjson', 'utf8');
 const rows = parseAuditNdjson(ndjson);
 
@@ -110,22 +111,23 @@ The genesis row (first in chain) uses
 interface ChainReport {
   valid: boolean;
   totalRows: number;
-  signingKeys: string[];           // distinct kids referenced
-  rotationEvents: Array<{          // points where the active kid changed
+  signingKeys: string[]; // distinct kids referenced
+  rotationEvents: Array<{
+    // points where the active kid changed
     atIndex: number;
     fromKid: string;
     toKid: string;
   }>;
-  firstBreak: RowVerdict | null;   // null when valid=true
-  rows: RowVerdict[];              // capped by maxRowDetail
-  durationMs: number;              // wall-clock spent verifying
+  firstBreak: RowVerdict | null; // null when valid=true
+  rows: RowVerdict[]; // capped by maxRowDetail
+  durationMs: number; // wall-clock spent verifying
 }
 ```
 
 ## What's intentionally absent
 
 - **No business-logic checks.** This package verifies cryptographic
-  integrity only. "Was this transaction *correct*?" is a different question
+  integrity only. "Was this transaction _correct_?" is a different question
   answered by your own reconciliation pipeline (see
   [`examples/reconciliation/`](../../examples/reconciliation/)).
 - **No revocation lookup.** Chain rows are append-only; revocation is
@@ -151,12 +153,12 @@ to fit on a USB stick.
 `@okoro/audit-verifier` is the artifact that backs the following
 compliance assertions in `docs/COMPLIANCE_BUNDLE.md`:
 
-| Control                            | How this package satisfies it             |
-|------------------------------------|-------------------------------------------|
-| SOC 2 CC7.2 (system monitoring)    | Independent verification of audit logs.   |
-| ISO 27001 A.8.15 (logging)         | Tamper-evidence verifiable by third party.|
-| GDPR Art. 25 (data protection)     | Chain stays verifiable after PII erasure. |
-| EU AI Act Art. 14 (transparency)   | Auditable record of every agent action.   |
+| Control                          | How this package satisfies it              |
+| -------------------------------- | ------------------------------------------ |
+| SOC 2 CC7.2 (system monitoring)  | Independent verification of audit logs.    |
+| ISO 27001 A.8.15 (logging)       | Tamper-evidence verifiable by third party. |
+| GDPR Art. 25 (data protection)   | Chain stays verifiable after PII erasure.  |
+| EU AI Act Art. 14 (transparency) | Auditable record of every agent action.    |
 
 ## Reference
 

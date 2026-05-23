@@ -39,7 +39,7 @@ policy, and audit as a substrate.
    ←── 200 charged / 402 denied ─
 ```
 
-Notice what OKORO does *not* do: it doesn't talk to your card network,
+Notice what OKORO does _not_ do: it doesn't talk to your card network,
 doesn't see your PAN, doesn't store your customers. The verify call is
 purely about agent authorization. Card processing stays in your
 existing PCI-scoped service.
@@ -50,7 +50,7 @@ existing PCI-scoped service.
 cd examples/fintech-payments
 pnpm install
 
-OKORO_API_BASE=https://api.okorolabs.io \
+OKORO_API_BASE=https://api.okoroapp.com \
 OKORO_VERIFY_KEY=okoro_vk_... \
 MIN_TRUST_SCORE=700 \
 MERCHANT_DOMAIN=acme-checkout.com \

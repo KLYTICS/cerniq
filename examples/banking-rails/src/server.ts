@@ -29,7 +29,7 @@ import type {
 } from './iso20022-shape.js';
 
 const okoro = new Okoro({
-  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okorolabs.io',
+  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okoroapp.com',
   verifyKey: requireEnv('OKORO_VERIFY_KEY'),
 });
 
@@ -41,12 +41,12 @@ const TREASURY_DOMAIN = requireEnv('TREASURY_DOMAIN');
  *  industry "limits by rail" pattern most banks already enforce
  *  internally. Operators tune via env. */
 const RAIL_MIN_TRUST: Readonly<Record<RailType, number>> = Object.freeze({
-  'wire': 800,
-  'fednow': 800,
-  'rtp': 750,
+  wire: 800,
+  fednow: 800,
+  rtp: 750,
   'sepa-instant': 750,
   'sepa-ct': 700,
-  'ach': 650,
+  ach: 650,
   'book-transfer': 500,
 });
 
@@ -127,11 +127,14 @@ app.listen(port, () => {
 function validateInstruct(b: unknown): string | null {
   if (!b || typeof b !== 'object') return 'missing_body';
   const o = b as Record<string, unknown>;
-  if (typeof o.okoroToken !== 'string' || (o.okoroToken as string).split('.').length !== 3) return 'okoroToken_invalid';
+  if (typeof o.okoroToken !== 'string' || (o.okoroToken as string).split('.').length !== 3)
+    return 'okoroToken_invalid';
   const inst = o.instruction as PaymentInstruction | undefined;
   if (!inst) return 'instruction_missing';
-  if (typeof inst.endToEndId !== 'string' || inst.endToEndId.length === 0) return 'endToEndId_invalid';
-  if (typeof inst.amount !== 'number' || !Number.isFinite(inst.amount) || inst.amount <= 0) return 'amount_invalid';
+  if (typeof inst.endToEndId !== 'string' || inst.endToEndId.length === 0)
+    return 'endToEndId_invalid';
+  if (typeof inst.amount !== 'number' || !Number.isFinite(inst.amount) || inst.amount <= 0)
+    return 'amount_invalid';
   if (typeof inst.currency !== 'string' || inst.currency.length !== 3) return 'currency_invalid';
   if (!inst.debtor?.identifier || !inst.creditor?.identifier) return 'parties_invalid';
   return null;

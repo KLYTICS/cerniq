@@ -1,4 +1,5 @@
 # OKORO — Production Deployment Guide
+
 ## Railway Origin + Cloudflare Workers Edge + Redis + PostgreSQL
 
 > **Audience:** DevOps / SRE / Platform engineers deploying OKORO for the first time or managing ongoing deployments.  
@@ -25,7 +26,7 @@ Internet
     │        Primary: writes + reads that need consistency
     │        Read replica: audit export queries
     │        Connection pooler: PgBouncer (transaction mode)
-    │        
+    │
     └──► Redis 7 (Railway managed or Upstash)
              Spend counters (atomic INCRBY)
              Trust score cache (30s TTL)
@@ -39,11 +40,13 @@ Internet
 ## Part 1 — Prerequisites
 
 ### Required accounts
+
 - [Railway](https://railway.app) account (Hobby or Pro plan)
 - [Cloudflare](https://cloudflare.com) account (Workers Paid plan — $5/month, needed for KV storage)
-- Domain (e.g., `okorolabs.io`) with DNS on Cloudflare
+- Domain (e.g., `okoroapp.com`) with DNS on Cloudflare
 
 ### Required tools
+
 ```bash
 # Node.js 20+ and pnpm
 node --version   # ≥ 20.0.0
@@ -109,9 +112,9 @@ RLS is applied via migrations. Verify it's active:
 
 ```sql
 -- Connect to your database and run:
-SELECT tablename, rowsecurity 
-FROM pg_tables 
-WHERE schemaname = 'public' 
+SELECT tablename, rowsecurity
+FROM pg_tables
+WHERE schemaname = 'public'
   AND tablename IN ('AgentIdentity', 'AgentPolicy', 'AuditEvent', 'BateSignal');
 
 -- Expected output:
@@ -183,16 +186,16 @@ CONFIG GET appendonly
 
 Understanding the Redis keyspace is critical for debugging and capacity planning:
 
-| Key pattern | TTL | Purpose |
-|---|---|---|
-| `agent:{agentId}` | 300s | Cached agent record (status, trustScore, pubkey) |
-| `policy:{policyId}` | 300s | Cached policy record |
-| `verify:{jti}` | token TTL + 90s | Replay prevention (JTI seen) |
-| `spend:day:{agentId}:{policyId}:{dateKey}` | 90000s (25h) | Per-day spend counter |
-| `spend:month:{agentId}:{policyId}:{monthKey}` | 35 days | Per-month spend counter |
-| `bate:score:{agentId}` | 30s | Trust score hot cache |
-| `idp:session:{sessionId}` | 900s | IDP session cache (Auth0/Clerk) |
-| `jti:{jti}` | token residual TTL | Replay cache |
+| Key pattern                                   | TTL                | Purpose                                          |
+| --------------------------------------------- | ------------------ | ------------------------------------------------ |
+| `agent:{agentId}`                             | 300s               | Cached agent record (status, trustScore, pubkey) |
+| `policy:{policyId}`                           | 300s               | Cached policy record                             |
+| `verify:{jti}`                                | token TTL + 90s    | Replay prevention (JTI seen)                     |
+| `spend:day:{agentId}:{policyId}:{dateKey}`    | 90000s (25h)       | Per-day spend counter                            |
+| `spend:month:{agentId}:{policyId}:{monthKey}` | 35 days            | Per-month spend counter                          |
+| `bate:score:{agentId}`                        | 30s                | Trust score hot cache                            |
+| `idp:session:{sessionId}`                     | 900s               | IDP session cache (Auth0/Clerk)                  |
+| `jti:{jti}`                                   | token residual TTL | Replay cache                                     |
 
 ---
 
@@ -301,7 +304,7 @@ OKORO_IDP_PROVIDER=auth0
 
 # Auth0
 AUTH0_DOMAIN=your-tenant.auth0.com
-AUTH0_AUDIENCE=https://api.okorolabs.io/v1
+AUTH0_AUDIENCE=https://api.okoroapp.com/v1
 AUTH0_CLIENT_ID=<client-id>
 AUTH0_CLIENT_SECRET=<client-secret>
 
@@ -422,7 +425,7 @@ compatibility_date = "2025-01-01"
 [env.production]
 name = "okoro-verify-production"
 routes = [
-  { pattern = "api.okorolabs.io/v1/verify", zone_name = "okorolabs.io" }
+  { pattern = "api.okoroapp.com/v1/verify", zone_name = "okoroapp.com" }
 ]
 
 [[kv_namespaces]]
@@ -455,7 +458,7 @@ pnpm install
 wrangler deploy --env production
 
 # Verify deployment
-curl -X POST https://api.okorolabs.io/v1/verify \
+curl -X POST https://api.okoroapp.com/v1/verify \
   -H "Content-Type: application/json" \
   -d '{"token": "test"}' \
   -v
@@ -518,7 +521,7 @@ pnpm tsx scripts/generate-okoro-keys.ts
 After deployment, run through this checklist:
 
 ```bash
-export BASE=https://api.okorolabs.io/v1
+export BASE=https://api.okoroapp.com/v1
 
 # 1. Liveness check (no auth)
 curl $BASE/../health
@@ -547,7 +550,7 @@ pnpm tsx scripts/audit-verify-chain.ts \
   --limit 100
 
 # 6. Edge Worker health
-curl -X POST https://api.okorolabs.io/v1/verify \
+curl -X POST https://api.okoroapp.com/v1/verify \
   -H "Content-Type: application/json" \
   -H "X-OKORO-Verify-Key: vk_live_..." \
   -d '{"token": "eyJhbGciOiJFZERTQSJ9.test.sig"}' \
@@ -560,16 +563,16 @@ curl -X POST https://api.okorolabs.io/v1/verify \
 
 ```bash
 # 1. In Cloudflare DNS, add CNAME:
-# api.okorolabs.io → okoro-production-api.up.railway.app
+# api.okoroapp.com → okoro-production-api.up.railway.app
 
 # 2. Railway: add custom domain
-railway domain add api.okorolabs.io --service api
+railway domain add api.okoroapp.com --service api
 
 # 3. Cloudflare: SSL mode = Full (strict)
-# Cloudflare → okorolabs.io → SSL/TLS → Full (strict)
+# Cloudflare → okoroapp.com → SSL/TLS → Full (strict)
 
 # 4. Verify TLS
-curl -v https://api.okorolabs.io/health 2>&1 | grep "SSL connection"
+curl -v https://api.okoroapp.com/health 2>&1 | grep "SSL connection"
 # * SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384
 ```
 
@@ -603,16 +606,16 @@ See `docs/MONITORING_OBSERVABILITY.md` for full OTel + Prometheus setup.
 
 **Minimum alerts to configure before GA:**
 
-| Alert | Condition | Severity |
-|---|---|---|
-| Verify p99 latency | >200ms for 5 minutes | P1 |
-| Error rate on /v1/verify | >1% for 2 minutes | P1 |
-| Redis connection errors | any | P1 |
-| DB connection pool exhausted | >90% for 5 minutes | P1 |
-| Audit chain integrity check failure | any | P0 |
-| Spend counter divergence (Redis vs Postgres) | >$10 | P1 |
-| Free tier rate limit hit rate | >30% of all verify calls | P2 |
+| Alert                                        | Condition                | Severity |
+| -------------------------------------------- | ------------------------ | -------- |
+| Verify p99 latency                           | >200ms for 5 minutes     | P1       |
+| Error rate on /v1/verify                     | >1% for 2 minutes        | P1       |
+| Redis connection errors                      | any                      | P1       |
+| DB connection pool exhausted                 | >90% for 5 minutes       | P1       |
+| Audit chain integrity check failure          | any                      | P0       |
+| Spend counter divergence (Redis vs Postgres) | >$10                     | P1       |
+| Free tier rate limit hit rate                | >30% of all verify calls | P2       |
 
 ---
 
-*Last updated: 2026-05-04 | Stack: NestJS 11 · PostgreSQL 16 · Redis 7 · CF Workers*
+_Last updated: 2026-05-04 | Stack: NestJS 11 · PostgreSQL 16 · Redis 7 · CF Workers_

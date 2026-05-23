@@ -1,7 +1,8 @@
 # OKORO — Complete API Reference
+
 ## Every Endpoint with Request/Response Examples
 
-> **Base URL:** `https://api.okorolabs.io`  
+> **Base URL:** `https://api.okoroapp.com`  
 > **Auth:** `Authorization: Bearer <api_key>` on all endpoints except `/health`, `/ready`, `/.well-known/*`  
 > **Version:** All endpoints are under `/v1/`  
 > **Updated:** 2026-05-04
@@ -27,10 +28,11 @@ Authorization: Bearer ak_live_xxxxxxxxxxxxxxxxxxxx
 Public. No auth. Used by load balancers and uptime monitors.
 
 ```bash
-curl https://api.okorolabs.io/health
+curl https://api.okoroapp.com/health
 ```
 
 **Response 200:**
+
 ```json
 {
   "status": "ok",
@@ -47,11 +49,12 @@ This endpoint NEVER checks DB or Redis. It always returns 200 if the process is 
 Authenticated (admin token). Deep health check.
 
 ```bash
-curl https://api.okorolabs.io/ready \
+curl https://api.okoroapp.com/ready \
   -H "X-OKORO-Admin: $OKORO_ADMIN_TOKEN"
 ```
 
 **Response 200:**
+
 ```json
 {
   "status": "ready",
@@ -64,6 +67,7 @@ curl https://api.okorolabs.io/ready \
 ```
 
 **Response 503:**
+
 ```json
 {
   "status": "not_ready",
@@ -80,10 +84,11 @@ curl https://api.okorolabs.io/ready \
 Public. Returns the current OKORO audit signing key as JWKS. Used by relying parties to verify audit chain signatures independently.
 
 ```bash
-curl https://api.okorolabs.io/.well-known/audit-signing-key
+curl https://api.okoroapp.com/.well-known/audit-signing-key
 ```
 
 **Response 200:**
+
 ```json
 {
   "keys": [
@@ -108,7 +113,7 @@ curl https://api.okorolabs.io/.well-known/audit-signing-key
 Register a new AI agent identity.
 
 ```bash
-curl -X POST https://api.okorolabs.io/v1/agents \
+curl -X POST https://api.okoroapp.com/v1/agents \
   -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -132,6 +137,7 @@ curl -X POST https://api.okorolabs.io/v1/agents \
 | `metadata` | object | - | Arbitrary metadata (stored, not interpreted) |
 
 **Response 201:**
+
 ```json
 {
   "id": "agent_01HX5TZK2Q8MXVR9P3N7WQJD4",
@@ -148,6 +154,7 @@ curl -X POST https://api.okorolabs.io/v1/agents \
 ```
 
 **Response 409** (name already exists):
+
 ```json
 {
   "error": "AGENT_NAME_CONFLICT",
@@ -162,7 +169,7 @@ curl -X POST https://api.okorolabs.io/v1/agents \
 List all agents for your principal.
 
 ```bash
-curl https://api.okorolabs.io/v1/agents \
+curl https://api.okoroapp.com/v1/agents \
   -H "Authorization: Bearer $OKORO_API_KEY" \
   -G \
   --data-urlencode "status=ACTIVE" \
@@ -179,6 +186,7 @@ curl https://api.okorolabs.io/v1/agents \
 | `cursor` | string | - | Pagination cursor from previous response |
 
 **Response 200:**
+
 ```json
 {
   "agents": [
@@ -206,11 +214,12 @@ curl https://api.okorolabs.io/v1/agents \
 Get a single agent with full trust detail.
 
 ```bash
-curl https://api.okorolabs.io/v1/agents/agent_01HX5TZK \
+curl https://api.okoroapp.com/v1/agents/agent_01HX5TZK \
   -H "Authorization: Bearer $OKORO_API_KEY"
 ```
 
 **Response 200:**
+
 ```json
 {
   "id": "agent_01HX5TZK",
@@ -243,7 +252,7 @@ curl https://api.okorolabs.io/v1/agents/agent_01HX5TZK \
 Update agent metadata or description. (Cannot change publicKey — use rotation endpoint.)
 
 ```bash
-curl -X PATCH https://api.okorolabs.io/v1/agents/agent_01HX5TZK \
+curl -X PATCH https://api.okoroapp.com/v1/agents/agent_01HX5TZK \
   -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "description": "Updated description", "metadata": { "version": "2.0.0" } }'
@@ -258,13 +267,14 @@ curl -X PATCH https://api.okorolabs.io/v1/agents/agent_01HX5TZK \
 Revoke an agent. Revocation propagates within 30 seconds. This action is irreversible — to re-enable, register a new agent.
 
 ```bash
-curl -X DELETE https://api.okorolabs.io/v1/agents/agent_01HX5TZK \
+curl -X DELETE https://api.okoroapp.com/v1/agents/agent_01HX5TZK \
   -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "reason": "No longer needed" }'
 ```
 
 **Response 200:**
+
 ```json
 {
   "id": "agent_01HX5TZK",
@@ -281,7 +291,7 @@ curl -X DELETE https://api.okorolabs.io/v1/agents/agent_01HX5TZK \
 Rotate an agent's Ed25519 public key. Existing tokens signed by the old key become invalid immediately.
 
 ```bash
-curl -X POST https://api.okorolabs.io/v1/agents/agent_01HX5TZK/rotate-key \
+curl -X POST https://api.okoroapp.com/v1/agents/agent_01HX5TZK/rotate-key \
   -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "newPublicKey": "base64url-encoded-new-public-key" }'
@@ -298,7 +308,7 @@ curl -X POST https://api.okorolabs.io/v1/agents/agent_01HX5TZK/rotate-key \
 Create a policy.
 
 ```bash
-curl -X POST https://api.okorolabs.io/v1/policies \
+curl -X POST https://api.okoroapp.com/v1/policies \
   -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -334,6 +344,7 @@ curl -X POST https://api.okorolabs.io/v1/policies \
 | `policy` | string | - | Cedar/OPA policy text (non-BUILTIN) |
 
 **Response 201:**
+
 ```json
 {
   "id": "pol_01HX5TZK",
@@ -358,13 +369,14 @@ curl -X POST https://api.okorolabs.io/v1/policies \
 Attach a policy to one or more agents.
 
 ```bash
-curl -X POST https://api.okorolabs.io/v1/policies/pol_01HX5TZK/attach \
+curl -X POST https://api.okoroapp.com/v1/policies/pol_01HX5TZK/attach \
   -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "agentIds": ["agent_01HX5TZK", "agent_02HX5TZK"] }'
 ```
 
 **Response 200:**
+
 ```json
 {
   "attached": ["agent_01HX5TZK", "agent_02HX5TZK"],
@@ -380,11 +392,12 @@ curl -X POST https://api.okorolabs.io/v1/policies/pol_01HX5TZK/attach \
 List all policies.
 
 ```bash
-curl https://api.okorolabs.io/v1/policies \
+curl https://api.okoroapp.com/v1/policies \
   -H "Authorization: Bearer $OKORO_API_KEY"
 ```
 
 **Response 200:**
+
 ```json
 {
   "policies": [
@@ -406,11 +419,12 @@ curl https://api.okorolabs.io/v1/policies \
 Revoke a policy. All agents with this policy lose its grants immediately.
 
 ```bash
-curl -X DELETE https://api.okorolabs.io/v1/policies/pol_01HX5TZK \
+curl -X DELETE https://api.okoroapp.com/v1/policies/pol_01HX5TZK \
   -H "Authorization: Bearer $OKORO_API_KEY"
 ```
 
 **Response 200:**
+
 ```json
 { "id": "pol_01HX5TZK", "status": "REVOKED", "revokedAt": "2026-05-04T12:00:00.000Z" }
 ```
@@ -424,7 +438,7 @@ curl -X DELETE https://api.okorolabs.io/v1/policies/pol_01HX5TZK \
 Verify an agent JWT and enforce policies. This is the highest-traffic endpoint — designed for < 50ms median latency.
 
 ```bash
-curl -X POST https://api.okorolabs.io/v1/verify \
+curl -X POST https://api.okoroapp.com/v1/verify \
   -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -463,6 +477,7 @@ curl -X POST https://api.okorolabs.io/v1/verify \
 | `cur` | Currency (required if amt present) |
 
 **Response 200 (Approved):**
+
 ```json
 {
   "approved": true,
@@ -480,6 +495,7 @@ curl -X POST https://api.okorolabs.io/v1/verify \
 ```
 
 **Response 403 (Denied):**
+
 ```json
 {
   "approved": false,
@@ -487,8 +503,8 @@ curl -X POST https://api.okorolabs.io/v1/verify \
   "agentId": "agent_01HX5TZK",
   "auditEventId": "evt_01HX5TZK",
   "details": {
-    "spentToday": 1000.00,
-    "limit": 1000.00,
+    "spentToday": 1000.0,
+    "limit": 1000.0,
     "currency": "USD",
     "resetsAt": "2026-05-05T00:00:00.000Z"
   }
@@ -497,17 +513,17 @@ curl -X POST https://api.okorolabs.io/v1/verify \
 
 **All 9 Denial Reasons and HTTP Status Codes:**
 
-| `denialReason` | HTTP | Meaning | Fix |
-|---------------|------|---------|-----|
-| `AGENT_NOT_FOUND` | 404 | Agent ID doesn't exist in your principal | Check agent ID and API key match |
-| `AGENT_REVOKED` | 403 | Agent has been revoked | Register a new agent |
-| `INVALID_SIGNATURE` | 401 | JWT signature verification failed | Verify agent is using the correct private key |
-| `POLICY_REVOKED` | 403 | The policy granting this access was revoked | Re-apply or create a new policy |
-| `POLICY_EXPIRED` | 403 | Policy has passed its expiry date | Create a new policy with future expiry |
-| `SCOPE_NOT_GRANTED` | 403 | Required scope not in agent's policies | Add the scope to the agent's policy |
-| `SPEND_LIMIT_EXCEEDED` | 429 | Daily/hourly/call spend limit hit | Wait for reset or increase limit |
-| `TRUST_SCORE_TOO_LOW` | 403 | Agent's trust score below policy minimum | Allow time for score to increase, or lower minimum |
-| `ANOMALY_FLAGGED` | 403 | BATE anomaly detector triggered | Review agent behavior, contact support |
+| `denialReason`         | HTTP | Meaning                                     | Fix                                                |
+| ---------------------- | ---- | ------------------------------------------- | -------------------------------------------------- |
+| `AGENT_NOT_FOUND`      | 404  | Agent ID doesn't exist in your principal    | Check agent ID and API key match                   |
+| `AGENT_REVOKED`        | 403  | Agent has been revoked                      | Register a new agent                               |
+| `INVALID_SIGNATURE`    | 401  | JWT signature verification failed           | Verify agent is using the correct private key      |
+| `POLICY_REVOKED`       | 403  | The policy granting this access was revoked | Re-apply or create a new policy                    |
+| `POLICY_EXPIRED`       | 403  | Policy has passed its expiry date           | Create a new policy with future expiry             |
+| `SCOPE_NOT_GRANTED`    | 403  | Required scope not in agent's policies      | Add the scope to the agent's policy                |
+| `SPEND_LIMIT_EXCEEDED` | 429  | Daily/hourly/call spend limit hit           | Wait for reset or increase limit                   |
+| `TRUST_SCORE_TOO_LOW`  | 403  | Agent's trust score below policy minimum    | Allow time for score to increase, or lower minimum |
+| `ANOMALY_FLAGGED`      | 403  | BATE anomaly detector triggered             | Review agent behavior, contact support             |
 
 ---
 
@@ -518,7 +534,7 @@ curl -X POST https://api.okorolabs.io/v1/verify \
 Query the audit log for your principal.
 
 ```bash
-curl "https://api.okorolabs.io/v1/audit?agentId=agent_01HX5TZK&limit=20" \
+curl "https://api.okoroapp.com/v1/audit?agentId=agent_01HX5TZK&limit=20" \
   -H "Authorization: Bearer $OKORO_API_KEY"
 ```
 
@@ -534,6 +550,7 @@ curl "https://api.okorolabs.io/v1/audit?agentId=agent_01HX5TZK&limit=20" \
 | `cursor` | string | Pagination cursor |
 
 **Response 200:**
+
 ```json
 {
   "events": [
@@ -569,13 +586,14 @@ curl "https://api.okorolabs.io/v1/audit?agentId=agent_01HX5TZK&limit=20" \
 Verify the integrity of your audit chain. Returns any breaks found.
 
 ```bash
-curl -X POST https://api.okorolabs.io/v1/audit/verify-chain \
+curl -X POST https://api.okoroapp.com/v1/audit/verify-chain \
   -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "limit": 1000, "from": "2026-05-01T00:00:00.000Z" }'
 ```
 
 **Response 200:**
+
 ```json
 {
   "integrity": "ok",
@@ -588,6 +606,7 @@ curl -X POST https://api.okorolabs.io/v1/audit/verify-chain \
 ```
 
 **Response 200 (breaks found):**
+
 ```json
 {
   "integrity": "broken",
@@ -613,11 +632,12 @@ curl -X POST https://api.okorolabs.io/v1/audit/verify-chain \
 Get a detailed trust score breakdown for an agent.
 
 ```bash
-curl https://api.okorolabs.io/v1/agents/agent_01HX5TZK/trust \
+curl https://api.okoroapp.com/v1/agents/agent_01HX5TZK/trust \
   -H "Authorization: Bearer $OKORO_API_KEY"
 ```
 
 **Response 200:**
+
 ```json
 {
   "agentId": "agent_01HX5TZK",
@@ -655,7 +675,7 @@ curl https://api.okorolabs.io/v1/agents/agent_01HX5TZK/trust \
 Submit a behavioral signal for an agent (e.g., from a fraud report or external observation).
 
 ```bash
-curl -X POST https://api.okorolabs.io/v1/agents/agent_01HX5TZK/signals \
+curl -X POST https://api.okoroapp.com/v1/agents/agent_01HX5TZK/signals \
   -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -680,6 +700,7 @@ curl -X POST https://api.okorolabs.io/v1/agents/agent_01HX5TZK/signals \
 | `AGENT_DPOP_REPLAY_ATTEMPT` | -200 (cap -600) | DPoP replay detected |
 
 **Response 201:**
+
 ```json
 {
   "signalId": "sig_01HX5TZK",
@@ -701,7 +722,7 @@ curl -X POST https://api.okorolabs.io/v1/agents/agent_01HX5TZK/signals \
 Create a webhook subscription.
 
 ```bash
-curl -X POST https://api.okorolabs.io/v1/webhooks \
+curl -X POST https://api.okoroapp.com/v1/webhooks \
   -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -723,6 +744,7 @@ curl -X POST https://api.okorolabs.io/v1/webhooks \
 | `anomaly.detected` | BATE anomaly triggered on an agent |
 
 **Response 201:**
+
 ```json
 {
   "id": "sub_01HX5TZK",
@@ -738,9 +760,7 @@ curl -X POST https://api.okorolabs.io/v1/webhooks \
 
 ```typescript
 const sig = req.headers['x-okoro-signature'];
-const expected = createHmac('sha256', webhookSecret)
-  .update(rawBody)
-  .digest('hex');
+const expected = createHmac('sha256', webhookSecret).update(rawBody).digest('hex');
 if (sig !== expected) throw new Error('Invalid signature');
 ```
 
@@ -773,7 +793,7 @@ Every webhook event has this format:
 Create a new API key.
 
 ```bash
-curl -X POST https://api.okorolabs.io/v1/auth/api-keys \
+curl -X POST https://api.okoroapp.com/v1/auth/api-keys \
   -H "Authorization: Bearer $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -783,6 +803,7 @@ curl -X POST https://api.okorolabs.io/v1/auth/api-keys \
 ```
 
 **Response 201:**
+
 ```json
 {
   "id": "key_01HX5TZK",
@@ -802,7 +823,7 @@ curl -X POST https://api.okorolabs.io/v1/auth/api-keys \
 List all API keys (key values are never returned, only metadata).
 
 ```bash
-curl https://api.okorolabs.io/v1/auth/api-keys \
+curl https://api.okoroapp.com/v1/auth/api-keys \
   -H "Authorization: Bearer $OKORO_API_KEY"
 ```
 
@@ -813,7 +834,7 @@ curl https://api.okorolabs.io/v1/auth/api-keys \
 Revoke an API key.
 
 ```bash
-curl -X DELETE https://api.okorolabs.io/v1/auth/api-keys/key_01HX5TZK \
+curl -X DELETE https://api.okoroapp.com/v1/auth/api-keys/key_01HX5TZK \
   -H "Authorization: Bearer $OKORO_API_KEY"
 ```
 
@@ -835,31 +856,32 @@ All error responses follow this format:
 
 **Common HTTP Status Codes:**
 
-| Status | Meaning |
-|--------|---------|
-| 200 | Success |
-| 201 | Created |
-| 400 | Bad Request (validation error) |
-| 401 | Unauthorized (invalid/missing API key) |
-| 403 | Forbidden (denied) |
-| 404 | Not Found |
-| 409 | Conflict (e.g., duplicate name) |
-| 429 | Too Many Requests (rate limit or spend limit) |
-| 500 | Internal Server Error |
-| 503 | Service Unavailable (maintenance mode) |
+| Status | Meaning                                       |
+| ------ | --------------------------------------------- |
+| 200    | Success                                       |
+| 201    | Created                                       |
+| 400    | Bad Request (validation error)                |
+| 401    | Unauthorized (invalid/missing API key)        |
+| 403    | Forbidden (denied)                            |
+| 404    | Not Found                                     |
+| 409    | Conflict (e.g., duplicate name)               |
+| 429    | Too Many Requests (rate limit or spend limit) |
+| 500    | Internal Server Error                         |
+| 503    | Service Unavailable (maintenance mode)        |
 
 ---
 
 ## 10. Rate Limits
 
-| Tier | /v1/verify | Other endpoints |
-|------|-----------|----------------|
-| Free | 10 req/sec, burst 20 | 5 req/sec |
-| Developer | 50 req/sec, burst 100 | 20 req/sec |
-| Pro | 500 req/sec, burst 1000 | 100 req/sec |
-| Enterprise | Custom | Custom |
+| Tier       | /v1/verify              | Other endpoints |
+| ---------- | ----------------------- | --------------- |
+| Free       | 10 req/sec, burst 20    | 5 req/sec       |
+| Developer  | 50 req/sec, burst 100   | 20 req/sec      |
+| Pro        | 500 req/sec, burst 1000 | 100 req/sec     |
+| Enterprise | Custom                  | Custom          |
 
 Rate limit headers on every response:
+
 ```
 X-RateLimit-Limit: 10
 X-RateLimit-Remaining: 7
@@ -874,25 +896,26 @@ All list endpoints use cursor-based pagination:
 
 ```bash
 # First page
-curl "https://api.okorolabs.io/v1/agents?limit=20"
+curl "https://api.okoroapp.com/v1/agents?limit=20"
 
 # Next page (using cursor from previous response)
-curl "https://api.okorolabs.io/v1/agents?limit=20&cursor=agent_cursor_value"
+curl "https://api.okoroapp.com/v1/agents?limit=20&cursor=agent_cursor_value"
 ```
 
 Response includes:
+
 ```json
 {
   "pagination": {
     "hasMore": true,
     "cursor": "agent_cursor_value",
-    "total": null  // not always available (expensive for large datasets)
+    "total": null // not always available (expensive for large datasets)
   }
 }
 ```
 
 ---
 
-*API Reference version: 1.0 | OKORO Phase 1 GA*  
-*OpenAPI spec: https://api.okorolabs.io/openapi.json*  
-*Postman collection: https://docs.okorolabs.io/postman*
+_API Reference version: 1.0 | OKORO Phase 1 GA_  
+_OpenAPI spec: https://api.okoroapp.com/openapi.json_  
+_Postman collection: https://docs.okoroapp.com/postman_

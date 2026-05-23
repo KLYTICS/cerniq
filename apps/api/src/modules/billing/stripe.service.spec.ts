@@ -8,11 +8,7 @@ import { Logger } from '@nestjs/common';
 
 import { ServiceUnavailableError, ValidationError } from '../../common/errors/okoro-error';
 
-import {
-  StripeService,
-  type StripeEvent,
-  type StripeFactory,
-} from './stripe.service';
+import { StripeService, type StripeEvent, type StripeFactory } from './stripe.service';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Test doubles
@@ -42,25 +38,20 @@ function makePrismaStub(initial: FakePrincipalRow[]) {
         const row = rows.get(where.id);
         return row ? { ...row } : null;
       }),
-      findFirst: jest.fn(
-        async ({ where }: { where: Partial<FakePrincipalRow> }) => {
-          for (const row of rows.values()) {
-            if (
-              where.stripeSubscriptionId &&
-              row.stripeSubscriptionId === where.stripeSubscriptionId
-            ) {
-              return { ...row }; // snapshot — see findUnique comment
-            }
-            if (
-              where.stripeCustomerId &&
-              row.stripeCustomerId === where.stripeCustomerId
-            ) {
-              return { ...row }; // snapshot
-            }
+      findFirst: jest.fn(async ({ where }: { where: Partial<FakePrincipalRow> }) => {
+        for (const row of rows.values()) {
+          if (
+            where.stripeSubscriptionId &&
+            row.stripeSubscriptionId === where.stripeSubscriptionId
+          ) {
+            return { ...row }; // snapshot — see findUnique comment
           }
-          return null;
-        },
-      ),
+          if (where.stripeCustomerId && row.stripeCustomerId === where.stripeCustomerId) {
+            return { ...row }; // snapshot
+          }
+        }
+        return null;
+      }),
       update: jest.fn(
         async ({
           where,
@@ -83,13 +74,7 @@ function makePrismaStub(initial: FakePrincipalRow[]) {
 function makeRedisStub() {
   const store = new Map<string, string>();
   const setMock = jest.fn(
-    async (
-      key: string,
-      _val: string,
-      _exMode?: string,
-      _ttl?: number,
-      nxFlag?: string,
-    ) => {
+    async (key: string, _val: string, _exMode?: string, _ttl?: number, nxFlag?: string) => {
       if (nxFlag === 'NX' && store.has(key)) return null;
       store.set(key, _val);
       return 'OK';
@@ -187,11 +172,13 @@ function makeFakeStripe(): FakeStripe {
   };
 }
 
-function build(overrides: {
-  config?: Partial<Record<string, string | undefined>>;
-  principals?: FakePrincipalRow[];
-  fakeStripe?: FakeStripe;
-} = {}) {
+function build(
+  overrides: {
+    config?: Partial<Record<string, string | undefined>>;
+    principals?: FakePrincipalRow[];
+    fakeStripe?: FakeStripe;
+  } = {},
+) {
   const fakeStripe = overrides.fakeStripe ?? makeFakeStripe();
   const factory: StripeFactory = jest.fn(() => fakeStripe);
   const prisma = makePrismaStub(overrides.principals ?? []);
@@ -247,7 +234,13 @@ describe('StripeService', () => {
     it('throws on FREE planTier', async () => {
       const { svc } = build({
         principals: [
-          { id: 'p1', email: 'a@b', planTier: 'FREE', stripeCustomerId: null, stripeSubscriptionId: null },
+          {
+            id: 'p1',
+            email: 'a@b',
+            planTier: 'FREE',
+            stripeCustomerId: null,
+            stripeSubscriptionId: null,
+          },
         ],
       });
       await expect(
@@ -263,7 +256,13 @@ describe('StripeService', () => {
     it('throws on ENTERPRISE planTier', async () => {
       const { svc } = build({
         principals: [
-          { id: 'p1', email: 'a@b', planTier: 'FREE', stripeCustomerId: null, stripeSubscriptionId: null },
+          {
+            id: 'p1',
+            email: 'a@b',
+            planTier: 'FREE',
+            stripeCustomerId: null,
+            stripeSubscriptionId: null,
+          },
         ],
       });
       await expect(
@@ -279,7 +278,13 @@ describe('StripeService', () => {
     it('creates customer + session for DEVELOPER tier and passes metadata.principalId', async () => {
       const { svc, fakeStripe, prisma } = build({
         principals: [
-          { id: 'p1', email: 'erwin@okoro.test', planTier: 'FREE', stripeCustomerId: null, stripeSubscriptionId: null },
+          {
+            id: 'p1',
+            email: 'erwin@okoro.test',
+            planTier: 'FREE',
+            stripeCustomerId: null,
+            stripeSubscriptionId: null,
+          },
         ],
       });
 
@@ -678,14 +683,11 @@ describe('StripeService', () => {
           },
         ],
       });
-      const out = await svc.createPortalSession(
-        'p1',
-        'https://app.okorolabs.io/billing/back',
-      );
+      const out = await svc.createPortalSession('p1', 'https://app.okoroapp.com/billing/back');
       expect(out.url).toBe('https://billing.stripe.test/p/cus_existing');
       expect(fakeStripe.billingPortal.sessions.create).toHaveBeenCalledWith({
         customer: 'cus_existing',
-        return_url: 'https://app.okorolabs.io/billing/back',
+        return_url: 'https://app.okoroapp.com/billing/back',
       });
     });
 
@@ -702,7 +704,7 @@ describe('StripeService', () => {
         ],
       });
       await expect(
-        svc.createPortalSession('p1', 'https://app.okorolabs.io/back'),
+        svc.createPortalSession('p1', 'https://app.okoroapp.com/back'),
       ).rejects.toBeInstanceOf(ValidationError);
     });
 
@@ -720,7 +722,7 @@ describe('StripeService', () => {
         ],
       });
       await expect(
-        svc.createPortalSession('p1', 'https://app.okorolabs.io/back'),
+        svc.createPortalSession('p1', 'https://app.okoroapp.com/back'),
       ).rejects.toBeInstanceOf(ServiceUnavailableError);
     });
   });
@@ -751,7 +753,18 @@ describe('StripeService', () => {
   describe('Circuit breaker (OPEN state)', () => {
     it('trips to OPEN after failureThreshold consecutive errors', async () => {
       const fakeStripe = makeFakeStripe();
-      const { svc } = build({ fakeStripe, principals: [{ id: 'p_ho', email: 'ho@test.com', planTier: 'FREE' as const, stripeCustomerId: null, stripeSubscriptionId: null }] });
+      const { svc } = build({
+        fakeStripe,
+        principals: [
+          {
+            id: 'p_ho',
+            email: 'ho@test.com',
+            planTier: 'FREE' as const,
+            stripeCustomerId: null,
+            stripeSubscriptionId: null,
+          },
+        ],
+      });
 
       // Make checkout session creation fail every time
       const boom = new Error('stripe network error');
@@ -790,7 +803,15 @@ describe('StripeService', () => {
       const fakeStripe = makeFakeStripe();
       const { svc } = build({
         fakeStripe,
-        principals: [{ id: 'p_reset', email: 'reset@test.com', planTier: 'FREE', stripeCustomerId: null, stripeSubscriptionId: null }],
+        principals: [
+          {
+            id: 'p_reset',
+            email: 'reset@test.com',
+            planTier: 'FREE',
+            stripeCustomerId: null,
+            stripeSubscriptionId: null,
+          },
+        ],
       });
 
       const boom = new Error('stripe error');
@@ -800,18 +821,25 @@ describe('StripeService', () => {
       for (let i = 0; i < 4; i++) {
         await expect(
           svc.createCheckoutSession({
-            principalId: 'p_reset', planTier: 'DEVELOPER',
-            successUrl: 'https://x.com/ok', cancelUrl: 'https://x.com/cancel',
+            principalId: 'p_reset',
+            planTier: 'DEVELOPER',
+            successUrl: 'https://x.com/ok',
+            cancelUrl: 'https://x.com/cancel',
           }),
         ).rejects.toThrow();
       }
 
       // 1 success — resets failure counter
-      fakeStripe.checkout.sessions.create.mockResolvedValueOnce({ id: 'cs_ok', url: 'https://x.com/cs_ok' });
+      fakeStripe.checkout.sessions.create.mockResolvedValueOnce({
+        id: 'cs_ok',
+        url: 'https://x.com/cs_ok',
+      });
       await expect(
         svc.createCheckoutSession({
-          principalId: 'p_reset', planTier: 'DEVELOPER',
-          successUrl: 'https://x.com/ok', cancelUrl: 'https://x.com/cancel',
+          principalId: 'p_reset',
+          planTier: 'DEVELOPER',
+          successUrl: 'https://x.com/ok',
+          cancelUrl: 'https://x.com/cancel',
         }),
       ).resolves.toMatchObject({ url: 'https://x.com/cs_ok' });
 
@@ -820,8 +848,10 @@ describe('StripeService', () => {
       for (let i = 0; i < 4; i++) {
         await expect(
           svc.createCheckoutSession({
-            principalId: 'p_reset', planTier: 'DEVELOPER',
-            successUrl: 'https://x.com/ok', cancelUrl: 'https://x.com/cancel',
+            principalId: 'p_reset',
+            planTier: 'DEVELOPER',
+            successUrl: 'https://x.com/ok',
+            cancelUrl: 'https://x.com/cancel',
           }),
         ).rejects.toThrow();
       }
@@ -829,8 +859,10 @@ describe('StripeService', () => {
       // 5th failure in the new run — trips the breaker
       await expect(
         svc.createCheckoutSession({
-          principalId: 'p_reset', planTier: 'DEVELOPER',
-          successUrl: 'https://x.com/ok', cancelUrl: 'https://x.com/cancel',
+          principalId: 'p_reset',
+          planTier: 'DEVELOPER',
+          successUrl: 'https://x.com/ok',
+          cancelUrl: 'https://x.com/cancel',
         }),
       ).rejects.toThrow();
 
@@ -838,8 +870,10 @@ describe('StripeService', () => {
       fakeStripe.checkout.sessions.create.mockClear();
       await expect(
         svc.createCheckoutSession({
-          principalId: 'p_reset', planTier: 'DEVELOPER',
-          successUrl: 'https://x.com/ok', cancelUrl: 'https://x.com/cancel',
+          principalId: 'p_reset',
+          planTier: 'DEVELOPER',
+          successUrl: 'https://x.com/ok',
+          cancelUrl: 'https://x.com/cancel',
         }),
       ).rejects.toThrow();
       expect(fakeStripe.checkout.sessions.create).not.toHaveBeenCalled();
@@ -850,7 +884,15 @@ describe('StripeService', () => {
       const fakeStripe = makeFakeStripe();
       const { svc } = build({
         fakeStripe,
-        principals: [{ id: 'p_ho', email: 'ho@test.com', planTier: 'FREE' as const, stripeCustomerId: null, stripeSubscriptionId: null }],
+        principals: [
+          {
+            id: 'p_ho',
+            email: 'ho@test.com',
+            planTier: 'FREE' as const,
+            stripeCustomerId: null,
+            stripeSubscriptionId: null,
+          },
+        ],
       });
 
       const boom = new Error('stripe error');
@@ -860,8 +902,10 @@ describe('StripeService', () => {
       for (let i = 0; i < 5; i++) {
         await expect(
           svc.createCheckoutSession({
-            principalId: 'p_ho', planTier: 'DEVELOPER',
-            successUrl: 'https://x.com/ok', cancelUrl: 'https://x.com/cancel',
+            principalId: 'p_ho',
+            planTier: 'DEVELOPER',
+            successUrl: 'https://x.com/ok',
+            cancelUrl: 'https://x.com/cancel',
           }),
         ).rejects.toThrow();
       }
@@ -872,11 +916,16 @@ describe('StripeService', () => {
       // The next call should be a HALF_OPEN probe — allow the Stripe call.
       // Clear call history so toHaveBeenCalledTimes(1) measures only the probe.
       fakeStripe.checkout.sessions.create.mockClear();
-      fakeStripe.checkout.sessions.create.mockResolvedValueOnce({ id: 'cs_probe', url: 'https://x.com/probe' });
+      fakeStripe.checkout.sessions.create.mockResolvedValueOnce({
+        id: 'cs_probe',
+        url: 'https://x.com/probe',
+      });
       await expect(
         svc.createCheckoutSession({
-          principalId: 'p_ho', planTier: 'DEVELOPER',
-          successUrl: 'https://x.com/ok', cancelUrl: 'https://x.com/cancel',
+          principalId: 'p_ho',
+          planTier: 'DEVELOPER',
+          successUrl: 'https://x.com/ok',
+          cancelUrl: 'https://x.com/cancel',
         }),
       ).resolves.toMatchObject({ url: 'https://x.com/probe' });
 
@@ -941,7 +990,8 @@ describe('StripeService', () => {
         await svc.recordOverage('p1', 1);
         expect(fakeStripe.subscriptionItems.createUsageRecord).not.toHaveBeenCalled();
         const matched = warnSpy.mock.calls.some(
-          (c) => typeof c[0] === 'string' && c[0].includes('p1') && c[0].includes('stripeOverageItemId'),
+          (c) =>
+            typeof c[0] === 'string' && c[0].includes('p1') && c[0].includes('stripeOverageItemId'),
         );
         expect(matched).toBe(true);
       } finally {

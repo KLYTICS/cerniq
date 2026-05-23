@@ -32,7 +32,7 @@ id = "REPLACE_ME_AT_DEPLOY"
 # database_id = "REPLACE_ME_AT_DEPLOY"
 
 [vars]
-OKORO_ORIGIN_URL = "https://api.okorolabs.io"
+OKORO_ORIGIN_URL = "https://api.okoroapp.com"
 OKORO_VERIFY_TIMEOUT_MS = "1500"
 
 # Secrets (set via `wrangler secret put`):

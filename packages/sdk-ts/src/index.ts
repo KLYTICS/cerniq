@@ -4,7 +4,7 @@ import { HttpClient } from './http.js';
 import { PolicyClient } from './policy.js';
 import type { OkoroConfig, SignContext, VerifyResult } from './types.js';
 
-const DEFAULT_BASE_URL = 'https://api.okorolabs.io';
+const DEFAULT_BASE_URL = 'https://api.okoroapp.com';
 const DEFAULT_TIMEOUT_MS = 5_000;
 
 export class Okoro {
@@ -29,7 +29,12 @@ export class Okoro {
    * Sign a per-request agent token. Convenience wrapper around the lower-level
    * `signAgentToken` so the most common flow is a single call.
    */
-  sign(privateKeyB64u: string, agentId: string, policyId: string, ctx: SignContext): Promise<string> {
+  sign(
+    privateKeyB64u: string,
+    agentId: string,
+    policyId: string,
+    ctx: SignContext,
+  ): Promise<string> {
     return signAgentToken(privateKeyB64u, agentId, policyId, ctx);
   }
 

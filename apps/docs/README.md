@@ -1,6 +1,6 @@
 # @okoro/docs
 
-Live documentation site for OKORO. Served at `docs.okorolabs.io`.
+Live documentation site for OKORO. Served at `docs.okoroapp.com`.
 
 ## Why "live"
 
@@ -39,8 +39,8 @@ Open <http://localhost:3100>.
 
 ## Environment
 
-| Var                  | Purpose                                                                                                                                                                                       | Default              |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| Var                  | Purpose                                                                                                                                                                 | Default               |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
 | `OKORO_API_BASE_URL` | Source of `/.well-known/pricing.json` for `<PricingTable/>`. When unset, the component falls back to a build-time mirror and emits `data-source="fallback"` in the DOM. | unset (uses fallback) |
 
 ## Deploy

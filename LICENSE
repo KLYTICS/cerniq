@@ -17,4 +17,4 @@ present development is structured for eventual external publication:
   - packages/sdk-ts/   (npm: @okoro/sdk)
   - packages/sdk-py/   (PyPI: okoro)
 
-For licensing inquiries: licensing@okorolabs.io
+For licensing inquiries: licensing@okoroapp.com

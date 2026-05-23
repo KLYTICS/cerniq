@@ -39,7 +39,7 @@ builds:
 
 archives:
   - id: okoro
-    name_template: "okoro_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: 'okoro_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
     format: tar.gz
     format_overrides:
       - goos: windows
@@ -49,7 +49,7 @@ archives:
       - README.md
 
 checksum:
-  name_template: "checksums.txt"
+  name_template: 'checksums.txt'
   algorithm: sha256
 
 # Cosign keyless signing of the checksums file. Allows install.sh to
@@ -59,12 +59,12 @@ signs:
   - cmd: cosign
     env:
       - COSIGN_EXPERIMENTAL=1
-    certificate: "${artifact}.pem"
+    certificate: '${artifact}.pem'
     args:
       - sign-blob
-      - "--output-certificate=${certificate}"
-      - "--output-signature=${signature}"
-      - "${artifact}"
+      - '--output-certificate=${certificate}'
+      - '--output-signature=${signature}'
+      - '${artifact}'
       - --yes
     artifacts: checksum
     output: true
@@ -72,25 +72,25 @@ signs:
 sboms:
   - artifacts: archive
     documents:
-      - "${artifact}.cyclonedx.sbom.json"
+      - '${artifact}.cyclonedx.sbom.json'
 
 snapshot:
-  version_template: "{{ incpatch .Version }}-snap"
+  version_template: '{{ incpatch .Version }}-snap'
 
 changelog:
   sort: asc
   use: github
   filters:
     exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
-      - "merge conflict"
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - 'merge conflict'
   groups:
     - title: Features
       regexp: '^.*?feat(\(.+\))??!?:.+$'
       order: 0
-    - title: "Bug fixes"
+    - title: 'Bug fixes'
       regexp: '^.*?(fix|refactor)(\(.+\))??!?:.+$'
       order: 1
     - title: Others
@@ -101,9 +101,9 @@ brews:
       owner: klytics
       name: homebrew-okoro
     name: okoro
-    homepage: "https://okorolabs.io"
-    description: "Operator CLI for the OKORO agent gateway"
-    license: "Proprietary"
+    homepage: 'https://okoroapp.com'
+    description: 'Operator CLI for the OKORO agent gateway'
+    license: 'Proprietary'
     install: |
       bin.install "okoro"
       generate_completions_from_executable(bin/"okoro", "completion")
@@ -115,14 +115,14 @@ scoops:
       owner: klytics
       name: scoop-okoro
     name: okoro
-    homepage: "https://okorolabs.io"
-    description: "Operator CLI for the OKORO agent gateway"
+    homepage: 'https://okoroapp.com'
+    description: 'Operator CLI for the OKORO agent gateway'
     license: Proprietary
 
 release:
   draft: false
   prerelease: auto
-  name_template: "v{{.Version}}"
+  name_template: 'v{{.Version}}'
   header: |
     ## OKORO CLI {{ .Tag }}
 

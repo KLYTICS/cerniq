@@ -54,7 +54,7 @@ lead is on the bridge — the broken row is forensic evidence.
 ```sh
 # Reproduce the break independently with the public verifier.
 npx @okoro/audit-verifier verify ./export.ndjson \
-  --jwks https://api.okorolabs.io/.well-known/audit-signing-key \
+  --jwks https://api.okoroapp.com/.well-known/audit-signing-key \
   --no-fail-fast --json > triage.json
 
 # Find the first break.
@@ -63,15 +63,16 @@ jq '.firstBreak' triage.json
 
 Read the `reason` field:
 
-| Reason fragment              | Likely cause                                    |
-|------------------------------|-------------------------------------------------|
-| "signature did not verify"   | Payload was mutated post-signing (row tampering OR canonicalization drift) |
-| "chain link mismatch"        | Row dropped, reordered, OR forged-insert        |
-| "kid not present in JWKS"    | Key rotation completed before JWKS published    |
+| Reason fragment            | Likely cause                                                               |
+| -------------------------- | -------------------------------------------------------------------------- |
+| "signature did not verify" | Payload was mutated post-signing (row tampering OR canonicalization drift) |
+| "chain link mismatch"      | Row dropped, reordered, OR forged-insert                                   |
+| "kid not present in JWKS"  | Key rotation completed before JWKS published                               |
 
 ### Remediation
 
 **Tampering / forged insert (SEV-1 security event):**
+
 1. Freeze writes to `AuditEvent` table — set `okoro-api` deployment
    replicas to 0 OR put the API into read-only mode via env flag.
 2. Snapshot the database. Preserve the broken row exactly as-is.
@@ -79,6 +80,7 @@ Read the `reason` field:
    `docs/SECURITY.md` § Incident Response.
 
 **Canonicalization drift (regression bug):**
+
 1. Confirm via `pnpm -F @okoro/types spec-sync` that the canonicalize
    algorithm has not changed.
 2. Compare the broken row's payload bytes vs. the signature bytes —
@@ -89,6 +91,7 @@ Read the `reason` field:
    lead — usually it's better to leave the break visible).
 
 **JWKS lag (operator process error):**
+
 1. Verify `/.well-known/audit-signing-key` lists the kid the broken row references.
 2. If not — the previous KMS rotation didn't publish the new kid.
    Run `pnpm -F @okoro/api exec tsx scripts/publish-jwks.ts` (or the
@@ -113,6 +116,7 @@ follow the cadence in `docs/RETENTION_POLICY.md` § Key lifecycle.
 ### Detection
 
 This is a planned operation. Triggered by:
+
 - Quarterly cadence (90 days).
 - Compromise response (immediate).
 - KMS provider mandates (annual for AWS HSM-backed keys).
@@ -130,7 +134,7 @@ aws kms list-keys --query 'Keys[?contains(KeyId, `okoro-audit`)]'
 # (or the GCP / Vault equivalent)
 
 # 2. Confirm the old key is still listed in JWKS.
-curl -s https://api.okorolabs.io/.well-known/audit-signing-key | jq '.keys[].kid'
+curl -s https://api.okoroapp.com/.well-known/audit-signing-key | jq '.keys[].kid'
 ```
 
 ### Remediation (the rotation)
@@ -148,7 +152,7 @@ kubectl rollout restart deployment/okoro-api
 
 # 3. Confirm the JWKS lists BOTH old + new kids for the rotation
 #    window.
-curl -s https://api.okorolabs.io/.well-known/audit-signing-key | jq '.keys'
+curl -s https://api.okoroapp.com/.well-known/audit-signing-key | jq '.keys'
 
 # 4. After 24h, confirm no in-flight rows still reference the old kid.
 psql -c "SELECT signingKeyId, count(*) FROM \"AuditEvent\"
@@ -202,7 +206,7 @@ okoro agents list --principal "$PRINCIPAL_ID" --json > snapshot-$(date +%s).json
 
 ```sh
 # Bulk revoke via admin endpoint (gated by OKORO_ADMIN_TOKEN).
-curl -X POST https://api.okorolabs.io/v1/admin/principals/$PRINCIPAL_ID/revoke-all \
+curl -X POST https://api.okoroapp.com/v1/admin/principals/$PRINCIPAL_ID/revoke-all \
      -H "X-OKORO-Admin: $OKORO_ADMIN_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{"reason":"compromise_response","ticketId":"INC-2026-0501"}'
@@ -247,11 +251,11 @@ outage breaks new RP cold-starts.
 
 ```sh
 # Verify the endpoint serves correctly from your edge.
-curl -fsSI https://api.okorolabs.io/.well-known/audit-signing-key
+curl -fsSI https://api.okoroapp.com/.well-known/audit-signing-key
 # Expected: 200, Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 
 # Verify it's not an upstream Railway / Cloudflare issue.
-curl -fsSI https://api.okorolabs.io/health
+curl -fsSI https://api.okoroapp.com/health
 ```
 
 ### Remediation
@@ -307,15 +311,18 @@ p99 spike?
 ```
 
 ### 5a. DB saturation
+
 ```sh
 # Active queries > pool size.
 kubectl exec -it $(kubectl get pod -l app=okoro-api -o name | head -1) -- \
   psql -c "SELECT count(*), state FROM pg_stat_activity GROUP BY state;"
 ```
+
 Resize the connection pool (`OKORO_DB_POOL_MAX`) or scale read
 replicas.
 
 ### 5b. Redis latency
+
 Verify path uses Redis for spend counters + replay cache. Slow
 Redis = slow verify. Check the Upstash / ElastiCache dashboard for
 the p99 line. CLAUDE.md invariant 4: Redis-down fails closed with
@@ -323,17 +330,20 @@ ANOMALY_FLAGGED — verify is still fast in that case (no Postgres
 fallback round-trip).
 
 ### 5c. Cold cache
+
 After a deploy, the agent / policy cache is empty. p99 settles in
 ~5 minutes. If it doesn't, check `okoro_cache_miss_ratio` —
 sustained > 30% means the cache key strategy is broken.
 
 ### 5d. KMS sign latency
+
 The audit-signer goes through KMS for production. AWS Decrypt has
 p99 ~30ms; if you see > 100ms, route through the KMS adapter's
 internal cache (it caches the unwrapped Ed25519 priv-key for the
 process lifetime).
 
 ### 5e. BATE BullMQ backpressure
+
 BATE recompute is async — backpressure shouldn't affect verify
 latency directly. If `okoro_bullmq_queue_depth` > 1000 sustained,
 scale the BateRecomputeWorker concurrency.
@@ -419,14 +429,14 @@ psql -c "SELECT count(*) FROM \"AuditEvent\"
 # but keeps the *Hash columns + the signature, so the chain stays
 # verifiable.
 for EVENT_ID in $(psql -At -c "SELECT id FROM \"AuditEvent\" WHERE \"principalId\" = '$PRINCIPAL_ID';"); do
-  curl -X POST https://api.okorolabs.io/v1/compliance/audit/redact-event \
+  curl -X POST https://api.okoroapp.com/v1/compliance/audit/redact-event \
        -H "X-OKORO-API-Key: $OKORO_ADMIN_KEY" \
        -d "{\"eventId\":\"$EVENT_ID\",\"reason\":\"gdpr_art17\",\"ticketId\":\"$TICKET\"}"
 done
 
 # Verify the chain is still intact post-redaction.
 npx @okoro/audit-verifier verify ./export-after-redact.ndjson \
-  --jwks https://api.okorolabs.io/.well-known/audit-signing-key
+  --jwks https://api.okoroapp.com/.well-known/audit-signing-key
 # Expected: ✓ INTACT
 ```
 
@@ -465,11 +475,11 @@ DATABASE_URL=$EU_DB_URL pnpm -F @okoro/api prisma migrate deploy
 kubectl apply -f infra/k8s/okoro-api-eu-west.yaml
 
 # 3. Confirm the genesis audit row was created and is verifiable.
-npx @okoro/audit-verifier verify <(curl -s https://eu.api.okorolabs.io/v1/audit-events/export) \
-  --jwks https://eu.api.okorolabs.io/.well-known/audit-signing-key
+npx @okoro/audit-verifier verify <(curl -s https://eu.api.okoroapp.com/v1/audit-events/export) \
+  --jwks https://eu.api.okoroapp.com/.well-known/audit-signing-key
 
 # 4. Update the customer's principal record to pin region.
-curl -X PATCH https://api.okorolabs.io/v1/admin/principals/$PRINCIPAL_ID \
+curl -X PATCH https://api.okoroapp.com/v1/admin/principals/$PRINCIPAL_ID \
      -H "X-OKORO-Admin: $OKORO_ADMIN_TOKEN" \
      -d '{"region":"eu-west","dataResidency":"eu"}'
 ```
@@ -486,19 +496,21 @@ curl -X PATCH https://api.okorolabs.io/v1/admin/principals/$PRINCIPAL_ID \
 
 ## Appendix: severity ladder
 
-| SEV | Wake on-call? | Pager | Customer comms | Internal SLA |
-|-----|---------------|-------|----------------|--------------|
-| 1   | yes — immediate | yes  | status page + post-mortem | response < 15 min |
-| 2   | yes — within 30min | yes | status page if customer-facing | response < 1h |
-| 3   | next business day | no | none unless customer-asked | response < 1d |
-| 4   | weekly review | no   | none | response < 7d |
+| SEV | Wake on-call?      | Pager | Customer comms                 | Internal SLA      |
+| --- | ------------------ | ----- | ------------------------------ | ----------------- |
+| 1   | yes — immediate    | yes   | status page + post-mortem      | response < 15 min |
+| 2   | yes — within 30min | yes   | status page if customer-facing | response < 1h     |
+| 3   | next business day  | no    | none unless customer-asked     | response < 1d     |
+| 4   | weekly review      | no    | none                           | response < 7d     |
 
 Severity bumps **upward** when:
+
 - Customer-facing money is at risk.
 - A regulator might ask about it.
 - There's an ongoing security event.
 
 Severity bumps **downward** when:
+
 - The fix is deployed and the alarm is just lagging.
 - Equivalent capability is degraded but functional.
 

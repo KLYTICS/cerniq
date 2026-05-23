@@ -16,15 +16,12 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { Okoro } from '@okoro/sdk';
 import { randomUUID } from 'node:crypto';
 
 const okoro = new Okoro({
-  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okorolabs.io',
+  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okoroapp.com',
   verifyKey: requireEnv('OKORO_VERIFY_KEY'),
 });
 
@@ -32,7 +29,7 @@ const downstream = requireEnv('DOWNSTREAM_API_BASE');
 
 const server = new Server(
   { name: 'okoro-gated-toolset', version: '0.1.0' },
-  { capabilities: { tools: {} } }
+  { capabilities: { tools: {} } },
 );
 
 // One tool today: read_invoice. Adapt the inputSchema to your downstream
@@ -72,19 +69,20 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   });
 
   if (!verdict.valid) {
-    return toolError(
-      `denied: ${verdict.denialReason}. OKORO audit event ${verdict.auditEventId}`
-    );
+    return toolError(`denied: ${verdict.denialReason}. OKORO audit event ${verdict.auditEventId}`);
   }
 
   // Forward to the downstream API. Cross-link the OKORO audit id so
   // the downstream's request log can be joined back to the OKORO chain.
-  const resp = await fetch(`${downstream}/invoices/${encodeURIComponent(String(args.invoice_id))}`, {
-    headers: {
-      'X-OKORO-Audit-Event-Id': verdict.auditEventId,
-      'X-OKORO-Agent-Id': verdict.agentId,
+  const resp = await fetch(
+    `${downstream}/invoices/${encodeURIComponent(String(args.invoice_id))}`,
+    {
+      headers: {
+        'X-OKORO-Audit-Event-Id': verdict.auditEventId,
+        'X-OKORO-Agent-Id': verdict.agentId,
+      },
     },
-  });
+  );
   const body = await resp.text();
   return {
     content: [

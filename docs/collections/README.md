@@ -6,12 +6,12 @@ the wire contract.
 
 ## Available collections
 
-| Tool      | File                          | Generation                                                                |
-| --------- | ----------------------------- | ------------------------------------------------------------------------- |
-| Postman   | `okoro.postman.json`          | `npx openapi-to-postmanv2 -s ../../docs/spec/OKORO_API_SPEC.yaml -o okoro.postman.json` |
-| Insomnia  | `okoro.insomnia.yaml`         | `npx openapi-2-insomnia ../../docs/spec/OKORO_API_SPEC.yaml > okoro.insomnia.yaml` |
-| Bruno     | `okoro.bruno/`                | `npx openapi-to-bruno --input ../../docs/spec/OKORO_API_SPEC.yaml --output okoro.bruno` |
-| HTTPie    | `okoro.httpie.json`           | manually maintained — small enough that auto-gen isn't worth the dep      |
+| Tool     | File                  | Generation                                                                              |
+| -------- | --------------------- | --------------------------------------------------------------------------------------- |
+| Postman  | `okoro.postman.json`  | `npx openapi-to-postmanv2 -s ../../docs/spec/OKORO_API_SPEC.yaml -o okoro.postman.json` |
+| Insomnia | `okoro.insomnia.yaml` | `npx openapi-2-insomnia ../../docs/spec/OKORO_API_SPEC.yaml > okoro.insomnia.yaml`      |
+| Bruno    | `okoro.bruno/`        | `npx openapi-to-bruno --input ../../docs/spec/OKORO_API_SPEC.yaml --output okoro.bruno` |
+| HTTPie   | `okoro.httpie.json`   | manually maintained — small enough that auto-gen isn't worth the dep                    |
 
 These files are checked in so a developer doesn't need a Node toolchain
 to import them. The generation commands above are the contract for how
@@ -22,7 +22,7 @@ refresh in the same PR.
 
 All four collections expect:
 
-- `OKORO_BASE_URL` (default `https://api.okorolabs.io`)
+- `OKORO_BASE_URL` (default `https://api.okoroapp.com`)
 - `OKORO_API_KEY` (an `okoro_sk_…` for management endpoints)
 - `OKORO_VERIFY_KEY` (an `okoro_vk_…` for the verify-only endpoints)
 

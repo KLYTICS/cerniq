@@ -1,5 +1,7 @@
 # OKORO — Go-To-Market & Market Adoption Doctrine
+
 ## Document 02 — GTM, PLG Engine, Adoption Curve, Revenue Architecture
+
 ### KLYTICS Internal | Version 1.0 | May 2026
 
 ---
@@ -52,7 +54,7 @@ INNOVATORS      EARLY ADOPTERS     EARLY MAJORITY     LATE MAJORITY     LAGGARDS
 
 The NIST initiative creates an artificial forcing function that compresses the adoption curve. Historically, infrastructure security standards take years to trickle from NIST guidance to enterprise mandates. But AI agents are moving faster — the gap between NIST paper (Feb 2026) and enterprise compliance requirements could be 12–18 months, not 5 years.
 
-**Strategic implication:** OKORO must be in production with enterprise-grade compliance documentation *before* the NIST standards finalize. Companies that implement OKORO before the mandate can claim "NIST-aligned agent identity infrastructure." Companies that don't implement anything will be scrambling to comply. First-mover advantage in the standards cycle is a structural moat.
+**Strategic implication:** OKORO must be in production with enterprise-grade compliance documentation _before_ the NIST standards finalize. Companies that implement OKORO before the mandate can claim "NIST-aligned agent identity infrastructure." Companies that don't implement anything will be scrambling to comply. First-mover advantage in the standards cycle is a structural moat.
 
 ---
 
@@ -119,6 +121,7 @@ This is the single most important engineering goal in Phase 1. The Aha Moment fo
 Stripe's equivalent was the first successful API charge. Twilio's was the first SMS sent. OKORO's is the first verified agent interaction.
 
 **The 10-Minute Verify path:**
+
 ```
 Minute 0:    Developer signs up (email only, no credit card)
 Minute 1:    Dashboard loads → "Register your first agent"
@@ -136,6 +139,7 @@ Every minute of friction beyond 10 in this flow is a lost developer. The dashboa
 Developers discover tools by searching for problems, not product names. The OKORO content engine targets the problem-search:
 
 **Tier 1 — SEO / Problem-search content:**
+
 - "AI agent blocked by website bot detection — how to fix"
 - "How to give your AI agent a verified identity"
 - "My ChatGPT agent got flagged as spam — solution"
@@ -146,6 +150,7 @@ Developers discover tools by searching for problems, not product names. The OKOR
 Each article ends with: "OKORO handles this with 3 lines of code. [Free quickstart →]"
 
 **Tier 2 — Framework integration guides (highest-intent traffic):**
+
 - "Add OKORO identity to your LangChain agent in 10 minutes"
 - "CrewAI agent verification with OKORO"
 - "AutoGen multi-agent trust with OKORO BATE"
@@ -155,6 +160,7 @@ Each article ends with: "OKORO handles this with 3 lines of code. [Free quicksta
 These articles rank for developers who are actively building and know what framework they're using. Conversion rate is 3–5× higher than generic content.
 
 **Tier 3 — Thought leadership / standard-setting:**
+
 - "Why agent identity matters: the NIST view explained"
 - "ACP + OKORO: the complete agentic commerce trust stack"
 - "How to build a trusted agent (the full architecture)"
@@ -168,12 +174,14 @@ This content builds authority and attracts press, investors, and enterprise buye
 ### Channel 1: GitHub (Highest ROI for Phase 1)
 
 **What to build:**
+
 - `@okoro/sdk` — open-source TypeScript/Python SDK (Apache 2.0)
 - `okoro-examples` repo — working examples in LangChain, AutoGen, CrewAI, raw Python
 - `okoro-middleware` — Express/NestJS/FastAPI middleware packages
 - GitHub Actions workflow: `okoro/verify-action` — verify agent identity in CI/CD
 
 **GitHub-specific tactics:**
+
 - Open issues for planned features → builds contributor community
 - "Good first issue" tags → drives organic stars from contributors
 - GitHub Sponsors → validates even before paid tier
@@ -195,7 +203,7 @@ We built OKORO because our agent kept getting flagged as a bot.
 - Set spend limits and action scopes
 - Relying parties verify in <80ms
 
-The BATE engine tracks behavioral signals across sessions and builds a trust 
+The BATE engine tracks behavioral signals across sessions and builds a trust
 score (0-1000) that compounds over time — like a credit score for your agent.
 
 Free tier: 10K verifications/month. SDK is MIT licensed.
@@ -203,6 +211,7 @@ Free tier: 10K verifications/month. SDK is MIT licensed.
 ```
 
 **What to have ready for HN launch day:**
+
 - 90-second Loom demo (no talking head — screen only, show the code path)
 - Working sandbox environment (never go down on HN day)
 - Founder in comments for 4 hours answering every question
@@ -211,6 +220,7 @@ Free tier: 10K verifications/month. SDK is MIT licensed.
 ### Channel 3: Developer Discord Communities
 
 **Target communities (by priority):**
+
 1. LangChain Discord (100K+ members)
 2. AutoGen Discord / GitHub Discussions
 3. ai-builders (multiple servers)
@@ -221,6 +231,7 @@ Free tier: 10K verifications/month. SDK is MIT licensed.
 
 **Community entry strategy:**
 Do NOT join and immediately post about OKORO. This is the #1 mistake. Instead:
+
 - Week 1: Help 10 people with agent-related problems (no product mention)
 - Week 2: Answer questions, become a known name
 - Week 3: Someone asks about agent authentication → naturally mention OKORO
@@ -229,11 +240,13 @@ Do NOT join and immediately post about OKORO. This is the #1 mistake. Instead:
 ### Channel 4: Framework Integrations (Force Multiplier)
 
 Every agent framework is a distribution channel. The goal is to be listed or recommended in:
+
 - LangChain's documentation under "Security and Authentication"
 - AutoGen's "Production Deployment" guide
 - CrewAI's "Enterprise Deployment" section
 
 **How to get there:**
+
 - Build the official LangChain-OKORO integration (open source, PR to their repo)
 - Offer co-marketing: "Secure your LangChain agents with OKORO" blog post on their site
 - Sponsor their Discord or community events (cheap at early stage)
@@ -245,6 +258,7 @@ This is the Stripe playbook: Stripe got into every e-commerce platform's documen
 This is counterintuitive but powerful: get relying parties to demand OKORO, not just developers.
 
 **How it works:**
+
 - Approach e-commerce platforms (Shopify apps, WooCommerce plugins) with: "Your merchants are getting flooded with AI agent traffic. OKORO gives you a one-line verification check."
 - Build the Shopify app that checks OKORO on inbound agent requests (free for merchants)
 - When a developer's agent hits a Shopify store with OKORO checking, they see: "This agent failed verification. Register at okoro.io for a trusted identity."
@@ -291,14 +305,14 @@ No public pricing. Starts at $1,500/month. Scoped to the specific use case (coop
 
 The real money in developer tools is expansion, not acquisition. OKORO expansion levers:
 
-| Lever | How It Works | Target Account |
-|---|---|---|
-| Agent count | 10 agents → 50 agents as product grows | Any growing startup |
-| Verify volume | Usage spikes as user base grows | Consumer agent products |
-| Policy complexity | Simple → complex spend controls → need Growth tier | Fintech, e-commerce |
-| BATE access | Free → Developer → custom scoring rules at Enterprise | Security-sensitive verticals |
-| Audit retention | 30d → 90d → 1yr → 7yr for compliance | FINRA, COSSEC, healthcare |
-| Multi-environment | Dev + Staging + Prod = 3× revenue from same customer | Any production deployment |
+| Lever             | How It Works                                          | Target Account               |
+| ----------------- | ----------------------------------------------------- | ---------------------------- |
+| Agent count       | 10 agents → 50 agents as product grows                | Any growing startup          |
+| Verify volume     | Usage spikes as user base grows                       | Consumer agent products      |
+| Policy complexity | Simple → complex spend controls → need Growth tier    | Fintech, e-commerce          |
+| BATE access       | Free → Developer → custom scoring rules at Enterprise | Security-sensitive verticals |
+| Audit retention   | 30d → 90d → 1yr → 7yr for compliance                  | FINRA, COSSEC, healthcare    |
+| Multi-environment | Dev + Staging + Prod = 3× revenue from same customer  | Any production deployment    |
 
 ---
 
@@ -313,20 +327,20 @@ The real money in developer tools is expansion, not acquisition. OKORO expansion
 
 ### Year 1 Forecast
 
-| Month | Free Signups | Paid (Dev) | Paid (Growth) | MRR |
-|---|---|---|---|---|
-| 1 | 200 | 0 | 0 | $0 |
-| 2 | 400 | 8 | 0 | $232 |
-| 3 | 700 | 20 | 2 | $878 |
-| 4 | 1,100 | 38 | 5 | $1,847 |
-| 5 | 1,600 | 60 | 9 | $3,081 |
-| 6 | 2,300 | 88 | 15 | $4,797 |
-| 7 | 3,100 | 120 | 22 | $6,528 |
-| 8 | 4,000 | 158 | 32 | $9,374 |
-| 9 | 5,100 | 200 | 44 | $12,356 + Enterprise pipeline opens |
-| 10 | 6,300 | 248 | 58 | $15,938 |
-| 11 | 7,800 | 302 | 75 | $20,433 |
-| 12 | 9,500 | 365 | 95 | $24,760 |
+| Month | Free Signups | Paid (Dev) | Paid (Growth) | MRR                                 |
+| ----- | ------------ | ---------- | ------------- | ----------------------------------- |
+| 1     | 200          | 0          | 0             | $0                                  |
+| 2     | 400          | 8          | 0             | $232                                |
+| 3     | 700          | 20         | 2             | $878                                |
+| 4     | 1,100        | 38         | 5             | $1,847                              |
+| 5     | 1,600        | 60         | 9             | $3,081                              |
+| 6     | 2,300        | 88         | 15            | $4,797                              |
+| 7     | 3,100        | 120        | 22            | $6,528                              |
+| 8     | 4,000        | 158        | 32            | $9,374                              |
+| 9     | 5,100        | 200        | 44            | $12,356 + Enterprise pipeline opens |
+| 10    | 6,300        | 248        | 58            | $15,938                             |
+| 11    | 7,800        | 302        | 75            | $20,433                             |
+| 12    | 9,500        | 365        | 95            | $24,760                             |
 
 **Year 1 ARR target: ~$250K–$300K**
 This is the gate for Series A conversations. At $250K ARR with 46%+ CAGR category momentum, the story is clear.
@@ -334,11 +348,11 @@ This is the gate for Series A conversations. At $250K ARR with 46%+ CAGR categor
 ### Year 2 Forecast (Enterprise Layer Activates)
 
 | Quarter | Enterprise Customers | Enterprise ACV | Total ARR |
-|---|---|---|---|
-| Q1 Y2 | 2 | $18,000 | $450K |
-| Q2 Y2 | 5 | $22,000 | $650K |
-| Q3 Y2 | 9 | $25,000 | $950K |
-| Q4 Y2 | 14 | $28,000 | $1.4M |
+| ------- | -------------------- | -------------- | --------- |
+| Q1 Y2   | 2                    | $18,000        | $450K     |
+| Q2 Y2   | 5                    | $22,000        | $650K     |
+| Q3 Y2   | 9                    | $25,000        | $950K     |
+| Q4 Y2   | 14                   | $28,000        | $1.4M     |
 
 **Year 2 ARR target: $1.2M–$1.5M**
 This is the gate for Series A closing ($8M–$12M at 8–10× ARR). Use proceeds to hire: Head of Engineering, Head of Sales (enterprise), DevRel lead.
@@ -350,27 +364,35 @@ This is the gate for Series A closing ($8M–$12M at 8–10× ARR). Use proceeds
 Every founder-led sales process hits the same 8 objections. Pre-loaded answers:
 
 ### Objection 1: "I'll just use OAuth."
-**Reality:** OAuth delegates identity for *humans*. It was designed for a person granting an app access to their Google Calendar. When the agent acts without a human in the loop, OAuth breaks — there's no user to redirect to a login page. OKORO is built for autonomous, headless agent operation. OAuth is a component we build *on top of*, not a replacement.
+
+**Reality:** OAuth delegates identity for _humans_. It was designed for a person granting an app access to their Google Calendar. When the agent acts without a human in the loop, OAuth breaks — there's no user to redirect to a login page. OKORO is built for autonomous, headless agent operation. OAuth is a component we build _on top of_, not a replacement.
 
 ### Objection 2: "Auth0 already handles this."
-**Reality:** Auth0 for AI Agents (GA November 2025) is an excellent tool for agent *authentication within your own platform*. It doesn't solve cross-platform neutral verification — when your agent shows up at a third-party service, Auth0 can't tell Delta that your agent is safe. OKORO is the neutral trust layer between platforms. Auth0 is a building block inside your platform.
+
+**Reality:** Auth0 for AI Agents (GA November 2025) is an excellent tool for agent _authentication within your own platform_. It doesn't solve cross-platform neutral verification — when your agent shows up at a third-party service, Auth0 can't tell Delta that your agent is safe. OKORO is the neutral trust layer between platforms. Auth0 is a building block inside your platform.
 
 ### Objection 3: "Won't Google/Stripe just build this?"
+
 **Reality:** Stripe built ACP — the payment protocol. It explicitly leaves identity verification to implementers. Google controls device identity (passkeys, device attestation). Neither is a neutral broker between arbitrary agents and arbitrary services. OKORO is the Switzerland — no platform affiliation. Enterprises will not route all agent traffic through a competitor's infrastructure.
 
 ### Objection 4: "This is a security problem, not a product."
+
 **Reality:** TLS was a security problem. API keys were a security problem. OAuth was a security problem. Every piece of infrastructure that routes value on the internet started as a security problem that someone productized. OKORO is productizing the agent identity security problem the same way Stripe productized payment security.
 
 ### Objection 5: "My agents don't do anything financial."
+
 **Reality:** Today they don't. In 6 months they will. And the cost of retrofitting agent identity into a system that was built without it is enormous. Stripe is cheap when you start with it and expensive to add later. OKORO is the same. Start now, before your agent gets blocked.
 
 ### Objection 6: "I don't want a third party in my verification path."
-**Reality:** The verification response is cached for 30 seconds and the hot path runs on Cloudflare's edge (135 locations globally). Your agent never waits more than 80ms for a verify response. If OKORO goes down, your system gets a cached "valid" response for up to 30 seconds and then degrades gracefully. We publish our uptime at status.okorolabs.io.
+
+**Reality:** The verification response is cached for 30 seconds and the hot path runs on Cloudflare's edge (135 locations globally). Your agent never waits more than 80ms for a verify response. If OKORO goes down, your system gets a cached "valid" response for up to 30 seconds and then degrades gracefully. We publish our uptime at status.okoroapp.com.
 
 ### Objection 7: "How do I know my competitors won't see my agent activity?"
+
 **Reality:** Zero behavioral data is shared between principals. Your agent's trust score and transaction history are private to your OKORO account. Relying parties see a score and a policy check — not your underlying activity. Anonymized aggregate signals (not individual agent data) power BATE's cross-network anomaly detection.
 
 ### Objection 8: "What if my agent's identity is stolen?"
+
 **Reality:** OKORO never holds your private key. We hold the public key only. If your private key is compromised, you revoke the agent in one API call (DELETE /v1/agents/:agentId) and register a new one. The revocation propagates to Cloudflare edge in <5 seconds. Any verification attempt with the old token returns `{ valid: false, denialReason: "AGENT_REVOKED" }` immediately.
 
 ---
@@ -382,18 +404,21 @@ DevRel is not a nice-to-have for OKORO. It is the primary distribution mechanism
 ### Phase 1 DevRel (Erwin as sole DevRel, 5 hrs/week)
 
 **Week 1–4: Content foundation**
+
 - Quickstart guide (< 1,000 words, 10-minute path)
 - API reference (auto-generated + hand-written intro sections)
 - 3 integration tutorials (LangChain, AutoGen, raw Python)
 - GitHub README with working code examples
 
 **Week 5–8: Community entry**
+
 - Join 5 target Discord communities (per Channel 3 plan above)
 - Post 3 helpful answers/week in agent-related threads
 - Begin relationship with LangChain team (GitHub PR or Discord contact)
 - Submit to 2 developer newsletters (TLDR, The Pragmatic Engineer, etc.)
 
 **Week 9–12: Amplification**
+
 - "Show HN" launch (timing with MVP readiness)
 - Guest post on a developer-focused publication (dev.to, hackernoon)
 - 1 video tutorial (Loom, 15 minutes, no production required)
@@ -409,4 +434,4 @@ DevRel is not a nice-to-have for OKORO. It is the primary distribution mechanism
 
 ---
 
-*Document 02 of 05 | OKORO KLYTICS Internal Suite*
+_Document 02 of 05 | OKORO KLYTICS Internal Suite_

@@ -33,6 +33,7 @@
 **Trigger**: `OKORO_API_KEY_FAILURE_SPIKE` — > 5 INVALID_SIGNATURE/sec for 5 min from one principal.
 
 **Hypothesize**:
+
 1. Stolen API key + brute-forced tokens.
 2. Customer SDK upgrade broke their token signing.
 3. `@noble/ed25519` regression (very rare; check release notes).
@@ -100,6 +101,7 @@ psql $DATABASE_URL -c "
 ```
 
 **Mitigate**:
+
 1. Revoke the affected agent: `POST /v1/agents/<id>/revoke`.
 2. Force a re-handshake on the legitimate caller (rotate their keypair).
 3. Notify the principal owner — they've had a credential exposed.
@@ -128,6 +130,7 @@ grep "cross_tenant" /var/log/okoro-api/*.log | tail -100
 ```
 
 **Mitigate**:
+
 1. Revoke the calling API key immediately.
 2. Lock the calling principal's account (set `Principal.locked = true`
    in the schema — TODO: peer's `Principal` model may need this column).
@@ -156,13 +159,14 @@ psql $DATABASE_URL -c "
 "
 
 # 2. Confirm the audit signing key is loaded.
-curl -s https://api.okorolabs.io/v1/health/ready | jq .signing_key_loaded
+curl -s https://api.okoroapp.com/v1/health/ready | jq .signing_key_loaded
 
 # 3. Check for schema drift — did a recent migration not apply?
 psql $DATABASE_URL -c "SELECT * FROM \"_prisma_migrations\" ORDER BY \"finished_at\" DESC LIMIT 5;"
 ```
 
 **Mitigate**:
+
 - Lock contention → pause the loudest tenant temporarily; let the queue
   drain; investigate why one principal generates so many concurrent
   appends.
@@ -193,6 +197,7 @@ redis-cli config get maxmemory-policy
 ```
 
 **Mitigate**:
+
 - Redis OOM → bump memory or change eviction to `allkeys-lru`.
 - Network partition → restart Redis client connection on the API side.
 - Type-mismatch errors → check the offending op label; a new code path
@@ -214,6 +219,7 @@ redis-cli ping  # if this fails, Redis is gone
 ```
 
 **Mitigate**:
+
 - Redis down → restore Redis (the highest priority); the verify path
   will recover automatically as the cache reopens.
 - Don't tempt fate by switching to fail-open. The replay-cache is
@@ -259,6 +265,7 @@ SELECT event, count(*)
 ```
 
 **Mitigate**:
+
 - One subscriber bad → contact the principal; they likely have a
   broken endpoint.
 - Many subscribers bad → suspect OKORO-side: check our outbound HMAC
@@ -277,10 +284,11 @@ SELECT event, count(*)
 railway run env | grep -E '^OKORO_SIGNING_(PRIVATE|PUBLIC)_KEY='
 
 # Confirm the JWKS endpoint resolves the right kid.
-curl -s https://api.okorolabs.io/.well-known/jwks.json | jq .keys
+curl -s https://api.okoroapp.com/.well-known/jwks.json | jq .keys
 ```
 
 **Mitigate**:
+
 - Env var missing → set it from the secret manager + restart container.
 - Env var present but wrong format → re-mint via
   `pnpm tsx scripts/generate-okoro-keys.ts --format both --out .local/keys`
@@ -343,7 +351,7 @@ OKORO-issued key is compromised:
 
 1. **Immediately revoke**:
    ```bash
-   curl -X DELETE https://api.okorolabs.io/v1/agents/<id> \
+   curl -X DELETE https://api.okoroapp.com/v1/agents/<id> \
      -H "X-OKORO-API-Key: <admin-key>"
    ```
    Verifiers see the agent as REVOKED within 60s (cache TTL).

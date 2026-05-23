@@ -14,7 +14,7 @@ function buildService(): WellknownService {
   const config = {
     okoroSigningPublicKey: ZERO_KEY_B64,
     okoroSigningKeyRotatedAt: FIXED_ROTATED_AT,
-    apiBaseUrl: 'https://api.okorolabs.io',
+    apiBaseUrl: 'https://api.okoroapp.com',
   } as unknown as AppConfigService;
   const svc = new WellknownService(config);
   svc.onModuleInit();
@@ -53,7 +53,7 @@ describe('WellknownController', () => {
       expect(out!.publicKey).toBe(ZERO_KEY_B64);
       expect(out!.algorithm).toBe('EdDSA');
       expect(out!.curve).toBe('Ed25519');
-      expect(out!.issuer).toBe('https://okorolabs.io');
+      expect(out!.issuer).toBe('https://okoroapp.com');
       expect(out!.purpose).toBe('audit-event-signing');
       expect(out!.rotatedAt).toBe(FIXED_ROTATED_AT);
       expect(headers.etag).toBe(`"${svc.getKid()}"`);
@@ -181,16 +181,16 @@ describe('WellknownController', () => {
 
       const out = ctl.configuration(res);
 
-      expect(out.issuer).toBe('https://api.okorolabs.io');
+      expect(out.issuer).toBe('https://api.okoroapp.com');
       expect(out.spec_version).toBe('1.0.0');
-      expect(out.jwks_uri).toBe('https://api.okorolabs.io/.well-known/jwks.json');
+      expect(out.jwks_uri).toBe('https://api.okoroapp.com/.well-known/jwks.json');
       expect(out.audit_signing_key_uri).toBe(
-        'https://api.okorolabs.io/.well-known/audit-signing-key',
+        'https://api.okoroapp.com/.well-known/audit-signing-key',
       );
-      expect(out.security_txt).toBe('https://api.okorolabs.io/.well-known/security.txt');
-      expect(out.llms_txt).toBe('https://api.okorolabs.io/.well-known/llms.txt');
-      expect(out.endpoints.verify).toBe('https://api.okorolabs.io/v1/verify');
-      expect(out.endpoints.billing_webhook).toBe('https://api.okorolabs.io/v1/billing/webhook');
+      expect(out.security_txt).toBe('https://api.okoroapp.com/.well-known/security.txt');
+      expect(out.llms_txt).toBe('https://api.okoroapp.com/.well-known/llms.txt');
+      expect(out.endpoints.verify).toBe('https://api.okoroapp.com/v1/verify');
+      expect(out.endpoints.billing_webhook).toBe('https://api.okoroapp.com/v1/billing/webhook');
       expect(out.supported_algorithms).toEqual(['EdDSA']);
       expect(out.supported_curves).toEqual(['Ed25519']);
       expect(out.trust_bands).toEqual(['FLAGGED', 'WATCH', 'VERIFIED', 'PLATINUM']);
@@ -238,7 +238,7 @@ describe('WellknownController', () => {
       const ctl = new WellknownController(svc);
       const out = ctl.configuration(fakeResponse().res);
 
-      expect(out.issuer).toBe('https://okorolabs.io');
+      expect(out.issuer).toBe('https://okoroapp.com');
     });
   });
 
@@ -250,10 +250,10 @@ describe('WellknownController', () => {
 
       const out = ctl.securityTxt(res);
 
-      expect(out).toContain('Contact: mailto:security@okorolabs.io');
+      expect(out).toContain('Contact: mailto:security@okoroapp.com');
       expect(out).toMatch(/Expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
       expect(out).toContain('Preferred-Languages: en');
-      expect(out).toContain('Canonical: https://api.okorolabs.io/.well-known/security.txt');
+      expect(out).toContain('Canonical: https://api.okoroapp.com/.well-known/security.txt');
       expect(out).toContain('Policy:');
       expect(headers['content-type']).toMatch(/text\/plain/);
     });
@@ -281,8 +281,8 @@ describe('WellknownController', () => {
       const out = ctl.llmsTxt(res);
 
       expect(out).toContain('# OKORO — Agent Gateway & Identity Stack');
-      expect(out).toContain('https://api.okorolabs.io/.well-known/okoro-configuration');
-      expect(out).toContain('POST https://api.okorolabs.io/v1/verify');
+      expect(out).toContain('https://api.okoroapp.com/.well-known/okoro-configuration');
+      expect(out).toContain('POST https://api.okoroapp.com/v1/verify');
       expect(out).toContain('npm install @okoro/sdk');
       expect(out).toContain('pip install okoro');
       expect(out).toContain('npm install @okoro/verifier-rp');
@@ -301,12 +301,7 @@ describe('WellknownController', () => {
 
       expect(out.spec_version).toBe('1.0.0');
       expect(out.generated_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-      expect(Object.keys(out.tiers).sort()).toEqual([
-        'DEVELOPER',
-        'ENTERPRISE',
-        'FREE',
-        'GROWTH',
-      ]);
+      expect(Object.keys(out.tiers).sort()).toEqual(['DEVELOPER', 'ENTERPRISE', 'FREE', 'GROWTH']);
       expect(out.guarantees).toHaveLength(3);
       expect(out.guarantees[0]).toContain('chain remains verifiable');
       expect(out.operational.retention_run_interval_seconds).toBe(86_400);
@@ -365,7 +360,7 @@ describe('WellknownController', () => {
       const out = ctl.configuration(fakeResponse().res);
 
       expect(out.retention_policy_uri).toBe(
-        'https://api.okorolabs.io/.well-known/retention-policy.json',
+        'https://api.okoroapp.com/.well-known/retention-policy.json',
       );
     });
   });
@@ -376,7 +371,7 @@ describe('WellknownController', () => {
       const ctl = new WellknownController(svc);
       const out = ctl.configuration(fakeResponse().res);
 
-      expect(out.pricing_uri).toBe('https://api.okorolabs.io/.well-known/pricing.json');
+      expect(out.pricing_uri).toBe('https://api.okoroapp.com/.well-known/pricing.json');
     });
   });
 
@@ -392,12 +387,7 @@ describe('WellknownController', () => {
       expect(out.currency).toBe('USD');
       expect(out.adr).toBe('ADR-0014');
       expect(out.generated_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-      expect(Object.keys(out.tiers).sort()).toEqual([
-        'DEVELOPER',
-        'ENTERPRISE',
-        'FREE',
-        'GROWTH',
-      ]);
+      expect(Object.keys(out.tiers).sort()).toEqual(['DEVELOPER', 'ENTERPRISE', 'FREE', 'GROWTH']);
       expect(out.currency_overage_unit).toContain('10⁻⁴');
       expect(out.billing_endpoints).toEqual({
         checkout: '/v1/billing/checkout',

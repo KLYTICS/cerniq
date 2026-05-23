@@ -22,7 +22,7 @@ import (
 
 // DefaultBaseURL is the production OKORO API host. CLI users override
 // it via --base-url, OKORO_BASE_URL, or the `base_url` config field.
-const DefaultBaseURL = "https://api.okorolabs.io"
+const DefaultBaseURL = "https://api.okoroapp.com"
 
 // Config is the on-disk shape. Field tags match snake_case TOML keys.
 type Config struct {

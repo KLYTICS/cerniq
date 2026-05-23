@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "description": "OKORO verification middleware for any MCP (Model Context Protocol) server. Wraps an MCP transport so every tool call carries a verified OKORO agent identity.",
   "license": "MIT",
-  "author": "OKORO Labs <hello@okorolabs.io>",
-  "homepage": "https://okorolabs.io/mcp",
+  "author": "OKORO Labs <hello@okoroapp.com>",
+  "homepage": "https://okoroapp.com/mcp",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/klytics/okoro.git",
@@ -35,7 +35,11 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",

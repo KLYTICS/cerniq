@@ -24,7 +24,7 @@ import express, { type Request, type Response } from 'express';
 import { Okoro } from '@okoro/sdk';
 
 const okoro = new Okoro({
-  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okorolabs.io',
+  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okoroapp.com',
   apiKey: requireEnv('OKORO_API_KEY'),
 });
 
@@ -47,7 +47,9 @@ app.use(express.json({ type: ['application/json', 'application/scim+json'] }));
 app.post('/scim/v2/Agents', async (req: Request, res: Response) => {
   const body = req.body as ScimCreateBody;
   if (!body || !body.externalId || !body.displayName || !body.publicKey) {
-    return res.status(400).json(scimError('invalidValue', 'externalId, displayName, publicKey required'));
+    return res
+      .status(400)
+      .json(scimError('invalidValue', 'externalId, displayName, publicKey required'));
   }
   // SCIM idempotency: re-POSTing the same externalId returns the
   // existing row, not 409 Conflict (per RFC 7644 §3.3).
@@ -108,7 +110,7 @@ app.delete('/scim/v2/Agents/:id', async (req, res) => {
 app.get('/scim/v2/ServiceProviderConfig', (_req, res) => {
   res.json({
     schemas: ['urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig'],
-    documentationUri: 'https://docs.okorolabs.io/integrations/scim',
+    documentationUri: 'https://docs.okoroapp.com/integrations/scim',
     patch: { supported: false },
     bulk: { supported: false, maxOperations: 0, maxPayloadSize: 0 },
     filter: { supported: true, maxResults: 200 },

@@ -7,12 +7,12 @@ mismatch classes from
 
 ## The four classes
 
-| Class               | Meaning                                                    | Action                          |
-|---------------------|------------------------------------------------------------|---------------------------------|
-| `matched_settled`   | OKORO approved + system has a settled record              | Happy path; informational       |
-| `approved_missing`  | OKORO approved, system has NO record                       | **Investigate** — network drop or system never executed |
-| `denied_present`    | OKORO denied, system has a record anyway                   | **Investigate** — gate bypass or attacker |
-| `reversed`          | OKORO approved, system settled, system later reversed      | BATE feedback signal (`fraud_confirmed` or `false_positive`) |
+| Class              | Meaning                                               | Action                                                       |
+| ------------------ | ----------------------------------------------------- | ------------------------------------------------------------ |
+| `matched_settled`  | OKORO approved + system has a settled record          | Happy path; informational                                    |
+| `approved_missing` | OKORO approved, system has NO record                  | **Investigate** — network drop or system never executed      |
+| `denied_present`   | OKORO denied, system has a record anyway              | **Investigate** — gate bypass or attacker                    |
+| `reversed`         | OKORO approved, system settled, system later reversed | BATE feedback signal (`fraud_confirmed` or `false_positive`) |
 
 ## Run the demo
 
@@ -51,18 +51,18 @@ rows requiring investigation (4):
 
 The recommended cadence:
 
-| Volume profile          | Cadence       | Trigger                    |
-|-------------------------|---------------|----------------------------|
-| < 1k events/day         | Daily         | Cron at end of day         |
-| 1k–100k events/day      | Hourly        | Cron / Airflow             |
-| > 100k events/day       | Continuous    | Streaming join in Flink/Beam |
-| Treasury / wires        | Per-batch     | After each rail submission |
+| Volume profile     | Cadence    | Trigger                      |
+| ------------------ | ---------- | ---------------------------- |
+| < 1k events/day    | Daily      | Cron at end of day           |
+| 1k–100k events/day | Hourly     | Cron / Airflow               |
+| > 100k events/day  | Continuous | Streaming join in Flink/Beam |
+| Treasury / wires   | Per-batch  | After each rail submission   |
 
 Wire it into your existing data pipeline:
 
 ```sh
 # 1. Pull OKORO audit log for the window.
-curl -fsSL "https://api.okorolabs.io/v1/audit-events/export?since=$START&until=$END" \
+curl -fsSL "https://api.okoroapp.com/v1/audit-events/export?since=$START&until=$END" \
      -H "X-OKORO-API-Key: $OKORO_API_KEY" \
      > okoro-export.ndjson
 

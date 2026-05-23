@@ -10,7 +10,7 @@ from okoro import AsyncOkoro
 
 
 async def test_base_url_override(api_key: str) -> None:
-    custom = "https://sandbox.okorolabs.io/v1"
+    custom = "https://sandbox.okoroapp.com/v1"
     async with (
         respx.mock(base_url=custom, assert_all_called=False) as router,
         AsyncOkoro(api_key=api_key, base_url=custom) as a,
@@ -74,7 +74,7 @@ async def test_request_id_header_is_per_request(
 async def test_base_url_trailing_slash_normalized(
     api_key: str, sample_agent_record: dict[str, Any]
 ) -> None:
-    base_with_slash = "https://api.okorolabs.io/v1/"
+    base_with_slash = "https://api.okoroapp.com/v1/"
     base_clean = base_with_slash.rstrip("/")
     async with (
         respx.mock(base_url=base_clean, assert_all_called=False) as router,

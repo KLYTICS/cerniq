@@ -52,7 +52,7 @@ export interface PublicTier {
 }
 
 /** Email used for Enterprise "Contact us" mailto. */
-export const SALES_EMAIL = 'sales@okorolabs.io';
+export const SALES_EMAIL = 'sales@okoroapp.com';
 
 export const PRICING_TIERS: readonly PublicTier[] = Object.freeze([
   {

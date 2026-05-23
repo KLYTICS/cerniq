@@ -43,7 +43,7 @@ and the policy-per-seat mapping.
 ```sh
 cd examples/saas-seat-provisioning
 pnpm install
-OKORO_API_BASE=https://api.okorolabs.io \
+OKORO_API_BASE=https://api.okoroapp.com \
 OKORO_API_KEY=okoro_sk_... \
 SAAS_TENANT_ID=acme \
 pnpm tsx src/scim-server.ts
@@ -56,14 +56,14 @@ pnpm tsx src/provisioning-batch.ts --tenant acme --count 10
 
 Implements a deliberate subset of SCIM 2.0:
 
-| Endpoint                       | Purpose                                                |
-| ------------------------------ | ------------------------------------------------------- |
-| `POST /scim/v2/Agents`         | Provision (creates OKORO agent + per-seat policy)       |
-| `GET /scim/v2/Agents/:id`      | Read (joins SaaS seat row + OKORO agent metadata)       |
-| `PATCH /scim/v2/Agents/:id`    | Update seat tier (re-mints policy at new scope)         |
-| `DELETE /scim/v2/Agents/:id`   | De-provision (revokes OKORO agent + drops seat row)     |
-| `GET /scim/v2/ServiceProviderConfig` | Discovery — capabilities + auth                  |
-| `GET /scim/v2/Schemas`         | Discovery — agent schema                                |
+| Endpoint                             | Purpose                                             |
+| ------------------------------------ | --------------------------------------------------- |
+| `POST /scim/v2/Agents`               | Provision (creates OKORO agent + per-seat policy)   |
+| `GET /scim/v2/Agents/:id`            | Read (joins SaaS seat row + OKORO agent metadata)   |
+| `PATCH /scim/v2/Agents/:id`          | Update seat tier (re-mints policy at new scope)     |
+| `DELETE /scim/v2/Agents/:id`         | De-provision (revokes OKORO agent + drops seat row) |
+| `GET /scim/v2/ServiceProviderConfig` | Discovery — capabilities + auth                     |
+| `GET /scim/v2/Schemas`               | Discovery — agent schema                            |
 
 The endpoints accept SCIM `application/scim+json` and emit the same.
 SCIM filtering (`?filter=`) is intentionally narrow — only `displayName
@@ -78,12 +78,12 @@ re-mints; the old policy is revoked. This keeps the OKORO surface
 narrow (one policy per seat at any time) and the SaaS surface
 expressive (whatever tiers, seats, add-ons the SaaS wants to offer).
 
-| Seat tier | OKORO scope                | Spend cap    | Domain allow-list   |
-| --------- | -------------------------- | ------------ | ------------------- |
-| free      | `read:basic`               | $0           | (none — read-only)  |
-| pro       | `read:basic, write:own`    | $100/day     | `*.your-saas.com`   |
-| business  | `read:basic, write:any`    | $1,000/day   | `*.your-saas.com`   |
-| enterprise | `*`                       | per-contract | per-customer        |
+| Seat tier  | OKORO scope             | Spend cap    | Domain allow-list  |
+| ---------- | ----------------------- | ------------ | ------------------ |
+| free       | `read:basic`            | $0           | (none — read-only) |
+| pro        | `read:basic, write:own` | $100/day     | `*.your-saas.com`  |
+| business   | `read:basic, write:any` | $1,000/day   | `*.your-saas.com`  |
+| enterprise | `*`                     | per-contract | per-customer       |
 
 ## Production checklist
 

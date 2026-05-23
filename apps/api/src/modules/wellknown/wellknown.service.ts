@@ -11,15 +11,11 @@ import { PLANS, TRIAL_LIFETIME_CAP, getPlan } from '../billing/plans';
 import type { OkoroConfigurationDto } from './dto/discovery.dto';
 import type { AuditSigningKeyDto, JwkEd25519Dto, JwksDto } from './dto/jwks.dto';
 import type { PricingDto, PricingTierDto } from './dto/pricing.dto';
-import type {
-  RetentionPolicyDto,
-  RetentionPolicyTierDto,
-} from './dto/retention-policy.dto';
+import type { RetentionPolicyDto, RetentionPolicyTierDto } from './dto/retention-policy.dto';
 
 // type-rationale: package.json is a static JSON resource and tsconfig has
 // resolveJsonModule=true. Importing once at module load avoids fs reads
 // per request.
- 
 
 /** Spec-doc schema version. Bump on breaking change to OkoroConfigurationDto shape. */
 const DISCOVERY_SPEC_VERSION = '1.0.0';
@@ -31,8 +27,8 @@ const PRICING_SPEC_VERSION = '1.0.0';
 const PRICING_CURRENCY = 'USD';
 const PRICING_OVERAGE_UNIT = 'USD × 10⁻⁴ (i.e. ten-thousandths of a dollar)';
 const PRICING_ADR = 'ADR-0014';
-const ISSUER = 'https://okorolabs.io';
-const VERIFICATION_GUIDE = 'https://docs.okorolabs.io/audit/verify';
+const ISSUER = 'https://okoroapp.com';
+const VERIFICATION_GUIDE = 'https://docs.okoroapp.com/audit/verify';
 const ED25519_PUBKEY_LEN = 32;
 /**
  * Mirror of `DEFAULT_RETENTION_RUN_INTERVAL_MS` in
@@ -197,12 +193,12 @@ export class WellknownService implements OnModuleInit {
     const expires = oneYearFromNow();
     const lines = [
       '# OKORO — security disclosure (RFC 9116)',
-      `Contact: mailto:security@okorolabs.io`,
+      `Contact: mailto:security@okoroapp.com`,
       `Expires: ${expires}`,
       `Preferred-Languages: en`,
       `Canonical: ${trimSlash(issuer)}/.well-known/security.txt`,
-      `Policy: https://okorolabs.io/security/policy`,
-      `Acknowledgments: https://okorolabs.io/security/hall-of-fame`,
+      `Policy: https://okoroapp.com/security/policy`,
+      `Acknowledgments: https://okoroapp.com/security/hall-of-fame`,
       `# Hash of CLAUDE.md operating directive at this build:`,
       `# (informational — not part of the RFC)`,
     ];
@@ -252,7 +248,7 @@ export class WellknownService implements OnModuleInit {
       '- CLI:        `brew install klytics/okoro/okoro` (Go binary)',
       '',
       '## Security',
-      `- Disclosure: security@okorolabs.io`,
+      `- Disclosure: security@okoroapp.com`,
       `- security.txt: ${issuer}/.well-known/security.txt`,
       '',
       '## Architecture',
@@ -274,14 +270,13 @@ export class WellknownService implements OnModuleInit {
     const wk = (path: string): string => `${base}/.well-known/${path}`;
 
     const pkg =
-      (pkgJson as { default?: { version?: string }; version?: string })
-        .default ?? (pkgJson);
+      (pkgJson as { default?: { version?: string }; version?: string }).default ?? pkgJson;
 
     return {
       issuer: base,
       spec_version: DISCOVERY_SPEC_VERSION,
       api_version: pkg.version ?? '0.0.0',
-      documentation: 'https://docs.okorolabs.io',
+      documentation: 'https://docs.okoroapp.com',
       openapi_spec: `${base}/docs-json`,
       jwks_uri: wk('jwks.json'),
       audit_signing_key_uri: wk('audit-signing-key'),
@@ -317,14 +312,7 @@ export class WellknownService implements OnModuleInit {
         verify_per_min: 1000,
         default_per_min: 120,
       },
-      supported_runtimes: [
-        'nodejs',
-        'cloudflare-workers',
-        'vercel-edge',
-        'deno',
-        'bun',
-        'browser',
-      ],
+      supported_runtimes: ['nodejs', 'cloudflare-workers', 'vercel-edge', 'deno', 'bun', 'browser'],
       sdks: {
         typescript: '@okoro/sdk',
         python: 'okoro',

@@ -22,7 +22,7 @@ import { OkoroVerifier } from '@okoro/verifier-rp';
 import { okoroGuard } from '@okoro/verifier-rp/express';
 
 const verifier = new OkoroVerifier({
-  baseUrl: 'https://api.okorolabs.io/v1',
+  baseUrl: 'https://api.okoroapp.com/v1',
   getAgentPublicKey: async (agentId) => myAgentRegistry.lookup(agentId),
 });
 
@@ -81,10 +81,18 @@ import type { ReplayCache } from '@okoro/verifier-rp';
 
 class RedisReplayCache implements ReplayCache {
   constructor(private redis: RedisClient) {}
-  async has(jti: string)            { return (await this.redis.exists(`jti:${jti}`)) === 1; }
-  async set(jti: string, ttl: number) { await this.redis.set(`jti:${jti}`, '1', 'EX', ttl); }
-  async delete(jti: string)         { await this.redis.del(`jti:${jti}`); }
-  async size()                      { return -1; }
+  async has(jti: string) {
+    return (await this.redis.exists(`jti:${jti}`)) === 1;
+  }
+  async set(jti: string, ttl: number) {
+    await this.redis.set(`jti:${jti}`, '1', 'EX', ttl);
+  }
+  async delete(jti: string) {
+    await this.redis.del(`jti:${jti}`);
+  }
+  async size() {
+    return -1;
+  }
 }
 
 const verifier = new OkoroVerifier({

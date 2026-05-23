@@ -20,7 +20,7 @@ Authentication: `X-OKORO-API-Key` with **FULL** scope.
 ## Paginated read
 
 ```bash
-curl "https://api.okorolabs.io/v1/audit/events?agentId=agent_01HXYZ...&limit=50" \
+curl "https://api.okoroapp.com/v1/audit/events?agentId=agent_01HXYZ...&limit=50" \
   -H "X-OKORO-API-Key: $OKORO_API_KEY"
 ```
 
@@ -40,7 +40,7 @@ Pass `cursor=<nextCursor>` on the next call to continue. Date range filters:
 ## Streaming export
 
 ```bash
-curl -N "https://api.okorolabs.io/v1/audit/export.ndjson?since=2026-04-01" \
+curl -N "https://api.okoroapp.com/v1/audit/export.ndjson?since=2026-04-01" \
   -H "X-OKORO-API-Key: $OKORO_API_KEY" \
   -o audit-export.ndjson
 ```

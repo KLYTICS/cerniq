@@ -13,7 +13,7 @@ and evidence artifacts external auditors and compliance counsel will request.
 | CC6.1 (logical access)  | Bcrypt-hashed API keys with FULL / VERIFY-ONLY scope; principal-scoped tenant isolation enforced in service layer; tested in `tests/cross-package/principal-isolation.spec.ts`. |
 | CC6.6 (encryption)      | TLS-only ingress; KMS-backed audit signing key; envelope-encrypted Ed25519 audit key on AWS until KMS GAs EdDSA. |
 | CC7.2 (anomaly detection) | BATE engine R-1…R-5 rule-based detector (velocity, geographic, spend pattern, failed-verify spike, delegation depth). |
-| CC7.4 (external comm)   | Status page (`status.okorolabs.io`) + incident process documented in `docs/INCIDENT_RESPONSE.md`.        |
+| CC7.4 (external comm)   | Status page (`status.okoroapp.com`) + incident process documented in `docs/INCIDENT_RESPONSE.md`.        |
 | CC8.1 (change mgmt)     | Append-only Prisma migrations; CI gate (`spec-sync.yml`) on contract drift; PR-only deploys.             |
 
 ## GDPR — controller obligations

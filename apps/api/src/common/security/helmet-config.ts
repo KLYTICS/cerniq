@@ -17,7 +17,7 @@
 //   - x-powered-by: removed (don't advertise Express).
 //
 // Production reference: https://hstspreload.org/ — domains we publish on
-// (api.okorolabs.io) get added to the preload list once HSTS rolls out.
+// (api.okoroapp.com) get added to the preload list once HSTS rolls out.
 
 import type { HelmetOptions } from 'helmet';
 
@@ -83,14 +83,17 @@ export function buildHelmetConfig(config: HelmetConfig): HelmetOptions {
  * Tells researchers how to report findings without scanning for an
  * undocumented contact.
  */
-export function buildSecurityTxt(config: { contactEmail: string; preferredLanguages?: string }): string {
+export function buildSecurityTxt(config: {
+  contactEmail: string;
+  preferredLanguages?: string;
+}): string {
   const lines = [
     `Contact: mailto:${config.contactEmail}`,
     `Expires: ${new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()}`,
     `Preferred-Languages: ${config.preferredLanguages ?? 'en'}`,
-    `Canonical: https://api.okorolabs.io/.well-known/security.txt`,
-    `Policy: https://okorolabs.io/security/policy`,
-    `Acknowledgments: https://okorolabs.io/security/acknowledgments`,
+    `Canonical: https://api.okoroapp.com/.well-known/security.txt`,
+    `Policy: https://okoroapp.com/security/policy`,
+    `Acknowledgments: https://okoroapp.com/security/acknowledgments`,
   ];
   return lines.join('\n') + '\n';
 }

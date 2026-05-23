@@ -118,15 +118,14 @@ Low 6 · Info 2.
 - **Severity:** High
 - **Section:** ARCHITECTURE.md L93–123 (data model), L168–183 (audit
   chain)
-- **Observation:** Audit events are append-only (CLAUDE.md invariant
-  3) — meaning the table grows unboundedly. There is no documented
+- **Observation:** Audit events are append-only (CLAUDE.md invariant 3) — meaning the table grows unboundedly. There is no documented
   partitioning strategy (e.g. monthly), no archival to cold storage,
   no read-side index strategy beyond `(principalId, timestamp)`. At
   the §A-04 capacity (1B/year), simple b-tree indexes on a single
   table degrade after ~3 years.
 - **Recommendation:** Add to §3:
   - `AuditEvent` partitioned by month (`PARTITION BY RANGE
-    (timestamp)`).
+(timestamp)`).
   - Hot retention: 18 months in Postgres.
   - Cold archive: monthly export to S3 + GCS, encrypted, with
     matching Merkle root pinned.
@@ -149,7 +148,7 @@ Low 6 · Info 2.
     1. Replaces principal-identifying fields in `AuditEvent` rows
        with `redacted-{hash}` (the chain still verifies because the
        signature was over the redacted payload at append time —
-       this requires *forward* design, not retrofit; see follow-up
+       this requires _forward_ design, not retrofit; see follow-up
        in §A-19).
     2. Hard-deletes `Principal`, `ApiKey`, `AgentIdentity`,
        `AgentPolicy`, `WebhookSubscription`, `BateSignal`,
@@ -168,7 +167,7 @@ Low 6 · Info 2.
 - **Observation:** SECURITY.md §7 lists per-API-key, per-IP (Phase 3),
   and per-principal-via-BullMQ. ARCHITECTURE.md does not mention rate
   limiting at all, leaving the architecture incomplete. An auditor
-  may ask: what limits *per agent*? Per relying party? Per `/verify`
+  may ask: what limits _per agent_? Per relying party? Per `/verify`
   path versus `/agents/register` path?
 - **Recommendation:** Add §7.1 ("Rate limit dimensions") referencing
   SECURITY.md §7 and adding:
@@ -210,10 +209,10 @@ Low 6 · Info 2.
 - **Section:** ARCHITECTURE.md (none)
 - **Observation:** SOC 2 CC7.4 requires documented external
   communication of incidents. v1 THREAT_MODEL.md L78 mentions
-  "Status page live at status.okorolabs.io" as an acceptance gate but
+  "Status page live at status.okoroapp.com" as an acceptance gate but
   does not connect it to architecture. ARCHITECTURE.md is silent.
 - **Recommendation:** Add §9 ("Incident communication"):
-  - status.okorolabs.io powered by Statuspage / Atlassian or
+  - status.okoroapp.com powered by Statuspage / Atlassian or
     self-hosted (operator decision pending).
   - SLA for customer notification: 4h for P1, 24h for P2.
   - Mechanism: webhook event `okoro.incident.declared` +
@@ -229,12 +228,12 @@ Low 6 · Info 2.
 - **Observation:** The Phase 3 plan vests significant trust in CF.
   ARCHITECTURE.md should specify: which paths are CF-fronted, which
   WAF managed rule sets, the bot-management posture, and whether
-  Phase 1 has *any* edge protection.
+  Phase 1 has _any_ edge protection.
 - **Recommendation:** Add to §1 ("Two surfaces, one core") sub-bullet:
   - Phase 1: Railway proxy is the perimeter. Per-IP throttling at the
     NestJS layer via `@nestjs/throttler` keyTracker on the
     `x-forwarded-for` header (with a documented spoofing caveat).
-  - Phase 3: CF in front of `api.okorolabs.io` and the verify edge.
+  - Phase 3: CF in front of `api.okoroapp.com` and the verify edge.
     Managed rules: OWASP CRS, Cloudflare-managed bots, WAF custom
     rule for `/verify` body schema.
   - Document which rule sets to enable + the false-positive review
@@ -248,7 +247,7 @@ Low 6 · Info 2.
 - **Observation:** The doc admits the master spec uses ULID but cuid
   was chosen for "Prisma convenience." Open question explicitly
   flagged. `packages/types/src/schemas.ts` L17–19 uses `z.string()
-  .min(1).max(64)` so neither breaks the wire.
+.min(1).max(64)` so neither breaks the wire.
 - **Recommendation:** Either commit to cuid (and update the master
   spec) or migrate to ulid before launch. Operator decision. Not a
   security issue but a consistency issue auditors will note.
@@ -326,7 +325,7 @@ Low 6 · Info 2.
   - Document explicitly that the cache key includes `jti` (not just
     `tokenHash`) so a replay's first verify populates the cache, the
     jti set rejects the second verify, and the cache becomes a
-    micro-optimization for the *single legitimate verify*.
+    micro-optimization for the _single legitimate verify_.
 
   Recommended: latter, but make the dependency on Layer 3 explicit.
 
@@ -368,7 +367,7 @@ Low 6 · Info 2.
   cannot change without breaking the chain. That blocks GDPR
   Article 17 (A-006).
 - **Recommendation:** Redesign before launch:
-  - Sign over a *content-addressable* version of any free-text /
+  - Sign over a _content-addressable_ version of any free-text /
     PII-bearing field. The signed payload contains
     `decisionReasonHash: SHA-256(reason)`; the unsigned column
     contains the human-readable text and is redactable.
@@ -438,7 +437,7 @@ Low 6 · Info 2.
    Postgres-down, JWKS-down behavior). Cross-reference
    THREAT_MODEL_v2 §8.4.
 3. **A-019** — content-addressable redaction in audit-event payload,
-   *before* M-006 ships. Retrofit is much harder.
+   _before_ M-006 ships. Retrofit is much harder.
 4. **A-016** — clarify verify-result cache key (include `jti`) or
    remove the cache. M-005 owner.
 
@@ -479,30 +478,30 @@ Findings closed in this pass via ARCHITECTURE.md sections §8-§14
 dashboard authn / idempotency) and earlier rounds (round 4 closed A-001
 via THREAT_MODEL_v2 reconciliation, ADR-0006 closed A-019).
 
-| ID    | Severity | Status                | Closed by                                                    |
-|-------|----------|-----------------------|--------------------------------------------------------------|
-| A-001 | Critical | **CLOSED** (round 4)  | THREAT_MODEL_v2 §4 + doc reconciliation                      |
-| A-002 | High     | **CLOSED**            | ARCHITECTURE.md §10.1, §10.2, §10.3                          |
-| A-003 | High     | **CLOSED**            | ARCHITECTURE.md §10.4                                        |
-| A-004 | High     | **CLOSED**            | ARCHITECTURE.md §11                                          |
-| A-005 | High     | **CLOSED**            | ARCHITECTURE.md §12.1, §12.2                                 |
-| A-006 | High     | **CLOSED**            | ARCHITECTURE.md §12.3 + ADR-0006 (round 4 redactability)     |
-| A-007 | Medium   | OPEN                  | Pending operator decision OD-006 (rate-limit dimensions)     |
-| A-008 | Medium   | **CLOSED**            | ARCHITECTURE.md §8                                           |
-| A-009 | Medium   | **CLOSED**            | ARCHITECTURE.md §9 + new OPERATOR_DECISIONS OD-007           |
-| A-010 | Medium   | OPEN                  | Pending CF WAF rule-set decision (Phase 3 work)              |
-| A-011 | Low      | OPEN                  | ADR-0001 holds; operator decision pending pre-launch         |
-| A-012 | Medium   | **CLOSED** (contract) | ARCHITECTURE.md §13 — implementation peer-locked             |
-| A-013 | Medium   | **CLOSED** (contract) | ARCHITECTURE.md §13.3                                        |
-| A-014 | Low      | DEFERRED              | M-010 work-in-progress; tracked in WORK_BOARD                |
-| A-015 | Low      | **CLOSED**            | ARCHITECTURE.md §10.1 (negative caching)                     |
-| A-016 | Medium   | OPEN                  | M-005 owner (verify-result cache key includes jti)           |
-| A-017 | Medium   | **CLOSED**            | ARCHITECTURE.md §10.6                                        |
-| A-018 | Low      | DEFERRED              | Editorial consolidation; non-blocking                        |
-| A-019 | High     | **CLOSED** (round 4)  | ADR-0006 + audit-chain.util.ts v2 + 9 tests                  |
-| A-020 | Low      | **CLOSED**            | ARCHITECTURE.md §14                                          |
-| A-021 | Info     | DEFERRED              | Diagram editorial; tied to A-018                             |
-| A-022 | Info     | **CLOSED**            | ARCHITECTURE.md §10.5                                        |
+| ID    | Severity | Status                | Closed by                                                |
+| ----- | -------- | --------------------- | -------------------------------------------------------- |
+| A-001 | Critical | **CLOSED** (round 4)  | THREAT_MODEL_v2 §4 + doc reconciliation                  |
+| A-002 | High     | **CLOSED**            | ARCHITECTURE.md §10.1, §10.2, §10.3                      |
+| A-003 | High     | **CLOSED**            | ARCHITECTURE.md §10.4                                    |
+| A-004 | High     | **CLOSED**            | ARCHITECTURE.md §11                                      |
+| A-005 | High     | **CLOSED**            | ARCHITECTURE.md §12.1, §12.2                             |
+| A-006 | High     | **CLOSED**            | ARCHITECTURE.md §12.3 + ADR-0006 (round 4 redactability) |
+| A-007 | Medium   | OPEN                  | Pending operator decision OD-006 (rate-limit dimensions) |
+| A-008 | Medium   | **CLOSED**            | ARCHITECTURE.md §8                                       |
+| A-009 | Medium   | **CLOSED**            | ARCHITECTURE.md §9 + new OPERATOR_DECISIONS OD-007       |
+| A-010 | Medium   | OPEN                  | Pending CF WAF rule-set decision (Phase 3 work)          |
+| A-011 | Low      | OPEN                  | ADR-0001 holds; operator decision pending pre-launch     |
+| A-012 | Medium   | **CLOSED** (contract) | ARCHITECTURE.md §13 — implementation peer-locked         |
+| A-013 | Medium   | **CLOSED** (contract) | ARCHITECTURE.md §13.3                                    |
+| A-014 | Low      | DEFERRED              | M-010 work-in-progress; tracked in WORK_BOARD            |
+| A-015 | Low      | **CLOSED**            | ARCHITECTURE.md §10.1 (negative caching)                 |
+| A-016 | Medium   | OPEN                  | M-005 owner (verify-result cache key includes jti)       |
+| A-017 | Medium   | **CLOSED**            | ARCHITECTURE.md §10.6                                    |
+| A-018 | Low      | DEFERRED              | Editorial consolidation; non-blocking                    |
+| A-019 | High     | **CLOSED** (round 4)  | ADR-0006 + audit-chain.util.ts v2 + 9 tests              |
+| A-020 | Low      | **CLOSED**            | ARCHITECTURE.md §14                                      |
+| A-021 | Info     | DEFERRED              | Diagram editorial; tied to A-018                         |
+| A-022 | Info     | **CLOSED**            | ARCHITECTURE.md §10.5                                    |
 
 **Tally:** 14 closed (1 critical, 5 high, 4 medium, 2 low, 1 info, 1 contract-only),
 4 deferred (editorial / WIP), 4 open (3 awaiting operator decisions:
@@ -525,21 +524,21 @@ collection, DR rehearsal scripts, or DPA negotiation.
 Round 7 promotes those closures from "summary in ARCHITECTURE.md" to
 **"summary in ARCHITECTURE.md cross-referencing dedicated canon"**:
 
-| ID    | Architectural summary       | Operational canon (NEW)                       |
-|-------|------------------------------|------------------------------------------------|
-| A-002 | ARCHITECTURE.md §10.1, §10.2, §10.3 | `docs/FAILURE_MODES.md` §4 (crypto), §7 (cache) |
-| A-003 | ARCHITECTURE.md §10.4        | `docs/FAILURE_MODES.md` §6 (database)          |
-| A-004 | ARCHITECTURE.md §11          | `docs/CAPACITY_PLAN.md` (full doc)             |
-| A-005 | ARCHITECTURE.md §12.1, §12.2 | `docs/RETENTION_POLICY.md` §8 (archive lifecycle) + `docs/CAPACITY_PLAN.md` §5.4 (partition strategy) |
-| A-006 | ARCHITECTURE.md §12.3 + ADR-0006 | `docs/RETENTION_POLICY.md` §5–§7 (immutability vs. erasure resolution + tenant deletion flow) |
-| A-022 | ARCHITECTURE.md §10.5        | `docs/FAILURE_MODES.md` §13 (Phase 3 Workers) + §14.4 (cross-region cascading scenario) + `docs/CAPACITY_PLAN.md` §10 (multi-region capacity) + `docs/RETENTION_POLICY.md` §11 (multi-region residency) |
+| ID    | Architectural summary               | Operational canon (NEW)                                                                                                                                                                                 |
+| ----- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A-002 | ARCHITECTURE.md §10.1, §10.2, §10.3 | `docs/FAILURE_MODES.md` §4 (crypto), §7 (cache)                                                                                                                                                         |
+| A-003 | ARCHITECTURE.md §10.4               | `docs/FAILURE_MODES.md` §6 (database)                                                                                                                                                                   |
+| A-004 | ARCHITECTURE.md §11                 | `docs/CAPACITY_PLAN.md` (full doc)                                                                                                                                                                      |
+| A-005 | ARCHITECTURE.md §12.1, §12.2        | `docs/RETENTION_POLICY.md` §8 (archive lifecycle) + `docs/CAPACITY_PLAN.md` §5.4 (partition strategy)                                                                                                   |
+| A-006 | ARCHITECTURE.md §12.3 + ADR-0006    | `docs/RETENTION_POLICY.md` §5–§7 (immutability vs. erasure resolution + tenant deletion flow)                                                                                                           |
+| A-022 | ARCHITECTURE.md §10.5               | `docs/FAILURE_MODES.md` §13 (Phase 3 Workers) + §14.4 (cross-region cascading scenario) + `docs/CAPACITY_PLAN.md` §10 (multi-region capacity) + `docs/RETENTION_POLICY.md` §11 (multi-region residency) |
 
 The new docs add three operational artifacts the auditor explicitly
 needs but ARCHITECTURE.md cannot reasonably carry:
 
 - **Per-component FMEA with RPN scoring** (`FAILURE_MODES.md` §3
-  + §4–§13). Highest RPN identified: **O-06 (untested backup
-  recovery, RPN 48)** — drives the §15 quarterly DR rehearsal cadence.
+  - §4–§13). Highest RPN identified: **O-06 (untested backup
+    recovery, RPN 48)** — drives the §15 quarterly DR rehearsal cadence.
 - **Capacity sizing math from first principles** (`CAPACITY_PLAN.md`
   §3 + §4–§13). Worked Little's Law example shows why Phase 1 burst
   is artificially capped at 666 rps and how the OD-006 rate-limit
@@ -555,14 +554,14 @@ WAF), A-011 (cuid/ulid), A-016 (M-005 owner) — unchanged.
 
 **Closure status table — round 7 update**
 
-| ID    | Severity | Status                | Closed by                                                    |
-|-------|----------|-----------------------|--------------------------------------------------------------|
-| A-002 | High     | **CLOSED + DEEP**     | ARCHITECTURE.md §10.1–.3 + `docs/FAILURE_MODES.md` §4, §7    |
-| A-003 | High     | **CLOSED + DEEP**     | ARCHITECTURE.md §10.4 + `docs/FAILURE_MODES.md` §6           |
-| A-004 | High     | **CLOSED + DEEP**     | ARCHITECTURE.md §11 + `docs/CAPACITY_PLAN.md`                |
-| A-005 | High     | **CLOSED + DEEP**     | ARCHITECTURE.md §12.1–.2 + `docs/RETENTION_POLICY.md` §8 + `docs/CAPACITY_PLAN.md` §5.4 |
-| A-006 | High     | **CLOSED + DEEP**     | ARCHITECTURE.md §12.3 + ADR-0006 + `docs/RETENTION_POLICY.md` §5–§7 |
-| A-022 | Info     | **CLOSED + DEEP**     | ARCHITECTURE.md §10.5 + `docs/FAILURE_MODES.md` §13, §14.4 + `docs/CAPACITY_PLAN.md` §10 + `docs/RETENTION_POLICY.md` §11 |
+| ID    | Severity | Status            | Closed by                                                                                                                 |
+| ----- | -------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| A-002 | High     | **CLOSED + DEEP** | ARCHITECTURE.md §10.1–.3 + `docs/FAILURE_MODES.md` §4, §7                                                                 |
+| A-003 | High     | **CLOSED + DEEP** | ARCHITECTURE.md §10.4 + `docs/FAILURE_MODES.md` §6                                                                        |
+| A-004 | High     | **CLOSED + DEEP** | ARCHITECTURE.md §11 + `docs/CAPACITY_PLAN.md`                                                                             |
+| A-005 | High     | **CLOSED + DEEP** | ARCHITECTURE.md §12.1–.2 + `docs/RETENTION_POLICY.md` §8 + `docs/CAPACITY_PLAN.md` §5.4                                   |
+| A-006 | High     | **CLOSED + DEEP** | ARCHITECTURE.md §12.3 + ADR-0006 + `docs/RETENTION_POLICY.md` §5–§7                                                       |
+| A-022 | Info     | **CLOSED + DEEP** | ARCHITECTURE.md §10.5 + `docs/FAILURE_MODES.md` §13, §14.4 + `docs/CAPACITY_PLAN.md` §10 + `docs/RETENTION_POLICY.md` §11 |
 
 The CLOSED + DEEP marker means: an auditor's first question is
 answered by ARCHITECTURE.md; the follow-up question (the one that

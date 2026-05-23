@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "description": "Offline verifier for OKORO audit chains. Anyone with the public JWKS can independently verify the tamper-evidence of an OKORO audit log export.",
   "license": "MIT",
-  "author": "OKORO Labs <hello@okorolabs.io>",
-  "homepage": "https://okorolabs.io",
+  "author": "OKORO Labs <hello@okoroapp.com>",
+  "homepage": "https://okoroapp.com",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/klytics/okoro.git",
@@ -30,7 +30,11 @@
   "bin": {
     "okoro-audit-verify": "./dist/cli.mjs"
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup && pnpm build:dts",

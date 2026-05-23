@@ -4,7 +4,7 @@
 // must:
 //
 //   1. Explicitly allow only the domains we publish (dashboard, docs site,
-//      *.okorolabs.io for our own properties).
+//      *.okoroapp.com for our own properties).
 //   2. Reflect the requesting Origin only when it appears in the allow-list,
 //      so a browser CORS preflight from any other host fails.
 //   3. Deny `credentials: true` when origin is the wildcard
@@ -18,7 +18,10 @@
 // cookies anyway. CORS sets `Access-Control-Allow-Origin: *` in that case
 // safely.
 
-import type { CorsOptions, CorsOptionsDelegate } from '@nestjs/common/interfaces/external/cors-options.interface';
+import type {
+  CorsOptions,
+  CorsOptionsDelegate,
+} from '@nestjs/common/interfaces/external/cors-options.interface';
 import type { Request } from 'express';
 
 export interface CorsConfig {
@@ -28,7 +31,7 @@ export interface CorsConfig {
    * endpoints get `*` regardless.
    *
    * Examples:
-   *   `https://app.okorolabs.io,https://docs.okorolabs.io`
+   *   `https://app.okoroapp.com,https://docs.okoroapp.com`
    *   `*` (development only)
    */
   managementOrigins: string;
@@ -39,12 +42,7 @@ export interface CorsConfig {
   publicPathPrefixes?: string[];
 }
 
-const DEFAULT_PUBLIC_PATH_PREFIXES = [
-  '/v1/verify',
-  '/.well-known/',
-  '/health',
-  '/ready',
-];
+const DEFAULT_PUBLIC_PATH_PREFIXES = ['/v1/verify', '/.well-known/', '/health', '/ready'];
 
 /** Regex-style public matchers (path-segment-aware). Each must match the
  *  whole path. Used in addition to {@link DEFAULT_PUBLIC_PATH_PREFIXES}. */

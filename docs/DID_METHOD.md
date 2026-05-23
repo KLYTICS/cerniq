@@ -56,12 +56,14 @@ the DID. There is no separate DID registration step.
 ### READ (resolve)
 
 Resolution endpoint:
+
 ```
-GET https://api.okorolabs.io/.well-known/did/{did-encoded}
+GET https://api.okoroapp.com/.well-known/did/{did-encoded}
 ```
 
 Or via the [universal resolver](https://dev.uniresolver.io/) once we
 register the method (target Q3 2026):
+
 ```
 https://dev.uniresolver.io/1.0/identifiers/did:okoro:mainnet:agt_xyz
 ```
@@ -70,33 +72,31 @@ Returns a DID Document conforming to W3C DID Core v1.1:
 
 ```jsonc
 {
-  "@context": [
-    "https://www.w3.org/ns/did/v1",
-    "https://w3id.org/security/suites/ed25519-2020/v1"
-  ],
+  "@context": ["https://www.w3.org/ns/did/v1", "https://w3id.org/security/suites/ed25519-2020/v1"],
   "id": "did:okoro:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V",
   "controller": "did:okoro:mainnet:principal:p_abc123",
-  "verificationMethod": [{
-    "id": "did:okoro:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V#key-1",
-    "type": "Ed25519VerificationKey2020",
-    "controller": "did:okoro:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V",
-    "publicKeyMultibase": "z6MkpTHR8VNsBxYAAWHut2Geadd9jSrYE6BnUQUpCPVZjy2"
-  }],
-  "authentication": [
-    "did:okoro:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V#key-1"
+  "verificationMethod": [
+    {
+      "id": "did:okoro:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V#key-1",
+      "type": "Ed25519VerificationKey2020",
+      "controller": "did:okoro:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V",
+      "publicKeyMultibase": "z6MkpTHR8VNsBxYAAWHut2Geadd9jSrYE6BnUQUpCPVZjy2",
+    },
   ],
-  "assertionMethod": [
-    "did:okoro:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V#key-1"
+  "authentication": ["did:okoro:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V#key-1"],
+  "assertionMethod": ["did:okoro:mainnet:agt_01HZ9YZXM4QT3B7P8WKJD6R5V#key-1"],
+  "service": [
+    {
+      "id": "did:okoro:mainnet:agt_xyz#okoro-status",
+      "type": "OkoroAgentStatus",
+      "serviceEndpoint": "https://api.okoroapp.com/v1/agents/agt_xyz/status",
+    },
+    {
+      "id": "did:okoro:mainnet:agt_xyz#okoro-verify",
+      "type": "OkoroVerify",
+      "serviceEndpoint": "https://api.okoroapp.com/v1/verify",
+    },
   ],
-  "service": [{
-    "id": "did:okoro:mainnet:agt_xyz#okoro-status",
-    "type": "OkoroAgentStatus",
-    "serviceEndpoint": "https://api.okorolabs.io/v1/agents/agt_xyz/status"
-  }, {
-    "id": "did:okoro:mainnet:agt_xyz#okoro-verify",
-    "type": "OkoroVerify",
-    "serviceEndpoint": "https://api.okorolabs.io/v1/verify"
-  }]
 }
 ```
 
@@ -108,6 +108,7 @@ status service endpoint to fetch the current trust band.
 
 DID Documents are derived from OKORO database state. Updates happen
 implicitly when the underlying agent is updated:
+
 - Status changes (`active` → `revoked`) reflect within ≤60s in the DID
   Document and immediately on the status service endpoint.
 - Trust score changes are NOT reflected in the DID Document itself
@@ -117,11 +118,12 @@ implicitly when the underlying agent is updated:
 
 Calling `DELETE /v1/agents/:id` (revoke) sets the DID Document to a
 deactivated form:
+
 ```jsonc
 {
   "id": "did:okoro:mainnet:agt_xyz",
   "deactivated": true,
-  "controller": "did:okoro:mainnet:principal:p_abc123"
+  "controller": "did:okoro:mainnet:principal:p_abc123",
 }
 ```
 

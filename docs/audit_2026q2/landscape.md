@@ -32,7 +32,7 @@ assumptions need attention before a public launch:
 2. **MCP auth has crystallised on OAuth 2.1 + Resource Indicators**
    (RFC 8707) since the March 2025 MCP auth spec was finalised. OKORO's
    `signedToken` JWT is structurally compatible but the OKORO SDK does
-   not yet *publish itself as an MCP-compatible authorisation server* —
+   not yet _publish itself as an MCP-compatible authorisation server_ —
    which is the cheapest distribution wedge available in the ecosystem.
 3. **NIST is going to publish guidance against OKORO, not for it,
    unless we ship `did:web` resolution and a published Trust Framework
@@ -59,7 +59,7 @@ https://github.com/agentic-commerce-protocol/agentic-commerce-protocol
   amount, currency, allowed merchant, and an `agent_id` claim.
 - **Buyer / Agent / Merchant tri-party flow** — the merchant resolves the
   SPT against the issuing PSP at checkout. There is **no identity
-  verification step**; the SPT proves the *payment is authorised*, not
+  verification step**; the SPT proves the _payment is authorised_, not
   that the agent is who it claims to be.
 - **No trust-score primitive.** ACP v1.0 leaves "agent reputation" to
   implementers in §6 ("Out of scope"). This is the gap OKORO targets.
@@ -76,21 +76,21 @@ JWT → OKORO returns `{ valid, trustScore, scopesGranted, denialReason }`.
 
 Merchant decision matrix becomes:
 
-| SPT valid? | OKORO valid + score ≥ threshold? | Decision |
-|------------|----------------------------------|----------|
-| ✓          | ✓                                | Approve  |
-| ✓          | ✗ (low score / scope miss)       | Step-up auth or decline |
-| ✗          | —                                | Decline (payment leg failed) |
+| SPT valid? | OKORO valid + score ≥ threshold? | Decision                                          |
+| ---------- | -------------------------------- | ------------------------------------------------- |
+| ✓          | ✓                                | Approve                                           |
+| ✓          | ✗ (low score / scope miss)       | Step-up auth or decline                           |
+| ✗          | —                                | Decline (payment leg failed)                      |
 | ✓          | (OKORO down)                     | Implementer choice — usually fail-open w/ logging |
 
 ### Misalignments to fix
 
-| # | Issue | OKORO impact | Backlog ID |
-|---|-------|--------------|------------|
+| #     | Issue                                                                          | OKORO impact                                                                | Backlog ID  |
+| ----- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------- | ----------- |
 | ACP-1 | `currency` is hard-coded to `USD\|EUR\|GBP` in `packages/types/src/schemas.ts` | ACP merchants accept JPY, CAD, AUD, BRL, INR, plus stablecoins (USDC/PYUSD) | M-101 (new) |
-| ACP-2 | No `spt_hash` field in `VerifyRequest` | Cannot correlate OKORO audit event to a Stripe charge for SOC2 evidence | M-102 (new) |
-| ACP-3 | No published "ACP profile" mapping OKORO scopes to ACP categories | Merchants writing integration code have to invent the mapping | M-103 (new) |
-| ACP-4 | No example/reference repo demonstrating ACP+OKORO dual-verification | Distribution friction at the worst possible moment | M-104 (new) |
+| ACP-2 | No `spt_hash` field in `VerifyRequest`                                         | Cannot correlate OKORO audit event to a Stripe charge for SOC2 evidence     | M-102 (new) |
+| ACP-3 | No published "ACP profile" mapping OKORO scopes to ACP categories              | Merchants writing integration code have to invent the mapping               | M-103 (new) |
+| ACP-4 | No example/reference repo demonstrating ACP+OKORO dual-verification            | Distribution friction at the worst possible moment                          | M-104 (new) |
 
 **Verdict: PARTIAL ALIGNMENT.** OKORO is technically additive to ACP, but
 the ACP integration surface is still a slide deck, not code.
@@ -122,33 +122,33 @@ the ACP integration surface is still a slide deck, not code.
 
 ### How OKORO differentiates
 
-| Vector | Auth0 for AI Agents | OKORO |
-|--------|---------------------|-------|
-| Hosting | Okta tenant | Self-serve, neutral |
+| Vector             | Auth0 for AI Agents              | OKORO                            |
+| ------------------ | -------------------------------- | -------------------------------- |
+| Hosting            | Okta tenant                      | Self-serve, neutral              |
 | Identity primitive | Auth0 user + agent linked record | Ed25519 keypair, principal-bound |
-| Trust signal | Binary (token valid / invalid) | 0–1000 BATE score + bands |
-| Lock-in | Ties relying party to Okta IDP | Standalone, any IDP |
-| Pricing posture | Enterprise IAM line item | Developer-first, $0–$29 entry |
-| Standards posture | OAuth-native | DID + OAuth + custom JWT |
+| Trust signal       | Binary (token valid / invalid)   | 0–1000 BATE score + bands        |
+| Lock-in            | Ties relying party to Okta IDP   | Standalone, any IDP              |
+| Pricing posture    | Enterprise IAM line item         | Developer-first, $0–$29 entry    |
+| Standards posture  | OAuth-native                     | DID + OAuth + custom JWT         |
 
 **The neutrality angle is real.** A Delta Air Lines or Chase compliance
 team is materially less likely to route every agent verification through
 Okta's infrastructure than through a dedicated, smaller, agent-specific
-verifier. The "Switzerland" framing is defensible *if* OKORO is also
+verifier. The "Switzerland" framing is defensible _if_ OKORO is also
 demonstrably neutral on the runtime side (i.e., not tied to a single
 LLM provider).
 
 ### Misalignments to fix
 
-| # | Issue | Backlog ID |
-|---|-------|------------|
-| AUTH0-1 | OKORO does not currently expose a CIBA-style async-approval flow for high-value transactions | M-105 (new) |
-| AUTH0-2 | No FGA-equivalent for relationship-based access control (only category + domain allowlists) | M-106 (P3+) |
-| AUTH0-3 | No public comparison/migration doc ("Auth0 → OKORO" or "OKORO + Auth0") | M-107 (docs) |
+| #       | Issue                                                                                        | Backlog ID   |
+| ------- | -------------------------------------------------------------------------------------------- | ------------ |
+| AUTH0-1 | OKORO does not currently expose a CIBA-style async-approval flow for high-value transactions | M-105 (new)  |
+| AUTH0-2 | No FGA-equivalent for relationship-based access control (only category + domain allowlists)  | M-106 (P3+)  |
+| AUTH0-3 | No public comparison/migration doc ("Auth0 → OKORO" or "OKORO + Auth0")                      | M-107 (docs) |
 
 **Verdict: OKORO is NOT a direct competitor — different segment,
 different price point, different lock-in profile.** The right framing is
-*coexistence*. Document it.
+_coexistence_. Document it.
 
 ---
 
@@ -173,8 +173,8 @@ remote-server variant in 2025-06-18. [VERIFY current draft Q2 2026]
   "is the user authorised to call this tool" but says nothing about
   "is this an agent acting on behalf of a user, and is that agent
   trustworthy." That gap is not a Stripe gap (commerce) or a NIST gap
-  (compliance) — it's the *most direct OKORO adjacency in the entire
-  ecosystem*.
+  (compliance) — it's the _most direct OKORO adjacency in the entire
+  ecosystem_.
 
 ### The `@okoro/mcp-bridge` opportunity
 
@@ -202,12 +202,12 @@ code for any MCP server author. Detailed rationale in
 
 ### Misalignments to fix
 
-| # | Issue | Backlog ID |
-|---|-------|------------|
-| MCP-1 | No `@okoro/mcp-bridge` package | **M-110 (new — Phase 1 wedge)** |
-| MCP-2 | OKORO JWTs do not declare an `aud` (audience) claim conformant with RFC 8707 | M-111 |
-| MCP-3 | No DPoP support on OKORO-issued JWTs | M-112 (see § 6) |
-| MCP-4 | No example MCP server using OKORO for agent identity | M-113 (docs/example) |
+| #     | Issue                                                                        | Backlog ID                      |
+| ----- | ---------------------------------------------------------------------------- | ------------------------------- |
+| MCP-1 | No `@okoro/mcp-bridge` package                                               | **M-110 (new — Phase 1 wedge)** |
+| MCP-2 | OKORO JWTs do not declare an `aud` (audience) claim conformant with RFC 8707 | M-111                           |
+| MCP-3 | No DPoP support on OKORO-issued JWTs                                         | M-112 (see § 6)                 |
+| MCP-4 | No example MCP server using OKORO for agent identity                         | M-113 (docs/example)            |
 
 **Verdict: MCP IS THE WEDGE.** Recommend Phase 1 ship.
 
@@ -231,19 +231,19 @@ https://www.nccoe.nist.gov/projects/ai-agent-identity
 
 ### How OKORO maps (honest grading)
 
-| Theme | OKORO today | Grade | Gap |
-|-------|-------------|-------|-----|
-| Per-agent cryptographic identity | Ed25519 keys, principal-bound | A | None |
-| Least privilege scopes | `PolicyScope` w/ category, spend, domain, MCC, time | A- | Missing FGA-style relationship scopes |
-| Auditability + non-repudiation | Append-only `AuditEvent`, hash-chained, OKORO-signed | A | Need public chain-head publication for non-repudiation against OKORO itself |
-| Prompt-injection mitigation | Indirect (we reject scope violations even if a prompt told the agent to exceed) | C | Cannot inspect agent's prompt state — must document this as the explicit boundary |
-| **Standards-track DID method** | "DID-compatible" but no method spec | D | **Material gap** — see § 5 |
-| **Trust framework document** | None | F | NIST guidance is likely to require this |
+| Theme                            | OKORO today                                                                     | Grade | Gap                                                                               |
+| -------------------------------- | ------------------------------------------------------------------------------- | ----- | --------------------------------------------------------------------------------- |
+| Per-agent cryptographic identity | Ed25519 keys, principal-bound                                                   | A     | None                                                                              |
+| Least privilege scopes           | `PolicyScope` w/ category, spend, domain, MCC, time                             | A-    | Missing FGA-style relationship scopes                                             |
+| Auditability + non-repudiation   | Append-only `AuditEvent`, hash-chained, OKORO-signed                            | A     | Need public chain-head publication for non-repudiation against OKORO itself       |
+| Prompt-injection mitigation      | Indirect (we reject scope violations even if a prompt told the agent to exceed) | C     | Cannot inspect agent's prompt state — must document this as the explicit boundary |
+| **Standards-track DID method**   | "DID-compatible" but no method spec                                             | D     | **Material gap** — see § 5                                                        |
+| **Trust framework document**     | None                                                                            | F     | NIST guidance is likely to require this                                           |
 
 ### Critical missing artefacts
 
-NIST IR drafts in the AI / cyber space typically reference *trust
-frameworks* — formal documents that define who the issuer is, what its
+NIST IR drafts in the AI / cyber space typically reference _trust
+frameworks_ — formal documents that define who the issuer is, what its
 governance is, what an "audit" of the issuer would test, and what
 recourse a relying party has. OKORO does not yet have one. This is a
 4–6 page document, not engineering work, but without it OKORO will not
@@ -251,12 +251,12 @@ appear in NIST's reference-implementation list when the IR drops.
 
 ### Misalignments to fix
 
-| # | Issue | Backlog ID |
-|---|-------|------------|
-| NIST-1 | No published Trust Framework document | M-120 (docs) |
-| NIST-2 | Audit chain head is not published to a public log (only retained internally) | M-121 |
-| NIST-3 | No explicit "out of scope: prompt injection" boundary statement | M-122 (docs — small) |
-| NIST-4 | No formal NIST comment submitted | M-123 (operator action, not engineering) |
+| #      | Issue                                                                        | Backlog ID                               |
+| ------ | ---------------------------------------------------------------------------- | ---------------------------------------- |
+| NIST-1 | No published Trust Framework document                                        | M-120 (docs)                             |
+| NIST-2 | Audit chain head is not published to a public log (only retained internally) | M-121                                    |
+| NIST-3 | No explicit "out of scope: prompt injection" boundary statement              | M-122 (docs — small)                     |
+| NIST-4 | No formal NIST comment submitted                                             | M-123 (operator action, not engineering) |
 
 **Verdict: PARTIAL.** Strong on identity/audit, weak on governance
 artefacts. Fix the docs gaps in 2 weeks.
@@ -270,31 +270,31 @@ Q1 2026). https://w3c-ccg.github.io/did-method-web/ for `did:web`.
 
 ### Choice matrix
 
-| Approach | Pros | Cons | Recommendation |
-|----------|------|------|----------------|
-| Publish `did:okoro` method spec | "Real" DID method, signals seriousness | Adds governance + maintenance burden, requires registry submission to W3C CCG | Phase 2+ |
-| Use `did:web:okorolabs.io:agents:<id>` | Zero protocol invention; resolution is plain HTTPS GET; works today | "Just" DNS-anchored — no decentralisation theatre | **YES — Phase 1** |
-| Use `did:key:z<base58btc-pubkey>` | Pure key-based, no resolution needed | Loses the principal-binding, label, runtime metadata | Use as the *agent's* fallback DID; OKORO DID becomes the *issuer* DID |
+| Approach                               | Pros                                                                | Cons                                                                          | Recommendation                                                        |
+| -------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Publish `did:okoro` method spec        | "Real" DID method, signals seriousness                              | Adds governance + maintenance burden, requires registry submission to W3C CCG | Phase 2+                                                              |
+| Use `did:web:okoroapp.com:agents:<id>` | Zero protocol invention; resolution is plain HTTPS GET; works today | "Just" DNS-anchored — no decentralisation theatre                             | **YES — Phase 1**                                                     |
+| Use `did:key:z<base58btc-pubkey>`      | Pure key-based, no resolution needed                                | Loses the principal-binding, label, runtime metadata                          | Use as the _agent's_ fallback DID; OKORO DID becomes the _issuer_ DID |
 
 ### Recommended implementation
 
-- OKORO issues `did:web:okorolabs.io:agents:<agentId>` for every agent
+- OKORO issues `did:web:okoroapp.com:agents:<agentId>` for every agent
   on registration.
-- `GET https://okorolabs.io/agents/<agentId>/did.json` returns a W3C DID
+- `GET https://okoroapp.com/agents/<agentId>/did.json` returns a W3C DID
   Document with `verificationMethod` (the Ed25519 key), `service` (the
   OKORO verify endpoint), and a `controller` (the principal's DID).
-- The OKORO *issuer* identity is `did:web:okorolabs.io` — published
+- The OKORO _issuer_ identity is `did:web:okoroapp.com` — published
   separately at the apex.
 - This costs ~1 day of engineering and is what NIST IR drafts will look
   for.
 
 ### Misalignments to fix
 
-| # | Issue | Backlog ID |
-|---|-------|------------|
-| DID-1 | No DID document endpoint per agent | **M-130 (new — high impact, low cost)** |
-| DID-2 | No `did:web:okorolabs.io` issuer DID document | M-131 |
-| DID-3 | `agentId` ULID format not encoded in DID resolution path docs | M-132 (docs) |
+| #     | Issue                                                         | Backlog ID                              |
+| ----- | ------------------------------------------------------------- | --------------------------------------- |
+| DID-1 | No DID document endpoint per agent                            | **M-130 (new — high impact, low cost)** |
+| DID-2 | No `did:web:okoroapp.com` issuer DID document                 | M-131                                   |
+| DID-3 | `agentId` ULID format not encoded in DID resolution path docs | M-132 (docs)                            |
 
 **Verdict: MISSING.** Cheap to fix; high signal value.
 
@@ -331,12 +331,12 @@ This collapses adoption friction from "learn OKORO's HTTP shape" to
 
 ### Misalignments to fix
 
-| # | Issue | Backlog ID |
-|---|-------|------------|
-| OAUTH-1 | No `/.well-known/oauth-authorization-server` metadata endpoint | M-140 |
-| OAUTH-2 | Policy tokens are not DPoP-bindable (no `cnf.jkt` claim) | M-141 |
-| OAUTH-3 | No introspection endpoint (`POST /v1/oauth/introspect`) | M-142 |
-| OAUTH-4 | `aud` (audience) claim not standardised across policy tokens | M-143 |
+| #       | Issue                                                          | Backlog ID |
+| ------- | -------------------------------------------------------------- | ---------- |
+| OAUTH-1 | No `/.well-known/oauth-authorization-server` metadata endpoint | M-140      |
+| OAUTH-2 | Policy tokens are not DPoP-bindable (no `cnf.jkt` claim)       | M-141      |
+| OAUTH-3 | No introspection endpoint (`POST /v1/oauth/introspect`)        | M-142      |
+| OAUTH-4 | `aud` (audience) claim not standardised across policy tokens   | M-143      |
 
 **Verdict: PARTIAL.** OKORO chose the right primitive (Ed25519 JWT) but
 hasn't dressed it in OAuth 2.1 clothes. DPoP is the single highest-
@@ -363,20 +363,20 @@ certain AI systems) entered into force 2 Aug 2026 [VERIFY exact date].
 
 - OKORO itself is **not** an Article 50 obligated party (we are not the
   deployer; we are infrastructure to a deployer).
-- BUT — OKORO audit logs are *the* compliance evidence a deployer
+- BUT — OKORO audit logs are _the_ compliance evidence a deployer
   brings to demonstrate Article 50/52 compliance: "for every agent-
   initiated transaction we have a signed, hash-chained record of
   agent identity, principal identity, decision, and timestamp."
 - Article 50 + the FRTB-style retention story (3-year minimum for
-  financial sector) is the *European enterprise sales motion*.
+  financial sector) is the _European enterprise sales motion_.
 
 ### Misalignments to fix
 
-| # | Issue | Backlog ID |
-|---|-------|------------|
-| EU-1 | No "EU AI Act compliance pack" document mapping AuditEvent fields to Article 50/52 evidentiary needs | M-150 (docs) |
-| EU-2 | No "agent disclosure header" (e.g. `X-OKORO-Agent-Disclosure: yes`) that downstream services can surface to end users | M-151 |
-| EU-3 | Audit retention configurable by tier but no policy doc covering "EU customer requires 3-year retention" SLA | M-152 |
+| #    | Issue                                                                                                                 | Backlog ID   |
+| ---- | --------------------------------------------------------------------------------------------------------------------- | ------------ |
+| EU-1 | No "EU AI Act compliance pack" document mapping AuditEvent fields to Article 50/52 evidentiary needs                  | M-150 (docs) |
+| EU-2 | No "agent disclosure header" (e.g. `X-OKORO-Agent-Disclosure: yes`) that downstream services can surface to end users | M-151        |
+| EU-3 | Audit retention configurable by tier but no policy doc covering "EU customer requires 3-year retention" SLA           | M-152        |
 
 **Verdict: OKORO-READY (with docs work).** No engineering changes
 required for the audit log itself; the architecture already produces
@@ -392,25 +392,25 @@ working group output (RFC 9576+). [VERIFY current name/positioning Q2 2026]
 
 ### How they differ from OKORO
 
-| Dimension | Cloudflare BotID / Privacy Pass | OKORO |
-|-----------|----------------------------------|-------|
-| Actor | Browser / device | Agent (programmatic actor) |
-| What's proven | "I am not a bot" (humanity) | "I am *this specific agent*, authorised by *this principal*" |
-| Identity | Anonymous (privacy preserving) | Identified (cryptographic) |
-| Trust signal | Binary | 0–1000 score |
-| Persistence | Per session | Per agent across sessions |
+| Dimension     | Cloudflare BotID / Privacy Pass | OKORO                                                        |
+| ------------- | ------------------------------- | ------------------------------------------------------------ |
+| Actor         | Browser / device                | Agent (programmatic actor)                                   |
+| What's proven | "I am not a bot" (humanity)     | "I am _this specific agent_, authorised by _this principal_" |
+| Identity      | Anonymous (privacy preserving)  | Identified (cryptographic)                                   |
+| Trust signal  | Binary                          | 0–1000 score                                                 |
+| Persistence   | Per session                     | Per agent across sessions                                    |
 
 These are **convergent, not competitive** in the sense that a future
-Cloudflare-native flow could attach OKORO verification *inside* a BotID
+Cloudflare-native flow could attach OKORO verification _inside_ a BotID
 pipeline (BotID says "yes, this is a real agent and not a script-kiddie
-crawler"; OKORO says "yes, and here's *which* agent and *whose*").
+crawler"; OKORO says "yes, and here's _which_ agent and _whose_").
 
 ### Misalignments to fix
 
-| # | Issue | Backlog ID |
-|---|-------|------------|
-| CF-1 | No Cloudflare Worker-native binding doc | (already M-013) |
-| CF-2 | No demo of BotID + OKORO dual-flow | M-160 (low priority) |
+| #    | Issue                                   | Backlog ID           |
+| ---- | --------------------------------------- | -------------------- |
+| CF-1 | No Cloudflare Worker-native binding doc | (already M-013)      |
+| CF-2 | No demo of BotID + OKORO dual-flow      | M-160 (low priority) |
 
 **Verdict: CONVERGENT.** Phase 3 Cloudflare port (M-013) covers this.
 
@@ -440,23 +440,23 @@ Current schema:
 export const CurrencySchema = z.enum(['USD', 'EUR', 'GBP']);
 ```
 
-This is a *public API* enum. Once published, removing/expanding it is a
+This is a _public API_ enum. Once published, removing/expanding it is a
 breaking change requiring a v2 surface or a careful additive migration.
 
 ### Misalignments to fix
 
-| # | Issue | Backlog ID |
-|---|-------|------------|
-| FX-1 | `Currency` enum is too narrow and stablecoin-blind | **M-101 (already listed under ACP-1)** |
-| FX-2 | Spend-limit math assumes 2-decimal currencies; stablecoins can be 6-decimal | M-101 (subsumed) |
-| FX-3 | No currency-conversion source-of-truth on `VerifyRequest` | M-101 (subsumed) |
+| #    | Issue                                                                       | Backlog ID                             |
+| ---- | --------------------------------------------------------------------------- | -------------------------------------- |
+| FX-1 | `Currency` enum is too narrow and stablecoin-blind                          | **M-101 (already listed under ACP-1)** |
+| FX-2 | Spend-limit math assumes 2-decimal currencies; stablecoins can be 6-decimal | M-101 (subsumed)                       |
+| FX-3 | No currency-conversion source-of-truth on `VerifyRequest`                   | M-101 (subsumed)                       |
 
 **Recommended schema** (additive):
 
 ```ts
-export const CurrencySchema = z.string().regex(
-  /^(USD|EUR|GBP|JPY|CAD|AUD|BRL|INR|MXN|USDC|PYUSD|USDP)$/
-);
+export const CurrencySchema = z
+  .string()
+  .regex(/^(USD|EUR|GBP|JPY|CAD|AUD|BRL|INR|MXN|USDC|PYUSD|USDP)$/);
 // or open-ended ISO-4217 + token symbol
 ```
 
@@ -483,7 +483,7 @@ required to support PQ from 2027 onwards.
 ### Recommended migration path
 
 1. **Add `signingAlgorithm` to `AgentIdentity` now, defaulting to
-   `Ed25519`.** This is a *non-breaking* additive field. Doing it
+   `Ed25519`.** This is a _non-breaking_ additive field. Doing it
    pre-launch is free; doing it post-launch requires a schema
    migration on every customer.
 2. **Publish a JWKS with `alg` field discoverable per-agent.** Verifiers
@@ -495,11 +495,11 @@ required to support PQ from 2027 onwards.
 
 ### Misalignments to fix
 
-| # | Issue | Backlog ID |
-|---|-------|------------|
-| PQ-1 | No `signingAlgorithm` field on `AgentIdentity` | **M-170 (urgent — schema is public soon)** |
-| PQ-2 | No JWKS-per-agent endpoint (only OKORO-issuer JWKS) | M-171 |
-| PQ-3 | No `alg` whitelist constants in `packages/types/src/constants.ts` | M-172 |
+| #    | Issue                                                             | Backlog ID                                 |
+| ---- | ----------------------------------------------------------------- | ------------------------------------------ |
+| PQ-1 | No `signingAlgorithm` field on `AgentIdentity`                    | **M-170 (urgent — schema is public soon)** |
+| PQ-2 | No JWKS-per-agent endpoint (only OKORO-issuer JWKS)               | M-171                                      |
+| PQ-3 | No `alg` whitelist constants in `packages/types/src/constants.ts` | M-172                                      |
 
 **Verdict: PARTIAL.** Crypto choices are sound for 2026; missing
 agility hooks for 2028+.
@@ -508,18 +508,18 @@ agility hooks for 2028+.
 
 ## Ratings table — overall
 
-| Topic | Status | Severity if unfixed |
-|-------|--------|---------------------|
-| ACP integration | PARTIAL | High (commerce vertical) |
-| Auth0 differentiation | OKORO-READY (positioning) | Low |
-| MCP bridge | MISSING | **Critical** (distribution) |
-| NIST alignment (artefacts) | PARTIAL | High (regulatory) |
-| W3C DID method | MISSING | High (cheap fix) |
-| OAuth 2.1 / DPoP | PARTIAL | High (adoption friction) |
-| EU AI Act docs | OKORO-READY (docs only) | Medium |
-| Cloudflare convergence | OKORO-READY (Phase 3) | Low |
-| Multi-currency / stablecoins | MISSING | High (schema is public) |
-| Post-quantum agility | PARTIAL | Medium (time horizon) |
+| Topic                        | Status                    | Severity if unfixed         |
+| ---------------------------- | ------------------------- | --------------------------- |
+| ACP integration              | PARTIAL                   | High (commerce vertical)    |
+| Auth0 differentiation        | OKORO-READY (positioning) | Low                         |
+| MCP bridge                   | MISSING                   | **Critical** (distribution) |
+| NIST alignment (artefacts)   | PARTIAL                   | High (regulatory)           |
+| W3C DID method               | MISSING                   | High (cheap fix)            |
+| OAuth 2.1 / DPoP             | PARTIAL                   | High (adoption friction)    |
+| EU AI Act docs               | OKORO-READY (docs only)   | Medium                      |
+| Cloudflare convergence       | OKORO-READY (Phase 3)     | Low                         |
+| Multi-currency / stablecoins | MISSING                   | High (schema is public)     |
+| Post-quantum agility         | PARTIAL                   | Medium (time horizon)       |
 
 ---
 
@@ -529,18 +529,18 @@ These are sequenced for impact × cost. IDs follow `WORK_BOARD.md`
 conventions. New IDs (M-100+) are proposed; existing IDs are referenced
 where applicable.
 
-| Priority | ID | Title | Estimated cost | Why first |
-|----------|------|-------|----------------|-----------|
-| 1 | **M-110** | `@okoro/mcp-bridge` package (Node + Python) | 1–2 weeks | Distribution wedge with the largest 2026 agent ecosystem. Detailed rationale in `docs/standards/0001-mcp-bridge-positioning.md`. |
-| 2 | **M-101** | Schema fix: open `Currency`, add stablecoin support, support 6-decimal precision | 1–2 days | Public-API blocker. Cheap if pre-launch, painful post-launch. |
-| 3 | **M-130** | Per-agent `did:web:okorolabs.io:agents:<id>` DID document endpoint | 1–2 days | Single highest-signal NIST-alignment artefact. |
-| 4 | **M-170** | Add `signingAlgorithm` field to `AgentIdentity` (PQ agility) | 0.5 days | Schema-additive; postponing is expensive. |
-| 5 | **M-140 / M-142** | OAuth 2.1 metadata endpoint + introspection endpoint | 3–5 days | Unlocks "any OAuth resource server" adoption with minimal code. |
-| 6 | **M-141** | DPoP support on policy tokens (`cnf.jkt` claim + DPoP-Header verification) | 3–5 days | Replay-safety win + standards conformance. Pairs with M-140. |
-| 7 | **M-120** | Publish "OKORO Trust Framework v1" document (governance, audit, recourse) | 2–3 days (doc only) | Required artefact for NIST reference-implementation listing. |
-| 8 | **M-104** | Reference repo: ACP + OKORO dual-verification example merchant | 2–3 days | Sales/marketing artefact that doubles as integration test. |
-| 9 | **M-105** | CIBA-style async approval flow (`/v1/agents/:id/approval-request`) | 1 week | Closes the "high-value transaction needs human OK" gap that Auth0 advertises. |
-| 10 | **M-150** | EU AI Act compliance pack (docs only) | 1 day | Unlocks European enterprise conversations; zero engineering cost. |
+| Priority | ID                | Title                                                                            | Estimated cost      | Why first                                                                                                                        |
+| -------- | ----------------- | -------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 1        | **M-110**         | `@okoro/mcp-bridge` package (Node + Python)                                      | 1–2 weeks           | Distribution wedge with the largest 2026 agent ecosystem. Detailed rationale in `docs/standards/0001-mcp-bridge-positioning.md`. |
+| 2        | **M-101**         | Schema fix: open `Currency`, add stablecoin support, support 6-decimal precision | 1–2 days            | Public-API blocker. Cheap if pre-launch, painful post-launch.                                                                    |
+| 3        | **M-130**         | Per-agent `did:web:okoroapp.com:agents:<id>` DID document endpoint               | 1–2 days            | Single highest-signal NIST-alignment artefact.                                                                                   |
+| 4        | **M-170**         | Add `signingAlgorithm` field to `AgentIdentity` (PQ agility)                     | 0.5 days            | Schema-additive; postponing is expensive.                                                                                        |
+| 5        | **M-140 / M-142** | OAuth 2.1 metadata endpoint + introspection endpoint                             | 3–5 days            | Unlocks "any OAuth resource server" adoption with minimal code.                                                                  |
+| 6        | **M-141**         | DPoP support on policy tokens (`cnf.jkt` claim + DPoP-Header verification)       | 3–5 days            | Replay-safety win + standards conformance. Pairs with M-140.                                                                     |
+| 7        | **M-120**         | Publish "OKORO Trust Framework v1" document (governance, audit, recourse)        | 2–3 days (doc only) | Required artefact for NIST reference-implementation listing.                                                                     |
+| 8        | **M-104**         | Reference repo: ACP + OKORO dual-verification example merchant                   | 2–3 days            | Sales/marketing artefact that doubles as integration test.                                                                       |
+| 9        | **M-105**         | CIBA-style async approval flow (`/v1/agents/:id/approval-request`)               | 1 week              | Closes the "high-value transaction needs human OK" gap that Auth0 advertises.                                                    |
+| 10       | **M-150**         | EU AI Act compliance pack (docs only)                                            | 1 day               | Unlocks European enterprise conversations; zero engineering cost.                                                                |
 
 **Total estimated effort:** ≈ 5–6 engineer-weeks, of which ≈ 2 weeks
 are documentation. Two FTE-weeks of engineering and the rest
@@ -555,7 +555,7 @@ For the audit record:
 1. **Do not invent a `did:okoro` method.** `did:web` is sufficient and
    has zero governance burden. Re-evaluate at Year 3 when the volume of
    OKORO DIDs justifies the W3C CCG submission cost.
-2. **Do not become an MCP server.** OKORO *wraps* MCP servers via a
+2. **Do not become an MCP server.** OKORO _wraps_ MCP servers via a
    bridge package; it does not ship its own MCP server. (Different
    product surface; different audience.)
 3. **Do not implement FIDO2/WebAuthn for agents.** WebAuthn presumes a
@@ -593,5 +593,5 @@ and product names but is unlikely to change the prioritisation.
 
 ---
 
-*End of landscape audit. Companion document:
-`docs/standards/0001-mcp-bridge-positioning.md`.*
+_End of landscape audit. Companion document:
+`docs/standards/0001-mcp-bridge-positioning.md`._

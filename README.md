@@ -15,12 +15,12 @@
 OKORO sits between AI agents and the services they interact with. Every
 agent-initiated action passes through it for:
 
-| Layer | Responsibility |
-| --- | --- |
-| **L1 — Identity** | Per-agent Ed25519 keypair tied to a verified human/org principal |
-| **L2 — Policy** | Fine-grained, time-bounded, revocable scopes (spend, domain, action) |
-| **L3 — BATE** | Behavioral Attestation Engine — 0-1000 trust score that compounds across sessions |
-| **L4 — Audit** | Append-only, OKORO-signed event log; SOC2/FINRA/COSSEC export |
+| Layer             | Responsibility                                                                    |
+| ----------------- | --------------------------------------------------------------------------------- |
+| **L1 — Identity** | Per-agent Ed25519 keypair tied to a verified human/org principal                  |
+| **L2 — Policy**   | Fine-grained, time-bounded, revocable scopes (spend, domain, action)              |
+| **L3 — BATE**     | Behavioral Attestation Engine — 0-1000 trust score that compounds across sessions |
+| **L4 — Audit**    | Append-only, OKORO-signed event log; SOC2/FINRA/COSSEC export                     |
 
 The hot path — `POST /v1/verify` — has a budget of **<80 ms p99 globally**
 once the Cloudflare Workers edge ships in Phase 3, and **<200 ms p99** in the
@@ -129,20 +129,20 @@ if (result.valid && result.trustScore >= 500) {
 
 ## Development
 
-| Task | Command |
-| --- | --- |
-| Boot Postgres + Redis | `pnpm db:up` |
-| Apply migrations | `pnpm db:migrate` |
-| Run API in watch mode | `pnpm dev` |
-| Run dashboard | `pnpm dev:dashboard` |
-| Seed dev fixtures | `pnpm seed:dev` |
-| Unit tests | `pnpm test` |
-| E2E tests | `pnpm test:e2e` |
-| Typecheck everything | `pnpm typecheck` |
-| Lint everything | `pnpm lint` |
-| **Everything green gate** | **`pnpm check`** |
-| Spec parity | `pnpm check:openapi-zod && pnpm check:openapi-prisma` |
-| Migration immutability | `pnpm check:migrations` |
+| Task                      | Command                                               |
+| ------------------------- | ----------------------------------------------------- |
+| Boot Postgres + Redis     | `pnpm db:up`                                          |
+| Apply migrations          | `pnpm db:migrate`                                     |
+| Run API in watch mode     | `pnpm dev`                                            |
+| Run dashboard             | `pnpm dev:dashboard`                                  |
+| Seed dev fixtures         | `pnpm seed:dev`                                       |
+| Unit tests                | `pnpm test`                                           |
+| E2E tests                 | `pnpm test:e2e`                                       |
+| Typecheck everything      | `pnpm typecheck`                                      |
+| Lint everything           | `pnpm lint`                                           |
+| **Everything green gate** | **`pnpm check`**                                      |
+| Spec parity               | `pnpm check:openapi-zod && pnpm check:openapi-prisma` |
+| Migration immutability    | `pnpm check:migrations`                               |
 
 `pnpm check` runs typecheck, lint, unit tests, spec-sync, and migration
 immutability in one shot — the same gate CI enforces. Run it before every
@@ -162,20 +162,22 @@ Every OKORO deployment publishes a stable, unauthenticated discovery surface.
 Relying parties auto-configure from a single fetch; security researchers,
 auditors, and AI agents read the rest:
 
-| URL | Purpose | Cache |
-| --- | --- | --- |
-| `/.well-known/okoro-configuration` | OIDC-style discovery JSON: every endpoint, JWKS, denial-reason enum, trust band ladder, supported runtimes, build identity | 1 day |
-| `/.well-known/jwks.json` | RFC 8037 JWKS — Ed25519 key for verifying audit-chain signatures | 1 day, ETag |
-| `/.well-known/audit-signing-key` | Plain-JSON helper view of the active audit signing key | 1 day, ETag |
-| `/.well-known/security.txt` | RFC 9116 responsible-disclosure file (Contact + Expires + Policy) | 1 hour |
-| `/.well-known/llms.txt` | AI-agent-readable site description (Markdown) — emerging convention | 1 day |
-| `/docs` | Swagger UI for the OpenAPI spec | — |
-| `/docs-json` | Raw OpenAPI 3 JSON | — |
+| URL                                | Purpose                                                                                                                    | Cache       |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `/.well-known/okoro-configuration` | OIDC-style discovery JSON: every endpoint, JWKS, denial-reason enum, trust band ladder, supported runtimes, build identity | 1 day       |
+| `/.well-known/jwks.json`           | RFC 8037 JWKS — Ed25519 key for verifying audit-chain signatures                                                           | 1 day, ETag |
+| `/.well-known/audit-signing-key`   | Plain-JSON helper view of the active audit signing key                                                                     | 1 day, ETag |
+| `/.well-known/security.txt`        | RFC 9116 responsible-disclosure file (Contact + Expires + Policy)                                                          | 1 hour      |
+| `/.well-known/llms.txt`            | AI-agent-readable site description (Markdown) — emerging convention                                                        | 1 day       |
+| `/docs`                            | Swagger UI for the OpenAPI spec                                                                                            | —           |
+| `/docs-json`                       | Raw OpenAPI 3 JSON                                                                                                         | —           |
 
 A relying party integrating OKORO only needs **one URL** to bootstrap:
 
 ```ts
-const config = await fetch('https://api.okorolabs.io/.well-known/okoro-configuration').then(r => r.json());
+const config = await fetch('https://api.okoroapp.com/.well-known/okoro-configuration').then((r) =>
+  r.json(),
+);
 const verifier = new OkoroVerifier({ jwksUri: config.jwks_uri });
 ```
 
@@ -187,19 +189,19 @@ locked by ADR-0004 and CI-enforced.
 
 ## Operational targets
 
-| Surface | Target | Phase |
-| --- | --- | --- |
-| `/v1/verify` p99 | < 200 ms | 1 (origin) |
-| `/v1/verify` p99 | < 80 ms global | 3 (CF Workers edge) |
-| Agent revocation propagation | < 5 s to edge | 3 |
-| Audit log write reliability | 100% (best-effort, fire-and-forget with DLQ) | 1 |
-| BATE score recompute lag | < 60 s after signal ingestion | 2 |
+| Surface                      | Target                                       | Phase               |
+| ---------------------------- | -------------------------------------------- | ------------------- |
+| `/v1/verify` p99             | < 200 ms                                     | 1 (origin)          |
+| `/v1/verify` p99             | < 80 ms global                               | 3 (CF Workers edge) |
+| Agent revocation propagation | < 5 s to edge                                | 3                   |
+| Audit log write reliability  | 100% (best-effort, fire-and-forget with DLQ) | 1                   |
+| BATE score recompute lag     | < 60 s after signal ingestion                | 2                   |
 
 ---
 
 ## Security model (one-line summary per layer)
 
-- **L1 — Identity**: OKORO holds *only* public keys. Private keys are generated
+- **L1 — Identity**: OKORO holds _only_ public keys. Private keys are generated
   client-side and never transit the wire. Compromise window = `DELETE /v1/agents/:id`.
 - **L2 — Policy**: Server-side enforcement is authoritative. Client-signed
   claims are advisory and re-validated on every verify call.

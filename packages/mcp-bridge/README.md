@@ -33,18 +33,25 @@ import { Okoro } from '@okoro/sdk';
 const okoro = new Okoro({ verifyKey: process.env.OKORO_VERIFY_KEY! });
 const server = new Server({ name: 'fs-mcp-server', version: '1.0.0' });
 
-server.setRequestHandler(readFileSchema, wrapMcpHandler({
-  okoro,
-  actionPrefix: 'mcp.fs.',
-  minTrustBand: 'VERIFIED',
-}, async (req, ctx) => {
-  // ctx.okoroVerify carries: { agentId, principalId, trustScore, trustBand, scopesGranted }
-  // — use them for fine-grained access decisions inside your handler.
-  return await readFile(req.params.path);
-}));
+server.setRequestHandler(
+  readFileSchema,
+  wrapMcpHandler(
+    {
+      okoro,
+      actionPrefix: 'mcp.fs.',
+      minTrustBand: 'VERIFIED',
+    },
+    async (req, ctx) => {
+      // ctx.okoroVerify carries: { agentId, principalId, trustScore, trustBand, scopesGranted }
+      // — use them for fine-grained access decisions inside your handler.
+      return await readFile(req.params.path);
+    },
+  ),
+);
 ```
 
 The agent caller passes its OKORO token via either:
+
 1. `X-OKORO-Token` header (preferred for HTTP / SSE / WebSocket transports)
 2. `_okoro_token` field in JSON-RPC params (fallback for stdio transport)
 
@@ -65,7 +72,7 @@ the transport-specific glue may evolve.
 
 ## See also
 
-- OKORO docs: <https://docs.okorolabs.io>
+- OKORO docs: <https://docs.okoroapp.com>
 - MCP spec: <https://modelcontextprotocol.io>
 - Strategic rationale: `docs/standards/0001-mcp-bridge-positioning.md`
 

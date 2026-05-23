@@ -7,7 +7,7 @@ name: docs
 #   2. parity       — cross-package parity tests (denial precedence, trust
 #                     bands, webhook events) covering the live components
 #   3. link-check   — lychee over MDX content to catch broken anchors and
-#                     dead external links before they ship to docs.okorolabs.io
+#                     dead external links before they ship to docs.okoroapp.com
 #
 # build-and-pack runs on push to main only — it executes the full prebuild
 # (OpenAPI generate) and `next build`, ensuring the deploy target will succeed.
@@ -82,7 +82,7 @@ jobs:
           args: |
             --no-progress
             --max-concurrency 4
-            --base https://docs.okorolabs.io
+            --base https://docs.okoroapp.com
             --exclude '^https://docs\.okorolabs\.io'
             --exclude '^http://localhost'
             'apps/docs/content/**/*.mdx'
@@ -108,5 +108,5 @@ jobs:
       - name: Build @okoro/docs
         run: pnpm --filter @okoro/docs build
         env:
-          OKORO_API_BASE_URL: https://api.okorolabs.io
-          NEXT_PUBLIC_DOCS_URL: https://docs.okorolabs.io
+          OKORO_API_BASE_URL: https://api.okoroapp.com
+          NEXT_PUBLIC_DOCS_URL: https://docs.okoroapp.com

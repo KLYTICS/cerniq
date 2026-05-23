@@ -1,7 +1,7 @@
 # `ai-platform-tool-call` — MCP agent → OKORO verify → downstream API
 
 The AI-platform vertical: an LLM agent calls a tool via MCP (Model
-Context Protocol), the OKORO verify step runs *between* the MCP server
+Context Protocol), the OKORO verify step runs _between_ the MCP server
 and the downstream API the tool wraps. This is the natural early-
 adopter wedge for OKORO — every tool-using AI agent has the same
 problem (who is this agent, scoped to what, can it do this right now)
@@ -57,7 +57,7 @@ shape — see `mcp-server.ts` for the MCP-specific argument extraction.
 ```sh
 cd examples/ai-platform-tool-call
 pnpm install
-OKORO_API_BASE=https://api.okorolabs.io \
+OKORO_API_BASE=https://api.okoroapp.com \
 OKORO_VERIFY_KEY=okoro_vk_... \
 DOWNSTREAM_API_BASE=https://api.your-svc.example.com \
 pnpm tsx src/mcp-server.ts
@@ -73,12 +73,12 @@ pnpm tsx src/mcp-server.ts
       "command": "pnpm",
       "args": ["tsx", "/path/to/okoro/examples/ai-platform-tool-call/src/mcp-server.ts"],
       "env": {
-        "OKORO_API_BASE": "https://api.okorolabs.io",
+        "OKORO_API_BASE": "https://api.okoroapp.com",
         "OKORO_VERIFY_KEY": "okoro_vk_...",
-        "DOWNSTREAM_API_BASE": "https://api.your-svc.example.com"
-      }
-    }
-  }
+        "DOWNSTREAM_API_BASE": "https://api.your-svc.example.com",
+      },
+    },
+  },
 }
 ```
 
@@ -98,7 +98,7 @@ explains the refusal to the user. See
 - [ ] Pair with `@okoro/mcp-server` (peer's `packages/mcp-server/`,
       landed 2026-05-02) so the MCP control plane itself is verified.
 - [ ] Token-binding: the MCP server should require the OKORO token to
-      be present on *every* tool call, not just the first. LLM clients
+      be present on _every_ tool call, not just the first. LLM clients
       that cache MCP sessions will silently keep an old token alive
       otherwise.
 - [ ] Scope per tool: each MCP tool maps to one OKORO scope. A

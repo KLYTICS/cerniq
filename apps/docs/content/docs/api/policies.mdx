@@ -21,7 +21,7 @@ Authentication: `X-OKORO-API-Key` with **FULL** scope.
 ## Create
 
 ```bash
-curl -X POST https://api.okorolabs.io/v1/policies \
+curl -X POST https://api.okoroapp.com/v1/policies \
   -H "X-OKORO-API-Key: $OKORO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -63,7 +63,7 @@ authority tokens minted against it are short-lived.
 ## Revocation
 
 ```bash
-curl -X DELETE https://api.okorolabs.io/v1/policies/pol_01HXYZ... \
+curl -X DELETE https://api.okoroapp.com/v1/policies/pol_01HXYZ... \
   -H "X-OKORO-API-Key: $OKORO_API_KEY"
 ```
 

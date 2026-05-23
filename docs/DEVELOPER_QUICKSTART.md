@@ -1,9 +1,10 @@
 # OKORO — Developer Quickstart
+
 ## From Zero to First Verified Agent Call in 10 Minutes
 
 > **Audience:** Developer integrating OKORO for the first time.  
 > **Time:** ~10 minutes for happy path. ~30 minutes for full denial-precedence walkthrough.  
-> **Prerequisites:** Node.js 18+ or Python 3.11+. An OKORO API key (get one at dashboard.okorolabs.io or via the CLI).
+> **Prerequisites:** Node.js 18+ or Python 3.11+. An OKORO API key (get one at dashboard.okoroapp.com or via the CLI).
 
 ---
 
@@ -52,8 +53,8 @@ yarn add @okoro/sdk
 import { OkoroClient, generateKeypair } from '@okoro/sdk';
 
 const okoro = new OkoroClient({
-  apiKey: process.env.OKORO_API_KEY!,        // Your management API key
-  baseUrl: 'https://api.okorolabs.io/v1',    // default; omit in prod
+  apiKey: process.env.OKORO_API_KEY!, // Your management API key
+  baseUrl: 'https://api.okoroapp.com/v1', // default; omit in prod
 });
 
 // Generate an Ed25519 keypair. Private key stays client-side — NEVER sent to OKORO.
@@ -62,9 +63,9 @@ const { publicKey, privateKey } = await generateKeypair();
 // Register the agent
 const agent = await okoro.agents.register({
   publicKey,
-  runtime: 'ANTHROPIC',   // 'OPENAI' | 'ANTHROPIC' | 'GOOGLE' | 'HUGGINGFACE' | 'CUSTOM'
+  runtime: 'ANTHROPIC', // 'OPENAI' | 'ANTHROPIC' | 'GOOGLE' | 'HUGGINGFACE' | 'CUSTOM'
   label: 'my-purchase-agent',
-  model: 'claude-opus-4',  // optional, for observability
+  model: 'claude-opus-4', // optional, for observability
 });
 
 console.log('Agent ID:', agent.agentId);
@@ -87,15 +88,15 @@ const policy = await okoro.policies.create({
       category: 'commerce',
       spendLimit: {
         currency: 'USD',
-        maxPerTransaction: 1500,     // single txn cap
-        maxPerDay: 5000,             // daily rolling cap
-        maxPerMonth: 20000,          // monthly cap
+        maxPerTransaction: 1500, // single txn cap
+        maxPerDay: 5000, // daily rolling cap
+        maxPerMonth: 20000, // monthly cap
       },
-      merchantCategories: ['3000-3499'],  // IATA / airline MCC range
+      merchantCategories: ['3000-3499'], // IATA / airline MCC range
       allowedDomains: ['delta.com', 'united.com', 'aa.com'],
     },
     {
-      category: 'data-read',         // read-only data access scope
+      category: 'data-read', // read-only data access scope
     },
   ],
   expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
@@ -117,11 +118,11 @@ const token = await sign(privateKey, {
   agentId: agent.agentId,
   policyId: policy.policyId,
   action: 'commerce.purchase',
-  amount: 347.50,
+  amount: 347.5,
   currency: 'USD',
   merchantDomain: 'delta.com',
   merchantId: 'delta-airlines',
-  ttlSeconds: 30,             // token expires in 30s (default)
+  ttlSeconds: 30, // token expires in 30s (default)
 });
 
 // token is a compact EdDSA JWT, ~400 bytes
@@ -136,10 +137,10 @@ This is what the service receiving the agent's request calls.
 // In your API handler (Express, Fastify, Hono, etc.)
 const result = await okoro.verify(token, {
   action: 'commerce.purchase',
-  amount: 347.50,
+  amount: 347.5,
   currency: 'USD',
   merchantDomain: 'delta.com',
-  minTrustScore: 400,           // reject agents with low trust (optional)
+  minTrustScore: 400, // reject agents with low trust (optional)
 });
 
 if (!result.valid) {
@@ -168,20 +169,23 @@ const app = express();
 const okoro = new OkoroClient({ apiKey: process.env.OKORO_API_KEY! });
 
 // Middleware: verify OKORO token before any protected route
-const requireAgent = (minTrustScore = 400) => async (req, res, next) => {
-  const token = req.headers['x-okoro-token'] as string ?? req.headers.authorization?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'missing_okoro_token' });
+const requireAgent =
+  (minTrustScore = 400) =>
+  async (req, res, next) => {
+    const token =
+      (req.headers['x-okoro-token'] as string) ?? req.headers.authorization?.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'missing_okoro_token' });
 
-  const result = await okoro.verify(token, {
-    action: req.path.replace('/', '').replace('/', '.'),
-    minTrustScore,
-  });
+    const result = await okoro.verify(token, {
+      action: req.path.replace('/', '').replace('/', '.'),
+      minTrustScore,
+    });
 
-  if (!result.valid) return res.status(403).json({ error: result.denialReason });
+    if (!result.valid) return res.status(403).json({ error: result.denialReason });
 
-  req.agent = result;  // downstream handlers have full result
-  next();
-};
+    req.agent = result; // downstream handlers have full result
+    next();
+  };
 
 app.post('/checkout', requireAgent(500), async (req, res) => {
   // req.agent.agentId, req.agent.trustScore, req.agent.scopesGranted
@@ -210,7 +214,7 @@ await verifier.prefetchJwks();
 // In your handler — zero network round-trip
 const result = await verifier.verify(token, {
   action: 'commerce.purchase',
-  amount: 347.50,
+  amount: 347.5,
   merchantDomain: 'delta.com',
 });
 ```
@@ -404,17 +408,17 @@ okoro events tail --agent-id cld_01HXYZ
 
 Understanding denial reasons is critical for debugging integrations:
 
-| Denial Reason | Meaning | Fix |
-|---|---|---|
-| `AGENT_NOT_FOUND` | agentId in token doesn't exist or agent is SUSPENDED | Check agent status: `okoro agents show <id>` |
-| `AGENT_REVOKED` | Agent was explicitly revoked | Register a new agent |
-| `INVALID_SIGNATURE` | Token tampered, wrong private key, expired, or replay attempt | Re-sign with correct key; check clock skew |
-| `POLICY_REVOKED` | Policy was explicitly revoked | Create a new policy |
-| `POLICY_EXPIRED` | Policy TTL passed | Create a new policy with updated `expiresAt` |
-| `SCOPE_NOT_GRANTED` | Action or merchantDomain not covered by policy scopes | Check scope.category matches action prefix; check allowedDomains |
-| `SPEND_LIMIT_EXCEEDED` | Per-txn, per-day, or per-month spend cap hit | Reduce request amount or wait for window reset |
-| `TRUST_SCORE_TOO_LOW` | Agent's BATE score below `minTrustScore` | Lower your threshold, or wait for agent to build history |
-| `ANOMALY_FLAGGED` | BATE engine has hard-flagged the agent | Check `okoro events tail` for anomaly signals; contact support |
+| Denial Reason          | Meaning                                                       | Fix                                                              |
+| ---------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `AGENT_NOT_FOUND`      | agentId in token doesn't exist or agent is SUSPENDED          | Check agent status: `okoro agents show <id>`                     |
+| `AGENT_REVOKED`        | Agent was explicitly revoked                                  | Register a new agent                                             |
+| `INVALID_SIGNATURE`    | Token tampered, wrong private key, expired, or replay attempt | Re-sign with correct key; check clock skew                       |
+| `POLICY_REVOKED`       | Policy was explicitly revoked                                 | Create a new policy                                              |
+| `POLICY_EXPIRED`       | Policy TTL passed                                             | Create a new policy with updated `expiresAt`                     |
+| `SCOPE_NOT_GRANTED`    | Action or merchantDomain not covered by policy scopes         | Check scope.category matches action prefix; check allowedDomains |
+| `SPEND_LIMIT_EXCEEDED` | Per-txn, per-day, or per-month spend cap hit                  | Reduce request amount or wait for window reset                   |
+| `TRUST_SCORE_TOO_LOW`  | Agent's BATE score below `minTrustScore`                      | Lower your threshold, or wait for agent to build history         |
+| `ANOMALY_FLAGGED`      | BATE engine has hard-flagged the agent                        | Check `okoro events tail` for anomaly signals; contact support   |
 
 **Denial precedence is guaranteed:** OKORO always reports the highest-priority denial (AGENT_NOT_FOUND before INVALID_SIGNATURE, etc.). Your error handling can branch on the exact string.
 
@@ -422,12 +426,12 @@ Understanding denial reasons is critical for debugging integrations:
 
 ## Trust Score — Quick Reference
 
-| Score | Band | Typical relying-party behavior |
-|---|---|---|
-| 750–1000 | PLATINUM | Pre-approved; highest spend limits |
-| 500–749 | VERIFIED | Standard verification; normal limits |
-| 250–499 | WATCH | Enhanced checks; lower limits suggested |
-| 0–249 | FLAGGED | Most relying parties reject by default |
+| Score    | Band     | Typical relying-party behavior          |
+| -------- | -------- | --------------------------------------- |
+| 750–1000 | PLATINUM | Pre-approved; highest spend limits      |
+| 500–749  | VERIFIED | Standard verification; normal limits    |
+| 250–499  | WATCH    | Enhanced checks; lower limits suggested |
+| 0–249    | FLAGGED  | Most relying parties reject by default  |
 
 New agents start at **500 (VERIFIED)**. Score improves via clean transactions, principal KYC verification (+150 one-time), and consistent behavior over time.
 
@@ -441,10 +445,10 @@ await okoro.webhooks.create({
   url: 'https://your-api.com/webhooks/okoro',
   secret: process.env.OKORO_WEBHOOK_SECRET!,
   events: [
-    'okoro.agent.revoked',           // Immediate revocation — stop accepting tokens
+    'okoro.agent.revoked', // Immediate revocation — stop accepting tokens
     'okoro.agent.trust_score_changed', // Score band changes — adjust limits
-    'okoro.agent.anomaly_detected',   // Flag for human review
-    'okoro.policy.expired',           // Renew policy before next action
+    'okoro.agent.anomaly_detected', // Flag for human review
+    'okoro.policy.expired', // Renew policy before next action
   ],
 });
 ```
@@ -458,9 +462,7 @@ function verifyWebhookSignature(payload: string, header: string, secret: string)
   const [tPart, v1Part] = header.split(',');
   const timestamp = tPart.split('=')[1];
   const signature = v1Part.split('=')[1];
-  const expected = createHmac('sha256', secret)
-    .update(`${timestamp}.${payload}`)
-    .digest('hex');
+  const expected = createHmac('sha256', secret).update(`${timestamp}.${payload}`).digest('hex');
   return expected === signature;
 }
 
@@ -490,7 +492,7 @@ OKORO_API_KEY=sk_live_...          # Management API key (full scope)
 OKORO_VERIFY_KEY=vk_live_...       # Verify-only key (RP-side, no management access)
 
 # Optional
-OKORO_BASE_URL=https://api.okorolabs.io/v1   # default
+OKORO_BASE_URL=https://api.okoroapp.com/v1   # default
 OKORO_TIMEOUT_MS=5000                         # default 5000ms
 OKORO_RETRY_ATTEMPTS=3                        # default 3
 OKORO_LOG_LEVEL=info                          # debug | info | warn | error
@@ -510,4 +512,4 @@ OKORO_LOG_LEVEL=info                          # debug | info | warn | error
 
 ---
 
-*Last updated: 2026-05-04 | SDK versions: @okoro/sdk@0.1.0, okoro-sdk@0.1.0, CLI@0.1.0*
+_Last updated: 2026-05-04 | SDK versions: @okoro/sdk@0.1.0, okoro-sdk@0.1.0, CLI@0.1.0_

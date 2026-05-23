@@ -28,7 +28,7 @@ importers:
         version: 9.1.2(eslint@9.39.4(jiti@2.7.0))
       eslint-plugin-import:
         specifier: ^2.31.0
-        version: 2.32.0(@typescript-eslint/parser@8.59.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.59.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0))
+        version: 2.32.0(@typescript-eslint/parser@8.59.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.4(jiti@2.7.0))
       eslint-plugin-security:
         specifier: ^3.0.1
         version: 3.0.1
@@ -50,12 +50,6 @@ importers:
 
   apps/api:
     dependencies:
-      '@aegis/sdk':
-        specifier: workspace:*
-        version: link:../../packages/sdk-ts
-      '@aegis/types':
-        specifier: workspace:*
-        version: link:../../packages/types
       '@nestjs/common':
         specifier: ^11.0.0
         version: 11.1.19(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -86,6 +80,12 @@ importers:
       '@noble/post-quantum':
         specifier: ^0.4.0
         version: 0.4.1
+      '@okoro/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk-ts
+      '@okoro/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.1
@@ -244,7 +244,7 @@ importers:
 
   apps/dashboard:
     dependencies:
-      '@aegis/sdk':
+      '@okoro/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk-ts
       next:
@@ -278,7 +278,7 @@ importers:
 
   apps/docs:
     dependencies:
-      '@aegis/types':
+      '@okoro/types':
         specifier: workspace:*
         version: link:../../packages/types
       fumadocs-core:
@@ -349,7 +349,7 @@ importers:
         specifier: ^1.5.0
         version: 1.8.0
     devDependencies:
-      '@aegis/tsconfig':
+      '@okoro/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       '@types/node':
@@ -367,18 +367,18 @@ importers:
 
   packages/cli:
     dependencies:
-      '@aegis/sdk':
-        specifier: workspace:*
-        version: link:../sdk-ts
-      '@aegis/types':
-        specifier: workspace:*
-        version: link:../types
       '@noble/ed25519':
         specifier: ^2.1.0
         version: 2.3.0
       '@noble/hashes':
         specifier: ^1.5.0
         version: 1.8.0
+      '@okoro/sdk':
+        specifier: workspace:*
+        version: link:../sdk-ts
+      '@okoro/types':
+        specifier: workspace:*
+        version: link:../types
       commander:
         specifier: ^12.1.0
         version: 12.1.0
@@ -389,7 +389,7 @@ importers:
         specifier: ^2.4.2
         version: 2.4.2
     devDependencies:
-      '@aegis/tsconfig':
+      '@okoro/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       '@types/prompts':
@@ -416,17 +416,17 @@ importers:
 
   packages/mcp-bridge:
     dependencies:
-      '@aegis/sdk':
-        specifier: workspace:*
-        version: link:../sdk-ts
-      '@aegis/types':
-        specifier: workspace:*
-        version: link:../types
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.29.0(zod@4.4.3)
+      '@okoro/sdk':
+        specifier: workspace:*
+        version: link:../sdk-ts
+      '@okoro/types':
+        specifier: workspace:*
+        version: link:../types
     devDependencies:
-      '@aegis/tsconfig':
+      '@okoro/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       tsup:
@@ -441,20 +441,20 @@ importers:
 
   packages/mcp-server:
     dependencies:
-      '@aegis/sdk':
-        specifier: workspace:*
-        version: link:../sdk-ts
-      '@aegis/types':
-        specifier: workspace:*
-        version: link:../types
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.29.0(zod@3.25.76)
+      '@okoro/sdk':
+        specifier: workspace:*
+        version: link:../sdk-ts
+      '@okoro/types':
+        specifier: workspace:*
+        version: link:../types
       zod:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
-      '@aegis/tsconfig':
+      '@okoro/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       tsup:
@@ -469,15 +469,15 @@ importers:
 
   packages/sdk-ts:
     dependencies:
-      '@aegis/types':
-        specifier: workspace:*
-        version: link:../types
       '@noble/ed25519':
         specifier: ^2.1.0
         version: 2.3.0
       '@noble/hashes':
         specifier: ^1.5.0
         version: 1.8.0
+      '@okoro/types':
+        specifier: workspace:*
+        version: link:../types
       ulid:
         specifier: ^2.3.0
         version: 2.4.0
@@ -509,7 +509,7 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
-      '@aegis/tsconfig':
+      '@okoro/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       tsup:
@@ -567,9 +567,6 @@ importers:
 
   scripts:
     dependencies:
-      '@aegis/types':
-        specifier: workspace:*
-        version: link:../packages/types
       '@nestjs/common':
         specifier: ^11.0.0
         version: 11.1.19(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -579,6 +576,9 @@ importers:
       '@noble/hashes':
         specifier: ^1.5.0
         version: 1.8.0
+      '@okoro/types':
+        specifier: workspace:*
+        version: link:../packages/types
       '@prisma/client':
         specifier: ^5.22.0
         version: 5.22.0(prisma@5.22.0)
@@ -598,7 +598,7 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
-      '@aegis/tsconfig':
+      '@okoro/tsconfig':
         specifier: workspace:*
         version: link:../packages/tsconfig
       '@types/bcryptjs':
@@ -619,20 +619,20 @@ importers:
 
   tests:
     dependencies:
-      '@aegis/sdk':
-        specifier: link:../packages/sdk-ts
-        version: link:../packages/sdk-ts
-      '@aegis/types':
-        specifier: link:../packages/types
-        version: link:../packages/types
       '@noble/ed25519':
         specifier: ^2.1.0
         version: 2.3.0
       '@noble/hashes':
         specifier: ^1.5.0
         version: 1.8.0
+      '@okoro/sdk':
+        specifier: link:../packages/sdk-ts
+        version: link:../packages/sdk-ts
+      '@okoro/types':
+        specifier: link:../packages/types
+        version: link:../packages/types
     devDependencies:
-      '@aegis/tsconfig':
+      '@okoro/tsconfig':
         specifier: link:../packages/tsconfig
         version: link:../packages/tsconfig
       '@types/node':
@@ -650,11 +650,11 @@ importers:
 
   tools/audit-evidence-bundle:
     dependencies:
-      '@aegis/audit-verifier':
+      '@okoro/audit-verifier':
         specifier: link:../../packages/audit-verifier
         version: link:../../packages/audit-verifier
     devDependencies:
-      '@aegis/tsconfig':
+      '@okoro/tsconfig':
         specifier: link:../../packages/tsconfig
         version: link:../../packages/tsconfig
       '@types/node':
@@ -672,7 +672,7 @@ importers:
 
   tools/postman:
     dependencies:
-      '@aegis/types':
+      '@okoro/types':
         specifier: workspace:*
         version: link:../../packages/types
     devDependencies:
@@ -697,11 +697,11 @@ importers:
 
   tools/quickstart:
     dependencies:
-      '@aegis/sdk':
+      '@okoro/sdk':
         specifier: link:../../packages/sdk-ts
         version: link:../../packages/sdk-ts
     devDependencies:
-      '@aegis/tsconfig':
+      '@okoro/tsconfig':
         specifier: link:../../packages/tsconfig
         version: link:../../packages/tsconfig
       '@types/node':
@@ -716,22 +716,22 @@ importers:
 
   workers/cf-verify:
     dependencies:
-      '@aegis/types':
-        specifier: workspace:*
-        version: link:../../packages/types
       '@noble/ed25519':
         specifier: ^2.1.0
         version: 2.3.0
       '@noble/hashes':
         specifier: ^1.5.0
         version: 1.8.0
-    devDependencies:
-      '@aegis/tsconfig':
+      '@okoro/types':
         specifier: workspace:*
-        version: link:../../packages/tsconfig
+        version: link:../../packages/types
+    devDependencies:
       '@cloudflare/workers-types':
         specifier: ^4.20241127.0
         version: 4.20260501.1
+      '@okoro/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
@@ -15924,7 +15924,7 @@ snapshots:
       eslint: 9.39.4(jiti@2.7.0)
       eslint-import-resolver-node: 0.3.10
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.59.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0))
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.59.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.59.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.59.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.4(jiti@2.7.0))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.39.4(jiti@2.7.0))
       eslint-plugin-react: 7.37.5(eslint@9.39.4(jiti@2.7.0))
       eslint-plugin-react-hooks: 7.1.1(eslint@9.39.4(jiti@2.7.0))
@@ -15961,7 +15961,7 @@ snapshots:
       tinyglobby: 0.2.16
       unrs-resolver: 1.11.1
     optionalDependencies:
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.59.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.59.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.59.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.4(jiti@2.7.0))
     transitivePeerDependencies:
       - supports-color
 
@@ -15976,7 +15976,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.59.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.59.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0)):
+  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.59.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.4(jiti@2.7.0)):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.9

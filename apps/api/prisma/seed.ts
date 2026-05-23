@@ -15,7 +15,7 @@ import { ulid } from 'ulid';
 
 const prisma = new PrismaClient();
 
-const SEED_PRINCIPAL_EMAIL = 'dev@okorolabs.io';
+const SEED_PRINCIPAL_EMAIL = 'dev@okoroapp.com';
 const BCRYPT_COST = 4; // dev-only: keep fast.
 
 async function main(): Promise<void> {
@@ -93,7 +93,12 @@ async function main(): Promise<void> {
       scopes: [
         {
           category: 'commerce',
-          spendLimit: { currency: 'USD', maxPerTransaction: 500, maxPerDay: 1000, maxPerMonth: 5000 },
+          spendLimit: {
+            currency: 'USD',
+            maxPerTransaction: 500,
+            maxPerDay: 1000,
+            maxPerMonth: 5000,
+          },
           allowedDomains: ['delta.com', 'united.com', 'southwest.com'],
         },
       ],

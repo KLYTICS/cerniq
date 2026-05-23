@@ -33,7 +33,7 @@ import { verifySpt } from './spt-verify.js';
 import type { ChargeRequest, ChargeResponse, ChargeId } from './types.js';
 
 const okoro = new Okoro({
-  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okorolabs.io',
+  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okoroapp.com',
   // Verify-only key — never a management key on a service edge.
   verifyKey: requireEnv('OKORO_VERIFY_KEY'),
 });
@@ -127,11 +127,15 @@ app.listen(port, () => {
 function validateChargeBody(b: unknown): string | null {
   if (!b || typeof b !== 'object') return 'missing_body';
   const o = b as Record<string, unknown>;
-  if (typeof o.paymentToken !== 'string' || !o.paymentToken.startsWith('spt_')) return 'paymentToken_invalid';
-  if (typeof o.okoroToken !== 'string' || o.okoroToken.split('.').length !== 3) return 'okoroToken_invalid';
-  if (typeof o.amount !== 'number' || !Number.isFinite(o.amount) || o.amount <= 0) return 'amount_invalid';
+  if (typeof o.paymentToken !== 'string' || !o.paymentToken.startsWith('spt_'))
+    return 'paymentToken_invalid';
+  if (typeof o.okoroToken !== 'string' || o.okoroToken.split('.').length !== 3)
+    return 'okoroToken_invalid';
+  if (typeof o.amount !== 'number' || !Number.isFinite(o.amount) || o.amount <= 0)
+    return 'amount_invalid';
   if (typeof o.currency !== 'string' || o.currency.length !== 3) return 'currency_invalid';
-  if (typeof o.merchantDomain !== 'string' || o.merchantDomain.length === 0) return 'merchantDomain_invalid';
+  if (typeof o.merchantDomain !== 'string' || o.merchantDomain.length === 0)
+    return 'merchantDomain_invalid';
   return null;
 }
 
@@ -159,5 +163,7 @@ function requireEnv(name: string): string {
 function cryptoRandom(): string {
   // Match @okoro/sdk's jti shape (ULID-ish); falls back if uuid is
   // unavailable.
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${process.hrtime.bigint().toString(36)}`;
+  return (
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${process.hrtime.bigint().toString(36)}`
+  );
 }

@@ -21,7 +21,7 @@ npm install @okoro/verifier-rp
 import { OkoroVerifier } from '@okoro/verifier-rp';
 
 const verifier = new OkoroVerifier({
-  jwksUri: 'https://api.okorolabs.io/.well-known/okoro-jwks.json',
+  jwksUri: 'https://api.okoroapp.com/.well-known/okoro-jwks.json',
   getAgentPublicKey: async (agentId) => {
     // The RP supplies how to resolve agent public keys. Typically:
     // - a DB lookup if you've cached agent registration callbacks

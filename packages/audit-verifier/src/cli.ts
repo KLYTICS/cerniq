@@ -17,7 +17,7 @@
 //
 // Examples:
 //   okoro-audit-verify verify ./export.ndjson \
-//     --jwks https://api.okorolabs.io/.well-known/audit-signing-key
+//     --jwks https://api.okoroapp.com/.well-known/audit-signing-key
 //
 //   okoro-audit-verify verify ./export.ndjson \
 //     --jwks-file ./okoro-audit-jwks.json --json > report.json
@@ -133,6 +133,8 @@ function fail(msg: string, code: number): never {
 main()
   .then((code) => exit(code))
   .catch((err: unknown) => {
-    stderr.write(`okoro-audit-verify: fatal — ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
+    stderr.write(
+      `okoro-audit-verify: fatal — ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`,
+    );
     exit(2);
   });

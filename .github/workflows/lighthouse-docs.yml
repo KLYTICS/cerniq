@@ -37,8 +37,8 @@ jobs:
       - name: Build @okoro/docs
         run: pnpm --filter @okoro/docs build
         env:
-          OKORO_API_BASE_URL: https://api.okorolabs.io
-          NEXT_PUBLIC_DOCS_URL: https://docs.okorolabs.io
+          OKORO_API_BASE_URL: https://api.okoroapp.com
+          NEXT_PUBLIC_DOCS_URL: https://docs.okoroapp.com
       - name: Install Chrome (for Lighthouse)
         uses: browser-actions/setup-chrome@v1
       - name: Run Lighthouse CI

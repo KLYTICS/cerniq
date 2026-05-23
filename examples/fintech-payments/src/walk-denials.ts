@@ -16,7 +16,7 @@ import { randomUUID } from 'node:crypto';
 
 const target = process.argv[2] ?? 'http://localhost:3001';
 const okoro = new Okoro({
-  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okorolabs.io',
+  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okoroapp.com',
   apiKey: requireEnv('OKORO_API_KEY'),
 });
 

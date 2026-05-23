@@ -1,7 +1,7 @@
 # OKORO — Architecture
 
 > Companion to `docs/spec/03_TECHNICAL_SPEC.md` (the canonical reference).
-> This document explains *why* the design looks the way it does and where
+> This document explains _why_ the design looks the way it does and where
 > the bodies are buried.
 
 ---
@@ -56,10 +56,10 @@ OKORO is two services joined at the hip:
 The two surfaces share **the same Postgres + Redis**. They differ in
 latency budget, deployment cadence, and write authority:
 
-| Surface       | p99 budget    | Writes          | Deploy cadence | Phase 3 home |
-|---------------|---------------|-----------------|----------------|--------------|
-| Management    | 500 ms        | Yes (full)      | Daily          | Railway      |
-| Hot verify    | 200 ms (P1) / 80 ms (P3) | Append-only audit + Redis counters | Weekly | CF Workers |
+| Surface    | p99 budget               | Writes                             | Deploy cadence | Phase 3 home |
+| ---------- | ------------------------ | ---------------------------------- | -------------- | ------------ |
+| Management | 500 ms                   | Yes (full)                         | Daily          | Railway      |
+| Hot verify | 200 ms (P1) / 80 ms (P3) | Append-only audit + Redis counters | Weekly         | CF Workers   |
 
 ---
 
@@ -125,14 +125,14 @@ The full schema is `apps/api/prisma/schema.prisma`. Notable choices:
 
 ## 4. Caching strategy
 
-| Key                                 | TTL      | Source of truth   | Invalidated by                |
-|-------------------------------------|----------|-------------------|-------------------------------|
-| `agent:{id}`                        | 60 s     | Postgres          | Identity update / revoke      |
-| `agent:{id}:trust`                  | 60 s     | Postgres          | BATE worker on score change   |
-| `policy:{id}`                       | 30 s     | Postgres          | Policy revoke / expire        |
-| `verify:{tokenHash}:{action}`       | 30 s     | computed          | Same key naturally expires    |
-| `spend:{policyId}:day:{YYYY-MM-DD}` | until midnight UTC | Postgres SpendRecord (lazy reconcile) | Atomic INCRBY |
-| `spend:{policyId}:month:{YYYY-MM}`  | until next month | same | same |
+| Key                                 | TTL                | Source of truth                       | Invalidated by              |
+| ----------------------------------- | ------------------ | ------------------------------------- | --------------------------- |
+| `agent:{id}`                        | 60 s               | Postgres                              | Identity update / revoke    |
+| `agent:{id}:trust`                  | 60 s               | Postgres                              | BATE worker on score change |
+| `policy:{id}`                       | 30 s               | Postgres                              | Policy revoke / expire      |
+| `verify:{tokenHash}:{action}`       | 30 s               | computed                              | Same key naturally expires  |
+| `spend:{policyId}:day:{YYYY-MM-DD}` | until midnight UTC | Postgres SpendRecord (lazy reconcile) | Atomic INCRBY               |
+| `spend:{policyId}:month:{YYYY-MM}`  | until next month   | same                                  | same                        |
 
 We choose TTL-based invalidation over event-based for most keys because
 60 s of stale state is acceptable for a verify call (the agent's
@@ -230,7 +230,7 @@ Forward-only, three-step contract:
 
 1. **Additive migration** ships first (new column nullable, new table
    coexists with old). Runs on every Railway deploy via `prisma migrate
-   deploy` in the API container's start script.
+deploy` in the API container's start script.
 2. **App deploy** uses both old and new column behind a feature flag.
 3. **Cleanup migration** ships once the feature is fully ramped and the
    old column is unreferenced.
@@ -256,13 +256,13 @@ Closes audit finding **A-009**, satisfies SOC 2 CC7.4. OKORO holds
 verification authority for downstream payment flows; incidents are not
 private to us.
 
-| P-tier | Time-to-customer-notify | Mechanism                                            |
-|--------|-------------------------|------------------------------------------------------|
+| P-tier | Time-to-customer-notify | Mechanism                                                                         |
+| ------ | ----------------------- | --------------------------------------------------------------------------------- |
 | P1     | 4 hours                 | Webhook `okoro.incident.declared` + dashboard banner + email to principal contact |
-| P2     | 24 hours                | Dashboard banner + email                            |
-| P3     | Next status-page post   | Status page only                                    |
+| P2     | 24 hours                | Dashboard banner + email                                                          |
+| P3     | Next status-page post   | Status page only                                                                  |
 
-- **Status page**: `status.okorolabs.io`, sourced from
+- **Status page**: `status.okoroapp.com`, sourced from
   `incidents.{open,history}.json` published from the management API
   (Statuspage / self-hosted decision pending — see `OPERATOR_DECISIONS.md`
   OD-007 once filed).
@@ -299,7 +299,7 @@ performance. On Redis error during spend evaluation:
 
 - Return `503 SERVICE_UNAVAILABLE` with `code: SPEND_GUARD_UNAVAILABLE`.
 - Audit-append the denial (so the agent's later reconciliation can show
-  the request was *attempted* but unverified).
+  the request was _attempted_ but unverified).
 - Do **not** fall back to Postgres for the live increment — the latency
   cost violates the p99 budget and the contention pattern fights the
   audit-append transaction.
@@ -316,13 +316,13 @@ in THREAT_MODEL_v2 § 8.4.
 
 ### 10.4 Postgres unavailability
 
-| Path                      | Behavior on PG-down                                                                   |
-|---------------------------|----------------------------------------------------------------------------------------|
-| `/v1/verify` cache hit    | Continues, audit append falls through to **outbox** (ADR-0007); CLAUDE.md inv. 3 holds because the outbox row carries the signed payload that will land on PG recovery. |
-| `/v1/verify` cache miss   | `503` with `code: BACKEND_UNAVAILABLE`.                                                |
-| Identity / policy CRUD    | `503`.                                                                                 |
-| Audit retrieval           | `503`. Past events are not served from cache.                                          |
-| Webhook delivery          | Continues from BullMQ until queue saturation; then `503` on `POST /v1/webhooks` create. |
+| Path                    | Behavior on PG-down                                                                                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/v1/verify` cache hit  | Continues, audit append falls through to **outbox** (ADR-0007); CLAUDE.md inv. 3 holds because the outbox row carries the signed payload that will land on PG recovery. |
+| `/v1/verify` cache miss | `503` with `code: BACKEND_UNAVAILABLE`.                                                                                                                                 |
+| Identity / policy CRUD  | `503`.                                                                                                                                                                  |
+| Audit retrieval         | `503`. Past events are not served from cache.                                                                                                                           |
+| Webhook delivery        | Continues from BullMQ until queue saturation; then `503` on `POST /v1/webhooks` create.                                                                                 |
 
 ### 10.5 Multi-region / DR posture (closes A-022)
 
@@ -357,11 +357,11 @@ in `docs/SLO.md` achievable.
 
 ### 11.1 Throughput targets
 
-| Surface       | Phase 1     | Phase 3 (per region) | Notes                                              |
-|---------------|-------------|----------------------|----------------------------------------------------|
-| `/v1/verify`  | 1 000 rps   | 10 000 rps           | Phase 1 single Railway instance; P3 KV-fronted     |
-| Management    | 100 rps     | 100 rps              | Identity / policy / audit CRUD + dashboard         |
-| Webhook out   | 50 rps      | 200 rps              | BullMQ-paced; bursts buffered                      |
+| Surface      | Phase 1   | Phase 3 (per region) | Notes                                          |
+| ------------ | --------- | -------------------- | ---------------------------------------------- |
+| `/v1/verify` | 1 000 rps | 10 000 rps           | Phase 1 single Railway instance; P3 KV-fronted |
+| Management   | 100 rps   | 100 rps              | Identity / policy / audit CRUD + dashboard     |
+| Webhook out  | 50 rps    | 200 rps              | BullMQ-paced; bursts buffered                  |
 
 ### 11.2 Postgres
 
@@ -385,22 +385,22 @@ in `docs/SLO.md` achievable.
 
 ### 11.4 BullMQ concurrency (per app instance)
 
-| Queue                | Concurrency | Notes                                |
-|----------------------|-------------|--------------------------------------|
-| `webhook:deliver`    | 5           | Per-subscription HMAC sign + POST    |
-| `bate:signal`        | 3           | Score recompute + cache invalidate   |
-| `audit:dlq`          | 1           | Outbox drain to AuditEvent           |
-| `policy:expiry-sweep`| 1           | Cron every 5 min                     |
-| `bate:webhook-emit`  | 2           | Trust-band-crossing notifications    |
+| Queue                 | Concurrency | Notes                              |
+| --------------------- | ----------- | ---------------------------------- |
+| `webhook:deliver`     | 5           | Per-subscription HMAC sign + POST  |
+| `bate:signal`         | 3           | Score recompute + cache invalidate |
+| `audit:dlq`           | 1           | Outbox drain to AuditEvent         |
+| `policy:expiry-sweep` | 1           | Cron every 5 min                   |
+| `bate:webhook-emit`   | 2           | Trust-band-crossing notifications  |
 
 ### 11.5 Storage growth
 
-| Entity        | Row size  | At 10× projected scale (Phase 1) | At Phase 3 (1B verifies/yr)         |
-|---------------|-----------|----------------------------------|-------------------------------------|
-| `AgentIdentity` | ~512 B  | 50 K rows ≈ 25 MB                | 1 M rows ≈ 500 MB                   |
-| `AgentPolicy` | ~2 KB     | 500 K rows ≈ 1 GB                | 50 M rows ≈ 100 GB                  |
-| `AuditEvent`  | ~1 KB     | 10 M rows ≈ 10 GB                | **1 B rows ≈ 1 TB / yr**            |
-| `BateSignal`  | ~256 B    | 100 M rows ≈ 25 GB               | 10 B rows ≈ 2.5 TB                  |
+| Entity          | Row size | At 10× projected scale (Phase 1) | At Phase 3 (1B verifies/yr) |
+| --------------- | -------- | -------------------------------- | --------------------------- |
+| `AgentIdentity` | ~512 B   | 50 K rows ≈ 25 MB                | 1 M rows ≈ 500 MB           |
+| `AgentPolicy`   | ~2 KB    | 500 K rows ≈ 1 GB                | 50 M rows ≈ 100 GB          |
+| `AuditEvent`    | ~1 KB    | 10 M rows ≈ 10 GB                | **1 B rows ≈ 1 TB / yr**    |
+| `BateSignal`    | ~256 B   | 100 M rows ≈ 25 GB               | 10 B rows ≈ 2.5 TB          |
 
 The 1 TB/year audit growth drives the partitioning policy in §12.
 
@@ -424,11 +424,11 @@ contract.
 
 ### 12.2 Retention tiers
 
-| Tier              | Storage       | Duration              | Access pattern              |
-|-------------------|---------------|-----------------------|------------------------------|
-| Hot (live)        | Postgres      | 18 months             | Indexed read, audit GET API  |
-| Warm (archived)   | S3 + GCS dual | 18 months → 7 years   | NDJSON export on request     |
-| Cold (sealed)     | Glacier / Coldline | 7 years → forever | Legal hold only              |
+| Tier            | Storage            | Duration            | Access pattern              |
+| --------------- | ------------------ | ------------------- | --------------------------- |
+| Hot (live)      | Postgres           | 18 months           | Indexed read, audit GET API |
+| Warm (archived) | S3 + GCS dual      | 18 months → 7 years | NDJSON export on request    |
+| Cold (sealed)   | Glacier / Coldline | 7 years → forever   | Legal hold only             |
 
 - **Encryption**: archive files AES-256-GCM with per-month KEK rotated
   via `infra/kms/rotate-okoro-keys.sh`.
@@ -443,8 +443,8 @@ contract.
 
 ### 12.3 GDPR Article 17 ("right to erasure")
 
-The conflict — *audit chain is append-only* vs. *PII must be
-erasable* — is resolved by **redactable signed payloads** (ADR-0006).
+The conflict — _audit chain is append-only_ vs. _PII must be
+erasable_ — is resolved by **redactable signed payloads** (ADR-0006).
 
 `AuditEvent.okoroSignature` signs over a payload v2 that contains
 **hashed leaves** for free-text and PII columns:
@@ -460,13 +460,13 @@ erasable* — is resolved by **redactable signed payloads** (ADR-0006).
 
 1. Soft-delete on `Principal` (30-day grace).
 2. After grace period, redaction job:
-    - NULLs raw free-text on `AuditEvent` rows for that principal.
-    - Hard-deletes `Principal`, `ApiKey`, `AgentIdentity`,
-      `AgentPolicy`, `WebhookSubscription`, `BateSignal`,
-      `TrustScoreHistory`, `SpendRecord`.
-    - Writes `audit.redact` meta-events with the redacted column list
-      and the operator/tenant who authorized erasure (per
-      ADR-0006 § "Operator authorization").
+   - NULLs raw free-text on `AuditEvent` rows for that principal.
+   - Hard-deletes `Principal`, `ApiKey`, `AgentIdentity`,
+     `AgentPolicy`, `WebhookSubscription`, `BateSignal`,
+     `TrustScoreHistory`, `SpendRecord`.
+   - Writes `audit.redact` meta-events with the redacted column list
+     and the operator/tenant who authorized erasure (per
+     ADR-0006 § "Operator authorization").
 3. `redactedAt` and `redactionReason` columns on `AuditEvent` flag
    downstream readers to suppress non-essential fields.
 
@@ -523,13 +523,13 @@ Cookie-authenticated dashboard requests get the full belt + braces:
 Closes audit finding **A-020**. BullMQ at-least-once delivery means
 every worker must be safe under duplicate fire.
 
-| Queue                | Idempotency key       | Dedup mechanism                                    |
-|----------------------|-----------------------|-----------------------------------------------------|
-| `audit:append`       | `eventId` (CSPRNG)    | `INSERT ... ON CONFLICT (id) DO NOTHING`            |
-| `bate:signal`        | `signalId`            | `BateSignal` PK; score-delta computed only once     |
-| `webhook:deliver`    | `WebhookDelivery.id`  | `Idempotency-Key` HTTP header → customer endpoints  |
-| `policy:expiry-sweep`| natural (idempotent)  | UPDATE WHERE revokedAt IS NULL AND expiresAt < now()|
-| outbox drain         | `OutboxEvent.id`      | `SELECT ... FOR UPDATE SKIP LOCKED` per ADR-0007    |
+| Queue                 | Idempotency key      | Dedup mechanism                                      |
+| --------------------- | -------------------- | ---------------------------------------------------- |
+| `audit:append`        | `eventId` (CSPRNG)   | `INSERT ... ON CONFLICT (id) DO NOTHING`             |
+| `bate:signal`         | `signalId`           | `BateSignal` PK; score-delta computed only once      |
+| `webhook:deliver`     | `WebhookDelivery.id` | `Idempotency-Key` HTTP header → customer endpoints   |
+| `policy:expiry-sweep` | natural (idempotent) | UPDATE WHERE revokedAt IS NULL AND expiresAt < now() |
+| outbox drain          | `OutboxEvent.id`     | `SELECT ... FOR UPDATE SKIP LOCKED` per ADR-0007     |
 
 Customer webhook endpoints **should** dedup on `Idempotency-Key`; we
 publish the contract in `docs/spec/OKORO_API_SPEC.yaml` § "Webhooks".
@@ -557,14 +557,14 @@ without context.
 ## 16. Cross-references
 
 | Topic                  | Authoritative source                                |
-|------------------------|------------------------------------------------------|
-| Threat model           | `docs/THREAT_MODEL_v2.md` (v1 retained for history)  |
-| Security controls      | `docs/SECURITY.md`                                   |
-| SLOs / SLIs            | `docs/SLO.md`                                        |
-| Disaster recovery      | `docs/DR_RUNBOOK.md`                                 |
-| Operator runbook       | `docs/RUNBOOK.md`                                    |
-| Compliance posture     | `docs/COMPLIANCE.md`, `docs/EU_RESIDENCY.md`         |
-| Post-quantum roadmap   | `docs/POST_QUANTUM_ROADMAP.md`                       |
-| BATE algorithm         | `docs/BATE_ALGORITHM.md`                             |
-| Decision records       | `docs/decisions/0001-0013`                           |
-| Multi-project adoption | `docs/OKORO_AS_BACKBONE.md`                          |
+| ---------------------- | --------------------------------------------------- |
+| Threat model           | `docs/THREAT_MODEL_v2.md` (v1 retained for history) |
+| Security controls      | `docs/SECURITY.md`                                  |
+| SLOs / SLIs            | `docs/SLO.md`                                       |
+| Disaster recovery      | `docs/DR_RUNBOOK.md`                                |
+| Operator runbook       | `docs/RUNBOOK.md`                                   |
+| Compliance posture     | `docs/COMPLIANCE.md`, `docs/EU_RESIDENCY.md`        |
+| Post-quantum roadmap   | `docs/POST_QUANTUM_ROADMAP.md`                      |
+| BATE algorithm         | `docs/BATE_ALGORITHM.md`                            |
+| Decision records       | `docs/decisions/0001-0013`                          |
+| Multi-project adoption | `docs/OKORO_AS_BACKBONE.md`                         |

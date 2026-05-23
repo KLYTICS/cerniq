@@ -45,7 +45,7 @@ export class AuditSigningKeyDto {
   @ApiProperty({ enum: ['Ed25519'], example: 'Ed25519' })
   curve!: 'Ed25519';
 
-  @ApiProperty({ example: 'https://okorolabs.io' })
+  @ApiProperty({ example: 'https://okoroapp.com' })
   issuer!: string;
 
   @ApiProperty({ description: 'ISO timestamp when this key was activated.' })
@@ -54,6 +54,6 @@ export class AuditSigningKeyDto {
   @ApiProperty({ enum: ['audit-event-signing'], example: 'audit-event-signing' })
   purpose!: 'audit-event-signing';
 
-  @ApiProperty({ example: 'https://docs.okorolabs.io/audit/verify' })
+  @ApiProperty({ example: 'https://docs.okoroapp.com/audit/verify' })
   verificationGuide!: string;
 }

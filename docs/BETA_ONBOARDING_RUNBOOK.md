@@ -1,4 +1,5 @@
 # OKORO — Beta Onboarding Runbook
+
 ## Operator Guide for First 100 Users
 
 > **Owner:** Erwin Kiess-Alfonso (Operator) + Growth Lead  
@@ -10,13 +11,13 @@
 
 ## 1. North Star Metrics
 
-| Metric | Definition | Beta Target |
-|--------|-----------|-------------|
-| **Activation Rate** | Users who reach first successful `/v1/verify` within 7 days | ≥ 60% |
-| **Time-to-First-Verify** | Minutes from signup to first `approved: true` response | ≤ 10 min |
-| **Week-1 Retention** | Users who make ≥1 verify call on Day 7 | ≥ 40% |
-| **NPS** | Net Promoter Score at Day 14 | ≥ 45 |
-| **P99 Verify Latency** | At any real user load | ≤ 200ms |
+| Metric                   | Definition                                                  | Beta Target |
+| ------------------------ | ----------------------------------------------------------- | ----------- |
+| **Activation Rate**      | Users who reach first successful `/v1/verify` within 7 days | ≥ 60%       |
+| **Time-to-First-Verify** | Minutes from signup to first `approved: true` response      | ≤ 10 min    |
+| **Week-1 Retention**     | Users who make ≥1 verify call on Day 7                      | ≥ 40%       |
+| **NPS**                  | Net Promoter Score at Day 14                                | ≥ 45        |
+| **P99 Verify Latency**   | At any real user load                                       | ≤ 200ms     |
 
 ---
 
@@ -27,23 +28,26 @@
 Beta cohort priority order (do not deviate):
 
 **Tier A — Design Partners (slots: 5-10 companies)**
+
 - Criteria: Building LangChain/CrewAI agents handling real money OR enterprise data.
 - Commitment: 60-min onboarding call + weekly check-in for 30 days.
 - What they get: Dedicated Slack channel, white-glove setup, direct line to engineering.
 - Metric: These users define Phase 2 feature roadmap.
 
 **Tier B — Developers (slots: 50-100 individuals)**
+
 - Criteria: Active on AI/agent communities (LangChain Discord, Claude Discord, Hugging Face Forums).
 - Commitment: Async only — docs + Discord support.
 - What they get: Free tier (10 req/sec, 10K verifies/month), early access badge.
 - Metric: These users produce public integrations (repos, blog posts, tweets).
 
 **Tier C — Waitlist**
+
 - All others. Invite in batches of 20 as infrastructure stabilizes.
 
 ### 2.2 Waitlist Form Fields
 
-Collect at signup (okorolabs.io/beta):
+Collect at signup (okoroapp.com/beta):
 
 ```
 1. Email (required)
@@ -93,7 +97,7 @@ What you can do today:
   → Attach a policy (spend limits, scope gates)
   → Start verifying actions in your workflow
 
-Start here: https://docs.okorolabs.io/quickstart
+Start here: https://docs.okoroapp.com/quickstart
 
 If you're building something cool and want a dedicated Slack channel
 with direct engineering access, reply to this email.
@@ -106,14 +110,14 @@ Founder, OKORO
 
 Use Loops or equivalent. Fire these automatically via webhook on Principal creation:
 
-| Day | Trigger | Subject | Content |
-|-----|---------|---------|---------|
-| 0 | Account created | "Your OKORO account is ready" | Dashboard link + quickstart link |
-| 1 | No first agent | "Register your first agent in 2 minutes" | CLI one-liner to register |
-| 3 | No first verify | "Haven't verified yet? Here's a working example" | curl snippet that works out of the box |
-| 7 | Has verified ≥1 | "You're live — here's what to watch" | Trust bands, BATE signals, audit log |
-| 7 | Has NOT verified | "Quick check-in from OKORO" | Ask what's blocking (reply to email) |
-| 14 | Any | "30 seconds of feedback?" | NPS survey link |
+| Day | Trigger          | Subject                                          | Content                                |
+| --- | ---------------- | ------------------------------------------------ | -------------------------------------- |
+| 0   | Account created  | "Your OKORO account is ready"                    | Dashboard link + quickstart link       |
+| 1   | No first agent   | "Register your first agent in 2 minutes"         | CLI one-liner to register              |
+| 3   | No first verify  | "Haven't verified yet? Here's a working example" | curl snippet that works out of the box |
+| 7   | Has verified ≥1  | "You're live — here's what to watch"             | Trust bands, BATE signals, audit log   |
+| 7   | Has NOT verified | "Quick check-in from OKORO"                      | Ask what's blocking (reply to email)   |
+| 14  | Any              | "30 seconds of feedback?"                        | NPS survey link                        |
 
 ---
 
@@ -156,12 +160,12 @@ ORDER BY pct DESC;
 
 ### 4.2 Activation Targets by Day
 
-| Gate | Day 1 Target | Day 7 Target |
-|------|-------------|-------------|
-| `hasFirstAgent` | 80% | 95% |
-| `hasFirstPolicy` | 50% | 80% |
-| `hasFirstVerify` | 40% | 70% |
-| `hasFirstDenial` | 10% | 50% |
+| Gate             | Day 1 Target | Day 7 Target |
+| ---------------- | ------------ | ------------ |
+| `hasFirstAgent`  | 80%          | 95%          |
+| `hasFirstPolicy` | 50%          | 80%          |
+| `hasFirstVerify` | 40%          | 70%          |
+| `hasFirstDenial` | 10%          | 50%          |
 
 If `hasFirstVerify` < 40% at Day 7, trigger manual outreach to all stuck users.
 
@@ -184,7 +188,7 @@ If `hasFirstVerify` < 40% at Day 7, trigger manual outreach to all stuck users.
 ### 5.2 60-Minute Call Structure
 
 ```
-00:00 - 05:00  Introductions. Ask: "Tell me about an agent action that went wrong 
+00:00 - 05:00  Introductions. Ask: "Tell me about an agent action that went wrong
                 recently." Let them talk. This is research.
 
 05:00 - 20:00  Live walkthrough:
@@ -251,8 +255,8 @@ New users should run this first:
 $ okoro doctor
 
 ✅ CLI version: 0.4.0 (latest)
-✅ API reachable: https://api.okorolabs.io/health → 200 OK (47ms)
-✅ Auth: principal abc123 (erwin@okorolabs.io)
+✅ API reachable: https://api.okoroapp.com/health → 200 OK (47ms)
+✅ Auth: principal abc123 (erwin@okoroapp.com)
 ✅ Default agent: agent_xyz (ACTIVE, VERIFIED band, score 823)
 ⚠️  No webhook configured: revocation events won't be received
 ⚠️  Production keys: using env var (recommend KMS for production)
@@ -286,14 +290,14 @@ Every Monday, run:
 ```bash
 # Pull last week's activation metrics
 psql $DATABASE_URL -c "
-  SELECT 
+  SELECT
     DATE_TRUNC('week', p.\"createdAt\") AS week,
     COUNT(DISTINCT p.id) AS new_principals,
     COUNT(DISTINCT CASE WHEN po.\"hasFirstVerify\" THEN p.id END) AS activated,
     COUNT(DISTINCT ae.\"principalId\") AS weekly_active
   FROM \"Principal\" p
   LEFT JOIN \"PrincipalOnboarding\" po ON po.\"principalId\" = p.id
-  LEFT JOIN \"AuditEvent\" ae ON ae.\"principalId\" = p.id 
+  LEFT JOIN \"AuditEvent\" ae ON ae.\"principalId\" = p.id
     AND ae.\"createdAt\" > NOW() - INTERVAL '7 days'
   WHERE p.\"createdAt\" > NOW() - INTERVAL '30 days'
   GROUP BY 1 ORDER BY 1 DESC;
@@ -301,6 +305,7 @@ psql $DATABASE_URL -c "
 ```
 
 Post digest to `#growth` Slack channel. Include:
+
 - New signups this week
 - Activation rate (first verify / total signups)
 - Top error codes from audit log
@@ -315,9 +320,9 @@ Subject: Quick question from the OKORO founder
 
 Hi [Name],
 
-OKORO has been running your agents for 2 weeks now. 
+OKORO has been running your agents for 2 weeks now.
 
-One question: On a scale of 0-10, how likely are you to recommend 
+One question: On a scale of 0-10, how likely are you to recommend
 OKORO to a friend or colleague building AI agents?
 
 [0] [1] [2] [3] [4] [5] [6] [7] [8] [9] [10]
@@ -334,15 +339,15 @@ Promoters (9-10): "Would you be willing to write 2 sentences about OKORO for our
 
 ## 8. Support Escalation Matrix
 
-| Issue Type | Severity | Response Time | Owner | Channel |
-|-----------|---------|--------------|-------|---------|
-| API completely down | P0 | 5 min | On-call engineer | PagerDuty → #incidents |
-| Verify returning wrong result | P0 | 15 min | On-call engineer | #incidents |
-| User can't register agent | P1 | 1 hour | Engineering | #beta-support |
-| Docs wrong / misleading | P1 | 4 hours | DRI | GitHub Issue |
-| SDK bug (blocks integration) | P1 | 4 hours | SDK owner | GitHub Issue |
-| Feature request | P2 | 24 hours | PM | #feedback-inbox |
-| General question | P3 | 48 hours | Anyone | Discord / email |
+| Issue Type                    | Severity | Response Time | Owner            | Channel                |
+| ----------------------------- | -------- | ------------- | ---------------- | ---------------------- |
+| API completely down           | P0       | 5 min         | On-call engineer | PagerDuty → #incidents |
+| Verify returning wrong result | P0       | 15 min        | On-call engineer | #incidents             |
+| User can't register agent     | P1       | 1 hour        | Engineering      | #beta-support          |
+| Docs wrong / misleading       | P1       | 4 hours       | DRI              | GitHub Issue           |
+| SDK bug (blocks integration)  | P1       | 4 hours       | SDK owner        | GitHub Issue           |
+| Feature request               | P2       | 24 hours      | PM               | #feedback-inbox        |
+| General question              | P3       | 48 hours      | Anyone           | Discord / email        |
 
 ### 8.1 User-Facing Status
 
@@ -367,7 +372,7 @@ Gate criteria before upgrading any user to a paid plan:
 
 ```
 [ ] Stripe billing fully wired (G-2 gap — see WORK_BOARD.md)
-[ ] Pricing page live at okorolabs.io/pricing
+[ ] Pricing page live at okoroapp.com/pricing
 [ ] Plan limits enforced at verify level (FREE: 10K/month, PRO: 1M/month)
 [ ] Invoice generation tested end-to-end
 [ ] Churn webhook handled (downgrade to FREE on failed payment)
@@ -376,12 +381,12 @@ Gate criteria before upgrading any user to a paid plan:
 
 ### 9.1 Suggested Pricing (Phase 1)
 
-| Plan | Price | Limit | Features |
-|------|-------|-------|---------|
-| **Free** | $0 | 10K verifies/month, 10 req/sec | 1 principal, community support |
-| **Developer** | $49/month | 500K verifies/month, 50 req/sec | 5 agents, email support |
-| **Pro** | $199/month | 5M verifies/month, 500 req/sec | Unlimited agents, SLA, webhooks |
-| **Enterprise** | Custom | Unlimited | Custom SLA, KMS, DPA, dedicated support |
+| Plan           | Price      | Limit                           | Features                                |
+| -------------- | ---------- | ------------------------------- | --------------------------------------- |
+| **Free**       | $0         | 10K verifies/month, 10 req/sec  | 1 principal, community support          |
+| **Developer**  | $49/month  | 500K verifies/month, 50 req/sec | 5 agents, email support                 |
+| **Pro**        | $199/month | 5M verifies/month, 500 req/sec  | Unlimited agents, SLA, webhooks         |
+| **Enterprise** | Custom     | Unlimited                       | Custom SLA, KMS, DPA, dedicated support |
 
 These are not finalized — see OD-003 (OPERATOR_DECISIONS.md).
 
@@ -394,6 +399,7 @@ These are not finalized — see OD-003 (OPERATOR_DECISIONS.md).
 **Cause 95% of the time:** Agent was registered with a public key, but the JWT is being signed by a different key.
 
 **Fix:**
+
 ```bash
 # 1. Confirm which key the agent has
 okoro agents get --id agent_xyz --show-public-key
@@ -412,6 +418,7 @@ okoro agents rotate-key --id agent_xyz
 **Cause:** Policy spend limit set in wrong currency, or daily vs per-call confusion.
 
 **Fix:**
+
 ```bash
 # Check the policy
 okoro policy get --agent agent_xyz
@@ -426,6 +433,7 @@ okoro policy get --agent agent_xyz
 **Cause:** New agent has no behavioral history. BATE AGE_COHORT gives +0.5/day up to +100.
 
 **Fix:** Normal — score will rise naturally. To accelerate:
+
 ```bash
 # 1. Make diverse verify calls across different scopes
 # 2. Ensure calls come from consistent IPs (R-2 geo rule)
@@ -438,6 +446,7 @@ okoro policy get --agent agent_xyz
 **Cause:** Token was signed with agent ID that doesn't match. Or wrong `principalId` in the API key.
 
 **Fix:**
+
 ```bash
 # Confirm agent belongs to your principal
 okoro agents list | grep agent_xyz
@@ -453,6 +462,7 @@ okoro auth whoami
 **Cause:** Either no webhook configured, or webhook URL isn't publicly reachable.
 
 **Fix:**
+
 ```bash
 # 1. Check webhook config
 okoro webhooks list
@@ -495,6 +505,7 @@ At graduation: send "You're officially a production OKORO user" email + Discord 
 4. Monthly: review ODs against Phase 2 plan. Update `WORK_BOARD.md` with new modules based on top requests.
 
 **Priority rules:**
+
 - Security bug → P0, fix before any new feature.
 - "I can't complete my integration" → P1, fix within 1 sprint.
 - "I wish X existed" → backlog, unless ≥3 design partners want it.
@@ -502,6 +513,6 @@ At graduation: send "You're officially a production OKORO user" email + Discord 
 
 ---
 
-*Runbook version: 1.0 | OKORO Phase 1 Beta*  
-*Last updated: 2026-05-04*  
-*Next review: after first 50 users onboarded*
+_Runbook version: 1.0 | OKORO Phase 1 Beta_  
+_Last updated: 2026-05-04_  
+_Next review: after first 50 users onboarded_

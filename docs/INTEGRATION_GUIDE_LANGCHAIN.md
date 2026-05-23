@@ -1,4 +1,5 @@
 # OKORO — LangChain / CrewAI / AutoGen Integration Guide
+
 ## Wrapping AI Agent Frameworks with Identity, Policy, and Audit
 
 > **Updated:** 2026-05-04  
@@ -10,6 +11,7 @@
 ## 1. The Core Problem
 
 LangChain agents are powerful but anonymous. When a LangChain agent makes a tool call or takes an action, the downstream service can't answer:
+
 - Which agent made this call?
 - Was this agent authorized to do this?
 - How much has it spent today?
@@ -61,7 +63,9 @@ const okoroHandler = new OkoroCallbackHandler({
 
 // Build your LangChain agent as normal
 const model = new ChatOpenAI({ model: 'gpt-4o', temperature: 0 });
-const tools = [/* your tools */];
+const tools = [
+  /* your tools */
+];
 const agent = createToolCallingAgent({ llm: model, tools, prompt });
 
 const executor = new AgentExecutor({
@@ -91,10 +95,10 @@ const okoroHandler = new OkoroCallbackHandler({
   client: okoro,
   // Per-tool scope requirements
   toolScopeMap: {
-    'transfer_funds': ['payment:write'],
-    'read_account_balance': ['payment:read'],
-    'send_email': ['email:send'],
-    'web_search': ['web:read'],
+    transfer_funds: ['payment:write'],
+    read_account_balance: ['payment:read'],
+    send_email: ['email:send'],
+    web_search: ['web:read'],
     // Default for unmapped tools:
     _default: ['tool:execute'],
   },
@@ -118,7 +122,7 @@ try {
     // err.denialReason: 'SPEND_LIMIT_EXCEEDED' | 'SCOPE_NOT_GRANTED' | ...
     // err.agentId: which agent was blocked
     // err.auditEventId: reference to the audit log entry
-    
+
     // Don't retry — it will continue to fail
     // Instead: notify the user or escalate
     return {
@@ -175,25 +179,25 @@ async def main():
         agent_id=os.environ["OKORO_AGENT_ID"],
         private_key=os.environ["OKORO_PRIVATE_KEY"],
     )
-    
+
     # OKORO callback handler for LangChain
     okoro_handler = OkoroCallbackHandler(
         client=okoro,
         default_scopes=["tool:execute"],
     )
-    
+
     # Build agent
     llm = ChatOpenAI(model="gpt-4o")
     tools = [...]  # your tools
     prompt = hub.pull("hwchase17/openai-tools-agent")
     agent = create_tool_calling_agent(llm, tools, prompt)
-    
+
     executor = AgentExecutor(
         agent=agent,
         tools=tools,
         callbacks=[okoro_handler],  # wire here
     )
-    
+
     result = await executor.ainvoke({"input": "What's my account balance?"})
     print(result["output"])
 
@@ -247,7 +251,7 @@ class DatabaseTool(OkoroTool):
     name: str = "query_database"
     description: str = "Execute a database query"
     okoro_scopes: list = ["data:read"]
-    
+
     def _run(self, query: str) -> str:
         # OKORO verifies identity before this method is called
         return database.query(query)
@@ -358,7 +362,7 @@ async def export_run_audit(run_id: str, agent_id: str):
         since_run_id=run_id,
         include_chain_proof=True,  # cryptographic proof of integrity
     )
-    
+
     for event in events:
         print(f"""
         {event.created_at}: {event.action}
@@ -381,7 +385,7 @@ okoro = AsyncOkoro(api_key=..., agent_id=..., private_key=...)
 
 async def safe_agent_loop(tasks: list, daily_budget_usd: float):
     """Run agent tasks with a hard spend cap."""
-    
+
     # Configure daily budget via policy
     await okoro.policies.apply(
         scope="payment:write",
@@ -389,7 +393,7 @@ async def safe_agent_loop(tasks: list, daily_budget_usd: float):
         currency="USD",
         window="day",
     )
-    
+
     results = []
     for task in tasks:
         try:
@@ -405,7 +409,7 @@ async def safe_agent_loop(tasks: list, daily_budget_usd: float):
                 "limit": e.limit,
             })
             break  # Important: stop here
-    
+
     return results
 ```
 
@@ -439,10 +443,10 @@ def fetch_market_data(ticker: str) -> dict:
 @tool
 def execute_trade(ticker: str, quantity: int, price: float) -> dict:
     """Execute a stock trade.
-    
+
     Args:
         ticker: Stock symbol
-        quantity: Number of shares  
+        quantity: Number of shares
         price: Target price
     """
     # okoro verifies: scope=trading:execute, spend=quantity*price USD
@@ -461,19 +465,19 @@ async def run():
             if name == "execute_trade" else None
         ),
     )
-    
+
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
     tools = [fetch_market_data, execute_trade]
     prompt = hub.pull("hwchase17/openai-tools-agent")
     agent = create_tool_calling_agent(llm, tools, prompt)
-    
+
     executor = AgentExecutor(
         agent=agent,
         tools=tools,
         callbacks=[handler],
         verbose=True,
     )
-    
+
     # This agent:
     # - Has identity (registered Ed25519 key)
     # - Has policy ($5,000/day trading limit, data:read + trading:execute scopes)
@@ -498,7 +502,7 @@ OKORO_AGENT_ID=agent_xxxx           # Agent identifier
 OKORO_PRIVATE_KEY=base64_ed25519    # Agent's Ed25519 private key (keep secret!)
 
 # Optional
-OKORO_BASE_URL=https://api.okorolabs.io   # Default
+OKORO_BASE_URL=https://api.okoroapp.com   # Default
 OKORO_TOKEN_TTL=30                        # JWT TTL in seconds (default: 30)
 OKORO_AUDIT_ENABLED=true                  # Disable for local dev (default: true)
 ```
@@ -548,4 +552,4 @@ executor = AgentExecutor(
 
 ---
 
-*LangChain integration guide version: 1.0 | OKORO Phase 1*
+_LangChain integration guide version: 1.0 | OKORO Phase 1_

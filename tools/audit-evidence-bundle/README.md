@@ -7,7 +7,7 @@ audit chain — without contacting OKORO.
 ## Quick start
 
 ```sh
-OKORO_API_BASE=https://api.okorolabs.io \
+OKORO_API_BASE=https://api.okoroapp.com \
 OKORO_API_KEY=sk_live_... \
   pnpm --filter @okoro/audit-evidence-bundle start \
     --principal-id prc_acme \
@@ -18,11 +18,11 @@ OKORO_API_KEY=sk_live_... \
 
 Exit codes:
 
-| Code | Meaning                                                              |
-| ---- | -------------------------------------------------------------------- |
-| 0    | Bundle written, chain verification passed (or `--verify-only`).      |
-| 1    | Fetch / I/O failure — bundle NOT written.                            |
-| 2    | Bundle written, chain verification FAILED — treat as SEV-1.          |
+| Code | Meaning                                                         |
+| ---- | --------------------------------------------------------------- |
+| 0    | Bundle written, chain verification passed (or `--verify-only`). |
+| 1    | Fetch / I/O failure — bundle NOT written.                       |
+| 2    | Bundle written, chain verification FAILED — treat as SEV-1.     |
 
 ## Bundle contents
 

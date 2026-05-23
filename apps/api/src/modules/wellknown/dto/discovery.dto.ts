@@ -5,7 +5,7 @@ import { ApiProperty } from '@nestjs/swagger';
  * surface for agent-identity infrastructure. Lets a relying party
  * auto-configure their verifier from a single URL:
  *
- *     fetch('https://api.okorolabs.io/.well-known/okoro-configuration')
+ *     fetch('https://api.okoroapp.com/.well-known/okoro-configuration')
  *       .then(r => r.json())
  *
  * Stable, additive, versioned. Removing a field is a breaking change
@@ -13,8 +13,9 @@ import { ApiProperty } from '@nestjs/swagger';
  */
 export class OkoroConfigurationDto {
   @ApiProperty({
-    description: 'The canonical issuer URL. Used by relying parties as `iss` for OKORO-issued JWTs.',
-    example: 'https://api.okorolabs.io',
+    description:
+      'The canonical issuer URL. Used by relying parties as `iss` for OKORO-issued JWTs.',
+    example: 'https://api.okoroapp.com',
   })
   issuer!: string;
 
@@ -32,30 +33,31 @@ export class OkoroConfigurationDto {
 
   @ApiProperty({
     description: 'Human documentation entry point.',
-    example: 'https://docs.okorolabs.io',
+    example: 'https://docs.okoroapp.com',
   })
   documentation!: string;
 
   @ApiProperty({
     description: 'Machine-readable OpenAPI 3 spec (JSON).',
-    example: 'https://api.okorolabs.io/docs-json',
+    example: 'https://api.okoroapp.com/docs-json',
   })
   openapi_spec!: string;
 
   @ApiProperty({
     description: 'Machine-readable JWKS for verifying audit chain signatures.',
-    example: 'https://api.okorolabs.io/.well-known/jwks.json',
+    example: 'https://api.okoroapp.com/.well-known/jwks.json',
   })
   jwks_uri!: string;
 
   @ApiProperty({
     description: 'Plain JSON helper view of the active audit signing key.',
-    example: 'https://api.okorolabs.io/.well-known/audit-signing-key',
+    example: 'https://api.okoroapp.com/.well-known/audit-signing-key',
   })
   audit_signing_key_uri!: string;
 
   @ApiProperty({
-    description: 'Endpoint map. Relying parties POST to `verify`; management UIs POST to `agent_register`, etc.',
+    description:
+      'Endpoint map. Relying parties POST to `verify`; management UIs POST to `agent_register`, etc.',
   })
   endpoints!: {
     verify: string;
@@ -134,7 +136,8 @@ export class OkoroConfigurationDto {
   };
 
   @ApiProperty({
-    description: 'Deployment region (informational; deduce data-residency posture from this + retention-policy.json).',
+    description:
+      'Deployment region (informational; deduce data-residency posture from this + retention-policy.json).',
     example: 'us-east-1',
     required: false,
   })
@@ -151,27 +154,26 @@ export class OkoroConfigurationDto {
 
   @ApiProperty({
     description: 'Plain-text security disclosure file (RFC 9116).',
-    example: 'https://api.okorolabs.io/.well-known/security.txt',
+    example: 'https://api.okoroapp.com/.well-known/security.txt',
   })
   security_txt!: string;
 
   @ApiProperty({
     description: 'AI-agent-readable site description (emerging llms.txt convention).',
-    example: 'https://api.okorolabs.io/.well-known/llms.txt',
+    example: 'https://api.okoroapp.com/.well-known/llms.txt',
   })
   llms_txt!: string;
 
   @ApiProperty({
     description:
       'Per-tier audit retention windows + redaction guarantees. Body is auto-derived from billing/plans.ts.',
-    example: 'https://api.okorolabs.io/.well-known/retention-policy.json',
+    example: 'https://api.okoroapp.com/.well-known/retention-policy.json',
   })
   retention_policy_uri!: string;
 
   @ApiProperty({
-    description:
-      'Per-tier pricing table (ADR-0014). Body is auto-derived from billing/plans.ts.',
-    example: 'https://api.okorolabs.io/.well-known/pricing.json',
+    description: 'Per-tier pricing table (ADR-0014). Body is auto-derived from billing/plans.ts.',
+    example: 'https://api.okoroapp.com/.well-known/pricing.json',
   })
   pricing_uri!: string;
 }

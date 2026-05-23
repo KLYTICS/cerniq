@@ -23,7 +23,7 @@ import { Okoro } from '@okoro/sdk';
 import { randomUUID } from 'node:crypto';
 
 const okoro = new Okoro({
-  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okorolabs.io',
+  baseUrl: process.env.OKORO_API_BASE ?? 'https://api.okoroapp.com',
   // Verify-only key (okoro_vk_…), never a management key on a service edge.
   verifyKey: requireEnv('OKORO_VERIFY_KEY'),
 });

@@ -123,9 +123,9 @@ railway variables set STRIPE_WEBHOOK_SECRET=whsec_...
 railway variables set STRIPE_PRICE_DEVELOPER=price_...
 railway variables set STRIPE_PRICE_GROWTH=price_...
 railway variables set STRIPE_PRICE_ENTERPRISE=price_...
-railway variables set STRIPE_CHECKOUT_SUCCESS_URL=https://app.okorolabs.io/billing/success
-railway variables set STRIPE_CHECKOUT_CANCEL_URL=https://app.okorolabs.io/billing/cancel
-railway variables set STRIPE_PORTAL_RETURN_URL=https://app.okorolabs.io/settings/billing
+railway variables set STRIPE_CHECKOUT_SUCCESS_URL=https://app.okoroapp.com/billing/success
+railway variables set STRIPE_CHECKOUT_CANCEL_URL=https://app.okoroapp.com/billing/cancel
+railway variables set STRIPE_PORTAL_RETURN_URL=https://app.okoroapp.com/settings/billing
 
 # Observability:
 railway variables set OKORO_OTEL_ENABLED=true
@@ -134,7 +134,7 @@ railway variables set SENTRY_DSN=https://...@sentry.io/...
 railway variables set OKORO_REGION=us-east-1
 
 # CORS — restrict to your dashboard origins in prod:
-railway variables set CORS_ORIGINS=https://app.okorolabs.io,https://docs.okorolabs.io
+railway variables set CORS_ORIGINS=https://app.okoroapp.com,https://docs.okoroapp.com
 
 # Required prod posture:
 railway variables set NODE_ENV=production
@@ -147,7 +147,7 @@ railway variables set API_KEY_BCRYPT_COST=12
 In the Stripe dashboard → Developers → Webhooks, add an endpoint:
 
 ```
-URL:     https://api.okorolabs.io/v1/billing/webhook
+URL:     https://api.okoroapp.com/v1/billing/webhook
 Events:  checkout.session.completed,
          customer.subscription.created,
          customer.subscription.updated,
@@ -167,7 +167,7 @@ railway run pnpm db:deploy      # Apply migrations against production DB
 ### 4.5 Production smoke test
 
 ```sh
-PROD=https://api.okorolabs.io
+PROD=https://api.okoroapp.com
 curl -s $PROD/health/live  | jq                  # Must return status: ok
 curl -s $PROD/health/ready | jq                  # All checks: ok
 curl -s $PROD/.well-known/audit-signing-key | jq # JWKS-style key surface
@@ -195,6 +195,7 @@ curl -s -H "X-OKORO-API-Key: $KEY" $PROD/v1/agents | jq
 ```
 
 If something breaks mid-flow, check:
+
 - `GET /v1/billing/plan` for current state per principal
 - `GET /v1/audit-events/export` filtered by `action='billing.*'`
 - Stripe dashboard → Webhooks → recent deliveries (Stripe retries 5xx)
@@ -203,16 +204,16 @@ If something breaks mid-flow, check:
 
 ## 6. Common ops
 
-| Need | Command / endpoint |
-| --- | --- |
-| Tail an agent's events | `okoro events tail --agent-id <id>` |
-| Revoke an agent | `okoro agents revoke <id>` (or `DELETE /v1/agents/:id`) |
-| Force a plan change | `UPDATE Principal SET planTier='DEVELOPER' WHERE id='...'` then `DEL okoro:plan:<principalId>` in Redis |
-| Rotate audit-signing key | Add new key to KMS, update `OKORO_SIGNING_KEY_ROTATED_AT`, restart pods. JWKS surfaces both for 24h. |
-| Replay a Stripe webhook | Stripe dashboard → Events → "Resend" — handler is idempotent on `event.id` |
-| Verify the audit chain offline | `pnpm tsx scripts/audit-verify-chain.ts <tenant.ndjson> <pubkey>` |
-| Trigger BATE recompute | `POST /v1/agents/:id/bate/recompute` (admin) |
-| Dump a tenant's audit trail | `GET /v1/audit-events/export?from=<iso>&to=<iso>` (NDJSON streaming) |
+| Need                           | Command / endpoint                                                                                      |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| Tail an agent's events         | `okoro events tail --agent-id <id>`                                                                     |
+| Revoke an agent                | `okoro agents revoke <id>` (or `DELETE /v1/agents/:id`)                                                 |
+| Force a plan change            | `UPDATE Principal SET planTier='DEVELOPER' WHERE id='...'` then `DEL okoro:plan:<principalId>` in Redis |
+| Rotate audit-signing key       | Add new key to KMS, update `OKORO_SIGNING_KEY_ROTATED_AT`, restart pods. JWKS surfaces both for 24h.    |
+| Replay a Stripe webhook        | Stripe dashboard → Events → "Resend" — handler is idempotent on `event.id`                              |
+| Verify the audit chain offline | `pnpm tsx scripts/audit-verify-chain.ts <tenant.ndjson> <pubkey>`                                       |
+| Trigger BATE recompute         | `POST /v1/agents/:id/bate/recompute` (admin)                                                            |
+| Dump a tenant's audit trail    | `GET /v1/audit-events/export?from=<iso>&to=<iso>` (NDJSON streaming)                                    |
 
 ---
 
@@ -254,16 +255,16 @@ Silent verify denials                Audit trail: GET /v1/audit-events/export
 
 ## 9. Where to look for what
 
-| Concern | File |
-| --- | --- |
-| Architectural invariants | `CLAUDE.md` |
-| Threat model | `docs/THREAT_MODEL.md` |
-| Capacity + sizing | `docs/CAPACITY_PLAN.md` |
-| Failure mode analysis | `docs/FAILURE_MODES.md` |
-| Retention policy | `docs/RETENTION_POLICY.md` |
-| Decision register | `docs/decisions/` (ADRs 0001–0013+) |
-| Active operator decisions | `OPERATOR_DECISIONS.md` |
-| Active claims + open work | `WORK_BOARD.md` |
-| Session-by-session log | `docs/SESSION_HANDOFF.md` |
-| Concurrent-session protocol | `docs/PARALLEL_SESSIONS.md` |
-| Immutability invariants | `docs/IMMUTABILITY.md` |
+| Concern                     | File                                |
+| --------------------------- | ----------------------------------- |
+| Architectural invariants    | `CLAUDE.md`                         |
+| Threat model                | `docs/THREAT_MODEL.md`              |
+| Capacity + sizing           | `docs/CAPACITY_PLAN.md`             |
+| Failure mode analysis       | `docs/FAILURE_MODES.md`             |
+| Retention policy            | `docs/RETENTION_POLICY.md`          |
+| Decision register           | `docs/decisions/` (ADRs 0001–0013+) |
+| Active operator decisions   | `OPERATOR_DECISIONS.md`             |
+| Active claims + open work   | `WORK_BOARD.md`                     |
+| Session-by-session log      | `docs/SESSION_HANDOFF.md`           |
+| Concurrent-session protocol | `docs/PARALLEL_SESSIONS.md`         |
+| Immutability invariants     | `docs/IMMUTABILITY.md`              |

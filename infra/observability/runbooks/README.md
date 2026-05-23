@@ -8,24 +8,24 @@ what to look at, in what order, and when to escalate.
 
 ## Index
 
-| Alert | Severity | Runbook | First-touch SLA |
-|---|---|---|---|
-| `VerifyLatencyP99SLOBreach` | critical | [verify-latency-slo-breach.md](./verify-latency-slo-breach.md) | 5 min |
-| `VerifyLatencyP99SLOWarning` | warning | [verify-latency-slo-breach.md](./verify-latency-slo-breach.md) | 30 min |
-| `VerifyErrorRateHigh` | warning | [verify-error-rate-high.md](./verify-error-rate-high.md) | 30 min |
-| `VerifyErrorBudgetFastBurn` | critical | [error-budget-burn.md](./error-budget-burn.md) | 5 min |
-| `VerifyErrorBudgetSlowBurn` | warning | [error-budget-burn.md](./error-budget-burn.md) | 30 min |
-| `AuditChainAppendFailureRate` | critical | [audit-chain-break.md](./audit-chain-break.md) | 5 min |
-| `AuditAppendStalled` | critical | [audit-chain-break.md](./audit-chain-break.md) | 5 min |
-| `BateRecomputeLag` | warning *(disabled)* | [bate-recompute-lag.md](./bate-recompute-lag.md) | 30 min |
-| `BateAnomalySignalSpike` | warning *(disabled)* | [bate-recompute-lag.md](./bate-recompute-lag.md) | 30 min |
-| `WebhookDLQSpike` | warning | [webhook-dlq-spike.md](./webhook-dlq-spike.md) | 30 min |
-| `WebhookDeliveryFailureRate` | warning | [webhook-dlq-spike.md](./webhook-dlq-spike.md) | 30 min |
-| `RedisHitRateLow` | info *(disabled)* | [redis-hit-rate-low.md](./redis-hit-rate-low.md) | business hours |
-| `HTTP5xxRateHigh` | critical | [verify-error-rate-high.md](./verify-error-rate-high.md) | 5 min |
-| `EventLoopLagHigh` | warning | [verify-latency-slo-breach.md](./verify-latency-slo-breach.md) | 30 min |
+| Alert                         | Severity             | Runbook                                                        | First-touch SLA |
+| ----------------------------- | -------------------- | -------------------------------------------------------------- | --------------- |
+| `VerifyLatencyP99SLOBreach`   | critical             | [verify-latency-slo-breach.md](./verify-latency-slo-breach.md) | 5 min           |
+| `VerifyLatencyP99SLOWarning`  | warning              | [verify-latency-slo-breach.md](./verify-latency-slo-breach.md) | 30 min          |
+| `VerifyErrorRateHigh`         | warning              | [verify-error-rate-high.md](./verify-error-rate-high.md)       | 30 min          |
+| `VerifyErrorBudgetFastBurn`   | critical             | [error-budget-burn.md](./error-budget-burn.md)                 | 5 min           |
+| `VerifyErrorBudgetSlowBurn`   | warning              | [error-budget-burn.md](./error-budget-burn.md)                 | 30 min          |
+| `AuditChainAppendFailureRate` | critical             | [audit-chain-break.md](./audit-chain-break.md)                 | 5 min           |
+| `AuditAppendStalled`          | critical             | [audit-chain-break.md](./audit-chain-break.md)                 | 5 min           |
+| `BateRecomputeLag`            | warning _(disabled)_ | [bate-recompute-lag.md](./bate-recompute-lag.md)               | 30 min          |
+| `BateAnomalySignalSpike`      | warning _(disabled)_ | [bate-recompute-lag.md](./bate-recompute-lag.md)               | 30 min          |
+| `WebhookDLQSpike`             | warning              | [webhook-dlq-spike.md](./webhook-dlq-spike.md)                 | 30 min          |
+| `WebhookDeliveryFailureRate`  | warning              | [webhook-dlq-spike.md](./webhook-dlq-spike.md)                 | 30 min          |
+| `RedisHitRateLow`             | info _(disabled)_    | [redis-hit-rate-low.md](./redis-hit-rate-low.md)               | business hours  |
+| `HTTP5xxRateHigh`             | critical             | [verify-error-rate-high.md](./verify-error-rate-high.md)       | 5 min           |
+| `EventLoopLagHigh`            | warning              | [verify-latency-slo-breach.md](./verify-latency-slo-breach.md) | 30 min          |
 
-*(disabled)* = the underlying metric is not yet emitted; alert ships
+_(disabled)_ = the underlying metric is not yet emitted; alert ships
 as `expr: vector(0) > 1` and is a one-line flip when the metric lands.
 The runbook is correct as written.
 
@@ -33,7 +33,7 @@ The runbook is correct as written.
 
 - **Critical alert** — phone page via PagerDuty. Acknowledge within
   5 min; first runbook step within 5 min of acknowledgment. Status
-  page update (https://status.okorolabs.io) within 15 min if the
+  page update (https://status.okoroapp.com) within 15 min if the
   alert is still firing.
 - **Warning alert** — PagerDuty notify (no page) + Slack
   `#okoro-oncall`. Triage within 30 min during business hours, by
@@ -57,8 +57,8 @@ escalation contact as `${ESCALATION_CONTACT}` until OD-007 lands.
    in review.
 3. **Cross-link the alert.** The `runbook` annotation on the alert in
    `okoro.rules.yml` must use the runbook's repo path; the
-   `runbook_url` must use `https://docs.okorolabs.io/runbooks/<file
-   without .md>`.
+   `runbook_url` must use `https://docs.okoroapp.com/runbooks/<file
+without .md>`.
 4. **Update this index table.** New row in the right severity slot.
 
 ## Quality bar
@@ -90,13 +90,13 @@ step blocks the PR.
 
 These runbooks back failures from CI gates and process surfaces (the round-15+ quality bar). They don't fire as Prometheus alerts; they fire when `make preflight` or a per-PR gate returns non-zero. First-touch is the engineer who broke the gate, not on-call.
 
-| Trigger | Runbook | Owner |
-|---|---|---|
-| `make preflight` exit 1 or 2 | [preflight-failure.md](./preflight-failure.md) | engineer who hit the gate |
-| API key rotation 5xx / orphan two-active state | [key-rotation-failure.md](./key-rotation-failure.md) | on-call (security-adjacent) |
-| Audit retention tick missed > 25h / mid-batch crash | [audit-retention-failure.md](./audit-retention-failure.md) | on-call (compliance-adjacent) |
-| Plan-aware throttle 429 storm / tier mis-classification | [plan-aware-throttle-storm.md](./plan-aware-throttle-storm.md) | on-call |
-| Error catalog uncataloged / parity drift / customer-message leak | [error-catalog-drift.md](./error-catalog-drift.md) | engineer who hit the gate (security-adjacent if leak) |
+| Trigger                                                          | Runbook                                                        | Owner                                                 |
+| ---------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------- |
+| `make preflight` exit 1 or 2                                     | [preflight-failure.md](./preflight-failure.md)                 | engineer who hit the gate                             |
+| API key rotation 5xx / orphan two-active state                   | [key-rotation-failure.md](./key-rotation-failure.md)           | on-call (security-adjacent)                           |
+| Audit retention tick missed > 25h / mid-batch crash              | [audit-retention-failure.md](./audit-retention-failure.md)     | on-call (compliance-adjacent)                         |
+| Plan-aware throttle 429 storm / tier mis-classification          | [plan-aware-throttle-storm.md](./plan-aware-throttle-storm.md) | on-call                                               |
+| Error catalog uncataloged / parity drift / customer-message leak | [error-catalog-drift.md](./error-catalog-drift.md)             | engineer who hit the gate (security-adjacent if leak) |
 
 These five reach Prometheus-alert parity once their underlying metrics emit (round 15 backlog). The runbook content is correct as written — only the alert linkage moves.
 

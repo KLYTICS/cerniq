@@ -1,4 +1,5 @@
 # OKORO — Express / Fastify / Hono Integration Guide
+
 ## Protecting Relying-Party APIs with Offline JWT Verification
 
 > **Updated:** 2026-05-04  
@@ -43,13 +44,13 @@ const app = express();
 
 // Create the middleware
 const okoroMiddleware = createExpressMiddleware({
-  okoroUrl: 'https://api.okorolabs.io',
+  okoroUrl: 'https://api.okoroapp.com',
   apiKey: process.env.OKORO_API_KEY!,
-  
+
   // Optional configuration
-  requiredScopes: ['payment:read'],        // require these scopes on all protected routes
-  trustBandMinimum: 'VERIFIED',            // reject WATCH/FLAGGED agents
-  tokenHeader: 'x-okoro-token',           // default: Authorization: Bearer
+  requiredScopes: ['payment:read'], // require these scopes on all protected routes
+  trustBandMinimum: 'VERIFIED', // reject WATCH/FLAGGED agents
+  tokenHeader: 'x-okoro-token', // default: Authorization: Bearer
   relyingPartyId: process.env.OKORO_RP_ID, // optional: for analytics
 });
 
@@ -61,7 +62,7 @@ app.get('/api/account', okoroMiddleware, (req, res) => {
   // req.okoro.trustScore — 0-1000
   // req.okoro.scopes     — scopes granted to this token
   // req.okoro.auditId    — audit event ID for this request
-  
+
   res.json({
     message: `Hello, agent ${req.okoro.agentId}`,
     trustBand: req.okoro.trustBand,
@@ -79,13 +80,13 @@ import { createExpressMiddleware } from '@okoro/verifier-rp/express';
 
 // Create middleware with different scope requirements per route
 const requireRead = createExpressMiddleware({
-  okoroUrl: 'https://api.okorolabs.io',
+  okoroUrl: 'https://api.okoroapp.com',
   apiKey: process.env.OKORO_API_KEY!,
   requiredScopes: ['payment:read'],
 });
 
 const requireWrite = createExpressMiddleware({
-  okoroUrl: 'https://api.okorolabs.io',
+  okoroUrl: 'https://api.okoroapp.com',
   apiKey: process.env.OKORO_API_KEY!,
   requiredScopes: ['payment:write'],
   trustBandMinimum: 'VERIFIED', // writes require higher trust
@@ -99,26 +100,27 @@ app.post('/api/transfer', requireWrite, transferHandler);
 
 ```typescript
 const okoroMiddleware = createExpressMiddleware({
-  okoroUrl: 'https://api.okorolabs.io',
+  okoroUrl: 'https://api.okoroapp.com',
   apiKey: process.env.OKORO_API_KEY!,
-  
+
   onDenied: (result, req, res) => {
     // Customize the denial response
-    const statusCode = {
-      AGENT_NOT_FOUND: 401,
-      AGENT_REVOKED: 403,
-      INVALID_SIGNATURE: 401,
-      SPEND_LIMIT_EXCEEDED: 429,
-      SCOPE_NOT_GRANTED: 403,
-      TRUST_SCORE_TOO_LOW: 403,
-    }[result.denialReason!] ?? 403;
-    
+    const statusCode =
+      {
+        AGENT_NOT_FOUND: 401,
+        AGENT_REVOKED: 403,
+        INVALID_SIGNATURE: 401,
+        SPEND_LIMIT_EXCEEDED: 429,
+        SCOPE_NOT_GRANTED: 403,
+        TRUST_SCORE_TOO_LOW: 403,
+      }[result.denialReason!] ?? 403;
+
     res.status(statusCode).json({
       error: result.denialReason,
       message: `Request denied: ${result.denialReason}`,
       auditId: result.auditEventId, // give caller a reference
     });
-    
+
     // Log for your own metrics
     metrics.increment('okoro.denied', { reason: result.denialReason });
   },
@@ -137,25 +139,29 @@ const fastify = Fastify({ logger: true });
 
 // Register as a Fastify plugin
 await fastify.register(createFastifyPlugin, {
-  okoroUrl: 'https://api.okorolabs.io',
+  okoroUrl: 'https://api.okoroapp.com',
   apiKey: process.env.OKORO_API_KEY!,
   routePrefix: '/api', // only protect /api/* routes
 });
 
 // Protected route — req.okoro is available after verification
-fastify.get('/api/data', {
-  config: {
-    okoro: {
-      requiredScopes: ['data:read'],
-      trustBandMinimum: 'WATCH', // allow WATCH+ for read operations
+fastify.get(
+  '/api/data',
+  {
+    config: {
+      okoro: {
+        requiredScopes: ['data:read'],
+        trustBandMinimum: 'WATCH', // allow WATCH+ for read operations
+      },
     },
   },
-}, async (request, reply) => {
-  return {
-    agentId: request.okoro.agentId,
-    data: await fetchData(request.okoro.agentId),
-  };
-});
+  async (request, reply) => {
+    return {
+      agentId: request.okoro.agentId,
+      data: await fetchData(request.okoro.agentId),
+    };
+  },
+);
 
 // Route without OKORO protection (public endpoint)
 fastify.get('/health', async () => ({ status: 'ok' }));
@@ -193,7 +199,7 @@ import { createHonoMiddleware } from '@okoro/verifier-rp/hono';
 const app = new Hono();
 
 const okoroMiddleware = createHonoMiddleware({
-  okoroUrl: 'https://api.okorolabs.io',
+  okoroUrl: 'https://api.okoroapp.com',
   apiKey: process.env.OKORO_API_KEY!,
 });
 
@@ -211,6 +217,7 @@ export default app;
 ```
 
 Cloudflare Workers deployment:
+
 ```typescript
 // worker.ts
 import { Hono } from 'hono';
@@ -220,7 +227,7 @@ const app = new Hono<{ Bindings: { OKORO_API_KEY: string } }>();
 
 app.use('/api/*', async (c, next) => {
   const middleware = createHonoMiddleware({
-    okoroUrl: 'https://api.okorolabs.io',
+    okoroUrl: 'https://api.okoroapp.com',
     apiKey: c.env.OKORO_API_KEY, // from Cloudflare secrets
   });
   return middleware(c, next);
@@ -239,7 +246,7 @@ For any HTTP framework:
 import { OkoroVerifier } from '@okoro/verifier-rp';
 
 const verifier = new OkoroVerifier({
-  okoroUrl: 'https://api.okorolabs.io',
+  okoroUrl: 'https://api.okoroapp.com',
   apiKey: process.env.OKORO_API_KEY!,
   // Warm up JWKS cache at startup (optional but recommended)
   prefetchJwks: true,
@@ -249,19 +256,22 @@ const verifier = new OkoroVerifier({
 await verifier.prefetchJwks();
 
 // Use in any middleware/handler
-async function verifyRequest(token: string, options?: {
-  requiredScopes?: string[];
-  minTrustBand?: string;
-}) {
+async function verifyRequest(
+  token: string,
+  options?: {
+    requiredScopes?: string[];
+    minTrustBand?: string;
+  },
+) {
   const result = await verifier.verify(token, {
     scopes: options?.requiredScopes,
     trustBandMinimum: options?.minTrustBand,
   });
-  
+
   if (!result.approved) {
     throw new Error(`OKORO denied: ${result.denialReason}`);
   }
-  
+
   return result; // { agentId, trustBand, trustScore, scopes, auditEventId }
 }
 ```
@@ -276,10 +286,10 @@ Sometimes the relying party knows the spend amount better than the agent does. U
 // In your handler, after the operation completes
 app.post('/api/execute-trade', okoroMiddleware, async (req, res) => {
   const { ticker, quantity } = req.body;
-  
+
   // Execute the trade
   const tradeResult = await tradingService.execute({ ticker, quantity });
-  
+
   // Report actual spend back to OKORO (out-of-band, doesn't block response)
   await verifier.reportSpend({
     agentId: req.okoro.agentId,
@@ -287,7 +297,7 @@ app.post('/api/execute-trade', okoroMiddleware, async (req, res) => {
     currency: 'USD',
     operationId: req.okoro.auditEventId, // link to audit event
   });
-  
+
   res.json({ success: true, trade: tradeResult });
 });
 ```
@@ -309,40 +319,42 @@ function createWebhookHandler(verifier: OkoroVerifier, webhookSecret: string) {
     const expected = createHmac('sha256', webhookSecret)
       .update((req as any).rawBody) // requires rawBody middleware
       .digest('hex');
-    
+
     if (sig !== expected) {
       return res.status(401).json({ error: 'Invalid signature' });
     }
-    
+
     const event = req.body;
-    
+
     // 2. Handle revocation
     if (event.type === 'agent.revoked') {
       await verifier.invalidateAgent(event.data.agentId);
       console.log(`[OKORO] Revoked agent ${event.data.agentId} — cache cleared`);
     }
-    
+
     if (event.type === 'policy.updated') {
       await verifier.invalidateAgent(event.data.agentId); // bust policy cache too
     }
-    
+
     res.json({ received: true });
   };
 }
 
 // Register webhook handler
-app.post('/webhooks/okoro', 
+app.post(
+  '/webhooks/okoro',
   express.raw({ type: 'application/json' }), // preserve rawBody for HMAC
   (req, res, next) => {
     (req as any).rawBody = req.body;
     req.body = JSON.parse(req.body.toString());
     next();
   },
-  createWebhookHandler(verifier, process.env.OKORO_WEBHOOK_SECRET!)
+  createWebhookHandler(verifier, process.env.OKORO_WEBHOOK_SECRET!),
 );
 ```
 
 Register the webhook:
+
 ```bash
 okoro webhooks create \
   --url https://your-api.com/webhooks/okoro \
@@ -361,19 +373,19 @@ import type { VerifyOutcome, TrustBand, DenialReason } from '@okoro/verifier-rp'
 interface ApprovedResult {
   approved: true;
   agentId: string;
-  trustBand: TrustBand;          // 'PLATINUM' | 'VERIFIED' | 'WATCH' | 'FLAGGED'
-  trustScore: number;            // 0-1000
-  scopes: string[];              // scopes granted in this token
-  auditEventId: string;          // reference to audit log
-  expiresAt: Date;               // when this token expires
+  trustBand: TrustBand; // 'PLATINUM' | 'VERIFIED' | 'WATCH' | 'FLAGGED'
+  trustScore: number; // 0-1000
+  scopes: string[]; // scopes granted in this token
+  auditEventId: string; // reference to audit log
+  expiresAt: Date; // when this token expires
 }
 
 // Denied verify result
 interface DeniedResult {
   approved: false;
-  denialReason: DenialReason;    // one of 9 reasons
-  agentId?: string;              // may be undefined if AGENT_NOT_FOUND
-  auditEventId?: string;         // audit event if agent was found
+  denialReason: DenialReason; // one of 9 reasons
+  agentId?: string; // may be undefined if AGENT_NOT_FOUND
+  auditEventId?: string; // audit event if agent was found
 }
 
 type VerifyResult = ApprovedResult | DeniedResult;
@@ -406,16 +418,16 @@ At 1000 RPS on a single Node.js process, verifier-rp adds ~1ms median latency.
 
 ```typescript
 const verifier = new OkoroVerifier({
-  okoroUrl: 'https://api.okorolabs.io',
+  okoroUrl: 'https://api.okoroapp.com',
   apiKey: process.env.OKORO_API_KEY!,
-  
+
   // Tune for high throughput
-  jwksCacheTtlMs: 5 * 60 * 1000,    // 5 minutes
-  replayCacheSize: 50_000,            // 50K JTIs
-  revocationCacheTtlMs: 60 * 1000,   // 1 minute (webhook updates immediately)
+  jwksCacheTtlMs: 5 * 60 * 1000, // 5 minutes
+  replayCacheSize: 50_000, // 50K JTIs
+  revocationCacheTtlMs: 60 * 1000, // 1 minute (webhook updates immediately)
 });
 ```
 
 ---
 
-*Express/Fastify/Hono integration guide version: 1.0 | OKORO Phase 1*
+_Express/Fastify/Hono integration guide version: 1.0 | OKORO Phase 1_

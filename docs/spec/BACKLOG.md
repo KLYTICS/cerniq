@@ -1,12 +1,16 @@
 # OKORO Development Backlog
+
 ## Sprint Queue — KLYTICS Internal
+
 ### Format: [PRIORITY] TASK — Owner | Estimate | Dependencies
 
 ---
 
 ## PHASE 0 — SPEC & FOUNDATION
+
 ### Department: Architecture / Product
-*Owner: Erwin | Timeline: Weeks 1–4 (can begin now)*
+
+_Owner: Erwin | Timeline: Weeks 1–4 (can begin now)_
 
 - [P0] Draft OKORO_MASTER.md ✓ DONE
 - [P0] OpenAPI spec v1 ✓ DONE
@@ -24,8 +28,10 @@
 ---
 
 ## PHASE 1 — MVP BUILD
+
 ### Department: Backend Engineering
-*Post CERNIQ Gate 1 | Timeline: Weeks 1–8 of build | Stack: NestJS/PostgreSQL/Redis/Railway*
+
+_Post CERNIQ Gate 1 | Timeline: Weeks 1–8 of build | Stack: NestJS/PostgreSQL/Redis/Railway_
 
 ### Epic 1: Core Infrastructure
 
@@ -99,8 +105,10 @@
 ---
 
 ## PHASE 2 — BATE ENGINE
+
 ### Department: Data / ML Engineering
-*Post $500 MRR | Timeline: Weeks 1–10 of Phase 2*
+
+_Post $500 MRR | Timeline: Weeks 1–10 of Phase 2_
 
 ### Epic 9: Signal Ingestion
 
@@ -132,8 +140,10 @@
 ---
 
 ## PHASE 3 — EDGE & ENTERPRISE
+
 ### Department: Infrastructure / Enterprise
-*Post $5,000 MRR | Timeline: Weeks 1–12 of Phase 3*
+
+_Post $5,000 MRR | Timeline: Weeks 1–12 of Phase 3_
 
 ### Epic 12: Cloudflare Workers Edge
 
@@ -171,6 +181,7 @@
 ## CROSS-CUTTING CONCERNS
 
 ### Security (all phases)
+
 - [P0] Input sanitization + SQL injection prevention (Prisma mitigates most) — BE | ongoing
 - [P0] API key hashing (store bcrypt hash, never plaintext) — BE | 3h | Epic 1
 - [P1] Secret scanning in CI (Gitleaks or Trufflehog) — Infra | 2h | CI
@@ -179,12 +190,14 @@
 - [P2] Penetration test (self-conducted with GHOST SWARM methodology) — Security | 8h | MVP live
 
 ### Documentation
+
 - [P1] README.md (developer quickstart, <10 min to first verify call) — Erwin | 4h | MVP
-- [P1] docs.okorolabs.io (Docusaurus or Mintlify) — FE | 6h | None
+- [P1] docs.okoroapp.com (Docusaurus or Mintlify) — FE | 6h | None
 - [P2] SDK reference docs (auto-generated from TypeDoc) — FE | 3h | SDK
 - [P2] Integration guides: LangChain, AutoGen, CrewAI — Erwin | 6h | SDK
 
 ### Testing
+
 - [P0] Unit tests: Policy engine, BATE scoring, JWT utils — BE | 8h | Each epic
 - [P0] Integration tests: Verify endpoint scenarios — BE | 8h | Verify
 - [P1] Load test: 1000 concurrent verify calls (<200ms p99) — Infra | 4h | MVP
@@ -194,11 +207,11 @@
 
 ## SPRINT PRIORITY MATRIX
 
-| Sprint | Focus | Exit Gate |
-|---|---|---|
-| S1 (weeks 1-2) | NestJS init, Prisma schema, Ed25519, API key auth | Can register an agent and get a keypair |
-| S2 (weeks 3-4) | Policy create/revoke, signed token generation | Can create a scoped policy token |
-| S3 (weeks 5-6) | Verify endpoint (all paths), audit log | Can verify a signed agent token end-to-end |
-| S4 (weeks 7-8) | Dashboard v1, Stripe billing, public launch | 10 signups, 1 paying customer |
-| S5 (weeks 9-12) | BATE v1, webhooks, anomaly detection | Trust score live and updating |
-| S6 (weeks 13-18) | Edge, delegation, ACP connector | <80ms global, enterprise-ready |
+| Sprint           | Focus                                             | Exit Gate                                  |
+| ---------------- | ------------------------------------------------- | ------------------------------------------ |
+| S1 (weeks 1-2)   | NestJS init, Prisma schema, Ed25519, API key auth | Can register an agent and get a keypair    |
+| S2 (weeks 3-4)   | Policy create/revoke, signed token generation     | Can create a scoped policy token           |
+| S3 (weeks 5-6)   | Verify endpoint (all paths), audit log            | Can verify a signed agent token end-to-end |
+| S4 (weeks 7-8)   | Dashboard v1, Stripe billing, public launch       | 10 signups, 1 paying customer              |
+| S5 (weeks 9-12)  | BATE v1, webhooks, anomaly detection              | Trust score live and updating              |
+| S6 (weeks 13-18) | Edge, delegation, ACP connector                   | <80ms global, enterprise-ready             |

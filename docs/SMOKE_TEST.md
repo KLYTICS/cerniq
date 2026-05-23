@@ -8,7 +8,7 @@
 Set the base URL once:
 
 ```sh
-export OKORO_BASE=http://localhost:4000   # or https://api.okorolabs.io
+export OKORO_BASE=http://localhost:4000   # or https://api.okoroapp.com
 ```
 
 For dev, bring the stack up first: see `infra/dev/README.md`.
@@ -58,6 +58,7 @@ curl -sf "$OKORO_BASE/.well-known/audit-signing-key" | jq
 ```
 
 **Expect:**
+
 ```json
 {
   "kid": "<16 base64url chars>",
@@ -66,6 +67,7 @@ curl -sf "$OKORO_BASE/.well-known/audit-signing-key" | jq
   "rotatedAt": "2026-..."
 }
 ```
+
 ETag header equals `kid`.
 **Proves:** `OKORO_SIGNING_PUBLIC_KEY` env is wired, the wellknown module booted, the kid derivation matches `sha256(publicKey)[:16]` from `scripts/generate-okoro-keys.ts`.
 **On failure:** Module init throws if env unset (no silent fallback). Run `pnpm --filter @okoro/scripts run keys` and inject the value.
@@ -92,7 +94,7 @@ pnpm --filter @okoro/scripts exec okoro register --email smoke@example.com
 
 **Expect:** Stdout JSON with `principalId` (cuid) and `apiKey` (`okoro_sk_…22 chars…`). Saved to `./.okororc.json`.
 **Proves:** `POST /v1/principals/register` reachable, bcrypt hash + DB write OK.
-**Caveat:** `/v1/principals/register` is REQUIRES_ENDPOINT — the controller is not yet wired in `apps/api/src/modules/principals/`. Until it is, fall back to `pnpm --filter @okoro/scripts seed` and copy the `apiKey` from its stdout into `./.okororc.json` manually, or export `OKORO_API_KEY=okoro_sk_…`.
+**Caveat:** `/v1/principals/register` is REQUIRES*ENDPOINT — the controller is not yet wired in `apps/api/src/modules/principals/`. Until it is, fall back to `pnpm --filter @okoro/scripts seed` and copy the `apiKey` from its stdout into `./.okororc.json` manually, or export `OKORO_API_KEY=okoro_sk*…`.
 **On failure:** 404 means the endpoint isn't wired (expected today). 503 means DB down — see step 1.
 
 ---
@@ -133,6 +135,7 @@ pnpm --filter @okoro/scripts exec okoro verify \
 **Expect:** Human output `✓ verify approved` with `trustBand: VERIFIED (500)`, `scopes: commerce`. Or, in `--json`, `{"valid":true,...,"denialReason":null}`.
 **Proves:** End-to-end verify hot path: signature verify, policy fetch, scope match, spend check, BATE read, audit append, signal ingestion.
 **On failure:** Read the `denialReason`. Honored precedence:
+
 - `INVALID_SIGNATURE` → wrong private key in `./.local/keys/`. Re-register.
 - `POLICY_EXPIRED` → step 8's `expiresAt` is in the past. Re-create.
 - `SCOPE_NOT_GRANTED` → action prefix doesn't match `commerce`. Use `commerce.<sub>`.
@@ -175,6 +178,7 @@ pnpm --filter @okoro/scripts run backtest-verify -- --limit 10 --threshold 1.0
 **Expect:** `match rate: 100.00%` and exit 0.
 **Proves:** The pure verify algorithm (`apps/api/src/modules/verify/algorithm/verify.algorithm.ts`) reproduces the historical decision the API just wrote. This is the integrity check that fails LOUD if someone refactors the algorithm without realising it now disagrees with prior decisions — a SOC2-grade contract.
 **On failure:**
+
 - `ALGORITHM_NOT_PORTABLE` → algorithm file moved or has a runtime import path that breaks under `tsx`. Fix the loader path before reporting any score.
 - match rate < 100% → real drift. Read the `diffGroups` output. Common causes: spend-limit math change, scope-category prefix change, denial-precedence reorder.
 

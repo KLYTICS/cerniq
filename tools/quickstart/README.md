@@ -32,7 +32,7 @@ OKORO_API_KEY=okoro_sk_xxx \
 pnpm start
 
 # Against the hosted OKORO:
-OKORO_API_BASE=https://api.okorolabs.io \
+OKORO_API_BASE=https://api.okoroapp.com \
 OKORO_API_KEY=okoro_sk_xxx \
 pnpm start
 ```
@@ -70,13 +70,13 @@ the human-readable progress.
 
 ## Common failures
 
-| Symptom                             | Likely cause                                      |
-|-------------------------------------|---------------------------------------------------|
-| `OKORO_API_KEY env is required`     | Set the env var. See `docs/RUNBOOK.md` for issuance. |
-| `register failed: 401 Unauthorized` | Wrong key or wrong base URL. Verify `okoro_sk_` prefix. |
-| `verify denied AGENT_NOT_FOUND`     | Agent registration didn't land. Check API logs. |
+| Symptom                             | Likely cause                                             |
+| ----------------------------------- | -------------------------------------------------------- |
+| `OKORO_API_KEY env is required`     | Set the env var. See `docs/RUNBOOK.md` for issuance.     |
+| `register failed: 401 Unauthorized` | Wrong key or wrong base URL. Verify `okoro_sk_` prefix.  |
+| `verify denied AGENT_NOT_FOUND`     | Agent registration didn't land. Check API logs.          |
 | `verify denied INVALID_SIGNATURE`   | The SDK and API are on incompatible versions. Bump both. |
-| Connection refused                  | Local OKORO not running. `pnpm db:up && pnpm dev`. |
+| Connection refused                  | Local OKORO not running. `pnpm db:up && pnpm dev`.       |
 
 ## Next steps
 

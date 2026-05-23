@@ -56,7 +56,7 @@ export async function StatusBadge() {
         className="inline-block h-2 w-2 rounded-full"
         style={{ background: color, boxShadow: `0 0 8px ${color}` }}
       />
-      <span className="font-mono text-[var(--okoro-halo)]">api.okorolabs.io · {label}</span>
+      <span className="font-mono text-[var(--okoro-halo)]">api.okoroapp.com · {label}</span>
       {result.source === 'fallback' && (
         <span className="font-mono text-[var(--okoro-shadow)]">({result.reason})</span>
       )}

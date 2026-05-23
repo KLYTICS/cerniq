@@ -181,7 +181,7 @@ only with the documented placeholder behavior.
 5. Auth0 v4 SDK install and real provider configuration are required before the
    dashboard login receiver is live.
 6. Provider-backed KMS, Stripe price IDs, Stripe metered-price configuration,
-   `sales@okorolabs.io`, and deploy actions that require real credentials or
+   `sales@okoroapp.com`, and deploy actions that require real credentials or
    console changes remain operator-owned.
 
 ## Verification commands
