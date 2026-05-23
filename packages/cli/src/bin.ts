@@ -54,24 +54,36 @@ async function main(): Promise<void> {
   agents
     .command('revoke')
     .argument('<id>')
-    .option('--reason <r>', 'reason recorded in audit log')
-    .action(agentsRevoke);
+    // `--reason` was a no-op (API DELETE /agents/:id takes no body). Removed
+    // here so the CLI doesn't promise functionality that doesn't land. If you
+    // need an auditable reason, file an API change first.
+    .action((id: string) => agentsRevoke(id));
 
   const policies = program.command('policies').description('Manage agent policies');
   policies
     .command('create')
     .requiredOption('-a, --agent-id <id>', 'agent id')
     .requiredOption('-s, --scopes-file <path>', 'JSON file with scope array')
+    .option('-l, --label <label>', 'human-readable policy label')
     .option('--ttl <seconds>', 'policy TTL in seconds', (v) => Number.parseInt(v, 10), 86400)
     .option('--json')
     .action(policiesCreate);
   policies
     .command('list')
-    .option('-a, --agent-id <id>', 'filter by agent')
-    .option('-s, --status <status>', 'ACTIVE | REVOKED | EXPIRED')
+    // agentId is now required (API endpoint is per-agent:
+    // `GET /agents/:agentId/policies`). `--status` was an unsupported filter
+    // (the API returns active policies; lifecycle events live in audit).
+    .requiredOption('-a, --agent-id <id>', 'agent id whose policies to list')
     .option('--json')
     .action(policiesList);
-  policies.command('revoke').argument('<id>').option('--reason <r>').action(policiesRevoke);
+  policies
+    .command('revoke')
+    .argument('<policyId>')
+    // agentId is required because the API endpoint is
+    // `DELETE /agents/:agentId/policies/:policyId`. `--reason` was a no-op
+    // (not in API contract) and is dropped.
+    .requiredOption('-a, --agent-id <id>', 'agent id that owns this policy')
+    .action(policiesRevoke);
 
   const audit = program.command('audit').description('Audit log');
   audit

@@ -51,6 +51,26 @@ export interface AgentRecord {
   lastSeenAt?: string | null;
 }
 
+// `type` (not `interface`) so the structural shape satisfies the SDK's
+// internal `Record<string, unknown>` query bag without an extra cast.
+// Interfaces are nominal-ish to TS and don't auto-satisfy index signatures.
+export type ListAgentsQuery = {
+  /** Max page size, 1-100. API default: 25. */
+  limit?: number;
+  /** Opaque cursor (the agent id of the last item in the previous page). */
+  cursor?: string;
+  /** Filter by status. Omit to include all statuses. */
+  status?: AgentStatus;
+};
+
+export interface ListAgentsResponse {
+  agents: AgentRecord[];
+  /** Cursor for the next page; null when no more rows. */
+  nextCursor: string | null;
+  /** Total agents owned by this principal across all pages. */
+  total: number;
+}
+
 export interface CreatePolicyInput {
   label?: string;
   scopes: PolicyScope[];

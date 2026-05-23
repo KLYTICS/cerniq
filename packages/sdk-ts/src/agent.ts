@@ -1,5 +1,12 @@
 import type { HttpClient } from './http.js';
-import type { AgentRecord, AgentStatus, RegisterAgentInput, TrustBand } from './types.js';
+import type {
+  AgentRecord,
+  AgentStatus,
+  ListAgentsQuery,
+  ListAgentsResponse,
+  RegisterAgentInput,
+  TrustBand,
+} from './types.js';
 
 export interface HandshakeChallenge {
   agentId: string;
@@ -31,6 +38,16 @@ export class AgentClient {
 
   register(input: RegisterAgentInput): Promise<AgentRecord> {
     return this.http.request<AgentRecord>('/agents/register', { method: 'POST', body: input });
+  }
+
+  /**
+   * List agents owned by the authenticated principal. Cursor-based pagination
+   * — the API returns `nextCursor: null` when exhausted. Matches the
+   * `ListAgentsQueryDto` / `AgentListResponseDto` contract in
+   * `apps/api/src/modules/identity/identity.dto.ts`.
+   */
+  list(query?: ListAgentsQuery): Promise<ListAgentsResponse> {
+    return this.http.request<ListAgentsResponse>('/agents', { method: 'GET', query });
   }
 
   get(agentId: string): Promise<AgentRecord> {

@@ -1,6 +1,25 @@
-import type { Cerniq } from '@cerniq/sdk';
+import type { AgentRuntime, Cerniq } from '@cerniq/sdk';
 
 import type { ToolDefinition } from './registry.js';
+
+const VALID_RUNTIMES: readonly AgentRuntime[] = [
+  'OPENAI',
+  'ANTHROPIC',
+  'GOOGLE',
+  'HUGGINGFACE',
+  'CUSTOM',
+];
+
+function normalizeRuntime(input: unknown): AgentRuntime {
+  if (input === undefined || input === null || input === '') return 'CUSTOM';
+  const v = String(input).toUpperCase();
+  if (!(VALID_RUNTIMES as readonly string[]).includes(v)) {
+    throw new Error(
+      `Invalid runtime "${String(input)}". Must be one of: ${VALID_RUNTIMES.join(', ')}.`,
+    );
+  }
+  return v as AgentRuntime;
+}
 
 export function registerAgentsTools(cerniq: Cerniq, registry: Map<string, ToolDefinition>): void {
   registry.set('cerniq.agents.create', {
@@ -11,21 +30,33 @@ export function registerAgentsTools(cerniq: Cerniq, registry: Map<string, ToolDe
     inputSchema: {
       type: 'object',
       properties: {
-        name: { type: 'string', description: 'Human-readable agent name.' },
+        name: { type: 'string', description: 'Human-readable agent label (maps to API `label`).' },
         public_key: {
           type: 'string',
           description: 'base64url-encoded Ed25519 public key (32 bytes).',
         },
-        metadata: { type: 'object', description: 'Free-form metadata. Cannot contain secrets.' },
+        runtime: {
+          type: 'string',
+          enum: VALID_RUNTIMES as unknown as string[],
+          description: 'Agent runtime. Defaults to CUSTOM.',
+        },
+        model: {
+          type: 'string',
+          description: 'Optional model identifier (e.g. "claude-sonnet-4-5").',
+        },
       },
       required: ['name', 'public_key'],
       additionalProperties: false,
     },
+    // SDK is `register()` (POST /agents/register). `RegisterAgentInput` has no
+    // `metadata` field — previously the MCP tool advertised it; removed to
+    // avoid silent drops. Add it on the API DTO + Prisma model first if needed.
     handler: async (args) =>
-      await cerniq.agents.create({
-        name: String(args.name),
+      await cerniq.agents.register({
         publicKey: String(args.public_key),
-        metadata: args.metadata as Record<string, unknown> | undefined,
+        runtime: normalizeRuntime(args.runtime),
+        label: String(args.name),
+        model: typeof args.model === 'string' ? args.model : undefined,
       }),
   });
 
@@ -43,7 +74,7 @@ export function registerAgentsTools(cerniq: Cerniq, registry: Map<string, ToolDe
 
   registry.set('cerniq.agents.list', {
     name: 'cerniq.agents.list',
-    description: "List agents in the caller's principal. Paginated.",
+    description: "List agents in the caller's principal. Cursor-paginated.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -68,15 +99,14 @@ export function registerAgentsTools(cerniq: Cerniq, registry: Map<string, ToolDe
       type: 'object',
       properties: {
         agent_id: { type: 'string' },
-        reason: { type: 'string', description: 'Free-form reason; appears in audit log.' },
       },
       required: ['agent_id'],
       additionalProperties: false,
     },
+    // `reason` removed — API `DELETE /agents/:agentId` takes no body. The
+    // previous MCP tool advertised the param and the SDK silently dropped it.
     handler: async (args) => {
-      await cerniq.agents.revoke(String(args.agent_id), {
-        reason: typeof args.reason === 'string' ? args.reason : undefined,
-      });
+      await cerniq.agents.revoke(String(args.agent_id));
     },
   });
 }
