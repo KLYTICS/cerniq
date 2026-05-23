@@ -1,4 +1,8 @@
-// Dashboard auth middleware — Auth0 session check (ADR-0009).
+// Dashboard auth proxy — Auth0 session check (ADR-0009).
+//
+// (Renamed from middleware.ts to proxy.ts for the Next.js 16 file convention.
+// Behavior identical; Next emits a deprecation warning if the "middleware"
+// name is used. Both names route the same request-interception API.)
 //
 // Until @auth0/nextjs-auth0 v4 is wired in (it ships its own middleware),
 // this is a guard that redirects unauthenticated users to /login. The
@@ -7,9 +11,15 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PATHS = new Set<string>(['/', '/login', '/api/auth/login', '/api/auth/callback', '/api/auth/logout']);
+const PUBLIC_PATHS = new Set<string>([
+  '/',
+  '/login',
+  '/api/auth/login',
+  '/api/auth/callback',
+  '/api/auth/logout',
+]);
 
-export function middleware(req: NextRequest): NextResponse {
+export function proxy(req: NextRequest): NextResponse {
   const { pathname } = req.nextUrl;
   if (PUBLIC_PATHS.has(pathname) || pathname.startsWith('/api/auth/')) {
     return NextResponse.next();

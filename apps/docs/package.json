@@ -4,15 +4,17 @@
   "private": true,
   "description": "Live documentation site for CERNIQ. Next.js 16 + Fumadocs.",
   "scripts": {
-    "predev": "node scripts/generate-api-docs.mjs && node scripts/generate-sdk-docs.mjs",
+    "predev": "node scripts/generate-api-docs.mjs && node scripts/generate-sdk-docs.mjs && fumadocs-mdx",
     "dev": "next dev -p 3100",
-    "prebuild": "node scripts/generate-api-docs.mjs && node scripts/generate-sdk-docs.mjs",
+    "prebuild": "node scripts/generate-api-docs.mjs && node scripts/generate-sdk-docs.mjs && fumadocs-mdx",
     "build": "next build",
     "start": "next start -p 3100",
     "lint": "eslint . --max-warnings=0",
+    "pretypecheck": "fumadocs-mdx",
     "typecheck": "tsc --noEmit",
     "openapi:generate": "node scripts/generate-api-docs.mjs",
     "sdk:generate": "node scripts/generate-sdk-docs.mjs",
+    "source:generate": "fumadocs-mdx",
     "lhci:autorun": "lhci autorun"
   },
   "dependencies": {
