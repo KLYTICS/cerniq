@@ -3,12 +3,113 @@
 > Append a short entry every time a session lands meaningful work.
 > Newest at top. Format: date, session, what shipped, what's next.
 >
-> **Naming note (2026-05-22):** the product is now OKORO. Historical entries
-> below retain `aegis` references intact — they are the audit trail of how we
-> got here. Only file this protection for: this file, `OPERATOR_DECISIONS.md`,
-> `WORK_BOARD.md`, and `docs/decisions/0021-cloudflare-okoro-rename.md` (if
-> present). New entries should use `okoro:` claim namespaces and OKORO product
-> name.
+> **Naming note (2026-05-22):** the product is now CERNIQ (after a chained
+> rename: AEGIS → OKORO → CERNIQ, all on 2026-05-22). Historical entries
+> below retain their era-appropriate names (`aegis`, `okoro`) intact — they
+> are the audit trail of how we got here. File this protection for: this
+> file, `OPERATOR_DECISIONS.md`, `WORK_BOARD.md`, and any
+> `docs/decisions/*-rename-*.md`. New entries should use `cerniq:` claim
+> namespaces and CERNIQ product name.
+
+---
+
+## 2026-05-22 (rename: cerniq-state verification — full chain audit) · claim=cerniq:rename-cerniq-verification · sid=d0a4b0655ee4
+
+**Status:** ✅ The full rename chain (AEGIS → OKORO → CERNIQ) is verified
+sound. All structural risks closed. Three pre-existing CLI/docs/postman drift
+items persist (already documented; carry forward unchanged).
+
+### Risk scan (read-only, no code changes from this session)
+
+| Risk                                    | Check                                                       | Result                                                                                                                                                                                                                                          |
+| --------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Audit-trail erosion across both passes  | grep aegis/okoro/cerniq in protected files                  | ✅ `SESSION_HANDOFF.md` shows 580/30/6 — full chronology preserved. `OPERATOR_DECISIONS.md` & `WORK_BOARD.md` remain aegis-only (correct: I restored them in db1bf72; operator's cerniq pass found no okoro to substitute)                       |
+| Double-substitution corrosion           | `cerniqcerniq`, `okorocerniq`, `aegis_cerniq`, etc. (8 pat) | ✅ 0 files for every pattern                                                                                                                                                                                                                    |
+| Prisma schema migration coverage        | `apps/api/prisma/migrations/`                               | ✅ Both present: `20260521000000_rename_aegis_to_okoro` + `20260522000000_rename_okoro_to_cerniq`. Second migration has defensive ELSIF for environments that skipped the first                                                                  |
+| Lockfile drift                          | grep aegis/okoro/cerniq in `pnpm-lock.yaml`                 | ✅ 0/0/28 (clean; operator's 13e31fc)                                                                                                                                                                                                           |
+| SDK dist drift                          | `packages/sdk-ts/dist/index.d.ts` exports                   | ⚠️ Was stale at `Okoro*`; **I rebuilt during this session** via `pnpm -r --filter './packages/sdk-ts' build`. Dist is git-ignored so no commit needed                                                                                            |
+| Working-tree residue                    | grep aegis/okoro in active code (excluding exclusions)      | ✅ 0 files                                                                                                                                                                                                                                      |
+
+### Verification gates (run on commit `13e31fc`)
+
+| Gate                                    | Result                                                                                              |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `pnpm check:migrations`                 | ✅ Pass — 13 migrations all immutable (1 new since prior verification)                              |
+| `pnpm check:openapi-zod`                | ✅ Pass                                                                                             |
+| `pnpm check:openapi-prisma`             | ✅ Pass                                                                                             |
+| `pnpm test:parity`                      | ✅ Pass                                                                                             |
+| `pnpm lint`                             | ✅ Pass                                                                                             |
+| `pnpm typecheck` (excluding `apps/docs`)| ⚠️ Pass for every workspace **except `packages/cli`** — pre-existing CLI/SDK drift, see #1 below    |
+| `pnpm test` (excluding `tools/postman`) | ⚠️ Pass except `packages/cli` (same drift)                                                          |
+
+### Carry-forward pre-existing drift (NOT rename-caused; same failures on `origin/main`)
+
+1. **`packages/cli` policies API drift** (5 typecheck errors + test
+   failures). `cli/src/commands/policies.ts` calls `policies.create(opts)`,
+   `policies.list(opts)`, `policies.revoke(id, opts)`. The SDK
+   `packages/sdk-ts/src/policy.ts` signatures are:
+   - `create(agentId: string, input: CreatePolicyInput)` — positional; CLI passes single object
+   - `list(agentId: string)` — no status filter; CLI tries to pass `status`
+   - `revoke(agentId: string, policyId: string)` — no reason support; CLI tries to pass `{ reason }`
+
+   Fix requires product/design input:
+   - `create` is mechanical (split positional)
+   - `list` — does CLI lose status filter or does SDK get a status param?
+   - `revoke` — does CLI take both ids or does SDK accept a reason?
+
+2. **`tools/postman` validator** — 3 failures unchanged from prior entry.
+   `DENIAL_REASON_PRECEDENCE` has 11 entries, walk-through folder has 10.
+   `gen:postman-walkthrough` script referenced from `package.json` but
+   generator file doesn't exist. Hand-patch the collection or author the
+   generator.
+
+3. **`apps/docs` typecheck** — `lib/source.ts` imports `@/.source` which
+   `fumadocs-mdx` generates at build time. Run
+   `pnpm --filter @cerniq/docs build` (or invoke fumadocs-mdx) before
+   typecheck.
+
+### Stable commit graph (origin/main..HEAD; 11 commits, none pushed)
+
+```
+13e31fc chore(deps): regenerate pnpm-lock.yaml after @okoro -> @cerniq           [operator]
+4f3970f feat(api): add Prisma migration to rename okoro_* DB objects to cerniq_* [operator]
+f88566f chore(rename): cerniqapp.com -> cerniq.io domain rebrand (124 files)     [operator]
+4403bba chore(rename): okoro -> cerniq content substitution + path renames       [operator]
+50c1d61 chore(rename): clean up rename artifacts - drop broken kit + Excel lock  [me]
+4087a34 feat(api): add Prisma migration to rename aegis_* DB objects to okoro_*  [operator]
+aa6a834 chore(rename): scrub accidental dev-key leak + ignore .orig/.bak         [operator]
+a0e0274 chore(rename): okorolabs.io -> okoroapp.com second-pass + secret-scan    [operator]
+73ba677 docs(handoff): aegis -> okoro content rename landing + follow-up         [me]
+db1bf72 chore(rename): apply aegis -> okoro content substitution to 771 files    [me]
+17abd9f chore(rename-kit): restore rename scripts from prior session             [operator]
+```
+
+### Operator-owned tail (out-of-band)
+
+- **Branch name lie:** `chore/rename-okoro` HEAD is a cerniq commit. Consider
+  renaming to `chore/rename-aegis-to-cerniq` or splitting into two PRs
+  (`chore/rename-aegis-to-okoro` ending at `50c1d61`,
+  `chore/rename-okoro-to-cerniq` starting at `4403bba`) before opening for
+  review.
+- **Empty `/Users/money/Desktop/OKORO/`** stub left over from the directory
+  move. Safe to `rmdir`; harmless if left.
+- **Stale git worktrees** under `.claude/worktrees/agent-*` likely point at
+  `/Users/money/Desktop/AEGIS/...` which no longer exists. Run
+  `git worktree prune` from the new path.
+- **Provider work** unchanged from prior entry: GitHub repo rename
+  (`klytics/aegis → klytics/cerniq`), npm `@cerniq/*` scope creation,
+  Auth0/Stripe/Cloudflare/Grafana/KMS/DNS.
+
+### What I did this turn
+
+1. Claimed scope `cerniq:rename-cerniq-verification` on this session
+   (`sid=d0a4b0655ee4`) to prevent racing.
+2. Read-only risk scan across 6 dimensions — all clean.
+3. Rebuilt SDK dist (was stale at `Okoro*`; now `Cerniq*`).
+4. Ran all 7 verification gates in parallel.
+5. Diagnosed the CLI failure to pin down which SDK methods need design input.
+6. Documented carry-forward drift items so the next session inherits an
+   explicit "what's done / what's left" map.
 
 ---
 
