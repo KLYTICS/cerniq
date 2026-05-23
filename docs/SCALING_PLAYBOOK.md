@@ -58,7 +58,7 @@ Add replicas when CPU > 70% sustained or you need HA:
 # Each replica is independent — Railway load balances automatically
 
 # Verify both replicas are healthy
-curl -s https://api.cerniqapp.com/health | jq .status
+curl -s https://api.cerniq.io/health | jq .status
 # Check from multiple IPs to hit different replicas
 ```
 
@@ -275,7 +275,7 @@ CERNIQ_EDGE_MODE = "shadow"
 wrangler deploy --env production
 
 # Monitor divergence rate:
-curl https://api.cerniqapp.com/metrics | grep edge_divergence
+curl https://api.cerniq.io/metrics | grep edge_divergence
 # Target: <0.1% divergence before promoting to live
 ```
 
@@ -354,7 +354,7 @@ if (current > limit * 0.8) {
 
 ```bash
 # Step 1: Quantify the surge
-curl -s "https://api.cerniqapp.com/metrics" | grep "cerniq_http_requests_total"
+curl -s "https://api.cerniq.io/metrics" | grep "cerniq_http_requests_total"
 # Baseline is ~N req/min. If 10x: real surge.
 
 # Step 2: Is it legitimate or abuse?
@@ -464,7 +464,7 @@ Run before every major scaling event:
 ```bash
 # Phase 1 baseline (run on staging, target production capacity)
 k6 run tests/load/verify.js \
-  -e BASE_URL=https://staging.api.cerniqapp.com/v1 \
+  -e BASE_URL=https://staging.api.cerniq.io/v1 \
   -e API_KEY=$STAGING_KEY \
   --out json=load-test-results.json
 

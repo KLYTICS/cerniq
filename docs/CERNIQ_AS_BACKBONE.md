@@ -240,7 +240,7 @@ A new entry **OD-007** is proposed:
 
 > **OD-007 — Status page hosting choice.** Statuspage / self-hosted /
 > Cloudflare Status API. Default: self-hosted on the dashboard
-> (`status.cerniqapp.com` reads `incidents.{open,history}.json` published
+> (`status.cerniq.io` reads `incidents.{open,history}.json` published
 > from management API). Due: before Phase 1 GA.
 
 ## 7. Roll-out order

@@ -9,7 +9,7 @@ import { source } from '@/lib/source';
 
 export const dynamic = 'force-static';
 
-const SITE = process.env.NEXT_PUBLIC_DOCS_URL ?? 'https://docs.cerniqapp.com';
+const SITE = process.env.NEXT_PUBLIC_DOCS_URL ?? 'https://docs.cerniq.io';
 
 export function GET() {
   const pages = source.getPages();

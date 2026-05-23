@@ -17,7 +17,7 @@
 //
 // Examples:
 //   cerniq-audit-verify verify ./export.ndjson \
-//     --jwks https://api.cerniqapp.com/.well-known/audit-signing-key
+//     --jwks https://api.cerniq.io/.well-known/audit-signing-key
 //
 //   cerniq-audit-verify verify ./export.ndjson \
 //     --jwks-file ./cerniq-audit-jwks.json --json > report.json

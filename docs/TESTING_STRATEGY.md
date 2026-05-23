@@ -512,7 +512,7 @@ export const options = {
   },
 };
 
-const BASE_URL = __ENV.BASE_URL || 'https://api.cerniqapp.com/v1';
+const BASE_URL = __ENV.BASE_URL || 'https://api.cerniq.io/v1';
 const API_KEY = __ENV.API_KEY;
 
 export default function () {
@@ -542,7 +542,7 @@ Run against staging before every GA milestone:
 
 ```bash
 k6 run tests/load/verify.js \
-  -e BASE_URL=https://staging.api.cerniqapp.com/v1 \
+  -e BASE_URL=https://staging.api.cerniq.io/v1 \
   -e API_KEY=$STAGING_API_KEY
 
 # Expected results for Phase 1 GA:

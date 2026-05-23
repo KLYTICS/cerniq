@@ -117,10 +117,10 @@ describe('WellknownService', () => {
         publicKey: ZERO_KEY_B64,
         algorithm: 'EdDSA',
         curve: 'Ed25519',
-        issuer: 'https://cerniqapp.com',
+        issuer: 'https://cerniq.io',
         rotatedAt: FIXED_ROTATED_AT,
         purpose: 'audit-event-signing',
-        verificationGuide: 'https://docs.cerniqapp.com/audit/verify',
+        verificationGuide: 'https://docs.cerniq.io/audit/verify',
       });
     });
 

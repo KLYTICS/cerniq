@@ -17,7 +17,7 @@ artifact index.
 | CC6.1       | Tenant isolation tests — [`tests/cross-package/principal-isolation.spec.ts`](https://github.com/klytics/cerniq/blob/main/tests/cross-package/) |
 | CC6.6       | KMS-backed signing — [`docs/decisions/0011-key-rotation-kms.md`](https://github.com/klytics/cerniq/blob/main/docs/decisions/0011-key-rotation-kms.md) |
 | CC7.2       | BATE anomaly detector — [trust bands](/docs/concepts/trust-bands)                                               |
-| CC7.4       | Status page — `status.cerniqapp.com` + incident response                                                         |
+| CC7.4       | Status page — `status.cerniq.io` + incident response                                                         |
 | CC8.1       | Append-only Prisma migrations + `spec-sync.yml` drift CI                                                       |
 
 ## GDPR — controller-facing
@@ -47,7 +47,7 @@ import { CerniqVerifier } from '@cerniq/verifier-rp';
 import { readFileSync } from 'node:fs';
 
 const verifier = new CerniqVerifier({
-  jwksUri: 'https://api.cerniqapp.com/.well-known/audit-signing-key',
+  jwksUri: 'https://api.cerniq.io/.well-known/audit-signing-key',
 });
 
 const ndjson = readFileSync('./audit-export.ndjson', 'utf-8');

@@ -5,7 +5,7 @@ import { ApiProperty } from '@nestjs/swagger';
  * surface for agent-identity infrastructure. Lets a relying party
  * auto-configure their verifier from a single URL:
  *
- *     fetch('https://api.cerniqapp.com/.well-known/cerniq-configuration')
+ *     fetch('https://api.cerniq.io/.well-known/cerniq-configuration')
  *       .then(r => r.json())
  *
  * Stable, additive, versioned. Removing a field is a breaking change
@@ -15,7 +15,7 @@ export class CerniqConfigurationDto {
   @ApiProperty({
     description:
       'The canonical issuer URL. Used by relying parties as `iss` for CERNIQ-issued JWTs.',
-    example: 'https://api.cerniqapp.com',
+    example: 'https://api.cerniq.io',
   })
   issuer!: string;
 
@@ -33,25 +33,25 @@ export class CerniqConfigurationDto {
 
   @ApiProperty({
     description: 'Human documentation entry point.',
-    example: 'https://docs.cerniqapp.com',
+    example: 'https://docs.cerniq.io',
   })
   documentation!: string;
 
   @ApiProperty({
     description: 'Machine-readable OpenAPI 3 spec (JSON).',
-    example: 'https://api.cerniqapp.com/docs-json',
+    example: 'https://api.cerniq.io/docs-json',
   })
   openapi_spec!: string;
 
   @ApiProperty({
     description: 'Machine-readable JWKS for verifying audit chain signatures.',
-    example: 'https://api.cerniqapp.com/.well-known/jwks.json',
+    example: 'https://api.cerniq.io/.well-known/jwks.json',
   })
   jwks_uri!: string;
 
   @ApiProperty({
     description: 'Plain JSON helper view of the active audit signing key.',
-    example: 'https://api.cerniqapp.com/.well-known/audit-signing-key',
+    example: 'https://api.cerniq.io/.well-known/audit-signing-key',
   })
   audit_signing_key_uri!: string;
 
@@ -154,26 +154,26 @@ export class CerniqConfigurationDto {
 
   @ApiProperty({
     description: 'Plain-text security disclosure file (RFC 9116).',
-    example: 'https://api.cerniqapp.com/.well-known/security.txt',
+    example: 'https://api.cerniq.io/.well-known/security.txt',
   })
   security_txt!: string;
 
   @ApiProperty({
     description: 'AI-agent-readable site description (emerging llms.txt convention).',
-    example: 'https://api.cerniqapp.com/.well-known/llms.txt',
+    example: 'https://api.cerniq.io/.well-known/llms.txt',
   })
   llms_txt!: string;
 
   @ApiProperty({
     description:
       'Per-tier audit retention windows + redaction guarantees. Body is auto-derived from billing/plans.ts.',
-    example: 'https://api.cerniqapp.com/.well-known/retention-policy.json',
+    example: 'https://api.cerniq.io/.well-known/retention-policy.json',
   })
   retention_policy_uri!: string;
 
   @ApiProperty({
     description: 'Per-tier pricing table (ADR-0014). Body is auto-derived from billing/plans.ts.',
-    example: 'https://api.cerniqapp.com/.well-known/pricing.json',
+    example: 'https://api.cerniq.io/.well-known/pricing.json',
   })
   pricing_uri!: string;
 }

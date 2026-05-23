@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "description": "Offline verifier for CERNIQ audit chains. Anyone with the public JWKS can independently verify the tamper-evidence of an CERNIQ audit log export.",
   "license": "MIT",
-  "author": "CERNIQ Labs <hello@cerniqapp.com>",
-  "homepage": "https://cerniqapp.com",
+  "author": "CERNIQ Labs <hello@cerniq.io>",
+  "homepage": "https://cerniq.io",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/klytics/cerniq.git",

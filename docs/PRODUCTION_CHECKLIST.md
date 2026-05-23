@@ -55,11 +55,11 @@
         Railway: custom domain with valid TLS cert
 
 [ ] 🔴 HSTS header present on all responses
-        Verify: curl -I https://api.cerniqapp.com/health | grep strict-transport
+        Verify: curl -I https://api.cerniq.io/health | grep strict-transport
         Expected: strict-transport-security: max-age=31536000; includeSubDomains
 
 [ ] 🟠 CSP header on dashboard
-        Verify: curl -I https://dashboard.cerniqapp.com | grep content-security-policy
+        Verify: curl -I https://dashboard.cerniq.io | grep content-security-policy
 
 [ ] 🟠 CORS allowlist is explicit (not *)
         Check: apps/api/src/common/security/cors-allowlist.ts
@@ -149,10 +149,10 @@
 
 ```
 [ ] 🔴 Health endpoint responds < 500ms
-        curl -w "%{time_total}" https://api.cerniqapp.com/health
+        curl -w "%{time_total}" https://api.cerniq.io/health
 
 [ ] 🔴 Readiness endpoint passes (DB + Redis ping)
-        curl https://api.cerniqapp.com/ready -H "X-CERNIQ-Admin: $CERNIQ_ADMIN_TOKEN"
+        curl https://api.cerniq.io/ready -H "X-CERNIQ-Admin: $CERNIQ_ADMIN_TOKEN"
         Expected: { "status": "ready", "db": "ok", "redis": "ok" }
 
 [ ] 🔴 Verify endpoint responds correctly to valid token
@@ -192,7 +192,7 @@
         Expected: ✗ Chain break detected at event #N
 
 [ ] 🟠 /.well-known/audit-signing-key returns correct JWKS
-        curl https://api.cerniqapp.com/.well-known/audit-signing-key
+        curl https://api.cerniq.io/.well-known/audit-signing-key
         Verify: kid matches signingKeyId in latest AuditEvent row
         NOTE: This endpoint is still open (G-1) — block GA until shipped
 ```
@@ -283,10 +283,10 @@
 
 ```
 [ ] 🔴 /health endpoint has no auth, always returns 200 (never blocks)
-        curl https://api.cerniqapp.com/health   # no API key
+        curl https://api.cerniq.io/health   # no API key
 
 [ ] 🔴 /metrics endpoint returns valid Prometheus text
-        curl https://api.cerniqapp.com/metrics -H "Authorization: Bearer $METRICS_TOKEN"
+        curl https://api.cerniq.io/metrics -H "Authorization: Bearer $METRICS_TOKEN"
         Expected: cerniq_verify_total, cerniq_verify_latency_seconds, etc.
 
 [ ] 🟠 OTel tracing enabled and traces appearing in your collector
@@ -333,10 +333,10 @@
 ## Section 8 — Legal & Compliance
 
 ```
-[ ] 🔴 Privacy policy published (cerniqapp.com/privacy)
+[ ] 🔴 Privacy policy published (cerniq.io/privacy)
         References agent data handling, audit log retention
 
-[ ] 🔴 Terms of service published (cerniqapp.com/terms)
+[ ] 🔴 Terms of service published (cerniq.io/terms)
         Includes acceptable use for agent operations
 
 [ ] 🟠 DPA template ready for EU enterprise customers
@@ -357,7 +357,7 @@
 ```
 [ ] 🟠 Load test passes target SLO (p99 < 200ms at 500 RPS)
         Run: k6 run tests/load/verify.js \
-             -e BASE_URL=https://api.cerniqapp.com/v1 \
+             -e BASE_URL=https://api.cerniq.io/v1 \
              -e API_KEY=$CERNIQ_API_KEY
         Expected: p99 < 200ms, error rate < 0.1%
 

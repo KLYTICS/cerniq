@@ -10,7 +10,7 @@
  *   k6 run apps/api/test/load/verify.k6.js
  *
  *   # Staging
- *   CERNIQ_BASE_URL=https://api.staging.cerniqapp.com \
+ *   CERNIQ_BASE_URL=https://api.staging.cerniq.io \
  *     CERNIQ_VERIFY_KEY=$STAGING_VERIFY_KEY \
  *     CERNIQ_FIXTURE_TOKEN=$STAGING_FIXTURE_TOKEN \
  *     k6 run apps/api/test/load/verify.k6.js

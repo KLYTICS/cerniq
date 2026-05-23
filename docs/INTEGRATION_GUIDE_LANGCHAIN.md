@@ -502,7 +502,7 @@ CERNIQ_AGENT_ID=agent_xxxx           # Agent identifier
 CERNIQ_PRIVATE_KEY=base64_ed25519    # Agent's Ed25519 private key (keep secret!)
 
 # Optional
-CERNIQ_BASE_URL=https://api.cerniqapp.com   # Default
+CERNIQ_BASE_URL=https://api.cerniq.io   # Default
 CERNIQ_TOKEN_TTL=30                        # JWT TTL in seconds (default: 30)
 CERNIQ_AUDIT_ENABLED=true                  # Disable for local dev (default: true)
 ```

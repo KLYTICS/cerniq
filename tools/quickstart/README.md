@@ -32,7 +32,7 @@ CERNIQ_API_KEY=cerniq_sk_xxx \
 pnpm start
 
 # Against the hosted CERNIQ:
-CERNIQ_API_BASE=https://api.cerniqapp.com \
+CERNIQ_API_BASE=https://api.cerniq.io \
 CERNIQ_API_KEY=cerniq_sk_xxx \
 pnpm start
 ```

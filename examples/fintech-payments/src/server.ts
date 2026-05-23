@@ -23,7 +23,7 @@ import { Cerniq } from '@cerniq/sdk';
 import { randomUUID } from 'node:crypto';
 
 const cerniq = new Cerniq({
-  baseUrl: process.env.CERNIQ_API_BASE ?? 'https://api.cerniqapp.com',
+  baseUrl: process.env.CERNIQ_API_BASE ?? 'https://api.cerniq.io',
   // Verify-only key (cerniq_vk_…), never a management key on a service edge.
   verifyKey: requireEnv('CERNIQ_VERIFY_KEY'),
 });

@@ -212,7 +212,7 @@ in `WORK_BOARD.md`.
 | S-04 | Forged policy token                           | Attacker fabricates a policy JWT to claim broader scope than CERNIQ issued.                               | EdDSA verify against CERNIQ SVC_KEY published in JWKS (§6); reject `kid` not in current+previous; `jose.jwtVerify` strict alg check (`alg: ['EdDSA']`).                              | SVC_KEY compromise → recovery via §5 rotation + revocation.    | M-004 ready       |
 | S-05 | Fake relying-party fraud report               | Competitor RP submits `RELYING_PARTY_FRAUD_REPORT` to crash a target agent's BATE score.                  | `RelyingParty.reportWeight = 0.0` for unverified sources (`bate.scorer.ts`); DNS-TXT challenge to lift to verified; daily delta cap `-500` (`BATE_ALGORITHM.md` §4).                 | Verified RP turning malicious — operator review trigger.       | partial (UX TODO) |
 | S-06 | Spoofed webhook callback                      | Attacker posts to merchant's webhook URL pretending to be CERNIQ to plant fake events.                    | Webhook body signed `HMAC-SHA256(secret, body)` (`CERNIQ_HEADER_SIGNATURE`); secret rotated per subscription; sample verifier in SDK and verifier-rp.                                | Customer fails to verify the signature (documentation risk).   | M-008 partial     |
-| S-07 | DNS / domain hijack of `api.cerniqapp.com`    | Attacker takes over apex DNS, routes verify traffic to malicious origin.                                  | DNSSEC on `cerniqapp.com`; CAA records pinned to Let's Encrypt + DigiCert; HSTS preload; CT-log monitoring (Cert Spotter alert).                                                     | Registrar compromise — covered by registrar 2FA + lock.        | RUNBOOK §infra    |
+| S-07 | DNS / domain hijack of `api.cerniq.io`        | Attacker takes over apex DNS, routes verify traffic to malicious origin.                                  | DNSSEC on `cerniq.io`; CAA records pinned to Let's Encrypt + DigiCert; HSTS preload; CT-log monitoring (Cert Spotter alert).                                                         | Registrar compromise — covered by registrar 2FA + lock.        | RUNBOOK §infra    |
 
 ### 3.2 Tampering
 
@@ -767,9 +767,9 @@ The test gates merge to main. CLAUDE.md crypto-rule
 
 - **Primary**: PagerDuty service `cerniq-prod-onsite`.
 - **Mirror**: Slack `#cerniq-ops` (webhook from PagerDuty).
-- **Customer-facing**: `status.cerniqapp.com` updated by ops runbook
+- **Customer-facing**: `status.cerniq.io` updated by ops runbook
   on incidents that affect customer SLOs.
-- **Email**: `security@cerniqapp.com` for vulnerability reports
+- **Email**: `security@cerniq.io` for vulnerability reports
   (`SECURITY.md` L7).
 
 ### 10.3 Runbooks

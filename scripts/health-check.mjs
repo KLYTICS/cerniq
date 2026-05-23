@@ -11,7 +11,7 @@
  *
  * Usage:
  *   node scripts/health-check.mjs                              # localhost:4000
- *   CERNIQ_BASE_URL=https://api.cerniqapp.com node scripts/health-check.mjs
+ *   CERNIQ_BASE_URL=https://api.cerniq.io node scripts/health-check.mjs
  */
 
 const BASE = process.env.CERNIQ_BASE_URL ?? 'http://localhost:4000';

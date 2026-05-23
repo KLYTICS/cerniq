@@ -154,7 +154,7 @@ listed in handoff notes. RPO/RTO for Postgres is documented (5 min /
 - `compatibility_flags = ["nodejs_compat"]` — needed for `@noble/ed25519` and audit-chain util.
 - `[[kv_namespaces]] id = "REPLACE_ME_AT_DEPLOY"` — placeholder by design (per Phase-3 deploy steps in `workers/cf-verify/README.md`).
 - `[[durable_objects.bindings]] RATE_LIMITER` and migration `tag = "v1"` referencing `EdgeRateLimiter` — class is exported as a stub in `src/index.ts` (returns 501) but a Durable Object with no implementation will still be **provisioned** on `wrangler deploy`. This is acceptable Phase 3 prep.
-- `[vars] CERNIQ_ORIGIN_URL = "https://api.cerniqapp.com"` — placeholder hostname.
+- `[vars] CERNIQ_ORIGIN_URL = "https://api.cerniq.io"` — placeholder hostname.
 
 `package.json`:
 

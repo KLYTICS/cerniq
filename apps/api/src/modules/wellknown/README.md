@@ -78,17 +78,17 @@ Why these choices:
 
 ```bash
 # Plain JSON helper.
-curl -sSf https://api.cerniqapp.com/.well-known/audit-signing-key | jq
+curl -sSf https://api.cerniq.io/.well-known/audit-signing-key | jq
 
 # JWKS (note the content type).
 curl -sSf -H 'Accept: application/jwk-set+json' \
-  https://api.cerniqapp.com/.well-known/jwks.json | jq
+  https://api.cerniq.io/.well-known/jwks.json | jq
 
 # Cache-aware: capture the ETag and re-fetch.
-ETAG=$(curl -sSfI https://api.cerniqapp.com/.well-known/audit-signing-key | awk -F': ' '/^etag/i {print $2}' | tr -d '\r')
+ETAG=$(curl -sSfI https://api.cerniq.io/.well-known/audit-signing-key | awk -F': ' '/^etag/i {print $2}' | tr -d '\r')
 curl -sSf -o /dev/null -w '%{http_code}\n' \
   -H "If-None-Match: $ETAG" \
-  https://api.cerniqapp.com/.well-known/audit-signing-key
+  https://api.cerniq.io/.well-known/audit-signing-key
 # -> 304
 ```
 
@@ -104,7 +104,7 @@ import { sha512 } from '@noble/hashes/sha512';
 ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
 
 // 1. Fetch the CERNIQ audit-signing key.
-const res = await fetch('https://api.cerniqapp.com/.well-known/audit-signing-key');
+const res = await fetch('https://api.cerniq.io/.well-known/audit-signing-key');
 const { publicKey, kid } = await res.json();
 
 // 2. base64url-decode helpers.
@@ -130,7 +130,7 @@ For JWKS-native tooling (e.g. `jose`):
 ```ts
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 
-const jwks = createRemoteJWKSet(new URL('https://api.cerniqapp.com/.well-known/jwks.json'));
+const jwks = createRemoteJWKSet(new URL('https://api.cerniq.io/.well-known/jwks.json'));
 // Use `jwks` wherever a key resolver is accepted. CERNIQ audit signatures
 // today are detached Ed25519 over canonicalised JSON, NOT compact JWS;
 // the JWKS view exists for tools that want a uniform key-discovery path.

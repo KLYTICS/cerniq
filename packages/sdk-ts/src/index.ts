@@ -4,7 +4,7 @@ import { HttpClient } from './http.js';
 import { PolicyClient } from './policy.js';
 import type { CerniqConfig, SignContext, VerifyResult } from './types.js';
 
-const DEFAULT_BASE_URL = 'https://api.cerniqapp.com';
+const DEFAULT_BASE_URL = 'https://api.cerniq.io';
 const DEFAULT_TIMEOUT_MS = 5_000;
 
 export class Cerniq {

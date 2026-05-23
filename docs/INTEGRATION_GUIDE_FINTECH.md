@@ -61,7 +61,7 @@ const cerniq = new CerniqClient({
 
 // CERNIQ middleware: verify agent identity before ANY payment processing
 const requirePaymentAuth = createExpressMiddleware({
-  cerniqUrl: 'https://api.cerniqapp.com',
+  cerniqUrl: 'https://api.cerniq.io',
   apiKey: process.env.CERNIQ_API_KEY!,
   requiredScopes: ['payment:write'],
   trustBandMinimum: 'VERIFIED', // payments require VERIFIED or better

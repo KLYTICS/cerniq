@@ -99,7 +99,7 @@ scrape_configs:
     metrics_path: '/metrics'
     bearer_token: '${METRICS_TOKEN}'
     static_configs:
-      - targets: ['api.cerniqapp.com']
+      - targets: ['api.cerniq.io']
     scrape_interval: 15s
     scrape_timeout: 10s
 ```
@@ -108,7 +108,7 @@ scrape_configs:
 
 ```bash
 # Verify metrics endpoint is working
-curl https://api.cerniqapp.com/metrics \
+curl https://api.cerniq.io/metrics \
   -H "Authorization: Bearer $METRICS_TOKEN"
 
 # Expected: Prometheus text format
@@ -602,22 +602,22 @@ Every alert links to the correct runbook section. Quick reference:
 
 ```bash
 # Health (unauthenticated — used by load balancers)
-curl https://api.cerniqapp.com/health
+curl https://api.cerniq.io/health
 # Expected: {"status":"ok","timestamp":"2026-05-04T12:00:00.000Z"}
 # This must NEVER require auth. Never block on DB/Redis.
 
 # Readiness (authenticated — deep health check)
-curl https://api.cerniqapp.com/ready \
+curl https://api.cerniq.io/ready \
   -H "X-CERNIQ-Admin: $CERNIQ_ADMIN_TOKEN"
 # Expected: {"status":"ready","db":"ok","redis":"ok","migrations":"current"}
 
 # Metrics
-curl https://api.cerniqapp.com/metrics \
+curl https://api.cerniq.io/metrics \
   -H "Authorization: Bearer $METRICS_TOKEN"
 # Expected: Prometheus text format
 
 # Version info
-curl https://api.cerniqapp.com/version
+curl https://api.cerniq.io/version
 # Expected: {"version":"1.2.3","commit":"abc123","build":"2026-05-04"}
 ```
 

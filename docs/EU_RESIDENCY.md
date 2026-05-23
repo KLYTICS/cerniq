@@ -43,13 +43,13 @@ differentiator vs. Auth0/Stripe.
 
 | Region             | Surface                   | Data store                                                                     | Hosting    |
 | ------------------ | ------------------------- | ------------------------------------------------------------------------------ | ---------- |
-| **US** (default)   | `api.cerniqapp.com`       | Postgres `us-east-1` (Railway), Redis `us-east-1`, BullMQ `us-east-1`          | Railway US |
-| **EU**             | `api.eu.cerniqapp.com`    | Postgres `eu-central-1` (Railway), Redis `eu-central-1`, BullMQ `eu-central-1` | Railway EU |
+| **US** (default)   | `api.cerniq.io`           | Postgres `us-east-1` (Railway), Redis `us-east-1`, BullMQ `us-east-1`          | Railway US |
+| **EU**             | `api.eu.cerniq.io`        | Postgres `eu-central-1` (Railway), Redis `eu-central-1`, BullMQ `eu-central-1` | Railway EU |
 | **Edge** (Phase 3) | Cloudflare Workers global | KV trust score cache (regional)                                                | Cloudflare |
 
 **Routing rule**: a principal's region is set at registration (`region: 'US' | 'EU'`). All data for that principal — agents, policies, audit events, BATE signals, webhook deliveries — lives exclusively in that region's plane. Cross-region reads are forbidden.
 
-**SDK behavior**: `@cerniq/sdk` and `cerniq` (Python) accept `baseUrl`. EU customers point at `api.eu.cerniqapp.com`; the rest of the API is identical.
+**SDK behavior**: `@cerniq/sdk` and `cerniq` (Python) accept `baseUrl`. EU customers point at `api.eu.cerniq.io`; the rest of the API is identical.
 
 ## 3. What can never leave the EU plane
 
@@ -70,7 +70,7 @@ This is the hard one. GDPR Art. 17 requires erasure on request. The CERNIQ audit
 2. **Email is the only routinely-personal field.** Agent IDs, public keys, policy IDs are pseudonymous — they're cryptographically derived. They don't fall under GDPR personal data unless paired with a name/email.
 
 3. **Erasure request workflow** (manual in v1, automated by Phase 2):
-   - Customer files a DSAR via `gdpr@cerniqapp.com`.
+   - Customer files a DSAR via `gdpr@cerniq.io`.
    - On-call verifies identity (matching API key principal_id + email).
    - Operator runs `pnpm --filter @cerniq/api gdpr:erase --principalId p_xxx`.
    - Script writes erasure tombstones, hashes PII fields, retains the cryptographic skeleton for audit-chain integrity.
@@ -96,7 +96,7 @@ Sub-processor changes are notified to enterprise customers 30 days in advance.
 ## 6. SDK & dashboard implications
 
 - **Dashboard** must let principals see and update their region (only at creation; switching mid-life is forbidden in v1).
-- **SDK** quickstart docs show both `https://api.cerniqapp.com/v1` and `https://api.eu.cerniqapp.com/v1` examples.
+- **SDK** quickstart docs show both `https://api.cerniq.io/v1` and `https://api.eu.cerniq.io/v1` examples.
 - **Docs site** has a region picker that updates code snippets.
 
 ## 7. Open questions for legal review

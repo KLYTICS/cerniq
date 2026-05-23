@@ -22,7 +22,7 @@ import { CerniqVerifier } from '@cerniq/verifier-rp';
 import { cerniqGuard } from '@cerniq/verifier-rp/express';
 
 const verifier = new CerniqVerifier({
-  baseUrl: 'https://api.cerniqapp.com/v1',
+  baseUrl: 'https://api.cerniq.io/v1',
   getAgentPublicKey: async (agentId) => myAgentRegistry.lookup(agentId),
 });
 

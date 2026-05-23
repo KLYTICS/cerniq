@@ -405,7 +405,7 @@ When an agent is revoked, MCP servers should stop accepting its tokens within 30
 import { CerniqVerifier } from '@cerniq/verifier-rp';
 
 const verifier = new CerniqVerifier({
-  cerniqUrl: 'https://api.cerniqapp.com',
+  cerniqUrl: 'https://api.cerniq.io',
   apiKey: process.env.CERNIQ_API_KEY,
 });
 
@@ -436,7 +436,7 @@ If webhooks aren't configured, verifier-rp polls revocation status:
 
 ```typescript
 const verifier = new CerniqVerifier({
-  cerniqUrl: 'https://api.cerniqapp.com',
+  cerniqUrl: 'https://api.cerniq.io',
   apiKey: process.env.CERNIQ_API_KEY,
   revocationPollInterval: 30_000, // 30 seconds (default)
   // Revoked agents are cached for max 5 minutes

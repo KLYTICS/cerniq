@@ -33,7 +33,7 @@ import { verifySpt } from './spt-verify.js';
 import type { ChargeRequest, ChargeResponse, ChargeId } from './types.js';
 
 const cerniq = new Cerniq({
-  baseUrl: process.env.CERNIQ_API_BASE ?? 'https://api.cerniqapp.com',
+  baseUrl: process.env.CERNIQ_API_BASE ?? 'https://api.cerniq.io',
   // Verify-only key — never a management key on a service edge.
   verifyKey: requireEnv('CERNIQ_VERIFY_KEY'),
 });

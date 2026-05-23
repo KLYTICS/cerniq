@@ -44,7 +44,7 @@ const app = express();
 
 // Create the middleware
 const cerniqMiddleware = createExpressMiddleware({
-  cerniqUrl: 'https://api.cerniqapp.com',
+  cerniqUrl: 'https://api.cerniq.io',
   apiKey: process.env.CERNIQ_API_KEY!,
 
   // Optional configuration
@@ -80,13 +80,13 @@ import { createExpressMiddleware } from '@cerniq/verifier-rp/express';
 
 // Create middleware with different scope requirements per route
 const requireRead = createExpressMiddleware({
-  cerniqUrl: 'https://api.cerniqapp.com',
+  cerniqUrl: 'https://api.cerniq.io',
   apiKey: process.env.CERNIQ_API_KEY!,
   requiredScopes: ['payment:read'],
 });
 
 const requireWrite = createExpressMiddleware({
-  cerniqUrl: 'https://api.cerniqapp.com',
+  cerniqUrl: 'https://api.cerniq.io',
   apiKey: process.env.CERNIQ_API_KEY!,
   requiredScopes: ['payment:write'],
   trustBandMinimum: 'VERIFIED', // writes require higher trust
@@ -100,7 +100,7 @@ app.post('/api/transfer', requireWrite, transferHandler);
 
 ```typescript
 const cerniqMiddleware = createExpressMiddleware({
-  cerniqUrl: 'https://api.cerniqapp.com',
+  cerniqUrl: 'https://api.cerniq.io',
   apiKey: process.env.CERNIQ_API_KEY!,
 
   onDenied: (result, req, res) => {
@@ -139,7 +139,7 @@ const fastify = Fastify({ logger: true });
 
 // Register as a Fastify plugin
 await fastify.register(createFastifyPlugin, {
-  cerniqUrl: 'https://api.cerniqapp.com',
+  cerniqUrl: 'https://api.cerniq.io',
   apiKey: process.env.CERNIQ_API_KEY!,
   routePrefix: '/api', // only protect /api/* routes
 });
@@ -199,7 +199,7 @@ import { createHonoMiddleware } from '@cerniq/verifier-rp/hono';
 const app = new Hono();
 
 const cerniqMiddleware = createHonoMiddleware({
-  cerniqUrl: 'https://api.cerniqapp.com',
+  cerniqUrl: 'https://api.cerniq.io',
   apiKey: process.env.CERNIQ_API_KEY!,
 });
 
@@ -227,7 +227,7 @@ const app = new Hono<{ Bindings: { CERNIQ_API_KEY: string } }>();
 
 app.use('/api/*', async (c, next) => {
   const middleware = createHonoMiddleware({
-    cerniqUrl: 'https://api.cerniqapp.com',
+    cerniqUrl: 'https://api.cerniq.io',
     apiKey: c.env.CERNIQ_API_KEY, // from Cloudflare secrets
   });
   return middleware(c, next);
@@ -246,7 +246,7 @@ For any HTTP framework:
 import { CerniqVerifier } from '@cerniq/verifier-rp';
 
 const verifier = new CerniqVerifier({
-  cerniqUrl: 'https://api.cerniqapp.com',
+  cerniqUrl: 'https://api.cerniq.io',
   apiKey: process.env.CERNIQ_API_KEY!,
   // Warm up JWKS cache at startup (optional but recommended)
   prefetchJwks: true,
@@ -418,7 +418,7 @@ At 1000 RPS on a single Node.js process, verifier-rp adds ~1ms median latency.
 
 ```typescript
 const verifier = new CerniqVerifier({
-  cerniqUrl: 'https://api.cerniqapp.com',
+  cerniqUrl: 'https://api.cerniq.io',
   apiKey: process.env.CERNIQ_API_KEY!,
 
   // Tune for high throughput

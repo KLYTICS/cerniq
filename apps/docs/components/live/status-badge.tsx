@@ -56,7 +56,7 @@ export async function StatusBadge() {
         className="inline-block h-2 w-2 rounded-full"
         style={{ background: color, boxShadow: `0 0 8px ${color}` }}
       />
-      <span className="font-mono text-[var(--cerniq-halo)]">api.cerniqapp.com · {label}</span>
+      <span className="font-mono text-[var(--cerniq-halo)]">api.cerniq.io · {label}</span>
       {result.source === 'fallback' && (
         <span className="font-mono text-[var(--cerniq-shadow)]">({result.reason})</span>
       )}

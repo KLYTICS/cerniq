@@ -22,7 +22,7 @@ import (
 
 // DefaultBaseURL is the production CERNIQ API host. CLI users override
 // it via --base-url, CERNIQ_BASE_URL, or the `base_url` config field.
-const DefaultBaseURL = "https://api.cerniqapp.com"
+const DefaultBaseURL = "https://api.cerniq.io"
 
 // Config is the on-disk shape. Field tags match snake_case TOML keys.
 type Config struct {

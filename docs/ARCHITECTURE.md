@@ -262,7 +262,7 @@ private to us.
 | P2     | 24 hours                | Dashboard banner + email                                                           |
 | P3     | Next status-page post   | Status page only                                                                   |
 
-- **Status page**: `status.cerniqapp.com`, sourced from
+- **Status page**: `status.cerniq.io`, sourced from
   `incidents.{open,history}.json` published from the management API
   (Statuspage / self-hosted decision pending — see `OPERATOR_DECISIONS.md`
   OD-007 once filed).

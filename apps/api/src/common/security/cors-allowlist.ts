@@ -4,7 +4,7 @@
 // must:
 //
 //   1. Explicitly allow only the domains we publish (dashboard, docs site,
-//      *.cerniqapp.com for our own properties).
+//      *.cerniq.io for our own properties).
 //   2. Reflect the requesting Origin only when it appears in the allow-list,
 //      so a browser CORS preflight from any other host fails.
 //   3. Deny `credentials: true` when origin is the wildcard
@@ -31,7 +31,7 @@ export interface CorsConfig {
    * endpoints get `*` regardless.
    *
    * Examples:
-   *   `https://app.cerniqapp.com,https://docs.cerniqapp.com`
+   *   `https://app.cerniq.io,https://docs.cerniq.io`
    *   `*` (development only)
    */
   managementOrigins: string;

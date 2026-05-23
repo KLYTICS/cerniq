@@ -54,7 +54,7 @@ lead is on the bridge — the broken row is forensic evidence.
 ```sh
 # Reproduce the break independently with the public verifier.
 npx @cerniq/audit-verifier verify ./export.ndjson \
-  --jwks https://api.cerniqapp.com/.well-known/audit-signing-key \
+  --jwks https://api.cerniq.io/.well-known/audit-signing-key \
   --no-fail-fast --json > triage.json
 
 # Find the first break.
@@ -134,7 +134,7 @@ aws kms list-keys --query 'Keys[?contains(KeyId, `cerniq-audit`)]'
 # (or the GCP / Vault equivalent)
 
 # 2. Confirm the old key is still listed in JWKS.
-curl -s https://api.cerniqapp.com/.well-known/audit-signing-key | jq '.keys[].kid'
+curl -s https://api.cerniq.io/.well-known/audit-signing-key | jq '.keys[].kid'
 ```
 
 ### Remediation (the rotation)
@@ -152,7 +152,7 @@ kubectl rollout restart deployment/cerniq-api
 
 # 3. Confirm the JWKS lists BOTH old + new kids for the rotation
 #    window.
-curl -s https://api.cerniqapp.com/.well-known/audit-signing-key | jq '.keys'
+curl -s https://api.cerniq.io/.well-known/audit-signing-key | jq '.keys'
 
 # 4. After 24h, confirm no in-flight rows still reference the old kid.
 psql -c "SELECT signingKeyId, count(*) FROM \"AuditEvent\"
@@ -206,7 +206,7 @@ cerniq agents list --principal "$PRINCIPAL_ID" --json > snapshot-$(date +%s).jso
 
 ```sh
 # Bulk revoke via admin endpoint (gated by CERNIQ_ADMIN_TOKEN).
-curl -X POST https://api.cerniqapp.com/v1/admin/principals/$PRINCIPAL_ID/revoke-all \
+curl -X POST https://api.cerniq.io/v1/admin/principals/$PRINCIPAL_ID/revoke-all \
      -H "X-CERNIQ-Admin: $CERNIQ_ADMIN_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{"reason":"compromise_response","ticketId":"INC-2026-0501"}'
@@ -251,11 +251,11 @@ outage breaks new RP cold-starts.
 
 ```sh
 # Verify the endpoint serves correctly from your edge.
-curl -fsSI https://api.cerniqapp.com/.well-known/audit-signing-key
+curl -fsSI https://api.cerniq.io/.well-known/audit-signing-key
 # Expected: 200, Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 
 # Verify it's not an upstream Railway / Cloudflare issue.
-curl -fsSI https://api.cerniqapp.com/health
+curl -fsSI https://api.cerniq.io/health
 ```
 
 ### Remediation
@@ -429,14 +429,14 @@ psql -c "SELECT count(*) FROM \"AuditEvent\"
 # but keeps the *Hash columns + the signature, so the chain stays
 # verifiable.
 for EVENT_ID in $(psql -At -c "SELECT id FROM \"AuditEvent\" WHERE \"principalId\" = '$PRINCIPAL_ID';"); do
-  curl -X POST https://api.cerniqapp.com/v1/compliance/audit/redact-event \
+  curl -X POST https://api.cerniq.io/v1/compliance/audit/redact-event \
        -H "X-CERNIQ-API-Key: $CERNIQ_ADMIN_KEY" \
        -d "{\"eventId\":\"$EVENT_ID\",\"reason\":\"gdpr_art17\",\"ticketId\":\"$TICKET\"}"
 done
 
 # Verify the chain is still intact post-redaction.
 npx @cerniq/audit-verifier verify ./export-after-redact.ndjson \
-  --jwks https://api.cerniqapp.com/.well-known/audit-signing-key
+  --jwks https://api.cerniq.io/.well-known/audit-signing-key
 # Expected: ✓ INTACT
 ```
 
@@ -475,11 +475,11 @@ DATABASE_URL=$EU_DB_URL pnpm -F @cerniq/api prisma migrate deploy
 kubectl apply -f infra/k8s/cerniq-api-eu-west.yaml
 
 # 3. Confirm the genesis audit row was created and is verifiable.
-npx @cerniq/audit-verifier verify <(curl -s https://eu.api.cerniqapp.com/v1/audit-events/export) \
-  --jwks https://eu.api.cerniqapp.com/.well-known/audit-signing-key
+npx @cerniq/audit-verifier verify <(curl -s https://eu.api.cerniq.io/v1/audit-events/export) \
+  --jwks https://eu.api.cerniq.io/.well-known/audit-signing-key
 
 # 4. Update the customer's principal record to pin region.
-curl -X PATCH https://api.cerniqapp.com/v1/admin/principals/$PRINCIPAL_ID \
+curl -X PATCH https://api.cerniq.io/v1/admin/principals/$PRINCIPAL_ID \
      -H "X-CERNIQ-Admin: $CERNIQ_ADMIN_TOKEN" \
      -d '{"region":"eu-west","dataResidency":"eu"}'
 ```

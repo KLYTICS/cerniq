@@ -47,7 +47,7 @@ break verification. See [`docs/decisions/0006-audit-redactability.md`](https://g
 ## GDPR erasure flow
 
 ```bash
-curl -X POST https://api.cerniqapp.com/v1/compliance/audit/redact-event \
+curl -X POST https://api.cerniq.io/v1/compliance/audit/redact-event \
   -H "X-CERNIQ-API-Key: $CERNIQ_API_KEY" \
   -d '{ "eventId": "evt_01HXYZ..." }'
 ```
@@ -69,7 +69,7 @@ import { CerniqVerifier } from '@cerniq/verifier-rp';
 import { readFileSync } from 'node:fs';
 
 const verifier = new CerniqVerifier({
-  jwksUri: 'https://api.cerniqapp.com/.well-known/audit-signing-key',
+  jwksUri: 'https://api.cerniq.io/.well-known/audit-signing-key',
 });
 
 const ndjson = readFileSync('./audit-export.ndjson', 'utf-8');

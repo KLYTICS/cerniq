@@ -33,7 +33,7 @@ The runbook is correct as written.
 
 - **Critical alert** — phone page via PagerDuty. Acknowledge within
   5 min; first runbook step within 5 min of acknowledgment. Status
-  page update (https://status.cerniqapp.com) within 15 min if the
+  page update (https://status.cerniq.io) within 15 min if the
   alert is still firing.
 - **Warning alert** — PagerDuty notify (no page) + Slack
   `#cerniq-oncall`. Triage within 30 min during business hours, by
@@ -57,7 +57,7 @@ escalation contact as `${ESCALATION_CONTACT}` until OD-007 lands.
    in review.
 3. **Cross-link the alert.** The `runbook` annotation on the alert in
    `cerniq.rules.yml` must use the runbook's repo path; the
-   `runbook_url` must use `https://docs.cerniqapp.com/runbooks/<file
+   `runbook_url` must use `https://docs.cerniq.io/runbooks/<file
 without .md>`.
 4. **Update this index table.** New row in the right severity slot.
 

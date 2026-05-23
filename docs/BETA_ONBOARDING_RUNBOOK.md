@@ -47,7 +47,7 @@ Beta cohort priority order (do not deviate):
 
 ### 2.2 Waitlist Form Fields
 
-Collect at signup (cerniqapp.com/beta):
+Collect at signup (cerniq.io/beta):
 
 ```
 1. Email (required)
@@ -97,7 +97,7 @@ What you can do today:
   → Attach a policy (spend limits, scope gates)
   → Start verifying actions in your workflow
 
-Start here: https://docs.cerniqapp.com/quickstart
+Start here: https://docs.cerniq.io/quickstart
 
 If you're building something cool and want a dedicated Slack channel
 with direct engineering access, reply to this email.
@@ -255,8 +255,8 @@ New users should run this first:
 $ cerniq doctor
 
 ✅ CLI version: 0.4.0 (latest)
-✅ API reachable: https://api.cerniqapp.com/health → 200 OK (47ms)
-✅ Auth: principal abc123 (erwin@cerniqapp.com)
+✅ API reachable: https://api.cerniq.io/health → 200 OK (47ms)
+✅ Auth: principal abc123 (erwin@cerniq.io)
 ✅ Default agent: agent_xyz (ACTIVE, VERIFIED band, score 823)
 ⚠️  No webhook configured: revocation events won't be received
 ⚠️  Production keys: using env var (recommend KMS for production)
@@ -372,7 +372,7 @@ Gate criteria before upgrading any user to a paid plan:
 
 ```
 [ ] Stripe billing fully wired (G-2 gap — see WORK_BOARD.md)
-[ ] Pricing page live at cerniqapp.com/pricing
+[ ] Pricing page live at cerniq.io/pricing
 [ ] Plan limits enforced at verify level (FREE: 10K/month, PRO: 1M/month)
 [ ] Invoice generation tested end-to-end
 [ ] Churn webhook handled (downgrade to FREE on failed payment)

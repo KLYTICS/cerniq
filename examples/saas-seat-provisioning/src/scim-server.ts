@@ -24,7 +24,7 @@ import express, { type Request, type Response } from 'express';
 import { Cerniq } from '@cerniq/sdk';
 
 const cerniq = new Cerniq({
-  baseUrl: process.env.CERNIQ_API_BASE ?? 'https://api.cerniqapp.com',
+  baseUrl: process.env.CERNIQ_API_BASE ?? 'https://api.cerniq.io',
   apiKey: requireEnv('CERNIQ_API_KEY'),
 });
 
@@ -110,7 +110,7 @@ app.delete('/scim/v2/Agents/:id', async (req, res) => {
 app.get('/scim/v2/ServiceProviderConfig', (_req, res) => {
   res.json({
     schemas: ['urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig'],
-    documentationUri: 'https://docs.cerniqapp.com/integrations/scim',
+    documentationUri: 'https://docs.cerniq.io/integrations/scim',
     patch: { supported: false },
     bulk: { supported: false, maxOperations: 0, maxPayloadSize: 0 },
     filter: { supported: true, maxResults: 200 },

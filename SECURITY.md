@@ -4,7 +4,7 @@
 
 **Do not file a public issue.**
 
-Email `security@cerniqapp.com` (PGP key fingerprint TBD on first deploy)
+Email `security@cerniq.io` (PGP key fingerprint TBD on first deploy)
 with:
 
 1. A description of the vulnerability and its impact
@@ -20,8 +20,8 @@ researchers in release notes (with consent).
 
 In-scope:
 
-- CERNIQ API (`api.cerniqapp.com`, `sandbox.cerniqapp.com`)
-- CERNIQ dashboard (`app.cerniqapp.com`)
+- CERNIQ API (`api.cerniq.io`, `sandbox.cerniq.io`)
+- CERNIQ dashboard (`app.cerniq.io`)
 - CERNIQ SDK packages (`@cerniq/sdk`, `cerniq-sdk` Python)
 - Cloudflare verify worker (when deployed)
 
@@ -38,7 +38,7 @@ Out-of-scope:
   database is not a path to forging signed agent tokens.
 - **Audit records are CERNIQ-signed (RSA-4096).** The audit-record signing
   key is held by CERNIQ and rotated per a published schedule. Public key:
-  `https://api.cerniqapp.com/.well-known/audit-signing-key`.
+  `https://api.cerniq.io/.well-known/audit-signing-key`.
 - **Token TTL is 60s.** Replay window is bounded; high-value actions
   use single-use `jti`.
 

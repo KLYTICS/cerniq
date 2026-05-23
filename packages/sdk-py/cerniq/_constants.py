@@ -56,7 +56,7 @@ WEBHOOK_EVENT: Final[dict[str, str]] = {
 }
 
 # ── Defaults ─────────────────────────────────────────────────
-DEFAULT_BASE_URL: Final[str] = "https://api.cerniqapp.com/v1"
+DEFAULT_BASE_URL: Final[str] = "https://api.cerniq.io/v1"
 DEFAULT_TIMEOUT_MS: Final[int] = 5_000
 DEFAULT_MAX_RETRIES: Final[int] = 3
 RETRY_BACKOFF_MS: Final[tuple[int, ...]] = (250, 500, 1_000)

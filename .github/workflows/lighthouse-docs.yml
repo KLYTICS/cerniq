@@ -37,8 +37,8 @@ jobs:
       - name: Build @cerniq/docs
         run: pnpm --filter @cerniq/docs build
         env:
-          CERNIQ_API_BASE_URL: https://api.cerniqapp.com
-          NEXT_PUBLIC_DOCS_URL: https://docs.cerniqapp.com
+          CERNIQ_API_BASE_URL: https://api.cerniq.io
+          NEXT_PUBLIC_DOCS_URL: https://docs.cerniq.io
       - name: Install Chrome (for Lighthouse)
         uses: browser-actions/setup-chrome@v1
       - name: Run Lighthouse CI

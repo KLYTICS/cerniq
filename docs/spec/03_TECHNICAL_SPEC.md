@@ -990,7 +990,7 @@ export class Cerniq {
   constructor(config: CerniqConfig) {
     this.config = {
       apiKey: config.apiKey,
-      baseUrl: config.baseUrl ?? 'https://api.cerniqapp.com/v1',
+      baseUrl: config.baseUrl ?? 'https://api.cerniq.io/v1',
       timeout: config.timeout ?? 5000,
     };
     this.http = new CerniqHttpClient(this.config);
@@ -1139,7 +1139,7 @@ Payload: {
 }
 ```
 
-**Audit record signing:** CERNIQ signs each AuditEvent with an CERNIQ-held Ed25519 keypair (separate from the policy-signing keypair so a policy-key compromise does not invalidate the audit chain). Decision rationale and post-quantum migration plan live in `docs/THREAT_MODEL_v2.md` § 4.2 and `docs/POST_QUANTUM_ROADMAP.md`. This allows third parties to verify audit records without CERNIQ involvement. Public key published at `https://api.cerniqapp.com/.well-known/jwks.json` (and the convenience endpoint `https://api.cerniqapp.com/.well-known/audit-signing-key`).
+**Audit record signing:** CERNIQ signs each AuditEvent with an CERNIQ-held Ed25519 keypair (separate from the policy-signing keypair so a policy-key compromise does not invalidate the audit chain). Decision rationale and post-quantum migration plan live in `docs/THREAT_MODEL_v2.md` § 4.2 and `docs/POST_QUANTUM_ROADMAP.md`. This allows third parties to verify audit records without CERNIQ involvement. Public key published at `https://api.cerniq.io/.well-known/jwks.json` (and the convenience endpoint `https://api.cerniq.io/.well-known/audit-signing-key`).
 
 **API key format:** `cerniq_sk_[32 random bytes base58]`. Stored as bcrypt hash (cost 12). Only the `cerniq_sk_` prefix + first 4 chars stored as `keyPrefix` for identification in dashboards.
 

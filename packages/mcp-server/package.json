@@ -4,8 +4,8 @@
   "description": "CERNIQ exposed as an MCP server. Lets Claude Desktop / Cursor / any MCP host call CERNIQ verify, agents, policies, and audit tools natively.",
   "type": "module",
   "license": "MIT",
-  "author": "CERNIQ Labs <hello@cerniqapp.com>",
-  "homepage": "https://cerniqapp.com/mcp",
+  "author": "CERNIQ Labs <hello@cerniq.io>",
+  "homepage": "https://cerniq.io/mcp",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/klytics/cerniq.git",

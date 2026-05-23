@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "description": "CERNIQ — Agent Gateway & Identity Stack — TypeScript SDK. Cryptographic identity, scoped policies, and verification for AI agents.",
   "license": "MIT",
-  "author": "CERNIQ Labs <hello@cerniqapp.com>",
-  "homepage": "https://cerniqapp.com",
+  "author": "CERNIQ Labs <hello@cerniq.io>",
+  "homepage": "https://cerniq.io",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/klytics/cerniq.git",

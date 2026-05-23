@@ -72,7 +72,7 @@ the transport-specific glue may evolve.
 
 ## See also
 
-- CERNIQ docs: <https://docs.cerniqapp.com>
+- CERNIQ docs: <https://docs.cerniq.io>
 - MCP spec: <https://modelcontextprotocol.io>
 - Strategic rationale: `docs/standards/0001-mcp-bridge-positioning.md`
 

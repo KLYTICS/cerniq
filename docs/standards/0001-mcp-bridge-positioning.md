@@ -98,7 +98,7 @@ mcp.add_middleware(cerniq_middleware(
 To adopt CERNIQ via the SDK (M-001), a developer must:
 
 1. Decide they want agent identity verification.
-2. Sign up at `cerniqapp.com`.
+2. Sign up at `cerniq.io`.
 3. Install `@cerniq/sdk`.
 4. Modify outbound code to sign requests.
 5. Modify inbound (relying-party) code to verify.

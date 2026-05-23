@@ -270,20 +270,20 @@ Q1 2026). https://w3c-ccg.github.io/did-method-web/ for `did:web`.
 
 ### Choice matrix
 
-| Approach                                | Pros                                                                | Cons                                                                          | Recommendation                                                         |
-| --------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Publish `did:cerniq` method spec        | "Real" DID method, signals seriousness                              | Adds governance + maintenance burden, requires registry submission to W3C CCG | Phase 2+                                                               |
-| Use `did:web:cerniqapp.com:agents:<id>` | Zero protocol invention; resolution is plain HTTPS GET; works today | "Just" DNS-anchored — no decentralisation theatre                             | **YES — Phase 1**                                                      |
-| Use `did:key:z<base58btc-pubkey>`       | Pure key-based, no resolution needed                                | Loses the principal-binding, label, runtime metadata                          | Use as the _agent's_ fallback DID; CERNIQ DID becomes the _issuer_ DID |
+| Approach                            | Pros                                                                | Cons                                                                          | Recommendation                                                         |
+| ----------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Publish `did:cerniq` method spec    | "Real" DID method, signals seriousness                              | Adds governance + maintenance burden, requires registry submission to W3C CCG | Phase 2+                                                               |
+| Use `did:web:cerniq.io:agents:<id>` | Zero protocol invention; resolution is plain HTTPS GET; works today | "Just" DNS-anchored — no decentralisation theatre                             | **YES — Phase 1**                                                      |
+| Use `did:key:z<base58btc-pubkey>`   | Pure key-based, no resolution needed                                | Loses the principal-binding, label, runtime metadata                          | Use as the _agent's_ fallback DID; CERNIQ DID becomes the _issuer_ DID |
 
 ### Recommended implementation
 
-- CERNIQ issues `did:web:cerniqapp.com:agents:<agentId>` for every agent
+- CERNIQ issues `did:web:cerniq.io:agents:<agentId>` for every agent
   on registration.
-- `GET https://cerniqapp.com/agents/<agentId>/did.json` returns a W3C DID
+- `GET https://cerniq.io/agents/<agentId>/did.json` returns a W3C DID
   Document with `verificationMethod` (the Ed25519 key), `service` (the
   CERNIQ verify endpoint), and a `controller` (the principal's DID).
-- The CERNIQ _issuer_ identity is `did:web:cerniqapp.com` — published
+- The CERNIQ _issuer_ identity is `did:web:cerniq.io` — published
   separately at the apex.
 - This costs ~1 day of engineering and is what NIST IR drafts will look
   for.
@@ -293,7 +293,7 @@ Q1 2026). https://w3c-ccg.github.io/did-method-web/ for `did:web`.
 | #     | Issue                                                         | Backlog ID                              |
 | ----- | ------------------------------------------------------------- | --------------------------------------- |
 | DID-1 | No DID document endpoint per agent                            | **M-130 (new — high impact, low cost)** |
-| DID-2 | No `did:web:cerniqapp.com` issuer DID document                | M-131                                   |
+| DID-2 | No `did:web:cerniq.io` issuer DID document                    | M-131                                   |
 | DID-3 | `agentId` ULID format not encoded in DID resolution path docs | M-132 (docs)                            |
 
 **Verdict: MISSING.** Cheap to fix; high signal value.
@@ -533,7 +533,7 @@ where applicable.
 | -------- | ----------------- | -------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | 1        | **M-110**         | `@cerniq/mcp-bridge` package (Node + Python)                                     | 1–2 weeks           | Distribution wedge with the largest 2026 agent ecosystem. Detailed rationale in `docs/standards/0001-mcp-bridge-positioning.md`. |
 | 2        | **M-101**         | Schema fix: open `Currency`, add stablecoin support, support 6-decimal precision | 1–2 days            | Public-API blocker. Cheap if pre-launch, painful post-launch.                                                                    |
-| 3        | **M-130**         | Per-agent `did:web:cerniqapp.com:agents:<id>` DID document endpoint              | 1–2 days            | Single highest-signal NIST-alignment artefact.                                                                                   |
+| 3        | **M-130**         | Per-agent `did:web:cerniq.io:agents:<id>` DID document endpoint                  | 1–2 days            | Single highest-signal NIST-alignment artefact.                                                                                   |
 | 4        | **M-170**         | Add `signingAlgorithm` field to `AgentIdentity` (PQ agility)                     | 0.5 days            | Schema-additive; postponing is expensive.                                                                                        |
 | 5        | **M-140 / M-142** | OAuth 2.1 metadata endpoint + introspection endpoint                             | 3–5 days            | Unlocks "any OAuth resource server" adoption with minimal code.                                                                  |
 | 6        | **M-141**         | DPoP support on policy tokens (`cnf.jkt` claim + DPoP-Header verification)       | 3–5 days            | Replay-safety win + standards conformance. Pairs with M-140.                                                                     |

@@ -2,7 +2,7 @@
 
 ## Every Endpoint with Request/Response Examples
 
-> **Base URL:** `https://api.cerniqapp.com`  
+> **Base URL:** `https://api.cerniq.io`  
 > **Auth:** `Authorization: Bearer <api_key>` on all endpoints except `/health`, `/ready`, `/.well-known/*`  
 > **Version:** All endpoints are under `/v1/`  
 > **Updated:** 2026-05-04
@@ -28,7 +28,7 @@ Authorization: Bearer ak_live_xxxxxxxxxxxxxxxxxxxx
 Public. No auth. Used by load balancers and uptime monitors.
 
 ```bash
-curl https://api.cerniqapp.com/health
+curl https://api.cerniq.io/health
 ```
 
 **Response 200:**
@@ -49,7 +49,7 @@ This endpoint NEVER checks DB or Redis. It always returns 200 if the process is 
 Authenticated (admin token). Deep health check.
 
 ```bash
-curl https://api.cerniqapp.com/ready \
+curl https://api.cerniq.io/ready \
   -H "X-CERNIQ-Admin: $CERNIQ_ADMIN_TOKEN"
 ```
 
@@ -84,7 +84,7 @@ curl https://api.cerniqapp.com/ready \
 Public. Returns the current CERNIQ audit signing key as JWKS. Used by relying parties to verify audit chain signatures independently.
 
 ```bash
-curl https://api.cerniqapp.com/.well-known/audit-signing-key
+curl https://api.cerniq.io/.well-known/audit-signing-key
 ```
 
 **Response 200:**
@@ -113,7 +113,7 @@ curl https://api.cerniqapp.com/.well-known/audit-signing-key
 Register a new AI agent identity.
 
 ```bash
-curl -X POST https://api.cerniqapp.com/v1/agents \
+curl -X POST https://api.cerniq.io/v1/agents \
   -H "Authorization: Bearer $CERNIQ_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -169,7 +169,7 @@ curl -X POST https://api.cerniqapp.com/v1/agents \
 List all agents for your principal.
 
 ```bash
-curl https://api.cerniqapp.com/v1/agents \
+curl https://api.cerniq.io/v1/agents \
   -H "Authorization: Bearer $CERNIQ_API_KEY" \
   -G \
   --data-urlencode "status=ACTIVE" \
@@ -214,7 +214,7 @@ curl https://api.cerniqapp.com/v1/agents \
 Get a single agent with full trust detail.
 
 ```bash
-curl https://api.cerniqapp.com/v1/agents/agent_01HX5TZK \
+curl https://api.cerniq.io/v1/agents/agent_01HX5TZK \
   -H "Authorization: Bearer $CERNIQ_API_KEY"
 ```
 
@@ -252,7 +252,7 @@ curl https://api.cerniqapp.com/v1/agents/agent_01HX5TZK \
 Update agent metadata or description. (Cannot change publicKey — use rotation endpoint.)
 
 ```bash
-curl -X PATCH https://api.cerniqapp.com/v1/agents/agent_01HX5TZK \
+curl -X PATCH https://api.cerniq.io/v1/agents/agent_01HX5TZK \
   -H "Authorization: Bearer $CERNIQ_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "description": "Updated description", "metadata": { "version": "2.0.0" } }'
@@ -267,7 +267,7 @@ curl -X PATCH https://api.cerniqapp.com/v1/agents/agent_01HX5TZK \
 Revoke an agent. Revocation propagates within 30 seconds. This action is irreversible — to re-enable, register a new agent.
 
 ```bash
-curl -X DELETE https://api.cerniqapp.com/v1/agents/agent_01HX5TZK \
+curl -X DELETE https://api.cerniq.io/v1/agents/agent_01HX5TZK \
   -H "Authorization: Bearer $CERNIQ_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "reason": "No longer needed" }'
@@ -291,7 +291,7 @@ curl -X DELETE https://api.cerniqapp.com/v1/agents/agent_01HX5TZK \
 Rotate an agent's Ed25519 public key. Existing tokens signed by the old key become invalid immediately.
 
 ```bash
-curl -X POST https://api.cerniqapp.com/v1/agents/agent_01HX5TZK/rotate-key \
+curl -X POST https://api.cerniq.io/v1/agents/agent_01HX5TZK/rotate-key \
   -H "Authorization: Bearer $CERNIQ_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "newPublicKey": "base64url-encoded-new-public-key" }'
@@ -308,7 +308,7 @@ curl -X POST https://api.cerniqapp.com/v1/agents/agent_01HX5TZK/rotate-key \
 Create a policy.
 
 ```bash
-curl -X POST https://api.cerniqapp.com/v1/policies \
+curl -X POST https://api.cerniq.io/v1/policies \
   -H "Authorization: Bearer $CERNIQ_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -369,7 +369,7 @@ curl -X POST https://api.cerniqapp.com/v1/policies \
 Attach a policy to one or more agents.
 
 ```bash
-curl -X POST https://api.cerniqapp.com/v1/policies/pol_01HX5TZK/attach \
+curl -X POST https://api.cerniq.io/v1/policies/pol_01HX5TZK/attach \
   -H "Authorization: Bearer $CERNIQ_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "agentIds": ["agent_01HX5TZK", "agent_02HX5TZK"] }'
@@ -392,7 +392,7 @@ curl -X POST https://api.cerniqapp.com/v1/policies/pol_01HX5TZK/attach \
 List all policies.
 
 ```bash
-curl https://api.cerniqapp.com/v1/policies \
+curl https://api.cerniq.io/v1/policies \
   -H "Authorization: Bearer $CERNIQ_API_KEY"
 ```
 
@@ -419,7 +419,7 @@ curl https://api.cerniqapp.com/v1/policies \
 Revoke a policy. All agents with this policy lose its grants immediately.
 
 ```bash
-curl -X DELETE https://api.cerniqapp.com/v1/policies/pol_01HX5TZK \
+curl -X DELETE https://api.cerniq.io/v1/policies/pol_01HX5TZK \
   -H "Authorization: Bearer $CERNIQ_API_KEY"
 ```
 
@@ -438,7 +438,7 @@ curl -X DELETE https://api.cerniqapp.com/v1/policies/pol_01HX5TZK \
 Verify an agent JWT and enforce policies. This is the highest-traffic endpoint — designed for < 50ms median latency.
 
 ```bash
-curl -X POST https://api.cerniqapp.com/v1/verify \
+curl -X POST https://api.cerniq.io/v1/verify \
   -H "Authorization: Bearer $CERNIQ_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -534,7 +534,7 @@ curl -X POST https://api.cerniqapp.com/v1/verify \
 Query the audit log for your principal.
 
 ```bash
-curl "https://api.cerniqapp.com/v1/audit?agentId=agent_01HX5TZK&limit=20" \
+curl "https://api.cerniq.io/v1/audit?agentId=agent_01HX5TZK&limit=20" \
   -H "Authorization: Bearer $CERNIQ_API_KEY"
 ```
 
@@ -586,7 +586,7 @@ curl "https://api.cerniqapp.com/v1/audit?agentId=agent_01HX5TZK&limit=20" \
 Verify the integrity of your audit chain. Returns any breaks found.
 
 ```bash
-curl -X POST https://api.cerniqapp.com/v1/audit/verify-chain \
+curl -X POST https://api.cerniq.io/v1/audit/verify-chain \
   -H "Authorization: Bearer $CERNIQ_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "limit": 1000, "from": "2026-05-01T00:00:00.000Z" }'
@@ -632,7 +632,7 @@ curl -X POST https://api.cerniqapp.com/v1/audit/verify-chain \
 Get a detailed trust score breakdown for an agent.
 
 ```bash
-curl https://api.cerniqapp.com/v1/agents/agent_01HX5TZK/trust \
+curl https://api.cerniq.io/v1/agents/agent_01HX5TZK/trust \
   -H "Authorization: Bearer $CERNIQ_API_KEY"
 ```
 
@@ -675,7 +675,7 @@ curl https://api.cerniqapp.com/v1/agents/agent_01HX5TZK/trust \
 Submit a behavioral signal for an agent (e.g., from a fraud report or external observation).
 
 ```bash
-curl -X POST https://api.cerniqapp.com/v1/agents/agent_01HX5TZK/signals \
+curl -X POST https://api.cerniq.io/v1/agents/agent_01HX5TZK/signals \
   -H "Authorization: Bearer $CERNIQ_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -722,7 +722,7 @@ curl -X POST https://api.cerniqapp.com/v1/agents/agent_01HX5TZK/signals \
 Create a webhook subscription.
 
 ```bash
-curl -X POST https://api.cerniqapp.com/v1/webhooks \
+curl -X POST https://api.cerniq.io/v1/webhooks \
   -H "Authorization: Bearer $CERNIQ_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -793,7 +793,7 @@ Every webhook event has this format:
 Create a new API key.
 
 ```bash
-curl -X POST https://api.cerniqapp.com/v1/auth/api-keys \
+curl -X POST https://api.cerniq.io/v1/auth/api-keys \
   -H "Authorization: Bearer $CERNIQ_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -823,7 +823,7 @@ curl -X POST https://api.cerniqapp.com/v1/auth/api-keys \
 List all API keys (key values are never returned, only metadata).
 
 ```bash
-curl https://api.cerniqapp.com/v1/auth/api-keys \
+curl https://api.cerniq.io/v1/auth/api-keys \
   -H "Authorization: Bearer $CERNIQ_API_KEY"
 ```
 
@@ -834,7 +834,7 @@ curl https://api.cerniqapp.com/v1/auth/api-keys \
 Revoke an API key.
 
 ```bash
-curl -X DELETE https://api.cerniqapp.com/v1/auth/api-keys/key_01HX5TZK \
+curl -X DELETE https://api.cerniq.io/v1/auth/api-keys/key_01HX5TZK \
   -H "Authorization: Bearer $CERNIQ_API_KEY"
 ```
 
@@ -896,10 +896,10 @@ All list endpoints use cursor-based pagination:
 
 ```bash
 # First page
-curl "https://api.cerniqapp.com/v1/agents?limit=20"
+curl "https://api.cerniq.io/v1/agents?limit=20"
 
 # Next page (using cursor from previous response)
-curl "https://api.cerniqapp.com/v1/agents?limit=20&cursor=agent_cursor_value"
+curl "https://api.cerniq.io/v1/agents?limit=20&cursor=agent_cursor_value"
 ```
 
 Response includes:
@@ -917,5 +917,5 @@ Response includes:
 ---
 
 _API Reference version: 1.0 | CERNIQ Phase 1 GA_  
-_OpenAPI spec: https://api.cerniqapp.com/openapi.json_  
-_Postman collection: https://docs.cerniqapp.com/postman_
+_OpenAPI spec: https://api.cerniq.io/openapi.json_  
+_Postman collection: https://docs.cerniq.io/postman_

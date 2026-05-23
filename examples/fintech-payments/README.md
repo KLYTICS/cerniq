@@ -50,7 +50,7 @@ existing PCI-scoped service.
 cd examples/fintech-payments
 pnpm install
 
-CERNIQ_API_BASE=https://api.cerniqapp.com \
+CERNIQ_API_BASE=https://api.cerniq.io \
 CERNIQ_VERIFY_KEY=cerniq_vk_... \
 MIN_TRUST_SCORE=700 \
 MERCHANT_DOMAIN=acme-checkout.com \

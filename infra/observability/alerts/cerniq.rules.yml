@@ -100,7 +100,7 @@ groups:
         annotations:
           summary: 'Verify p99 latency > 200ms — customer-facing SLO breached'
           runbook: infra/observability/runbooks/verify-latency-slo-breach.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/verify-latency-slo-breach
+          runbook_url: https://docs.cerniq.io/runbooks/verify-latency-slo-breach
           description: |
             /v1/verify p99 latency is {{ $value | humanizeDuration }} over the last 5 min,
             above the 200 ms origin SLO (docs/SLO.md § 1). At this latency, relying-party
@@ -121,7 +121,7 @@ groups:
         annotations:
           summary: 'Verify p99 latency > 150ms — approaching SLO threshold'
           runbook: infra/observability/runbooks/verify-latency-slo-breach.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/verify-latency-slo-breach
+          runbook_url: https://docs.cerniq.io/runbooks/verify-latency-slo-breach
           description: |
             /v1/verify p99 latency is {{ $value | humanizeDuration }} for 10 min — within
             25% of the 200 ms hard SLO. Investigate before it crosses. Same diagnosis
@@ -142,7 +142,7 @@ groups:
         annotations:
           summary: 'Verify denial rate > 5% (excluding legitimate revocations)'
           runbook: infra/observability/runbooks/verify-error-rate-high.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/verify-error-rate-high
+          runbook_url: https://docs.cerniq.io/runbooks/verify-error-rate-high
           description: |
             Non-revocation denial rate is {{ $value | humanizePercentage }}. Common
             causes: relying-party SDK regression (INVALID_SIGNATURE spike), policy
@@ -168,7 +168,7 @@ groups:
         annotations:
           summary: 'Verify error-budget burning at 14.4x — 30d budget gone in 2 days at this rate'
           runbook: infra/observability/runbooks/error-budget-burn.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/error-budget-burn
+          runbook_url: https://docs.cerniq.io/runbooks/error-budget-burn
           description: |
             Verify is failing fast enough to exhaust the 30-day error budget in
             ~2 days if sustained. 1h success ratio: {{ $value }}. This is the
@@ -189,7 +189,7 @@ groups:
         annotations:
           summary: 'Verify error-budget burning at 6x — silent regression likely'
           runbook: infra/observability/runbooks/error-budget-burn.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/error-budget-burn
+          runbook_url: https://docs.cerniq.io/runbooks/error-budget-burn
           description: |
             Sustained 6x burn over 6h. 6h success ratio: {{ $value }}. Not yet at
             page-now severity, but the budget will be gone in ~5 days at this
@@ -215,7 +215,7 @@ groups:
         annotations:
           summary: 'Audit chain append failures > 0.01/s — SOC2 evidence path broken'
           runbook: infra/observability/runbooks/audit-chain-break.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/audit-chain-break
+          runbook_url: https://docs.cerniq.io/runbooks/audit-chain-break
           description: |
             cerniq_audit_append_total{result="error"} rate is {{ $value }} appends/s.
             Every failed append is an event we couldn't chain — irrecoverable for
@@ -236,7 +236,7 @@ groups:
         annotations:
           summary: 'Verify traffic flowing but audit appends are zero — chain stalled'
           runbook: infra/observability/runbooks/audit-chain-break.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/audit-chain-break
+          runbook_url: https://docs.cerniq.io/runbooks/audit-chain-break
           description: |
             /v1/verify is serving but cerniq_audit_append_total has not incremented
             for 10 min. Either AuditService is throwing silently (CLAUDE.md
@@ -267,7 +267,7 @@ groups:
         annotations:
           summary: '[DISABLED] BATE recompute queue oldest job > 60s'
           runbook: infra/observability/runbooks/bate-recompute-lag.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/bate-recompute-lag
+          runbook_url: https://docs.cerniq.io/runbooks/bate-recompute-lag
           description: |
             DISABLED until bate.worker.ts emits cerniq_bate_queue_oldest_job_age_seconds.
             Tracked as M-007 follow-up. When the metric ships, replace expr with:
@@ -289,7 +289,7 @@ groups:
         annotations:
           summary: '[DISABLED] BATE critical-severity signal spike'
           runbook: infra/observability/runbooks/bate-recompute-lag.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/bate-recompute-lag
+          runbook_url: https://docs.cerniq.io/runbooks/bate-recompute-lag
           description: |
             DISABLED until cerniq_bate_signals_total ships from BateService.
             Will fire when critical signals exceed 1/s for any signal_type —
@@ -315,7 +315,7 @@ groups:
         annotations:
           summary: 'Webhook DLQ rate > 0.5/s — deliveries giving up after 8 attempts'
           runbook: infra/observability/runbooks/webhook-dlq-spike.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/webhook-dlq-spike
+          runbook_url: https://docs.cerniq.io/runbooks/webhook-dlq-spike
           description: |
             Webhook abandonment rate is {{ $value }}/s. Each abandoned delivery
             is a customer who didn't get notified after 8 retries spanning ~8 min.
@@ -337,7 +337,7 @@ groups:
         annotations:
           summary: 'Webhook attempt failure rate > 20%'
           runbook: infra/observability/runbooks/webhook-dlq-spike.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/webhook-dlq-spike
+          runbook_url: https://docs.cerniq.io/runbooks/webhook-dlq-spike
           description: |
             One in five delivery attempts is failing ({{ $value | humanizePercentage }}).
             This is upstream of the DLQ alert — catching it here means we still have
@@ -370,7 +370,7 @@ groups:
         annotations:
           summary: '[DISABLED] Redis verify-path cache hit rate < 85%'
           runbook: infra/observability/runbooks/redis-hit-rate-low.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/redis-hit-rate-low
+          runbook_url: https://docs.cerniq.io/runbooks/redis-hit-rate-low
           description: |
             DISABLED until redis_exporter is deployed (M-019). The Grafana
             dashboard panel 4 also references cerniq_cache_hits_total /
@@ -397,7 +397,7 @@ groups:
         annotations:
           summary: 'API 5xx rate > 2% — process or dependency is throwing'
           runbook: infra/observability/runbooks/verify-error-rate-high.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/verify-error-rate-high
+          runbook_url: https://docs.cerniq.io/runbooks/verify-error-rate-high
           description: |
             5xx rate is {{ $value | humanizePercentage }}. This is platform-level —
             uncaught exceptions, Postgres unreachable, OOM kills, etc. Check
@@ -417,7 +417,7 @@ groups:
         annotations:
           summary: 'Node event loop lag p99 > 100ms — sync work blocking the loop'
           runbook: infra/observability/runbooks/verify-latency-slo-breach.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/verify-latency-slo-breach
+          runbook_url: https://docs.cerniq.io/runbooks/verify-latency-slo-breach
           description: |
             Event loop p99 lag is {{ $value | humanizeDuration }}. This is the
             single best leading indicator of latency SLO breach: sync CPU work
@@ -446,7 +446,7 @@ groups:
         annotations:
           summary: 'API key rotation 5xx > 0.1/s — rotation endpoint failing'
           runbook: infra/observability/runbooks/key-rotation-failure.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/key-rotation-failure
+          runbook_url: https://docs.cerniq.io/runbooks/key-rotation-failure
           description: |
             POST /v1/principals/me/api-keys/rotate is failing. Customer integrations
             cannot rotate; long-lived keys accumulate. Alert disabled until backing
@@ -466,7 +466,7 @@ groups:
         annotations:
           summary: 'EXPIRED_API_KEY rate > 1% — customers using rotated-out keys'
           runbook: infra/observability/runbooks/key-rotation-failure.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/key-rotation-failure
+          runbook_url: https://docs.cerniq.io/runbooks/key-rotation-failure
           description: |
             Customer-visible signal: someone is using a key past its 24h overlap
             window. Usually the customer's automation didn't pick up the new key.
@@ -497,7 +497,7 @@ groups:
         annotations:
           summary: 'Audit retention tick missed > 25h — SOC2 + GDPR exposure'
           runbook: infra/observability/runbooks/audit-retention-failure.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/audit-retention-failure
+          runbook_url: https://docs.cerniq.io/runbooks/audit-retention-failure
           description: |
             The retention cron hasn't run in > 25h. Round-15 default interval is
             24h. Each day past the policy without redaction is a control failure
@@ -518,7 +518,7 @@ groups:
         annotations:
           summary: 'Audit retention p99 run > 10 min — mid-batch crash or DB lock'
           runbook: infra/observability/runbooks/audit-retention-failure.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/audit-retention-failure
+          runbook_url: https://docs.cerniq.io/runbooks/audit-retention-failure
           description: |
             A retention pass that takes > 10 minutes typically means a Postgres
             lock contention or a crash mid-batch. Re-runs are idempotent (already
@@ -545,7 +545,7 @@ groups:
         annotations:
           summary: 'FREE-tier 429 storm > 5/s — abuse pattern or limit miscalibration'
           runbook: infra/observability/runbooks/plan-aware-throttle-storm.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/plan-aware-throttle-storm
+          runbook_url: https://docs.cerniq.io/runbooks/plan-aware-throttle-storm
           description: |
             Sustained FREE-tier 429s. Usually abuse — confirm via topk principalId
             and reach out to the source. If a paid-tier customer appears, that's
@@ -565,7 +565,7 @@ groups:
         annotations:
           summary: 'Throttle tracker fell back to IP — auth ordering broken'
           runbook: infra/observability/runbooks/plan-aware-throttle-storm.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/plan-aware-throttle-storm
+          runbook_url: https://docs.cerniq.io/runbooks/plan-aware-throttle-storm
           description: |
             An authenticated request reached PlanAwareThrottlerGuard without a
             populated req.principal. NAT-shared customers get throttled together
@@ -585,7 +585,7 @@ groups:
         annotations:
           summary: 'ENTERPRISE 429 — SLA breach, refund event'
           runbook: infra/observability/runbooks/plan-aware-throttle-storm.md
-          runbook_url: https://docs.cerniqapp.com/runbooks/plan-aware-throttle-storm
+          runbook_url: https://docs.cerniq.io/runbooks/plan-aware-throttle-storm
           description: |
             ENTERPRISE tier hit a 429. The guard's short-circuit failed or the
             principal's planTier was downgraded in DB. Investigate immediately;

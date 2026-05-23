@@ -27,8 +27,8 @@ const PRICING_SPEC_VERSION = '1.0.0';
 const PRICING_CURRENCY = 'USD';
 const PRICING_OVERAGE_UNIT = 'USD × 10⁻⁴ (i.e. ten-thousandths of a dollar)';
 const PRICING_ADR = 'ADR-0014';
-const ISSUER = 'https://cerniqapp.com';
-const VERIFICATION_GUIDE = 'https://docs.cerniqapp.com/audit/verify';
+const ISSUER = 'https://cerniq.io';
+const VERIFICATION_GUIDE = 'https://docs.cerniq.io/audit/verify';
 const ED25519_PUBKEY_LEN = 32;
 /**
  * Mirror of `DEFAULT_RETENTION_RUN_INTERVAL_MS` in
@@ -195,12 +195,12 @@ export class WellknownService implements OnModuleInit {
     const expires = oneYearFromNow();
     const lines = [
       '# CERNIQ — security disclosure (RFC 9116)',
-      `Contact: mailto:security@cerniqapp.com`,
+      `Contact: mailto:security@cerniq.io`,
       `Expires: ${expires}`,
       `Preferred-Languages: en`,
       `Canonical: ${trimSlash(issuer)}/.well-known/security.txt`,
-      `Policy: https://cerniqapp.com/security/policy`,
-      `Acknowledgments: https://cerniqapp.com/security/hall-of-fame`,
+      `Policy: https://cerniq.io/security/policy`,
+      `Acknowledgments: https://cerniq.io/security/hall-of-fame`,
       `# Hash of CLAUDE.md operating directive at this build:`,
       `# (informational — not part of the RFC)`,
     ];
@@ -250,7 +250,7 @@ export class WellknownService implements OnModuleInit {
       '- CLI:        `brew install klytics/cerniq/cerniq` (Go binary)',
       '',
       '## Security',
-      `- Disclosure: security@cerniqapp.com`,
+      `- Disclosure: security@cerniq.io`,
       `- security.txt: ${issuer}/.well-known/security.txt`,
       '',
       '## Architecture',
@@ -278,7 +278,7 @@ export class WellknownService implements OnModuleInit {
       issuer: base,
       spec_version: DISCOVERY_SPEC_VERSION,
       api_version: pkg.version ?? '0.0.0',
-      documentation: 'https://docs.cerniqapp.com',
+      documentation: 'https://docs.cerniq.io',
       openapi_spec: `${base}/docs-json`,
       jwks_uri: wk('jwks.json'),
       audit_signing_key_uri: wk('audit-signing-key'),

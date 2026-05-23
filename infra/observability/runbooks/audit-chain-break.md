@@ -84,7 +84,7 @@ There is no "minor" version of this alert. Treat every firing as P0.
    `/.well-known/audit-signing-key` endpoint:
 
    ```bash
-   curl -fsSL https://api.cerniqapp.com/.well-known/audit-signing-key | jq
+   curl -fsSL https://api.cerniq.io/.well-known/audit-signing-key | jq
    ```
 
    The `kid` in the JWKS must match the kid the API process computes

@@ -6,14 +6,14 @@ info:
     The CERNIQ API provides verified identity, scoped authorization, and behavioral
     attestation for AI agents. Neutral, platform-agnostic, ACP-compatible.
   contact:
-    email: dev@cerniqapp.com
+    email: dev@cerniq.io
   license:
     name: Proprietary
 
 servers:
-  - url: https://api.cerniqapp.com/v1
+  - url: https://api.cerniq.io/v1
     description: Production
-  - url: https://sandbox.cerniqapp.com/v1
+  - url: https://sandbox.cerniq.io/v1
     description: Sandbox
 
 tags:

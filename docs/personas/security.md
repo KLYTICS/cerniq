@@ -88,7 +88,7 @@ Read in this order:
 ## Reporting a security issue
 
 - Public issues: do **not** open a GitHub issue. Email
-  security@cerniqapp.com with PGP-encrypted details.
+  security@cerniq.io with PGP-encrypted details.
 - The default response window is 72 hours. Coordinated disclosure
   follows the 90-day standard.
 

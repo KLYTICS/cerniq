@@ -4,8 +4,8 @@
   "description": "CERNIQ operator CLI — manage agents, policies, KMS, audit, and MCP from the terminal.",
   "type": "module",
   "license": "MIT",
-  "author": "CERNIQ Labs <hello@cerniqapp.com>",
-  "homepage": "https://cerniqapp.com",
+  "author": "CERNIQ Labs <hello@cerniq.io>",
+  "homepage": "https://cerniq.io",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/klytics/cerniq.git",

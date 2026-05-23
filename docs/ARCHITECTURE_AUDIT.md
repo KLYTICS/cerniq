@@ -209,10 +209,10 @@ Low 6 · Info 2.
 - **Section:** ARCHITECTURE.md (none)
 - **Observation:** SOC 2 CC7.4 requires documented external
   communication of incidents. v1 THREAT_MODEL.md L78 mentions
-  "Status page live at status.cerniqapp.com" as an acceptance gate but
+  "Status page live at status.cerniq.io" as an acceptance gate but
   does not connect it to architecture. ARCHITECTURE.md is silent.
 - **Recommendation:** Add §9 ("Incident communication"):
-  - status.cerniqapp.com powered by Statuspage / Atlassian or
+  - status.cerniq.io powered by Statuspage / Atlassian or
     self-hosted (operator decision pending).
   - SLA for customer notification: 4h for P1, 24h for P2.
   - Mechanism: webhook event `cerniq.incident.declared` +
@@ -233,7 +233,7 @@ Low 6 · Info 2.
   - Phase 1: Railway proxy is the perimeter. Per-IP throttling at the
     NestJS layer via `@nestjs/throttler` keyTracker on the
     `x-forwarded-for` header (with a documented spoofing caveat).
-  - Phase 3: CF in front of `api.cerniqapp.com` and the verify edge.
+  - Phase 3: CF in front of `api.cerniq.io` and the verify edge.
     Managed rules: OWASP CRS, Cloudflare-managed bots, WAF custom
     rule for `/verify` body schema.
   - Document which rule sets to enable + the false-positive review

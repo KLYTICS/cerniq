@@ -32,7 +32,7 @@ id = "REPLACE_ME_AT_DEPLOY"
 # database_id = "REPLACE_ME_AT_DEPLOY"
 
 [vars]
-CERNIQ_ORIGIN_URL = "https://api.cerniqapp.com"
+CERNIQ_ORIGIN_URL = "https://api.cerniq.io"
 CERNIQ_VERIFY_TIMEOUT_MS = "1500"
 
 # Secrets (set via `wrangler secret put`):

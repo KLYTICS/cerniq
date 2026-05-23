@@ -47,11 +47,11 @@ describe('BillingController', () => {
     prisma = { principal: { findUnique: jest.fn() } };
     config = {} as never;
     Object.defineProperty(config, 'stripeCheckoutSuccessUrl', {
-      get: jest.fn(() => 'https://app.cerniqapp.com/billing/success'),
+      get: jest.fn(() => 'https://app.cerniq.io/billing/success'),
       configurable: true,
     });
     Object.defineProperty(config, 'stripeCheckoutCancelUrl', {
-      get: jest.fn(() => 'https://app.cerniqapp.com/billing/cancel'),
+      get: jest.fn(() => 'https://app.cerniq.io/billing/cancel'),
       configurable: true,
     });
 
@@ -80,8 +80,8 @@ describe('BillingController', () => {
       expect(stripe.createCheckoutSession).toHaveBeenCalledWith({
         principalId: PRINCIPAL_ID,
         planTier: 'DEVELOPER',
-        successUrl: 'https://app.cerniqapp.com/billing/success',
-        cancelUrl: 'https://app.cerniqapp.com/billing/cancel',
+        successUrl: 'https://app.cerniq.io/billing/success',
+        cancelUrl: 'https://app.cerniq.io/billing/cancel',
       });
     });
 
@@ -125,12 +125,12 @@ describe('BillingController', () => {
       });
       const out = await controller.portal(
         { principalId: PRINCIPAL_ID, scope: 'FULL' as never } as never,
-        { returnUrl: 'https://app.cerniqapp.com/billing/back' },
+        { returnUrl: 'https://app.cerniq.io/billing/back' },
       );
       expect(out).toEqual({ url: 'https://billing.stripe.com/p/session/abc' });
       expect(stripe.createPortalSession).toHaveBeenCalledWith(
         PRINCIPAL_ID,
-        'https://app.cerniqapp.com/billing/back',
+        'https://app.cerniq.io/billing/back',
       );
     });
   });

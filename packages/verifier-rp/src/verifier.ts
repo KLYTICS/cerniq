@@ -36,7 +36,7 @@ import type {
   VerifyOutcomeSuccess,
 } from './types.js';
 
-const DEFAULT_BASE_URL = 'https://api.cerniqapp.com/v1';
+const DEFAULT_BASE_URL = 'https://api.cerniq.io/v1';
 const DEFAULT_JWKS_TTL = 3600;
 const DEFAULT_REVOCATION_TTL = 30;
 const DEFAULT_REPLAY_MAX = 10_000;

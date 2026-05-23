@@ -20,7 +20,7 @@ Authentication: `X-CERNIQ-API-Key` with **FULL** scope.
 ## Paginated read
 
 ```bash
-curl "https://api.cerniqapp.com/v1/audit/events?agentId=agent_01HXYZ...&limit=50" \
+curl "https://api.cerniq.io/v1/audit/events?agentId=agent_01HXYZ...&limit=50" \
   -H "X-CERNIQ-API-Key: $CERNIQ_API_KEY"
 ```
 
@@ -40,7 +40,7 @@ Pass `cursor=<nextCursor>` on the next call to continue. Date range filters:
 ## Streaming export
 
 ```bash
-curl -N "https://api.cerniqapp.com/v1/audit/export.ndjson?since=2026-04-01" \
+curl -N "https://api.cerniq.io/v1/audit/export.ndjson?since=2026-04-01" \
   -H "X-CERNIQ-API-Key: $CERNIQ_API_KEY" \
   -o audit-export.ndjson
 ```

@@ -43,7 +43,7 @@ Internet
 
 - [Railway](https://railway.app) account (Hobby or Pro plan)
 - [Cloudflare](https://cloudflare.com) account (Workers Paid plan — $5/month, needed for KV storage)
-- Domain (e.g., `cerniqapp.com`) with DNS on Cloudflare
+- Domain (e.g., `cerniq.io`) with DNS on Cloudflare
 
 ### Required tools
 
@@ -304,7 +304,7 @@ CERNIQ_IDP_PROVIDER=auth0
 
 # Auth0
 AUTH0_DOMAIN=your-tenant.auth0.com
-AUTH0_AUDIENCE=https://api.cerniqapp.com/v1
+AUTH0_AUDIENCE=https://api.cerniq.io/v1
 AUTH0_CLIENT_ID=<client-id>
 AUTH0_CLIENT_SECRET=<client-secret>
 
@@ -425,7 +425,7 @@ compatibility_date = "2025-01-01"
 [env.production]
 name = "cerniq-verify-production"
 routes = [
-  { pattern = "api.cerniqapp.com/v1/verify", zone_name = "cerniqapp.com" }
+  { pattern = "api.cerniq.io/v1/verify", zone_name = "cerniq.io" }
 ]
 
 [[kv_namespaces]]
@@ -458,7 +458,7 @@ pnpm install
 wrangler deploy --env production
 
 # Verify deployment
-curl -X POST https://api.cerniqapp.com/v1/verify \
+curl -X POST https://api.cerniq.io/v1/verify \
   -H "Content-Type: application/json" \
   -d '{"token": "test"}' \
   -v
@@ -521,7 +521,7 @@ pnpm tsx scripts/generate-cerniq-keys.ts
 After deployment, run through this checklist:
 
 ```bash
-export BASE=https://api.cerniqapp.com/v1
+export BASE=https://api.cerniq.io/v1
 
 # 1. Liveness check (no auth)
 curl $BASE/../health
@@ -550,7 +550,7 @@ pnpm tsx scripts/audit-verify-chain.ts \
   --limit 100
 
 # 6. Edge Worker health
-curl -X POST https://api.cerniqapp.com/v1/verify \
+curl -X POST https://api.cerniq.io/v1/verify \
   -H "Content-Type: application/json" \
   -H "X-CERNIQ-Verify-Key: vk_live_..." \
   -d '{"token": "eyJhbGciOiJFZERTQSJ9.test.sig"}' \
@@ -563,16 +563,16 @@ curl -X POST https://api.cerniqapp.com/v1/verify \
 
 ```bash
 # 1. In Cloudflare DNS, add CNAME:
-# api.cerniqapp.com → cerniq-production-api.up.railway.app
+# api.cerniq.io → cerniq-production-api.up.railway.app
 
 # 2. Railway: add custom domain
-railway domain add api.cerniqapp.com --service api
+railway domain add api.cerniq.io --service api
 
 # 3. Cloudflare: SSL mode = Full (strict)
-# Cloudflare → cerniqapp.com → SSL/TLS → Full (strict)
+# Cloudflare → cerniq.io → SSL/TLS → Full (strict)
 
 # 4. Verify TLS
-curl -v https://api.cerniqapp.com/health 2>&1 | grep "SSL connection"
+curl -v https://api.cerniq.io/health 2>&1 | grep "SSL connection"
 # * SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384
 ```
 

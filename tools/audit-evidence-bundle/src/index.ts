@@ -181,7 +181,7 @@ of three things:**
 1. **The bundle was corrupted in transit** — re-fetch it before reaching
    conclusions. \`sha256sum -c SHA256SUMS\` will catch this.
 2. **The audit log was tampered with at rest** — escalate immediately to
-   the deployment operator and CERNIQ Labs (\`security@cerniqapp.com\`).
+   the deployment operator and CERNIQ Labs (\`security@cerniq.io\`).
    This is a P0 security incident.
 3. **The signing key was rotated mid-chain without a rotation event being
    recorded** — check \`signingKeys\` and \`rotationEvents\` in

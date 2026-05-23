@@ -323,7 +323,7 @@ describe('HttpClient.requestWithRetry', () => {
     };
     return new HttpClient({
       apiKey: 'sk_test',
-      baseUrl: 'https://api.cerniqapp.com',
+      baseUrl: 'https://api.cerniq.io',
       timeoutMs: 1_000,
       fetch: fetchFn,
     });

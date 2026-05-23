@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "description": "Shared API contract types and Zod schemas for CERNIQ — single source of truth across API, SDK, and dashboard.",
   "license": "MIT",
-  "author": "CERNIQ Labs <hello@cerniqapp.com>",
-  "homepage": "https://cerniqapp.com",
+  "author": "CERNIQ Labs <hello@cerniq.io>",
+  "homepage": "https://cerniq.io",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/klytics/cerniq.git",

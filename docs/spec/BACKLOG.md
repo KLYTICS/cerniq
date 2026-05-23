@@ -192,7 +192,7 @@ _Post $5,000 MRR | Timeline: Weeks 1–12 of Phase 3_
 ### Documentation
 
 - [P1] README.md (developer quickstart, <10 min to first verify call) — Erwin | 4h | MVP
-- [P1] docs.cerniqapp.com (Docusaurus or Mintlify) — FE | 6h | None
+- [P1] docs.cerniq.io (Docusaurus or Mintlify) — FE | 6h | None
 - [P2] SDK reference docs (auto-generated from TypeDoc) — FE | 3h | SDK
 - [P2] Integration guides: LangChain, AutoGen, CrewAI — Erwin | 6h | SDK
 

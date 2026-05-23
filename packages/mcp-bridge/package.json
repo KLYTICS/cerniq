@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "description": "CERNIQ verification middleware for any MCP (Model Context Protocol) server. Wraps an MCP transport so every tool call carries a verified CERNIQ agent identity.",
   "license": "MIT",
-  "author": "CERNIQ Labs <hello@cerniqapp.com>",
-  "homepage": "https://cerniqapp.com/mcp",
+  "author": "CERNIQ Labs <hello@cerniq.io>",
+  "homepage": "https://cerniq.io/mcp",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/klytics/cerniq.git",

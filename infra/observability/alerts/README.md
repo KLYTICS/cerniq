@@ -73,7 +73,7 @@ Optional:
 - `runbook` — repo-relative path, e.g.
   `infra/observability/runbooks/verify-latency-slo-breach.md`.
 - `runbook_url` — absolute URL, e.g.
-  `https://docs.cerniqapp.com/runbooks/verify-latency-slo-breach`.
+  `https://docs.cerniq.io/runbooks/verify-latency-slo-breach`.
   Convention: filename without `.md` suffix.
 
 ## Recording rules

@@ -123,9 +123,9 @@ railway variables set STRIPE_WEBHOOK_SECRET=whsec_...
 railway variables set STRIPE_PRICE_DEVELOPER=price_...
 railway variables set STRIPE_PRICE_GROWTH=price_...
 railway variables set STRIPE_PRICE_ENTERPRISE=price_...
-railway variables set STRIPE_CHECKOUT_SUCCESS_URL=https://app.cerniqapp.com/billing/success
-railway variables set STRIPE_CHECKOUT_CANCEL_URL=https://app.cerniqapp.com/billing/cancel
-railway variables set STRIPE_PORTAL_RETURN_URL=https://app.cerniqapp.com/settings/billing
+railway variables set STRIPE_CHECKOUT_SUCCESS_URL=https://app.cerniq.io/billing/success
+railway variables set STRIPE_CHECKOUT_CANCEL_URL=https://app.cerniq.io/billing/cancel
+railway variables set STRIPE_PORTAL_RETURN_URL=https://app.cerniq.io/settings/billing
 
 # Observability:
 railway variables set CERNIQ_OTEL_ENABLED=true
@@ -134,7 +134,7 @@ railway variables set SENTRY_DSN=https://...@sentry.io/...
 railway variables set CERNIQ_REGION=us-east-1
 
 # CORS — restrict to your dashboard origins in prod:
-railway variables set CORS_ORIGINS=https://app.cerniqapp.com,https://docs.cerniqapp.com
+railway variables set CORS_ORIGINS=https://app.cerniq.io,https://docs.cerniq.io
 
 # Required prod posture:
 railway variables set NODE_ENV=production
@@ -147,7 +147,7 @@ railway variables set API_KEY_BCRYPT_COST=12
 In the Stripe dashboard → Developers → Webhooks, add an endpoint:
 
 ```
-URL:     https://api.cerniqapp.com/v1/billing/webhook
+URL:     https://api.cerniq.io/v1/billing/webhook
 Events:  checkout.session.completed,
          customer.subscription.created,
          customer.subscription.updated,
@@ -167,7 +167,7 @@ railway run pnpm db:deploy      # Apply migrations against production DB
 ### 4.5 Production smoke test
 
 ```sh
-PROD=https://api.cerniqapp.com
+PROD=https://api.cerniq.io
 curl -s $PROD/health/live  | jq                  # Must return status: ok
 curl -s $PROD/health/ready | jq                  # All checks: ok
 curl -s $PROD/.well-known/audit-signing-key | jq # JWKS-style key surface

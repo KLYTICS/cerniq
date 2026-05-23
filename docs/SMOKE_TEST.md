@@ -8,7 +8,7 @@
 Set the base URL once:
 
 ```sh
-export CERNIQ_BASE=http://localhost:4000   # or https://api.cerniqapp.com
+export CERNIQ_BASE=http://localhost:4000   # or https://api.cerniq.io
 ```
 
 For dev, bring the stack up first: see `infra/dev/README.md`.

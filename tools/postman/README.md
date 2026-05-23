@@ -24,7 +24,7 @@ Walk-through** folder gives you a reproducible tour through every
 2. Top-right environment dropdown → select **CERNIQ Local**.
 3. Click the eye icon next to the dropdown → fill in:
    - `base_url` — e.g. `http://localhost:3000` for `pnpm dev`, or
-     `https://api.cerniqapp.com` for production.
+     `https://api.cerniq.io` for production.
    - `api_key` — your full-scope API key (`cerniq_…`). Used everywhere
      except `/v1/verify`.
    - `verify_key` — your verify-only key (`cerniqv_…`). Used **only** by

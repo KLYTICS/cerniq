@@ -150,7 +150,7 @@ cerniq_nodejs_eventloop_lag_seconds{quantile="0.99"} < 0.05
 - **Not resolved in 30 min** → page `${ESCALATION_CONTACT}`
   (TBD — operator decision OD-007).
 - **Customer reports impact** → page status-page owner; post
-  acknowledgment at https://status.cerniqapp.com within 5 min of report.
+  acknowledgment at https://status.cerniq.io within 5 min of report.
 
 ## Postmortem trigger
 

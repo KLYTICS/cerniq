@@ -22,7 +22,7 @@ refresh in the same PR.
 
 All four collections expect:
 
-- `CERNIQ_BASE_URL` (default `https://api.cerniqapp.com`)
+- `CERNIQ_BASE_URL` (default `https://api.cerniq.io`)
 - `CERNIQ_API_KEY` (an `cerniq_sk_…` for management endpoints)
 - `CERNIQ_VERIFY_KEY` (an `cerniq_vk_…` for the verify-only endpoints)
 

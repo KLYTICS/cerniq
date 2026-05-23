@@ -73,7 +73,7 @@ Customer-facing SLAs (with credits) are a strict subset of these SLOs and ship w
 ## 5. Reporting
 
 - Internal: a Grafana dashboard at `grafana.internal/d/cerniq-slo` shows current 30-day burn, broken down by surface. Updated continuously.
-- Customer: the status page (`status.cerniqapp.com`) publishes 90-day rolling SLO compliance per surface. No per-customer dashboards in v1.
+- Customer: the status page (`status.cerniq.io`) publishes 90-day rolling SLO compliance per surface. No per-customer dashboards in v1.
 
 ## 6. What's NOT covered by an SLO
 

@@ -62,7 +62,7 @@ Wire it into your existing data pipeline:
 
 ```sh
 # 1. Pull CERNIQ audit log for the window.
-curl -fsSL "https://api.cerniqapp.com/v1/audit-events/export?since=$START&until=$END" \
+curl -fsSL "https://api.cerniq.io/v1/audit-events/export?since=$START&until=$END" \
      -H "X-CERNIQ-API-Key: $CERNIQ_API_KEY" \
      > cerniq-export.ndjson
 

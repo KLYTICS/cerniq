@@ -7,7 +7,7 @@ audit chain — without contacting CERNIQ.
 ## Quick start
 
 ```sh
-CERNIQ_API_BASE=https://api.cerniqapp.com \
+CERNIQ_API_BASE=https://api.cerniq.io \
 CERNIQ_API_KEY=sk_live_... \
   pnpm --filter @cerniq/audit-evidence-bundle start \
     --principal-id prc_acme \

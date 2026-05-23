@@ -1,6 +1,6 @@
 # @cerniq/docs
 
-Live documentation site for CERNIQ. Served at `docs.cerniqapp.com`.
+Live documentation site for CERNIQ. Served at `docs.cerniq.io`.
 
 ## Why "live"
 

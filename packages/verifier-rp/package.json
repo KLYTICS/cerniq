@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "description": "CERNIQ — relying-party offline verifier. Drop-in middleware for Express, Fastify, Hono, and edge runtimes.",
   "license": "MIT",
-  "author": "CERNIQ Labs <hello@cerniqapp.com>",
-  "homepage": "https://cerniqapp.com/verifier-rp",
+  "author": "CERNIQ Labs <hello@cerniq.io>",
+  "homepage": "https://cerniq.io/verifier-rp",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/klytics/cerniq.git",

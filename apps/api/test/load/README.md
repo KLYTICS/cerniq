@@ -31,7 +31,7 @@ k6 run apps/api/test/load/verify.k6.js
 ## Running against staging
 
 ```sh
-CERNIQ_BASE_URL=https://api.staging.cerniqapp.com \
+CERNIQ_BASE_URL=https://api.staging.cerniq.io \
   CERNIQ_VERIFY_KEY=$STAGING_VERIFY_KEY \
   CERNIQ_FIXTURE_TOKEN=$STAGING_FIXTURE_TOKEN \
   k6 run apps/api/test/load/verify.k6.js
@@ -43,7 +43,7 @@ Same as staging but with the edge URL and a tighter budget:
 
 ```sh
 P99_BUDGET_MS=80 \
-  CERNIQ_BASE_URL=https://cerniq.cerniqapp.com \
+  CERNIQ_BASE_URL=https://cerniq.cerniq.io \
   CERNIQ_VERIFY_KEY=$EDGE_VERIFY_KEY \
   CERNIQ_FIXTURE_TOKEN=$STAGING_FIXTURE_TOKEN \
   k6 run apps/api/test/load/verify.k6.js

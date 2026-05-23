@@ -43,7 +43,7 @@ and the policy-per-seat mapping.
 ```sh
 cd examples/saas-seat-provisioning
 pnpm install
-CERNIQ_API_BASE=https://api.cerniqapp.com \
+CERNIQ_API_BASE=https://api.cerniq.io \
 CERNIQ_API_KEY=cerniq_sk_... \
 SAAS_TENANT_ID=acme \
 pnpm tsx src/scim-server.ts

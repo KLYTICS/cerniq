@@ -101,7 +101,7 @@ brews:
       owner: klytics
       name: homebrew-cerniq
     name: cerniq
-    homepage: 'https://cerniqapp.com'
+    homepage: 'https://cerniq.io'
     description: 'Operator CLI for the CERNIQ agent gateway'
     license: 'Proprietary'
     install: |
@@ -115,7 +115,7 @@ scoops:
       owner: klytics
       name: scoop-cerniq
     name: cerniq
-    homepage: 'https://cerniqapp.com'
+    homepage: 'https://cerniq.io'
     description: 'Operator CLI for the CERNIQ agent gateway'
     license: Proprietary
 

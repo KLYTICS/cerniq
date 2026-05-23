@@ -175,7 +175,7 @@ auditors, and AI agents read the rest:
 A relying party integrating CERNIQ only needs **one URL** to bootstrap:
 
 ```ts
-const config = await fetch('https://api.cerniqapp.com/.well-known/cerniq-configuration').then((r) =>
+const config = await fetch('https://api.cerniq.io/.well-known/cerniq-configuration').then((r) =>
   r.json(),
 );
 const verifier = new CerniqVerifier({ jwksUri: config.jwks_uri });

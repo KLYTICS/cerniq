@@ -17,7 +17,7 @@
 //   - x-powered-by: removed (don't advertise Express).
 //
 // Production reference: https://hstspreload.org/ — domains we publish on
-// (api.cerniqapp.com) get added to the preload list once HSTS rolls out.
+// (api.cerniq.io) get added to the preload list once HSTS rolls out.
 
 import type { HelmetOptions } from 'helmet';
 
@@ -91,9 +91,9 @@ export function buildSecurityTxt(config: {
     `Contact: mailto:${config.contactEmail}`,
     `Expires: ${new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()}`,
     `Preferred-Languages: ${config.preferredLanguages ?? 'en'}`,
-    `Canonical: https://api.cerniqapp.com/.well-known/security.txt`,
-    `Policy: https://cerniqapp.com/security/policy`,
-    `Acknowledgments: https://cerniqapp.com/security/acknowledgments`,
+    `Canonical: https://api.cerniq.io/.well-known/security.txt`,
+    `Policy: https://cerniq.io/security/policy`,
+    `Acknowledgments: https://cerniq.io/security/acknowledgments`,
   ];
   return lines.join('\n') + '\n';
 }

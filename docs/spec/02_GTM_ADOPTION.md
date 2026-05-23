@@ -385,7 +385,7 @@ Every founder-led sales process hits the same 8 objections. Pre-loaded answers:
 
 ### Objection 6: "I don't want a third party in my verification path."
 
-**Reality:** The verification response is cached for 30 seconds and the hot path runs on Cloudflare's edge (135 locations globally). Your agent never waits more than 80ms for a verify response. If CERNIQ goes down, your system gets a cached "valid" response for up to 30 seconds and then degrades gracefully. We publish our uptime at status.cerniqapp.com.
+**Reality:** The verification response is cached for 30 seconds and the hot path runs on Cloudflare's edge (135 locations globally). Your agent never waits more than 80ms for a verify response. If CERNIQ goes down, your system gets a cached "valid" response for up to 30 seconds and then degrades gracefully. We publish our uptime at status.cerniq.io.
 
 ### Objection 7: "How do I know my competitors won't see my agent activity?"
 

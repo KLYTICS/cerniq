@@ -152,7 +152,7 @@ export type RevocationWebhookHandler = (agentId: string) => void;
 export interface CerniqVerifierConfig {
   /**
    * Base URL for the CERNIQ API. Used for JWKS fetch and agent status fetch.
-   * Default: `https://api.cerniqapp.com/v1`.
+   * Default: `https://api.cerniq.io/v1`.
    */
   baseUrl?: string;
   /**

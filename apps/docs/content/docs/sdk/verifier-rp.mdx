@@ -21,7 +21,7 @@ npm install @cerniq/verifier-rp
 import { CerniqVerifier } from '@cerniq/verifier-rp';
 
 const verifier = new CerniqVerifier({
-  jwksUri: 'https://api.cerniqapp.com/.well-known/cerniq-jwks.json',
+  jwksUri: 'https://api.cerniq.io/.well-known/cerniq-jwks.json',
   getAgentPublicKey: async (agentId) => {
     // The RP supplies how to resolve agent public keys. Typically:
     // - a DB lookup if you've cached agent registration callbacks

@@ -159,7 +159,7 @@ psql $DATABASE_URL -c "
 "
 
 # 2. Confirm the audit signing key is loaded.
-curl -s https://api.cerniqapp.com/v1/health/ready | jq .signing_key_loaded
+curl -s https://api.cerniq.io/v1/health/ready | jq .signing_key_loaded
 
 # 3. Check for schema drift — did a recent migration not apply?
 psql $DATABASE_URL -c "SELECT * FROM \"_prisma_migrations\" ORDER BY \"finished_at\" DESC LIMIT 5;"
@@ -284,7 +284,7 @@ SELECT event, count(*)
 railway run env | grep -E '^CERNIQ_SIGNING_(PRIVATE|PUBLIC)_KEY='
 
 # Confirm the JWKS endpoint resolves the right kid.
-curl -s https://api.cerniqapp.com/.well-known/jwks.json | jq .keys
+curl -s https://api.cerniq.io/.well-known/jwks.json | jq .keys
 ```
 
 **Mitigate**:
@@ -351,7 +351,7 @@ CERNIQ-issued key is compromised:
 
 1. **Immediately revoke**:
    ```bash
-   curl -X DELETE https://api.cerniqapp.com/v1/agents/<id> \
+   curl -X DELETE https://api.cerniq.io/v1/agents/<id> \
      -H "X-CERNIQ-API-Key: <admin-key>"
    ```
    Verifiers see the agent as REVOKED within 60s (cache TTL).

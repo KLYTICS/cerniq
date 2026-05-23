@@ -22,5 +22,5 @@ func String() string {
 // UserAgent returns the User-Agent string the HTTP client uses on every
 // outbound request. Centralizing it here avoids drift across packages.
 func UserAgent() string {
-	return "cerniq-cli/" + Version + " (+https://cerniqapp.com)"
+	return "cerniq-cli/" + Version + " (+https://cerniq.io)"
 }

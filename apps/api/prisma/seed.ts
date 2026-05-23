@@ -15,7 +15,7 @@ import { ulid } from 'ulid';
 
 const prisma = new PrismaClient();
 
-const SEED_PRINCIPAL_EMAIL = 'dev@cerniqapp.com';
+const SEED_PRINCIPAL_EMAIL = 'dev@cerniq.io';
 const BCRYPT_COST = 4; // dev-only: keep fast.
 
 async function main(): Promise<void> {

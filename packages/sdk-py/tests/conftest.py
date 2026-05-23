@@ -11,7 +11,7 @@ import respx
 
 from cerniq import AsyncCerniq, Keypair, generate_keypair
 
-BASE_URL = "https://api.cerniqapp.com/v1"
+BASE_URL = "https://api.cerniq.io/v1"
 
 
 @pytest.fixture

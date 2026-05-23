@@ -73,7 +73,7 @@ Ed25519 is **not** PQ-safe. Migration plan:
 - [ ] `JWT_ED25519_PRIVATE_KEY_B64` rotated and persisted
 - [ ] Rate limit thresholds tuned per environment
 - [ ] Penetration test completed (GHOST SWARM methodology)
-- [ ] Bug bounty program live (`security@cerniqapp.com`)
+- [ ] Bug bounty program live (`security@cerniq.io`)
 - [ ] Cyber-insurance binder issued (Embroker / Coalition)
 - [ ] Incident-response runbook published
-- [ ] Status page live at `status.cerniqapp.com`
+- [ ] Status page live at `status.cerniq.io`

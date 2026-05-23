@@ -114,7 +114,7 @@ Post-mortem: [link, due [date]]
 
 ```bash
 # Is it DNS / Cloudflare?
-curl -I https://api.cerniqapp.com/health
+curl -I https://api.cerniq.io/health
 # vs
 curl -I https://[railway-origin-url]/health
 
@@ -532,7 +532,7 @@ redis-cli -u $REDIS_URL SLOWLOG GET 10
 
 ```bash
 # What errors are failing?
-curl -s https://api.cerniqapp.com/metrics \
+curl -s https://api.cerniq.io/metrics \
   -H "Authorization: Bearer $METRICS_TOKEN" | \
   grep "cerniq_verify_total"
 

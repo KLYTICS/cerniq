@@ -14,7 +14,7 @@ function buildService(): WellknownService {
   const config = {
     cerniqSigningPublicKey: ZERO_KEY_B64,
     cerniqSigningKeyRotatedAt: FIXED_ROTATED_AT,
-    apiBaseUrl: 'https://api.cerniqapp.com',
+    apiBaseUrl: 'https://api.cerniq.io',
   } as unknown as AppConfigService;
   const svc = new WellknownService(config);
   svc.onModuleInit();
@@ -53,7 +53,7 @@ describe('WellknownController', () => {
       expect(out!.publicKey).toBe(ZERO_KEY_B64);
       expect(out!.algorithm).toBe('EdDSA');
       expect(out!.curve).toBe('Ed25519');
-      expect(out!.issuer).toBe('https://cerniqapp.com');
+      expect(out!.issuer).toBe('https://cerniq.io');
       expect(out!.purpose).toBe('audit-event-signing');
       expect(out!.rotatedAt).toBe(FIXED_ROTATED_AT);
       expect(headers.etag).toBe(`"${svc.getKid()}"`);
@@ -181,16 +181,14 @@ describe('WellknownController', () => {
 
       const out = ctl.configuration(res);
 
-      expect(out.issuer).toBe('https://api.cerniqapp.com');
+      expect(out.issuer).toBe('https://api.cerniq.io');
       expect(out.spec_version).toBe('1.0.0');
-      expect(out.jwks_uri).toBe('https://api.cerniqapp.com/.well-known/jwks.json');
-      expect(out.audit_signing_key_uri).toBe(
-        'https://api.cerniqapp.com/.well-known/audit-signing-key',
-      );
-      expect(out.security_txt).toBe('https://api.cerniqapp.com/.well-known/security.txt');
-      expect(out.llms_txt).toBe('https://api.cerniqapp.com/.well-known/llms.txt');
-      expect(out.endpoints.verify).toBe('https://api.cerniqapp.com/v1/verify');
-      expect(out.endpoints.billing_webhook).toBe('https://api.cerniqapp.com/v1/billing/webhook');
+      expect(out.jwks_uri).toBe('https://api.cerniq.io/.well-known/jwks.json');
+      expect(out.audit_signing_key_uri).toBe('https://api.cerniq.io/.well-known/audit-signing-key');
+      expect(out.security_txt).toBe('https://api.cerniq.io/.well-known/security.txt');
+      expect(out.llms_txt).toBe('https://api.cerniq.io/.well-known/llms.txt');
+      expect(out.endpoints.verify).toBe('https://api.cerniq.io/v1/verify');
+      expect(out.endpoints.billing_webhook).toBe('https://api.cerniq.io/v1/billing/webhook');
       expect(out.supported_algorithms).toEqual(['EdDSA']);
       expect(out.supported_curves).toEqual(['Ed25519']);
       expect(out.trust_bands).toEqual(['FLAGGED', 'WATCH', 'VERIFIED', 'PLATINUM']);
@@ -238,7 +236,7 @@ describe('WellknownController', () => {
       const ctl = new WellknownController(svc);
       const out = ctl.configuration(fakeResponse().res);
 
-      expect(out.issuer).toBe('https://cerniqapp.com');
+      expect(out.issuer).toBe('https://cerniq.io');
     });
   });
 
@@ -250,10 +248,10 @@ describe('WellknownController', () => {
 
       const out = ctl.securityTxt(res);
 
-      expect(out).toContain('Contact: mailto:security@cerniqapp.com');
+      expect(out).toContain('Contact: mailto:security@cerniq.io');
       expect(out).toMatch(/Expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
       expect(out).toContain('Preferred-Languages: en');
-      expect(out).toContain('Canonical: https://api.cerniqapp.com/.well-known/security.txt');
+      expect(out).toContain('Canonical: https://api.cerniq.io/.well-known/security.txt');
       expect(out).toContain('Policy:');
       expect(headers['content-type']).toMatch(/text\/plain/);
     });
@@ -281,8 +279,8 @@ describe('WellknownController', () => {
       const out = ctl.llmsTxt(res);
 
       expect(out).toContain('# CERNIQ — Agent Gateway & Identity Stack');
-      expect(out).toContain('https://api.cerniqapp.com/.well-known/cerniq-configuration');
-      expect(out).toContain('POST https://api.cerniqapp.com/v1/verify');
+      expect(out).toContain('https://api.cerniq.io/.well-known/cerniq-configuration');
+      expect(out).toContain('POST https://api.cerniq.io/v1/verify');
       expect(out).toContain('npm install @cerniq/sdk');
       expect(out).toContain('pip install cerniq');
       expect(out).toContain('npm install @cerniq/verifier-rp');
@@ -360,7 +358,7 @@ describe('WellknownController', () => {
       const out = ctl.configuration(fakeResponse().res);
 
       expect(out.retention_policy_uri).toBe(
-        'https://api.cerniqapp.com/.well-known/retention-policy.json',
+        'https://api.cerniq.io/.well-known/retention-policy.json',
       );
     });
   });
@@ -371,7 +369,7 @@ describe('WellknownController', () => {
       const ctl = new WellknownController(svc);
       const out = ctl.configuration(fakeResponse().res);
 
-      expect(out.pricing_uri).toBe('https://api.cerniqapp.com/.well-known/pricing.json');
+      expect(out.pricing_uri).toBe('https://api.cerniq.io/.well-known/pricing.json');
     });
   });
 

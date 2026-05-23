@@ -7,7 +7,7 @@ name: docs
 #   2. parity       — cross-package parity tests (denial precedence, trust
 #                     bands, webhook events) covering the live components
 #   3. link-check   — lychee over MDX content to catch broken anchors and
-#                     dead external links before they ship to docs.cerniqapp.com
+#                     dead external links before they ship to docs.cerniq.io
 #
 # build-and-pack runs on push to main only — it executes the full prebuild
 # (OpenAPI generate) and `next build`, ensuring the deploy target will succeed.
@@ -82,7 +82,7 @@ jobs:
           args: |
             --no-progress
             --max-concurrency 4
-            --base https://docs.cerniqapp.com
+            --base https://docs.cerniq.io
             --exclude '^https://docs\.cerniqlabs\.io'
             --exclude '^http://localhost'
             'apps/docs/content/**/*.mdx'
@@ -108,5 +108,5 @@ jobs:
       - name: Build @cerniq/docs
         run: pnpm --filter @cerniq/docs build
         env:
-          CERNIQ_API_BASE_URL: https://api.cerniqapp.com
-          NEXT_PUBLIC_DOCS_URL: https://docs.cerniqapp.com
+          CERNIQ_API_BASE_URL: https://api.cerniq.io
+          NEXT_PUBLIC_DOCS_URL: https://docs.cerniq.io

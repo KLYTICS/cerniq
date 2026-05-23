@@ -45,7 +45,7 @@ export class AuditSigningKeyDto {
   @ApiProperty({ enum: ['Ed25519'], example: 'Ed25519' })
   curve!: 'Ed25519';
 
-  @ApiProperty({ example: 'https://cerniqapp.com' })
+  @ApiProperty({ example: 'https://cerniq.io' })
   issuer!: string;
 
   @ApiProperty({ description: 'ISO timestamp when this key was activated.' })
@@ -54,6 +54,6 @@ export class AuditSigningKeyDto {
   @ApiProperty({ enum: ['audit-event-signing'], example: 'audit-event-signing' })
   purpose!: 'audit-event-signing';
 
-  @ApiProperty({ example: 'https://docs.cerniqapp.com/audit/verify' })
+  @ApiProperty({ example: 'https://docs.cerniq.io/audit/verify' })
   verificationGuide!: string;
 }

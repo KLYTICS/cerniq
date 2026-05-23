@@ -125,14 +125,14 @@ with Cerniq(api_key="cerniq_sk_...") as cerniq:
 
 ## Configuration
 
-| Argument      | Default                        | Notes                                                              |
-| ------------- | ------------------------------ | ------------------------------------------------------------------ |
-| `api_key`     | required for management calls  | Header `X-CERNIQ-API-Key`                                          |
-| `verify_key`  | required only for `verify()`   | Header `X-CERNIQ-Verify-Key`                                       |
-| `base_url`    | `https://api.cerniqapp.com/v1` | Override for sandbox/self-hosted                                   |
-| `timeout_ms`  | `5000`                         | Per-request timeout                                                |
-| `user_agent`  | `cerniq-python/<version>`      | Sent on every request                                              |
-| `max_retries` | `3`                            | Exponential backoff (250ms, 500ms, 1000ms) on 5xx + connect errors |
+| Argument      | Default                       | Notes                                                              |
+| ------------- | ----------------------------- | ------------------------------------------------------------------ |
+| `api_key`     | required for management calls | Header `X-CERNIQ-API-Key`                                          |
+| `verify_key`  | required only for `verify()`  | Header `X-CERNIQ-Verify-Key`                                       |
+| `base_url`    | `https://api.cerniq.io/v1`    | Override for sandbox/self-hosted                                   |
+| `timeout_ms`  | `5000`                        | Per-request timeout                                                |
+| `user_agent`  | `cerniq-python/<version>`     | Sent on every request                                              |
+| `max_retries` | `3`                           | Exponential backoff (250ms, 500ms, 1000ms) on 5xx + connect errors |
 
 ## Errors
 

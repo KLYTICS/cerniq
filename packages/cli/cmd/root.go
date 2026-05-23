@@ -30,7 +30,7 @@ var rootCmd = &cobra.Command{
 	Long: `cerniq is the operator-grade CLI for the CERNIQ agent gateway.
 
 Built for parity with the public API: every verb you see in
-docs.cerniqapp.com exists here, plus terminal-first ergonomics
+docs.cerniq.io exists here, plus terminal-first ergonomics
 (login via device-code OAuth, OS-keychain credential caching,
 Bloomberg-density status output, kubectl-style plugin discovery).
 
@@ -71,7 +71,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&flagAPIKey, "api-key", "",
 		"CERNIQ API key (overrides keychain + CERNIQ_API_KEY env)")
 	rootCmd.PersistentFlags().StringVar(&flagBaseURL, "base-url", "",
-		"CERNIQ API base URL (default: from config or https://api.cerniqapp.com)")
+		"CERNIQ API base URL (default: from config or https://api.cerniq.io)")
 	rootCmd.PersistentFlags().BoolVar(&flagJSON, "json", false,
 		"emit machine-readable JSON instead of human-formatted output")
 	rootCmd.PersistentFlags().BoolVar(&flagNoColor, "no-color", false,

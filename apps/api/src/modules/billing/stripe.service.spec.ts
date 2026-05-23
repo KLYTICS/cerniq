@@ -683,11 +683,11 @@ describe('StripeService', () => {
           },
         ],
       });
-      const out = await svc.createPortalSession('p1', 'https://app.cerniqapp.com/billing/back');
+      const out = await svc.createPortalSession('p1', 'https://app.cerniq.io/billing/back');
       expect(out.url).toBe('https://billing.stripe.test/p/cus_existing');
       expect(fakeStripe.billingPortal.sessions.create).toHaveBeenCalledWith({
         customer: 'cus_existing',
-        return_url: 'https://app.cerniqapp.com/billing/back',
+        return_url: 'https://app.cerniq.io/billing/back',
       });
     });
 
@@ -704,7 +704,7 @@ describe('StripeService', () => {
         ],
       });
       await expect(
-        svc.createPortalSession('p1', 'https://app.cerniqapp.com/back'),
+        svc.createPortalSession('p1', 'https://app.cerniq.io/back'),
       ).rejects.toBeInstanceOf(ValidationError);
     });
 
@@ -722,7 +722,7 @@ describe('StripeService', () => {
         ],
       });
       await expect(
-        svc.createPortalSession('p1', 'https://app.cerniqapp.com/back'),
+        svc.createPortalSession('p1', 'https://app.cerniq.io/back'),
       ).rejects.toBeInstanceOf(ServiceUnavailableError);
     });
   });

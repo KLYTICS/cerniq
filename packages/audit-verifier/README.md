@@ -6,7 +6,7 @@ Anyone — relying party, customer, regulator, SOC2 auditor — can install this
 package and independently verify the tamper-evidence of an CERNIQ audit log
 export, without trusting CERNIQ's API at runtime. The only thing required is
 the CERNIQ audit-signing JWKS (publicly available at
-`https://api.cerniqapp.com/.well-known/audit-signing-key`).
+`https://api.cerniq.io/.well-known/audit-signing-key`).
 
 This is the **zero-trust verification** half of the audit-chain story. CERNIQ
 publishes the algorithm and the public keys; you run the verifier. If the
@@ -32,7 +32,7 @@ independently verify the chain.
 npm install -g @cerniq/audit-verifier
 # or run without installing:
 npx @cerniq/audit-verifier verify ./export.ndjson \
-  --jwks https://api.cerniqapp.com/.well-known/audit-signing-key
+  --jwks https://api.cerniq.io/.well-known/audit-signing-key
 ```
 
 ## CLI
@@ -57,14 +57,14 @@ Exit codes:
 
 ```sh
 cerniq-audit-verify verify ./export.ndjson \
-  --jwks https://api.cerniqapp.com/.well-known/audit-signing-key
+  --jwks https://api.cerniq.io/.well-known/audit-signing-key
 ```
 
 ### Airgapped (regulated environments)
 
 ```sh
 # step 1 — download the JWKS from a network-connected machine
-curl -fsSL https://api.cerniqapp.com/.well-known/audit-signing-key \
+curl -fsSL https://api.cerniq.io/.well-known/audit-signing-key \
      -o cerniq-audit-jwks.json
 
 # step 2 — hand-carry the JWKS + the NDJSON export into the sealed environment
@@ -78,7 +78,7 @@ cerniq-audit-verify verify ./export.ndjson --jwks-file ./cerniq-audit-jwks.json
 ```ts
 import { verifyChain, parseAuditNdjson, loadJwksFromUrl } from '@cerniq/audit-verifier';
 
-const jwks = await loadJwksFromUrl('https://api.cerniqapp.com/.well-known/audit-signing-key');
+const jwks = await loadJwksFromUrl('https://api.cerniq.io/.well-known/audit-signing-key');
 const ndjson = await fs.readFile('./export.ndjson', 'utf8');
 const rows = parseAuditNdjson(ndjson);
 

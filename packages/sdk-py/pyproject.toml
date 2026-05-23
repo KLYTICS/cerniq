@@ -9,7 +9,7 @@ description = "CERNIQ — neutral identity & verification layer for AI agents (P
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
-authors = [{ name = "KLYTICS LLC", email = "dev@cerniqapp.com" }]
+authors = [{ name = "KLYTICS LLC", email = "dev@cerniq.io" }]
 keywords = [
     "cerniq",
     "agent",
@@ -50,8 +50,8 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://cerniqapp.com"
-Documentation = "https://docs.cerniqapp.com"
+Homepage = "https://cerniq.io"
+Documentation = "https://docs.cerniq.io"
 Repository = "https://github.com/klytics/cerniq"
 Issues = "https://github.com/klytics/cerniq/issues"
 

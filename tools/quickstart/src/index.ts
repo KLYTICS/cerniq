@@ -16,7 +16,7 @@
 //     src/walk-denials.ts for that.
 //
 // Required env:
-//   CERNIQ_API_BASE     base URL (e.g. https://api.cerniqapp.com)
+//   CERNIQ_API_BASE     base URL (e.g. https://api.cerniq.io)
 //   CERNIQ_API_KEY      management key (cerniq_sk_…) for the registration
 //
 // Optional:
@@ -27,7 +27,7 @@
 
 import { Cerniq, generateKeypair, signAgentToken } from '@cerniq/sdk';
 
-const API_BASE = process.env.CERNIQ_API_BASE ?? 'https://api.cerniqapp.com';
+const API_BASE = process.env.CERNIQ_API_BASE ?? 'https://api.cerniq.io';
 const API_KEY = requireEnv('CERNIQ_API_KEY');
 const VERIFY_KEY = process.env.CERNIQ_VERIFY_KEY ?? API_KEY;
 

@@ -58,7 +58,7 @@ require new architecture:
    - `prisma migrate deploy` for `20260506000000_add_stripe_overage_item` (additive nullable; safe). 5 min.
    - Set `CERNIQ_API_BASE_URL` in dashboard production + preview env vars so `/pricing` reads `data-source="api"` instead of build-time fallback. 5 min.
    - Set `CERNIQ_DASHBOARD_API_KEY` + `CERNIQ_DASHBOARD_PRINCIPAL_ID`. 5 min.
-   - Confirm `sales@cerniqapp.com` MX exists for the ENTERPRISE CTA. 10 min in DNS.
+   - Confirm `sales@cerniq.io` MX exists for the ENTERPRISE CTA. 10 min in DNS.
    - `CERNIQ_API_KEY_BCRYPT_COST=12` in production (`docs/PRODUCTION_CHECKLIST.md`). Already documented.
 
 2. **Stripe metered price configuration decision** (operator)
@@ -109,7 +109,7 @@ revenue loop works. If any step fails, that step is the next ticket.
 # 1. Deploy: API to Railway, dashboard to Vercel.
 # 2. Set Stripe to test mode. Use test card 4242 4242 4242 4242.
 
-export CERNIQ_API_BASE=https://api-staging.cerniqapp.com
+export CERNIQ_API_BASE=https://api-staging.cerniq.io
 export CERNIQ_API_KEY=cerniq_sk_test_<your_test_principal_full_scope>
 
 # Step 1 — register an Ed25519 agent (proves identity surface)
@@ -151,10 +151,10 @@ pnpm --filter @cerniq/e2e test --testPathPattern='19_customer_journey'
 #   T8: verify DENIES TRIAL_EXHAUSTED again (lifetime cap is permanent — anti-abuse)
 
 # Step 5 — read the public audit-signing key and independently verify a sig
-curl https://api-staging.cerniqapp.com/.well-known/audit-signing-key
+curl https://api-staging.cerniq.io/.well-known/audit-signing-key
 # pipe the latest audit event through packages/audit-verifier
 pnpm --filter @cerniq/audit-verifier exec verify-chain \
-  --jwks-url https://api-staging.cerniqapp.com/.well-known/audit-signing-key \
+  --jwks-url https://api-staging.cerniq.io/.well-known/audit-signing-key \
   --events ./events.ndjson
 # expect: "chain valid; n events verified"
 
@@ -170,7 +170,7 @@ This sequence proves, without slides:
 - **Audit** is independently verifiable (any third party can check the chain).
 
 The artifact every design partner gets after the call is a Loom of you running
-this smoke test against `api.cerniqapp.com` plus the response payloads in JSON.
+this smoke test against `api.cerniq.io` plus the response payloads in JSON.
 
 ---
 
@@ -184,7 +184,7 @@ parallel with engineering sessions running on `WORK_BOARD.md`.
 **Operator actions (you, Erwin):**
 
 - [ ] **Stripe live mode setup.** In Stripe dashboard, create products: `CERNIQ Developer`, `CERNIQ Team`, `CERNIQ Scale`, plus a metered usage product `CERNIQ Verify Overage` priced at $0.80 / 1,000 verifies (recommendation in §1.2.2 above). Copy the price IDs into Railway env.
-- [ ] **DNS.** `api.cerniqapp.com` → Railway. `dashboard.cerniqapp.com` (or `app.cerniqapp.com`) → Vercel. `cerniqapp.com` → marketing site. `sales@cerniqapp.com` MX → your inbox of choice.
+- [ ] **DNS.** `api.cerniq.io` → Railway. `dashboard.cerniq.io` (or `app.cerniq.io`) → Vercel. `cerniq.io` → marketing site. `sales@cerniq.io` MX → your inbox of choice.
 - [ ] **Apply migration:** `cd apps/api && pnpm prisma migrate deploy` against Railway DATABASE_URL.
 - [ ] **Webhook secret rotation:** generate `CERNIQ_WEBHOOK_SECRET_DEK_B64` (32 random bytes, base64), set in production.
 - [ ] **Smoke test from §2 against staging.** Record a Loom of it. This is your design-partner pitch artifact.
@@ -243,17 +243,17 @@ For each of the 5 partners:
 From `OPERATOR_DECISIONS.md`, decisions whose silence-default ships
 automatically but where an explicit operator nod accelerates Day-1 deploy:
 
-| ID                           | Recommendation                                                                       | Reason now matters                                                                     |
-| ---------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| OD-001 BATE weights          | Accept the OD-001 default verbatim and lock in `bate.weights.ts`                     | Cold-start signals from design partners need a defensible score the moment they verify |
-| OD-002 Cold-start trust      | Accept default: start at 500, +150 KYC bonus                                         | Avoids first design partner's agent reading 0 / 1000                                   |
-| OD-004 Audit retention       | 7 years (default) — confirm in production env                                        | Required for SOC2 readiness collateral when the first compliance-driven partner asks   |
-| OD-005 Webhook DLQ attempts  | Accept default 8 attempts (Stripe parity)                                            | Webhooks fire on every band crossing — bad delivery loops eat Redis                    |
-| OD-006 FREE rate limit       | Accept default 10 rps + 20 burst                                                     | Already encoded as `verifyRateLimit` in `plans.ts`                                     |
-| OD-007 Status page           | Self-hosted at `status.cerniqapp.com` with `incidents.{open,history}.json` (default) | First incident before this is wired = no story for partners                            |
-| OD-009 / OD-010 CLI          | Device-code OAuth, Go binary (defaults)                                              | The CLI is referenced in every quickstart; design partners will install it Day 1       |
-| OD-011 Quickstart industries | Accept default: fintech-payments, ai-platform-tool-call, saas-seat-provisioning      | Already scaffolded in `examples/`                                                      |
-| OD-013 Default policy engine | Accept `builtin` as the per-principal default                                        | Cedar/OPA require customer-authored policies — kills first-verify activation           |
+| ID                           | Recommendation                                                                   | Reason now matters                                                                     |
+| ---------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| OD-001 BATE weights          | Accept the OD-001 default verbatim and lock in `bate.weights.ts`                 | Cold-start signals from design partners need a defensible score the moment they verify |
+| OD-002 Cold-start trust      | Accept default: start at 500, +150 KYC bonus                                     | Avoids first design partner's agent reading 0 / 1000                                   |
+| OD-004 Audit retention       | 7 years (default) — confirm in production env                                    | Required for SOC2 readiness collateral when the first compliance-driven partner asks   |
+| OD-005 Webhook DLQ attempts  | Accept default 8 attempts (Stripe parity)                                        | Webhooks fire on every band crossing — bad delivery loops eat Redis                    |
+| OD-006 FREE rate limit       | Accept default 10 rps + 20 burst                                                 | Already encoded as `verifyRateLimit` in `plans.ts`                                     |
+| OD-007 Status page           | Self-hosted at `status.cerniq.io` with `incidents.{open,history}.json` (default) | First incident before this is wired = no story for partners                            |
+| OD-009 / OD-010 CLI          | Device-code OAuth, Go binary (defaults)                                          | The CLI is referenced in every quickstart; design partners will install it Day 1       |
+| OD-011 Quickstart industries | Accept default: fintech-payments, ai-platform-tool-call, saas-seat-provisioning  | Already scaffolded in `examples/`                                                      |
+| OD-013 Default policy engine | Accept `builtin` as the per-principal default                                    | Cedar/OPA require customer-authored policies — kills first-verify activation           |
 
 Single message in Slack/email reply to this doc with `accept all defaults` is
 sufficient — the next session encodes them in `OPERATOR_DECISIONS.md` § 3 and

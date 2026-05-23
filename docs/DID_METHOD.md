@@ -58,7 +58,7 @@ the DID. There is no separate DID registration step.
 Resolution endpoint:
 
 ```
-GET https://api.cerniqapp.com/.well-known/did/{did-encoded}
+GET https://api.cerniq.io/.well-known/did/{did-encoded}
 ```
 
 Or via the [universal resolver](https://dev.uniresolver.io/) once we
@@ -89,12 +89,12 @@ Returns a DID Document conforming to W3C DID Core v1.1:
     {
       "id": "did:cerniq:mainnet:agt_xyz#cerniq-status",
       "type": "CerniqAgentStatus",
-      "serviceEndpoint": "https://api.cerniqapp.com/v1/agents/agt_xyz/status",
+      "serviceEndpoint": "https://api.cerniq.io/v1/agents/agt_xyz/status",
     },
     {
       "id": "did:cerniq:mainnet:agt_xyz#cerniq-verify",
       "type": "CerniqVerify",
-      "serviceEndpoint": "https://api.cerniqapp.com/v1/verify",
+      "serviceEndpoint": "https://api.cerniq.io/v1/verify",
     },
   ],
 }

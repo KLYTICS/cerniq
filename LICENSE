@@ -17,4 +17,4 @@ present development is structured for eventual external publication:
   - packages/sdk-ts/   (npm: @cerniq/sdk)
   - packages/sdk-py/   (PyPI: cerniq)
 
-For licensing inquiries: licensing@cerniqapp.com
+For licensing inquiries: licensing@cerniq.io

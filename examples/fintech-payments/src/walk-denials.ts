@@ -16,7 +16,7 @@ import { randomUUID } from 'node:crypto';
 
 const target = process.argv[2] ?? 'http://localhost:3001';
 const cerniq = new Cerniq({
-  baseUrl: process.env.CERNIQ_API_BASE ?? 'https://api.cerniqapp.com',
+  baseUrl: process.env.CERNIQ_API_BASE ?? 'https://api.cerniq.io',
   apiKey: requireEnv('CERNIQ_API_KEY'),
 });
 

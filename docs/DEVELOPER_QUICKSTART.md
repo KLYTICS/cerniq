@@ -4,7 +4,7 @@
 
 > **Audience:** Developer integrating CERNIQ for the first time.  
 > **Time:** ~10 minutes for happy path. ~30 minutes for full denial-precedence walkthrough.  
-> **Prerequisites:** Node.js 18+ or Python 3.11+. An CERNIQ API key (get one at dashboard.cerniqapp.com or via the CLI).
+> **Prerequisites:** Node.js 18+ or Python 3.11+. An CERNIQ API key (get one at dashboard.cerniq.io or via the CLI).
 
 ---
 
@@ -54,7 +54,7 @@ import { CerniqClient, generateKeypair } from '@cerniq/sdk';
 
 const cerniq = new CerniqClient({
   apiKey: process.env.CERNIQ_API_KEY!, // Your management API key
-  baseUrl: 'https://api.cerniqapp.com/v1', // default; omit in prod
+  baseUrl: 'https://api.cerniq.io/v1', // default; omit in prod
 });
 
 // Generate an Ed25519 keypair. Private key stays client-side — NEVER sent to CERNIQ.
@@ -493,7 +493,7 @@ CERNIQ_API_KEY=sk_live_...          # Management API key (full scope)
 CERNIQ_VERIFY_KEY=vk_live_...       # Verify-only key (RP-side, no management access)
 
 # Optional
-CERNIQ_BASE_URL=https://api.cerniqapp.com/v1   # default
+CERNIQ_BASE_URL=https://api.cerniq.io/v1   # default
 CERNIQ_TIMEOUT_MS=5000                         # default 5000ms
 CERNIQ_RETRY_ATTEMPTS=3                        # default 3
 CERNIQ_LOG_LEVEL=info                          # debug | info | warn | error

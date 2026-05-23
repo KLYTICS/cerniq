@@ -57,7 +57,7 @@ shape — see `mcp-server.ts` for the MCP-specific argument extraction.
 ```sh
 cd examples/ai-platform-tool-call
 pnpm install
-CERNIQ_API_BASE=https://api.cerniqapp.com \
+CERNIQ_API_BASE=https://api.cerniq.io \
 CERNIQ_VERIFY_KEY=cerniq_vk_... \
 DOWNSTREAM_API_BASE=https://api.your-svc.example.com \
 pnpm tsx src/mcp-server.ts
@@ -73,7 +73,7 @@ pnpm tsx src/mcp-server.ts
       "command": "pnpm",
       "args": ["tsx", "/path/to/cerniq/examples/ai-platform-tool-call/src/mcp-server.ts"],
       "env": {
-        "CERNIQ_API_BASE": "https://api.cerniqapp.com",
+        "CERNIQ_API_BASE": "https://api.cerniq.io",
         "CERNIQ_VERIFY_KEY": "cerniq_vk_...",
         "DOWNSTREAM_API_BASE": "https://api.your-svc.example.com",
       },
