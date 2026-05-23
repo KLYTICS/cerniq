@@ -4,6 +4,7 @@
 // and a custom `cerniq:open-palette` event so chord shortcuts can also trigger
 // it. Uses native portal-free fixed positioning + focus trap on input.
 
+import type { Route } from 'next';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -77,7 +78,7 @@ export function CommandPalette() {
     } else {
       // Commands carry runtime-string hrefs (`?action=register`, etc.) that
       // typedRoutes can't statically analyze — cast to Route at the boundary.
-      router.push(cmd.href);
+      router.push(cmd.href as Route);
     }
   }
 

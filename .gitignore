@@ -46,6 +46,12 @@ apps/api/prisma/migrations/dev.db*
 tmp/
 *.local
 
+# Claude Code agent workspace (per-machine, contains worktree state + session settings)
+.claude/
+
+# Consolidation archives (snapshots backed up to KLYTICS/cerniq-*-archive repos)
+_archive/
+
 # Dev seed artifacts (scripts/seed-dev.ts) — both copies of the agent
 # private key. NEVER commit; rotate via `pnpm seed:dev -- --reset`.
 # Both names tracked: `.cerniq-dev-key.txt` is the post-rename canonical

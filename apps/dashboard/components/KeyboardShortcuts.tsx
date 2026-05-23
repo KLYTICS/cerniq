@@ -10,6 +10,7 @@
 // or contentEditable surface. The chord-mode timeout window is 1.2s — long
 // enough for human chord typing, short enough that stray `g` doesn't latch.
 
+import type { Route } from 'next';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -80,7 +81,10 @@ export function KeyboardShortcuts() {
           if (cmd.external) {
             window.open(cmd.href, '_blank', 'noopener,noreferrer');
           } else {
-            router.push(cmd.href);
+            // Commands carry runtime-string hrefs that typedRoutes can't
+            // statically analyze — cast to Route at the boundary (same as
+            // CommandPalette.tsx).
+            router.push(cmd.href as Route);
           }
         }
         return;
@@ -99,5 +103,11 @@ export function KeyboardShortcuts() {
     };
   }, [helpOpen, router]);
 
-  return helpOpen ? <ShortcutsHelp onClose={() => { setHelpOpen(false); }} /> : null;
+  return helpOpen ? (
+    <ShortcutsHelp
+      onClose={() => {
+        setHelpOpen(false);
+      }}
+    />
+  ) : null;
 }
