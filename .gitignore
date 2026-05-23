@@ -59,6 +59,11 @@ tmp/
 *.orig
 *.bak
 
+# LibreOffice / Excel lock files. Tracking them caused
+# `docs/finance/.~lock.AEGIS_Financial_Model_v1.xlsx#` to be
+# committed accidentally on 2026-05-22.
+.~lock.*#
+
 # Local test result artifacts — bring-up captures, k6 output, e2e traces.
 # Often contain rotating API keys / token material; never commit.
 tests/results/
