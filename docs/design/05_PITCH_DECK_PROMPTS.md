@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Pitch & Sales Deck Prompts
+title: CERNIQ — Pitch & Sales Deck Prompts
 audience: deck tools (Gamma, Pitch, Tome, Beautiful.ai), in-repo .pptx generation, designer briefs
 last-reviewed: 2026-05-08
 prerequisites: read `docs/design/00_BRAND_FOUNDATION.md` first; review `docs/spec/01_MASTER.md` and `docs/WEDGE_PROOF.md` for canonical positioning
@@ -24,7 +24,7 @@ slides on/off per audience.
 01  Cover                    — wordmark + tagline + presenter context
 02  The market shift         — agents are about to outnumber humans on the wire
 03  The unsolved gap         — ACP solves payments; what's left
-04  AEGIS in one sentence    — the verifier choke point
+04  CERNIQ in one sentence    — the verifier choke point
 05  How it works             — 4-layer stack visual (the canonical motif)
 06  The verify hot path      — request lifecycle diagram, <80ms p99
 07  Why neutrality wins      — Switzerland thesis, anti-platform-lock
@@ -35,7 +35,7 @@ slides on/off per audience.
 11  The other moats          — denial precedence as public API, audit
                                 chain as forensic primitive
 12  Pricing & business model — verify-volume billing, plan tiers
-13  Competitive map          — Auth0, Prefactor, Entro, ACP, AEGIS row
+13  Competitive map          — Auth0, Prefactor, Entro, ACP, CERNIQ row
 14  Traction / proof         — design partners, GitHub stars, customer
                                 logos (placeholder until shipped)
 15  Roadmap                  — what ships next 6/12 months
@@ -65,20 +65,20 @@ hand-finalize in Figma or Keynote/PowerPoint.
 ### A.1 Investor deck — single Gamma prompt
 
 ```
-Generate an investor deck for AEGIS, a verification + behavioral
+Generate an investor deck for CERNIQ, a verification + behavioral
 attestation infrastructure for AI agents. 15 slides. Visual lane:
 Cloudflare meets Auth0 — slate neutrals (slate-50, slate-700, slate-
 900) with a single cyan-blue brand accent (#06B6D4 — call it
-"aegis-500"). Inter for everything except code samples (JetBrains
+"cerniq-500"). Inter for everything except code samples (JetBrains
 Mono). No mascots, no stock photos, no AI-generated imagery.
 
 Tone: precise, builder-flavored, confident without boast. Numbers over
-adjectives. State what AEGIS does; skip "industry-leading" /
+adjectives. State what CERNIQ does; skip "industry-leading" /
 "revolutionary" / "next-gen."
 
 Outline (one slide per line):
 
-1. Cover. Title "AEGIS" in Inter 700 aegis-500. Tagline
+1. Cover. Title "CERNIQ" in Inter 700 cerniq-500. Tagline
    "The verification layer for AI agents." Below: presenter
    name + title + date. Slate-50 background.
 
@@ -95,7 +95,7 @@ Outline (one slide per line):
    is it authorized, is its behavior trustworthy, can the RP
    verify in <100ms).
 
-4. AEGIS in one sentence. Single sentence centered: "AEGIS is the
+4. CERNIQ in one sentence. Single sentence centered: "CERNIQ is the
    neutral verification, policy, and behavioral attestation layer
    between AI agents and the services they act on." Below, three
    chips: "Neutral", "Non-custodial", "Verifiable".
@@ -139,10 +139,10 @@ Outline (one slide per line):
 
 13. Competitive map. A matrix:
     rows = Auth0 for AI Agents, Prefactor, Entro Security, Stripe
-    ACP, AEGIS
+    ACP, CERNIQ
     columns = Neutral, Non-custodial, Cross-protocol, Behavioral
     attestation, Audit-as-product
-    AEGIS is the only row with all 5 cells checked.
+    CERNIQ is the only row with all 5 cells checked.
 
 14. Traction / proof. Up to 6 logo placeholders for design partners.
     Below: GitHub stars, weekly verify volume on staging, ARR if
@@ -171,16 +171,16 @@ keep them visually consistent across slides.
 ### A.2 Enterprise sales deck — single prompt
 
 ```
-Generate an enterprise sales deck for AEGIS, used in CISO and platform-
+Generate an enterprise sales deck for CERNIQ, used in CISO and platform-
 engineering-leader conversations. 11 slides. Same visual lane as the
-investor deck (slate + aegis-500, Inter + JetBrains Mono).
+investor deck (slate + cerniq-500, Inter + JetBrains Mono).
 
 Tone: control-shaped, mapped-to-compliance, integration-pattern-first.
 Numbers and concrete commitments over vision.
 
 Outline:
 
-1. Cover. Title "AEGIS for [Customer Name]." Tagline "Verification +
+1. Cover. Title "CERNIQ for [Customer Name]." Tagline "Verification +
    audit for your agent fleet." Presenter name + customer logo
    placeholder.
 
@@ -188,7 +188,7 @@ Outline:
    relevant industry — fintech / SaaS / health / commerce — and one
    concrete loss scenario for that industry).
 
-3. AEGIS in one sentence (same as investor slide 4).
+3. CERNIQ in one sentence (same as investor slide 4).
 
 4. How it works (same 4-layer stack as investor slide 5).
 
@@ -199,7 +199,7 @@ Outline:
 
 6. Security model. Heavier than investor slide 8:
    - Non-custodial: "We never see your private keys."
-   - Append-only audit: "Hash-chained, AEGIS-signed, exportable as
+   - Append-only audit: "Hash-chained, CERNIQ-signed, exportable as
      NDJSON for your SOC2 / ISO / FINRA evidence pack."
    - Denial precedence: "10 fixed reasons. Public API contract. Your
      RP code can rely on stability."
@@ -214,8 +214,8 @@ Outline:
 8. Compliance posture. A table:
    rows = SOC2 CC1.4, CC6.1, CC6.6, CC7.3, ISO 27001 A.5.15, A.8.16,
           NIST CSF PR.AC-1, PR.AC-4, EU AI Act Art. 14
-   columns = Customer responsibility, AEGIS contribution, Status
-   AEGIS contribution column lists the specific control: "Signed
+   columns = Customer responsibility, CERNIQ contribution, Status
+   CERNIQ contribution column lists the specific control: "Signed
    audit chain", "Non-custodial key handling", "Scoped policy
    enforcement", "Trust thresholding". Be honest — pre-SOC2 status
    says "In progress" with target date.
@@ -271,16 +271,16 @@ For the polished, ship-quality version of the deck. Use this with a
 designer or as a Figma AI prompt for an in-Figma deck.
 
 ```
-Design a master deck file for AEGIS in Figma. 18 slides at 16:9
+Design a master deck file for CERNIQ in Figma. 18 slides at 16:9
 (1920×1080). Two views: investor (14 slides selected) and enterprise
 (10 slides selected) — built as Figma sections so the final PDFs are
 exported per-audience.
 
 Visual system:
-- Apply AEGIS Brand Foundation v1 tokens via Figma variables.
+- Apply CERNIQ Brand Foundation v1 tokens via Figma variables.
 - Light mode is the default for printed/PDF leave-behinds; dark mode
   variant for in-person presentation in dimmed rooms (build both;
-  dark uses slate-950 bg with the same aegis accent).
+  dark uses slate-950 bg with the same cerniq accent).
 - Master template: 64px outer margin, 12-column grid, 1280px content
   area, slide title in text-3xl, slide caption in text-base slate-600.
   Slide number bottom-right in mono slate-500.
@@ -291,7 +291,7 @@ Recurring visual elements (build as components first):
 - Denial precedence ladder (per § B.3)
 - Request lifecycle swim-lane (per § B.2)
 - Code-sample slide layout (single mono code block on slate-900 bg
-  with the AEGIS-call bold-italic treatment)
+  with the CERNIQ-call bold-italic treatment)
 
 Slide-specific design notes:
 
@@ -300,13 +300,13 @@ Slide-specific design notes:
    imagery.
 
 02 Market shift — single Recharts-style line chart projecting agent-
-   action volume 2025–2030. aegis-500 line on slate-200 axes. Source
+   action volume 2025–2030. cerniq-500 line on slate-200 axes. Source
    citation bottom-left.
 
 03 Unsolved gap — split slide. Left col headline + 3 bullets on what
    ACP solves; right col headline + 4 bullets on the gaps. Right-
    col bullets visually de-emphasized (slate-400 background) until
-   the closing bullet which is aegis-500 highlighted: "Verification."
+   the closing bullet which is cerniq-500 highlighted: "Verification."
 
 04 One sentence — centered single sentence, text-5xl, max-width 80%
    slide width. Three chip badges below.
@@ -323,7 +323,7 @@ Slide-specific design notes:
    blocks left.
 
 09 Integration pattern — single mono code block centered, ~30 lines
-   visible, the AEGIS-specific calls bold-italicized in aegis-500.
+   visible, the CERNIQ-specific calls bold-italicized in cerniq-500.
 
 10 BATE — a circular gauge graphic showing 0–1000 trust score with
    labeled bands; below, 5 input signal bars.
@@ -332,10 +332,10 @@ Slide-specific design notes:
    one-line description.
 
 12 Pricing — 4-column tier table; recommended tier highlighted with
-   aegis-500 border + "Recommended" pill.
+   cerniq-500 border + "Recommended" pill.
 
 13 Competitive map — 5×5 matrix with checkmark / dash / hollow circle
-   markers. AEGIS row visually distinguished with aegis-500 row
+   markers. CERNIQ row visually distinguished with cerniq-500 row
    background tint.
 
 14 Traction — logo grid (6 placeholders) + 3 stat blocks below.
@@ -365,12 +365,12 @@ view. Include dev-mode notes for any animated build (there should be
 ## C. Designer brief (for a senior deck designer)
 
 ```
-PROJECT: AEGIS Master Deck v1 (investor + enterprise variants)
+PROJECT: CERNIQ Master Deck v1 (investor + enterprise variants)
 ENGAGEMENT: ~3-4 weeks
 DELIVERABLE FORMAT: Figma master deck + investor PDF + enterprise PDF +
 .pptx export + Keynote variant
 
-CONTEXT: AEGIS is a neutral verification + attestation infrastructure
+CONTEXT: CERNIQ is a neutral verification + attestation infrastructure
 for AI agents. Read `docs/spec/01_MASTER.md`, `docs/WEDGE_PROOF.md`,
 and `docs/design/00_BRAND_FOUNDATION.md` before starting.
 
@@ -415,7 +415,7 @@ ANTI-REFERENCES:
 
 HARD CONSTRAINTS:
 - 16:9, 1920×1080 master frame size
-- Slate + aegis-500 only; no other accent colors
+- Slate + cerniq-500 only; no other accent colors
 - Inter + JetBrains Mono only
 - Every slide must legible as a printed PDF page (no rely on motion)
 - Speaker notes for every slide — required, not optional
@@ -451,7 +451,7 @@ that you then refine in Keynote/PowerPoint.
 ### D.1 Generate the investor deck .pptx
 
 ```
-Goal: produce apps/decks/investor/AEGIS_Investor_Deck_v1.pptx from
+Goal: produce apps/decks/investor/CERNIQ_Investor_Deck_v1.pptx from
 the slide library defined in docs/design/05_PITCH_DECK_PROMPTS.md.
 
 Read first:
@@ -487,7 +487,7 @@ in the script.
 ### D.2 Generate the enterprise deck .pptx
 
 ```
-Goal: produce apps/decks/enterprise/AEGIS_Enterprise_Deck_v1.pptx.
+Goal: produce apps/decks/enterprise/CERNIQ_Enterprise_Deck_v1.pptx.
 
 Read first: same as D.1.
 
@@ -542,7 +542,7 @@ For a deck, the right sequence is unusual:
    pptx skill. This forces the content to be canonical (pulled from
    the docs) and locks the slide library.
 2. **A**: re-prompt one of the deck tools (Gamma/Pitch/Tome) with the
-   draft outline as a sanity check. If the tool's output is *worse*
+   draft outline as a sanity check. If the tool's output is _worse_
    than the programmatic draft, you've validated the draft. If it's
    better in a specific way, lift that into the next pass.
 3. **C**: hand the locked content + the draft .pptx to a deck
@@ -554,4 +554,4 @@ For a deck, the right sequence is unusual:
 
 The least-good path is Tome/Pitch/Gamma → ship. AI deck tools
 generate adequate first drafts; they ship visibly AI-generated
-final decks. AEGIS cannot afford that on an enterprise sales call.
+final decks. CERNIQ cannot afford that on an enterprise sales call.

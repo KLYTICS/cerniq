@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Task Lifecycle (scaffolded thinking → planning → implementing)
+title: CERNIQ — Task Lifecycle (scaffolded thinking → planning → implementing)
 audience: every contributor; mandatory for any non-trivial task
 last-reviewed: 2026-05-08
 status: source-of-truth — v1
@@ -42,9 +42,11 @@ issue, operator instruction, ADR follow-up, customer-success
 escalation, internal ask).
 
 **Inputs.**
+
 - The raw request (whatever form it arrived in).
 
 **Activities.**
+
 - Capture the request as a structured ticket (`WORK_BOARD.md` entry
   or GitHub issue; both shapes are acceptable).
 - Classify:
@@ -57,17 +59,19 @@ escalation, internal ask).
   - **Touch surface** (which files, which invariants, which ADRs)
 - If the request implies a `CLAUDE.md` invariant violation: classify
   as **needs-Architect-stage**.
-- If the request requires capabilities AEGIS doesn't ship yet:
+- If the request requires capabilities CERNIQ doesn't ship yet:
   classify as **needs-Product-evaluation**.
 - If the priority is unclear, default P2 and surface for triage.
 
 **Deliverables.**
+
 - A `WORK_BOARD.md` entry or issue with: id, title, classification,
   paths, acceptance criteria (placeholder is okay), `STATUS: open`.
 - Optional: a one-paragraph rationale linking to the source request
   for traceability.
 
 **Sign-offs.**
+
 - None at this stage. Capture is sufficient.
 
 **Time budget.** <15 minutes.
@@ -76,6 +80,7 @@ escalation, internal ask).
 second contributor could pick it up cold.
 
 **Anti-patterns.**
+
 - Starting work on a Slack DM. Slack DMs are not tickets.
 - Inflating priority. Most P0s are P1s in disguise. Calibrate.
 - Skipping the path map. Knowing which files a task touches at intake
@@ -90,10 +95,12 @@ second contributor could pick it up cold.
 **Trigger.** A claim is taken on a `WORK_BOARD.md` item.
 
 **Inputs.**
+
 - The intake ticket.
 - Read access to the entire repo.
 
 **Activities.**
+
 - Read the relevant ADRs in `docs/decisions/`. The decisions space is
   the single most important context.
 - Read the relevant chapters in `docs/spec/`, `docs/ARCHITECTURE.md`,
@@ -108,12 +115,14 @@ second contributor could pick it up cold.
   problem. Failed attempts are signal.
 
 **Deliverables.**
+
 - A short discovery note (in the issue, the PR draft, or a scratch
   doc): "what I read, what I know now, what I don't yet know."
 - A list of questions for the operator or other roles, if any.
 - An updated `WORK_BOARD.md` entry if the scope changed.
 
 **Sign-offs.**
+
 - None required, but if Discovery surfaces an architectural question,
   the work pauses pending Architect engagement.
 
@@ -123,6 +132,7 @@ second contributor could pick it up cold.
 without checking again.
 
 **Anti-patterns.**
+
 - Skipping Discovery to "save time." Time saved here is time burned in
   Implementing as you discover the constraint you missed.
 - Treating Discovery as research-only. The deliverable is structured
@@ -140,10 +150,12 @@ on one.
 **Trigger.** Discovery is complete.
 
 **Inputs.**
+
 - The Discovery output.
 - The intake ticket.
 
 **Activities.**
+
 - **Problem definition.** State the problem in one paragraph. Not the
   solution — the problem. Include: who experiences the pain, what
   they observe, what the cost is.
@@ -161,6 +173,7 @@ on one.
   impact, dependency creation).
 
 **Deliverables.**
+
 - A thinking doc — could be a short scratch in the PR description for
   trivial work, or a proper RFC under `docs/decisions/proposals/` for
   non-trivial work. Includes problem, constraints, options, trade-off
@@ -168,6 +181,7 @@ on one.
 - A list of the `CLAUDE.md` invariants the work touches.
 
 **Sign-offs.**
+
 - For non-trivial work, the Architect role is in this stage. The
   operator may be consulted; Security must be consulted if the work
   touches crypto, audit chain, or denial precedence.
@@ -180,6 +194,7 @@ recommendation is the best of the enumerated options, given the
 constraints.
 
 **Anti-patterns.**
+
 - Single-option proposals. If you only consider one option, you are
   not thinking; you are advocating.
 - Skipping the pre-mortem. Pre-mortems prevent more bugs than tests.
@@ -197,9 +212,11 @@ durable artifact.
 selected.
 
 **Inputs.**
+
 - The thinking doc.
 
 **Activities.**
+
 - For architectural work: write an ADR following
   `docs/decisions/0000-template.md`. Include: context, decision,
   consequences (positive, negative, neutral), alternatives considered
@@ -216,6 +233,7 @@ selected.
 - Map dependencies between tracks. Which track must finish first?
 
 **Deliverables.**
+
 - The ADR (for architectural work) or a plan document (for non-
   architectural).
 - Updated `WORK_BOARD.md` entries — possibly multiple, one per
@@ -225,6 +243,7 @@ selected.
 - A rollback plan: if this ships and is wrong, how do we back it out?
 
 **Sign-offs.**
+
 - Architect role on the ADR.
 - For ADRs touching invariants: Operator + Security (and Compliance
   if relevant).
@@ -237,6 +256,7 @@ for trivial.
 implement it without re-deciding any architectural question.
 
 **Anti-patterns.**
+
 - Implementing while Planning. Plans get worse when written under
   the pressure of an in-progress implementation.
 - ADRs that are trivially short ("we'll use Postgres because it's
@@ -256,10 +276,12 @@ implement it without re-deciding any architectural question.
 `WORK_BOARD.md`.
 
 **Inputs.**
+
 - The plan / ADR.
 - Code, tests, the existing module.
 
 **Activities.**
+
 - Write tests first when the change is testable behavior. Crypto code
   has a paired `.spec.ts`, no exception.
 - Write the implementation.
@@ -272,6 +294,7 @@ implement it without re-deciding any architectural question.
   long. Reviewer can give early feedback on direction.
 
 **Deliverables.**
+
 - A PR with: code, tests, doc updates, the OS-axis footer in commit
   messages, a PR description that:
   - Cites the ADR.
@@ -283,6 +306,7 @@ implement it without re-deciding any architectural question.
   results, and the state of the module after merge.
 
 **Sign-offs.**
+
 - The Implementer self-reviews against `04_QUALITY_GATES.md` before
   marking the PR ready.
 
@@ -292,6 +316,7 @@ budget 30 minutes for tests and 15 minutes for doc updates.
 **Exit gate.** The PR is in a state where a Reviewer can pick it up.
 
 **Anti-patterns.**
+
 - Writing tests after the implementation, or not at all. Untested
   behavior is broken behavior waiting to be observed.
 - "I'll write the doc later." Later does not exist. The doc is part
@@ -313,11 +338,13 @@ budget 30 minutes for tests and 15 minutes for doc updates.
 **Trigger.** The PR is marked ready for review.
 
 **Inputs.**
+
 - The PR diff.
 - The ADR / plan.
 - `04_QUALITY_GATES.md`.
 
 **Activities.**
+
 - Read the ADR / plan first. Establish what the implementation is
   supposed to do.
 - Read the PR description. The Implementer's claims about what the
@@ -332,12 +359,14 @@ budget 30 minutes for tests and 15 minutes for doc updates.
   and customer-communicated.
 
 **Deliverables.**
+
 - Approval, request-for-changes, or block, with reasoning.
 - Gate-by-gate confirmation in PR comments.
 - For Architectural changes: explicit confirmation that the
   implementation matches the ADR.
 
 **Sign-offs.**
+
 - The Reviewer is a different identity from the Author. (See
   `02_AGENT_ROLES.md` § Multi-role sessions for the SoD discipline.)
 - Security review required for any change touching crypto, audit
@@ -352,6 +381,7 @@ half a day for substantial architectural change.
 clicked Approve.
 
 **Anti-patterns.**
+
 - "LGTM" without gate-by-gate confirmation. The audit trail needs
   reasoning, not just approval.
 - Approving without running tests for non-trivial change.
@@ -371,10 +401,12 @@ monitored.
 **Trigger.** The PR is merged to `main`.
 
 **Inputs.**
+
 - The merged code.
 - Release notes draft.
 
 **Activities.**
+
 - Deploy via the release process (`docs/RELEASE_PROCESS.md`). For
   non-trivial: stage → canary → production. For trivial: direct
   production via the standard pipeline.
@@ -392,6 +424,7 @@ monitored.
 - Update `WORK_BOARD.md` to `STATUS: landed`.
 
 **Deliverables.**
+
 - Production deployment.
 - Release notes (internal + external as applicable).
 - Monitoring confirmation.
@@ -399,6 +432,7 @@ monitored.
 - A `SESSION_HANDOFF.md` entry confirming the ship.
 
 **Sign-offs.**
+
 - For production deploys: the Reviewer who approved the PR is a
   different identity from the deploy actor.
 - For customer-facing changes: GTM and Customer Success have approved
@@ -411,6 +445,7 @@ half a day for major release with comms.
 relevant), and monitoring is watching it.
 
 **Anti-patterns.**
+
 - Skipping the canary. The canary is the discipline that catches the
   bug your tests didn't.
 - Shipping without release notes. Release notes are part of the ship.
@@ -430,11 +465,13 @@ OS if needed.
 for incidents.
 
 **Inputs.**
+
 - The shipped feature in production for 14 days (or the incident).
 - Metrics: usage, errors, customer feedback.
 - The original problem statement and success metric.
 
 **Activities.**
+
 - Compare actual outcome to predicted outcome.
 - Identify what worked.
 - Identify what didn't (the failure modes from the Thinking-stage
@@ -446,6 +483,7 @@ for incidents.
   shipped within 72 hours of resolution.
 
 **Deliverables.**
+
 - A short postmortem doc — could be a section in the existing ADR
   ("Outcome" added at the bottom) or a new file under
   `docs/postmortems/`. Includes: predicted vs. actual, what worked,
@@ -455,6 +493,7 @@ for incidents.
   reviewed by GTM and Legal, published per `docs/INCIDENT_RESPONSE.md`.
 
 **Sign-offs.**
+
 - Architect on the action items.
 - Operator on any OS-update proposal.
 
@@ -466,6 +505,7 @@ linked from the original ADR / ticket. The action items are claimable
 work.
 
 **Anti-patterns.**
+
 - Skipping postmortems on successful work. Successes have lessons
   too — what did we predict correctly that we should keep doing?
 - Blameful postmortems. The culture is blameless; the artifact is
@@ -560,16 +600,16 @@ wrong. The discipline is:
 
 ## Time budgets summary
 
-| Stage | Trivial | Medium | Architectural |
-|---|---|---|---|
-| 0 Intake | <5min | 10min | 15min |
-| 1 Discovery | 15min | 1h | 3h |
-| 2 Thinking | 5min | 1h | 1d |
-| 3 Planning | 5min | 30min | 1d |
-| 4 Implementing | varies | varies | days/weeks |
-| 5 Reviewing | 15min | 1h | 3h |
-| 6 Shipping | 15min | 1h | half-day |
-| 7 Postmortem | skip | 30min | 3h |
+| Stage          | Trivial | Medium | Architectural |
+| -------------- | ------- | ------ | ------------- |
+| 0 Intake       | <5min   | 10min  | 15min         |
+| 1 Discovery    | 15min   | 1h     | 3h            |
+| 2 Thinking     | 5min    | 1h     | 1d            |
+| 3 Planning     | 5min    | 30min  | 1d            |
+| 4 Implementing | varies  | varies | days/weeks    |
+| 5 Reviewing    | 15min   | 1h     | 3h            |
+| 6 Shipping     | 15min   | 1h     | half-day      |
+| 7 Postmortem   | skip    | 30min  | 3h            |
 
 If your stage is taking dramatically longer than the budget, you are
 either operating at the wrong granularity (the work is bigger than

@@ -1,11 +1,11 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import { Aegis, generateKeypair } from '@aegis/sdk';
-import type { AgentRecord } from '@aegis/sdk';
+import { Cerniq, generateKeypair } from '@cerniq/sdk';
+import type { AgentRecord } from '@cerniq/sdk';
 import { RawClient, makeSdk, readConfig } from './_support/client';
 import { createAgent } from './_support/fixtures';
 
 describe('03 · agent identity', () => {
-  let sdk: Aegis;
+  let sdk: Cerniq;
   let raw: RawClient;
   const created: string[] = [];
 
@@ -72,10 +72,10 @@ describe('03 · agent identity', () => {
   });
 
   it('cross-principal isolation: another principal cannot see this agent (skipped if no second key)', async () => {
-    const second = process.env['AEGIS_E2E_API_KEY_2'];
+    const second = process.env['CERNIQ_E2E_API_KEY_2'];
     if (!second) {
       // Document, do not fail. The harness only requires one principal key
-      // by default. Set AEGIS_E2E_API_KEY_2 to a second principal's key
+      // by default. Set CERNIQ_E2E_API_KEY_2 to a second principal's key
       // (issued by the same instance) to exercise this path.
       return;
     }

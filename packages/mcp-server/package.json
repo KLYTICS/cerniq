@@ -1,21 +1,21 @@
 {
-  "name": "@aegis/mcp-server",
+  "name": "@cerniq/mcp-server",
   "version": "0.1.0",
-  "description": "AEGIS exposed as an MCP server. Lets Claude Desktop / Cursor / any MCP host call AEGIS verify, agents, policies, and audit tools natively.",
+  "description": "CERNIQ exposed as an MCP server. Lets Claude Desktop / Cursor / any MCP host call CERNIQ verify, agents, policies, and audit tools natively.",
   "type": "module",
   "license": "MIT",
-  "author": "AEGIS Labs <hello@aegislabs.io>",
-  "homepage": "https://aegislabs.io/mcp",
+  "author": "CERNIQ Labs <hello@cerniq.io>",
+  "homepage": "https://cerniq.io/mcp",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/klytics/aegis.git",
+    "url": "git+https://github.com/klytics/cerniq.git",
     "directory": "packages/mcp-server"
   },
   "bugs": {
-    "url": "https://github.com/klytics/aegis/issues"
+    "url": "https://github.com/klytics/cerniq/issues"
   },
   "keywords": [
-    "aegis",
+    "cerniq",
     "mcp",
     "model-context-protocol",
     "claude-desktop",
@@ -33,7 +33,7 @@
     }
   },
   "bin": {
-    "aegis-mcp": "./dist/bin.js"
+    "cerniq-mcp": "./dist/bin.js"
   },
   "files": [
     "dist",
@@ -50,13 +50,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aegis/sdk": "workspace:*",
-    "@aegis/types": "workspace:*",
+    "@cerniq/sdk": "workspace:*",
+    "@cerniq/types": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@aegis/tsconfig": "workspace:*",
+    "@cerniq/tsconfig": "workspace:*",
     "tsup": "^8.3.5",
     "typescript": "^5.6.3",
     "vitest": "^2.1.5"

@@ -9,5 +9,5 @@ export default defineConfig({
   clean: true,
   treeshake: true,
   target: 'es2022',
-  external: ['@aegis/sdk', '@aegis/types', '@modelcontextprotocol/sdk'],
+  external: ['@cerniq/sdk', '@cerniq/types', '@modelcontextprotocol/sdk'],
 });

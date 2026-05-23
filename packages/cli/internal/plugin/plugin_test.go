@@ -8,7 +8,7 @@ import (
 )
 
 // TestFind_NoMatchingPluginReturnsFalse exercises the negative path —
-// `aegis foo` with no `aegis-foo` on PATH must report not-found, not
+// `cerniq foo` with no `cerniq-foo` on PATH must report not-found, not
 // surface a misleading error.
 func TestFind_NoMatchingPluginReturnsFalse(t *testing.T) {
 	t.Setenv("PATH", "")
@@ -17,7 +17,7 @@ func TestFind_NoMatchingPluginReturnsFalse(t *testing.T) {
 	}
 }
 
-// TestFind_RejectsTraversal protects against `aegis ../bin/sh` style
+// TestFind_RejectsTraversal protects against `cerniq ../bin/sh` style
 // argument injection — slashes in the plugin name must be rejected
 // before the resolver consults PATH.
 func TestFind_RejectsTraversal(t *testing.T) {
@@ -38,7 +38,7 @@ func TestList_FindsExecutableWithPrefix(t *testing.T) {
 		t.Skip("PATHEXT-based exec detection — covered separately")
 	}
 	dir := t.TempDir()
-	binPath := filepath.Join(dir, "aegis-zoltar")
+	binPath := filepath.Join(dir, "cerniq-zoltar")
 	if err := os.WriteFile(binPath, []byte("#!/bin/sh\necho hi\n"), 0o755); err != nil {
 		t.Fatalf("seed plugin: %v", err)
 	}
@@ -52,6 +52,6 @@ func TestList_FindsExecutableWithPrefix(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("expected to find aegis-zoltar; got %v", plugins)
+		t.Fatalf("expected to find cerniq-zoltar; got %v", plugins)
 	}
 }

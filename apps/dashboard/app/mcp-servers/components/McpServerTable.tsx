@@ -27,10 +27,14 @@ function relativeTime(iso: string | null): string {
 
 function statusBadge(s: string): string {
   switch (s) {
-    case 'ACTIVE': return 'ok';
-    case 'PAUSED': return 'warn';
-    case 'REVOKED': return 'crit';
-    default: return 'muted';
+    case 'ACTIVE':
+      return 'ok';
+    case 'PAUSED':
+      return 'warn';
+    case 'REVOKED':
+      return 'crit';
+    default:
+      return 'muted';
   }
 }
 
@@ -40,7 +44,7 @@ export function McpServerTable({ servers }: { servers: McpServerSummary[] }) {
       <div className="data-empty">
         <p>No MCP servers registered.</p>
         <pre className="hint">{`# from your terminal:
-aegis mcp install --host claude-desktop`}</pre>
+cerniq mcp install --host claude-desktop`}</pre>
       </div>
     );
   }
@@ -68,9 +72,13 @@ aegis mcp install --host claude-desktop`}</pre>
             <td className="mono">{s.transport}</td>
             <td className="mono">{s.actionPrefix}</td>
             <td>{s.minTrustBand}</td>
-            <td><span className={`badge badge-${statusBadge(s.status)}`}>{s.status}</span></td>
+            <td>
+              <span className={`badge badge-${statusBadge(s.status)}`}>{s.status}</span>
+            </td>
             <td className="num">{s.recentInvocations.toLocaleString()}</td>
-            <td className={`num ${s.recentDenials > 0 ? 'crit' : ''}`}>{s.recentDenials.toLocaleString()}</td>
+            <td className={`num ${s.recentDenials > 0 ? 'crit' : ''}`}>
+              {s.recentDenials.toLocaleString()}
+            </td>
             <td className="dim">{relativeTime(s.lastSeenAt)}</td>
             <td className="dim">{relativeTime(s.createdAt)}</td>
           </tr>

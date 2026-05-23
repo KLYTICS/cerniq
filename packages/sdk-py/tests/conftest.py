@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for the AEGIS Python SDK."""
+"""Shared pytest fixtures for the CERNIQ Python SDK."""
 
 from __future__ import annotations
 
@@ -9,9 +9,9 @@ import pytest
 import pytest_asyncio
 import respx
 
-from aegis import AsyncAegis, Keypair, generate_keypair
+from cerniq import AsyncCerniq, Keypair, generate_keypair
 
-BASE_URL = "https://api.aegislabs.io/v1"
+BASE_URL = "https://api.cerniq.io/v1"
 
 
 @pytest.fixture
@@ -22,12 +22,12 @@ def keypair() -> Keypair:
 
 @pytest.fixture
 def api_key() -> str:
-    return "aegis_sk_test_0123456789abcdef"
+    return "cerniq_sk_test_0123456789abcdef"
 
 
 @pytest.fixture
 def verify_key() -> str:
-    return "aegis_vk_test_0123456789abcdef"
+    return "cerniq_vk_test_0123456789abcdef"
 
 
 @pytest.fixture
@@ -36,9 +36,9 @@ def base_url() -> str:
 
 
 @pytest_asyncio.fixture
-async def aegis(api_key: str, verify_key: str, base_url: str) -> AsyncIterator[AsyncAegis]:
-    """An AsyncAegis client wired against the mocked base URL."""
-    async with AsyncAegis(
+async def cerniq(api_key: str, verify_key: str, base_url: str) -> AsyncIterator[AsyncCerniq]:
+    """An AsyncCerniq client wired against the mocked base URL."""
+    async with AsyncCerniq(
         api_key=api_key,
         verify_key=verify_key,
         base_url=base_url,

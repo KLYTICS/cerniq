@@ -1,15 +1,15 @@
-// Treasury-agent simulator. Mints an AEGIS token client-side and
+// Treasury-agent simulator. Mints an CERNIQ token client-side and
 // posts a payment instruction to the treasury API.
 //
 // Usage:
-//   AEGIS_AGENT_PRIVATE_KEY=<b64u> \
-//   AEGIS_AGENT_ID=ag_xxx AEGIS_POLICY_ID=po_xxx \
+//   CERNIQ_AGENT_PRIVATE_KEY=<b64u> \
+//   CERNIQ_AGENT_ID=ag_xxx CERNIQ_POLICY_ID=po_xxx \
 //   pnpm tsx src/agent-sim.ts \
 //     --rail ach --amount 50000 --currency USD \
 //     --debtor-bic GSCRUS33 --creditor-bic CHASUS33 \
 //     --memo "vendor payment INV-1042"
 
-import { signAgentToken } from '@aegis/sdk';
+import { signAgentToken } from '@cerniq/sdk';
 
 import type { PaymentInstruction, RailType, Iso4217Currency } from './iso20022-shape.js';
 
@@ -26,8 +26,26 @@ interface CliArgs {
   privateKey: string;
 }
 
-const VALID_RAILS: readonly RailType[] = ['ach', 'wire', 'rtp', 'fednow', 'sepa-ct', 'sepa-instant', 'book-transfer'];
-const VALID_CURRENCIES: readonly Iso4217Currency[] = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'BRL', 'CHF', 'MXN'];
+const VALID_RAILS: readonly RailType[] = [
+  'ach',
+  'wire',
+  'rtp',
+  'fednow',
+  'sepa-ct',
+  'sepa-instant',
+  'book-transfer',
+];
+const VALID_CURRENCIES: readonly Iso4217Currency[] = [
+  'USD',
+  'EUR',
+  'GBP',
+  'JPY',
+  'CAD',
+  'AUD',
+  'BRL',
+  'CHF',
+  'MXN',
+];
 
 function readArgs(argv: string[]): CliArgs {
   const get = (flag: string): string | undefined => {
@@ -46,18 +64,24 @@ function readArgs(argv: string[]): CliArgs {
 
   const railRaw = (get('--rail') ?? 'ach') as RailType;
   if (!VALID_RAILS.includes(railRaw)) {
-    process.stderr.write(`agent-sim: --rail must be one of ${VALID_RAILS.join('|')}, got "${railRaw}"\n`);
+    process.stderr.write(
+      `agent-sim: --rail must be one of ${VALID_RAILS.join('|')}, got "${railRaw}"\n`,
+    );
     process.exit(2);
   }
   const currencyRaw = (get('--currency') ?? 'USD') as Iso4217Currency;
   if (!VALID_CURRENCIES.includes(currencyRaw)) {
-    process.stderr.write(`agent-sim: --currency must be one of ${VALID_CURRENCIES.join('|')}, got "${currencyRaw}"\n`);
+    process.stderr.write(
+      `agent-sim: --currency must be one of ${VALID_CURRENCIES.join('|')}, got "${currencyRaw}"\n`,
+    );
     process.exit(2);
   }
   const amountRaw = get('--amount') ?? '5000';
   const amount = Number(amountRaw);
   if (!Number.isInteger(amount) || amount <= 0) {
-    process.stderr.write(`agent-sim: --amount must be a positive integer (cents), got "${amountRaw}"\n`);
+    process.stderr.write(
+      `agent-sim: --amount must be a positive integer (cents), got "${amountRaw}"\n`,
+    );
     process.exit(2);
   }
 
@@ -69,9 +93,9 @@ function readArgs(argv: string[]): CliArgs {
     debtorIdentifier: get('--debtor-bic') ?? 'GSCRUS33',
     creditorIdentifier: get('--creditor-bic') ?? 'CHASUS33',
     memo: get('--memo'),
-    agentId: requireFlag('--agent', 'AEGIS_AGENT_ID'),
-    policyId: requireFlag('--policy', 'AEGIS_POLICY_ID'),
-    privateKey: requireFlag('--private-key', 'AEGIS_AGENT_PRIVATE_KEY'),
+    agentId: requireFlag('--agent', 'CERNIQ_AGENT_ID'),
+    policyId: requireFlag('--policy', 'CERNIQ_POLICY_ID'),
+    privateKey: requireFlag('--private-key', 'CERNIQ_AGENT_PRIVATE_KEY'),
   };
 }
 
@@ -92,10 +116,10 @@ async function main(): Promise<number> {
     remittanceInfo: args.memo,
   };
 
-  // Bind the AEGIS scope check to the creditor BIC. Policies for
+  // Bind the CERNIQ scope check to the creditor BIC. Policies for
   // treasury agents typically allow-list specific counterparties; the
   // creditor identifier is the "domain" the policy gates against.
-  const aegisToken = await signAgentToken(args.privateKey, args.agentId, args.policyId, {
+  const cerniqToken = await signAgentToken(args.privateKey, args.agentId, args.policyId, {
     action: 'banking.payment',
     amount: args.amount / 100,
     currency: args.currency,
@@ -106,7 +130,7 @@ async function main(): Promise<number> {
   const resp = await fetch(`${args.target}/api/instruct`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ aegisToken, instruction }),
+    body: JSON.stringify({ cerniqToken, instruction }),
   });
   const result = (await resp.json()) as Record<string, unknown>;
 
@@ -117,6 +141,8 @@ async function main(): Promise<number> {
 main()
   .then((code) => process.exit(code))
   .catch((err: unknown) => {
-    process.stderr.write(`agent-sim: fatal — ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
+    process.stderr.write(
+      `agent-sim: fatal — ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`,
+    );
     process.exit(1);
   });

@@ -5,27 +5,27 @@
 //   - the seat table (tier, tenant, externalId, agentId, policyId)
 //   - the per-tier policy template (scope, spend cap, domains)
 //
-// AEGIS owns:
+// CERNIQ owns:
 //   - the cryptographic agent identity
 //   - the signed policy JWT
 //   - the audit chain
 //
 // On POST /scim/v2/Agents the SaaS:
 //   1. Validates the SCIM body.
-//   2. aegis.agents.register() — creates the cryptographic identity.
-//   3. aegis.policies.create() — mints a tier-shaped scoped policy.
+//   2. cerniq.agents.register() — creates the cryptographic identity.
+//   3. cerniq.policies.create() — mints a tier-shaped scoped policy.
 //   4. Persists a seat row joining (tenant, externalId, agentId, policyId).
 //   5. Returns the SCIM-shaped 201 Created.
 //
-// On DELETE the SaaS revokes both the AEGIS agent (immediate) and the
+// On DELETE the SaaS revokes both the CERNIQ agent (immediate) and the
 // policy (idempotent — agent revocation kills any signed token anyway).
 
 import express, { type Request, type Response } from 'express';
-import { Aegis } from '@aegis/sdk';
+import { Cerniq } from '@cerniq/sdk';
 
-const aegis = new Aegis({
-  baseUrl: process.env.AEGIS_API_BASE ?? 'https://api.aegislabs.io',
-  apiKey: requireEnv('AEGIS_API_KEY'),
+const cerniq = new Cerniq({
+  baseUrl: process.env.CERNIQ_API_BASE ?? 'https://api.cerniq.io',
+  apiKey: requireEnv('CERNIQ_API_KEY'),
 });
 
 const tenantId = requireEnv('SAAS_TENANT_ID');
@@ -47,7 +47,9 @@ app.use(express.json({ type: ['application/json', 'application/scim+json'] }));
 app.post('/scim/v2/Agents', async (req: Request, res: Response) => {
   const body = req.body as ScimCreateBody;
   if (!body || !body.externalId || !body.displayName || !body.publicKey) {
-    return res.status(400).json(scimError('invalidValue', 'externalId, displayName, publicKey required'));
+    return res
+      .status(400)
+      .json(scimError('invalidValue', 'externalId, displayName, publicKey required'));
   }
   // SCIM idempotency: re-POSTing the same externalId returns the
   // existing row, not 409 Conflict (per RFC 7644 §3.3).
@@ -55,18 +57,18 @@ app.post('/scim/v2/Agents', async (req: Request, res: Response) => {
   const existing = seats.get(key);
   if (existing) return res.status(200).json(scimRender(existing));
 
-  const tier: SeatTier = (body.urn?.['urn:aegis:saas:1.0:Agent']?.tier ?? 'free') as SeatTier;
+  const tier: SeatTier = (body.urn?.['urn:cerniq:saas:1.0:Agent']?.tier ?? 'free') as SeatTier;
   const tpl = POLICY_TEMPLATES[tier];
   if (!tpl) {
     return res.status(400).json(scimError('invalidValue', `unknown tier ${tier}`));
   }
 
-  const agent = await aegis.agents.register({
+  const agent = await cerniq.agents.register({
     publicKey: body.publicKey,
     runtime: 'CUSTOM',
     metadata: { tenantId, externalId: body.externalId, displayName: body.displayName },
   });
-  const policy = await aegis.policies.create({
+  const policy = await cerniq.policies.create({
     agentId: agent.id,
     scope: tpl.scope,
     maxPerDay: tpl.maxPerDay,
@@ -97,8 +99,8 @@ app.get('/scim/v2/Agents/:id', (req, res) => {
 app.delete('/scim/v2/Agents/:id', async (req, res) => {
   for (const [key, seat] of seats.entries()) {
     if (seat.id !== req.params.id) continue;
-    await aegis.agents.revoke(seat.agentId).catch(() => undefined);
-    await aegis.policies.revoke(seat.policyId).catch(() => undefined);
+    await cerniq.agents.revoke(seat.agentId).catch(() => undefined);
+    await cerniq.policies.revoke(seat.policyId).catch(() => undefined);
     seats.delete(key);
     return res.status(204).end();
   }
@@ -108,7 +110,7 @@ app.delete('/scim/v2/Agents/:id', async (req, res) => {
 app.get('/scim/v2/ServiceProviderConfig', (_req, res) => {
   res.json({
     schemas: ['urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig'],
-    documentationUri: 'https://docs.aegislabs.io/integrations/scim',
+    documentationUri: 'https://docs.cerniq.io/integrations/scim',
     patch: { supported: false },
     bulk: { supported: false, maxOperations: 0, maxPayloadSize: 0 },
     filter: { supported: true, maxResults: 200 },
@@ -151,16 +153,16 @@ interface ScimCreateBody {
   externalId: string;
   displayName: string;
   publicKey: string;
-  urn?: { 'urn:aegis:saas:1.0:Agent'?: { tier?: SeatTier } };
+  urn?: { 'urn:cerniq:saas:1.0:Agent'?: { tier?: SeatTier } };
 }
 
 function scimRender(seat: SeatRow): Record<string, unknown> {
   return {
-    schemas: ['urn:ietf:params:scim:schemas:core:2.0:Agent', 'urn:aegis:saas:1.0:Agent'],
+    schemas: ['urn:ietf:params:scim:schemas:core:2.0:Agent', 'urn:cerniq:saas:1.0:Agent'],
     id: seat.id,
     externalId: seat.externalId,
     displayName: seat.displayName,
-    'urn:aegis:saas:1.0:Agent': {
+    'urn:cerniq:saas:1.0:Agent': {
       tier: seat.tier,
       agentId: seat.agentId,
       policyId: seat.policyId,

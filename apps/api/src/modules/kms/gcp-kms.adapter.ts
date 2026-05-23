@@ -1,7 +1,7 @@
 // GcpKmsAdapter — native Ed25519 sign via Google Cloud KMS.
 //
 // GCP Cloud KMS supports `EC_SIGN_ED25519` (since 2024-Q1). This is the
-// preferred KMS pattern for AEGIS: the private key NEVER leaves Google's
+// preferred KMS pattern for CERNIQ: the private key NEVER leaves Google's
 // HSM. Sign latency is ~10-20 ms (acceptable for audit; less acceptable
 // for the JWT issuance hot path — operators concerned about JWT latency
 // should run a regional KMS replica or fall back to the envelope pattern).
@@ -9,7 +9,7 @@
 // Resource format:
 //   projects/{project}/locations/{location}/keyRings/{kr}/cryptoKeys/{key}/cryptoKeyVersions/{version}
 //
-// One AEGIS `kid` maps to one GCP `cryptoKeyVersions/{version}`. Rotation
+// One CERNIQ `kid` maps to one GCP `cryptoKeyVersions/{version}`. Rotation
 // is "create new version, update active mapping, deprecate old."
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -64,7 +64,9 @@ export class GcpKmsAdapter implements KmsAdapter {
         if (k.validUntil === null) this.active.set(purpose as KmsKeyPurpose, k.kid);
       }
     }
-    this.logger.log(`GcpKmsAdapter registered ${this.byKid.size} key(s) across ${this.active.size} purpose(s)`);
+    this.logger.log(
+      `GcpKmsAdapter registered ${this.byKid.size} key(s) across ${this.active.size} purpose(s)`,
+    );
   }
 
   async getActiveKey(purpose: KmsKeyPurpose): Promise<ActiveSigner> {
@@ -80,7 +82,10 @@ export class GcpKmsAdapter implements KmsAdapter {
           throw new Error(`GcpKmsAdapter: ${entry.key.algorithm} not supported`);
         }
         return await withKmsSpan('gcp-kms', 'sign', kid, purpose, async () => {
-          const result = await this.kms.asymmetricSign({ name: entry.key.resourceName, data: message });
+          const result = await this.kms.asymmetricSign({
+            name: entry.key.resourceName,
+            data: message,
+          });
           if (result.signature?.length !== 64) {
             throw new Error(`GcpKmsAdapter: KMS returned invalid Ed25519 signature length`);
           }
@@ -90,7 +95,9 @@ export class GcpKmsAdapter implements KmsAdapter {
     };
   }
 
-  async getKeyByKid(kid: string): Promise<{ kid: string; publicKey: string; algorithm: KeyMetadata['algorithm'] } | null> {
+  async getKeyByKid(
+    kid: string,
+  ): Promise<{ kid: string; publicKey: string; algorithm: KeyMetadata['algorithm'] } | null> {
     const e = this.byKid.get(kid);
     if (!e) return null;
     return { kid: e.key.kid, publicKey: e.key.publicKey, algorithm: e.key.algorithm };

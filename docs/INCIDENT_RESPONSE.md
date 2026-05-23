@@ -1,4 +1,5 @@
-# AEGIS — Incident Response Playbook
+# CERNIQ — Incident Response Playbook
+
 ## On-Call Procedures, Escalation Paths, and Recovery Runbooks
 
 > **Owner:** Engineering Lead  
@@ -19,9 +20,9 @@ Every engineer on the on-call rotation must, **before going on call**:
 [ ] Have Railway dashboard access (production project)
 [ ] Have Cloudflare dashboard access
 [ ] Know the DATABASE_URL and REDIS_URL for production (in your secrets manager)
-[ ] Run: aegis doctor --env production  → all green
+[ ] Run: cerniq doctor --env production  → all green
 [ ] Know where SECURITY_RUNBOOK.md is (key rotation procedures)
-[ ] Know the AEGIS_ADMIN_TOKEN (in your vault — never written down)
+[ ] Know the CERNIQ_ADMIN_TOKEN (in your vault — never written down)
 [ ] Have the Slack #incidents channel bookmarked
 ```
 
@@ -29,12 +30,12 @@ Every engineer on the on-call rotation must, **before going on call**:
 
 ## 1. Severity Definitions
 
-| Severity | Definition | Response Time | Examples |
-|---------|-----------|--------------|---------|
-| **P0 — Critical** | Complete service outage OR data breach / integrity failure | **5 minutes** | API down, audit chain break, private key exposure, mass wrong approvals |
-| **P1 — High** | Significant degradation affecting multiple users | **15 minutes** | Verify latency > 2s, >1% error rate, billing down, webhooks not firing |
-| **P2 — Medium** | Single-user impact OR non-critical feature broken | **1 hour** | One user can't authenticate, dashboard broken, audit export failing |
-| **P3 — Low** | Minor issue, no user impact | **Next business day** | Docs wrong, CLI cosmetic bug, non-prod environment down |
+| Severity          | Definition                                                 | Response Time         | Examples                                                                |
+| ----------------- | ---------------------------------------------------------- | --------------------- | ----------------------------------------------------------------------- |
+| **P0 — Critical** | Complete service outage OR data breach / integrity failure | **5 minutes**         | API down, audit chain break, private key exposure, mass wrong approvals |
+| **P1 — High**     | Significant degradation affecting multiple users           | **15 minutes**        | Verify latency > 2s, >1% error rate, billing down, webhooks not firing  |
+| **P2 — Medium**   | Single-user impact OR non-critical feature broken          | **1 hour**            | One user can't authenticate, dashboard broken, audit export failing     |
+| **P3 — Low**      | Minor issue, no user impact                                | **Next business day** | Docs wrong, CLI cosmetic bug, non-prod environment down                 |
 
 **When in doubt, declare higher severity.** It's cheap to downgrade. Expensive to under-respond.
 
@@ -68,6 +69,7 @@ For P0, designate an **Incident Commander (IC)** immediately. IC responsibilitie
 ### 2.3 Communication Templates
 
 **Initial acknowledgment (post within 5 min):**
+
 ```
 🔴 INCIDENT DECLARED — P[0/1]
 Time: [HH:MM UTC]
@@ -79,6 +81,7 @@ Next update: in 10 minutes
 ```
 
 **Status update (every 10 min during P0):**
+
 ```
 🔄 UPDATE [HH:MM UTC]
 Status: Investigating / Mitigation in progress / Monitoring
@@ -88,6 +91,7 @@ ETA to resolution: [if known, else "unknown"]
 ```
 
 **Resolution:**
+
 ```
 ✅ RESOLVED [HH:MM UTC]
 Duration: [X minutes]
@@ -104,12 +108,13 @@ Post-mortem: [link, due [date]]
 
 ### RB-001: API Completely Down
 
-**Symptoms:** `/health` returning non-200 OR all requests timing out. PagerDuty alert: `aegis_health_down`.
+**Symptoms:** `/health` returning non-200 OR all requests timing out. PagerDuty alert: `cerniq_health_down`.
 
 **Step 1 — Confirm the blast radius**
+
 ```bash
 # Is it DNS / Cloudflare?
-curl -I https://api.aegislabs.io/health
+curl -I https://api.cerniq.io/health
 # vs
 curl -I https://[railway-origin-url]/health
 
@@ -118,11 +123,13 @@ curl -I https://[railway-origin-url]/health
 ```
 
 **Step 2 — Check Railway**
+
 1. Open Railway dashboard → Production project → API service.
 2. Check "Deployments" tab. Is latest deployment green?
 3. Check "Logs" tab. What's the last error?
 
 Common Railway crash reasons:
+
 ```
 "Cannot connect to database" → Step 2a
 "Error: connect ECONNREFUSED redis" → Step 2b
@@ -131,6 +138,7 @@ Common Railway crash reasons:
 ```
 
 **Step 2a — Database down**
+
 ```bash
 # Test DB directly
 psql $DATABASE_URL -c "SELECT 1;"
@@ -141,6 +149,7 @@ psql $DATABASE_URL -c "SELECT 1;"
 ```
 
 **Step 2b — Redis down**
+
 ```bash
 redis-cli -u $REDIS_URL PING
 # Expected: PONG
@@ -153,6 +162,7 @@ redis-cli -u $REDIS_URL PING
 ```
 
 **Step 2c — Bad deployment, rollback**
+
 ```bash
 # Via Railway CLI:
 railway rollback --service api
@@ -162,6 +172,7 @@ railway rollback --service api
 ```
 
 **Step 2d — OOMKilled**
+
 ```bash
 # Immediate: scale up memory
 # Railway: Service Settings → Memory → increase to 2GB
@@ -169,6 +180,7 @@ railway rollback --service api
 ```
 
 **Step 3b — Cloudflare incident**
+
 1. Check https://www.cloudflarestatus.com
 2. If Cloudflare-wide outage: nothing to do — wait and post on status page.
 3. If only our zone affected:
@@ -191,6 +203,7 @@ railway rollback --service api
 **Symptoms:** Agents being approved that should be denied. Or approved:false for valid agents.
 
 **Step 1 — Immediately quantify**
+
 ```sql
 -- How many suspicious approvals in last 15 minutes?
 SELECT COUNT(*), ae."agentId", ae."action"
@@ -211,20 +224,22 @@ WHERE ai.status = 'REVOKED'
 ```
 
 **Step 2 — If revoked agents are being approved → P0, circuit break immediately**
+
 ```bash
 # Option A: Enable maintenance mode (returns 503 on all verify calls)
-# Set env var: AEGIS_MAINTENANCE_MODE=true
-# Railway: Service → Variables → add AEGIS_MAINTENANCE_MODE=true → redeploy
+# Set env var: CERNIQ_MAINTENANCE_MODE=true
+# Railway: Service → Variables → add CERNIQ_MAINTENANCE_MODE=true → redeploy
 
 # Option B: Block specific agent
-aegis admin revoke-agent --id [AGENT_ID] --reason "emergency-p0-incident-[date]"
+cerniq admin revoke-agent --id [AGENT_ID] --reason "emergency-p0-incident-[date]"
 ```
 
 **Step 3 — Root cause the wrong result**
+
 ```bash
 # Replay the failing verify call against staging
 # Copy the JWT from the audit log
-aegis admin debug-verify --token [JWT] --trace
+cerniq admin debug-verify --token [JWT] --trace
 
 # This runs the full 9-step algorithm with verbose output:
 # Step 1: Agent lookup → [result]
@@ -234,6 +249,7 @@ aegis admin debug-verify --token [JWT] --trace
 ```
 
 **Step 4 — Check denial-precedence order hasn't changed**
+
 ```bash
 grep -n "AGENT_NOT_FOUND\|AGENT_REVOKED\|INVALID_SIGNATURE" \
   apps/api/src/modules/verify/algorithm/verify.algorithm.ts
@@ -242,6 +258,7 @@ grep -n "AGENT_NOT_FOUND\|AGENT_REVOKED\|INVALID_SIGNATURE" \
 ```
 
 **Step 5 — After resolution**
+
 - Run: `pnpm vitest run tests/e2e/07_verify_denials` — all 9 denial reasons must pass.
 - File: post-mortem with exact root cause.
 - Notify: all affected principals (email via admin CLI).
@@ -255,10 +272,11 @@ grep -n "AGENT_NOT_FOUND\|AGENT_REVOKED\|INVALID_SIGNATURE" \
 **Severity: P0. This is a trust/compliance failure.**
 
 **Step 1 — Run the integrity script immediately**
+
 ```bash
 pnpm tsx scripts/audit-verify-chain.ts \
   --api-base $BASE_URL \
-  --api-key $AEGIS_API_KEY \
+  --api-key $CERNIQ_API_KEY \
   --limit 1000 \
   --verbose
 
@@ -273,6 +291,7 @@ pnpm tsx scripts/audit-verify-chain.ts \
 ```
 
 **Step 2 — Identify who/what mutated the row**
+
 ```sql
 -- Check if it's an accidental ORM mutation (should be impossible by design)
 -- Look at DB logs
@@ -283,6 +302,7 @@ SELECT * FROM pg_stat_activity WHERE query LIKE '%UPDATE%AuditEvent%';
 ```
 
 **Step 3 — Preserve evidence**
+
 ```bash
 # Do NOT fix the database. This is a forensics situation.
 # Take a full DB dump immediately:
@@ -293,14 +313,16 @@ psql $DATABASE_URL -c "SELECT * FROM \"AuditEvent\" WHERE id='audit_xyz';" > tam
 ```
 
 **Step 4 — Notify principals affected**
+
 ```bash
 # Find all principals with audit events after the break point
-aegis admin audit-incident-report \
+cerniq admin audit-incident-report \
   --from [TAMPERED_EVENT_ID] \
   --notify-principals
 ```
 
 **Step 5 — Recovery**
+
 - If tamper was accidental (bug): fix the bug, restore from backup, re-verify chain.
 - If tamper was malicious: security incident. Follow Security Incident procedure (RB-006).
 - The chain from the break point forward is unverifiable. Document this honestly to affected principals.
@@ -312,19 +334,21 @@ aegis admin audit-incident-report \
 **Severity: P0. Stop everything.**
 
 **Step 1 — Immediately rotate the affected key**
+
 ```bash
 # Follow SECURITY_RUNBOOK.md §Key Rotation exactly.
 # Do not improvise. That doc has the tested procedure.
 
 # TL;DR:
 # 1. Generate new key pair
-# 2. Update Railway Variables: AEGIS_JWT_SIGNING_PRIVATE_KEY / AEGIS_AUDIT_SIGNING_PRIVATE_KEY
+# 2. Update Railway Variables: CERNIQ_JWT_SIGNING_PRIVATE_KEY / CERNIQ_AUDIT_SIGNING_PRIVATE_KEY
 # 3. Deploy (triggers restart)
 # 4. Old tokens signed by old key become invalid (expected)
 # 5. Update JWKS endpoint kid
 ```
 
 **Step 2 — Search for exposure vector**
+
 ```bash
 # Check git history
 git log --all --full-history -- '*.env' '*.pem' | head -50
@@ -335,6 +359,7 @@ git log -p --all | grep -E "PRIVATE|privateKey|ed25519" | head -20
 ```
 
 **Step 3 — Assume the key was used**
+
 - Treat all tokens signed by the exposed key as potentially forged.
 - Revoke all agents (emergency only — only if key was definitely exfiltrated).
 - Notify affected principals.
@@ -345,17 +370,20 @@ git log -p --all | grep -E "PRIVATE|privateKey|ed25519" | head -20
 ### RB-005: Database Down / Data Loss
 
 **Step 1 — Confirm DB is down**
+
 ```bash
 psql $DATABASE_URL -c "SELECT 1;" 2>&1
 # If error: DB is down or unreachable
 ```
 
 **Step 2 — Check Railway PostgreSQL panel**
+
 - Is the instance running?
 - Is it in a failed state?
 - Is it a transient restart (wait 2 min, retry)?
 
 **Step 3 — If DB is unrecoverable, restore from backup**
+
 ```bash
 # Railway automated backup restore:
 # 1. Railway Dashboard → PostgreSQL → Backups
@@ -365,19 +393,20 @@ psql $DATABASE_URL -c "SELECT 1;" 2>&1
 # 5. Redeploy API
 
 # Manual restore (if you have a dump):
-createdb aegis_prod_restored
-pg_restore -d aegis_prod_restored backup.dump
+createdb cerniq_prod_restored
+pg_restore -d cerniq_prod_restored backup.dump
 # Update DATABASE_URL to point to restored DB
 ```
 
 **Step 4 — Verify data integrity after restore**
+
 ```bash
 # Check migrations
 pnpm prisma migrate status
 
 # Check row counts make sense
 psql $DATABASE_URL -c "
-  SELECT 
+  SELECT
     (SELECT COUNT(*) FROM \"Principal\") as principals,
     (SELECT COUNT(*) FROM \"AgentIdentity\") as agents,
     (SELECT COUNT(*) FROM \"AuditEvent\") as audit_events,
@@ -389,6 +418,7 @@ pnpm tsx scripts/audit-verify-chain.ts --limit 100
 ```
 
 **Step 5 — Quantify data loss**
+
 ```
 Data loss window = time of last backup → time of DB failure
 Audit events in that window: permanently lost (append-only, can't reconstruct)
@@ -403,22 +433,24 @@ Policy updates in that window: re-apply required
 **This is a security incident. Move carefully. Preserve evidence.**
 
 **Step 1 — Contain**
+
 ```bash
 # If active breach: take API offline immediately
-# AEGIS_MAINTENANCE_MODE=true → redeploy
+# CERNIQ_MAINTENANCE_MODE=true → redeploy
 
 # Revoke all API keys for affected principal(s)
-aegis admin revoke-all-keys --principal [PRINCIPAL_ID] --reason "security-breach"
+cerniq admin revoke-all-keys --principal [PRINCIPAL_ID] --reason "security-breach"
 
 # Rotate admin token
-openssl rand -hex 32  # → new AEGIS_ADMIN_TOKEN
+openssl rand -hex 32  # → new CERNIQ_ADMIN_TOKEN
 # Update Railway Variables immediately
 ```
 
 **Step 2 — Evidence preservation**
+
 ```bash
 # Export all audit events for affected principal
-aegis admin export-audit \
+cerniq admin export-audit \
   --principal [PRINCIPAL_ID] \
   --from [SUSPECTED_START] \
   --format jsonl \
@@ -433,12 +465,14 @@ railway logs --service api --lines 10000 > railway-logs-$(date +%Y%m%d).txt
 
 **Step 3 — Root cause**
 Common vectors:
-- API key leaked in client-side code (check GitHub for `AEGIS_API_KEY`)
+
+- API key leaked in client-side code (check GitHub for `CERNIQ_API_KEY`)
 - CORS misconfiguration (check cors-allowlist.ts)
 - JWT signing key exposed in logs (check Datadog)
 - Admin token in git (check git history)
 
 **Step 4 — Notify**
+
 - Affected principals: within 72 hours (GDPR Art. 33).
 - Supervisory authority (if EU data involved): within 72 hours.
 - Template: SECURITY_RUNBOOK.md §Disclosure.
@@ -450,16 +484,17 @@ Common vectors:
 ### RB-101: Verify Latency Degraded (p99 > 500ms)
 
 **Step 1 — Identify the slow layer**
+
 ```bash
 # Check OTel traces in Jaeger/Datadog
 # Look for: db_query, redis_get, ed25519_verify, bate_score spans
 
 # Quick DB check
 psql $DATABASE_URL -c "
-  SELECT query, mean_exec_time, calls 
-  FROM pg_stat_statements 
+  SELECT query, mean_exec_time, calls
+  FROM pg_stat_statements
   WHERE mean_exec_time > 100
-  ORDER BY mean_exec_time DESC 
+  ORDER BY mean_exec_time DESC
   LIMIT 10;
 "
 
@@ -470,19 +505,20 @@ redis-cli -u $REDIS_URL SLOWLOG GET 10
 
 **Step 2 — Common causes & fixes**
 
-| Cause | Fix |
-|-------|-----|
-| Missing DB index | Check EXPLAIN ANALYZE on slow query, add index |
-| Redis hot key | Increase Redis memory, review key TTL strategy |
-| N+1 query in verify | Check `verify.service.ts` — should be ≤3 DB queries |
-| BATE scoring slow | Check `bate.scorer.ts` loop — should be O(n) where n = signal count |
-| Connection pool exhausted | Increase `DATABASE_POOL_SIZE`, reduce query duration |
-| Railway CPU throttled | Upgrade plan, scale replicas |
+| Cause                     | Fix                                                                 |
+| ------------------------- | ------------------------------------------------------------------- |
+| Missing DB index          | Check EXPLAIN ANALYZE on slow query, add index                      |
+| Redis hot key             | Increase Redis memory, review key TTL strategy                      |
+| N+1 query in verify       | Check `verify.service.ts` — should be ≤3 DB queries                 |
+| BATE scoring slow         | Check `bate.scorer.ts` loop — should be O(n) where n = signal count |
+| Connection pool exhausted | Increase `DATABASE_POOL_SIZE`, reduce query duration                |
+| Railway CPU throttled     | Upgrade plan, scale replicas                                        |
 
 **Step 3 — Emergency mitigation**
+
 ```bash
 # If BATE is the bottleneck: disable trust scoring temporarily
-# AEGIS_BATE_ENABLED=false → TRUST_SCORE_TOO_LOW denials won't fire
+# CERNIQ_BATE_ENABLED=false → TRUST_SCORE_TOO_LOW denials won't fire
 # WARNING: this reduces security. Use for < 30 min max.
 
 # If DB is the bottleneck: add read replica, route audit queries there
@@ -493,24 +529,27 @@ redis-cli -u $REDIS_URL SLOWLOG GET 10
 ### RB-102: High Error Rate (>1% on /v1/verify)
 
 **Step 1 — Check error breakdown**
+
 ```bash
 # What errors are failing?
-curl -s https://api.aegislabs.io/metrics \
+curl -s https://api.cerniq.io/metrics \
   -H "Authorization: Bearer $METRICS_TOKEN" | \
-  grep "aegis_verify_total"
+  grep "cerniq_verify_total"
 
 # Expected output:
-# aegis_verify_total{outcome="approved"} 9823
-# aegis_verify_total{outcome="denied",reason="SPEND_LIMIT_EXCEEDED"} 104
-# aegis_verify_total{outcome="error"} 12   ← THIS should be near 0
+# cerniq_verify_total{outcome="approved"} 9823
+# cerniq_verify_total{outcome="denied",reason="SPEND_LIMIT_EXCEEDED"} 104
+# cerniq_verify_total{outcome="error"} 12   ← THIS should be near 0
 ```
 
 **Step 2 — Check API logs for 5xx errors**
+
 ```bash
 railway logs --service api | grep "ERROR\|5[0-9][0-9]" | tail -50
 ```
 
 **Step 3 — Common 5xx causes**
+
 - `PrismaClientKnownRequestError` → DB schema drift or connection issue
 - `JOSEError` → JWT library bug or invalid token format
 - `Redis ECONNREFUSED` → Redis down (see RB-001)
@@ -526,7 +565,7 @@ railway logs --service api | grep "ERROR\|5[0-9][0-9]" | tail -50
 # Check outbox backlog
 psql $DATABASE_URL -c "
   SELECT COUNT(*), status, MAX(\"createdAt\") as latest
-  FROM \"OutboxEvent\" 
+  FROM \"OutboxEvent\"
   GROUP BY status;
 "
 
@@ -552,21 +591,22 @@ ORDER BY COUNT(*) DESC;
 ### RB-201: Single User Can't Authenticate
 
 **Diagnostic checklist:**
+
 ```bash
 # 1. Check if their API key exists and is active
-aegis admin keys list --principal [EMAIL]
+cerniq admin keys list --principal [EMAIL]
 
 # 2. Check if their principal is suspended
 psql $DATABASE_URL -c "SELECT id, status FROM \"Principal\" WHERE email='[EMAIL]';"
 
 # 3. Check recent auth errors for their principal
-SELECT * FROM "AuditEvent" 
+SELECT * FROM "AuditEvent"
 WHERE "principalId" = '[PRINCIPAL_ID]'
   AND "createdAt" > NOW() - INTERVAL '1 hour'
 ORDER BY "createdAt" DESC;
 
 # 4. If API key is fine but auth fails: check BCRYPT_COST env var
-# If AEGIS_API_KEY_BCRYPT_COST changed after their key was created: hashes won't match
+# If CERNIQ_API_KEY_BCRYPT_COST changed after their key was created: hashes won't match
 ```
 
 ---
@@ -592,6 +632,7 @@ File within 24h for P0, 72h for P1. Store in `docs/post-mortems/YYYY-MM-DD-[titl
 
 ```markdown
 # Post-Mortem: [Title]
+
 **Date:** YYYY-MM-DD  
 **Severity:** P0 / P1  
 **Duration:** X minutes  
@@ -600,32 +641,39 @@ File within 24h for P0, 72h for P1. Store in `docs/post-mortems/YYYY-MM-DD-[titl
 **Status:** Draft / In Review / Approved
 
 ## Timeline (UTC)
-| Time | Event |
-|------|-------|
-| HH:MM | Alert fired |
-| HH:MM | On-call acknowledged |
+
+| Time  | Event                 |
+| ----- | --------------------- |
+| HH:MM | Alert fired           |
+| HH:MM | On-call acknowledged  |
 | HH:MM | Root cause identified |
-| HH:MM | Fix deployed |
-| HH:MM | Incident closed |
+| HH:MM | Fix deployed          |
+| HH:MM | Incident closed       |
 
 ## Root Cause
+
 [One paragraph — technical, specific, no blame]
 
 ## Why It Wasn't Caught Earlier
+
 [What monitoring gap allowed this to become an incident]
 
 ## What Went Well
+
 [Honest list — don't skip this section]
 
 ## What Went Poorly
+
 [Honest list — no blame, systemic focus]
 
 ## Action Items
-| Action | Owner | Due Date | Priority |
-|--------|-------|----------|---------|
-| [Fix] | @[name] | YYYY-MM-DD | P0/P1/P2 |
+
+| Action | Owner   | Due Date   | Priority |
+| ------ | ------- | ---------- | -------- |
+| [Fix]  | @[name] | YYYY-MM-DD | P0/P1/P2 |
 
 ## Lessons Learned
+
 [What does the team now know that it didn't before?]
 ```
 
@@ -635,41 +683,45 @@ File within 24h for P0, 72h for P1. Store in `docs/post-mortems/YYYY-MM-DD-[titl
 
 ### 7.1 Alert Inventory (minimum required before GA)
 
-| Alert Name | Condition | Severity | Channel |
-|-----------|-----------|---------|---------|
-| `aegis_api_down` | `/health` non-200 for 1 min | P0 | PagerDuty |
-| `aegis_verify_error_rate` | Error rate > 1% for 5 min | P0 | PagerDuty |
-| `aegis_chain_break` | Audit chain integrity script fails | P0 | PagerDuty + #incidents |
-| `aegis_verify_latency_p99` | p99 > 500ms for 5 min | P1 | PagerDuty |
-| `aegis_redis_down` | Redis ping fails for 1 min | P1 | PagerDuty |
-| `aegis_db_connections` | Connection pool > 80% for 5 min | P1 | #alerts |
-| `aegis_spend_overflow` | Any SPEND_LIMIT_EXCEEDED spike >10x baseline | P1 | #alerts |
-| `aegis_webhook_backlog` | OutboxEvent pending > 1000 for 10 min | P2 | #alerts |
-| `aegis_verify_latency_p50` | p50 > 100ms for 10 min | P2 | #alerts |
+| Alert Name                  | Condition                                    | Severity | Channel                |
+| --------------------------- | -------------------------------------------- | -------- | ---------------------- |
+| `cerniq_api_down`           | `/health` non-200 for 1 min                  | P0       | PagerDuty              |
+| `cerniq_verify_error_rate`  | Error rate > 1% for 5 min                    | P0       | PagerDuty              |
+| `cerniq_chain_break`        | Audit chain integrity script fails           | P0       | PagerDuty + #incidents |
+| `cerniq_verify_latency_p99` | p99 > 500ms for 5 min                        | P1       | PagerDuty              |
+| `cerniq_redis_down`         | Redis ping fails for 1 min                   | P1       | PagerDuty              |
+| `cerniq_db_connections`     | Connection pool > 80% for 5 min              | P1       | #alerts                |
+| `cerniq_spend_overflow`     | Any SPEND_LIMIT_EXCEEDED spike >10x baseline | P1       | #alerts                |
+| `cerniq_webhook_backlog`    | OutboxEvent pending > 1000 for 10 min        | P2       | #alerts                |
+| `cerniq_verify_latency_p50` | p50 > 100ms for 10 min                       | P2       | #alerts                |
 
 ### 7.2 Key Metrics Dashboards
 
 Maintain in Grafana/Datadog:
 
 **Dashboard 1 — Verify Health**
-- `aegis_verify_total` by outcome (approved/denied/error)
-- `aegis_verify_latency_seconds` p50/p99 over time
+
+- `cerniq_verify_total` by outcome (approved/denied/error)
+- `cerniq_verify_latency_seconds` p50/p99 over time
 - Denial reason breakdown (pie chart, last 1h)
 - Error rate % over time
 
 **Dashboard 2 — Trust & BATE**
+
 - Distribution of trust scores (histogram)
 - Trust band breakdown (PLATINUM/VERIFIED/WATCH/FLAGGED)
 - Top anomaly triggers (R-1 through R-5)
 - New agents registered per day
 
 **Dashboard 3 — Infrastructure**
+
 - DB query latency p99 by query type
 - Redis memory usage %
 - Railway CPU/memory by replica
 - Cloudflare Worker requests/errors (Phase 3)
 
 **Dashboard 4 — Business**
+
 - New principals per day
 - Activation funnel (onboarding steps completed)
 - Verify volume per principal (top 10)
@@ -681,13 +733,13 @@ Maintain in Grafana/Datadog:
 
 > **Update this before going live. Do not leave placeholders.**
 
-| Role | Name | PagerDuty | Slack | Phone |
-|------|------|-----------|-------|-------|
-| Operator / Founder | Erwin Kiess-Alfonso | @erwin | @erwin | [mobile] |
-| Engineering Lead | [Name] | @[handle] | @[handle] | [mobile] |
-| On-call Rotation | [Schedule] | PD Schedule | #incidents | — |
-| Railway Support | — | — | — | https://railway.com/support |
-| Cloudflare Support | — | — | — | https://dash.cloudflare.com/support |
+| Role               | Name                | PagerDuty   | Slack      | Phone                               |
+| ------------------ | ------------------- | ----------- | ---------- | ----------------------------------- |
+| Operator / Founder | Erwin Kiess-Alfonso | @erwin      | @erwin     | [mobile]                            |
+| Engineering Lead   | [Name]              | @[handle]   | @[handle]  | [mobile]                            |
+| On-call Rotation   | [Schedule]          | PD Schedule | #incidents | —                                   |
+| Railway Support    | —                   | —           | —          | https://railway.com/support         |
+| Cloudflare Support | —                   | —           | —          | https://dash.cloudflare.com/support |
 
 ---
 
@@ -710,5 +762,5 @@ Last drill date:    ___________
 
 ---
 
-*Playbook version: 1.0 | AEGIS Phase 1 GA*  
-*Next review: after first real incident*
+_Playbook version: 1.0 | CERNIQ Phase 1 GA_  
+_Next review: after first real incident_

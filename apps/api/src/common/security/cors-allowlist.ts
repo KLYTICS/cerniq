@@ -1,10 +1,10 @@
-// AEGIS — strict CORS allow-list.
+// CERNIQ — strict CORS allow-list.
 //
 // Default Nest CORS with `origin: '*'` is convenient but wide. Production
 // must:
 //
 //   1. Explicitly allow only the domains we publish (dashboard, docs site,
-//      *.aegislabs.io for our own properties).
+//      *.cerniq.io for our own properties).
 //   2. Reflect the requesting Origin only when it appears in the allow-list,
 //      so a browser CORS preflight from any other host fails.
 //   3. Deny `credentials: true` when origin is the wildcard
@@ -18,17 +18,20 @@
 // cookies anyway. CORS sets `Access-Control-Allow-Origin: *` in that case
 // safely.
 
-import type { CorsOptions, CorsOptionsDelegate } from '@nestjs/common/interfaces/external/cors-options.interface';
+import type {
+  CorsOptions,
+  CorsOptionsDelegate,
+} from '@nestjs/common/interfaces/external/cors-options.interface';
 import type { Request } from 'express';
 
 export interface CorsConfig {
   /**
    * Comma-separated list of allowed origins for management-plane endpoints
-   * (anything that uses cookies / X-AEGIS-API-Key). Public verify-key
+   * (anything that uses cookies / X-CERNIQ-API-Key). Public verify-key
    * endpoints get `*` regardless.
    *
    * Examples:
-   *   `https://app.aegislabs.io,https://docs.aegislabs.io`
+   *   `https://app.cerniq.io,https://docs.cerniq.io`
    *   `*` (development only)
    */
   managementOrigins: string;
@@ -39,12 +42,7 @@ export interface CorsConfig {
   publicPathPrefixes?: string[];
 }
 
-const DEFAULT_PUBLIC_PATH_PREFIXES = [
-  '/v1/verify',
-  '/.well-known/',
-  '/health',
-  '/ready',
-];
+const DEFAULT_PUBLIC_PATH_PREFIXES = ['/v1/verify', '/.well-known/', '/health', '/ready'];
 
 /** Regex-style public matchers (path-segment-aware). Each must match the
  *  whole path. Used in addition to {@link DEFAULT_PUBLIC_PATH_PREFIXES}. */
@@ -78,12 +76,12 @@ export function buildCorsDelegate(config: CorsConfig): CorsOptionsDelegate<Reque
         methods: ['GET', 'POST', 'OPTIONS'],
         allowedHeaders: [
           'Content-Type',
-          'X-AEGIS-Verify-Key',
-          'X-AEGIS-API-Key',
+          'X-CERNIQ-Verify-Key',
+          'X-CERNIQ-API-Key',
           'Idempotency-Key',
           'X-Request-Id',
         ],
-        exposedHeaders: ['X-Request-Id', 'X-AEGIS-Trace-Id'],
+        exposedHeaders: ['X-Request-Id', 'X-CERNIQ-Trace-Id'],
         maxAge: 86_400, // 24h preflight cache
       };
       callback(null, opts);
@@ -100,13 +98,13 @@ export function buildCorsDelegate(config: CorsConfig): CorsOptionsDelegate<Reque
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: [
         'Content-Type',
-        'X-AEGIS-API-Key',
+        'X-CERNIQ-API-Key',
         'Authorization',
         'Idempotency-Key',
         'X-Request-Id',
         'X-CSRF-Token',
       ],
-      exposedHeaders: ['X-Request-Id', 'X-AEGIS-Trace-Id'],
+      exposedHeaders: ['X-Request-Id', 'X-CERNIQ-Trace-Id'],
       maxAge: 600, // 10 min preflight cache (shorter for management to react to allow-list changes faster)
     };
     callback(null, opts);

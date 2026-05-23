@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # =============================================================================
-# AEGIS — Production restore drill
+# CERNIQ — Production restore drill
 # =============================================================================
-# Verifies that the latest pgBackRest backup of the `aegis` stanza is restorable
+# Verifies that the latest pgBackRest backup of the `cerniq` stanza is restorable
 # and that the audit chain remains intact across the restore boundary.
 #
 # Default mode: DRY RUN. No restore is performed unless --execute is passed.
@@ -24,7 +24,7 @@
 set -euo pipefail
 
 # ── Defaults ────────────────────────────────────────────────────────────────
-STANZA="aegis"
+STANZA="cerniq"
 EXECUTE=0
 KEEP=0
 JSON=0
@@ -32,7 +32,7 @@ TARGET_TIME=""
 SOURCE_COUNTS=""
 MAX_BACKUP_AGE_HOURS=24
 TEMP_PG_IMAGE="postgres:16-alpine"
-TEMP_PG_NAME="aegis-restore-drill-$$"
+TEMP_PG_NAME="cerniq-restore-drill-$$"
 TEMP_PG_PORT="55432"
 TEMP_PG_PASSWORD=""
 RESTORE_DIR=""
@@ -40,7 +40,7 @@ LOG_TS="$(date -u +%Y%m%dT%H%M%SZ)"
 
 usage() {
   cat <<'EOF' >&2
-restore-drill.sh — exercise the AEGIS pgBackRest restore path.
+restore-drill.sh — exercise the CERNIQ pgBackRest restore path.
 
 Usage:
   restore-drill.sh [--execute] [--keep] [--json]
@@ -181,7 +181,7 @@ fi
 
 # ── Step 3: spin up temp Postgres ──────────────────────────────────────────
 log "step 3/7 — spinning up temp Postgres (${TEMP_PG_IMAGE}) on :${TEMP_PG_PORT}"
-RESTORE_DIR="$(mktemp -d -t aegis-restore-XXXXXX)"
+RESTORE_DIR="$(mktemp -d -t cerniq-restore-XXXXXX)"
 chmod 700 "${RESTORE_DIR}"
 
 # Generate an ephemeral password from the kernel CSPRNG (NOT $RANDOM).
@@ -190,8 +190,8 @@ TEMP_PG_PASSWORD="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 40)"
 if ! docker run -d \
   --name "${TEMP_PG_NAME}" \
   -e POSTGRES_PASSWORD="${TEMP_PG_PASSWORD}" \
-  -e POSTGRES_DB=aegis \
-  -e POSTGRES_USER=aegis \
+  -e POSTGRES_DB=cerniq \
+  -e POSTGRES_USER=cerniq \
   -p "127.0.0.1:${TEMP_PG_PORT}:5432" \
   -v "${RESTORE_DIR}:/var/lib/postgresql/data" \
   "${TEMP_PG_IMAGE}" >/dev/null; then
@@ -202,7 +202,7 @@ fi
 # Wait for readiness (max 60s).
 ready=0
 for _ in $(seq 1 60); do
-  if docker exec "${TEMP_PG_NAME}" pg_isready -U aegis >/dev/null 2>&1; then
+  if docker exec "${TEMP_PG_NAME}" pg_isready -U cerniq >/dev/null 2>&1; then
     ready=1
     break
   fi
@@ -233,7 +233,7 @@ fi
 docker restart "${TEMP_PG_NAME}" >/dev/null
 ready=0
 for _ in $(seq 1 60); do
-  if docker exec "${TEMP_PG_NAME}" pg_isready -U aegis >/dev/null 2>&1; then
+  if docker exec "${TEMP_PG_NAME}" pg_isready -U cerniq >/dev/null 2>&1; then
     ready=1
     break
   fi
@@ -250,7 +250,7 @@ log "step 5/7 — running post-restore row counts on Principal/AgentIdentity/Aud
 declare -A counts
 for table in Principal AgentIdentity AuditEvent; do
   out="$(PGPASSWORD="${TEMP_PG_PASSWORD}" \
-    psql -h 127.0.0.1 -p "${TEMP_PG_PORT}" -U aegis -d aegis -At \
+    psql -h 127.0.0.1 -p "${TEMP_PG_PORT}" -U cerniq -d cerniq -At \
     -c "SELECT count(*) FROM \"${table}\";" 2>/dev/null || true)"
   if ! [[ "${out}" =~ ^[0-9]+$ ]]; then
     emit_result 11 "COUNT_FAIL" "could not count ${table}"
@@ -261,7 +261,7 @@ for table in Principal AgentIdentity AuditEvent; do
 done
 
 LATEST_AUDIT_TS="$(PGPASSWORD="${TEMP_PG_PASSWORD}" \
-  psql -h 127.0.0.1 -p "${TEMP_PG_PORT}" -U aegis -d aegis -At \
+  psql -h 127.0.0.1 -p "${TEMP_PG_PORT}" -U cerniq -d cerniq -At \
   -c 'SELECT max("timestamp") FROM "AuditEvent";' 2>/dev/null || true)"
 log "  AuditEvent.timestamp(max) = ${LATEST_AUDIT_TS:-<none>}"
 
@@ -299,22 +299,22 @@ fi
 # ── Step 6: audit chain verification ───────────────────────────────────────
 log "step 6/7 — audit chain verification"
 # Foundation built apps/api/src/common/crypto/audit-chain.util.ts but the
-# chain-walker CLI (pnpm --filter @aegis/api audit:verify-chain) is not yet
+# chain-walker CLI (pnpm --filter @cerniq/api audit:verify-chain) is not yet
 # wired up (tracked in docs/SESSION_HANDOFF.md as M-006-ext). We probe for
 # it; if absent, run the placeholder count + WARN, but do NOT fail the
 # drill — the drill's primary purpose is restore + row counts. A missing
 # chain verifier is its own ticket.
 chain_status="DEFERRED"
 chain_detail=""
-if ( cd / && pnpm --filter @aegis/api audit:verify-chain --since "${TARGET_TIME}" ) \
-    >/tmp/aegis-chain-check.log 2>&1; then
+if ( cd / && pnpm --filter @cerniq/api audit:verify-chain --since "${TARGET_TIME}" ) \
+    >/tmp/cerniq-chain-check.log 2>&1; then
   chain_status="OK"
-elif grep -q 'No script matched' /tmp/aegis-chain-check.log 2>/dev/null \
-  || grep -q 'No projects matched' /tmp/aegis-chain-check.log 2>/dev/null \
+elif grep -q 'No script matched' /tmp/cerniq-chain-check.log 2>/dev/null \
+  || grep -q 'No projects matched' /tmp/cerniq-chain-check.log 2>/dev/null \
   || ! command -v pnpm >/dev/null 2>&1; then
   log "  WARN: chain verification deferred to M-006-ext (no pnpm script wired)"
   COUNT_AUDIT="$(PGPASSWORD="${TEMP_PG_PASSWORD}" \
-    psql -h 127.0.0.1 -p "${TEMP_PG_PORT}" -U aegis -d aegis -At \
+    psql -h 127.0.0.1 -p "${TEMP_PG_PORT}" -U cerniq -d cerniq -At \
     -c 'SELECT count(*) FROM "AuditEvent";' 2>/dev/null || echo 0)"
   log "  WARN: ran placeholder \"count(*) AuditEvent\" = ${COUNT_AUDIT}"
   chain_detail="placeholder_count=${COUNT_AUDIT}"

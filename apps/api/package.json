@@ -1,8 +1,8 @@
 {
-  "name": "@aegis/api",
+  "name": "@cerniq/api",
   "version": "0.1.0",
   "private": true,
-  "description": "AEGIS core API — identity, policy, verify, audit, BATE",
+  "description": "CERNIQ core API — identity, policy, verify, audit, BATE",
   "main": "dist/main.js",
   "scripts": {
     "build": "nest build",
@@ -26,8 +26,8 @@
     "seed": "tsx ../../scripts/seed-dev.ts"
   },
   "dependencies": {
-    "@aegis/sdk": "workspace:*",
-    "@aegis/types": "workspace:*",
+    "@cerniq/sdk": "workspace:*",
+    "@cerniq/types": "workspace:*",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^3.3.0",
     "@nestjs/core": "^11.0.0",

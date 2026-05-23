@@ -13,12 +13,14 @@ async function bootstrap(): Promise<void> {
   // OTel must initialize BEFORE NestFactory so auto-instrumentation can
   // wrap http / pg / ioredis at import time. See ADR-0011 §6.
   const tracing: TracingHandle = await initTracing({
-    enabled: process.env.AEGIS_OTEL_ENABLED === 'true',
-    serviceName: process.env.AEGIS_OTEL_SERVICE_NAME ?? 'aegis-api',
-    exporter: (process.env.AEGIS_OTEL_EXPORTER as 'otlp-http' | 'console' | 'noop' | undefined) ?? 'otlp-http',
+    enabled: process.env.CERNIQ_OTEL_ENABLED === 'true',
+    serviceName: process.env.CERNIQ_OTEL_SERVICE_NAME ?? 'cerniq-api',
+    exporter:
+      (process.env.CERNIQ_OTEL_EXPORTER as 'otlp-http' | 'console' | 'noop' | undefined) ??
+      'otlp-http',
     resourceAttributes: {
       'deployment.environment': process.env.NODE_ENV ?? 'development',
-      ...(process.env.AEGIS_REGION ? { 'aegis.region': process.env.AEGIS_REGION } : {}),
+      ...(process.env.CERNIQ_REGION ? { 'cerniq.region': process.env.CERNIQ_REGION } : {}),
     },
   });
 
@@ -65,11 +67,13 @@ async function bootstrap(): Promise<void> {
 
   if (config.enableSwagger) {
     const swagger = new DocumentBuilder()
-      .setTitle('AEGIS — Agent Gateway & Identity Stack')
-      .setDescription('Cryptographic identity, scoped policy, and behavioral attestation for AI agents.')
+      .setTitle('CERNIQ — Agent Gateway & Identity Stack')
+      .setDescription(
+        'Cryptographic identity, scoped policy, and behavioral attestation for AI agents.',
+      )
       .setVersion('1.0.0')
-      .addApiKey({ type: 'apiKey', name: 'X-AEGIS-API-Key', in: 'header' }, 'ApiKeyAuth')
-      .addApiKey({ type: 'apiKey', name: 'X-AEGIS-Verify-Key', in: 'header' }, 'PublicVerifyKey')
+      .addApiKey({ type: 'apiKey', name: 'X-CERNIQ-API-Key', in: 'header' }, 'ApiKeyAuth')
+      .addApiKey({ type: 'apiKey', name: 'X-CERNIQ-Verify-Key', in: 'header' }, 'PublicVerifyKey')
       .build();
     const doc = SwaggerModule.createDocument(app, swagger);
     SwaggerModule.setup('docs', app, doc, {
@@ -81,7 +85,7 @@ async function bootstrap(): Promise<void> {
 
   const url = await app.getUrl();
   // eslint-disable-next-line no-console
-  console.log(`AEGIS API listening on ${url}  (env=${config.nodeEnv})`);
+  console.log(`CERNIQ API listening on ${url}  (env=${config.nodeEnv})`);
 }
 
 void bootstrap();

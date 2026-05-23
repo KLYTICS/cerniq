@@ -9,7 +9,7 @@ import { McpService } from './mcp.service';
 /**
  * MCP control-plane module (ADR-0008). Owns the registry of trusted MCP
  * servers per principal. Tool-call verification itself happens in the
- * verify module via `@aegis/mcp-bridge` on the relying party's side —
+ * verify module via `@cerniq/mcp-bridge` on the relying party's side —
  * this module only manages the registry.
  */
 @Module({

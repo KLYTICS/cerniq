@@ -1,8 +1,8 @@
 {
-  "name": "@aegis/audit-evidence-bundle",
+  "name": "@cerniq/audit-evidence-bundle",
   "private": true,
   "version": "0.1.0",
-  "description": "Produces a SOC2-ready, auditor-friendly tarball containing everything an external auditor needs to independently verify an AEGIS audit chain.",
+  "description": "Produces a SOC2-ready, auditor-friendly tarball containing everything an external auditor needs to independently verify an CERNIQ audit chain.",
   "type": "module",
   "scripts": {
     "start": "tsx src/index.ts",
@@ -11,10 +11,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@aegis/audit-verifier": "link:../../packages/audit-verifier"
+    "@cerniq/audit-verifier": "link:../../packages/audit-verifier"
   },
   "devDependencies": {
-    "@aegis/tsconfig": "link:../../packages/tsconfig",
+    "@cerniq/tsconfig": "link:../../packages/tsconfig",
     "@types/node": "^22.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",

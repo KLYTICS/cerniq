@@ -50,11 +50,13 @@ function makePrisma(agents: AgentRow[] = [], policies: PolicyRow[] = []) {
   return {
     agentIdentity: {
       findFirst: jest.fn(async ({ where }: { where: Partial<AgentRow> }) => {
-        return agents.find(
-          (a) =>
-            (!where.id || a.id === where.id) &&
-            (!where.principalId || a.principalId === where.principalId),
-        ) ?? null;
+        return (
+          agents.find(
+            (a) =>
+              (!where.id || a.id === where.id) &&
+              (!where.principalId || a.principalId === where.principalId),
+          ) ?? null
+        );
       }),
     },
     agentPolicy: {
@@ -80,11 +82,13 @@ function makePrisma(agents: AgentRow[] = [], policies: PolicyRow[] = []) {
       findFirst: jest.fn(async ({ where }: { where: { id: string; agentId: string } }) => {
         return policies.find((p) => p.id === where.id && p.agentId === where.agentId) ?? null;
       }),
-      update: jest.fn(async ({ where, data }: { where: { id: string }; data: Partial<PolicyRow> }) => {
-        const p = policies.find((x) => x.id === where.id);
-        if (p) Object.assign(p, data);
-        return p;
-      }),
+      update: jest.fn(
+        async ({ where, data }: { where: { id: string }; data: Partial<PolicyRow> }) => {
+          const p = policies.find((x) => x.id === where.id);
+          if (p) Object.assign(p, data);
+          return p;
+        },
+      ),
     },
   };
 }
@@ -150,7 +154,9 @@ describe('PolicyService', () => {
 
     it('throws NotFoundException when agentId does not exist at all', async () => {
       const { svc } = makeService({ agents: [] });
-      await expect(svc.create('prn_A', 'agt_nonexistent', BASE_DTO)).rejects.toThrow(NotFoundException);
+      await expect(svc.create('prn_A', 'agt_nonexistent', BASE_DTO)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('throws ForbiddenException when agent is REVOKED', async () => {
@@ -167,7 +173,7 @@ describe('PolicyService', () => {
     it('throws when signing material has not been set', async () => {
       const { svc } = makeService({ agents: [ACTIVE_AGENT] });
       // Bypass setSigningMaterial
-      (svc as unknown as { aegisPrivateKey: undefined }).aegisPrivateKey = undefined;
+      (svc as unknown as { cerniqPrivateKey: undefined }).cerniqPrivateKey = undefined;
       await expect(svc.create('prn_A', 'agt_1', BASE_DTO)).rejects.toThrow(/signing material/i);
     });
 
@@ -188,11 +194,20 @@ describe('PolicyService', () => {
 
   describe('list()', () => {
     it('returns policies for the given agent owned by the principal', async () => {
-      const policies: PolicyRow[] = [{
-        id: 'pol_1', agentId: 'agt_1', label: 'Test', scopes: [],
-        status: 'ACTIVE', signedToken: 'tok', tokenHash: 'h',
-        expiresAt: new Date(futureIso()), revokedAt: null, createdAt: new Date(),
-      }];
+      const policies: PolicyRow[] = [
+        {
+          id: 'pol_1',
+          agentId: 'agt_1',
+          label: 'Test',
+          scopes: [],
+          status: 'ACTIVE',
+          signedToken: 'tok',
+          tokenHash: 'h',
+          expiresAt: new Date(futureIso()),
+          revokedAt: null,
+          createdAt: new Date(),
+        },
+      ];
       const { svc } = makeService({ agents: [ACTIVE_AGENT], policies });
       const list = await svc.list('prn_A', 'agt_1');
       expect(list).toHaveLength(1);
@@ -212,11 +227,20 @@ describe('PolicyService', () => {
 
     it('maps Prisma rows to PolicyResponseDto shape', async () => {
       const expiresAt = new Date(futureIso());
-      const policies: PolicyRow[] = [{
-        id: 'pol_2', agentId: 'agt_1', label: 'My policy', scopes: [{ category: 'commerce' }],
-        status: 'ACTIVE', signedToken: 'tok', tokenHash: 'h',
-        expiresAt, revokedAt: null, createdAt: new Date(),
-      }];
+      const policies: PolicyRow[] = [
+        {
+          id: 'pol_2',
+          agentId: 'agt_1',
+          label: 'My policy',
+          scopes: [{ category: 'commerce' }],
+          status: 'ACTIVE',
+          signedToken: 'tok',
+          tokenHash: 'h',
+          expiresAt,
+          revokedAt: null,
+          createdAt: new Date(),
+        },
+      ];
       const { svc } = makeService({ agents: [ACTIVE_AGENT], policies });
       const [dto] = await svc.list('prn_A', 'agt_1');
       expect(dto).toMatchObject({
@@ -231,9 +255,16 @@ describe('PolicyService', () => {
 
   describe('revoke()', () => {
     const existingPolicy: PolicyRow = {
-      id: 'pol_active', agentId: 'agt_1', label: 'active',
-      scopes: [], status: 'ACTIVE', signedToken: 'tok', tokenHash: 'h',
-      expiresAt: new Date(futureIso()), revokedAt: null, createdAt: new Date(),
+      id: 'pol_active',
+      agentId: 'agt_1',
+      label: 'active',
+      scopes: [],
+      status: 'ACTIVE',
+      signedToken: 'tok',
+      tokenHash: 'h',
+      expiresAt: new Date(futureIso()),
+      revokedAt: null,
+      createdAt: new Date(),
     };
 
     it('sets policy status to REVOKED', async () => {
@@ -257,7 +288,9 @@ describe('PolicyService', () => {
 
     it('throws NotFoundException when policy does not exist on the agent', async () => {
       const { svc } = makeService({ agents: [ACTIVE_AGENT], policies: [] });
-      await expect(svc.revoke('prn_A', 'agt_1', 'pol_nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(svc.revoke('prn_A', 'agt_1', 'pol_nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('is idempotent — revoking an already-revoked policy just updates and returns', async () => {

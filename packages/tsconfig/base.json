@@ -1,5 +1,5 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "display": "AEGIS Base",
+  "display": "CERNIQ Base",
   "extends": "../../tsconfig.base.json"
 }

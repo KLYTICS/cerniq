@@ -19,12 +19,21 @@ import type { Auth0Service } from './auth0.service';
 
 function makeService(): jest.Mocked<Pick<Auth0Service, 'handleActionLogin' | 'exchangeToken'>> {
   return {
-    handleActionLogin: jest.fn().mockResolvedValue({ principalId: 'prn_A', apiKey: 'aegis_...' }),
-    exchangeToken: jest.fn().mockResolvedValue({ api_key_id: 'key_123', principal_id: 'prn_A', roles: [], expires_at: '2026-01-01T00:00:00.000Z' }),
+    handleActionLogin: jest.fn().mockResolvedValue({ principalId: 'prn_A', apiKey: 'cerniq_...' }),
+    exchangeToken: jest
+      .fn()
+      .mockResolvedValue({
+        api_key_id: 'key_123',
+        principal_id: 'prn_A',
+        roles: [],
+        expires_at: '2026-01-01T00:00:00.000Z',
+      }),
   };
 }
 
-function makeConfig(secret = 'correct_secret'): jest.Mocked<Pick<AppConfigService, 'auth0ActionSecret'>> {
+function makeConfig(
+  secret = 'correct_secret',
+): jest.Mocked<Pick<AppConfigService, 'auth0ActionSecret'>> {
   return {
     auth0ActionSecret: secret,
   };
@@ -56,21 +65,24 @@ describe('Auth0Controller', () => {
     it('throws UnauthorizedException when auth0ActionSecret is not configured', async () => {
       const service = makeService();
       const config = { auth0ActionSecret: undefined } as unknown as AppConfigService;
-      const controller = new Auth0Controller(
-        service as unknown as Auth0Service,
-        config,
+      const controller = new Auth0Controller(service as unknown as Auth0Service, config);
+      await expect(controller.actionLogin('any_secret', ACTION_DTO)).rejects.toThrow(
+        UnauthorizedException,
       );
-      await expect(controller.actionLogin('any_secret', ACTION_DTO)).rejects.toThrow(UnauthorizedException);
     });
 
     it('throws UnauthorizedException when secret header is missing', async () => {
       const { controller } = makeController();
-      await expect(controller.actionLogin(undefined, ACTION_DTO)).rejects.toThrow(UnauthorizedException);
+      await expect(controller.actionLogin(undefined, ACTION_DTO)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('throws UnauthorizedException when secret does not match', async () => {
       const { controller } = makeController('correct_secret');
-      await expect(controller.actionLogin('wrong_secret', ACTION_DTO)).rejects.toThrow(UnauthorizedException);
+      await expect(controller.actionLogin('wrong_secret', ACTION_DTO)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('delegates to auth0.handleActionLogin when secret is valid', async () => {
@@ -87,7 +99,9 @@ describe('Auth0Controller', () => {
 
     it('rejects a secret that is different length (timing-safe comparison)', async () => {
       const { controller } = makeController('short');
-      await expect(controller.actionLogin('a_much_longer_incorrect_secret', ACTION_DTO)).rejects.toThrow(UnauthorizedException);
+      await expect(
+        controller.actionLogin('a_much_longer_incorrect_secret', ACTION_DTO),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 

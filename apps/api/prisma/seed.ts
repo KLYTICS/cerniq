@@ -5,7 +5,7 @@
 // the plaintext keys ONCE (since storage is bcrypt-hashed) — copy them into
 // your `.env` before running e2e tests.
 //
-// Run: pnpm --filter @aegis/api db:seed
+// Run: pnpm --filter @cerniq/api db:seed
 
 import { randomBytes, generateKeyPairSync } from 'node:crypto';
 
@@ -15,18 +15,18 @@ import { ulid } from 'ulid';
 
 const prisma = new PrismaClient();
 
-const SEED_PRINCIPAL_EMAIL = 'dev@aegislabs.io';
+const SEED_PRINCIPAL_EMAIL = 'dev@cerniq.io';
 const BCRYPT_COST = 4; // dev-only: keep fast.
 
 async function main(): Promise<void> {
-  console.warn('AEGIS — seeding local dev data');
+  console.warn('CERNIQ — seeding local dev data');
 
   const principal = await prisma.principal.upsert({
     where: { email: SEED_PRINCIPAL_EMAIL },
     update: {},
     create: {
       email: SEED_PRINCIPAL_EMAIL,
-      name: 'AEGIS local dev',
+      name: 'CERNIQ local dev',
       planTier: 'DEVELOPER',
       emailVerified: true,
     },
@@ -34,8 +34,8 @@ async function main(): Promise<void> {
   console.warn(`  principal: ${principal.id} (${principal.email})`);
 
   // ── API keys (plaintext printed once; only the bcrypt hash persists)
-  const fullKeyPlain = `aegis_sk_${b58(randomBytes(21))}`;
-  const verifyKeyPlain = `aegis_vk_${b58(randomBytes(21))}`;
+  const fullKeyPlain = `cerniq_sk_${b58(randomBytes(21))}`;
+  const verifyKeyPlain = `cerniq_vk_${b58(randomBytes(21))}`;
 
   await prisma.apiKey.upsert({
     where: { keyHash: await bcrypt.hash('seed-marker-full', 4) },
@@ -93,7 +93,12 @@ async function main(): Promise<void> {
       scopes: [
         {
           category: 'commerce',
-          spendLimit: { currency: 'USD', maxPerTransaction: 500, maxPerDay: 1000, maxPerMonth: 5000 },
+          spendLimit: {
+            currency: 'USD',
+            maxPerTransaction: 500,
+            maxPerDay: 1000,
+            maxPerMonth: 5000,
+          },
           allowedDomains: ['delta.com', 'united.com', 'southwest.com'],
         },
       ],
@@ -108,7 +113,7 @@ async function main(): Promise<void> {
     create: {
       name: 'Delta Air Lines (seed)',
       domain: 'delta.com',
-      apiKeyHash: await bcrypt.hash(`aegis_vk_seed_${b58(randomBytes(8))}`, BCRYPT_COST),
+      apiKeyHash: await bcrypt.hash(`cerniq_vk_seed_${b58(randomBytes(8))}`, BCRYPT_COST),
       reportWeight: 1.0,
       verified: true,
       verifiedAt: new Date(),

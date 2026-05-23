@@ -1,4 +1,4 @@
-// Public types for @aegis/sdk. Mirror the API contract; intentionally
+// Public types for @cerniq/sdk. Mirror the API contract; intentionally
 // hand-written rather than generated so the SDK can ship before the OpenAPI
 // generator is fully wired.
 
@@ -92,10 +92,10 @@ export interface VerifyResult {
   ttl: number;
 }
 
-export interface AegisConfig {
-  /** Management API key (`aegis_sk_…`). Required for agent/policy operations. */
+export interface CerniqConfig {
+  /** Management API key (`cerniq_sk_…`). Required for agent/policy operations. */
   apiKey?: string;
-  /** Verify-only key (`aegis_vk_…`). Required for `verify()` calls — relying parties should never see the management key. */
+  /** Verify-only key (`cerniq_vk_…`). Required for `verify()` calls — relying parties should never see the management key. */
   verifyKey?: string;
   baseUrl?: string;
   timeoutMs?: number;

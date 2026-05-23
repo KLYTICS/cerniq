@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * AEGIS Doctor — ground-truth orientation in 5 seconds.
+ * CERNIQ Doctor — ground-truth orientation in 5 seconds.
  *
  * Why this exists:
  * Multiple parallel sessions rapidly evolve this codebase (R15/R16/R17
@@ -105,10 +105,14 @@ header('Denial precedence (CLAUDE.md invariant 6)');
 const constants = safeRead(join(REPO_ROOT, 'packages', 'types', 'src', 'constants.ts'));
 if (constants) {
   const enumMatch = constants.match(/DENIAL_REASON_PRECEDENCE\s*=\s*\[([\s\S]*?)\]/);
-  const reasons = enumMatch ? Array.from(enumMatch[1]!.matchAll(/'([A-Z_]+)'/g)).map((m) => m[1]!) : [];
+  const reasons = enumMatch
+    ? Array.from(enumMatch[1]!.matchAll(/'([A-Z_]+)'/g)).map((m) => m[1]!)
+    : [];
   const hasTrial = reasons.includes('TRIAL_EXHAUSTED');
   const hasPlanLimit = reasons.includes('PLAN_LIMIT_EXCEEDED');
-  console.log(`  total reasons: ${reasons.length} (PLAN_LIMIT_EXCEEDED pre-gate + ${reasons.length - (hasPlanLimit ? 1 : 0)}-step chain)`);
+  console.log(
+    `  total reasons: ${reasons.length} (PLAN_LIMIT_EXCEEDED pre-gate + ${reasons.length - (hasPlanLimit ? 1 : 0)}-step chain)`,
+  );
   console.log(`  TRIAL_EXHAUSTED: ${hasTrial ? ok('present (ADR-0014)') : bad('MISSING')}`);
   if (!hasTrial) exitCode = 1;
 } else {
@@ -120,22 +124,31 @@ if (constants) {
 // 4. Error catalog
 // ─────────────────────────────────────────────────────────────────
 header('Error catalog (R16 / R17)');
-const catalogTs = safeRead(join(REPO_ROOT, 'packages', 'types', 'src', 'error-catalog.generated.ts'));
-const catalogPy = safeRead(join(REPO_ROOT, 'packages', 'sdk-py', 'aegis', 'error_catalog.py'));
+const catalogTs = safeRead(
+  join(REPO_ROOT, 'packages', 'types', 'src', 'error-catalog.generated.ts'),
+);
+const catalogPy = safeRead(join(REPO_ROOT, 'packages', 'sdk-py', 'cerniq', 'error_catalog.py'));
 // TS source: `code: 'snake_case'`; Py source: `"code": "snake_case"`
 // (TypedDict dicts emitted by the generator). Both use the same JSON-ish
 // shape; the count comes from the className-keyed entry rows.
-const tsCount = catalogTs ? (catalogTs.match(/className:\s*['"]/g) ?? []).length || (catalogTs.match(/code:\s*['"]/g) ?? []).length : 0;
+const tsCount = catalogTs
+  ? (catalogTs.match(/className:\s*['"]/g) ?? []).length ||
+    (catalogTs.match(/code:\s*['"]/g) ?? []).length
+  : 0;
 const pyCount = catalogPy ? (catalogPy.match(/"className":\s*"/g) ?? []).length : 0;
-console.log(`  TS mirror: ${tsCount} entries  ${tsCount === 22 ? ok('') : warn('expected 22 (TrialExhaustedError + 21)')}`);
-console.log(`  Py mirror: ${pyCount} entries  ${pyCount === tsCount ? ok('parity with TS') : bad('PARITY DRIFT')}`);
+console.log(
+  `  TS mirror: ${tsCount} entries  ${tsCount === 22 ? ok('') : warn('expected 22 (TrialExhaustedError + 21)')}`,
+);
+console.log(
+  `  Py mirror: ${pyCount} entries  ${pyCount === tsCount ? ok('parity with TS') : bad('PARITY DRIFT')}`,
+);
 if (pyCount !== tsCount && tsCount > 0) exitCode = 1;
 
 // ─────────────────────────────────────────────────────────────────
 // 5. Postman collection
 // ─────────────────────────────────────────────────────────────────
 header('Postman collection');
-const postmanRaw = safeRead(join(REPO_ROOT, 'tools', 'postman', 'aegis.collection.json'));
+const postmanRaw = safeRead(join(REPO_ROOT, 'tools', 'postman', 'cerniq.collection.json'));
 if (postmanRaw) {
   try {
     const pm = JSON.parse(postmanRaw) as { item?: unknown[] };
@@ -155,17 +168,20 @@ if (postmanRaw) {
     }
     walk(pm.item ?? []);
     const denialFolder = (pm.item ?? []).find(
-      (i) => typeof i === 'object' && (i as { name?: string }).name === 'Denial Precedence Walk-through',
+      (i) =>
+        typeof i === 'object' && (i as { name?: string }).name === 'Denial Precedence Walk-through',
     ) as { item?: unknown[] } | undefined;
     const denialLeaves = denialFolder?.item?.length ?? 0;
     console.log(`  folders: ${folders}, leaf requests: ${leaves}`);
-    console.log(`  denial walkthrough: ${denialLeaves} leaves  ${denialLeaves === 10 ? ok('matches 10-step chain') : warn('expected 10')}`);
+    console.log(
+      `  denial walkthrough: ${denialLeaves} leaves  ${denialLeaves === 10 ? ok('matches 10-step chain') : warn('expected 10')}`,
+    );
   } catch {
     console.log(`  ${bad('JSON parse failed')}`);
     exitCode = 1;
   }
 } else {
-  console.log(`  ${warn('aegis.collection.json missing')}`);
+  console.log(`  ${warn('cerniq.collection.json missing')}`);
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -186,7 +202,9 @@ if (od) {
 // 7. Discovery surface (existence by source, not HTTP)
 // ─────────────────────────────────────────────────────────────────
 header('Discovery surface (controller routes)');
-const wellknown = safeRead(join(REPO_ROOT, 'apps', 'api', 'src', 'modules', 'wellknown', 'wellknown.controller.ts'));
+const wellknown = safeRead(
+  join(REPO_ROOT, 'apps', 'api', 'src', 'modules', 'wellknown', 'wellknown.controller.ts'),
+);
 if (wellknown) {
   const routes = Array.from(wellknown.matchAll(/@Get\(['"]([^'"]+)['"]\)/g)).map((m) => m[1]!);
   for (const route of routes) {
@@ -241,7 +259,7 @@ if (f03Count === 0) {
 
 // F-06 — `error.constructor.name` is a tsup-minifier landmine (collapses
 // to single chars). Fix: `static readonly catalogKey = '<ClassName>'` on
-// every AegisError subclass. Round 19 added it on 20 classes (11 server +
+// every CerniqError subclass. Round 19 added it on 20 classes (11 server +
 // 10 SDK). Coverage drift = silent retry-logic regression after minification.
 const f06Hits = safeExec(
   `grep -rEn 'static (override )?readonly catalogKey' apps/api/src packages/sdk-ts/src packages/verifier-rp/src 2>/dev/null | wc -l`,
@@ -250,7 +268,9 @@ const f06Count = Number(f06Hits) || 0;
 if (f06Count >= 20) {
   console.log(`  ${ok(`F-06 catalogKey discriminator: ${f06Count} overrides (expected ≥20)`)}`);
 } else {
-  console.log(`  ${warn(`F-06 LOW COVERAGE: ${f06Count} catalogKey overrides — expected ≥20 (R19 baseline)`)}`);
+  console.log(
+    `  ${warn(`F-06 LOW COVERAGE: ${f06Count} catalogKey overrides — expected ≥20 (R19 baseline)`)}`,
+  );
   // Warn rather than fail: new SDKs added without F-06 coverage are a
   // soft signal, not necessarily a regression of existing code.
 }
@@ -273,9 +293,13 @@ if (plansSrc) {
     const value = freeBlockMatch[1]!.trim();
     const isInfinity = /Number\.POSITIVE_INFINITY|Infinity/.test(value);
     if (isInfinity) {
-      console.log(`  ${ok('F-08 FREE.monthlyVerifyQuota = Number.POSITIVE_INFINITY (TrialService is canonical FREE gate)')}`);
+      console.log(
+        `  ${ok('F-08 FREE.monthlyVerifyQuota = Number.POSITIVE_INFINITY (TrialService is canonical FREE gate)')}`,
+      );
     } else {
-      console.log(`  ${bad(`F-08 REGRESSION: FREE.monthlyVerifyQuota = ${value} — should be Number.POSITIVE_INFINITY`)}`);
+      console.log(
+        `  ${bad(`F-08 REGRESSION: FREE.monthlyVerifyQuota = ${value} — should be Number.POSITIVE_INFINITY`)}`,
+      );
       exitCode = 1;
     }
   }
@@ -287,10 +311,18 @@ if (plansSrc) {
 // 9. Perf baseline + gate scripts
 // ─────────────────────────────────────────────────────────────────
 header('Perf + audit scripts');
-console.log(`  perf-baseline.json:    ${existsSync(join(REPO_ROOT, 'apps', 'api', 'perf-baseline.json')) ? ok('present') : warn('missing — run pnpm bench:verify')}`);
-console.log(`  audit:errors script:   ${existsSync(join(REPO_ROOT, 'scripts', 'audit-error-catalog.ts')) ? ok('present') : bad('missing')}`);
-console.log(`  bench:verify script:   ${existsSync(join(REPO_ROOT, 'scripts', 'benchmark-verify.ts')) ? ok('present') : bad('missing')}`);
-console.log(`  cross-package parity:  ${existsSync(join(REPO_ROOT, 'tests', 'vitest.parity.config.ts')) ? ok('config wired (R18 W-I.2)') : bad('config missing')}`);
+console.log(
+  `  perf-baseline.json:    ${existsSync(join(REPO_ROOT, 'apps', 'api', 'perf-baseline.json')) ? ok('present') : warn('missing — run pnpm bench:verify')}`,
+);
+console.log(
+  `  audit:errors script:   ${existsSync(join(REPO_ROOT, 'scripts', 'audit-error-catalog.ts')) ? ok('present') : bad('missing')}`,
+);
+console.log(
+  `  bench:verify script:   ${existsSync(join(REPO_ROOT, 'scripts', 'benchmark-verify.ts')) ? ok('present') : bad('missing')}`,
+);
+console.log(
+  `  cross-package parity:  ${existsSync(join(REPO_ROOT, 'tests', 'vitest.parity.config.ts')) ? ok('config wired (R18 W-I.2)') : bad('config missing')}`,
+);
 
 // ─────────────────────────────────────────────────────────────────
 // 10. Full mode — actually run the gates
@@ -299,7 +331,7 @@ if (FULL) {
   // ───────────────────────────────────────────────────────────────
   // 10a. Preflight — ensure the gates' preconditions exist.
   //
-  // Why: `tsc @aegis/api` requires a generated Prisma client (the
+  // Why: `tsc @cerniq/api` requires a generated Prisma client (the
   // stub @prisma/client shipped by `pnpm install` exports zero models,
   // so every PrismaService.<model> reference is a TS error). And tsc
   // across workspaces requires sibling-package .d.ts files (e.g.
@@ -317,8 +349,8 @@ if (FULL) {
   // ───────────────────────────────────────────────────────────────
   header('Preflight — ensure gate preconditions');
   const preflight: Array<{ name: string; cmd: string }> = [
-    { name: 'prisma client', cmd: 'pnpm --filter @aegis/api prisma:generate' },
-    { name: '@aegis/types build', cmd: 'pnpm --filter @aegis/types build' },
+    { name: 'prisma client', cmd: 'pnpm --filter @cerniq/api prisma:generate' },
+    { name: '@cerniq/types build', cmd: 'pnpm --filter @cerniq/types build' },
   ];
   for (const p of preflight) {
     process.stdout.write(`  ${p.name}: `);
@@ -327,7 +359,9 @@ if (FULL) {
       console.log(C.green + 'ready' + C.reset);
     } catch {
       console.log(C.red + 'FAIL' + C.reset);
-      console.log(`  ${C.red}preflight failed — skipping gates to avoid noisy false-failures.${C.reset}`);
+      console.log(
+        `  ${C.red}preflight failed — skipping gates to avoid noisy false-failures.${C.reset}`,
+      );
       console.log(`  ${C.dim}re-run: ${p.cmd}${C.reset}`);
       process.exit(2);
     }
@@ -335,14 +369,18 @@ if (FULL) {
 
   header('Full mode — running gates (≈30s)');
   const gates: Array<{ name: string; cmd: string; timeoutMs?: number }> = [
-    { name: 'tsc @aegis/api', cmd: 'pnpm --filter @aegis/api exec tsc --noEmit' },
-    { name: 'tsc @aegis/types', cmd: 'pnpm --filter @aegis/types exec tsc --noEmit' },
-    { name: 'tsc @aegis/verifier-rp', cmd: 'pnpm --filter @aegis/verifier-rp exec tsc --noEmit' },
-    { name: 'audit:errors', cmd: 'pnpm --filter @aegis/scripts run audit:errors' },
-    { name: 'cross-package parity', cmd: 'pnpm --filter @aegis/e2e run test:parity' },
+    { name: 'tsc @cerniq/api', cmd: 'pnpm --filter @cerniq/api exec tsc --noEmit' },
+    { name: 'tsc @cerniq/types', cmd: 'pnpm --filter @cerniq/types exec tsc --noEmit' },
+    { name: 'tsc @cerniq/verifier-rp', cmd: 'pnpm --filter @cerniq/verifier-rp exec tsc --noEmit' },
+    { name: 'audit:errors', cmd: 'pnpm --filter @cerniq/scripts run audit:errors' },
+    { name: 'cross-package parity', cmd: 'pnpm --filter @cerniq/e2e run test:parity' },
     // postman: vitest cold-start + dep resolution can exceed 120s on a fresh
     // worktree; bump to 180s so cold runs don't false-fail.
-    { name: 'postman validator', cmd: 'pnpm --filter @aegis/postman exec vitest run', timeoutMs: 180_000 },
+    {
+      name: 'postman validator',
+      cmd: 'pnpm --filter @cerniq/postman exec vitest run',
+      timeoutMs: 180_000,
+    },
   ];
   for (const g of gates) {
     process.stdout.write(`  ${g.name}: `);
@@ -358,8 +396,12 @@ if (FULL) {
 
 console.log();
 if (exitCode === 0) {
-  console.log(`${C.green}${C.bold}AEGIS doctor: green${C.reset}${FULL ? ' (full)' : ' (fast — pass --full to gate)'}`);
+  console.log(
+    `${C.green}${C.bold}CERNIQ doctor: green${C.reset}${FULL ? ' (full)' : ' (fast — pass --full to gate)'}`,
+  );
 } else {
-  console.log(`${C.red}${C.bold}AEGIS doctor: ${exitCode === 1 ? 'issues found' : 'failed'}${C.reset}`);
+  console.log(
+    `${C.red}${C.bold}CERNIQ doctor: ${exitCode === 1 ? 'issues found' : 'failed'}${C.reset}`,
+  );
 }
 process.exit(exitCode);

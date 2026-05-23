@@ -1,11 +1,11 @@
-// Server-side API client for the AEGIS dashboard.
+// Server-side API client for the CERNIQ dashboard.
 //
 // Phase 1 contract: every fetch is server-side (Next.js Server Components or
 // Server Actions). The client never sees the API key. When Auth0 wiring lands
 // (M-020), `getSessionApiKey()` will resolve a per-principal key bound to the
-// user session; until then we fall back to `AEGIS_DASHBOARD_API_KEY`.
+// user session; until then we fall back to `CERNIQ_DASHBOARD_API_KEY`.
 //
-// All methods return typed results or throw `AegisApiError`. Pages render
+// All methods return typed results or throw `CerniqApiError`. Pages render
 // errors via boundaries — never fabricate empty results to mask failure
 // (CLAUDE.md invariant 4).
 
@@ -13,10 +13,10 @@ import { getSessionApiKey } from './auth';
 
 // Header constants — kept local rather than imported because the SDK does
 // not re-export them and the dashboard doesn't depend on the SDK runtime.
-// The values are part of the public AEGIS API contract — see packages/types
+// The values are part of the public CERNIQ API contract — see packages/types
 // constants.ts.
-const AEGIS_HEADER_API_KEY = 'X-AEGIS-API-Key';
-const AEGIS_HEADER_REQUEST_ID = 'X-Request-Id';
+const CERNIQ_HEADER_API_KEY = 'X-CERNIQ-API-Key';
+const CERNIQ_HEADER_REQUEST_ID = 'X-Request-Id';
 
 const DEFAULT_TIMEOUT_MS = 8_000;
 
@@ -78,7 +78,7 @@ export interface AuditPage {
   nextCursor: string | null;
 }
 
-export class AegisApiError extends Error {
+export class CerniqApiError extends Error {
   constructor(
     public readonly status: number,
     public readonly code: string,
@@ -86,14 +86,14 @@ export class AegisApiError extends Error {
     public readonly requestId?: string,
   ) {
     super(message);
-    this.name = 'AegisApiError';
+    this.name = 'CerniqApiError';
   }
 }
 
-export class AegisAuthMissingError extends AegisApiError {
+export class CerniqAuthMissingError extends CerniqApiError {
   constructor() {
-    super(0, 'NO_API_KEY', 'No AEGIS API key available for this dashboard session.');
-    this.name = 'AegisAuthMissingError';
+    super(0, 'NO_API_KEY', 'No CERNIQ API key available for this dashboard session.');
+    this.name = 'CerniqAuthMissingError';
   }
 }
 
@@ -116,23 +116,27 @@ function buildUrl(base: string, path: string, query?: RequestOptions['query']): 
 
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const apiKey = await getSessionApiKey();
-  if (!apiKey) throw new AegisAuthMissingError();
+  if (!apiKey) throw new CerniqAuthMissingError();
 
-  const baseUrl = process.env.AEGIS_API_BASE_URL ?? 'http://localhost:4000';
+  const baseUrl = process.env.CERNIQ_API_BASE_URL ?? 'http://localhost:4000';
   const url = buildUrl(baseUrl, `/v1/${path.replace(/^\/?(v1\/)?/, '')}`, opts.query);
 
   // Combine caller-provided AbortSignal with the timeout. If both fire, the
   // first one wins; the request rejects with a stable shape regardless.
   const ac = new AbortController();
-  const timer = setTimeout(() => { ac.abort(new Error('request_timeout')); }, DEFAULT_TIMEOUT_MS);
-  const onAbort = (): void => { ac.abort(opts.signal?.reason); };
+  const timer = setTimeout(() => {
+    ac.abort(new Error('request_timeout'));
+  }, DEFAULT_TIMEOUT_MS);
+  const onAbort = (): void => {
+    ac.abort(opts.signal?.reason);
+  };
   opts.signal?.addEventListener('abort', onAbort, { once: true });
 
   try {
     const res = await fetch(url, {
       method: opts.method ?? 'GET',
       headers: {
-        [AEGIS_HEADER_API_KEY]: apiKey,
+        [CERNIQ_HEADER_API_KEY]: apiKey,
         accept: 'application/json',
         ...(opts.body !== undefined ? { 'content-type': 'application/json' } : {}),
       },
@@ -141,7 +145,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
       signal: ac.signal,
     });
 
-    const requestId = res.headers.get(AEGIS_HEADER_REQUEST_ID) ?? undefined;
+    const requestId = res.headers.get(CERNIQ_HEADER_REQUEST_ID) ?? undefined;
 
     if (res.status === 204) return undefined as T;
 
@@ -149,22 +153,28 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     const payload = text ? safeJson(text) : undefined;
 
     if (!res.ok) {
-      const code = (payload && typeof payload === 'object' && 'error' in payload
-        ? String((payload as Record<string, unknown>).error)
-        : `HTTP_${res.status}`);
-      const message = (payload && typeof payload === 'object' && 'message' in payload
-        ? String((payload as Record<string, unknown>).message)
-        : res.statusText);
-      throw new AegisApiError(res.status, code, message, requestId);
+      const code =
+        payload && typeof payload === 'object' && 'error' in payload
+          ? String((payload as Record<string, unknown>).error)
+          : `HTTP_${res.status}`;
+      const message =
+        payload && typeof payload === 'object' && 'message' in payload
+          ? String((payload as Record<string, unknown>).message)
+          : res.statusText;
+      throw new CerniqApiError(res.status, code, message, requestId);
     }
     return payload as T;
   } catch (err) {
-    if (err instanceof AegisApiError) throw err;
+    if (err instanceof CerniqApiError) throw err;
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new AegisApiError(0, 'TIMEOUT', `Request to AEGIS API timed out after ${DEFAULT_TIMEOUT_MS}ms.`);
+      throw new CerniqApiError(
+        0,
+        'TIMEOUT',
+        `Request to CERNIQ API timed out after ${DEFAULT_TIMEOUT_MS}ms.`,
+      );
     }
     const msg = err instanceof Error ? err.message : 'unknown';
-    throw new AegisApiError(0, 'NETWORK_ERROR', `AEGIS API unreachable: ${msg}`);
+    throw new CerniqApiError(0, 'NETWORK_ERROR', `CERNIQ API unreachable: ${msg}`);
   } finally {
     clearTimeout(timer);
     opts.signal?.removeEventListener('abort', onAbort);
@@ -217,7 +227,9 @@ export async function listAudit(
   agentId: string,
   params: { limit?: number; cursor?: string; from?: string; to?: string } = {},
 ): Promise<AuditPage> {
-  return await request<AuditPage>(`agents/${encodeURIComponent(agentId)}/audit`, { query: { ...params } });
+  return await request<AuditPage>(`agents/${encodeURIComponent(agentId)}/audit`, {
+    query: { ...params },
+  });
 }
 
 // ── Handshake (M-003) ─────────────────────────────────────────────────────
@@ -226,7 +238,7 @@ export interface HandshakeStatus {
   agentId: string;
   verified: boolean;
   verifiedAt?: string;
-  protocolVersion?: 'aegis-handshake-v1';
+  protocolVersion?: 'cerniq-handshake-v1';
 }
 
 export async function getHandshakeStatus(agentId: string): Promise<HandshakeStatus> {

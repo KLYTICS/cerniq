@@ -10,19 +10,19 @@
  * the assertion is downgraded to a smoke check. Endpoints that exist must
  * pass strictly.
  *
- * Doubles as a demo runner: `pnpm --filter @aegis/e2e test 16_quickstart`
- * with `AEGIS_E2E_VERBOSE=1` prints each step's outcome to stdout in the
+ * Doubles as a demo runner: `pnpm --filter @cerniq/e2e test 16_quickstart`
+ * with `CERNIQ_E2E_VERBOSE=1` prints each step's outcome to stdout in the
  * narrative order an operator would experience.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { Aegis, generateKeypair, signHandshake } from '@aegis/sdk';
-import type { AgentRecord } from '@aegis/sdk';
+import { Cerniq, generateKeypair, signHandshake } from '@cerniq/sdk';
+import type { AgentRecord } from '@cerniq/sdk';
 
 import { RawClient, makeSdk, readConfig } from './_support/client';
 import { SCOPES, createPolicy, futureIso, signTokenFor } from './_support/fixtures';
 
-const VERBOSE = process.env['AEGIS_E2E_VERBOSE'] === '1';
+const VERBOSE = process.env['CERNIQ_E2E_VERBOSE'] === '1';
 
 function log(step: string, detail: string): void {
   if (!VERBOSE) return;
@@ -31,7 +31,7 @@ function log(step: string, detail: string): void {
 }
 
 describe('16 · quickstart workflow (the documented promise as a test)', () => {
-  let sdk: Aegis;
+  let sdk: Cerniq;
   let raw: RawClient;
   const cleanup: string[] = [];
 
@@ -98,7 +98,7 @@ describe('16 · quickstart workflow (the documented promise as a test)', () => {
   });
 
   // ── Step 4 — handshake (the M-003 cryptographic act) ───────────────────
-  it('step 4 · Aegis.handshake() proves possession and lifts trust to ≥600', async () => {
+  it('step 4 · Cerniq.handshake() proves possession and lifts trust to ≥600', async () => {
     if (!agentId) throw new Error('preceding step must have registered an agent');
 
     // Some API builds do not yet expose the handshake routes — soft-skip with a
@@ -115,7 +115,7 @@ describe('16 · quickstart workflow (the documented promise as a test)', () => {
 
     const verified = await sdk.handshake(agentId, privateKey);
     expect(verified.agentId).toBe(agentId);
-    expect(verified.protocolVersion).toBe('aegis-handshake-v1');
+    expect(verified.protocolVersion).toBe('cerniq-handshake-v1');
     expect(verified.trustScore).toBeGreaterThanOrEqual(600);
     expect(verified.recordTtlSeconds).toBeGreaterThan(0);
     expect(verified.verifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
@@ -140,7 +140,7 @@ describe('16 · quickstart workflow (the documented promise as a test)', () => {
     expect(typeof status.verified).toBe('boolean');
     if (status.verified) {
       expect(status.verifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-      expect(status.protocolVersion).toBe('aegis-handshake-v1');
+      expect(status.protocolVersion).toBe('cerniq-handshake-v1');
     }
     log('handshake-status', `verified=${status.verified}`);
   });
@@ -157,7 +157,9 @@ describe('16 · quickstart workflow (the documented promise as a test)', () => {
     } else {
       // If the route is not deployed at all, soft-skip rather than fail.
       // eslint-disable-next-line no-console
-      console.warn('[16_quickstart] handshake-status not behaving 404 for missing agent — runtime drift.');
+      console.warn(
+        '[16_quickstart] handshake-status not behaving 404 for missing agent — runtime drift.',
+      );
     }
   });
 
@@ -165,9 +167,12 @@ describe('16 · quickstart workflow (the documented promise as a test)', () => {
   it('step 5 · policies.create() returns an EdDSA-signed JWT with the requested scopes', async () => {
     if (!agentId) throw new Error('preceding step must have registered an agent');
 
-    const policy = await createPolicy(sdk, agentId, [
-      SCOPES.commerce({ maxPerTransaction: 200, maxPerDay: 1000, allowedDomains: ['delta.com'] }),
-    ], { expiresAt: futureIso(24 * 3600), label: 'e2e-quickstart-policy' });
+    const policy = await createPolicy(
+      sdk,
+      agentId,
+      [SCOPES.commerce({ maxPerTransaction: 200, maxPerDay: 1000, allowedDomains: ['delta.com'] })],
+      { expiresAt: futureIso(24 * 3600), label: 'e2e-quickstart-policy' },
+    );
 
     policyId = policy.policyId;
     expect(policyId).toMatch(/^pol_/);
@@ -265,7 +270,7 @@ describe('16 · quickstart workflow (the documented promise as a test)', () => {
     // what the API verifies. Since both already round-tripped successfully
     // above (when the handshake is deployed), we re-derive the bytes and
     // assert their canonical shape.
-    const message = `aegis-handshake-v1::${agentId || 'agt_demo'}::AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA`;
+    const message = `cerniq-handshake-v1::${agentId || 'agt_demo'}::AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA`;
     if (!privateKey) throw new Error('preceding step must have produced a private key');
 
     const sig = await signHandshake(privateKey, message);

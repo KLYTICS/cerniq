@@ -26,10 +26,12 @@ interface FakeRow {
   expiresAt: Date | null;
 }
 
-const PLAINTEXT = 'aegis_sk_AAAAAAAAAAAAAAAAAAAAAA';
+const PLAINTEXT = 'cerniq_sk_AAAAAAAAAAAAAAAAAAAAAA';
 const PRINCIPAL = 'prn_alpha';
 
-async function buildHarness(opts: { row?: FakeRow | null; existingCache?: AuthenticatedKey | null } = {}) {
+async function buildHarness(
+  opts: { row?: FakeRow | null; existingCache?: AuthenticatedKey | null } = {},
+) {
   const row =
     opts.row === undefined
       ? {
@@ -105,7 +107,9 @@ describe('ApiKeyService.resolve — Redis cache layer', () => {
     expect(result?.principalId).toBe(PRINCIPAL);
     expect(h.findMany).toHaveBeenCalledTimes(1);
     // Cache write-through happened.
-    const positiveKey = Array.from(h.cacheStore.keys()).find((k) => k.startsWith('auth:apikey:') && !k.includes(':neg:'));
+    const positiveKey = Array.from(h.cacheStore.keys()).find(
+      (k) => k.startsWith('auth:apikey:') && !k.includes(':neg:'),
+    );
     expect(positiveKey).toBeDefined();
   });
 
@@ -147,7 +151,7 @@ describe('ApiKeyService.resolve — Redis cache layer', () => {
 
   it('rejects malformed keys before touching cache or Postgres', async () => {
     const h = await buildHarness();
-    const result = await h.svc.resolve('not-a-valid-aegis-key');
+    const result = await h.svc.resolve('not-a-valid-cerniq-key');
     expect(result).toBeNull();
     expect(h.cacheGet).not.toHaveBeenCalled();
     expect(h.findMany).not.toHaveBeenCalled();

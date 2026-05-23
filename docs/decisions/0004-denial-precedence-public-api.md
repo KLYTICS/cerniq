@@ -53,23 +53,27 @@ tests that the runtime order matches the constant.
 ## Consequences
 
 ### Positive
+
 - Customer integrations are stable across our internal refactors.
 - Bugs that swap two adjacent reasons are caught by spec assertions,
   not by Stripe complaining.
 
 ### Negative
+
 - Adding a new denial reason in the middle of the list is a breaking
   change. New reasons go at the end, only.
 - Renaming an existing reason is a breaking change. We accept that
   the names are slightly verbose to avoid future regret.
 
 ### Neutral
+
 - We may eventually publish a JSON Schema or OpenAPI extension that
   pins this list at the wire level for downstream code generation.
 
 ## Alternatives considered
 
 ### Alt A: Return all applicable reasons as an array
+
 More information for the relying party. Rejected because (a) it
 encourages relying parties to ignore precedence and pattern-match on
 their own, defeating the point of having a contract; (b) it leaks
@@ -77,14 +81,16 @@ internal evaluation order; (c) it complicates the "did this request
 fail because X or Y" analytics that customers will want.
 
 ### Alt B: Return an opaque opaque error code with a free-form message
+
 Rejected because relying parties end up regex-matching on the message
 and breaking on every wording change.
 
 ### Alt C: Map each denial reason to an HTTP status code (401/403/etc.)
+
 Rejected because `/v1/verify` always returns 200 with a structured
 body — we treat denials as expected outcomes, not as errors. A
-relying party that gets a 200 knows AEGIS evaluated the request; a
-non-200 means AEGIS itself is broken.
+relying party that gets a 200 knows CERNIQ evaluated the request; a
+non-200 means CERNIQ itself is broken.
 
 ## How to reverse this decision
 

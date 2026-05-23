@@ -1,6 +1,6 @@
-// Command aegis is the operator-grade CLI for the AEGIS agent gateway.
+// Command cerniq is the operator-grade CLI for the CERNIQ agent gateway.
 //
-// AEGIS is the neutral identity / policy / audit layer for AI agents.
+// CERNIQ is the neutral identity / policy / audit layer for AI agents.
 // This binary mirrors the public API surface 1:1 (OpenAPI-derived) and
 // adds operator ergonomics: device-code OAuth, OS-keychain credential
 // caching, kubectl-style plugin discovery, and Bloomberg-density terminal
@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/klytics/aegis/packages/cli/cmd"
+	"github.com/klytics/cerniq/packages/cli/cmd"
 )
 
 func main() {

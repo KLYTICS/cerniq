@@ -2,41 +2,35 @@
 // jest test runner (see jest.config.ts).
 
 import {
-  AegisAuthenticationError,
-  AegisAuthorizationError,
-  AegisConflictError,
-  AegisInternalError,
-  AegisNetworkError,
-  AegisNotFoundError,
-  AegisRateLimitedError,
-  AegisServiceUnavailableError,
-  AegisValidationError,
+  CerniqAuthenticationError,
+  CerniqAuthorizationError,
+  CerniqConflictError,
+  CerniqInternalError,
+  CerniqNetworkError,
+  CerniqNotFoundError,
+  CerniqRateLimitedError,
+  CerniqServiceUnavailableError,
+  CerniqValidationError,
 } from './errors.js';
-import {
-  HttpClient,
-  nextDelayMs,
-  parseRetryAfter,
-  withRetry,
-  type RetryOptions,
-} from './http.js';
+import { HttpClient, nextDelayMs, parseRetryAfter, withRetry, type RetryOptions } from './http.js';
 
 const NEVER_SLEEP: RetryOptions['sleep'] = async () => undefined;
 
-describe('AegisError.catalogKey (F-06 minification safety)', () => {
+describe('CerniqError.catalogKey (F-06 minification safety)', () => {
   // tsup minifies the SDK on production builds. Without a static catalogKey
   // discriminator, `new.target.name` collapses to "a"/"b"/... and
   // `err.name` becomes useless to consumers. These assertions are the
   // build-pipeline guard.
   const cases: [new (...args: never[]) => unknown, string][] = [
-    [AegisAuthenticationError, 'AegisAuthenticationError'],
-    [AegisAuthorizationError, 'AegisAuthorizationError'],
-    [AegisNotFoundError, 'AegisNotFoundError'],
-    [AegisValidationError, 'AegisValidationError'],
-    [AegisConflictError, 'AegisConflictError'],
-    [AegisRateLimitedError, 'AegisRateLimitedError'],
-    [AegisInternalError, 'AegisInternalError'],
-    [AegisServiceUnavailableError, 'AegisServiceUnavailableError'],
-    [AegisNetworkError, 'AegisNetworkError'],
+    [CerniqAuthenticationError, 'CerniqAuthenticationError'],
+    [CerniqAuthorizationError, 'CerniqAuthorizationError'],
+    [CerniqNotFoundError, 'CerniqNotFoundError'],
+    [CerniqValidationError, 'CerniqValidationError'],
+    [CerniqConflictError, 'CerniqConflictError'],
+    [CerniqRateLimitedError, 'CerniqRateLimitedError'],
+    [CerniqInternalError, 'CerniqInternalError'],
+    [CerniqServiceUnavailableError, 'CerniqServiceUnavailableError'],
+    [CerniqNetworkError, 'CerniqNetworkError'],
   ];
 
   test.each(cases)('%p declares catalogKey matching its un-minified name', (cls, expected) => {
@@ -44,12 +38,14 @@ describe('AegisError.catalogKey (F-06 minification safety)', () => {
   });
 
   test('instance.name reflects catalogKey, not the (mangled) constructor.name', () => {
-    const err = new AegisAuthenticationError('x', 401, 'r1', undefined);
+    const err = new CerniqAuthenticationError('x', 401, 'r1', undefined);
     Object.defineProperty(err.constructor, 'name', { value: 'a' });
     // err.name was set from the static catalogKey at construction time.
-    expect(err.name).toBe('AegisAuthenticationError');
+    expect(err.name).toBe('CerniqAuthenticationError');
     // And the static survives mangling on the constructor reference itself.
-    expect((err.constructor as unknown as { catalogKey: string }).catalogKey).toBe('AegisAuthenticationError');
+    expect((err.constructor as unknown as { catalogKey: string }).catalogKey).toBe(
+      'CerniqAuthenticationError',
+    );
   });
 });
 
@@ -82,7 +78,9 @@ describe('parseRetryAfter', () => {
 });
 
 describe('nextDelayMs (catalog-driven backoff)', () => {
-  const mkEntry = (backoff: 'none' | 'linear' | 'exponential' | 'on_retry_after_header' | undefined) => ({
+  const mkEntry = (
+    backoff: 'none' | 'linear' | 'exponential' | 'on_retry_after_header' | undefined,
+  ) => ({
     className: 'Whatever',
     code: 'whatever',
     httpStatus: 500,
@@ -93,21 +91,68 @@ describe('nextDelayMs (catalog-driven backoff)', () => {
   });
 
   test('none/undefined backoff returns null', () => {
-    expect(nextDelayMs({ attempt: 1, entry: mkEntry('none'), retryAfterSeconds: undefined, isNetwork: false })).toBeNull();
-    expect(nextDelayMs({ attempt: 1, entry: mkEntry(undefined), retryAfterSeconds: undefined, isNetwork: false })).toBeNull();
+    expect(
+      nextDelayMs({
+        attempt: 1,
+        entry: mkEntry('none'),
+        retryAfterSeconds: undefined,
+        isNetwork: false,
+      }),
+    ).toBeNull();
+    expect(
+      nextDelayMs({
+        attempt: 1,
+        entry: mkEntry(undefined),
+        retryAfterSeconds: undefined,
+        isNetwork: false,
+      }),
+    ).toBeNull();
   });
 
   test('linear schedule is 100/200/400', () => {
-    expect(nextDelayMs({ attempt: 1, entry: mkEntry('linear'), retryAfterSeconds: undefined, isNetwork: false })).toBe(100);
-    expect(nextDelayMs({ attempt: 2, entry: mkEntry('linear'), retryAfterSeconds: undefined, isNetwork: false })).toBe(200);
-    expect(nextDelayMs({ attempt: 3, entry: mkEntry('linear'), retryAfterSeconds: undefined, isNetwork: false })).toBe(400);
-    expect(nextDelayMs({ attempt: 99, entry: mkEntry('linear'), retryAfterSeconds: undefined, isNetwork: false })).toBe(400);
+    expect(
+      nextDelayMs({
+        attempt: 1,
+        entry: mkEntry('linear'),
+        retryAfterSeconds: undefined,
+        isNetwork: false,
+      }),
+    ).toBe(100);
+    expect(
+      nextDelayMs({
+        attempt: 2,
+        entry: mkEntry('linear'),
+        retryAfterSeconds: undefined,
+        isNetwork: false,
+      }),
+    ).toBe(200);
+    expect(
+      nextDelayMs({
+        attempt: 3,
+        entry: mkEntry('linear'),
+        retryAfterSeconds: undefined,
+        isNetwork: false,
+      }),
+    ).toBe(400);
+    expect(
+      nextDelayMs({
+        attempt: 99,
+        entry: mkEntry('linear'),
+        retryAfterSeconds: undefined,
+        isNetwork: false,
+      }),
+    ).toBe(400);
   });
 
   test('exponential schedule is 100/400/1600 with ±10% jitter', () => {
     for (const attempt of [1, 2, 3]) {
       const target = [100, 400, 1600][attempt - 1] ?? 0;
-      const delay = nextDelayMs({ attempt, entry: mkEntry('exponential'), retryAfterSeconds: undefined, isNetwork: false });
+      const delay = nextDelayMs({
+        attempt,
+        entry: mkEntry('exponential'),
+        retryAfterSeconds: undefined,
+        isNetwork: false,
+      });
       expect(delay).not.toBeNull();
       expect(delay!).toBeGreaterThanOrEqual(Math.floor(target * 0.9));
       expect(delay!).toBeLessThanOrEqual(Math.ceil(target * 1.1));
@@ -115,24 +160,59 @@ describe('nextDelayMs (catalog-driven backoff)', () => {
   });
 
   test('on_retry_after_header honors header in seconds and caps at 60s', () => {
-    expect(nextDelayMs({ attempt: 1, entry: mkEntry('on_retry_after_header'), retryAfterSeconds: 5, isNetwork: false })).toBe(5_000);
-    expect(nextDelayMs({ attempt: 1, entry: mkEntry('on_retry_after_header'), retryAfterSeconds: 999, isNetwork: false })).toBe(60_000);
-    expect(nextDelayMs({ attempt: 1, entry: mkEntry('on_retry_after_header'), retryAfterSeconds: 0, isNetwork: false })).toBe(0);
+    expect(
+      nextDelayMs({
+        attempt: 1,
+        entry: mkEntry('on_retry_after_header'),
+        retryAfterSeconds: 5,
+        isNetwork: false,
+      }),
+    ).toBe(5_000);
+    expect(
+      nextDelayMs({
+        attempt: 1,
+        entry: mkEntry('on_retry_after_header'),
+        retryAfterSeconds: 999,
+        isNetwork: false,
+      }),
+    ).toBe(60_000);
+    expect(
+      nextDelayMs({
+        attempt: 1,
+        entry: mkEntry('on_retry_after_header'),
+        retryAfterSeconds: 0,
+        isNetwork: false,
+      }),
+    ).toBe(0);
   });
 
   test('on_retry_after_header without header falls back to linear schedule', () => {
-    expect(nextDelayMs({ attempt: 1, entry: mkEntry('on_retry_after_header'), retryAfterSeconds: undefined, isNetwork: false })).toBe(100);
+    expect(
+      nextDelayMs({
+        attempt: 1,
+        entry: mkEntry('on_retry_after_header'),
+        retryAfterSeconds: undefined,
+        isNetwork: false,
+      }),
+    ).toBe(100);
   });
 
   test('network errors take exponential schedule even without a catalog entry', () => {
-    const delay = nextDelayMs({ attempt: 1, entry: undefined, retryAfterSeconds: undefined, isNetwork: true });
+    const delay = nextDelayMs({
+      attempt: 1,
+      entry: undefined,
+      retryAfterSeconds: undefined,
+      isNetwork: true,
+    });
     expect(delay).not.toBeNull();
     expect(delay!).toBeGreaterThanOrEqual(90);
     expect(delay!).toBeLessThanOrEqual(110);
   });
 
   test('non-network with no catalog entry returns null', () => {
-    expect(nextDelayMs({ attempt: 1, entry: undefined, retryAfterSeconds: undefined, isNetwork: false })).toBeNull();
+    expect(
+      nextDelayMs({ attempt: 1, entry: undefined, retryAfterSeconds: undefined, isNetwork: false }),
+    ).toBeNull();
   });
 });
 
@@ -146,8 +226,8 @@ describe('withRetry (public API)', () => {
     expect(sleep).not.toHaveBeenCalled();
   });
 
-  test('does not retry non-retryable AegisErrors', async () => {
-    const err = new AegisAuthorizationError('nope', 403, 'r1', undefined);
+  test('does not retry non-retryable CerniqErrors', async () => {
+    const err = new CerniqAuthorizationError('nope', 403, 'r1', undefined);
     const fn = jest.fn(async () => {
       throw err;
     });
@@ -157,13 +237,13 @@ describe('withRetry (public API)', () => {
 
   test('retries retryable errors up to maxAttempts then throws', async () => {
     const fn = jest.fn(async () => {
-      throw new AegisInternalError('boom', 500, 'r1', undefined);
+      throw new CerniqInternalError('boom', 500, 'r1', undefined);
     });
     const sleep = jest.fn(async () => undefined);
     const onRetry = jest.fn();
-    await expect(
-      withRetry(fn, { maxAttempts: 3, sleep, onRetry }),
-    ).rejects.toBeInstanceOf(AegisInternalError);
+    await expect(withRetry(fn, { maxAttempts: 3, sleep, onRetry })).rejects.toBeInstanceOf(
+      CerniqInternalError,
+    );
     expect(fn).toHaveBeenCalledTimes(3);
     expect(sleep).toHaveBeenCalledTimes(2);
     expect(onRetry).toHaveBeenCalledTimes(2);
@@ -173,7 +253,7 @@ describe('withRetry (public API)', () => {
     let calls = 0;
     const fn = async () => {
       calls += 1;
-      if (calls < 2) throw new AegisInternalError('flap', 500, 'r1', undefined);
+      if (calls < 2) throw new CerniqInternalError('flap', 500, 'r1', undefined);
       return 42;
     };
     const result = await withRetry(fn, { sleep: NEVER_SLEEP });
@@ -189,7 +269,7 @@ describe('withRetry (public API)', () => {
     let calls = 0;
     const fn = async (): Promise<string> => {
       calls += 1;
-      if (calls < 2) throw new AegisRateLimitedError('slow', 429, 'r1', undefined);
+      if (calls < 2) throw new CerniqRateLimitedError('slow', 429, 'r1', undefined);
       return 'done';
     };
     const result = await withRetry(fn, {
@@ -200,7 +280,7 @@ describe('withRetry (public API)', () => {
     expect(sleeps).toEqual([2_000]);
   });
 
-  test('non-AegisErrors are not retried', async () => {
+  test('non-CerniqErrors are not retried', async () => {
     const err = new RangeError('not ours');
     const fn = jest.fn(async () => {
       throw err;
@@ -213,7 +293,7 @@ describe('withRetry (public API)', () => {
     let calls = 0;
     const fn = async (): Promise<number> => {
       calls += 1;
-      if (calls < 3) throw new AegisNetworkError('net');
+      if (calls < 3) throw new CerniqNetworkError('net');
       return 7;
     };
     const sleep = jest.fn(async () => undefined);
@@ -223,7 +303,7 @@ describe('withRetry (public API)', () => {
   });
 
   test('skips retry when maxAttempts is 1', async () => {
-    const err = new AegisInternalError('once', 500, 'r1', undefined);
+    const err = new CerniqInternalError('once', 500, 'r1', undefined);
     const fn = jest.fn(async () => {
       throw err;
     });
@@ -243,7 +323,7 @@ describe('HttpClient.requestWithRetry', () => {
     };
     return new HttpClient({
       apiKey: 'sk_test',
-      baseUrl: 'https://api.aegislabs.io',
+      baseUrl: 'https://api.cerniq.io',
       timeoutMs: 1_000,
       fetch: fetchFn,
     });
@@ -257,11 +337,15 @@ describe('HttpClient.requestWithRetry', () => {
           headers: { 'content-type': 'application/json' },
         }),
     ]);
-    const result = await client.requestWithRetry<{ ok: boolean }>('/agents', { method: 'GET' }, { sleep: NEVER_SLEEP });
+    const result = await client.requestWithRetry<{ ok: boolean }>(
+      '/agents',
+      { method: 'GET' },
+      { sleep: NEVER_SLEEP },
+    );
     expect(result.ok).toBe(true);
   });
 
-  test('retries on 500 and surfaces final AegisInternalError', async () => {
+  test('retries on 500 and surfaces final CerniqInternalError', async () => {
     const client = mkClient([
       () =>
         new Response(JSON.stringify({ message: 'boom' }), {
@@ -271,7 +355,7 @@ describe('HttpClient.requestWithRetry', () => {
     ]);
     await expect(
       client.requestWithRetry('/agents', { method: 'GET' }, { maxAttempts: 2, sleep: NEVER_SLEEP }),
-    ).rejects.toBeInstanceOf(AegisInternalError);
+    ).rejects.toBeInstanceOf(CerniqInternalError);
   });
 
   test('does not retry 400 ValidationError', async () => {
@@ -287,7 +371,7 @@ describe('HttpClient.requestWithRetry', () => {
     ]);
     await expect(
       client.requestWithRetry('/agents', { method: 'GET' }, { maxAttempts: 5, sleep: NEVER_SLEEP }),
-    ).rejects.toBeInstanceOf(AegisValidationError);
+    ).rejects.toBeInstanceOf(CerniqValidationError);
     expect(calls).toBe(1);
   });
 });

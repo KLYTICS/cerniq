@@ -4,7 +4,11 @@ interface CedarMod {
   isAuthorized: jest.Mock;
 }
 
-function fakeCedar(response: { decision: 'Allow' | 'Deny'; diagnostics?: { reason?: string; errors?: string[] } } | Error): CedarMod {
+function fakeCedar(
+  response:
+    | { decision: 'Allow' | 'Deny'; diagnostics?: { reason?: string; errors?: string[] } }
+    | Error,
+): CedarMod {
   return {
     isAuthorized: jest.fn(async () => {
       if (response instanceof Error) throw response;
@@ -24,13 +28,15 @@ describe('CedarWasmEvaluator', () => {
       context: { trustBand: 'VERIFIED' },
       artifact: { policies: 'permit(principal, action, resource);', entities: [{ uid: 'x' }] },
     });
-    expect(cedar.isAuthorized).toHaveBeenCalledWith(expect.objectContaining({
-      principal: 'Agent::"agt_1"',
-      action: 'Action::"commerce.purchase"',
-      resource: 'MerchantDomain::"delta.com"',
-      policies: 'permit(principal, action, resource);',
-      entities: JSON.stringify([{ uid: 'x' }]),
-    }));
+    expect(cedar.isAuthorized).toHaveBeenCalledWith(
+      expect.objectContaining({
+        principal: 'Agent::"agt_1"',
+        action: 'Action::"commerce.purchase"',
+        resource: 'MerchantDomain::"delta.com"',
+        policies: 'permit(principal, action, resource);',
+        entities: JSON.stringify([{ uid: 'x' }]),
+      }),
+    );
   });
 
   it('throws when artifact.policies is missing', async () => {
@@ -38,31 +44,42 @@ describe('CedarWasmEvaluator', () => {
     const evaluator = new CedarWasmEvaluator(cedar);
     await expect(
       evaluator.isAuthorized({
-        principal: 'Agent::"a"', action: 'Action::"x"', resource: 'r', context: {},
+        principal: 'Agent::"a"',
+        action: 'Action::"x"',
+        resource: 'r',
+        context: {},
         artifact: {},
       }),
     ).rejects.toThrow(/artifact\.policies/);
   });
 
-  it('extracts aegis_deny_reason annotation as obligation', async () => {
+  it('extracts cerniq_deny_reason annotation as obligation', async () => {
     const cedar = fakeCedar({
       decision: 'Deny',
-      diagnostics: { reason: 'matched policy_x with aegis_deny_reason("SPEND_LIMIT_EXCEEDED")' },
+      diagnostics: { reason: 'matched policy_x with cerniq_deny_reason("SPEND_LIMIT_EXCEEDED")' },
     });
     const evaluator = new CedarWasmEvaluator(cedar);
     const r = await evaluator.isAuthorized({
-      principal: 'p', action: 'a', resource: 'r', context: {},
+      principal: 'p',
+      action: 'a',
+      resource: 'r',
+      context: {},
       artifact: { policies: 'permit(...);', entities: [] },
     });
     expect(r.decision).toBe('Deny');
-    expect(r.obligations).toEqual([{ kind: 'aegis.deny_reason', data: { reason: 'SPEND_LIMIT_EXCEEDED' } }]);
+    expect(r.obligations).toEqual([
+      { kind: 'cerniq.deny_reason', data: { reason: 'SPEND_LIMIT_EXCEEDED' } },
+    ]);
   });
 
-  it('returns no obligations when diagnostics have no aegis_deny_reason', async () => {
+  it('returns no obligations when diagnostics have no cerniq_deny_reason', async () => {
     const cedar = fakeCedar({ decision: 'Deny', diagnostics: { reason: 'no policy matched' } });
     const evaluator = new CedarWasmEvaluator(cedar);
     const r = await evaluator.isAuthorized({
-      principal: 'p', action: 'a', resource: 'r', context: {},
+      principal: 'p',
+      action: 'a',
+      resource: 'r',
+      context: {},
       artifact: { policies: 'permit(...);' },
     });
     expect(r.obligations).toBeUndefined();
@@ -72,7 +89,12 @@ describe('CedarWasmEvaluator', () => {
     // Detect whether @cedar-policy/cedar-wasm is actually present in this environment.
     let cedarAvailable = false;
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- presence check for an optional native module; static import would fail to compile when absent.
-    try { require('@cedar-policy/cedar-wasm'); cedarAvailable = true; } catch { /* not installed */ }
+    try {
+      require('@cedar-policy/cedar-wasm');
+      cedarAvailable = true;
+    } catch {
+      /* not installed */
+    }
 
     if (cedarAvailable) {
       // Real module available — no-inject constructor must succeed.
@@ -93,10 +115,10 @@ describe('compileCedarPolicy', () => {
 
   it('runs the validator and rejects bad policies', () => {
     expect(() =>
-      compileCedarPolicy(
-        { policiesText: 'permit(' },
-        () => ({ ok: false, errors: ['unbalanced paren'] }),
-      ),
+      compileCedarPolicy({ policiesText: 'permit(' }, () => ({
+        ok: false,
+        errors: ['unbalanced paren'],
+      })),
     ).toThrow(/unbalanced paren/);
   });
 

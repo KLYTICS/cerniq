@@ -1,4 +1,4 @@
-# AEGIS — Threat Model v2 (auditor-grade)
+# CERNIQ — Threat Model v2 (auditor-grade)
 
 > **Status:** draft for external review (SOC 2 Type II, EU AI Act
 > conformity, partner-integration security review).
@@ -17,41 +17,41 @@
 
 ### 1.1 In scope
 
-The threat model covers the full AEGIS control surface and all data
+The threat model covers the full CERNIQ control surface and all data
 plane components that participate in a verify decision:
 
-| Surface                       | Component / module                                        |
-|-------------------------------|-----------------------------------------------------------|
-| Identity issuance             | `apps/api/src/modules/identity/`                          |
-| Policy issuance               | `apps/api/src/modules/policy/`                            |
-| Request-token verification    | `apps/api/src/modules/verify/`, `workers/cf-verify/`      |
-| Audit log (append + read)     | `apps/api/src/modules/audit/`                             |
-| BATE trust scoring            | `apps/api/src/modules/bate/`                              |
-| Webhooks (delivery + signing) | `apps/api/src/modules/webhooks/`                          |
-| API-key authentication        | `apps/api/src/modules/auth/api-key.guard.ts`              |
-| JWKS distribution             | `apps/api/src/modules/wellknown/` (peer-locked path)      |
-| Verifier-RP library           | `packages/verifier-rp/` (in-flight, see WORK_BOARD)       |
-| SDK signing flows             | `packages/sdk-ts/src/crypto.ts`, `packages/sdk-py/`       |
+| Surface                       | Component / module                                   |
+| ----------------------------- | ---------------------------------------------------- |
+| Identity issuance             | `apps/api/src/modules/identity/`                     |
+| Policy issuance               | `apps/api/src/modules/policy/`                       |
+| Request-token verification    | `apps/api/src/modules/verify/`, `workers/cf-verify/` |
+| Audit log (append + read)     | `apps/api/src/modules/audit/`                        |
+| BATE trust scoring            | `apps/api/src/modules/bate/`                         |
+| Webhooks (delivery + signing) | `apps/api/src/modules/webhooks/`                     |
+| API-key authentication        | `apps/api/src/modules/auth/api-key.guard.ts`         |
+| JWKS distribution             | `apps/api/src/modules/wellknown/` (peer-locked path) |
+| Verifier-RP library           | `packages/verifier-rp/` (in-flight, see WORK_BOARD)  |
+| SDK signing flows             | `packages/sdk-ts/src/crypto.ts`, `packages/sdk-py/`  |
 
 ### 1.2 Out of scope
 
-We deliberately exclude four classes of risk that AEGIS does **not**
+We deliberately exclude four classes of risk that CERNIQ does **not**
 mitigate by design (see `docs/SECURITY.md` §10 for the existing list):
 
 1. **Agent runtime safety** — prompt injection, jailbreaks, and any
    reasoning-level attack that occurs inside the LLM before the agent
-   asks AEGIS to sign. AEGIS sees only the resulting signed token and
+   asks CERNIQ to sign. CERNIQ sees only the resulting signed token and
    rejects on scope/spend regardless of why the agent produced it
    (CLAUDE.md §6 architectural mitigation T6).
 2. **Merchant payment processor** — once a relying party's verify call
    returns `valid: true`, the downstream Stripe/Adyen/etc.
-   authorization flow is the merchant's problem. AEGIS does not move
+   authorization flow is the merchant's problem. CERNIQ does not move
    money.
 3. **Developer private-key storage** — agent private keys are
-   generated and stored client-side. AEGIS provides best-practice
+   generated and stored client-side. CERNIQ provides best-practice
    guidance in the SDK and in `docs/SECURITY.md` §10 but cannot enforce
    it. Compromise of the developer's host yields agent signing
-   capability; AEGIS detects the resulting anomaly via BATE but does
+   capability; CERNIQ detects the resulting anomaly via BATE but does
    not prevent the underlying key theft.
 4. **Customer relying-party infrastructure** — if a relying party's
    verify-key leaks, that leaks read-only verify capability under their
@@ -65,27 +65,27 @@ mitigate by design (see `docs/SECURITY.md` §10 for the existing list):
 The model assumes the following are true. If any one is invalidated by
 a future operational change, this section must be revisited.
 
-| Assumption                                              | Provider                  | Failure mode                         |
-|---------------------------------------------------------|---------------------------|--------------------------------------|
-| TLS 1.3 termination                                     | Railway + Cloudflare      | MITM → fall back to denial-of-service|
-| Managed Postgres encrypted at rest (AES-256)            | Railway Postgres / Neon   | Backup leak → key material exposure  |
-| Redis is in-memory and ephemeral (no persistence)       | Railway Redis             | Snapshot leak → live spend totals    |
-| Operator does not have direct production DB write       | Railway IAM               | Insider tamper → caught by §9 chain  |
-| OS-level CSPRNG (`crypto.randomBytes`, `webcrypto`)     | Node 20 LTS               | Predictable jti / nonce              |
-| `@noble/ed25519` and `jose` are not backdoored          | Upstream maintainers      | Forgery; mitigation = pinning + audit|
-| KMS is HSM-backed in prod (FIPS 140-2 L3)               | AWS KMS / Railway secrets | Key extraction → forgery             |
-| Rekor / sigstore transparency log accepts our entries   | Sigstore (Phase 2)        | Loss of public Merkle root pinning   |
+| Assumption                                            | Provider                  | Failure mode                          |
+| ----------------------------------------------------- | ------------------------- | ------------------------------------- |
+| TLS 1.3 termination                                   | Railway + Cloudflare      | MITM → fall back to denial-of-service |
+| Managed Postgres encrypted at rest (AES-256)          | Railway Postgres / Neon   | Backup leak → key material exposure   |
+| Redis is in-memory and ephemeral (no persistence)     | Railway Redis             | Snapshot leak → live spend totals     |
+| Operator does not have direct production DB write     | Railway IAM               | Insider tamper → caught by §9 chain   |
+| OS-level CSPRNG (`crypto.randomBytes`, `webcrypto`)   | Node 20 LTS               | Predictable jti / nonce               |
+| `@noble/ed25519` and `jose` are not backdoored        | Upstream maintainers      | Forgery; mitigation = pinning + audit |
+| KMS is HSM-backed in prod (FIPS 140-2 L3)             | AWS KMS / Railway secrets | Key extraction → forgery              |
+| Rekor / sigstore transparency log accepts our entries | Sigstore (Phase 2)        | Loss of public Merkle root pinning    |
 
 ---
 
 ## 2. The four-party trust model
 
-AEGIS is a **four-party** protocol — not three. The Principal (the
+CERNIQ is a **four-party** protocol — not three. The Principal (the
 developer/organization), the Agent (a process holding an Ed25519
-keypair), AEGIS itself, and the Relying Party each hold distinct
+keypair), CERNIQ itself, and the Relying Party each hold distinct
 secrets and play distinct verification roles. The mistake in the v1
-prototype (`/Users/money/Downloads/files (7)/aegis-server.js`) was
-collapsing this into a two-party model where AEGIS held a single HMAC
+prototype (`/Users/money/Downloads/files (7)/cerniq-server.js`) was
+collapsing this into a two-party model where CERNIQ held a single HMAC
 secret and re-signed everything for everyone — see §11 for the post-
 mortem.
 
@@ -99,16 +99,16 @@ mortem.
                     │  Holds: API key (plaintext  │
                     │   shown once at issuance)   │
                     │                             │
-                    │  AEGIS stores: argon2id     │
+                    │  CERNIQ stores: argon2id     │
                     │   hash + 16-char prefix     │
                     └──────────────┬──────────────┘
                                    │
                                    │  POST /v1/agents/register
-                                   │  X-AEGIS-API-Key
+                                   │  X-CERNIQ-API-Key
                                    │  body: { publicKey, runtime, ... }
                                    ▼
    ┌────────────────────────┐                   ┌──────────────────────────┐
-   │  AGENT                  │                   │  AEGIS                    │
+   │  AGENT                  │                   │  CERNIQ                    │
    │  (long-running process) │                   │                           │
    │                         │                   │  Holds:                   │
    │  Holds:                 │                   │   • SVC_KEY  (Ed25519)    │
@@ -117,9 +117,9 @@ mortem.
    │   • policy JWT          │   POST /policies  │     for audit chain       │
    │     (signed by SVC_KEY) │ ◀───────────────  │   • per-subscription      │
    │                         │                   │     HMAC-SHA256 secrets   │
-   │  AEGIS stores:          │   GET .well-known │     for webhooks          │
+   │  CERNIQ stores:          │   GET .well-known │     for webhooks          │
    │   • Ed25519 PUB only    │ ───jwks.json───▶  │                           │
-   │   • status, principalId │                   │  AEGIS stores:            │
+   │   • status, principalId │                   │  CERNIQ stores:            │
    │                         │                   │   • agent PUBLIC keys     │
    └────────────┬────────────┘                   │   • policies              │
                 │                                │   • audit chain (signed)  │
@@ -131,27 +131,27 @@ mortem.
    │  RELYING PARTY                       │                 │
    │  (Delta, Chase, Shopify, ...)        │                 │
    │                                      │                 │
-   │  Holds (default): NO key with AEGIS  │  GET /.well-known/jwks.json
+   │  Holds (default): NO key with CERNIQ  │  GET /.well-known/jwks.json
    │   • verifies REQ_TOKEN locally using │ ◀───────────────┘
    │     cached JWKS (offline path)       │
    │                                      │
    │  Holds (optional): Verify-only key   │  POST /v1/verify (online)
-   │   • argon2id hashed at AEGIS         │ ────────────────▶
+   │   • argon2id hashed at CERNIQ         │ ────────────────▶
    │   • read-only, rate-limited          │
    └──────────────────────────────────────┘
 ```
 
 ### 2.2 Key inventory (per party)
 
-| Party         | Material                                     | Lifetime        | Where stored                       | Rotation                          |
-|---------------|----------------------------------------------|-----------------|------------------------------------|-----------------------------------|
-| Principal     | API key (`aegis_sk_…`)                       | indefinite      | client-side; argon2id hash @ AEGIS | on demand or compromise           |
-| Agent         | Ed25519 keypair (32B priv / 32B pub)         | indefinite      | client-side (priv); pub @ AEGIS    | by re-registration (revoke + new) |
-| Agent         | Policy JWT (signed by AEGIS SVC_KEY)         | ≤ 365 days      | held by agent, re-presented        | new policy on expiry/revoke       |
-| AEGIS         | Service signing key (SVC_KEY, Ed25519)       | 90 days         | KMS / Railway secrets              | every 90 days, JWKS overlap       |
-| AEGIS         | Audit-chain key (AUDIT_KEY, Ed25519)         | 365 days        | KMS / Railway secrets              | every 365 days, transition event  |
-| AEGIS         | Webhook HMAC secret (per subscription)       | per subscriber  | Postgres (encrypted at rest)       | on operator demand, 24h grace     |
-| Relying party | (optional) verify-only API key               | indefinite      | client-side; argon2id hash @ AEGIS | on demand                         |
+| Party         | Material                               | Lifetime       | Where stored                        | Rotation                          |
+| ------------- | -------------------------------------- | -------------- | ----------------------------------- | --------------------------------- |
+| Principal     | API key (`cerniq_sk_…`)                | indefinite     | client-side; argon2id hash @ CERNIQ | on demand or compromise           |
+| Agent         | Ed25519 keypair (32B priv / 32B pub)   | indefinite     | client-side (priv); pub @ CERNIQ    | by re-registration (revoke + new) |
+| Agent         | Policy JWT (signed by CERNIQ SVC_KEY)  | ≤ 365 days     | held by agent, re-presented         | new policy on expiry/revoke       |
+| CERNIQ        | Service signing key (SVC_KEY, Ed25519) | 90 days        | KMS / Railway secrets               | every 90 days, JWKS overlap       |
+| CERNIQ        | Audit-chain key (AUDIT_KEY, Ed25519)   | 365 days       | KMS / Railway secrets               | every 365 days, transition event  |
+| CERNIQ        | Webhook HMAC secret (per subscription) | per subscriber | Postgres (encrypted at rest)        | on operator demand, 24h grace     |
+| Relying party | (optional) verify-only API key         | indefinite     | client-side; argon2id hash @ CERNIQ | on demand                         |
 
 > **v1 reconciliation note.** `docs/THREAT_MODEL.md` §"Cryptographic
 > choices" L42 lists `bcrypt cost 12` for API keys. We recommend
@@ -162,17 +162,17 @@ mortem.
 
 ### 2.3 Token taxonomy — three JWTs, three signing keys
 
-| Token          | Issuer        | Verifier       | Signed by                      | Lifetime       | Carrier                                    |
-|----------------|---------------|----------------|--------------------------------|----------------|--------------------------------------------|
-| Policy token   | AEGIS         | Agent (held)   | AEGIS SVC_KEY (EdDSA)          | ≤ 365 days     | `PolicyCreateResponse.signedToken`         |
-| Request token  | Agent         | Relying party  | Agent's Ed25519 private        | 30–60 s        | `VerifyRequest.token` / `X-AEGIS-Token`    |
-| Audit record   | AEGIS         | Auditor (any)  | AEGIS AUDIT_KEY (EdDSA)        | indefinite     | `AuditEventSchema.signature`               |
+| Token         | Issuer | Verifier      | Signed by                | Lifetime   | Carrier                                  |
+| ------------- | ------ | ------------- | ------------------------ | ---------- | ---------------------------------------- |
+| Policy token  | CERNIQ | Agent (held)  | CERNIQ SVC_KEY (EdDSA)   | ≤ 365 days | `PolicyCreateResponse.signedToken`       |
+| Request token | Agent  | Relying party | Agent's Ed25519 private  | 30–60 s    | `VerifyRequest.token` / `X-CERNIQ-Token` |
+| Audit record  | CERNIQ | Auditor (any) | CERNIQ AUDIT_KEY (EdDSA) | indefinite | `AuditEventSchema.signature`             |
 
 Why three keys, not one (the v1 mistake):
 
-1. **Blast-radius separation.** Compromise of SVC_KEY lets an attacker
-   forge *future* policy tokens; AUDIT_KEY compromise lets them forge
-   *past* audit records. Splitting forces the attacker to compromise
+1. **Blast-radius separation.** Compromise of SVC*KEY lets an attacker
+   forge \_future* policy tokens; AUDIT*KEY compromise lets them forge
+   \_past* audit records. Splitting forces the attacker to compromise
    both to fabricate a coherent fraudulent history.
 2. **Rotation cadence asymmetry.** SVC_KEY rotates every 90 days
    (operational); AUDIT_KEY rotates every 365 days (regulatory — a
@@ -187,8 +187,8 @@ Why three keys, not one (the v1 mistake):
    policies.
 
 The agent's private key signing the request token is the only signature
-that proves *the actual agent process* approved the action. Without
-it, AEGIS would only attest that *some agent* with this `agentId`
+that proves _the actual agent process_ approved the action. Without
+it, CERNIQ would only attest that _some agent_ with this `agentId`
 exists — not that the live process intended this specific request.
 The v1 prototype lost this property entirely (see §11.1).
 
@@ -204,90 +204,90 @@ in `WORK_BOARD.md`.
 
 ### 3.1 Spoofing
 
-| ID    | Threat                                   | Vector example                                                                                              | Mitigation                                                                                                                                                                       | Residual risk                                                  | Status        |
-|-------|------------------------------------------|-------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|---------------|
-| S-01  | Fake principal sign-up                   | Attacker registers `evil@bigbank.com` to impersonate a real org and run authorized-looking agents.          | Email verification gate before issuance of first API key (`identity.service.ts` flag); KYC required for paid tiers; KYC unlocks BATE bonuses (`bate.scorer.ts` +150 weight).     | Domain squatting, weak email verification (no DKIM/SPF check). | M-002 partial |
-| S-02  | Fake agent registration under valid principal | Attacker steals dev API key, registers a malicious agent under victim's principal, drains policy budgets.   | Per-key rate limits (`@nestjs/throttler` 120/min on management); audit emits `aegis.agent.registered` webhook → operator alert; BATE flags new agent under high-velocity principal. | API-key theft is upstream of AEGIS.                             | M-002 + M-008 |
-| S-03  | Forged request token (no agent priv)     | Attacker without agent's Ed25519 priv tries to construct a JWT and submit to /verify.                       | EdDSA verification against agent's stored public key (`verify.algorithm.ts` step 2); denial = `INVALID_SIGNATURE` (`SECURITY.md` §6 #3).                                          | Quantum forgery (Phase 4 PQ migration in v1 §"PQ posture").    | M-005 ready   |
-| S-04  | Forged policy token                      | Attacker fabricates a policy JWT to claim broader scope than AEGIS issued.                                  | EdDSA verify against AEGIS SVC_KEY published in JWKS (§6); reject `kid` not in current+previous; `jose.jwtVerify` strict alg check (`alg: ['EdDSA']`).                            | SVC_KEY compromise → recovery via §5 rotation + revocation.    | M-004 ready   |
-| S-05  | Fake relying-party fraud report          | Competitor RP submits `RELYING_PARTY_FRAUD_REPORT` to crash a target agent's BATE score.                    | `RelyingParty.reportWeight = 0.0` for unverified sources (`bate.scorer.ts`); DNS-TXT challenge to lift to verified; daily delta cap `-500` (`BATE_ALGORITHM.md` §4).              | Verified RP turning malicious — operator review trigger.       | partial (UX TODO) |
-| S-06  | Spoofed webhook callback                 | Attacker posts to merchant's webhook URL pretending to be AEGIS to plant fake events.                       | Webhook body signed `HMAC-SHA256(secret, body)` (`AEGIS_HEADER_SIGNATURE`); secret rotated per subscription; sample verifier in SDK and verifier-rp.                              | Customer fails to verify the signature (documentation risk).   | M-008 partial |
-| S-07  | DNS / domain hijack of `api.aegislabs.io` | Attacker takes over apex DNS, routes verify traffic to malicious origin.                                    | DNSSEC on `aegislabs.io`; CAA records pinned to Let's Encrypt + DigiCert; HSTS preload; CT-log monitoring (Cert Spotter alert).                                                  | Registrar compromise — covered by registrar 2FA + lock.        | RUNBOOK §infra |
+| ID   | Threat                                        | Vector example                                                                                            | Mitigation                                                                                                                                                                           | Residual risk                                                  | Status            |
+| ---- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- | ----------------- |
+| S-01 | Fake principal sign-up                        | Attacker registers `evil@bigbank.com` to impersonate a real org and run authorized-looking agents.        | Email verification gate before issuance of first API key (`identity.service.ts` flag); KYC required for paid tiers; KYC unlocks BATE bonuses (`bate.scorer.ts` +150 weight).         | Domain squatting, weak email verification (no DKIM/SPF check). | M-002 partial     |
+| S-02 | Fake agent registration under valid principal | Attacker steals dev API key, registers a malicious agent under victim's principal, drains policy budgets. | Per-key rate limits (`@nestjs/throttler` 120/min on management); audit emits `cerniq.agent.registered` webhook → operator alert; BATE flags new agent under high-velocity principal. | API-key theft is upstream of CERNIQ.                           | M-002 + M-008     |
+| S-03 | Forged request token (no agent priv)          | Attacker without agent's Ed25519 priv tries to construct a JWT and submit to /verify.                     | EdDSA verification against agent's stored public key (`verify.algorithm.ts` step 2); denial = `INVALID_SIGNATURE` (`SECURITY.md` §6 #3).                                             | Quantum forgery (Phase 4 PQ migration in v1 §"PQ posture").    | M-005 ready       |
+| S-04 | Forged policy token                           | Attacker fabricates a policy JWT to claim broader scope than CERNIQ issued.                               | EdDSA verify against CERNIQ SVC_KEY published in JWKS (§6); reject `kid` not in current+previous; `jose.jwtVerify` strict alg check (`alg: ['EdDSA']`).                              | SVC_KEY compromise → recovery via §5 rotation + revocation.    | M-004 ready       |
+| S-05 | Fake relying-party fraud report               | Competitor RP submits `RELYING_PARTY_FRAUD_REPORT` to crash a target agent's BATE score.                  | `RelyingParty.reportWeight = 0.0` for unverified sources (`bate.scorer.ts`); DNS-TXT challenge to lift to verified; daily delta cap `-500` (`BATE_ALGORITHM.md` §4).                 | Verified RP turning malicious — operator review trigger.       | partial (UX TODO) |
+| S-06 | Spoofed webhook callback                      | Attacker posts to merchant's webhook URL pretending to be CERNIQ to plant fake events.                    | Webhook body signed `HMAC-SHA256(secret, body)` (`CERNIQ_HEADER_SIGNATURE`); secret rotated per subscription; sample verifier in SDK and verifier-rp.                                | Customer fails to verify the signature (documentation risk).   | M-008 partial     |
+| S-07 | DNS / domain hijack of `api.cerniq.io`        | Attacker takes over apex DNS, routes verify traffic to malicious origin.                                  | DNSSEC on `cerniq.io`; CAA records pinned to Let's Encrypt + DigiCert; HSTS preload; CT-log monitoring (Cert Spotter alert).                                                         | Registrar compromise — covered by registrar 2FA + lock.        | RUNBOOK §infra    |
 
 ### 3.2 Tampering
 
-| ID    | Threat                                   | Vector example                                                                                              | Mitigation                                                                                                                                                                                                  | Residual risk                                                          | Status        |
-|-------|------------------------------------------|-------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------|---------------|
-| T-01  | Request-token claim tampering            | Attacker flips `amt` in payload while keeping signature.                                                    | EdDSA covers full payload incl. claims; any byte flip → `INVALID_SIGNATURE` (`crypto/ed25519.util.ts`).                                                                                                     | None (signature is over canonical bytes).                              | M-005 ready   |
-| T-02  | Policy server-side mutation              | Insider edits `AgentPolicy.scopes` row in Postgres to widen scope.                                          | Server-authoritative scope (CLAUDE.md §SECURITY.md L31; client-presented scopes in token are advisory); `policy_snapshot` JSON copied into each `AuditEvent` row → audit chain breaks if policy was tampered post-hoc. | Insider edits both policy AND audit chain — caught by §9 hourly Merkle. | covered + M-006 |
-| T-03  | Audit log row update / delete            | Insider runs `UPDATE audit_events SET decision = 'approved' WHERE …`.                                       | `prev_hash` chain (next event's hash mismatch) + EdDSA per-event signature; CLAUDE.md invariant 3 ("No `UPDATE` or `DELETE` on `AuditEvent` ever"); Postgres role for app has no UPDATE/DELETE on this table. | Restore-from-backup attack — caught by hourly Merkle root publication. | M-006 ready   |
-| T-04  | Spend counter rollback                   | Insider deletes a `SpendRecord` row to free spend budget.                                                   | Redis `INCRBY` is the source of truth in the hot path (§8); Postgres SpendRecord is reconciliation-only and reconciliation flags discrepancies > 5%.                                                       | Coordinated Redis + Postgres tamper — operator-tier insider only.       | M-005 + M-013 |
-| T-05  | JWKS document tampering                  | MITM modifies `/.well-known/jwks.json` in transit to substitute attacker key.                               | TLS 1.3 + HSTS preload + cache-warming on a known-good origin; verifier-rp pins `iss` claim and `kid` to JWKS-fetched key set; Sigstore-signed SDK release artifacts.                                       | TLS root CA compromise — out-of-scope per §1.3.                         | M-004 wellknown |
-| T-06  | Agent public-key swap at registration    | Attacker pre-registers a public key they control under victim's `principalId`.                              | API-key auth required for `POST /agents/register` (`identity.controller.ts` `@UseGuards(ApiKeyGuard)`); challenge-response handshake (sign a server-issued nonce) before status flips to `active` (M-003).  | API-key theft → mitigated by S-02 detection.                           | M-003 partial |
+| ID   | Threat                                | Vector example                                                                 | Mitigation                                                                                                                                                                                                             | Residual risk                                                           | Status          |
+| ---- | ------------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | --------------- |
+| T-01 | Request-token claim tampering         | Attacker flips `amt` in payload while keeping signature.                       | EdDSA covers full payload incl. claims; any byte flip → `INVALID_SIGNATURE` (`crypto/ed25519.util.ts`).                                                                                                                | None (signature is over canonical bytes).                               | M-005 ready     |
+| T-02 | Policy server-side mutation           | Insider edits `AgentPolicy.scopes` row in Postgres to widen scope.             | Server-authoritative scope (CLAUDE.md §SECURITY.md L31; client-presented scopes in token are advisory); `policy_snapshot` JSON copied into each `AuditEvent` row → audit chain breaks if policy was tampered post-hoc. | Insider edits both policy AND audit chain — caught by §9 hourly Merkle. | covered + M-006 |
+| T-03 | Audit log row update / delete         | Insider runs `UPDATE audit_events SET decision = 'approved' WHERE …`.          | `prev_hash` chain (next event's hash mismatch) + EdDSA per-event signature; CLAUDE.md invariant 3 ("No `UPDATE` or `DELETE` on `AuditEvent` ever"); Postgres role for app has no UPDATE/DELETE on this table.          | Restore-from-backup attack — caught by hourly Merkle root publication.  | M-006 ready     |
+| T-04 | Spend counter rollback                | Insider deletes a `SpendRecord` row to free spend budget.                      | Redis `INCRBY` is the source of truth in the hot path (§8); Postgres SpendRecord is reconciliation-only and reconciliation flags discrepancies > 5%.                                                                   | Coordinated Redis + Postgres tamper — operator-tier insider only.       | M-005 + M-013   |
+| T-05 | JWKS document tampering               | MITM modifies `/.well-known/jwks.json` in transit to substitute attacker key.  | TLS 1.3 + HSTS preload + cache-warming on a known-good origin; verifier-rp pins `iss` claim and `kid` to JWKS-fetched key set; Sigstore-signed SDK release artifacts.                                                  | TLS root CA compromise — out-of-scope per §1.3.                         | M-004 wellknown |
+| T-06 | Agent public-key swap at registration | Attacker pre-registers a public key they control under victim's `principalId`. | API-key auth required for `POST /agents/register` (`identity.controller.ts` `@UseGuards(ApiKeyGuard)`); challenge-response handshake (sign a server-issued nonce) before status flips to `active` (M-003).             | API-key theft → mitigated by S-02 detection.                            | M-003 partial   |
 
 ### 3.3 Repudiation
 
-| ID    | Threat                                   | Vector example                                                                                              | Mitigation                                                                                                                                                                                              | Residual risk                                                  | Status      |
-|-------|------------------------------------------|-------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|-------------|
-| R-01  | Agent denies signing a request           | Customer says "we never signed this $10k charge."                                                            | Request token contains agent's EdDSA signature over claims; audit `AuditEvent.signature` includes the original token's `jti` and signature digest; verifier-rp keeps token in dispute log for `ttl + 24h`. | Agent priv key was leaked (out of scope; surfaces in BATE).    | M-005 + M-006 |
-| R-02  | AEGIS denies issuing a policy            | Principal disputes a policy that AEGIS records as theirs.                                                   | Policy token signed by SVC_KEY; SVC_KEY pubs in dated JWKS history (`/.well-known/jwks.json` + `/.well-known/jwks-archive.json` Phase 2); auditor can verify any issued token against the era's pubkey. | SVC_KEY archive lost — DR plan §5.5.                            | M-004       |
-| R-03  | Audit gap (verify succeeds, audit fails) | Verify writes spend, then DB writeback to audit fails; operator denies the request ever happened.            | Audit append in same Postgres tx as spend reconcile (when path is online); Redis-only fast path → BullMQ "audit pending" with DLQ; verify response includes `auditEventId` so RP can detect a gap.       | Concurrent Postgres + Redis + BullMQ failure (very rare).      | M-006       |
-| R-04  | Webhook delivery missing                 | "We never got the revoke event" — customer claims unawareness of agent revoke.                              | BullMQ retries with exponential backoff (5 attempts over 24h); each delivery in `WebhookDelivery` row; HMAC body signature → customer can replay from dashboard; non-delivery alarm at 5% rate.          | Customer endpoint is permanently down — surfaced in dashboard. | M-008       |
+| ID   | Threat                                   | Vector example                                                                                    | Mitigation                                                                                                                                                                                                 | Residual risk                                                  | Status        |
+| ---- | ---------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------- |
+| R-01 | Agent denies signing a request           | Customer says "we never signed this $10k charge."                                                 | Request token contains agent's EdDSA signature over claims; audit `AuditEvent.signature` includes the original token's `jti` and signature digest; verifier-rp keeps token in dispute log for `ttl + 24h`. | Agent priv key was leaked (out of scope; surfaces in BATE).    | M-005 + M-006 |
+| R-02 | CERNIQ denies issuing a policy           | Principal disputes a policy that CERNIQ records as theirs.                                        | Policy token signed by SVC_KEY; SVC_KEY pubs in dated JWKS history (`/.well-known/jwks.json` + `/.well-known/jwks-archive.json` Phase 2); auditor can verify any issued token against the era's pubkey.    | SVC_KEY archive lost — DR plan §5.5.                           | M-004         |
+| R-03 | Audit gap (verify succeeds, audit fails) | Verify writes spend, then DB writeback to audit fails; operator denies the request ever happened. | Audit append in same Postgres tx as spend reconcile (when path is online); Redis-only fast path → BullMQ "audit pending" with DLQ; verify response includes `auditEventId` so RP can detect a gap.         | Concurrent Postgres + Redis + BullMQ failure (very rare).      | M-006         |
+| R-04 | Webhook delivery missing                 | "We never got the revoke event" — customer claims unawareness of agent revoke.                    | BullMQ retries with exponential backoff (5 attempts over 24h); each delivery in `WebhookDelivery` row; HMAC body signature → customer can replay from dashboard; non-delivery alarm at 5% rate.            | Customer endpoint is permanently down — surfaced in dashboard. | M-008         |
 
 ### 3.4 Information disclosure
 
-| ID    | Threat                                   | Vector example                                                                                              | Mitigation                                                                                                                                                                                  | Residual risk                                                                | Status                          |
-|-------|------------------------------------------|-------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------|---------------------------------|
-| I-01  | Cross-principal data leak in API         | Principal A queries `GET /agents/agt_belongs_to_B` and gets a 200.                                          | Every service method takes `principalId` as first arg and includes `where: { principalId }` (CLAUDE.md invariant 5; SECURITY.md §5); end-to-end test in `tests/e2e/isolation.spec.ts`.       | Future Postgres RLS as defense-in-depth (planned).                           | covered + tests in flight       |
-| I-02  | JWKS public-key disclosure               | "JWKS is exposed without auth."                                                                             | **Intentional**: JWKS is public infrastructure (`docs/SECURITY.md` §4.3 "Key rotation"). Only public Ed25519 keys are returned. Caching via CDN; no rate limit on this path.                | None (public by design).                                                     | n/a (informational)             |
-| I-03  | Redis snooping (snapshot leak)           | Railway support copies a Redis dump; attacker reads spend totals + jti cache.                               | Redis is in-memory only (no `appendonly`); IAM separates infra-team and app-team access; spend totals are not PII; `jti:{…}` keys carry no payload, just `"1"`.                              | Snapshot retains principal/agent IDs (low PII).                              | covered                         |
-| I-04  | Log injection of secrets                 | Pino captures `req.headers.authorization` or token body in error log.                                       | `app.module.ts` Pino redaction for `req.headers["x-aegis-api-key"]`, `req.headers["x-aegis-verify-key"]`, `authorization`, `req.body.token`; nightly grep CI step for raw `aegis_sk_` prefix. | Custom log line added without redaction — guarded by lint rule (M-018 follow-up). | covered (extend lint)           |
-| I-05  | Audit-log read by wrong principal        | Principal A reads audit events for principal B's agent.                                                     | `audit.controller.ts` filters by `req.principal.id`; explicit cross-principal reads (e.g. RP report viewer) are signed and emit `aegis.audit.cross_principal_read` webhook for the affected principal.   | Operator/back-office reads — logged in audit-of-audit (Phase 2).             | M-006                           |
-| I-06  | Trust-score reverse engineering          | Adversary submits crafted signals to learn BATE weights and probe near-band edges.                          | Score deltas carry small jitter (`BATE_ALGORITHM.md` §9); per-source caps (`-500/day` for fraud reports); reports require verified RP for full weight.                                       | Sufficiently patient adversary — band-level reproducibility is intentional.  | covered                         |
-| I-07  | Stripe webhook secret leak               | Env-var leak via misconfigured CI logs.                                                                     | Pino redaction list includes `STRIPE_WEBHOOK_SECRET`; gitleaks pre-commit + CI; Railway secret scoped to `apps/api` only.                                                                   | Build cache poisoning — out of CI scope for this audit.                      | covered                         |
+| ID   | Threat                            | Vector example                                                                     | Mitigation                                                                                                                                                                                              | Residual risk                                                                     | Status                    |
+| ---- | --------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------- |
+| I-01 | Cross-principal data leak in API  | Principal A queries `GET /agents/agt_belongs_to_B` and gets a 200.                 | Every service method takes `principalId` as first arg and includes `where: { principalId }` (CLAUDE.md invariant 5; SECURITY.md §5); end-to-end test in `tests/e2e/isolation.spec.ts`.                  | Future Postgres RLS as defense-in-depth (planned).                                | covered + tests in flight |
+| I-02 | JWKS public-key disclosure        | "JWKS is exposed without auth."                                                    | **Intentional**: JWKS is public infrastructure (`docs/SECURITY.md` §4.3 "Key rotation"). Only public Ed25519 keys are returned. Caching via CDN; no rate limit on this path.                            | None (public by design).                                                          | n/a (informational)       |
+| I-03 | Redis snooping (snapshot leak)    | Railway support copies a Redis dump; attacker reads spend totals + jti cache.      | Redis is in-memory only (no `appendonly`); IAM separates infra-team and app-team access; spend totals are not PII; `jti:{…}` keys carry no payload, just `"1"`.                                         | Snapshot retains principal/agent IDs (low PII).                                   | covered                   |
+| I-04 | Log injection of secrets          | Pino captures `req.headers.authorization` or token body in error log.              | `app.module.ts` Pino redaction for `req.headers["x-cerniq-api-key"]`, `req.headers["x-cerniq-verify-key"]`, `authorization`, `req.body.token`; nightly grep CI step for raw `cerniq_sk_` prefix.        | Custom log line added without redaction — guarded by lint rule (M-018 follow-up). | covered (extend lint)     |
+| I-05 | Audit-log read by wrong principal | Principal A reads audit events for principal B's agent.                            | `audit.controller.ts` filters by `req.principal.id`; explicit cross-principal reads (e.g. RP report viewer) are signed and emit `cerniq.audit.cross_principal_read` webhook for the affected principal. | Operator/back-office reads — logged in audit-of-audit (Phase 2).                  | M-006                     |
+| I-06 | Trust-score reverse engineering   | Adversary submits crafted signals to learn BATE weights and probe near-band edges. | Score deltas carry small jitter (`BATE_ALGORITHM.md` §9); per-source caps (`-500/day` for fraud reports); reports require verified RP for full weight.                                                  | Sufficiently patient adversary — band-level reproducibility is intentional.       | covered                   |
+| I-07 | Stripe webhook secret leak        | Env-var leak via misconfigured CI logs.                                            | Pino redaction list includes `STRIPE_WEBHOOK_SECRET`; gitleaks pre-commit + CI; Railway secret scoped to `apps/api` only.                                                                               | Build cache poisoning — out of CI scope for this audit.                           | covered                   |
 
 ### 3.5 Denial of service
 
-| ID    | Threat                                   | Vector example                                                                                              | Mitigation                                                                                                                                                                                                       | Residual risk                                                            | Status              |
-|-------|------------------------------------------|-------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------|---------------------|
-| D-01  | `/v1/verify` flood from leaked verify-key | Attacker hammers `/verify` with valid creds.                                                                | `@nestjs/throttler` per-key 1000 rpm (`docs/SECURITY.md` §7); per-IP CF Phase-3 hard cap 10000 rpm; offline JWKS path means well-behaved customers don't even hit AEGIS.                                          | Distributed key-stuffing — caught by aggregate `failed_verify_spike` alert. | M-009               |
-| D-02  | Register-spam under leaked API key       | Attacker creates 1M agents to exhaust principal quota / DB.                                                 | Plan-tier hard cap on `agents per principal`; per-key rate limit on `POST /agents/register` (60 rpm, vs. 120 default for management); Postgres composite index on `(principalId, status)` keeps queries cheap.   | Legitimate fanout to many agents — operator can lift cap on request.    | M-002 + M-014 plan tiers |
-| D-03  | Redis exhaustion via spend keys          | Attacker creates many policy IDs → many `spend:{policyId}:day:...` keys.                                    | Spend keys are per-policy; policy creation rate-limited (10 rpm per principal); spend keys TTL to midnight UTC, max ~365 keys/policy/year; Redis `maxmemory-policy=allkeys-lru` with `maxmemory` ceiling.        | Operator must size Redis to plan-tier ceilings (capacity §A-04 in arch audit).| RUNBOOK §scaling    |
-| D-04  | Slow-loris / TLS-handshake exhaustion    | Attacker opens many half-open TLS connections.                                                              | Cloudflare front (Phase 3) absorbs; Railway proxy enforces 30s read timeout, 60s total timeout; Fastify-style backpressure on body size 1MB max.                                                                 | None of significance once CF in front.                                    | scaffolded          |
-| D-05  | BATE worker queue exhaustion             | Adversary submits many fake reports to DOS the BullMQ signal worker.                                        | BullMQ rate limiter `RelyingParty.reportWeight=0` reports skip the heavy scorer path; DLQ caps; per-RP daily report cap.                                                                                          | Verified-RP attacker (rare; operator-reviewable).                          | M-007 + M-008       |
-| D-06  | Webhook redelivery storm                 | Customer endpoint flaps, BullMQ retries pile up.                                                            | Exponential backoff with cap; per-subscription rate limit on the BullMQ worker (`docs/SECURITY.md` §7); auto-disable subscription after 100 consecutive failures over 24h.                                       | None significant.                                                         | M-008               |
+| ID   | Threat                                    | Vector example                                                           | Mitigation                                                                                                                                                                                                     | Residual risk                                                                  | Status                   |
+| ---- | ----------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------ |
+| D-01 | `/v1/verify` flood from leaked verify-key | Attacker hammers `/verify` with valid creds.                             | `@nestjs/throttler` per-key 1000 rpm (`docs/SECURITY.md` §7); per-IP CF Phase-3 hard cap 10000 rpm; offline JWKS path means well-behaved customers don't even hit CERNIQ.                                      | Distributed key-stuffing — caught by aggregate `failed_verify_spike` alert.    | M-009                    |
+| D-02 | Register-spam under leaked API key        | Attacker creates 1M agents to exhaust principal quota / DB.              | Plan-tier hard cap on `agents per principal`; per-key rate limit on `POST /agents/register` (60 rpm, vs. 120 default for management); Postgres composite index on `(principalId, status)` keeps queries cheap. | Legitimate fanout to many agents — operator can lift cap on request.           | M-002 + M-014 plan tiers |
+| D-03 | Redis exhaustion via spend keys           | Attacker creates many policy IDs → many `spend:{policyId}:day:...` keys. | Spend keys are per-policy; policy creation rate-limited (10 rpm per principal); spend keys TTL to midnight UTC, max ~365 keys/policy/year; Redis `maxmemory-policy=allkeys-lru` with `maxmemory` ceiling.      | Operator must size Redis to plan-tier ceilings (capacity §A-04 in arch audit). | RUNBOOK §scaling         |
+| D-04 | Slow-loris / TLS-handshake exhaustion     | Attacker opens many half-open TLS connections.                           | Cloudflare front (Phase 3) absorbs; Railway proxy enforces 30s read timeout, 60s total timeout; Fastify-style backpressure on body size 1MB max.                                                               | None of significance once CF in front.                                         | scaffolded               |
+| D-05 | BATE worker queue exhaustion              | Adversary submits many fake reports to DOS the BullMQ signal worker.     | BullMQ rate limiter `RelyingParty.reportWeight=0` reports skip the heavy scorer path; DLQ caps; per-RP daily report cap.                                                                                       | Verified-RP attacker (rare; operator-reviewable).                              | M-007 + M-008            |
+| D-06 | Webhook redelivery storm                  | Customer endpoint flaps, BullMQ retries pile up.                         | Exponential backoff with cap; per-subscription rate limit on the BullMQ worker (`docs/SECURITY.md` §7); auto-disable subscription after 100 consecutive failures over 24h.                                     | None significant.                                                              | M-008                    |
 
 ### 3.6 Elevation of privilege
 
-| ID    | Threat                                   | Vector example                                                                                              | Mitigation                                                                                                                                                                                                | Residual risk                                                                | Status      |
-|-------|------------------------------------------|-------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------|-------------|
-| E-01  | Principal A steals principal B's agent keys | A insider exfils agent priv via shared infra (e.g. Vercel project switch).                                  | AEGIS does not hold private keys (CLAUDE.md invariant 1); all isolation upstream is the customer's responsibility; AEGIS detects misuse via BATE signals (`VELOCITY_ANOMALY`, `GEOGRAPHIC_INCONSISTENCY`).| Customer-side incident — out of scope per §1.2.                              | n/a (customer) |
-| E-02  | Scope expansion via crafted token        | Agent crafts a request token claiming a scope the policy does not grant.                                    | Server-authoritative scope check: AEGIS loads the policy from DB by `pid`, compares request `act`/`amt` against `policy.scopes`, ignores any client-provided scope hints (`verify.algorithm.ts` step 5). | None — client claims are advisory only.                                      | M-005 ready |
-| E-03  | Replay across relying parties            | RP1 captures a request token with `mid: rpId-1` and replays at RP2.                                         | Token includes `mid` (merchant id) and `dom` (domain) when relevant; verifier-rp checks `dom` matches its own; AEGIS-side `jti` cache makes second use return `INVALID_SIGNATURE`.                         | RPs that don't pin `dom` — covered in verifier-rp docs.                       | M-016       |
-| E-04  | Replay within an RP                      | RP captures a token, replays it 30s later (still within `exp`).                                             | Per-RP `jti` LRU cache (verifier-rp library); AEGIS-side Redis `jti` set on online verify path (§7).                                                                                                       | TTL-window replay if RP fails to deploy verifier-rp — caught at AEGIS for online path. | M-016       |
-| E-05  | Verify-only key escalating to write      | Attacker possessing only a verify-only key tries to call `POST /agents/register`.                           | `ApiKeyGuard` checks `key.type === 'full'` for write paths; verify-only keys are flagged in `ApiKey.role` and only the `verify`/`status` controllers accept them (`api-key.guard.ts`).                    | Misconfigured guard on a future endpoint — guarded by integration test.       | M-002       |
-| E-06  | Webhook secret reuse across subscriptions | Attacker who reads one webhook secret tries it against all subscriptions.                                   | One secret per subscription (`WebhookSubscription.signingSecret`); secrets are CSPRNG-generated and never reused.                                                                                          | DB compromise reveals all secrets — same impact as principal isolation breach.| M-008       |
+| ID   | Threat                                      | Vector example                                                                    | Mitigation                                                                                                                                                                                                   | Residual risk                                                                           | Status         |
+| ---- | ------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | -------------- |
+| E-01 | Principal A steals principal B's agent keys | A insider exfils agent priv via shared infra (e.g. Vercel project switch).        | CERNIQ does not hold private keys (CLAUDE.md invariant 1); all isolation upstream is the customer's responsibility; CERNIQ detects misuse via BATE signals (`VELOCITY_ANOMALY`, `GEOGRAPHIC_INCONSISTENCY`). | Customer-side incident — out of scope per §1.2.                                         | n/a (customer) |
+| E-02 | Scope expansion via crafted token           | Agent crafts a request token claiming a scope the policy does not grant.          | Server-authoritative scope check: CERNIQ loads the policy from DB by `pid`, compares request `act`/`amt` against `policy.scopes`, ignores any client-provided scope hints (`verify.algorithm.ts` step 5).    | None — client claims are advisory only.                                                 | M-005 ready    |
+| E-03 | Replay across relying parties               | RP1 captures a request token with `mid: rpId-1` and replays at RP2.               | Token includes `mid` (merchant id) and `dom` (domain) when relevant; verifier-rp checks `dom` matches its own; CERNIQ-side `jti` cache makes second use return `INVALID_SIGNATURE`.                          | RPs that don't pin `dom` — covered in verifier-rp docs.                                 | M-016          |
+| E-04 | Replay within an RP                         | RP captures a token, replays it 30s later (still within `exp`).                   | Per-RP `jti` LRU cache (verifier-rp library); CERNIQ-side Redis `jti` set on online verify path (§7).                                                                                                        | TTL-window replay if RP fails to deploy verifier-rp — caught at CERNIQ for online path. | M-016          |
+| E-05 | Verify-only key escalating to write         | Attacker possessing only a verify-only key tries to call `POST /agents/register`. | `ApiKeyGuard` checks `key.type === 'full'` for write paths; verify-only keys are flagged in `ApiKey.role` and only the `verify`/`status` controllers accept them (`api-key.guard.ts`).                       | Misconfigured guard on a future endpoint — guarded by integration test.                 | M-002          |
+| E-06 | Webhook secret reuse across subscriptions   | Attacker who reads one webhook secret tries it against all subscriptions.         | One secret per subscription (`WebhookSubscription.signingSecret`); secrets are CSPRNG-generated and never reused.                                                                                            | DB compromise reveals all secrets — same impact as principal isolation breach.          | M-008          |
 
 ---
 
 ## 4. Cryptographic stack — reconciled
 
 This section reconciles the v1 file's `RSA-4096 / SHA-256` choice for
-audit signing against the rest of the AEGIS stack. **v2 normalizes on
+audit signing against the rest of the CERNIQ stack. **v2 normalizes on
 EdDSA / Ed25519 for all asymmetric operations.**
 
 ### 4.1 Algorithm by operation
 
-| Operation                    | Algorithm           | Library              | Key                | Rotation       | DR / recovery                                                          |
-|------------------------------|---------------------|----------------------|--------------------|----------------|------------------------------------------------------------------------|
-| Agent identity signature     | EdDSA / Ed25519     | `@noble/ed25519`     | per-agent          | re-register    | Customer-side; AEGIS retains pub for verify continuity                 |
-| Policy token signature       | EdDSA / Ed25519     | `jose`               | SVC_KEY            | 90 days        | KMS-backed; previous key in JWKS for ≥ 90 days post-rotation            |
-| Audit chain signature        | EdDSA / Ed25519     | `@noble/ed25519`     | AUDIT_KEY          | 365 days       | KMS-backed; transition event signed by both old + new on rotation       |
-| API-key hash                 | argon2id (target)   | `argon2`             | n/a                | n/a            | bcrypt verify path during migration; rehash on next successful verify  |
-| Webhook body MAC             | HMAC-SHA-256        | `node:crypto`        | per-subscription   | on demand      | Old secret valid 24h grace; surfaced in dashboard                       |
-| TLS                          | TLS 1.3, X25519 ECDHE| Cloudflare/Railway   | platform-managed   | platform       | Out of scope                                                            |
-| Token / event IDs            | `crypto.randomUUID` | `node:crypto`        | n/a                | n/a            | Native CSPRNG                                                           |
-| Public-key fingerprint       | SHA-256 (`kid`)     | `node:crypto`        | derived            | derived        | Recomputable from key                                                   |
+| Operation                | Algorithm             | Library            | Key              | Rotation    | DR / recovery                                                         |
+| ------------------------ | --------------------- | ------------------ | ---------------- | ----------- | --------------------------------------------------------------------- |
+| Agent identity signature | EdDSA / Ed25519       | `@noble/ed25519`   | per-agent        | re-register | Customer-side; CERNIQ retains pub for verify continuity               |
+| Policy token signature   | EdDSA / Ed25519       | `jose`             | SVC_KEY          | 90 days     | KMS-backed; previous key in JWKS for ≥ 90 days post-rotation          |
+| Audit chain signature    | EdDSA / Ed25519       | `@noble/ed25519`   | AUDIT_KEY        | 365 days    | KMS-backed; transition event signed by both old + new on rotation     |
+| API-key hash             | argon2id (target)     | `argon2`           | n/a              | n/a         | bcrypt verify path during migration; rehash on next successful verify |
+| Webhook body MAC         | HMAC-SHA-256          | `node:crypto`      | per-subscription | on demand   | Old secret valid 24h grace; surfaced in dashboard                     |
+| TLS                      | TLS 1.3, X25519 ECDHE | Cloudflare/Railway | platform-managed | platform    | Out of scope                                                          |
+| Token / event IDs        | `crypto.randomUUID`   | `node:crypto`      | n/a              | n/a         | Native CSPRNG                                                         |
+| Public-key fingerprint   | SHA-256 (`kid`)       | `node:crypto`      | derived          | derived     | Recomputable from key                                                 |
 
 ### 4.2 Why EdDSA hash chain, not RSA-4096, for audit signing
 
@@ -297,13 +297,13 @@ verifiable in any language." The v2 recommendation is to switch to
 **EdDSA over Ed25519** for the audit chain, with three primary reasons
 and a fourth that pushes it from "preference" to "design correctness."
 
-1. **Library uniformity.** AEGIS already has `@noble/ed25519` audited and
+1. **Library uniformity.** CERNIQ already has `@noble/ed25519` audited and
    unit-tested in the verify hot path (`apps/api/src/common/crypto/`).
    Adding RSA introduces a second crypto dependency surface (`node:crypto`
    RSA), a second key format, a second JWS algorithm string in `jose`,
    and a second set of failure modes for ops to learn. CLAUDE.md
-   stack-reality § "Crypto" says: *"One curve, one library, audited.
-   Do not introduce alternatives."*
+   stack-reality § "Crypto" says: _"One curve, one library, audited.
+   Do not introduce alternatives."_
 2. **Verifier throughput.** Auditors don't verify one event — they
    verify thousands or millions in bulk during a SOC 2 or EU AI Act
    review. Ed25519 verify is ~50µs/op; RSA-4096 verify is ~1.5ms/op
@@ -315,8 +315,8 @@ and a fourth that pushes it from "preference" to "design correctness."
    storage cost and in audit-export bandwidth.
 4. **The tamper-detection story does not depend on the signature.**
    The audit chain's tamper-evidence comes from `prev_hash` (the chain
-   itself); the signature only proves *AEGIS at the time produced this
-   record*. Industry-standard is the chain construction (RFC 6962-style
+   itself); the signature only proves _CERNIQ at the time produced this
+   record_. Industry-standard is the chain construction (RFC 6962-style
    transparency log, Sigstore Rekor), not RSA. We get "verifiable in
    any language" because Ed25519 is a mandatory primitive in JOSE
    (RFC 8037), implemented in `pyca/cryptography`, Go's `crypto/ed25519`,
@@ -376,8 +376,9 @@ key sort, no whitespace, fixed numeric form, UTF-8 NFC. Implemented in
 `apps/api/src/common/crypto/jcs.util.ts` (M-006).
 
 A reference implementation in three languages:
+
 - TypeScript: `audit-chain.util.ts`
-- Python: `packages/sdk-py/aegis/audit.py` (read-only verifier)
+- Python: `packages/sdk-py/cerniq/audit.py` (read-only verifier)
 - Go: published as a gist alongside the public key for partner integrations
 
 ### 4.4 Algorithms we deliberately do not use
@@ -388,7 +389,7 @@ HS256, hand-rolled), this v2 also rejects:
 - **Ed448** — slower, larger, no security benefit at our threat model.
 - **JWE-encrypted audit records** — would prevent third-party verification
   without sharing keys; the threat model treats audit content as
-  *confidential but not secret* (the principal already has it).
+  _confidential but not secret_ (the principal already has it).
 - **Schnorr / BIP-340** — same security as Ed25519, narrower ecosystem.
 
 ---
@@ -406,7 +407,7 @@ HS256, hand-rolled), this v2 also rejects:
   giving any in-flight policy token time to either expire or be
   re-issued.
 - **Hard rule:** A new policy token cannot have `exp >
-  current_key.expires_at`. Implemented as a check in `policy.service.ts`
+current_key.expires_at`. Implemented as a check in `policy.service.ts`
   before signing.
 - **Emergency rotation** (suspected compromise): bring old `kid` into a
   revocation list at `/.well-known/jwks-revoked.json`; verifier-rp
@@ -417,7 +418,7 @@ HS256, hand-rolled), this v2 also rejects:
 
 - Rotation generates a fresh keypair; old key is **archived in JWKS
   history**, never deleted.
-- On rotation, AEGIS appends a special audit event:
+- On rotation, CERNIQ appends a special audit event:
   ```json
   {
     "eventId": "evt_keyrot_2026-Q4",
@@ -449,7 +450,7 @@ HS256, hand-rolled), this v2 also rejects:
 
 ### 5.4 Agent keys — operationally, by re-registration
 
-- AEGIS does not rotate agent keys (it doesn't hold them). The
+- CERNIQ does not rotate agent keys (it doesn't hold them). The
   documented operational flow:
   1. Customer generates a new keypair locally (SDK
      `generateKeypair()`).
@@ -458,7 +459,7 @@ HS256, hand-rolled), this v2 also rejects:
   3. Issue policies on the new agent, migrate traffic.
   4. `DELETE /v1/agents/{old_agentId}` once traffic is drained.
 - BATE history transfer: `PATCH /v1/agents/{new_agentId}/inherit-trust
-  { from: old_agentId }` (Phase 2; requires API-key auth and emits an
+{ from: old_agentId }` (Phase 2; requires API-key auth and emits an
   audit event). This avoids forcing every healthy agent back to score
   500 on rotation.
 - **Compromise path:** `DELETE /v1/agents/{agentId}` busts the agent
@@ -469,7 +470,7 @@ HS256, hand-rolled), this v2 also rejects:
 
 ### 5.5 Disaster recovery
 
-- **All AEGIS-held private keys are KMS-resident in production.** AWS
+- **All CERNIQ-held private keys are KMS-resident in production.** AWS
   KMS (HSM-backed, FIPS 140-2 L3) or Railway Vault — operator decision
   per `OPERATOR_DECISIONS.md` (peer-locked path, do not edit here).
 - **Backup**: KMS exports an encrypted bundle weekly to S3 + GCS in a
@@ -498,10 +499,10 @@ HS256, hand-rolled), this v2 also rejects:
 `apps/api/src/modules/wellknown/`; this section documents the shape,
 the module owner is responsible for the implementation):
 
-- **Public**, no `X-AEGIS-API-Key` required.
+- **Public**, no `X-CERNIQ-API-Key` required.
 - **No CORS restriction** (browsers verifying client-side need it).
 - **Cache headers**: `Cache-Control: public, max-age=300,
-  stale-while-revalidate=86400`.
+stale-while-revalidate=86400`.
 - **CDN**: Cloudflare front (Phase 3) caches at edge.
 
 Each JWK entry:
@@ -511,13 +512,14 @@ Each JWK entry:
   "kid": "svc-2026-Q3-7af3",
   "kty": "OKP",
   "crv": "Ed25519",
-  "x":   "<32-byte pubkey, base64url, 43 chars no padding>",
+  "x": "<32-byte pubkey, base64url, 43 chars no padding>",
   "use": "sig",
   "alg": "EdDSA"
 }
 ```
 
 The document includes:
+
 - The current SVC_KEY.
 - The most-recently-retired SVC_KEY (during the 90-day overlap).
 - The current AUDIT_KEY.
@@ -538,12 +540,12 @@ cached longer: `max-age=86400`).
 
 ### 6.3 Failure modes
 
-| Failure                                   | Detection                                          | Response                                                                                  |
-|-------------------------------------------|----------------------------------------------------|-------------------------------------------------------------------------------------------|
-| JWKS endpoint 5xx                         | verifier-rp circuit breaker (3 consecutive)        | Use cached JWKS up to `stale-while-revalidate` (24h); after that, fail closed             |
-| JWKS document tampered                    | `kid` not found / sig fails                        | Verify denial = `INVALID_SIGNATURE`; emit `JWKS_VERIFY_FAIL` metric                       |
-| JWKS clock skew vs. token `exp`           | `nbf`/`exp` reject                                 | Standard JOSE; documented 30s clock-skew tolerance in verifier-rp config                  |
-| JWKS rotation mid-flight                  | New `kid` not yet in cache                         | Refetch on demand; if new key was published >5min ago and we still don't see it → alert   |
+| Failure                         | Detection                                   | Response                                                                                |
+| ------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------- |
+| JWKS endpoint 5xx               | verifier-rp circuit breaker (3 consecutive) | Use cached JWKS up to `stale-while-revalidate` (24h); after that, fail closed           |
+| JWKS document tampered          | `kid` not found / sig fails                 | Verify denial = `INVALID_SIGNATURE`; emit `JWKS_VERIFY_FAIL` metric                     |
+| JWKS clock skew vs. token `exp` | `nbf`/`exp` reject                          | Standard JOSE; documented 30s clock-skew tolerance in verifier-rp config                |
+| JWKS rotation mid-flight        | New `kid` not yet in cache                  | Refetch on demand; if new key was published >5min ago and we still don't see it → alert |
 
 ---
 
@@ -562,7 +564,7 @@ does not leak through:
 - The agent SDK refuses to set `ttlSeconds` outside this range
   (`packages/sdk-ts/src/crypto.ts` L51 — currently defaults to 60s,
   add upper-bound clamp in M-018-followup).
-- AEGIS verify path rejects any token where `exp - iat > 60` → maps to
+- CERNIQ verify path rejects any token where `exp - iat > 60` → maps to
   `INVALID_SIGNATURE` (we don't leak that the token was in-window
   but too long-lived; that's policy info).
 
@@ -576,7 +578,7 @@ does not leak through:
 - This is the primary defense for **offline verifiers** (RPs that
   don't call `/v1/verify`).
 
-### 7.3 Layer 3 — AEGIS-side `jti` set (online verify path)
+### 7.3 Layer 3 — CERNIQ-side `jti` set (online verify path)
 
 - Implemented in `verify.algorithm.ts` step 3:
   ```
@@ -594,13 +596,13 @@ does not leak through:
 
 ### 7.4 Trade-offs
 
-| Mode                             | Layers active   | Coverage                                                                  |
-|----------------------------------|-----------------|---------------------------------------------------------------------------|
-| Offline RP (JWKS-only)           | 1 + 2           | Replay protected within the RP; cross-RP replay needs token's `dom` claim |
-| Online RP (calls `/v1/verify`)   | 1 + 2 + 3       | Globally protected; AEGIS sees replays across RPs                         |
-| Online RP, AEGIS Redis down      | 1 + 2           | Layer 3 fails closed (`SERVICE_UNAVAILABLE`); RP retries or falls back to offline |
+| Mode                           | Layers active | Coverage                                                                          |
+| ------------------------------ | ------------- | --------------------------------------------------------------------------------- |
+| Offline RP (JWKS-only)         | 1 + 2         | Replay protected within the RP; cross-RP replay needs token's `dom` claim         |
+| Online RP (calls `/v1/verify`) | 1 + 2 + 3     | Globally protected; CERNIQ sees replays across RPs                                |
+| Online RP, CERNIQ Redis down   | 1 + 2         | Layer 3 fails closed (`SERVICE_UNAVAILABLE`); RP retries or falls back to offline |
 
-The three-layer design means an AEGIS-Redis outage does **not**
+The three-layer design means an CERNIQ-Redis outage does **not**
 silently disable replay protection — it returns 503 instead of a false
 "valid" (cf. v1 prototype's silent failure mode, §11.3).
 
@@ -610,7 +612,7 @@ silently disable replay protection — it returns 503 instead of a false
 
 ### 8.1 The v1 bug
 
-`/Users/money/Downloads/files (7)/aegis-server.js` lines 505–527 read
+`/Users/money/Downloads/files (7)/cerniq-server.js` lines 505–527 read
 the day/month spend totals via `SELECT SUM`, compared them to the
 limit, then `INSERT`ed the new spend record. Two concurrent verifies
 for the same agent could both pass the check (each seeing the pre-
@@ -624,34 +626,34 @@ Redis `INCRBY` is atomic and is the source of truth in the hot path.
 ```ts
 // Pseudocode for spend-guard.service.ts (M-005)
 async function chargeSpend(policyId: string, amount: number, limit: SpendLimit) {
-  const dayKey   = redisKey.spendDay(policyId, today())
-  const monthKey = redisKey.spendMonth(policyId, thisMonth())
+  const dayKey = redisKey.spendDay(policyId, today());
+  const monthKey = redisKey.spendMonth(policyId, thisMonth());
 
   // Day check
-  const newDay = await redis.incrby(dayKey, amount)
-  await redis.expireat(dayKey, midnightUtc())     // idempotent
+  const newDay = await redis.incrby(dayKey, amount);
+  await redis.expireat(dayKey, midnightUtc()); // idempotent
   if (limit.maxPerDay !== undefined && newDay > limit.maxPerDay) {
-    await redis.decrby(dayKey, amount)             // compensate
-    return { ok: false, reason: 'SPEND_LIMIT_EXCEEDED' as const }
+    await redis.decrby(dayKey, amount); // compensate
+    return { ok: false, reason: 'SPEND_LIMIT_EXCEEDED' as const };
   }
 
   // Month check (only if day passed)
-  const newMonth = await redis.incrby(monthKey, amount)
-  await redis.expireat(monthKey, endOfMonthUtc())
+  const newMonth = await redis.incrby(monthKey, amount);
+  await redis.expireat(monthKey, endOfMonthUtc());
   if (limit.maxPerMonth !== undefined && newMonth > limit.maxPerMonth) {
-    await redis.decrby(dayKey,   amount)            // compensate both
-    await redis.decrby(monthKey, amount)
-    return { ok: false, reason: 'SPEND_LIMIT_EXCEEDED' as const }
+    await redis.decrby(dayKey, amount); // compensate both
+    await redis.decrby(monthKey, amount);
+    return { ok: false, reason: 'SPEND_LIMIT_EXCEEDED' as const };
   }
 
   // Per-transaction is a stateless check, doesn't need Redis
   // (handled before this function — see verify.algorithm.ts step 6).
 
-  return { ok: true, dayTotal: newDay, monthTotal: newMonth }
+  return { ok: true, dayTotal: newDay, monthTotal: newMonth };
 }
 ```
 
-The compensating `DECRBY` is racy *with reads* (a concurrent verify
+The compensating `DECRBY` is racy _with reads_ (a concurrent verify
 during the few microseconds between `INCRBY` overshoot and `DECRBY`
 might see a too-high value), but **never gives away spend** — at
 worst it rejects a legal request with `SPEND_LIMIT_EXCEEDED`. That's
@@ -664,7 +666,7 @@ a fail-safe direction.
   share this path).
 - A nightly cron at 02:00 UTC compares `SUM(SpendRecord)` per policy
   against the day/month Redis counters. Discrepancy > 5% emits
-  `bate.signal.audit_mismatch` to the `#aegis-ops` channel and
+  `bate.signal.audit_mismatch` to the `#cerniq-ops` channel and
   flags the agent's BATE for human review.
 - Postgres is the source of truth across reboots — Redis spend
   counters are recomputed from `SpendRecord` aggregates on Redis
@@ -696,6 +698,7 @@ reason this isn't even a config option.
 ### 9.1 Per-event signature + prev-hash
 
 Every `AuditEvent` row carries:
+
 - `prevHash` (32 bytes hex) — SHA-256 over the JCS-canonical bytes of
   the previous event's full stored record.
 - `signature` (Ed25519 over `JCS({ ...event, prevHash })`).
@@ -708,12 +711,12 @@ have.
 
 ### 9.2 Hourly Merkle root publication (Phase 2)
 
-- Every hour at `:00`, AEGIS computes a Merkle root over all events
+- Every hour at `:00`, CERNIQ computes a Merkle root over all events
   written in that hour (`apps/api/src/modules/audit/merkle.worker.ts`,
   M-006-followup).
 - The hour's root is published to a transparency log (Sigstore Rekor
   via the in-toto attestation predicate), pinning the existence and
-  ordering of every event AEGIS claims to have logged.
+  ordering of every event CERNIQ claims to have logged.
 - Auditors can request a Merkle proof for any event → independently
   verify against the published root.
 - This pins us against a "restore from old backup" attack: an
@@ -724,6 +727,7 @@ have.
 ### 9.3 Tamper test (CI)
 
 `tests/security/audit-tamper.spec.ts`:
+
 1. Append 100 events.
 2. Mutate event #50's `decision` field.
 3. Run chain verifier.
@@ -735,13 +739,13 @@ The test gates merge to main. CLAUDE.md crypto-rule
 
 ### 9.4 Detection signals (operator alerts)
 
-| Signal                                            | Source                                  | Threshold                       | Page level   |
-|---------------------------------------------------|------------------------------------------|---------------------------------|--------------|
-| `audit_chain_signature_failures_total`            | Prometheus on `audit.verify`             | any in 5 min                    | PagerDuty P1 |
-| `audit_chain_prevhash_mismatches_total`           | same                                     | any in 5 min                    | PagerDuty P1 |
-| `audit_merkle_root_publish_failures_total`        | Rekor publisher                          | 3 consecutive hours             | PagerDuty P2 |
-| `audit_event_write_failures_total`                | service                                  | > 0.1% in 5 min                 | PagerDuty P2 |
-| `audit_export_request_total`                      | controller                               | informational, daily review     | Slack only   |
+| Signal                                     | Source                       | Threshold                   | Page level   |
+| ------------------------------------------ | ---------------------------- | --------------------------- | ------------ |
+| `audit_chain_signature_failures_total`     | Prometheus on `audit.verify` | any in 5 min                | PagerDuty P1 |
+| `audit_chain_prevhash_mismatches_total`    | same                         | any in 5 min                | PagerDuty P1 |
+| `audit_merkle_root_publish_failures_total` | Rekor publisher              | 3 consecutive hours         | PagerDuty P2 |
+| `audit_event_write_failures_total`         | service                      | > 0.1% in 5 min             | PagerDuty P2 |
+| `audit_export_request_total`               | controller                   | informational, daily review | Slack only   |
 
 ---
 
@@ -749,23 +753,23 @@ The test gates merge to main. CLAUDE.md crypto-rule
 
 ### 10.1 Detection signals
 
-| Signal                                          | Where                                                         | Notes                                              |
-|-------------------------------------------------|---------------------------------------------------------------|----------------------------------------------------|
-| `verify_total{denial_reason="INVALID_SIGNATURE"}` spike per agent | Prometheus / `verify.algorithm.ts` | Probable agent priv compromise or mass replay attempt |
-| `bate_score_delta` crash (≥ 200 in 1 hour)      | BATE worker                                                   | Targeted fraud-report attack — escalate to operator|
-| Audit chain break (any)                         | nightly job + on-read                                         | P1                                                 |
-| JWKS fetch error rate from RPs                  | external, via verifier-rp opt-in telemetry                    | Indicates upstream outage or RP-side misconfig     |
-| Webhook delivery failure rate per subscription  | BullMQ                                                        | > 50% in 5 min → auto-disable subscription         |
-| Per-key auth failures (`AUTH_REQUIRED` rate)    | nginx/CF logs + Pino                                          | Possible credential-stuffing                       |
-| Per-IP `/verify` rate                           | CF Phase 3                                                    | Per-IP cap 10000 rpm; soft alert at 80%            |
+| Signal                                                            | Where                                      | Notes                                                 |
+| ----------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------- |
+| `verify_total{denial_reason="INVALID_SIGNATURE"}` spike per agent | Prometheus / `verify.algorithm.ts`         | Probable agent priv compromise or mass replay attempt |
+| `bate_score_delta` crash (≥ 200 in 1 hour)                        | BATE worker                                | Targeted fraud-report attack — escalate to operator   |
+| Audit chain break (any)                                           | nightly job + on-read                      | P1                                                    |
+| JWKS fetch error rate from RPs                                    | external, via verifier-rp opt-in telemetry | Indicates upstream outage or RP-side misconfig        |
+| Webhook delivery failure rate per subscription                    | BullMQ                                     | > 50% in 5 min → auto-disable subscription            |
+| Per-key auth failures (`AUTH_REQUIRED` rate)                      | nginx/CF logs + Pino                       | Possible credential-stuffing                          |
+| Per-IP `/verify` rate                                             | CF Phase 3                                 | Per-IP cap 10000 rpm; soft alert at 80%               |
 
 ### 10.2 Page targets
 
-- **Primary**: PagerDuty service `aegis-prod-onsite`.
-- **Mirror**: Slack `#aegis-ops` (webhook from PagerDuty).
-- **Customer-facing**: `status.aegislabs.io` updated by ops runbook
+- **Primary**: PagerDuty service `cerniq-prod-onsite`.
+- **Mirror**: Slack `#cerniq-ops` (webhook from PagerDuty).
+- **Customer-facing**: `status.cerniq.io` updated by ops runbook
   on incidents that affect customer SLOs.
-- **Email**: `security@aegislabs.io` for vulnerability reports
+- **Email**: `security@cerniq.io` for vulnerability reports
   (`SECURITY.md` L7).
 
 ### 10.3 Runbooks
@@ -773,34 +777,34 @@ The test gates merge to main. CLAUDE.md crypto-rule
 Detection signals point at runbook sections in `docs/RUNBOOK.md`. We
 do not duplicate runbook content here. The cross-reference table:
 
-| Detection                       | Runbook section                              |
-|---------------------------------|----------------------------------------------|
-| Audit chain break               | RUNBOOK § "Audit chain break"                |
-| Verify-key abuse                | RUNBOOK § "Suspected verify-key compromise"  |
-| Spend-guard Redis outage        | RUNBOOK § "Redis hot-path failure"           |
-| BATE score collapse on agent    | RUNBOOK § "Agent under attack"               |
-| Mass JWKS verify failures       | RUNBOOK § "JWKS rotation incident"           |
-| Webhook subscriber outage       | RUNBOOK § "Webhook delivery escalation"      |
+| Detection                    | Runbook section                             |
+| ---------------------------- | ------------------------------------------- |
+| Audit chain break            | RUNBOOK § "Audit chain break"               |
+| Verify-key abuse             | RUNBOOK § "Suspected verify-key compromise" |
+| Spend-guard Redis outage     | RUNBOOK § "Redis hot-path failure"          |
+| BATE score collapse on agent | RUNBOOK § "Agent under attack"              |
+| Mass JWKS verify failures    | RUNBOOK § "JWKS rotation incident"          |
+| Webhook subscriber outage    | RUNBOOK § "Webhook delivery escalation"     |
 
 ---
 
 ## 11. Postmortem of the v1 prototype
 
-`/Users/money/Downloads/files (7)/aegis-server.js` is the original
+`/Users/money/Downloads/files (7)/cerniq-server.js` is the original
 prototype that this entire codebase replaces. v2 inherits its API
 shape but re-architects every security-critical control. Documenting
 the original sins ensures we don't regress.
 
 ### 11.1 HMAC for everything
 
-L120: `const AEGIS_SIGNING_SECRET = new TextEncoder().encode('aegis-audit-secret-replace-in-prod')`.
+L120: `const CERNIQ_SIGNING_SECRET = new TextEncoder().encode('cerniq-audit-secret-replace-in-prod')`.
 
 A single hardcoded HMAC secret was used for **policy tokens**
 (L153, `alg: 'HS256'`), **request tokens** (L173, also `'HS256'`), and
 **audit records** (L183, also `'HS256'`). The agent's Ed25519 keypair
-was never used to sign anything; AEGIS re-signed the token with its
+was never used to sign anything; CERNIQ re-signed the token with its
 own secret. That collapses the four-party trust model into a one-party
-"AEGIS knows everything" model — and means that anyone with the secret
+"CERNIQ knows everything" model — and means that anyone with the secret
 (every developer in the project, the Git history, the bundled binary)
 could forge any token of any kind.
 
@@ -830,7 +834,7 @@ the v2 response.
 
 L248–273 accepted any base64 string as `publicKey`. No proof that the
 registering party held the corresponding private key. An attacker with
-a stolen API key could pre-register *their* keys under the victim
+a stolen API key could pre-register _their_ keys under the victim
 principal. v2 fix: M-003 challenge-response handshake before status
 flips to `active`, threat T-06 in §3.2.
 
@@ -852,11 +856,10 @@ The list in `docs/THREAT_MODEL.md` L67–78 stays. v2 adds:
 - [ ] **argon2id migration** for API keys complete; bcrypt verify path
       still in place for existing keys; rehash-on-verify migration
       worker has run for ≥ 90 days.
-- [ ] **JWKS endpoint live** at `/.well-known/jwks.json` with current
-      + previous SVC_KEY and current AUDIT_KEY.
+- [ ] **JWKS endpoint live** at `/.well-known/jwks.json` with current + previous SVC_KEY and current AUDIT_KEY.
 - [ ] **JWKS archive endpoint live** at `/.well-known/jwks-archive.json`
       with all historical AUDIT_KEYs back to genesis.
-- [ ] **verifier-rp package on npm** (`@aegis/verifier-rp`), Sigstore-
+- [ ] **verifier-rp package on npm** (`@cerniq/verifier-rp`), Sigstore-
       signed release artifacts, fast-check property tests in CI.
 - [ ] **fast-check property tests** for: token canonicalization,
       audit-chain prev-hash linkage under random shuffle, EdDSA verify
@@ -897,9 +900,9 @@ specific gate in §12.
    `apps/api/src/modules/auth/api-key.service.ts` (constants block).
 
 2. **JWKS cache TTL exact value.** Recommended `max-age=300,
-   stale-while-revalidate=86400`. Trade-off: lower max-age means
+stale-while-revalidate=86400`. Trade-off: lower max-age means
    faster propagation of emergency rotation; higher swr means better
-   resilience to AEGIS being down. The 5-minute figure is the longest
+   resilience to CERNIQ being down. The 5-minute figure is the longest
    we'd accept a compromised key remaining trusted.
 
 3. **AUDIT_KEY rotation cadence.** Recommended 365 days. SOC 2 commonly
@@ -933,33 +936,33 @@ specific gate in §12.
 
 ## Appendix A — Cross-references
 
-- CLAUDE.md (architecture invariants) — `/Users/money/Desktop/AEGIS/CLAUDE.md` L19–52.
+- CLAUDE.md (architecture invariants) — `/Users/money/Desktop/CERNIQ/CLAUDE.md` L19–52.
 - `docs/SECURITY.md` (denial precedence, key handling) — L26–104, L108–129.
 - `docs/THREAT_MODEL.md` (v1, this doc supersedes) — L1–79.
 - `docs/ARCHITECTURE.md` (system architecture) — L67–84 (verify portability), L168–183 (audit chain).
-- `docs/spec/AEGIS_API_SPEC.yaml` (contract) — `/v1/verify`, `/v1/agents/register`.
+- `docs/spec/CERNIQ_API_SPEC.yaml` (contract) — `/v1/verify`, `/v1/agents/register`.
 - `docs/spec/03_TECHNICAL_SPEC.md` (master tech spec).
 - `docs/BATE_ALGORITHM.md` (trust scoring) — L59–91 (signal weights), L95–115 (cold start).
 - `packages/types/src/constants.ts` — `DENIAL_REASON_PRECEDENCE` L53–63, `REDIS_KEY` L30–39, TTL bounds L22–23.
 - `packages/types/src/schemas.ts` — wire shapes.
 - `packages/types/src/errors.ts` — error envelope, `ERROR_CODE` L14–24.
 - `packages/sdk-ts/src/crypto.ts` — JWT signing ground truth, L26 (header), L44–70 (sign).
-- v1 prototype (post-mortemed) — `/Users/money/Downloads/files (7)/aegis-server.js`.
+- v1 prototype (post-mortemed) — `/Users/money/Downloads/files (7)/cerniq-server.js`.
 
 ## Appendix B — Module-to-mitigation index
 
 For peer Claude sessions claiming work in `WORK_BOARD.md`:
 
-| Module    | Threats addressed                                             |
-|-----------|---------------------------------------------------------------|
-| M-002 (auth, api-key) | S-02, E-05                                          |
-| M-003 (identity / handshake) | T-06                                          |
-| M-004 (policy, JWKS) | S-04, T-05, R-02                                     |
-| M-005 (verify hot path) | S-03, T-01, T-04, E-02, E-04                      |
-| M-006 (audit chain) | T-02, T-03, R-01, R-03, I-05 (tampering, repudiation) |
-| M-007 (BATE) | S-05, I-06                                                  |
-| M-008 (webhooks) | S-06, R-04, D-06, E-06                                  |
-| M-009 (rate limit) | D-01                                                  |
-| M-013 (reconciliation cron) | T-04                                         |
-| M-016 (verifier-rp library) | E-03, E-04, replay layer 2                   |
-| M-018 (this doc + arch audit) | meta                                       |
+| Module                        | Threats addressed                                     |
+| ----------------------------- | ----------------------------------------------------- |
+| M-002 (auth, api-key)         | S-02, E-05                                            |
+| M-003 (identity / handshake)  | T-06                                                  |
+| M-004 (policy, JWKS)          | S-04, T-05, R-02                                      |
+| M-005 (verify hot path)       | S-03, T-01, T-04, E-02, E-04                          |
+| M-006 (audit chain)           | T-02, T-03, R-01, R-03, I-05 (tampering, repudiation) |
+| M-007 (BATE)                  | S-05, I-06                                            |
+| M-008 (webhooks)              | S-06, R-04, D-06, E-06                                |
+| M-009 (rate limit)            | D-01                                                  |
+| M-013 (reconciliation cron)   | T-04                                                  |
+| M-016 (verifier-rp library)   | E-03, E-04, replay layer 2                            |
+| M-018 (this doc + arch audit) | meta                                                  |

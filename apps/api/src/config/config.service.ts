@@ -56,28 +56,28 @@ export class AppConfigService {
     return this.config.AUDIT_SIGNING_KEY_B64;
   }
   /**
-   * AEGIS audit-chain + JWKS signing keypair.
+   * CERNIQ audit-chain + JWKS signing keypair.
    *
-   * Canonical envs are `AEGIS_SIGNING_PRIVATE_KEY` / `AEGIS_SIGNING_PUBLIC_KEY`.
+   * Canonical envs are `CERNIQ_SIGNING_PRIVATE_KEY` / `CERNIQ_SIGNING_PUBLIC_KEY`.
    * Older deploys may still supply `AUDIT_ED25519_*_B64` aliases; we accept
    * them with a deprecation warning. Remove the legacy fall-through one
    * minor release after operators have renamed.
    */
   get auditEd25519PrivateB64(): string | undefined {
-    if (this.config.AEGIS_SIGNING_PRIVATE_KEY) return this.config.AEGIS_SIGNING_PRIVATE_KEY;
+    if (this.config.CERNIQ_SIGNING_PRIVATE_KEY) return this.config.CERNIQ_SIGNING_PRIVATE_KEY;
     if (this.config.AUDIT_ED25519_PRIVATE_KEY_B64) {
       this.logger.warn(
-        'AUDIT_ED25519_PRIVATE_KEY_B64 is deprecated; rename to AEGIS_SIGNING_PRIVATE_KEY before v0.2.',
+        'AUDIT_ED25519_PRIVATE_KEY_B64 is deprecated; rename to CERNIQ_SIGNING_PRIVATE_KEY before v0.2.',
       );
       return this.config.AUDIT_ED25519_PRIVATE_KEY_B64;
     }
     return undefined;
   }
   get auditEd25519PublicB64(): string | undefined {
-    if (this.config.AEGIS_SIGNING_PUBLIC_KEY) return this.config.AEGIS_SIGNING_PUBLIC_KEY;
+    if (this.config.CERNIQ_SIGNING_PUBLIC_KEY) return this.config.CERNIQ_SIGNING_PUBLIC_KEY;
     if (this.config.AUDIT_ED25519_PUBLIC_KEY_B64) {
       this.logger.warn(
-        'AUDIT_ED25519_PUBLIC_KEY_B64 is deprecated; rename to AEGIS_SIGNING_PUBLIC_KEY before v0.2.',
+        'AUDIT_ED25519_PUBLIC_KEY_B64 is deprecated; rename to CERNIQ_SIGNING_PUBLIC_KEY before v0.2.',
       );
       return this.config.AUDIT_ED25519_PUBLIC_KEY_B64;
     }
@@ -89,11 +89,11 @@ export class AppConfigService {
   get jwtEd25519PublicB64(): string | undefined {
     return this.config.JWT_ED25519_PUBLIC_KEY_B64;
   }
-  get aegisSigningPublicKey(): string | undefined {
-    return this.config.AEGIS_SIGNING_PUBLIC_KEY;
+  get cerniqSigningPublicKey(): string | undefined {
+    return this.config.CERNIQ_SIGNING_PUBLIC_KEY;
   }
-  get aegisSigningKeyRotatedAt(): string | undefined {
-    return this.config.AEGIS_SIGNING_KEY_ROTATED_AT;
+  get cerniqSigningKeyRotatedAt(): string | undefined {
+    return this.config.CERNIQ_SIGNING_KEY_ROTATED_AT;
   }
   /** Auth0 bridge — consumed by `apps/api/src/modules/auth0/`. */
   get auth0Issuer(): string | undefined {
@@ -111,7 +111,7 @@ export class AppConfigService {
    * absent. In production, the cipher must fail-loud if this is missing.
    */
   get webhookSecretDekB64(): string | undefined {
-    return this.config.AEGIS_WEBHOOK_SECRET_DEK_B64;
+    return this.config.CERNIQ_WEBHOOK_SECRET_DEK_B64;
   }
   // ── WorkOS adapter (idp-workos.module reads via property cast) ────────
   get workosApiKey(): string | undefined {
@@ -155,7 +155,7 @@ export class AppConfigService {
   get stripeCheckoutCancelUrl(): string | undefined {
     return this.config.STRIPE_CHECKOUT_CANCEL_URL;
   }
-  /** Lookup a Stripe price id by AEGIS plan tier. Returns undefined for FREE. */
+  /** Lookup a Stripe price id by CERNIQ plan tier. Returns undefined for FREE. */
   stripePriceId(tier: 'DEVELOPER' | 'GROWTH' | 'ENTERPRISE'): string | undefined {
     switch (tier) {
       case 'DEVELOPER':
@@ -170,6 +170,9 @@ export class AppConfigService {
   get corsOrigins(): string | string[] {
     const raw = this.config.CORS_ORIGINS;
     if (raw === '*') return '*';
-    return raw.split(',').map((s) => s.trim()).filter(Boolean);
+    return raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
   }
 }

@@ -1,8 +1,8 @@
 import express from 'express';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { aegisGuard } from '../../src/adapters/express.js';
-import { AegisVerifier } from '../../src/verifier.js';
+import { cerniqGuard } from '../../src/adapters/express.js';
+import { CerniqVerifier } from '../../src/verifier.js';
 import { generateKeypair, signTestToken } from '../_helpers/sign.js';
 
 function fakeRes(json: unknown): Response {
@@ -29,17 +29,17 @@ async function setupApp(opts?: { suspended?: boolean }): Promise<{
       trustBand: 'VERIFIED',
     }),
   );
-  const verifier = new AegisVerifier({
+  const verifier = new CerniqVerifier({
     baseUrl: 'https://api.example.com/v1',
     getAgentPublicKey: async () => publicKey,
     fetch: fetchMock as unknown as typeof globalThis.fetch,
   });
 
   const app = express();
-  app.get('/protected', aegisGuard({ verifier }), (req, res) => {
-    // type-rationale: req.aegis is dynamically attached by the guard.
-    const aegis = (req as unknown as Record<string, unknown>).aegis;
-    res.json({ ok: true, aegis });
+  app.get('/protected', cerniqGuard({ verifier }), (req, res) => {
+    // type-rationale: req.cerniq is dynamically attached by the guard.
+    const cerniq = (req as unknown as Record<string, unknown>).cerniq;
+    res.json({ ok: true, cerniq });
   });
   return { app, privateKey };
 }
@@ -69,12 +69,12 @@ describe('express adapter', () => {
         action: 'commerce.purchase',
       });
       const res = await fetch(`${url}/protected`, {
-        headers: { 'X-AEGIS-Token': token },
+        headers: { 'X-CERNIQ-Token': token },
       });
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { ok: boolean; aegis: { agentId: string } };
+      const body = (await res.json()) as { ok: boolean; cerniq: { agentId: string } };
       expect(body.ok).toBe(true);
-      expect(body.aegis.agentId).toBe('agt_a');
+      expect(body.cerniq.agentId).toBe('agt_a');
     } finally {
       await close();
     }
@@ -99,7 +99,7 @@ describe('express adapter', () => {
         action: 'commerce.purchase',
       });
       const res = await fetch(`${url}/protected`, {
-        headers: { 'X-AEGIS-Token': token },
+        headers: { 'X-CERNIQ-Token': token },
       });
       expect(res.status).toBe(401);
       const body = (await res.json()) as { reason: string };

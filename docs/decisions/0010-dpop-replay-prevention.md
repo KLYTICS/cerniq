@@ -7,12 +7,13 @@
 
 ## Context
 
-AEGIS issues short-lived (60-second default) Ed25519 JWTs as agent
+CERNIQ issues short-lived (60-second default) Ed25519 JWTs as agent
 tokens. The 60s TTL bounds replay risk but does not eliminate it: a
 network observer who captures a token within the window can replay it
 against a different relying party until expiry.
 
 Three mitigations exist in standards-land:
+
 1. **Token binding** (RFC 8471) — TLS-layer; deprecated, never reached
    browser parity. Not viable.
 2. **mTLS client certificates** (RFC 8705) — strong, but operationally
@@ -24,7 +25,7 @@ Three mitigations exist in standards-land:
    that proves the caller holds a private key bound to the access token.
    Transport-agnostic. Works in browsers, server-to-server, and stdio.
 
-DPoP is the right shape for AEGIS: every relying party can verify a
+DPoP is the right shape for CERNIQ: every relying party can verify a
 DPoP proof without a TLS handshake, the proof binds method + URL +
 access-token-hash + nonce, and `@noble/ed25519` already gives us the
 crypto. The cost is ~150 µs per request (Ed25519 verify) and one extra
@@ -32,7 +33,7 @@ header.
 
 ## Decision
 
-1. **AEGIS adopts DPoP per RFC 9449 with a single curve constraint:
+1. **CERNIQ adopts DPoP per RFC 9449 with a single curve constraint:
    the DPoP `cnf.jkt` thumbprint MUST be Ed25519 only.** No RSA, no P-256,
    no P-384 — consistent with ADR-0002 (Ed25519-only crypto).
 2. **DPoP is OPTIONAL in v1.0, REQUIRED in v1.1.** A 6-month adoption
@@ -52,65 +53,72 @@ header.
    `cnf: { jkt: <thumbprint> }`. Subsequent verify calls require a DPoP
    proof whose JWK thumbprint matches `cnf.jkt`.
 5. **Replay cache reuses ReplayCacheService** (peer is currently wiring
-   in `aegis:bug-fix-pass`). Key: `dpop:jti:<jti>`. TTL: 90 s (3× max
+   in `cerniq:bug-fix-pass`). Key: `dpop:jti:<jti>`. TTL: 90 s (3× max
    clock skew).
 6. **MCP transport without HTTP headers.** For stdio MCP transport,
-   DPoP proof rides in `params._aegis_dpop`. The bridge populates
+   DPoP proof rides in `params._cerniq_dpop`. The bridge populates
    `htm = "MCP"`, `htu = "mcp://<server-name>/<method>"` synthetically.
    Documented in `packages/mcp-bridge/README.md`.
 
 ## Consequences
 
 ### Positive
+
 - A captured access token is useless without the DPoP private key. Even
   inside the 60s TTL, the attacker can't replay against another RP.
-- The DPoP private key never leaves the agent; AEGIS never sees it.
+- The DPoP private key never leaves the agent; CERNIQ never sees it.
   Consistent with ADR-0002 non-custodial principle.
 - Browser-based agents can use the WebCrypto Ed25519 API (Chrome 113+,
   Safari 17+) — no extra dependency.
 - Standards-aligned: any DPoP-aware client (most OAuth 2.1 SDKs by 2026)
-  works with AEGIS out of the box.
+  works with CERNIQ out of the box.
 
 ### Negative
+
 - ~150 µs extra verification per request. Acceptable: edge p99 budget
   is 50 ms, this is 0.3% of budget.
 - Six-month dual-mode complexity (optional → required transition).
-  Mitigation: feature flag `AEGIS_DPOP_REQUIRED`; flip in v1.1.
+  Mitigation: feature flag `CERNIQ_DPOP_REQUIRED`; flip in v1.1.
 - DPoP proofs are NOT replay-proof on the agent side: a malicious local
   process on the agent's host can sign new proofs. We don't claim to
   protect against compromised agents. That's the BATE layer's job.
 
 ### Neutral
+
 - New util: `apps/api/src/common/crypto/dpop.util.ts` + spec.
 - New verify-algorithm step: between current step 4 (signature verify)
   and step 5 (scope check), add step 4.5 (DPoP proof verify).
   Coordination: peer holds verify path, will land via M-019.
 - SDK adds `signWithDpop()` helper — wraps existing `signAgentToken`
-  + adds proof generation per request.
+  - adds proof generation per request.
 - BATE signal `agent.no_dpop` (+15) and `agent.dpop_replay_attempt`
   (+50) added to docs/BATE_ALGORITHM.md (M-024).
 
 ## Alternatives considered
 
 ### Alt A: mTLS only
+
 Rejected: not portable to stdio MCP, operational overhead untenable for
 hobbyist agents (which we want as the long tail).
 
 ### Alt B: HMAC request signing (AWS SigV4-style)
+
 Considered briefly. Symmetric key — relying party would need to know the
 agent's secret, breaking the non-custodial invariant. Rejected.
 
 ### Alt C: Token binding via TLS extensions
+
 Deprecated standard, no browser support. Not viable.
 
 ### Alt D: Stay with bearer tokens, rely on TTL
+
 What we have today. Adequate for v0/v1 alpha, NOT acceptable for SOC2
 Type II audit which expects defense-in-depth on token security.
 
 ## How to reverse this decision
 
 Unlikely. DPoP is additive — to "remove" it we just don't enforce
-`AEGIS_DPOP_REQUIRED` and accept proofs as optional indefinitely. The
+`CERNIQ_DPOP_REQUIRED` and accept proofs as optional indefinitely. The
 crypto utility and proof types stay; only the gate at verify-step 4.5
 becomes a no-op. ~10-line change in `verify.algorithm.ts`. No data
 migration; no customer comms.

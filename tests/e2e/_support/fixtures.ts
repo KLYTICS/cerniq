@@ -6,9 +6,9 @@
  * RawClient directly.
  */
 
-import { generateKeypair, signAgentToken } from '@aegis/sdk';
-import type { Aegis } from '@aegis/sdk';
-import type { AgentRecord, PolicyScope, SignContext } from '@aegis/sdk';
+import { generateKeypair, signAgentToken } from '@cerniq/sdk';
+import type { Cerniq } from '@cerniq/sdk';
+import type { AgentRecord, PolicyScope, SignContext } from '@cerniq/sdk';
 import { randomUUID } from 'node:crypto';
 
 export interface AgentFixture {
@@ -41,7 +41,7 @@ export function pastIso(secondsAgo = 60): string {
 }
 
 export async function createAgent(
-  sdk: Aegis,
+  sdk: Cerniq,
   opts: { runtime?: 'openai' | 'anthropic' | 'google' | 'custom'; label?: string } = {},
 ): Promise<AgentFixture> {
   const kp = await generateKeypair();
@@ -54,7 +54,7 @@ export async function createAgent(
 }
 
 export async function createPolicy(
-  sdk: Aegis,
+  sdk: Cerniq,
   agentId: string,
   scopes: PolicyScope[],
   opts: { expiresAt?: string; label?: string } = {},
@@ -64,19 +64,27 @@ export async function createPolicy(
     expiresAt: opts.expiresAt ?? futureIso(),
     label: opts.label ?? `e2e-policy-${uniqueSuffix()}`,
   });
-  return { policyId: policy.policyId, signedToken: policy.signedToken, expiresAt: policy.expiresAt };
+  return {
+    policyId: policy.policyId,
+    signedToken: policy.signedToken,
+    expiresAt: policy.expiresAt,
+  };
 }
 
 /**
  * Common scope shape used across denial tests.
  */
 export const SCOPES = {
-  commerce(opts: { maxPerTransaction?: number; maxPerDay?: number; allowedDomains?: string[] } = {}): PolicyScope {
+  commerce(
+    opts: { maxPerTransaction?: number; maxPerDay?: number; allowedDomains?: string[] } = {},
+  ): PolicyScope {
     return {
       category: 'commerce',
       spendLimit: {
         currency: 'USD',
-        ...(opts.maxPerTransaction !== undefined ? { maxPerTransaction: opts.maxPerTransaction } : {}),
+        ...(opts.maxPerTransaction !== undefined
+          ? { maxPerTransaction: opts.maxPerTransaction }
+          : {}),
         ...(opts.maxPerDay !== undefined ? { maxPerDay: opts.maxPerDay } : { maxPerDay: 1000 }),
       },
       ...(opts.allowedDomains ? { allowedDomains: opts.allowedDomains } : {}),
@@ -91,7 +99,7 @@ export const SCOPES = {
  * Sign a per-request agent token using the SDK's client-side signer.
  *
  * We use this everywhere instead of a server-side /v1/token/sign endpoint —
- * AEGIS by design never sees a private key, so test tokens are signed
+ * CERNIQ by design never sees a private key, so test tokens are signed
  * locally.
  */
 export async function signTokenFor(

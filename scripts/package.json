@@ -1,20 +1,20 @@
 {
-  "name": "@aegis/scripts",
+  "name": "@cerniq/scripts",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "AEGIS operator scripts — keygen, dev seed, OpenAPI/Zod/Prisma parity check.",
+  "description": "CERNIQ operator scripts — keygen, dev seed, OpenAPI/Zod/Prisma parity check.",
   "bin": {
-    "aegis": "./aegis-cli.ts"
+    "cerniq": "./cerniq-cli.ts"
   },
   "scripts": {
-    "keys": "tsx generate-aegis-keys.ts",
+    "keys": "tsx generate-cerniq-keys.ts",
     "seed": "tsx seed-dev.ts",
     "verify-spec": "tsx verify-spec.ts",
-    "aegis": "tsx aegis-cli.ts",
+    "cerniq": "tsx cerniq-cli.ts",
     "backtest-verify": "tsx backtest-verify.ts",
     "audit-verify-chain": "tsx audit-verify-chain.ts",
-    "_comment_audit_retention": "audit-retention CLI moved to apps/api/scripts/run-audit-retention.ts in Round 17 — run via `pnpm --filter @aegis/api run audit-retention`.",
+    "_comment_audit_retention": "audit-retention CLI moved to apps/api/scripts/run-audit-retention.ts in Round 17 — run via `pnpm --filter @cerniq/api run audit-retention`.",
     "encrypt-webhook-secrets": "tsx encrypt-existing-webhook-secrets.ts",
     "seed:demo": "tsx seed-demo.ts",
     "seed:demo:reset": "tsx seed-demo.ts --reset-only",
@@ -30,7 +30,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aegis/types": "workspace:*",
+    "@cerniq/types": "workspace:*",
     "@nestjs/common": "^11.0.0",
     "@noble/ed25519": "^2.1.0",
     "@noble/hashes": "^1.5.0",
@@ -42,7 +42,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@aegis/tsconfig": "workspace:*",
+    "@cerniq/tsconfig": "workspace:*",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.14.0",
     "tsx": "^4.19.2",

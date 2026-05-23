@@ -1,10 +1,10 @@
-Copyright (c) 2026 KLYTICS LLC and AEGIS Labs LLC. All Rights Reserved.
+Copyright (c) 2026 KLYTICS LLC and CERNIQ Labs LLC. All Rights Reserved.
 
-AEGIS — Agent Gateway & Identity Stack
+CERNIQ — Agent Gateway & Identity Stack
 Status: Proprietary. Internal use only.
 
 This software and its source code are the confidential and proprietary
-information of KLYTICS LLC and its subsidiary AEGIS Labs LLC. No part of
+information of KLYTICS LLC and its subsidiary CERNIQ Labs LLC. No part of
 this codebase may be reproduced, distributed, transmitted, or used in
 derivative works without prior written authorization, except as expressly
 provided below.
@@ -14,7 +14,7 @@ The following packages are intended for future open-source release under
 the MIT License; until that release they remain proprietary, but their
 present development is structured for eventual external publication:
 
-  - packages/sdk-ts/   (npm: @aegis/sdk)
-  - packages/sdk-py/   (PyPI: aegis)
+  - packages/sdk-ts/   (npm: @cerniq/sdk)
+  - packages/sdk-py/   (PyPI: cerniq)
 
-For licensing inquiries: licensing@aegislabs.io
+For licensing inquiries: licensing@cerniq.io

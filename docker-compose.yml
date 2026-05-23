@@ -1,31 +1,31 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: aegis-postgres
+    container_name: cerniq-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: aegis
-      POSTGRES_PASSWORD: aegis
-      POSTGRES_DB: aegis
+      POSTGRES_USER: cerniq
+      POSTGRES_PASSWORD: cerniq
+      POSTGRES_DB: cerniq
     ports:
       - '5432:5432'
     volumes:
-      - aegis_pg_data:/var/lib/postgresql/data
+      - cerniq_pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U aegis -d aegis']
+      test: ['CMD-SHELL', 'pg_isready -U cerniq -d cerniq']
       interval: 5s
       timeout: 5s
       retries: 10
 
   redis:
     image: redis:7-alpine
-    container_name: aegis-redis
+    container_name: cerniq-redis
     restart: unless-stopped
     command: ['redis-server', '--appendonly', 'yes', '--maxmemory-policy', 'allkeys-lru']
     ports:
       - '6379:6379'
     volumes:
-      - aegis_redis_data:/data
+      - cerniq_redis_data:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -33,5 +33,5 @@ services:
       retries: 10
 
 volumes:
-  aegis_pg_data:
-  aegis_redis_data:
+  cerniq_pg_data:
+  cerniq_redis_data:

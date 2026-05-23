@@ -1,4 +1,4 @@
-// AEGIS — production-grade Helmet configuration.
+// CERNIQ — production-grade Helmet configuration.
 //
 // `app.use(helmet())` with defaults is good but not enough for an
 // identity gateway that publishes verifiable cryptographic material at
@@ -17,7 +17,7 @@
 //   - x-powered-by: removed (don't advertise Express).
 //
 // Production reference: https://hstspreload.org/ — domains we publish on
-// (api.aegislabs.io) get added to the preload list once HSTS rolls out.
+// (api.cerniq.io) get added to the preload list once HSTS rolls out.
 
 import type { HelmetOptions } from 'helmet';
 
@@ -83,14 +83,17 @@ export function buildHelmetConfig(config: HelmetConfig): HelmetOptions {
  * Tells researchers how to report findings without scanning for an
  * undocumented contact.
  */
-export function buildSecurityTxt(config: { contactEmail: string; preferredLanguages?: string }): string {
+export function buildSecurityTxt(config: {
+  contactEmail: string;
+  preferredLanguages?: string;
+}): string {
   const lines = [
     `Contact: mailto:${config.contactEmail}`,
     `Expires: ${new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()}`,
     `Preferred-Languages: ${config.preferredLanguages ?? 'en'}`,
-    `Canonical: https://api.aegislabs.io/.well-known/security.txt`,
-    `Policy: https://aegislabs.io/security/policy`,
-    `Acknowledgments: https://aegislabs.io/security/acknowledgments`,
+    `Canonical: https://api.cerniq.io/.well-known/security.txt`,
+    `Policy: https://cerniq.io/security/policy`,
+    `Acknowledgments: https://cerniq.io/security/acknowledgments`,
   ];
   return lines.join('\n') + '\n';
 }

@@ -1,4 +1,4 @@
-// AEGIS — security hardening spec.
+// CERNIQ — security hardening spec.
 //
 // Tests the pure helpers (parsers, depth-bomb guard, CORS delegate,
 // trust-proxy resolution). The full Express integration is exercised by
@@ -54,7 +54,7 @@ describe('buildCorsDelegate', () => {
   })();
 
   it('returns wildcard CORS for /v1/verify (public hot path)', () => {
-    const delegate = buildCorsDelegate({ managementOrigins: 'https://app.aegislabs.io' });
+    const delegate = buildCorsDelegate({ managementOrigins: 'https://app.cerniq.io' });
     delegate({ url: '/v1/verify', headers: { origin: 'https://random.com' } } as never, cb);
     const opts = cb.mock.lastCall?.[1];
     expect(opts.origin).toBe('*');
@@ -62,18 +62,20 @@ describe('buildCorsDelegate', () => {
   });
 
   it('reflects allow-listed origin for management endpoints with credentials', () => {
-    const delegate = buildCorsDelegate({ managementOrigins: 'https://app.aegislabs.io,https://docs.aegislabs.io' });
+    const delegate = buildCorsDelegate({
+      managementOrigins: 'https://app.cerniq.io,https://docs.cerniq.io',
+    });
     delegate(
-      { url: '/v1/agents/agt_abc', headers: { origin: 'https://app.aegislabs.io' } } as never,
+      { url: '/v1/agents/agt_abc', headers: { origin: 'https://app.cerniq.io' } } as never,
       cb,
     );
     const opts = cb.mock.lastCall?.[1];
-    expect(opts.origin).toBe('https://app.aegislabs.io');
+    expect(opts.origin).toBe('https://app.cerniq.io');
     expect(opts.credentials).toBe(true);
   });
 
   it('rejects non-allow-listed origin (origin: false → no CORS header → browser blocks)', () => {
-    const delegate = buildCorsDelegate({ managementOrigins: 'https://app.aegislabs.io' });
+    const delegate = buildCorsDelegate({ managementOrigins: 'https://app.cerniq.io' });
     delegate({ url: '/v1/agents/agt_abc', headers: { origin: 'https://evil.com' } } as never, cb);
     const opts = cb.mock.lastCall?.[1];
     expect(opts.origin).toBe(false);
@@ -83,7 +85,7 @@ describe('buildCorsDelegate', () => {
   it('isWildcard correctly identifies "*"', () => {
     expect(isWildcard('*')).toBe(true);
     expect(isWildcard(' * ')).toBe(true);
-    expect(isWildcard('https://app.aegislabs.io')).toBe(false);
+    expect(isWildcard('https://app.cerniq.io')).toBe(false);
   });
 });
 
@@ -119,10 +121,10 @@ describe('buildHelmetConfig', () => {
 
 describe('buildSecurityTxt', () => {
   it('emits an RFC 9116-shaped security.txt with future Expires', () => {
-    const out = buildSecurityTxt({ contactEmail: 'security@aegislabs.io' });
-    expect(out).toMatch(/^Contact: mailto:security@aegislabs\.io$/m);
+    const out = buildSecurityTxt({ contactEmail: 'security@cerniq.io' });
+    expect(out).toMatch(/^Contact: mailto:security@cerniqlabs\.io$/m);
     expect(out).toMatch(/^Expires: \d{4}-\d{2}-\d{2}T/m);
-    expect(out).toMatch(/^Canonical: https:\/\/api\.aegislabs\.io/m);
+    expect(out).toMatch(/^Canonical: https:\/\/api\.cerniqlabs\.io/m);
   });
 });
 
@@ -130,7 +132,9 @@ describe('buildSecurityTxt', () => {
 
 describe('stripPrototypeProperties', () => {
   it('removes __proto__ at any depth', () => {
-    const malicious = JSON.parse('{"a": 1, "__proto__": {"polluted": true}, "b": {"__proto__": {"x": 1}}}');
+    const malicious = JSON.parse(
+      '{"a": 1, "__proto__": {"polluted": true}, "b": {"__proto__": {"x": 1}}}',
+    );
     const cleaned = stripPrototypeProperties(malicious);
     expect(cleaned).toEqual({ a: 1, b: {} });
   });
@@ -141,7 +145,12 @@ describe('stripPrototypeProperties', () => {
   });
 
   it('passes through arrays + primitives unchanged', () => {
-    expect(stripPrototypeProperties([1, 'two', null, { x: 1 }])).toEqual([1, 'two', null, { x: 1 }]);
+    expect(stripPrototypeProperties([1, 'two', null, { x: 1 }])).toEqual([
+      1,
+      'two',
+      null,
+      { x: 1 },
+    ]);
     expect(stripPrototypeProperties('plain')).toBe('plain');
     expect(stripPrototypeProperties(null)).toBe(null);
     expect(stripPrototypeProperties(undefined)).toBe(undefined);

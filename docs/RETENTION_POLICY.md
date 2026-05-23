@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Data retention policy
+title: CERNIQ — Data retention policy
 status: draft
 last-reviewed: 2026-05-02
 owner: operator (Erwin) — sid open
@@ -7,11 +7,11 @@ audience: SOC 2 Type II auditor / EU AI Act DPO / customer DPA reviewer / incide
 companion-to: docs/ARCHITECTURE.md §12 (summary), docs/COMPLIANCE.md, docs/EU_RESIDENCY.md, docs/decisions/0006-audit-redactability.md, docs/CAPACITY_PLAN.md §5.4 (storage growth driver)
 ---
 
-# AEGIS — Data retention policy
+# CERNIQ — Data retention policy
 
 > **Purpose.** Authoritative classification, retention period, lawful
 > basis, deletion mechanism, and owner for every persistent data
-> class AEGIS holds. ARCHITECTURE.md §12 is the architectural summary;
+> class CERNIQ holds. ARCHITECTURE.md §12 is the architectural summary;
 > this document is the canon a DPO, SOC 2 auditor, or Enterprise DPA
 > reviewer references.
 >
@@ -47,15 +47,15 @@ summarized in §5 below.
 
 ### 2.1 In scope
 
-Every persistent data class managed by AEGIS in any storage system —
+Every persistent data class managed by CERNIQ in any storage system —
 Postgres, Redis, S3 + GCS archive, Glacier + Coldline cold tier, KMS
 key material, CF KV, CF D1 (Phase 3), notarization service.
 
 ### 2.2 Out of scope
 
-- **Customer (RP) systems.** AEGIS does not retain RP-internal data;
+- **Customer (RP) systems.** CERNIQ does not retain RP-internal data;
   RPs are responsible for their own retention per their own DPAs.
-- **Agent private keys.** AEGIS never holds them per CLAUDE.md
+- **Agent private keys.** CERNIQ never holds them per CLAUDE.md
   invariant 1; SDKs handle this client-side.
 - **Plaintext PII outside the audit chain.** PII in `Principal` rows
   is governed by §4 row P1; PII inside `AuditEvent` rows is governed
@@ -63,14 +63,14 @@ key material, CF KV, CF D1 (Phase 3), notarization service.
 
 ### 2.3 Lawful basis (jurisdictional anchors)
 
-| Jurisdiction | Authority                              | Why we comply                                         |
-|--------------|----------------------------------------|-------------------------------------------------------|
-| EU / EEA     | GDPR (Reg. 2016/679)                   | EU AI Act applicability + EU customer principals     |
-| United States| SOC 2 Type II (AICPA), CCPA           | Customer-required attestation; CA principals         |
+| Jurisdiction              | Authority                   | Why we comply                                                 |
+| ------------------------- | --------------------------- | ------------------------------------------------------------- |
+| EU / EEA                  | GDPR (Reg. 2016/679)        | EU AI Act applicability + EU customer principals              |
+| United States             | SOC 2 Type II (AICPA), CCPA | Customer-required attestation; CA principals                  |
 | United States (financial) | FINRA 17a-4, SEC Rule 17a-4 | Persona C in `docs/spec/04_COMMERCIAL_STRATEGY.md` may demand |
-| United States (PCI scope) | PCI-DSS v4.0 §10              | RPs handling card data may require AEGIS log retention |
-| United Kingdom | UK GDPR + DPA 2018                  | Same as EU principle, separate legal entity          |
-| Other        | Customer-DPA-driven                    | Negotiated per Enterprise contract                    |
+| United States (PCI scope) | PCI-DSS v4.0 §10            | RPs handling card data may require CERNIQ log retention       |
+| United Kingdom            | UK GDPR + DPA 2018          | Same as EU principle, separate legal entity                   |
+| Other                     | Customer-DPA-driven         | Negotiated per Enterprise contract                            |
 
 The **strictest applicable retention floor** governs each data
 class. Where two regimes conflict (e.g. SOC 2 evidence retention 7
@@ -94,6 +94,7 @@ determines retention, storage tier, encryption, and deletion flow.
 ### 3.1 Classification rules
 
 A field is classified by **the strictest** of:
+
 - **Identifiability:** can it be linked to a natural person? (PII)
 - **Cryptographic role:** is it a key, signature, or chain element?
 - **Operational role:** is it cache, queue state, or ephemeral?
@@ -106,17 +107,17 @@ flow is the union of per-field flows.
 
 ### 3.2 The nine classes
 
-| Class | Symbol | Meaning |
-|-------|--------|---------|
-| Personal data — direct PII | P1 | Names, emails, principal contact |
-| Personal data — indirect identifiers | P2 | IP addresses, user-agents in audit, RP-supplied agent metadata |
-| Authentication & authorization secrets | P3 | API keys, session tokens, federated identity claims |
-| Cryptographic material — public | P4 | Public keys, JWKS contents |
-| Cryptographic material — private (KMS-held) | P5 | Audit signing key, policy signing key (KMS-only) |
-| Audit chain — signed payload | P6 | The signed portion of `AuditEvent`; cryptographically immutable |
-| Audit chain — redactable companion | P7 | The plaintext columns of `AuditEvent` co-located with their signed hashes |
-| Operational state — durable | P8 | Spend records, trust score history, BATE signals |
-| Operational state — ephemeral | P9 | Cache entries, DPoP nonces, BullMQ job state, incident-record open set |
+| Class                                       | Symbol | Meaning                                                                   |
+| ------------------------------------------- | ------ | ------------------------------------------------------------------------- |
+| Personal data — direct PII                  | P1     | Names, emails, principal contact                                          |
+| Personal data — indirect identifiers        | P2     | IP addresses, user-agents in audit, RP-supplied agent metadata            |
+| Authentication & authorization secrets      | P3     | API keys, session tokens, federated identity claims                       |
+| Cryptographic material — public             | P4     | Public keys, JWKS contents                                                |
+| Cryptographic material — private (KMS-held) | P5     | Audit signing key, policy signing key (KMS-only)                          |
+| Audit chain — signed payload                | P6     | The signed portion of `AuditEvent`; cryptographically immutable           |
+| Audit chain — redactable companion          | P7     | The plaintext columns of `AuditEvent` co-located with their signed hashes |
+| Operational state — durable                 | P8     | Spend records, trust score history, BATE signals                          |
+| Operational state — ephemeral               | P9     | Cache entries, DPoP nonces, BullMQ job state, incident-record open set    |
 
 ### 3.3 Per-field classification table (selected)
 
@@ -125,35 +126,35 @@ Maintained in source: see `apps/api/prisma/schema.prisma` annotations
 The table below illustrates the principle for the ~20 most
 auditor-relevant fields.
 
-| Field path                                        | Class | Notes                                          |
-|---------------------------------------------------|-------|------------------------------------------------|
-| `Principal.email`                                 | P1    | Primary contact; subject to GDPR Art. 17      |
-| `Principal.contactName`                           | P1    |                                                |
-| `Principal.organizationName`                      | P1    | Legal-person but treated as P1 for safety     |
-| `ApiKey.hashedKey`                                | P3    | Hashed, but enables re-issuance flow          |
-| `ApiKey.lastUsedAt`                               | P2    | Operationally useful, indirectly identifying  |
-| `AgentIdentity.publicKey`                         | P4    |                                                |
-| `AgentIdentity.metadata` (RP-supplied JSON)       | P2    | RP must classify per its own DPA              |
-| `AgentPolicy.scopes`                              | P6    | Part of signed policy JWT                     |
-| `AgentPolicy.signedToken`                         | P6    |                                                |
-| `AuditEvent.aegisSignature`                       | P6    | Cryptographic chain element                    |
-| `AuditEvent.prevHash`                             | P6    |                                                |
-| `AuditEvent.signedPayloadHash`                    | P6    | Hash of canonical payload                     |
-| `AuditEvent.actionRaw` (free-text)                | P7    | Hash signed; raw redactable                   |
-| `AuditEvent.relyingPartyRaw`                      | P7    |                                                |
-| `AuditEvent.policySnapshotRaw`                    | P7    |                                                |
-| `AuditEvent.requestedAmountRaw`                   | P7    |                                                |
-| `AuditEvent.principalId`                          | P2    | Required for tenant filter; redactable to `redacted-{hash}` per ADR-0006 |
-| `SpendRecord.amount`                              | P8    | Operationally durable; P2 if linked to PII   |
-| `TrustScoreHistory.signalId`                      | P8    | Required for evidence trail                  |
-| `BateSignal.payload`                              | P2    | RP-supplied evidence; classify per DPA        |
-| `WebhookSubscription.endpointUrl`                 | P2    | Customer endpoint                             |
-| `FederatedIdentity.subject` (Auth0 sub)           | P3    | Per ADR-0009                                  |
-| `FederatedIdentity.email`                         | P1    |                                                |
-| `Redis: agent:{id}:*`                             | P9    | Cache; reconstructable                        |
-| `Redis: spend:*`                                  | P8    | Operationally durable; persisted via AOF      |
-| `Redis: dpop:nonce:*`                             | P9    | TTL-bound                                     |
-| `KMS: aegis-audit-signing-key/v{N}`               | P5    | KMS-internal; per ADR-0011                    |
+| Field path                                  | Class | Notes                                                                    |
+| ------------------------------------------- | ----- | ------------------------------------------------------------------------ |
+| `Principal.email`                           | P1    | Primary contact; subject to GDPR Art. 17                                 |
+| `Principal.contactName`                     | P1    |                                                                          |
+| `Principal.organizationName`                | P1    | Legal-person but treated as P1 for safety                                |
+| `ApiKey.hashedKey`                          | P3    | Hashed, but enables re-issuance flow                                     |
+| `ApiKey.lastUsedAt`                         | P2    | Operationally useful, indirectly identifying                             |
+| `AgentIdentity.publicKey`                   | P4    |                                                                          |
+| `AgentIdentity.metadata` (RP-supplied JSON) | P2    | RP must classify per its own DPA                                         |
+| `AgentPolicy.scopes`                        | P6    | Part of signed policy JWT                                                |
+| `AgentPolicy.signedToken`                   | P6    |                                                                          |
+| `AuditEvent.cerniqSignature`                | P6    | Cryptographic chain element                                              |
+| `AuditEvent.prevHash`                       | P6    |                                                                          |
+| `AuditEvent.signedPayloadHash`              | P6    | Hash of canonical payload                                                |
+| `AuditEvent.actionRaw` (free-text)          | P7    | Hash signed; raw redactable                                              |
+| `AuditEvent.relyingPartyRaw`                | P7    |                                                                          |
+| `AuditEvent.policySnapshotRaw`              | P7    |                                                                          |
+| `AuditEvent.requestedAmountRaw`             | P7    |                                                                          |
+| `AuditEvent.principalId`                    | P2    | Required for tenant filter; redactable to `redacted-{hash}` per ADR-0006 |
+| `SpendRecord.amount`                        | P8    | Operationally durable; P2 if linked to PII                               |
+| `TrustScoreHistory.signalId`                | P8    | Required for evidence trail                                              |
+| `BateSignal.payload`                        | P2    | RP-supplied evidence; classify per DPA                                   |
+| `WebhookSubscription.endpointUrl`           | P2    | Customer endpoint                                                        |
+| `FederatedIdentity.subject` (Auth0 sub)     | P3    | Per ADR-0009                                                             |
+| `FederatedIdentity.email`                   | P1    |                                                                          |
+| `Redis: agent:{id}:*`                       | P9    | Cache; reconstructable                                                   |
+| `Redis: spend:*`                            | P8    | Operationally durable; persisted via AOF                                 |
+| `Redis: dpop:nonce:*`                       | P9    | TTL-bound                                                                |
+| `KMS: cerniq-audit-signing-key/v{N}`        | P5    | KMS-internal; per ADR-0011                                               |
 
 ### 3.4 Adding a new field — checklist
 
@@ -173,17 +174,17 @@ Before merging a Prisma schema change that adds any persistent field:
 
 The single most-consulted table in this document.
 
-| Class | Storage primary               | Encryption at rest         | Hot retention      | Warm retention      | Cold retention | Lawful basis                         | Deletion mechanism                                                                                          | Owner                        |
-|-------|-------------------------------|-----------------------------|--------------------|----------------------|----------------|---------------------------------------|------------------------------------------------------------------------------------------------------------|------------------------------|
-| P1    | Postgres `Principal`, `FederatedIdentity` | TDE (Railway managed) | Active tenant lifetime | n/a               | n/a            | GDPR Art. 6(1)(b) (contract performance); GDPR Art. 6(1)(f) (legitimate interest) | Hard delete on tenant deletion request after 30-day grace                                                  | Engineering (data-deletion job) |
-| P2    | Postgres various + `AuditEvent.principalId` | TDE | 18 months hot in Postgres | 18mo → 7yr S3+GCS  | 7yr → forever  | Same as P1 + GDPR Art. 17 (erasure)   | NULL out raw column; replace `principalId` with `redacted-{hash}`; meta event in audit chain (per §5)      | Engineering                  |
-| P3    | Postgres `ApiKey`, `Session` (Argon2id-hashed) | TDE | Until revoke + 30-day grace | n/a            | n/a            | GDPR Art. 6(1)(b); SOC 2 CC6.1        | Hard delete after revoke + grace; predecessor key hashes preserved 90 days for forensics then deleted     | Engineering                  |
-| P4    | Postgres `AgentIdentity.publicKey`, JWKS files | TDE; JWKS publicly served | Until agent revoke | n/a               | n/a            | GDPR Art. 6(1)(b); CLAUDE.md inv. 1   | Hard delete on revoke; JWKS published key-id remains in `keys-superseded` for 30 days for in-flight verifies | Engineering                  |
-| P5    | KMS (AWS / GCP / Vault); never AEGIS-DB | KMS-managed | Active key window (1 yr) | Disabled key 30 days post-rotation | Cryptographic destroy after 7 years | SOC 2 CC6.6; ADR-0011               | Soft-delete in KMS for 30 days; hard destroy after 7 years (per §9)                                       | Operator (KMS-IAM-protected) |
-| P6    | Postgres `AuditEvent` (signed cols), S3+GCS archive, Glacier+Coldline | TDE (Postgres); AES-256-GCM (archive); KMS keys per partition | 18 months hot | 18mo → 7 yr S3+GCS | 7 yr → forever (legal hold) or `OD-004` cold horizon | SOC 2 CC4.1; FINRA 17a-4; PCI-DSS §10 | **Never deleted** by data path; chain integrity preserved forever for legal-hold partitions; rolloff drops from hot → warm → cold | Compliance + Engineering     |
-| P7    | Postgres `AuditEvent` (raw cols) | TDE | 18 months hot | 18mo → 7 yr S3+GCS (encrypted) | (drops at warm→cold boundary unless legal hold) | GDPR Art. 17 vs. SOC 2 (resolved per §5) | NULL the raw column; meta `audit.redact` event in chain; signed payload hash remains so chain still verifies | Engineering (operator-authorized for redaction job) |
-| P8    | Postgres `SpendRecord`, `TrustScoreHistory`, `BateSignal` | TDE | 18 months hot | 18mo → archive (NDJSON) | 7 yr → cold | SOC 2 CC4.1; auditor evidence trail   | Hard delete 7 years post-creation unless under legal hold; per-tenant erasure NULLs PII columns           | Engineering                  |
-| P9    | Redis (cache / nonce / spend hot half) + BullMQ queues | At-rest via Railway-managed disk encryption | TTL-bound (≤ 24h) | n/a                 | n/a            | Operationally necessary; transient    | Natural TTL expiry; no manual deletion needed                                                            | Engineering                  |
+| Class | Storage primary                                                       | Encryption at rest                                            | Hot retention               | Warm retention                     | Cold retention                                       | Lawful basis                                                                      | Deletion mechanism                                                                                                                | Owner                                               |
+| ----- | --------------------------------------------------------------------- | ------------------------------------------------------------- | --------------------------- | ---------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| P1    | Postgres `Principal`, `FederatedIdentity`                             | TDE (Railway managed)                                         | Active tenant lifetime      | n/a                                | n/a                                                  | GDPR Art. 6(1)(b) (contract performance); GDPR Art. 6(1)(f) (legitimate interest) | Hard delete on tenant deletion request after 30-day grace                                                                         | Engineering (data-deletion job)                     |
+| P2    | Postgres various + `AuditEvent.principalId`                           | TDE                                                           | 18 months hot in Postgres   | 18mo → 7yr S3+GCS                  | 7yr → forever                                        | Same as P1 + GDPR Art. 17 (erasure)                                               | NULL out raw column; replace `principalId` with `redacted-{hash}`; meta event in audit chain (per §5)                             | Engineering                                         |
+| P3    | Postgres `ApiKey`, `Session` (Argon2id-hashed)                        | TDE                                                           | Until revoke + 30-day grace | n/a                                | n/a                                                  | GDPR Art. 6(1)(b); SOC 2 CC6.1                                                    | Hard delete after revoke + grace; predecessor key hashes preserved 90 days for forensics then deleted                             | Engineering                                         |
+| P4    | Postgres `AgentIdentity.publicKey`, JWKS files                        | TDE; JWKS publicly served                                     | Until agent revoke          | n/a                                | n/a                                                  | GDPR Art. 6(1)(b); CLAUDE.md inv. 1                                               | Hard delete on revoke; JWKS published key-id remains in `keys-superseded` for 30 days for in-flight verifies                      | Engineering                                         |
+| P5    | KMS (AWS / GCP / Vault); never CERNIQ-DB                              | KMS-managed                                                   | Active key window (1 yr)    | Disabled key 30 days post-rotation | Cryptographic destroy after 7 years                  | SOC 2 CC6.6; ADR-0011                                                             | Soft-delete in KMS for 30 days; hard destroy after 7 years (per §9)                                                               | Operator (KMS-IAM-protected)                        |
+| P6    | Postgres `AuditEvent` (signed cols), S3+GCS archive, Glacier+Coldline | TDE (Postgres); AES-256-GCM (archive); KMS keys per partition | 18 months hot               | 18mo → 7 yr S3+GCS                 | 7 yr → forever (legal hold) or `OD-004` cold horizon | SOC 2 CC4.1; FINRA 17a-4; PCI-DSS §10                                             | **Never deleted** by data path; chain integrity preserved forever for legal-hold partitions; rolloff drops from hot → warm → cold | Compliance + Engineering                            |
+| P7    | Postgres `AuditEvent` (raw cols)                                      | TDE                                                           | 18 months hot               | 18mo → 7 yr S3+GCS (encrypted)     | (drops at warm→cold boundary unless legal hold)      | GDPR Art. 17 vs. SOC 2 (resolved per §5)                                          | NULL the raw column; meta `audit.redact` event in chain; signed payload hash remains so chain still verifies                      | Engineering (operator-authorized for redaction job) |
+| P8    | Postgres `SpendRecord`, `TrustScoreHistory`, `BateSignal`             | TDE                                                           | 18 months hot               | 18mo → archive (NDJSON)            | 7 yr → cold                                          | SOC 2 CC4.1; auditor evidence trail                                               | Hard delete 7 years post-creation unless under legal hold; per-tenant erasure NULLs PII columns                                   | Engineering                                         |
+| P9    | Redis (cache / nonce / spend hot half) + BullMQ queues                | At-rest via Railway-managed disk encryption                   | TTL-bound (≤ 24h)           | n/a                                | n/a                                                  | Operationally necessary; transient                                                | Natural TTL expiry; no manual deletion needed                                                                                     | Engineering                                         |
 
 ### 4.1 Why P6 says "never deleted"
 
@@ -194,8 +195,8 @@ Instead:
 - The companion P7 columns (raw plaintext) are redactable.
 - The signed payload's hash leaves preserve the cryptographic
   attestation.
-- Cold-tier rolloff at OD-004 horizon (7 years) means *the raw
-  retrievable form* drops; the signed Merkle root remains in the
+- Cold-tier rolloff at OD-004 horizon (7 years) means _the raw
+  retrievable form_ drops; the signed Merkle root remains in the
   notarization service indefinitely as a one-way trust pin.
 
 Auditors verifying integrity 50 years from now can still verify the
@@ -208,7 +209,7 @@ Spend correctness is load-bearing for billing accuracy, not just
 audit. We retain `SpendRecord` for 7 years to match SOC 2 evidence
 horizon and customer billing dispute window. Per-tenant deletion
 NULLs the link to the deleted tenant but preserves the aggregate row
-(used for AEGIS-side billing reconciliation).
+(used for CERNIQ-side billing reconciliation).
 
 ### 4.3 Trust score history (P8) and ML training boundary
 
@@ -223,7 +224,7 @@ DPA addendum covers the secondary-use lawful basis (likely GDPR Art.
 
 ## 5. The audit-immutability vs. right-to-erasure resolution
 
-The **single hardest** retention question AEGIS faces. Resolution:
+The **single hardest** retention question CERNIQ faces. Resolution:
 **redactable signed payloads** per ADR-0006.
 
 ### 5.1 The conflict
@@ -241,7 +242,7 @@ Art. 17 demands it. Both are correct; the resolution is to separate
 
 Each `AuditEvent` row has, in parallel:
 
-- **Signed columns (P6):** `aegisSignature`, `prevHash`,
+- **Signed columns (P6):** `cerniqSignature`, `prevHash`,
   `signedPayloadHash`, plus a fingerprint of every other field's
   value at append time. These are the inputs to the chain
   verification algorithm. **Immutable forever.**
@@ -289,12 +290,12 @@ DPO conversations. Operator-acknowledged in
 
 ### 6.1 Request paths
 
-| Path                                              | Triggered by                       | Authentication                   |
-|---------------------------------------------------|------------------------------------|-----------------------------------|
-| `DELETE /v1/principals/{id}`                      | Programmatic (RP API)              | Principal-owner API key + step-up |
-| Dashboard "Close account"                         | Tenant admin (UI)                  | Session + step-up + email confirm |
-| Operator-initiated (DSAR via support email)       | Data subject through DPO inbox     | Manual operator + DPA verification |
-| Court-ordered erasure                             | Legal counsel                      | Operator + signed legal-hold removal |
+| Path                                        | Triggered by                   | Authentication                       |
+| ------------------------------------------- | ------------------------------ | ------------------------------------ |
+| `DELETE /v1/principals/{id}`                | Programmatic (RP API)          | Principal-owner API key + step-up    |
+| Dashboard "Close account"                   | Tenant admin (UI)              | Session + step-up + email confirm    |
+| Operator-initiated (DSAR via support email) | Data subject through DPO inbox | Manual operator + DPA verification   |
+| Court-ordered erasure                       | Legal counsel                  | Operator + signed legal-hold removal |
 
 All four paths converge on the same `tenant-deletion.service.ts`
 flow.
@@ -344,7 +345,7 @@ Per `docs/FAILURE_MODES.md` integration:
 - Postgres replica lag → use primary for the redaction reads to avoid
   re-redacting already-redacted rows.
 - Operator changes their mind during 30-day grace → `POST
-  /v1/principals/{id}/restore` rolls back soft-delete; only valid
+/v1/principals/{id}/restore` rolls back soft-delete; only valid
   before T+30:00 deletion-executor job kicks off.
 
 ### 6.4 Cross-region considerations
@@ -360,14 +361,14 @@ the data physically isn't there.
 
 ### 7.1 Backup tiers
 
-| Backup type                | Storage                  | Retention | Encryption                        | Restore RTO                  |
-|----------------------------|--------------------------|-----------|------------------------------------|------------------------------|
-| Postgres continuous archive (WAL) | Railway-managed       | 7 days    | TDE + KMS-encrypted at rest        | Point-in-time, RTO 60 min    |
-| Postgres daily snapshot    | Railway-managed + S3 mirror | 30 days   | TDE + AES-256-GCM at rest          | RTO 30 min                   |
-| Postgres weekly snapshot   | S3 + GCS dual            | 90 days   | AES-256-GCM with per-snapshot KEK  | RTO 4 hours                  |
-| Postgres monthly snapshot (compliance) | Glacier + Coldline | 7 years   | AES-256-GCM + KMS envelope         | RTO 24-48 hours              |
-| Redis snapshot (cache + spend) | S3                   | 7 days    | AES-256-GCM                        | Cache reconstructable; spend snapshot used only in disaster |
-| KMS key material           | KMS-internal             | per §9    | KMS-managed HSM                    | Not user-restorable          |
+| Backup type                            | Storage                     | Retention | Encryption                        | Restore RTO                                                 |
+| -------------------------------------- | --------------------------- | --------- | --------------------------------- | ----------------------------------------------------------- |
+| Postgres continuous archive (WAL)      | Railway-managed             | 7 days    | TDE + KMS-encrypted at rest       | Point-in-time, RTO 60 min                                   |
+| Postgres daily snapshot                | Railway-managed + S3 mirror | 30 days   | TDE + AES-256-GCM at rest         | RTO 30 min                                                  |
+| Postgres weekly snapshot               | S3 + GCS dual               | 90 days   | AES-256-GCM with per-snapshot KEK | RTO 4 hours                                                 |
+| Postgres monthly snapshot (compliance) | Glacier + Coldline          | 7 years   | AES-256-GCM + KMS envelope        | RTO 24-48 hours                                             |
+| Redis snapshot (cache + spend)         | S3                          | 7 days    | AES-256-GCM                       | Cache reconstructable; spend snapshot used only in disaster |
+| KMS key material                       | KMS-internal                | per §9    | KMS-managed HSM                   | Not user-restorable                                         |
 
 ### 7.2 Backup interaction with deletion
 
@@ -435,7 +436,7 @@ Year Y partition (created 7 years ago):
 ### 8.3 Cold → forever (legal hold)
 
 Per OD-004 (operator-pending), the cold tier is the **forever** tier
-for AEGIS — we do not cryptographically destroy notarized audit
+for CERNIQ — we do not cryptographically destroy notarized audit
 roots. The notarization remains as the trust pin even after raw
 events are unrecoverable (which would only happen via legal-hold
 release + intentional cryptographic erasure).
@@ -445,7 +446,7 @@ release + intentional cryptographic erasure).
 Three-way pinning per archive partition:
 
 1. **Internal** signed Merkle root in `/.well-known/audit-archive-
-   roots.json`.
+roots.json`.
 2. **External** OpenTimestamps proof (Bitcoin blockchain anchored).
 3. **Customer-export** ability to download per-principal NDJSON and
    re-verify against (1).
@@ -461,14 +462,14 @@ Per ADR-0011 + KMS module M-023.
 
 ### 9.1 Per-key lifecycle states
 
-| State          | Definition                                              | Transition trigger                       |
-|----------------|----------------------------------------------------------|------------------------------------------|
-| `provisioning` | KMS key creation in progress                            | Operator action via `aegis-cli kms rotate` |
-| `pre-active`   | Key exists; not yet signing; in JWKS as 30-day-future tag | Provisioning complete                    |
-| `active`       | Currently signing audit + policy events                 | Rotation cron at month boundary          |
-| `superseded`   | Was active; new key took over; still verifies in JWKS   | New key promoted to active                |
-| `retired`      | Removed from JWKS; soft-delete state in KMS             | 30-day overlap window expires             |
-| `destroyed`    | KMS key material cryptographically destroyed             | 7 years after retirement                  |
+| State          | Definition                                                | Transition trigger                          |
+| -------------- | --------------------------------------------------------- | ------------------------------------------- |
+| `provisioning` | KMS key creation in progress                              | Operator action via `cerniq-cli kms rotate` |
+| `pre-active`   | Key exists; not yet signing; in JWKS as 30-day-future tag | Provisioning complete                       |
+| `active`       | Currently signing audit + policy events                   | Rotation cron at month boundary             |
+| `superseded`   | Was active; new key took over; still verifies in JWKS     | New key promoted to active                  |
+| `retired`      | Removed from JWKS; soft-delete state in KMS               | 30-day overlap window expires               |
+| `destroyed`    | KMS key material cryptographically destroyed              | 7 years after retirement                    |
 
 ### 9.2 Rotation cadence
 
@@ -484,6 +485,7 @@ Per ADR-0011 + KMS module M-023.
 A destroyed signing key cannot verify historical signatures it
 produced. To preserve the auditor's ability to verify a 7-year-old
 event:
+
 - Retain the key material in KMS soft-delete state for 7 years.
 - After 7 years, archived events are validated via the **Merkle root
   notarization chain**, not the original signing key. Cryptographic
@@ -491,13 +493,13 @@ event:
 
 ### 9.4 Provider-specific destruction
 
-| Provider | Soft-delete window | Hard destroy mechanism |
-|----------|---------------------|--------------------------|
-| AWS KMS  | 7 days max (AWS limit) — we maintain 7-year shadow in `infra/kms/key-shadow/{kid}.enc` (envelope-encrypted by master KMS key, can re-import to KMS) | `aws kms schedule-key-deletion` after 7 years |
-| GCP KMS  | 30 days max (GCP limit) — same 7-year shadow strategy | `gcloud kms keys versions destroy` |
-| Vault Transit | configurable; we set 7-year retention with operator-gated destroy | `vault delete transit/keys/{name}` |
+| Provider      | Soft-delete window                                                                                                                                  | Hard destroy mechanism                        |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| AWS KMS       | 7 days max (AWS limit) — we maintain 7-year shadow in `infra/kms/key-shadow/{kid}.enc` (envelope-encrypted by master KMS key, can re-import to KMS) | `aws kms schedule-key-deletion` after 7 years |
+| GCP KMS       | 30 days max (GCP limit) — same 7-year shadow strategy                                                                                               | `gcloud kms keys versions destroy`            |
+| Vault Transit | configurable; we set 7-year retention with operator-gated destroy                                                                                   | `vault delete transit/keys/{name}`            |
 
-The shadow strategy means **AEGIS holds an envelope-encrypted copy
+The shadow strategy means **CERNIQ holds an envelope-encrypted copy
 of every signing key** for 7 years. The envelope key is separate from
 the audit signing key (KMS master key) and rotates independently. A
 breach of one tier does not unlock the other.
@@ -508,14 +510,14 @@ breach of one tier does not unlock the other.
 
 ### 10.1 Standard reports (auto-generated)
 
-| Report                                  | Cadence       | Format             | Audience                  |
-|------------------------------------------|---------------|--------------------|---------------------------|
-| Per-tenant data inventory               | On request    | CSV / JSON          | DPA reviewer / DPO         |
-| Retention compliance attestation        | Annual        | Signed PDF          | SOC 2 Type II auditor      |
-| Deletion log (last 12 months of DSARs)  | Quarterly     | CSV                 | DPO + operator             |
-| Backup verification report              | Quarterly     | Markdown + chain-verify output | SOC 2 auditor    |
-| KMS rotation history                    | Annual        | Signed JSON         | SOC 2 auditor              |
-| Per-archive Merkle root publication log | Continuous    | Public endpoint     | Customers + external auditors |
+| Report                                  | Cadence    | Format                         | Audience                      |
+| --------------------------------------- | ---------- | ------------------------------ | ----------------------------- |
+| Per-tenant data inventory               | On request | CSV / JSON                     | DPA reviewer / DPO            |
+| Retention compliance attestation        | Annual     | Signed PDF                     | SOC 2 Type II auditor         |
+| Deletion log (last 12 months of DSARs)  | Quarterly  | CSV                            | DPO + operator                |
+| Backup verification report              | Quarterly  | Markdown + chain-verify output | SOC 2 auditor                 |
+| KMS rotation history                    | Annual     | Signed JSON                    | SOC 2 auditor                 |
+| Per-archive Merkle root publication log | Continuous | Public endpoint                | Customers + external auditors |
 
 ### 10.2 Per-tenant export (DSAR fulfillment)
 
@@ -526,12 +528,12 @@ NDJSON archive matching the audit-export schema.
 
 ### 10.3 Continuous attestation (`/.well-known/`)
 
-| Endpoint                                | Purpose                                       |
-|-----------------------------------------|-----------------------------------------------|
-| `/.well-known/audit-signing-key`        | Current audit signing public key (P4)         |
-| `/.well-known/jwks.json`                | All current + recent signing keys (P4)        |
-| `/.well-known/audit-archive-roots.json` | Per-month archive Merkle roots (P6)           |
-| `/.well-known/retention-policy.json`    | Machine-readable summary of this document     |
+| Endpoint                                | Purpose                                   |
+| --------------------------------------- | ----------------------------------------- |
+| `/.well-known/audit-signing-key`        | Current audit signing public key (P4)     |
+| `/.well-known/jwks.json`                | All current + recent signing keys (P4)    |
+| `/.well-known/audit-archive-roots.json` | Per-month archive Merkle roots (P6)       |
+| `/.well-known/retention-policy.json`    | Machine-readable summary of this document |
 
 The last endpoint is auto-generated from this document's per-class
 table; drift between the document and the endpoint is a CI failure.
@@ -544,11 +546,11 @@ Per `docs/EU_RESIDENCY.md`:
 
 ### 11.1 Per-region scope
 
-| Region        | What lives here                       | What does not          |
-|---------------|----------------------------------------|------------------------|
-| us-east       | US-residency principals' P1–P9        | EU principals, AP principals |
-| eu-west       | EU-residency principals' P1–P9        | US, AP                 |
-| ap-southeast  | AP-residency principals' P1–P9        | US, EU                 |
+| Region       | What lives here                | What does not                |
+| ------------ | ------------------------------ | ---------------------------- |
+| us-east      | US-residency principals' P1–P9 | EU principals, AP principals |
+| eu-west      | EU-residency principals' P1–P9 | US, AP                       |
+| ap-southeast | AP-residency principals' P1–P9 | US, EU                       |
 
 KMS keys are **per-region**: an EU principal's audit events are
 signed by an EU-region KMS key. Cross-region replication of KMS keys
@@ -572,14 +574,15 @@ auditor verifies each region separately.
 ### 11.4 Backup cross-region
 
 Backups stay in-region. EU backups in EU storage providers (AWS EU
-+ GCP EU). Cross-region backup replication is **explicitly
-forbidden** for EU principals per GDPR Schrems II considerations.
+
+- GCP EU). Cross-region backup replication is **explicitly
+  forbidden** for EU principals per GDPR Schrems II considerations.
 
 ---
 
 ## 12. Legal hold mechanism
 
-When AEGIS receives a legal hold (subpoena, regulatory inquiry,
+When CERNIQ receives a legal hold (subpoena, regulatory inquiry,
 litigation hold):
 
 ### 12.1 Hold semantics
@@ -595,12 +598,12 @@ litigation hold):
 
 ### 12.2 Hold lifecycle
 
-| State          | Trigger                                |
-|----------------|----------------------------------------|
-| `requested`    | Legal counsel files hold form          |
-| `active`       | Operator confirms via `aegis-cli legal-hold create --principal {id}` |
-| `release-requested` | Legal counsel files release         |
-| `released`     | Operator confirms; deletion executor resumes |
+| State               | Trigger                                                               |
+| ------------------- | --------------------------------------------------------------------- |
+| `requested`         | Legal counsel files hold form                                         |
+| `active`            | Operator confirms via `cerniq-cli legal-hold create --principal {id}` |
+| `release-requested` | Legal counsel files release                                           |
+| `released`          | Operator confirms; deletion executor resumes                          |
 
 ### 12.3 Conflict with deletion request
 
@@ -622,45 +625,45 @@ If a tenant requests deletion while a legal hold is active:
 
 ## 13. Annual review cadence
 
-| Review                        | Frequency       | Owner                  | Output                                   |
-|-------------------------------|-----------------|------------------------|------------------------------------------|
-| Per-PR field classification   | Every schema PR | Reviewer               | §3.3 + retention class doc-comment       |
-| Quarterly archive verification| Quarterly       | SRE                    | Backup-verification report (auditor input) |
-| Quarterly DSAR digest         | Quarterly       | DPO + operator         | Deletion log + open-DSAR list            |
-| Annual policy review          | Q1              | Operator + outside counsel | Updated lawful-basis table; new jurisdictions |
-| Annual SOC 2 evidence pull    | Q3 (pre-audit)  | Operator               | Signed retention attestation             |
-| ADR-0006 dictionary-attack residual review | Annual | Operator + DPO       | Either mitigation or extended residual disclosure |
+| Review                                     | Frequency       | Owner                      | Output                                            |
+| ------------------------------------------ | --------------- | -------------------------- | ------------------------------------------------- |
+| Per-PR field classification                | Every schema PR | Reviewer                   | §3.3 + retention class doc-comment                |
+| Quarterly archive verification             | Quarterly       | SRE                        | Backup-verification report (auditor input)        |
+| Quarterly DSAR digest                      | Quarterly       | DPO + operator             | Deletion log + open-DSAR list                     |
+| Annual policy review                       | Q1              | Operator + outside counsel | Updated lawful-basis table; new jurisdictions     |
+| Annual SOC 2 evidence pull                 | Q3 (pre-audit)  | Operator                   | Signed retention attestation                      |
+| ADR-0006 dictionary-attack residual review | Annual          | Operator + DPO             | Either mitigation or extended residual disclosure |
 
 ---
 
 ## 14. Cross-references
 
-| Topic                         | Source                                                       |
-|-------------------------------|---------------------------------------------------------------|
-| Architecture summary          | `docs/ARCHITECTURE.md` §12                                    |
-| Capacity (storage growth)     | `docs/CAPACITY_PLAN.md` §5.4 + §11.3                         |
-| Failure modes (deletion + chain) | `docs/FAILURE_MODES.md` §6, §11                            |
-| Audit chain canonicalization  | `docs/decisions/0005-audit-chain-canonicalization.md`         |
-| Audit redactability (P6+P7)   | `docs/decisions/0006-audit-redactability.md`                  |
-| KMS rotation (P5)             | `docs/decisions/0011-key-rotation-kms.md`                     |
-| Compliance posture            | `docs/COMPLIANCE.md`                                          |
-| EU residency                  | `docs/EU_RESIDENCY.md`                                        |
-| Operator decisions            | `OPERATOR_DECISIONS.md` OD-004                                |
-| Auth0 federated identity      | `docs/decisions/0009-auth0-bridge.md`                         |
+| Topic                            | Source                                                |
+| -------------------------------- | ----------------------------------------------------- |
+| Architecture summary             | `docs/ARCHITECTURE.md` §12                            |
+| Capacity (storage growth)        | `docs/CAPACITY_PLAN.md` §5.4 + §11.3                  |
+| Failure modes (deletion + chain) | `docs/FAILURE_MODES.md` §6, §11                       |
+| Audit chain canonicalization     | `docs/decisions/0005-audit-chain-canonicalization.md` |
+| Audit redactability (P6+P7)      | `docs/decisions/0006-audit-redactability.md`          |
+| KMS rotation (P5)                | `docs/decisions/0011-key-rotation-kms.md`             |
+| Compliance posture               | `docs/COMPLIANCE.md`                                  |
+| EU residency                     | `docs/EU_RESIDENCY.md`                                |
+| Operator decisions               | `OPERATOR_DECISIONS.md` OD-004                        |
+| Auth0 federated identity         | `docs/decisions/0009-auth0-bridge.md`                 |
 
 ---
 
 ## Appendix A — alignment with regulatory horizons
 
-| Regulator / standard      | Required floor                | AEGIS provides                     | Comment                              |
-|---------------------------|--------------------------------|-------------------------------------|--------------------------------------|
-| GDPR Art. 17              | Erasure on request             | Redaction + crypto-erasure on backup | Per §5–§7                            |
-| GDPR Art. 30 (records)    | Records of processing activities | Per-tenant data inventory (§10.2)   |                                      |
-| SOC 2 CC4.1               | Records retained               | Forever for P6 (audit), 7yr for P8 (operational) | Per §4 + §8                  |
-| SOC 2 CC6.6               | Key management                 | Per §9 + ADR-0011                    |                                      |
-| SOC 2 CC7.4               | Incident communication         | Per ARCHITECTURE.md §9               |                                      |
-| FINRA 17a-4               | 6 years on most records        | 7 years cold tier                    | Exceeds floor                        |
-| SEC 17a-4                 | 7 years (some 6)               | 7 years cold tier                    | Meets floor                          |
-| PCI-DSS v4.0 §10          | 1 year online + 3 years archive | Audit chain forever                  | Vastly exceeds                       |
-| CCPA 1798.105             | Erasure                        | Same as GDPR Art. 17                 |                                      |
-| EU AI Act (high-risk)     | Logs of decision provenance   | Per-decision audit chain             | AEGIS is the substrate for RPs to meet this |
+| Regulator / standard   | Required floor                   | CERNIQ provides                                  | Comment                                      |
+| ---------------------- | -------------------------------- | ------------------------------------------------ | -------------------------------------------- |
+| GDPR Art. 17           | Erasure on request               | Redaction + crypto-erasure on backup             | Per §5–§7                                    |
+| GDPR Art. 30 (records) | Records of processing activities | Per-tenant data inventory (§10.2)                |                                              |
+| SOC 2 CC4.1            | Records retained                 | Forever for P6 (audit), 7yr for P8 (operational) | Per §4 + §8                                  |
+| SOC 2 CC6.6            | Key management                   | Per §9 + ADR-0011                                |                                              |
+| SOC 2 CC7.4            | Incident communication           | Per ARCHITECTURE.md §9                           |                                              |
+| FINRA 17a-4            | 6 years on most records          | 7 years cold tier                                | Exceeds floor                                |
+| SEC 17a-4              | 7 years (some 6)                 | 7 years cold tier                                | Meets floor                                  |
+| PCI-DSS v4.0 §10       | 1 year online + 3 years archive  | Audit chain forever                              | Vastly exceeds                               |
+| CCPA 1798.105          | Erasure                          | Same as GDPR Art. 17                             |                                              |
+| EU AI Act (high-risk)  | Logs of decision provenance      | Per-decision audit chain                         | CERNIQ is the substrate for RPs to meet this |

@@ -1,18 +1,18 @@
 ---
 title: Fintech — payment authorization
-description: Gate every Stripe charge through aegis.verify before the authorization fires. Per-policy spend limit, denial precedence routing.
+description: Gate every Stripe charge through cerniq.verify before the authorization fires. Per-policy spend limit, denial precedence routing.
 ---
 
 Full runnable example:
-[`examples/fintech-payments/`](https://github.com/klytics/aegis/tree/main/examples/fintech-payments).
+[`examples/fintech-payments/`](https://github.com/klytics/cerniq/tree/main/examples/fintech-payments).
 
 ## Shape of the integration
 
 ```ts
-import { Aegis, sign } from '@aegis/sdk';
+import { Cerniq, sign } from '@cerniq/sdk';
 import Stripe from 'stripe';
 
-const aegis = new Aegis({ apiKey: process.env.AEGIS_API_KEY! });
+const cerniq = new Cerniq({ apiKey: process.env.CERNIQ_API_KEY! });
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 async function authorizeCharge(opts: {
@@ -31,13 +31,13 @@ async function authorizeCharge(opts: {
     amount: opts.amount,
   });
 
-  // 2. Verify with AEGIS BEFORE Stripe. A single round-trip; p99 < 200 ms.
-  const verdict = await aegis.verify(token);
+  // 2. Verify with CERNIQ BEFORE Stripe. A single round-trip; p99 < 200 ms.
+  const verdict = await cerniq.verify(token);
   if (!verdict.allowed) {
     return { ok: false as const, denialReason: verdict.denialReason };
   }
 
-  // 3. Only now create the Stripe PaymentIntent. AEGIS has already signed
+  // 3. Only now create the Stripe PaymentIntent. CERNIQ has already signed
   //    an audit row noting the allow decision under (agent, policy).
   const intent = await stripe.paymentIntents.create({
     customer: opts.customerId,
@@ -66,8 +66,8 @@ contract.
 
 ## Why verify before Stripe (and not after)
 
-AEGIS lives between the agent and the action. Verifying after a charge has
+CERNIQ lives between the agent and the action. Verifying after a charge has
 already fired would mean a denied verify cannot stop a real-world side
 effect — the money has already moved. The single network round-trip to
-AEGIS is the price of behavioral attestation working as an authorization
+CERNIQ is the price of behavioral attestation working as an authorization
 gate, not a forensics tool.

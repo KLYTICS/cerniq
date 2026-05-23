@@ -3,17 +3,17 @@ title: Auditor & Compliance
 description: SOC2, GDPR, EU residency, data-protection addendum, retention, and the audit-chain evidence package.
 ---
 
-AEGIS is designed to be auditable end-to-end. This page indexes the controls
+CERNIQ is designed to be auditable end-to-end. This page indexes the controls
 and evidence artifacts external auditors and compliance counsel will request.
 
-## SOC2 Type II — what to ask AEGIS for
+## SOC2 Type II — what to ask CERNIQ for
 
-| Trust Service Criterion | Evidence AEGIS produces                                                                                  |
+| Trust Service Criterion | Evidence CERNIQ produces                                                                                  |
 | ----------------------- | -------------------------------------------------------------------------------------------------------- |
 | CC6.1 (logical access)  | Bcrypt-hashed API keys with FULL / VERIFY-ONLY scope; principal-scoped tenant isolation enforced in service layer; tested in `tests/cross-package/principal-isolation.spec.ts`. |
 | CC6.6 (encryption)      | TLS-only ingress; KMS-backed audit signing key; envelope-encrypted Ed25519 audit key on AWS until KMS GAs EdDSA. |
 | CC7.2 (anomaly detection) | BATE engine R-1…R-5 rule-based detector (velocity, geographic, spend pattern, failed-verify spike, delegation depth). |
-| CC7.4 (external comm)   | Status page (`status.aegislabs.io`) + incident process documented in `docs/INCIDENT_RESPONSE.md`.        |
+| CC7.4 (external comm)   | Status page (`status.cerniq.io`) + incident process documented in `docs/INCIDENT_RESPONSE.md`.        |
 | CC8.1 (change mgmt)     | Append-only Prisma migrations; CI gate (`spec-sync.yml`) on contract drift; PR-only deploys.             |
 
 ## GDPR — controller obligations
@@ -22,7 +22,7 @@ and evidence artifacts external auditors and compliance counsel will request.
 | -------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | Art. 15 — access     | `GET /v1/audit/export.ndjson?agentId=…`             | Streams the relevant audit slice; signed and replayable offline                                                    |
 | Art. 17 — erasure    | `POST /v1/compliance/audit/redact-event`            | Nulls PII fields in the row body; signature continues to cover `decisionReasonHash`, so chain integrity is preserved |
-| Art. 20 — portability | NDJSON export                                       | Same endpoint as Art. 15; consumed by `@aegis/verifier-rp` for offline replay                                       |
+| Art. 20 — portability | NDJSON export                                       | Same endpoint as Art. 15; consumed by `@cerniq/verifier-rp` for offline replay                                       |
 
 The redact endpoint is `ApiKeyGuard`-protected and requires **FULL** scope.
 A meta-row noting the redaction (who, when, which row) is itself appended to
@@ -30,28 +30,28 @@ the chain — the act of redacting is auditable.
 
 ## EU residency
 
-AEGIS supports a single-region EU posture: API, database, and KMS all
+CERNIQ supports a single-region EU posture: API, database, and KMS all
 pinned to `eu-west-1` (or operator-specified region). See
-[`docs/EU_RESIDENCY.md`](https://github.com/klytics/aegis/blob/main/docs/EU_RESIDENCY.md).
+[`docs/EU_RESIDENCY.md`](https://github.com/klytics/cerniq/blob/main/docs/EU_RESIDENCY.md).
 
 ## Retention horizon
 
 Default audit retention: 7 years (SOC2 Type II floor; matches financial-
 services audit norms). Operator-configurable per environment via
-`AEGIS_AUDIT_RETENTION_DAYS`. See [OD-004 in `OPERATOR_DECISIONS.md`](https://github.com/klytics/aegis/blob/main/OPERATOR_DECISIONS.md).
+`CERNIQ_AUDIT_RETENTION_DAYS`. See [OD-004 in `OPERATOR_DECISIONS.md`](https://github.com/klytics/cerniq/blob/main/OPERATOR_DECISIONS.md).
 
 ## Data Protection Addendum
 
-A DPA template lives at [`docs/COMPLIANCE.md`](https://github.com/klytics/aegis/blob/main/docs/COMPLIANCE.md).
+A DPA template lives at [`docs/COMPLIANCE.md`](https://github.com/klytics/cerniq/blob/main/docs/COMPLIANCE.md).
 It is structured around the GDPR Art. 28 processor clauses and references
-the AEGIS sub-processors (database host, KMS provider, observability vendor).
+the CERNIQ sub-processors (database host, KMS provider, observability vendor).
 
 ## Verify our audit signing key independently
 
 The thumbprints below are computed live from
 `/.well-known/audit-signing-key` using RFC 7638. They must match the
 fingerprint shipped in your SOC2 evidence package and in
-[`docs/SECURITY.md`](https://github.com/klytics/aegis/blob/main/docs/SECURITY.md).
+[`docs/SECURITY.md`](https://github.com/klytics/cerniq/blob/main/docs/SECURITY.md).
 If they don't, do not trust the chain — open an incident.
 
 <JwksFingerprint />

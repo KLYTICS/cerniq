@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "display": "AEGIS Next.js",
+  "display": "CERNIQ Next.js",
   "extends": "./base.json",
   "compilerOptions": {
     "target": "ES2022",

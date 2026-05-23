@@ -13,7 +13,13 @@ import { TierColumn } from './TierColumn';
 
 function renderCell(value: string | boolean): ReactElement | string {
   if (typeof value === 'boolean') {
-    return value ? <span aria-label="included">✓</span> : <span className="dim" aria-label="not included">—</span>;
+    return value ? (
+      <span aria-label="included">✓</span>
+    ) : (
+      <span className="dim" aria-label="not included">
+        —
+      </span>
+    );
   }
   return value;
 }
@@ -26,14 +32,19 @@ export function FeatureMatrix({
   rows: readonly FeatureRow[];
 }): ReactElement {
   return (
-    <table className="data-table dense pricing-table" aria-label="AEGIS pricing tiers and features">
+    <table
+      className="data-table dense pricing-table"
+      aria-label="CERNIQ pricing tiers and features"
+    >
       <caption className="visually-hidden">
-        AEGIS pricing tiers, monthly cost, included verifies, agents, audit retention, BATE
-        access, webhooks, and SLA targets.
+        CERNIQ pricing tiers, monthly cost, included verifies, agents, audit retention, BATE access,
+        webhooks, and SLA targets.
       </caption>
       <thead>
         <tr>
-          <th scope="col" className="dim">{/* feature label column */}</th>
+          <th scope="col" className="dim">
+            {/* feature label column */}
+          </th>
           {tiers.map((tier) => (
             <th key={tier.id} scope="col">
               <TierColumn tier={tier} />
@@ -44,7 +55,9 @@ export function FeatureMatrix({
       <tbody>
         {rows.map((row) => (
           <tr key={row.label}>
-            <th scope="row" className="dim">{row.label}</th>
+            <th scope="row" className="dim">
+              {row.label}
+            </th>
             {row.cells.map((cell, idx) => {
               const tierId = tiers[idx]?.id ?? `col-${idx}`;
               return (

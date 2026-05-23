@@ -1,4 +1,4 @@
-// CircuitBreaker — hand-rolled three-state breaker for AEGIS outbound calls.
+// CircuitBreaker — hand-rolled three-state breaker for CERNIQ outbound calls.
 //
 // Why this exists: a slow Stripe API or wedged KMS endpoint would otherwise
 // drag /v1/verify p99 down with it. Each outbound dependency wraps its
@@ -36,7 +36,7 @@ export class CircuitOpenError extends Error {
   override readonly name = 'CircuitOpenError';
   /**
    * Minifier-safe discriminator for `getCatalogEntry`. CircuitOpenError
-   * does not extend AegisError (kept framework-agnostic so workers/edge
+   * does not extend CerniqError (kept framework-agnostic so workers/edge
    * can use the breaker), but we still want it to map cleanly to the
    * `upstream_unavailable` catalog entry after a tsup production build.
    * See peer review F-06.

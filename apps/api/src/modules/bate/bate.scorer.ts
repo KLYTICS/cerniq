@@ -34,7 +34,7 @@ export interface ScoringExplanation {
 
 /**
  * BATE — Behavioural Attestation Engine, scoring kernel.
- * Spec: `03_AEGIS_TECHNICAL_SPEC.md` § 3.2 + `docs/BATE_ALGORITHM.md`.
+ * Spec: `03_CERNIQ_TECHNICAL_SPEC.md` § 3.2 + `docs/BATE_ALGORITHM.md`.
  *
  * Pure function. Takes current score + age + signals, returns the new
  * score in [0, 1000]. Deterministic and side-effect-free so we can replay

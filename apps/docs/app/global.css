@@ -1,42 +1,42 @@
 @import "tailwindcss";
 @import "fumadocs-ui/style.css";
 
-/* AEGIS brand tokens — mirrored from brand/02_design-tokens.json */
+/* CERNIQ brand tokens — mirrored from brand/02_design-tokens.json */
 :root {
-  --aegis-obsidian: #050714;
-  --aegis-ink: #0b1020;
-  --aegis-steel: #161d33;
-  --aegis-graphite: #1f2740;
-  --aegis-mist: #2b3554;
-  --aegis-halo: #f4f6ff;
-  --aegis-fog: #a8b0cc;
-  --aegis-shadow: #6b7494;
-  --aegis-cyan: #5be0ff;
-  --aegis-violet: #8b6bff;
-  --aegis-magenta: #ff5bd0;
-  --aegis-verified: #4cffa8;
-  --aegis-denied: #ff5470;
-  --aegis-pending: #ffb86b;
+  --cerniq-obsidian: #050714;
+  --cerniq-ink: #0b1020;
+  --cerniq-steel: #161d33;
+  --cerniq-graphite: #1f2740;
+  --cerniq-mist: #2b3554;
+  --cerniq-halo: #f4f6ff;
+  --cerniq-fog: #a8b0cc;
+  --cerniq-shadow: #6b7494;
+  --cerniq-cyan: #5be0ff;
+  --cerniq-violet: #8b6bff;
+  --cerniq-magenta: #ff5bd0;
+  --cerniq-verified: #4cffa8;
+  --cerniq-denied: #ff5470;
+  --cerniq-pending: #ffb86b;
 
-  /* Map AEGIS palette into Fumadocs CSS variables. */
-  --color-fd-background: var(--aegis-obsidian);
-  --color-fd-foreground: var(--aegis-halo);
-  --color-fd-muted: var(--aegis-graphite);
-  --color-fd-muted-foreground: var(--aegis-fog);
-  --color-fd-border: var(--aegis-mist);
-  --color-fd-primary: var(--aegis-cyan);
-  --color-fd-accent: var(--aegis-violet);
-  --color-fd-card: var(--aegis-ink);
+  /* Map CERNIQ palette into Fumadocs CSS variables. */
+  --color-fd-background: var(--cerniq-obsidian);
+  --color-fd-foreground: var(--cerniq-halo);
+  --color-fd-muted: var(--cerniq-graphite);
+  --color-fd-muted-foreground: var(--cerniq-fog);
+  --color-fd-border: var(--cerniq-mist);
+  --color-fd-primary: var(--cerniq-cyan);
+  --color-fd-accent: var(--cerniq-violet);
+  --color-fd-card: var(--cerniq-ink);
 }
 
-.aegis-canvas {
+.cerniq-canvas {
   background: radial-gradient(ellipse at top, #0b1020 0%, #050714 60%);
-  color: var(--aegis-halo);
+  color: var(--cerniq-halo);
   font-family: "Inter", system-ui, -apple-system, sans-serif;
   min-height: 100vh;
 }
 
-.aegis-aurora {
+.cerniq-aurora {
   background: linear-gradient(135deg, #5be0ff 0%, #8b6bff 50%, #ff5bd0 100%);
   -webkit-background-clip: text;
   background-clip: text;

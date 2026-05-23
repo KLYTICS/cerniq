@@ -1,4 +1,4 @@
-# AEGIS — Behavioral Attestation Engine (BATE)
+# CERNIQ — Behavioral Attestation Engine (BATE)
 
 > Internal whitepaper. Defines the trust score model that every BATE
 > implementation (rule-based v1, ML v2) must agree on at the interface.
@@ -18,12 +18,12 @@ agent age. The current score and band are read from
 
 ## 2. Trust bands
 
-| Band     | Range     | Default relying-party action                      |
-|----------|-----------|---------------------------------------------------|
-| PLATINUM | 750–1000  | Pre-approved up to policy spend limit             |
-| VERIFIED | 500–749   | Standard verification (default acceptance)        |
-| WATCH    | 250–499   | Enhanced verification, lower spend limits suggested|
-| FLAGGED  | 0–249     | Reject by default                                 |
+| Band     | Range    | Default relying-party action                        |
+| -------- | -------- | --------------------------------------------------- |
+| PLATINUM | 750–1000 | Pre-approved up to policy spend limit               |
+| VERIFIED | 500–749  | Standard verification (default acceptance)          |
+| WATCH    | 250–499  | Enhanced verification, lower spend limits suggested |
+| FLAGGED  | 0–249    | Reject by default                                   |
 
 Bands are advisory — relying parties choose their own thresholds. The
 band string is included in `/v1/verify` responses for convenience.
@@ -42,21 +42,21 @@ score = clamp(
 ,  0, 1000)
 ```
 
-| Term                   | Description                                                         |
-|------------------------|---------------------------------------------------------------------|
-| `BASELINE`             | 500 — neutral starting point                                        |
-| `signal_weight(s)`     | From the weight table below                                         |
-| `source_weight(s)`     | `1.0` for verified relying parties, `0.0–0.3` otherwise             |
-| `recency_factor(s)`    | `exp(-age_days / 30)` — older signals fade                          |
-| `verification_bonuses` | `+50` for email-verified principal, `+150` for KYC-verified         |
-| `age_correction`       | `min(0, 30 - age_days) * -2` (small early penalty, then 0)          |
+| Term                   | Description                                                 |
+| ---------------------- | ----------------------------------------------------------- |
+| `BASELINE`             | 500 — neutral starting point                                |
+| `signal_weight(s)`     | From the weight table below                                 |
+| `source_weight(s)`     | `1.0` for verified relying parties, `0.0–0.3` otherwise     |
+| `recency_factor(s)`    | `exp(-age_days / 30)` — older signals fade                  |
+| `verification_bonuses` | `+50` for email-verified principal, `+150` for KYC-verified |
+| `age_correction`       | `min(0, 30 - age_days) * -2` (small early penalty, then 0)  |
 
 The clamp keeps the score in `[0, 1000]`. The recency window means a
 clean year of behavior plateaus at the maximum natural score.
 
 ---
 
-## 4. Signal weight table  · **OPERATOR INPUT NEEDED**
+## 4. Signal weight table · **OPERATOR INPUT NEEDED**
 
 > These weights are placeholders. The operator must set them before BATE
 > goes live. See `WORK_BOARD.md` M-007 (BLOCKED ON OPERATOR).
@@ -67,17 +67,17 @@ clean year of behavior plateaus at the maximum natural score.
 
 ### Positive signals (raise score)
 
-| Signal type                  | Weight | Cap per day | Notes                                  |
-|------------------------------|--------|-------------|----------------------------------------|
-| `CLEAN_TRANSACTION`          | +2     | +20         | Capped to prevent score-farming        |
-| `PRINCIPAL_KYC_VERIFIED`     | +150   | once        | One-time bonus, persists               |
-| `CONSISTENT_GEOGRAPHY`       | +1     | +10         | Geo over rolling 7-day window          |
-| `NORMAL_VELOCITY`            | +1     | +10         | Within expected request rate           |
+| Signal type              | Weight | Cap per day | Notes                           |
+| ------------------------ | ------ | ----------- | ------------------------------- |
+| `CLEAN_TRANSACTION`      | +2     | +20         | Capped to prevent score-farming |
+| `PRINCIPAL_KYC_VERIFIED` | +150   | once        | One-time bonus, persists        |
+| `CONSISTENT_GEOGRAPHY`   | +1     | +10         | Geo over rolling 7-day window   |
+| `NORMAL_VELOCITY`        | +1     | +10         | Within expected request rate    |
 
 ### Negative signals (drop score)
 
 | Signal type                  | Weight | Cap per day | Notes                                  |
-|------------------------------|--------|-------------|----------------------------------------|
+| ---------------------------- | ------ | ----------- | -------------------------------------- |
 | `RELYING_PARTY_FRAUD_REPORT` | -300   | -500        | Verified RP only; capped to limit war  |
 | `VELOCITY_ANOMALY`           | -50    | -200        | E.g., 10× rolling p95                  |
 | `GEOGRAPHIC_INCONSISTENCY`   | -75    | -200        | New country + new MCC + within 1 hour  |
@@ -92,7 +92,7 @@ clean year of behavior plateaus at the maximum natural score.
 
 ---
 
-## 5. Cold-start trust accelerator  · **OPERATOR INPUT NEEDED**
+## 5. Cold-start trust accelerator · **OPERATOR INPUT NEEDED**
 
 A brand-new agent at score 500 may still be rejected by relying parties
 that demand `>= 600`. We need a "trust accelerator" path so legitimate
@@ -106,7 +106,7 @@ new agents can climb fast without history:
 >    or `openai` start at 575 (provider has done some screening).
 > 3. **Sponsorship**: An existing PLATINUM agent in the same principal
 >    can vouch (start at 600).
-> 4. **Aegis Verified Developer**: Operator-curated allow-list for
+> 4. **Cerniq Verified Developer**: Operator-curated allow-list for
 >    early customers; +100 baseline.
 >
 > Until decided, default behavior: every new agent starts at 500. KYC
@@ -122,26 +122,31 @@ Implemented in `apps/api/src/modules/bate/anomaly/` as pure functions
 that emit signals (which then flow into the scoring formula above).
 
 ### R-1: Velocity anomaly
+
 - Maintain rolling 60-second request count per agent in Redis.
 - If count > `5 * mean(last_24h_per_min)` AND count > 30, emit
   `VELOCITY_ANOMALY` (severity = `HIGH`).
 
 ### R-2: Geographic inconsistency
+
 - Track last seen country per agent (GeoIP lookup at the API edge).
 - If new country + previous country < 1 hour ago AND distance > 1000 km,
   emit `GEOGRAPHIC_INCONSISTENCY` (severity = `HIGH`).
 
 ### R-3: Spend pattern deviation
+
 - Maintain rolling 7-day average txn size per agent per merchant
   category.
 - If new txn > 5× rolling average AND txn > $100, emit
   `SPEND_PATTERN_DEVIATION` (severity = `MEDIUM`).
 
 ### R-4: Failed verify spike
+
 - Count failed verifies (any denial reason) per agent per minute.
 - If > 5 in 60s, emit `FAILED_VERIFY_SPIKE` (severity = `MEDIUM`).
 
 ### R-5: Policy violation attempt
+
 - Any `SCOPE_NOT_GRANTED` or `SPEND_LIMIT_EXCEEDED` emits
   `POLICY_VIOLATION_ATTEMPT` (severity = `LOW`).
 
@@ -161,7 +166,7 @@ that emit signals (which then flow into the scoring formula above).
 
 ## 8. Score change webhooks
 
-Whenever a score crosses a band boundary, emit `aegis.agent.trust_score_changed`:
+Whenever a score crosses a band boundary, emit `cerniq.agent.trust_score_changed`:
 
 ```json
 {

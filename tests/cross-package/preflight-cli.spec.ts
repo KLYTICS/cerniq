@@ -52,7 +52,7 @@ describe('preflight CLI', () => {
     it('exits 0 and prints help text', () => {
       const r = run(['--help']);
       expect(r.status).toBe(0);
-      expect(r.stdout).toContain('AEGIS preflight');
+      expect(r.stdout).toContain('CERNIQ preflight');
       expect(r.stdout).toContain('--fast');
       expect(r.stdout).toContain('--json');
       expect(r.stdout).toContain('--only');
@@ -101,7 +101,8 @@ describe('preflight CLI', () => {
     it('summary counts equal the number of checks', () => {
       const r = run(['--json', '--fast']);
       const parsed = JSON.parse(r.stdout);
-      const sum = parsed.summary.pass + parsed.summary.warn + parsed.summary.fail + parsed.summary.skip;
+      const sum =
+        parsed.summary.pass + parsed.summary.warn + parsed.summary.fail + parsed.summary.skip;
       expect(sum).toBe(parsed.summary.total);
       expect(sum).toBe(parsed.checks.length);
     });

@@ -1,17 +1,17 @@
-// Minimal payment-authorization service with an AEGIS verify gate.
+// Minimal payment-authorization service with an CERNIQ verify gate.
 //
 // Route: POST /api/charge
-//   Header X-AEGIS-Token: a JWT signed by an agent (jti, exp, scope, etc.).
+//   Header X-CERNIQ-Token: a JWT signed by an agent (jti, exp, scope, etc.).
 //   Body { amount, currency, mcc, merchantDomain, idempotencyKey? }.
 //
 // On every request:
 //   1. Read the token + the per-merchant policy bindings.
-//   2. Call aegis.verify({ policyJwt, agentSignature, action, ... }).
+//   2. Call cerniq.verify({ policyJwt, agentSignature, action, ... }).
 //   3. If valid: charge the card (stub) and respond 200.
 //   4. If denied: respond 402 + denialReason (RFC 9110 §15.5.2).
 //
-// AEGIS does NOT see card data. Card processing is your PSP's job.
-// AEGIS gates *agent authorization* — who, scoped to what, with what
+// CERNIQ does NOT see card data. Card processing is your PSP's job.
+// CERNIQ gates *agent authorization* — who, scoped to what, with what
 // trust — not *payment authorization*.
 //
 // Read examples/fintech-payments/README.md for the production
@@ -19,13 +19,13 @@
 // webhook handlers for revocation).
 
 import express, { type Request, type Response } from 'express';
-import { Aegis } from '@aegis/sdk';
+import { Cerniq } from '@cerniq/sdk';
 import { randomUUID } from 'node:crypto';
 
-const aegis = new Aegis({
-  baseUrl: process.env.AEGIS_API_BASE ?? 'https://api.aegislabs.io',
-  // Verify-only key (aegis_vk_…), never a management key on a service edge.
-  verifyKey: requireEnv('AEGIS_VERIFY_KEY'),
+const cerniq = new Cerniq({
+  baseUrl: process.env.CERNIQ_API_BASE ?? 'https://api.cerniq.io',
+  // Verify-only key (cerniq_vk_…), never a management key on a service edge.
+  verifyKey: requireEnv('CERNIQ_VERIFY_KEY'),
 });
 
 const MIN_TRUST_SCORE = Number(process.env.MIN_TRUST_SCORE ?? '700');
@@ -35,9 +35,9 @@ const app = express();
 app.use(express.json({ limit: '64kb' }));
 
 app.post('/api/charge', async (req: Request, res: Response) => {
-  const token = req.header('x-aegis-token');
+  const token = req.header('x-cerniq-token');
   if (!token) {
-    return res.status(400).json({ error: 'missing X-AEGIS-Token header' });
+    return res.status(400).json({ error: 'missing X-CERNIQ-Token header' });
   }
   const body = req.body as ChargeBody;
   if (!isValidChargeBody(body)) {
@@ -47,8 +47,8 @@ app.post('/api/charge', async (req: Request, res: Response) => {
   // The SDK extracts the policyJwt + agentSignature from the token.
   // Action is domain-specific — the merchant says "this is a
   // commerce.purchase for $49 at MCC 5411 on acme-checkout.com" and
-  // AEGIS verifies the agent's signed policy permits that exact shape.
-  const verdict = await aegis.verify({
+  // CERNIQ verifies the agent's signed policy permits that exact shape.
+  const verdict = await cerniq.verify({
     token,
     action: { kind: 'commerce.purchase', payload: body },
     requestedAmount: body.amount.toFixed(2),
@@ -66,7 +66,7 @@ app.post('/api/charge', async (req: Request, res: Response) => {
     });
   }
 
-  // The merchant's own business logic. AEGIS does not call the PSP.
+  // The merchant's own business logic. CERNIQ does not call the PSP.
   const charge = await chargeCard({
     amount: body.amount,
     currency: body.currency,
@@ -113,8 +113,8 @@ function isValidChargeBody(b: unknown): b is ChargeBody {
 }
 
 // chargeCard is a pure stub. Wire it to your real PSP (Stripe, Adyen,
-// Worldpay, Lithic, etc.) — AEGIS has no opinion on which one. The
-// AEGIS verify gate runs upstream of this call.
+// Worldpay, Lithic, etc.) — CERNIQ has no opinion on which one. The
+// CERNIQ verify gate runs upstream of this call.
 async function chargeCard(req: {
   amount: number;
   currency: string;

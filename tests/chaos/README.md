@@ -1,4 +1,4 @@
-# AEGIS chaos drills
+# CERNIQ chaos drills
 
 Manual recipes for proving the API degrades gracefully when its
 dependencies (Postgres, Redis) misbehave.
@@ -16,7 +16,7 @@ brew install toxiproxy   # CLI client (mac)
 ```
 
 `docker-compose.yml` already brings up `postgres` and `redis`; for chaos
-drills we put toxiproxy *in front of* each, then aim the API at the
+drills we put toxiproxy _in front of_ each, then aim the API at the
 toxiproxy ports instead of the real ones.
 
 ## Drill 1 — Postgres latency
@@ -28,11 +28,11 @@ times out (cache miss + db hang).
 ```bash
 # 1. Start toxiproxy and route the API at it.
 docker run -d --name toxiproxy \
-  --network aegis_default -p 8474:8474 \
+  --network cerniq_default -p 8474:8474 \
   -p 25432:25432 ghcr.io/shopify/toxiproxy:2.9.0
 
 toxiproxy-cli create -l 0.0.0.0:25432 -u postgres:5432 pg
-DATABASE_URL=postgres://aegis:aegis@localhost:25432/aegis pnpm dev
+DATABASE_URL=postgres://cerniq:cerniq@localhost:25432/cerniq pnpm dev
 
 # 2. Inject 500 ms latency.
 toxiproxy-cli toxic add -t latency -a latency=500 pg
@@ -61,6 +61,7 @@ toxiproxy-cli toxic add -t timeout -a timeout=1 redis
 ```
 
 Expected:
+
 - `/health/ready` reports `redis: false` and overall `degraded`.
 - Verify endpoint either:
   - Returns 503 with `error: "service_unavailable"`, **or**
@@ -79,6 +80,7 @@ docker compose restart redis
 ```
 
 Expected:
+
 - All 100 succeed (or fail cleanly with documented denial reasons).
 - No 5xx responses.
 - Cache fills idempotently — no duplicate audit rows for the same jti.
@@ -86,6 +88,7 @@ Expected:
 ## Reporting
 
 Each drill should produce:
+
 - A k6 summary JSON (`k6 run --summary-export=…`).
 - A copy of API stdout/stderr filtered to the warn+error lines.
 - A short markdown writeup pasted into `docs/SESSION_HANDOFF.md` under

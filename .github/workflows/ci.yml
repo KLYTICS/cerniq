@@ -18,12 +18,12 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: aegis
-          POSTGRES_PASSWORD: aegis
-          POSTGRES_DB: aegis_test
+          POSTGRES_USER: cerniq
+          POSTGRES_PASSWORD: cerniq
+          POSTGRES_DB: cerniq_test
         ports: ['5432:5432']
         options: >-
-          --health-cmd "pg_isready -U aegis -d aegis_test"
+          --health-cmd "pg_isready -U cerniq -d cerniq_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -39,7 +39,7 @@ jobs:
 
     env:
       NODE_ENV: test
-      DATABASE_URL: postgresql://aegis:aegis@localhost:5432/aegis_test?schema=public
+      DATABASE_URL: postgresql://cerniq:cerniq@localhost:5432/cerniq_test?schema=public
       REDIS_URL: redis://localhost:6379
       API_KEY_BCRYPT_COST: '4'
 
@@ -58,24 +58,24 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma client
-        run: pnpm --filter @aegis/api prisma:generate
+        run: pnpm --filter @cerniq/api prisma:generate
 
       - name: Apply Prisma migrations
-        run: pnpm --filter @aegis/api prisma:deploy
+        run: pnpm --filter @cerniq/api prisma:deploy
 
-      - name: Build @aegis/types (consumer dependency for lint/typecheck)
-        # @aegis/types publishes dist/*.d.ts via package.json `types`/`main`,
+      - name: Build @cerniq/types (consumer dependency for lint/typecheck)
+        # @cerniq/types publishes dist/*.d.ts via package.json `types`/`main`,
         # and ~every workspace consumer (sdk-ts, cli, mcp-server, postman,
         # verifier-rp, api, dashboard, etc.) imports from it via package
         # name resolution. Without this build, lint and typecheck across
         # multiple workspaces fail with:
-        #   ERR_MODULE_NOT_FOUND: Cannot find module '.../@aegis/types/dist/index.js'
+        #   ERR_MODULE_NOT_FOUND: Cannot find module '.../@cerniq/types/dist/index.js'
         # The existing `Build` step at the end of this job produces these,
-        # but consumers need them earlier. Limiting scope to @aegis/types
+        # but consumers need them earlier. Limiting scope to @cerniq/types
         # (not all of packages/*) keeps this step fast and avoids coupling
         # to other packages' build health — building everything here would
         # turn unrelated package build failures into lint-step failures.
-        run: pnpm --filter @aegis/types build
+        run: pnpm --filter @cerniq/types build
 
       - name: Lint
         run: pnpm lint

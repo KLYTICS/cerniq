@@ -2,17 +2,17 @@ import { AgentClient, type HandshakeVerified } from './agent.js';
 import { signAgentToken, signHandshake } from './crypto.js';
 import { HttpClient } from './http.js';
 import { PolicyClient } from './policy.js';
-import type { AegisConfig, SignContext, VerifyResult } from './types.js';
+import type { CerniqConfig, SignContext, VerifyResult } from './types.js';
 
-const DEFAULT_BASE_URL = 'https://api.aegislabs.io';
+const DEFAULT_BASE_URL = 'https://api.cerniq.io';
 const DEFAULT_TIMEOUT_MS = 5_000;
 
-export class Aegis {
+export class Cerniq {
   readonly agents: AgentClient;
   readonly policies: PolicyClient;
   private readonly http: HttpClient;
 
-  constructor(config: AegisConfig = {}) {
+  constructor(config: CerniqConfig = {}) {
     this.http = new HttpClient({
       apiKey: config.apiKey,
       verifyKey: config.verifyKey,
@@ -29,7 +29,12 @@ export class Aegis {
    * Sign a per-request agent token. Convenience wrapper around the lower-level
    * `signAgentToken` so the most common flow is a single call.
    */
-  sign(privateKeyB64u: string, agentId: string, policyId: string, ctx: SignContext): Promise<string> {
+  sign(
+    privateKeyB64u: string,
+    agentId: string,
+    policyId: string,
+    ctx: SignContext,
+  ): Promise<string> {
     return signAgentToken(privateKeyB64u, agentId, policyId, ctx);
   }
 
@@ -74,18 +79,18 @@ export class Aegis {
 
 export { generateKeypair, signAgentToken, signHandshake, decodeUnsafe } from './crypto.js';
 export {
-  AegisError,
-  AegisAuthenticationError,
-  AegisAuthorizationError,
-  AegisNotFoundError,
-  AegisValidationError,
-  AegisConflictError,
-  AegisRateLimitedError,
-  AegisInternalError,
-  AegisServiceUnavailableError,
-  AegisNetworkError,
+  CerniqError,
+  CerniqAuthenticationError,
+  CerniqAuthorizationError,
+  CerniqNotFoundError,
+  CerniqValidationError,
+  CerniqConflictError,
+  CerniqRateLimitedError,
+  CerniqInternalError,
+  CerniqServiceUnavailableError,
+  CerniqNetworkError,
   fromEnvelope,
-  isAegisErrorRetryable,
+  isCerniqErrorRetryable,
   catalogEntryFor,
 } from './errors.js';
 export { withRetry, parseRetryAfter } from './http.js';

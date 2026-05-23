@@ -1,10 +1,10 @@
-// Wraps @aegis/audit-verifier so the CLI can produce `chain-verification.json`
+// Wraps @cerniq/audit-verifier so the CLI can produce `chain-verification.json`
 // — a small, auditor-readable summary that saves them the 30 minutes it takes
 // to install Node, the verifier, and run a stream walk themselves.
 //
 // We import the published API (`verifyChain`, `parseAuditNdjson`) verbatim
 // rather than reimplementing — every divergence between this file and the
-// reference verifier is a SEV-1 risk. If `@aegis/audit-verifier` is not yet
+// reference verifier is a SEV-1 risk. If `@cerniq/audit-verifier` is not yet
 // built (`dist/` missing), we surface that gap explicitly rather than
 // silently producing a "skipped" verdict — see CLAUDE.md invariant #4.
 
@@ -17,7 +17,7 @@ import {
   type AuditEventRow,
   type ChainReport,
   type JwksDocument,
-} from '@aegis/audit-verifier';
+} from '@cerniq/audit-verifier';
 
 import type { ChainVerificationFileShape } from './types.js';
 
@@ -32,13 +32,9 @@ function isJwksDocument(x: unknown): x is JwksDocument {
   return Array.isArray(keys);
 }
 
-export async function runChainVerification(
-  args: VerifyArgs,
-): Promise<ChainVerificationFileShape> {
+export async function runChainVerification(args: VerifyArgs): Promise<ChainVerificationFileShape> {
   if (!isJwksDocument(args.jwks)) {
-    throw new Error(
-      'verify-chain: JWKS document is missing the `keys` array — cannot verify',
-    );
+    throw new Error('verify-chain: JWKS document is missing the `keys` array — cannot verify');
   }
 
   const text = await readFile(args.ndjsonPath, 'utf8');
@@ -64,7 +60,7 @@ export async function runChainVerification(
     firstFailureAt: report.firstBreak ? report.firstBreak.eventId : null,
     firstFailureReason: report.firstBreak?.reason ?? null,
     durationMs: Math.round(durationMs),
-    verifierPackage: '@aegis/audit-verifier',
+    verifierPackage: '@cerniq/audit-verifier',
     verifierVersion: '0.1.0',
   };
 }
@@ -78,7 +74,7 @@ export function buildSkippedVerdict(): ChainVerificationFileShape {
     firstFailureAt: null,
     firstFailureReason: null,
     durationMs: 0,
-    verifierPackage: '@aegis/audit-verifier',
+    verifierPackage: '@cerniq/audit-verifier',
     verifierVersion: '0.1.0',
   };
 }

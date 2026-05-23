@@ -1,4 +1,4 @@
-# AEGIS - Claude operating contract
+# CERNIQ - Claude operating contract
 
 Last audited: 2026-05-08
 
@@ -7,10 +7,10 @@ policy, billing, audit, SDK, dashboard, and edge platform. Treat it like
 public-company infrastructure: every change needs a clear owner, a small blast
 radius, typed contracts, auditable behavior, and verification evidence.
 
-## What AEGIS is
+## What CERNIQ is
 
-AEGIS is the neutral verification, policy enforcement, and behavioral
-attestation layer between AI agents and the services they act on. AEGIS holds
+CERNIQ is the neutral verification, policy enforcement, and behavioral
+attestation layer between AI agents and the services they act on. CERNIQ holds
 only public keys, signs only what it observed, and remains protocol-, vendor-,
 and model-neutral. The canonical product and architecture references are:
 
@@ -51,7 +51,7 @@ Before editing a scoped path, read its local `CLAUDE.md` after this file.
 ## File layout cheatsheet
 
 ```text
-aegis/
+cerniq/
 |-- apps/
 |   |-- api/                    NestJS control plane and origin verify path
 |   `-- dashboard/              Next.js operator/developer dashboard
@@ -61,7 +61,7 @@ aegis/
 |   |-- sdk-py/                 public Python SDK
 |   |-- cli/                    operator CLI
 |   |-- verifier-rp/            relying-party offline verifier
-|   |-- mcp-server/             AEGIS MCP server
+|   |-- mcp-server/             CERNIQ MCP server
 |   `-- mcp-bridge/             MCP verification middleware
 |-- workers/cf-verify/          Cloudflare verify edge
 |-- tests/                      e2e, parity, load, and chaos coverage
@@ -75,7 +75,7 @@ aegis/
 
 ## Architecture invariants (non-negotiable)
 
-1. Private keys never enter AEGIS. Client SDKs may generate and hold private
+1. Private keys never enter CERNIQ. Client SDKs may generate and hold private
    keys locally; the API and database store public keys only.
 2. The `/v1/verify` hot path must remain portable. Decision logic that touches
    signatures, policies, spend, trust scores, or denial precedence belongs in
@@ -108,7 +108,7 @@ older summary docs. As of the newest reviewed sessions:
 - The conversion loop is live: pricing CTA to login return preservation to
   billing auto-checkout to Stripe upgrade to continued verify.
 - `/.well-known/pricing.json` is the canonical public pricing mirror; dashboard
-  pricing SSR-fetches it through `AEGIS_API_BASE_URL` with an explicit build-time
+  pricing SSR-fetches it through `CERNIQ_API_BASE_URL` with an explicit build-time
   fallback and parity coverage.
 - Safe redirect helpers protect `/login` return paths and checkout intent. Do
   not bypass them with ad hoc URL handling.
@@ -157,13 +157,13 @@ older summary docs. As of the newest reviewed sessions:
 1. Open `WORK_BOARD.md`.
 2. Pick a module marked `STATUS: open` or coordinate with the current holder.
 3. Run
-   `~/.claude/peers/bin/claude-peers claim aegis <module-id> --note "<what you will do>" --ttl 7200`.
+   `~/.claude/peers/bin/claude-peers claim cerniq <module-id> --note "<what you will do>" --ttl 7200`.
 4. Update `WORK_BOARD.md` with the claim, session id, and date.
 5. Stay inside the claimed path set. If you must cross scopes, message the
    holder before editing.
 6. When meaningful work lands, append a concise newest-first entry to
    `docs/SESSION_HANDOFF.md`.
-7. Release with `~/.claude/peers/bin/claude-peers release aegis:<module-id>`.
+7. Release with `~/.claude/peers/bin/claude-peers release cerniq:<module-id>`.
 
 ## Operator decisions still pending
 
@@ -176,33 +176,33 @@ only with the documented placeholder behavior.
    `docs/spec/04_COMMERCIAL_STRATEGY.md`,
    `docs/decisions/0014-pricing-and-free-trial.md`, and
    `OPERATOR_DECISIONS.md`.
-4. Dashboard production and preview environments need `AEGIS_API_BASE_URL` so
+4. Dashboard production and preview environments need `CERNIQ_API_BASE_URL` so
    pricing renders from the live discovery endpoint instead of fallback.
 5. Auth0 v4 SDK install and real provider configuration are required before the
    dashboard login receiver is live.
 6. Provider-backed KMS, Stripe price IDs, Stripe metered-price configuration,
-   `sales@aegislabs.io`, and deploy actions that require real credentials or
+   `sales@cerniq.io`, and deploy actions that require real credentials or
    console changes remain operator-owned.
 
 ## Verification commands
 
 Use the narrowest command that proves the change, then expand as needed.
 
-| Purpose                   | Command                                              |
-| ------------------------- | ---------------------------------------------------- |
-| Full local gate           | `pnpm check`                                         |
-| Typecheck all workspaces  | `pnpm typecheck`                                     |
-| Lint all workspaces       | `pnpm lint`                                          |
-| Unit tests all workspaces | `pnpm test`                                          |
-| API typecheck             | `pnpm --filter @aegis/api typecheck`                 |
-| API unit tests            | `pnpm --filter @aegis/api test -- --passWithNoTests` |
-| Dashboard typecheck       | `pnpm --filter @aegis/dashboard typecheck`           |
-| Cross-package parity      | `pnpm test:parity`                                   |
-| OpenAPI/Zod parity        | `pnpm check:openapi-zod`                             |
-| OpenAPI/Prisma parity     | `pnpm check:openapi-prisma`                          |
-| Migration immutability    | `pnpm check:migrations`                              |
-| Doctor                    | `pnpm doctor`                                        |
-| Full doctor               | `pnpm doctor:full`                                   |
+| Purpose                   | Command                                               |
+| ------------------------- | ----------------------------------------------------- |
+| Full local gate           | `pnpm check`                                          |
+| Typecheck all workspaces  | `pnpm typecheck`                                      |
+| Lint all workspaces       | `pnpm lint`                                           |
+| Unit tests all workspaces | `pnpm test`                                           |
+| API typecheck             | `pnpm --filter @cerniq/api typecheck`                 |
+| API unit tests            | `pnpm --filter @cerniq/api test -- --passWithNoTests` |
+| Dashboard typecheck       | `pnpm --filter @cerniq/dashboard typecheck`           |
+| Cross-package parity      | `pnpm test:parity`                                    |
+| OpenAPI/Zod parity        | `pnpm check:openapi-zod`                              |
+| OpenAPI/Prisma parity     | `pnpm check:openapi-prisma`                           |
+| Migration immutability    | `pnpm check:migrations`                               |
+| Doctor                    | `pnpm doctor`                                         |
+| Full doctor               | `pnpm doctor:full`                                    |
 
 If a command cannot run because required services or secrets are missing, state
 that clearly and run the closest offline check.

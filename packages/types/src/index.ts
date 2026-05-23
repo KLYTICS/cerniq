@@ -1,7 +1,7 @@
-// Public surface of @aegis/types — re-exports schemas and inferred types so
+// Public surface of @cerniq/types — re-exports schemas and inferred types so
 // consumers can import from a single entry point.
 //
-// Stability: every schema in `./schemas` is part of the public AEGIS API
+// Stability: every schema in `./schemas` is part of the public CERNIQ API
 // contract. Breaking changes require a coordinated SDK version bump and a
 // `BREAKING` entry in CHANGELOG.
 

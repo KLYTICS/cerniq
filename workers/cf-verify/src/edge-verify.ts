@@ -14,12 +14,12 @@
 //   - signature failure → DENY at edge (INVALID_SIGNATURE) WITHOUT origin
 //     fallback (this is unambiguous and we want the latency win)
 //   - scope mismatch
-//   - DPoP required but absent (when AEGIS_DPOP_REQUIRED env is set)
+//   - DPoP required but absent (when CERNIQ_DPOP_REQUIRED env is set)
 // we forward to origin so it can update spend windows and BATE signals.
 //
 // Denial precedence (ADR-0004) is preserved bit-for-bit.
 
-import type { VerifyRequest, VerifyResponse } from '@aegis/types';
+import type { VerifyRequest, VerifyResponse } from '@cerniq/types';
 
 import type { CachedPolicy, KvCache } from './kv-cache';
 import { decodeUnsafe, verifyEd25519, type AgentTokenClaims } from './token';
@@ -35,10 +35,7 @@ export interface EdgeVerifyResult {
 
 const VERIFY_TTL_SECONDS = 30;
 
-export async function edgeVerify(
-  body: VerifyRequest,
-  cache: KvCache,
-): Promise<EdgeVerifyResult> {
+export async function edgeVerify(body: VerifyRequest, cache: KvCache): Promise<EdgeVerifyResult> {
   const { token } = body;
   if (typeof token !== 'string' || token.length === 0) {
     return { outcome: 'decided', response: deny('INVALID_SIGNATURE', null, null, 0, null) };
@@ -59,26 +56,56 @@ export async function edgeVerify(
   const [agent, policy] = await Promise.all([cache.getAgent(agentId), cache.getPolicy(policyId)]);
   if (!agent || !policy) return { outcome: 'forward' };
   if (agent.status === 'REVOKED') {
-    return { outcome: 'decided', response: deny('AGENT_REVOKED', agent.id, agent.principalId, agent.trustScore, agent.trustBand) };
+    return {
+      outcome: 'decided',
+      response: deny(
+        'AGENT_REVOKED',
+        agent.id,
+        agent.principalId,
+        agent.trustScore,
+        agent.trustBand,
+      ),
+    };
   }
   if (agent.status === 'SUSPENDED') {
     return { outcome: 'forward' }; // Origin handles SUSPENDED nuance.
   }
   if (policy.status !== 'ACTIVE' || policy.expiresAtMs <= Date.now()) {
     const reason = policy.status === 'REVOKED' ? 'POLICY_REVOKED' : 'POLICY_EXPIRED';
-    return { outcome: 'decided', response: deny(reason, agent.id, agent.principalId, agent.trustScore, agent.trustBand) };
+    return {
+      outcome: 'decided',
+      response: deny(reason, agent.id, agent.principalId, agent.trustScore, agent.trustBand),
+    };
   }
 
   // Signature verify with the cached pubkey.
   const sigOk = await verifyEd25519(agent.publicKey, decoded.signingInput, decoded.signature);
   if (!sigOk) {
-    return { outcome: 'decided', response: deny('INVALID_SIGNATURE', agent.id, agent.principalId, agent.trustScore, agent.trustBand) };
+    return {
+      outcome: 'decided',
+      response: deny(
+        'INVALID_SIGNATURE',
+        agent.id,
+        agent.principalId,
+        agent.trustScore,
+        agent.trustBand,
+      ),
+    };
   }
 
   // Scope match.
   const scopeMatch = matchScope(policy.scopes, decoded.claims, body);
   if (!scopeMatch.matched) {
-    return { outcome: 'decided', response: deny('SCOPE_NOT_GRANTED', agent.id, agent.principalId, agent.trustScore, agent.trustBand) };
+    return {
+      outcome: 'decided',
+      response: deny(
+        'SCOPE_NOT_GRANTED',
+        agent.id,
+        agent.principalId,
+        agent.trustScore,
+        agent.trustBand,
+      ),
+    };
   }
 
   // Spend gate (per_day window only — per_request is intrinsically bounded
@@ -92,7 +119,16 @@ export async function edgeVerify(
       const dayUtc = new Date().toISOString().slice(0, 10);
       const already = await cache.getDaySpend(agent.id, policy.id, body.currency, dayUtc);
       if (requested + already > limit) {
-        return { outcome: 'decided', response: deny('SPEND_LIMIT_EXCEEDED', agent.id, agent.principalId, agent.trustScore, agent.trustBand) };
+        return {
+          outcome: 'decided',
+          response: deny(
+            'SPEND_LIMIT_EXCEEDED',
+            agent.id,
+            agent.principalId,
+            agent.trustScore,
+            agent.trustBand,
+          ),
+        };
       }
     } else {
       // Couldn't parse — let origin resolve.
@@ -105,7 +141,16 @@ export async function edgeVerify(
 
   // Trust band — cached value is good enough; origin re-evaluates BATE.
   if (agent.trustBand === 'FLAGGED') {
-    return { outcome: 'decided', response: deny('TRUST_SCORE_TOO_LOW', agent.id, agent.principalId, agent.trustScore, agent.trustBand) };
+    return {
+      outcome: 'decided',
+      response: deny(
+        'TRUST_SCORE_TOO_LOW',
+        agent.id,
+        agent.principalId,
+        agent.trustScore,
+        agent.trustBand,
+      ),
+    };
   }
 
   return {

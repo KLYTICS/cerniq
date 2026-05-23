@@ -4,13 +4,14 @@
 
 - **Names**: `AuditChainAppendFailureRate` (critical),
   `AuditAppendStalled` (critical)
-- **Group**: `aegis.audit`
-- **File**: `infra/observability/alerts/aegis.rules.yml`
+- **Group**: `cerniq.audit`
+- **File**: `infra/observability/alerts/cerniq.rules.yml`
 
 ## Symptom
 
 Either:
-1. `aegis_audit_append_total{result="error"}` is incrementing at
+
+1. `cerniq_audit_append_total{result="error"}` is incrementing at
    > 0.01/s for 5 min — appends are throwing.
 2. Or: verify traffic is flowing but audit appends have been zero
    for 10 min — appends are silently not happening.
@@ -39,9 +40,9 @@ There is no "minor" version of this alert. Treat every firing as P0.
 1. **Confirm the alert is current.**
 
    ```promql
-   sum(rate(aegis_audit_append_total{result="error"}[5m]))
-   sum(rate(aegis_audit_append_total[5m]))
-   sum(rate(aegis_verify_total[5m]))
+   sum(rate(cerniq_audit_append_total{result="error"}[5m]))
+   sum(rate(cerniq_audit_append_total[5m]))
+   sum(rate(cerniq_verify_total[5m]))
    ```
 
    Compare verify rate to audit append rate. They should be ~equal
@@ -50,8 +51,8 @@ There is no "minor" version of this alert. Treat every firing as P0.
 2. **Pull recent error logs from `AuditService`.**
 
    ```bash
-   railway logs -s aegis-api | rg -F 'audit.service' | tail -50
-   railway logs -s aegis-api | rg -iF 'audit append failed|chain break|signature' | tail -50
+   railway logs -s cerniq-api | rg -F 'audit.service' | tail -50
+   railway logs -s cerniq-api | rg -iF 'audit append failed|chain break|signature' | tail -50
    ```
 
    Common error signatures:
@@ -66,7 +67,7 @@ There is no "minor" version of this alert. Treat every firing as P0.
 3. **Inspect the most recent audit rows directly.**
 
    ```bash
-   railway run -s aegis-api -- psql "$DATABASE_URL" -c "SELECT id, \"createdAt\", \"eventType\", LENGTH(\"prevSig\") AS prev_len, LENGTH(signature) AS sig_len FROM \"AuditEvent\" ORDER BY \"createdAt\" DESC LIMIT 10;"
+   railway run -s cerniq-api -- psql "$DATABASE_URL" -c "SELECT id, \"createdAt\", \"eventType\", LENGTH(\"prevSig\") AS prev_len, LENGTH(signature) AS sig_len FROM \"AuditEvent\" ORDER BY \"createdAt\" DESC LIMIT 10;"
    ```
 
    `prev_len` and `sig_len` should be constant (Ed25519 sig = 64 bytes
@@ -76,14 +77,14 @@ There is no "minor" version of this alert. Treat every firing as P0.
 4. **Confirm the signing key is loaded.**
 
    ```bash
-   railway run -s aegis-api -- node -e 'console.log(!!process.env.AEGIS_SIGNING_PRIVATE_KEY_B64, (process.env.AEGIS_SIGNING_PRIVATE_KEY_B64 || "").length)'
+   railway run -s cerniq-api -- node -e 'console.log(!!process.env.CERNIQ_SIGNING_PRIVATE_KEY_B64, (process.env.CERNIQ_SIGNING_PRIVATE_KEY_B64 || "").length)'
    ```
 
    Empty/short → secret is missing. Cross-check against the
    `/.well-known/audit-signing-key` endpoint:
 
    ```bash
-   curl -fsSL https://api.aegislabs.io/.well-known/audit-signing-key | jq
+   curl -fsSL https://api.cerniq.io/.well-known/audit-signing-key | jq
    ```
 
    The `kid` in the JWKS must match the kid the API process computes
@@ -92,7 +93,7 @@ There is no "minor" version of this alert. Treat every firing as P0.
 5. **Check Postgres write health.**
 
    ```bash
-   railway run -s aegis-postgres -- psql -c "SELECT count(*) FROM pg_stat_activity WHERE state='active' AND query LIKE '%AuditEvent%';"
+   railway run -s cerniq-postgres -- psql -c "SELECT count(*) FROM pg_stat_activity WHERE state='active' AND query LIKE '%AuditEvent%';"
    ```
 
    Long-running blockers → `pg_terminate_backend(<pid>)`.
@@ -102,7 +103,7 @@ There is no "minor" version of this alert. Treat every firing as P0.
 **Stop new appends from getting lost first; fix the chain after.**
 
 - **Signing key missing/wrong**: restore the key via Railway env vars
-  (`AEGIS_SIGNING_PRIVATE_KEY_B64`); restart the service. The
+  (`CERNIQ_SIGNING_PRIVATE_KEY_B64`); restart the service. The
   `wellknown` module throws at module init if missing, so a missing
   key means the service shouldn't be running — confirm uptime.
 - **Postgres write failure**: failover via Railway dashboard if the
@@ -117,7 +118,7 @@ There is no "minor" version of this alert. Treat every firing as P0.
 - **Append-stalled with no errors** (the silent variant): take a heap
   snapshot of the API process — likely a hung BullMQ queue. Restart
   the API replicas one at a time:
-  `railway service restart -s aegis-api`.
+  `railway service restart -s cerniq-api`.
 
 ## Eradicate
 
@@ -146,8 +147,8 @@ There is no "minor" version of this alert. Treat every firing as P0.
 
 ```promql
 # Append rate must be > 0 and error rate must be 0
-sum(rate(aegis_audit_append_total{result="ok"}[5m])) > 0
-sum(rate(aegis_audit_append_total{result="error"}[5m])) == 0
+sum(rate(cerniq_audit_append_total{result="ok"}[5m])) > 0
+sum(rate(cerniq_audit_append_total{result="error"}[5m])) == 0
 ```
 
 Both must hold for 15 min before declaring recovery. Additionally,

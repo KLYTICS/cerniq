@@ -1,6 +1,6 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
-  "_comment": "AEGIS Redis service descriptor. Used for: (1) cache of agent + policy + trust-score reads, (2) BullMQ queues (BATE, webhook delivery, audit-pending DLQ), (3) atomic spend counters (INCRBY).",
+  "_comment": "CERNIQ Redis service descriptor. Used for: (1) cache of agent + policy + trust-score reads, (2) BullMQ queues (BATE, webhook delivery, audit-pending DLQ), (3) atomic spend counters (INCRBY).",
   "_planTier": "Railway Redis Hobby tier (256 MB) is enough until cache + queue depth crosses ~150 MB. Upsize before that — eviction under cache pressure forces extra Postgres reads on the verify hot path and blows the latency SLO.",
   "_region": "us-east — must match API + worker.",
   "image": "redis:7-alpine",
@@ -12,7 +12,7 @@
   "regions": ["us-east"],
   "volumes": [
     {
-      "name": "aegis-redis-data",
+      "name": "cerniq-redis-data",
       "mountPath": "/data",
       "_sizeNote": "1 GB. AOF + RDB combined under maxmemory; the volume is for durability, not capacity."
     }
@@ -22,8 +22,17 @@
     "command": ["redis-server", "/usr/local/etc/redis/redis.conf"]
   },
   "envVars": [
-    { "key": "REDIS_PASSWORD", "secret": true, "_provision": "Railway generates on plugin creation, or roll your own with `openssl rand -base64 32`. Must be referenced by `requirepass` in redis.conf — Railway's plugin templates this automatically; if you self-host, edit redis.conf to substitute the value at deploy time." },
-    { "key": "REDIS_MAXMEMORY", "value": "200mb", "secret": false, "_note": "Leave headroom under the plan's hard limit. allkeys-lru eviction (set in redis.conf) keeps cache hot; queue keys use namespaced TTLs so they're not victims of generic LRU pressure." }
+    {
+      "key": "REDIS_PASSWORD",
+      "secret": true,
+      "_provision": "Railway generates on plugin creation, or roll your own with `openssl rand -base64 32`. Must be referenced by `requirepass` in redis.conf — Railway's plugin templates this automatically; if you self-host, edit redis.conf to substitute the value at deploy time."
+    },
+    {
+      "key": "REDIS_MAXMEMORY",
+      "value": "200mb",
+      "secret": false,
+      "_note": "Leave headroom under the plan's hard limit. allkeys-lru eviction (set in redis.conf) keeps cache hot; queue keys use namespaced TTLs so they're not victims of generic LRU pressure."
+    }
   ],
   "_security": {
     "tls": "Recommended: enable TLS via `tls-port` once we move off the Railway plugin's internal-only network. Internal traffic on Railway is not routed over the public internet, so plain TCP is acceptable pre-launch.",

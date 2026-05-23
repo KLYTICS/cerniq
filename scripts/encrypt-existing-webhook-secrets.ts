@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --import=tsx
 /**
- * AEGIS — one-shot bulk-encryptor for legacy plaintext webhook secrets.
+ * CERNIQ — one-shot bulk-encryptor for legacy plaintext webhook secrets.
  *
  * Round 12 shipped envelope encryption for `WebhookSubscription.secret`
  * (see `apps/api/src/common/crypto/webhook-secret-cipher.ts`). New rows
@@ -16,14 +16,14 @@
  *
  * Usage (operator-facing, runbook-grade):
  *
- *   pnpm --filter @aegis/scripts encrypt-webhook-secrets -- --dry-run
- *   pnpm --filter @aegis/scripts encrypt-webhook-secrets
+ *   pnpm --filter @cerniq/scripts encrypt-webhook-secrets -- --dry-run
+ *   pnpm --filter @cerniq/scripts encrypt-webhook-secrets
  *
  * Exit codes:
  *   0  success, every row either skipped (already-encrypted) or migrated
  *   1  some rows failed; partial progress was committed (see stdout JSON)
  *   2  CLI usage error
- *   3  config error (missing AEGIS_WEBHOOK_SECRET_DEK_B64)
+ *   3  config error (missing CERNIQ_WEBHOOK_SECRET_DEK_B64)
  *
  * Final stdout line is structured JSON for CI grep:
  *   { ok, total, alreadyEncrypted, encrypted, failed, durationMs, dryRun }
@@ -37,7 +37,7 @@ import { PrismaClient } from '@prisma/client';
 // Cross-package access to the canonical WebhookSecretCipher in apps/api.
 // We load it via a runtime dynamic import because scripts/tsconfig.json
 // pins `rootDir: "."`, so a static import would trip TS6059 not just on
-// the cipher itself but on every transitive file (aegis-error,
+// the cipher itself but on every transitive file (cerniq-error,
 // config.service, config.schema). Dynamic specifiers escape rootDir
 // analysis; tsx resolves the path at runtime exactly the same way.
 //
@@ -271,9 +271,7 @@ async function main(): Promise<void> {
         return n;
       }),
     )
-    .addOption(
-      new Option('--principal-id <id>', 'restrict to one tenant (incident-response use)'),
-    );
+    .addOption(new Option('--principal-id <id>', 'restrict to one tenant (incident-response use)'));
 
   try {
     program.parse(argv);
@@ -284,11 +282,11 @@ async function main(): Promise<void> {
 
   const opts = program.opts<CliOpts>();
 
-  const dekB64 = env.AEGIS_WEBHOOK_SECRET_DEK_B64;
+  const dekB64 = env.CERNIQ_WEBHOOK_SECRET_DEK_B64;
   if (!dekB64 || dekB64.length === 0) {
     stderr.write(
-      'AEGIS_WEBHOOK_SECRET_DEK_B64 is required. Generate with:\n' +
-        '  node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"\n',
+      'CERNIQ_WEBHOOK_SECRET_DEK_B64 is required. Generate with:\n' +
+        "  node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"\n",
     );
     exit(3);
   }

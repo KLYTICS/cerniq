@@ -5,8 +5,8 @@
 import type { Metadata } from 'next';
 
 import {
-  AegisApiError,
-  AegisAuthMissingError,
+  CerniqApiError,
+  CerniqAuthMissingError,
   listWebhooks,
   type WebhookSubscriptionRow,
 } from '../../lib/api-client';
@@ -17,7 +17,7 @@ import { SubscribeForm } from './components/SubscribeForm';
 import { UnsubscribeButton } from './components/UnsubscribeButton';
 
 export const metadata: Metadata = {
-  title: 'Webhooks · AEGIS',
+  title: 'Webhooks · CERNIQ',
 };
 
 interface Outcome {
@@ -29,13 +29,15 @@ async function safeListWebhooks(): Promise<Outcome> {
   try {
     return { rows: await listWebhooks() };
   } catch (err) {
-    if (err instanceof AegisAuthMissingError) {
-      return { error: { code: err.code, message: 'Set AEGIS_DASHBOARD_API_KEY to populate this view.' } };
+    if (err instanceof CerniqAuthMissingError) {
+      return {
+        error: { code: err.code, message: 'Set CERNIQ_DASHBOARD_API_KEY to populate this view.' },
+      };
     }
-    if (err instanceof AegisApiError) {
+    if (err instanceof CerniqApiError) {
       return { error: { code: err.code, message: err.message } };
     }
-    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting AEGIS API.' } };
+    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting CERNIQ API.' } };
   }
 }
 
@@ -43,18 +45,17 @@ export default async function WebhooksPage() {
   const outcome = await safeListWebhooks();
 
   return (
-    <section className="aegis-page">
-      <header className="aegis-page-header">
-        <div className="aegis-page-header-row">
+    <section className="cerniq-page">
+      <header className="cerniq-page-header">
+        <div className="cerniq-page-header-row">
           <div>
             <h1>Webhooks</h1>
             <p className="muted">
-              HTTPS callback URLs that receive AEGIS events (
-              <code>aegis.agent.trust_score_changed</code>,{' '}
-              <code>aegis.agent.revoked</code>, <code>aegis.policy.expired</code>,{' '}
-              <code>aegis.anomaly.detected</code>). Each delivery is signed with
-              HMAC-SHA256 — verify <code>X-Aegis-Signature</code> on every inbound
-              request.
+              HTTPS callback URLs that receive CERNIQ events (
+              <code>cerniq.agent.trust_score_changed</code>, <code>cerniq.agent.revoked</code>,{' '}
+              <code>cerniq.policy.expired</code>, <code>cerniq.anomaly.detected</code>). Each
+              delivery is signed with HMAC-SHA256 — verify <code>X-Cerniq-Signature</code> on every
+              inbound request.
             </p>
           </div>
           {authConfigured() ? <SubscribeForm /> : null}
@@ -64,7 +65,7 @@ export default async function WebhooksPage() {
       {!authConfigured() ? (
         <div className="data-empty">
           <p>
-            Set <code>AEGIS_DASHBOARD_API_KEY</code> to populate this view.
+            Set <code>CERNIQ_DASHBOARD_API_KEY</code> to populate this view.
           </p>
         </div>
       ) : outcome.error ? (
@@ -92,10 +93,7 @@ function Body({ rows }: { rows: WebhookSubscriptionRow[] }) {
           value={fmtNum(rows.length - active)}
           tone={rows.length - active > 0 ? 'warn' : 'muted'}
         />
-        <Metric
-          label="event types subscribed"
-          value={fmtNum(uniqueEventCount(rows))}
-        />
+        <Metric label="event types subscribed" value={fmtNum(uniqueEventCount(rows))} />
         <Metric label="—" value="—" tone="muted" />
       </dl>
 
@@ -103,9 +101,9 @@ function Body({ rows }: { rows: WebhookSubscriptionRow[] }) {
         <div className="data-empty">
           <p>No webhook subscriptions registered.</p>
           <span className="hint">
-            Subscribe a URL above. AEGIS sends an HMAC-signed POST on every matching event;
-            verify the <code>X-Aegis-Signature</code> header against the secret returned at
-            subscription time.
+            Subscribe a URL above. CERNIQ sends an HMAC-signed POST on every matching event; verify
+            the <code>X-Cerniq-Signature</code> header against the secret returned at subscription
+            time.
           </span>
         </div>
       ) : (

@@ -52,7 +52,7 @@ export interface PublicTier {
 }
 
 /** Email used for Enterprise "Contact us" mailto. */
-export const SALES_EMAIL = 'sales@aegislabs.io';
+export const SALES_EMAIL = 'sales@cerniq.io';
 
 export const PRICING_TIERS: readonly PublicTier[] = Object.freeze([
   {
@@ -129,7 +129,7 @@ export const PRICING_TIERS: readonly PublicTier[] = Object.freeze([
     webhooks: true,
     sla: 'Custom',
     ctaLabel: 'Contact us',
-    ctaHref: `mailto:${SALES_EMAIL}?subject=AEGIS%20Enterprise%20inquiry`,
+    ctaHref: `mailto:${SALES_EMAIL}?subject=CERNIQ%20Enterprise%20inquiry`,
   },
 ]);
 

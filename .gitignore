@@ -46,10 +46,29 @@ apps/api/prisma/migrations/dev.db*
 tmp/
 *.local
 
+# Claude Code agent workspace (per-machine, contains worktree state + session settings)
+.claude/
+
+# Consolidation archives (snapshots backed up to KLYTICS/cerniq-*-archive repos)
+_archive/
+
 # Dev seed artifacts (scripts/seed-dev.ts) — both copies of the agent
 # private key. NEVER commit; rotate via `pnpm seed:dev -- --reset`.
+# Both names tracked: `.cerniq-dev-key.txt` is the post-rename canonical
+# name; `.aegis-dev-key.txt` is the legacy name still present on
+# developer machines that pre-date the 2026-05-22 rename.
+.cerniq-dev-key.txt
 .aegis-dev-key.txt
 .local/keys/
+
+# Backup files from local editors and diff workflows
+*.orig
+*.bak
+
+# LibreOffice / Excel lock files. Tracking them caused
+# `docs/finance/.~lock.AEGIS_Financial_Model_v1.xlsx#` to be
+# committed accidentally on 2026-05-22.
+.~lock.*#
 
 # Local test result artifacts — bring-up captures, k6 output, e2e traces.
 # Often contain rotating API keys / token material; never commit.

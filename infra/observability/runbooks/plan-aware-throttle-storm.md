@@ -4,15 +4,16 @@
 
 - **Names**: `PlanAwareThrottle429SpikeFree` (warning),
   `PlanAwareThrottlePrincipalIdMissing` (critical),
-  `PlanAwareThrottleEnterpriseLeak` (warning) — *not yet emitted;
-  flip on metric land per round 15 backlog*.
-- **Group**: `aegis.throttle`
-- **File**: `infra/observability/alerts/aegis.rules.yml`
+  `PlanAwareThrottleEnterpriseLeak` (warning) — _not yet emitted;
+  flip on metric land per round 15 backlog_.
+- **Group**: `cerniq.throttle`
+- **File**: `infra/observability/alerts/cerniq.rules.yml`
 - **Source**: round-15 throttle surface — `apps/api/src/common/throttle/plan-aware-throttler.guard.ts`, plan tier registry in `billing/plans.ts`.
 
 ## Symptom
 
 One or more of:
+
 1. `http_requests_total{status="429", path="/v1/verify"}` rate > 5/s sustained for 5 min on FREE-tier principals (abuse, expected) OR on paid-tier principals (mis-classified — bug).
 2. The 429 response body's `details.planTier` is `null` or doesn't match `Principal.planTier` in DB (plan-cache drift).
 3. ENTERPRISE principal hitting 429 (the guard short-circuits ENTERPRISE — if 429s are firing, the short-circuit failed).
@@ -40,7 +41,7 @@ One or more of:
 
    ```bash
    # The 429 envelope echoes `details.planTier` — capture a sample.
-   railway logs -s aegis-api | rg -F 'rate_limit_exceeded' | tail -5
+   railway logs -s cerniq-api | rg -F 'rate_limit_exceeded' | tail -5
    ```
 
    Compare `details.planTier` to the principal's actual `planTier`:
@@ -51,19 +52,19 @@ One or more of:
    WHERE id = '<id from the 429 sample>';
    ```
 
-   Mismatch → plan-cache stale. The cache lives in Redis at `aegis:plan:<principalId>` with 5-min TTL.
+   Mismatch → plan-cache stale. The cache lives in Redis at `cerniq:plan:<principalId>` with 5-min TTL.
 
 3. **Inspect the plan cache.**
 
    ```bash
-   railway run -s aegis-redis -- redis-cli GET "aegis:plan:<principalId>"
-   railway run -s aegis-redis -- redis-cli TTL "aegis:plan:<principalId>"
+   railway run -s cerniq-redis -- redis-cli GET "cerniq:plan:<principalId>"
+   railway run -s cerniq-redis -- redis-cli TTL "cerniq:plan:<principalId>"
    ```
 
    If the cached value disagrees with DB, force-invalidate:
 
    ```bash
-   railway run -s aegis-redis -- redis-cli DEL "aegis:plan:<principalId>"
+   railway run -s cerniq-redis -- redis-cli DEL "cerniq:plan:<principalId>"
    ```
 
    Round 15 design: `usageGuard.invalidatePlanCache(principalId)` is called from the Stripe checkout webhook handler. Manual upgrades via DB will need explicit invalidation.
@@ -71,7 +72,7 @@ One or more of:
 4. **Check the principal-id tracker logic.**
 
    ```bash
-   railway logs -s aegis-api | rg -F 'plan-aware-throttler' | tail -20
+   railway logs -s cerniq-api | rg -F 'plan-aware-throttler' | tail -20
    ```
 
    The guard's `getTracker()` should return `principal:<id>` for authenticated requests; `ip:<ip>` for anonymous. If you see `ip:` for requests that should have `principal:`, the auth guard isn't populating `req.principal` before throttle eval.
@@ -81,14 +82,14 @@ One or more of:
    The round-15 design encodes the tier into the bucket key: `principal:<id>|<tier>`. So when a tier upgrades, the new tier's bucket is fresh (no carry-over of FREE-tier denials). Check the Redis throttle keyspace:
 
    ```bash
-   railway run -s aegis-redis -- redis-cli --scan --pattern 'throttle:principal:<id>*'
+   railway run -s cerniq-redis -- redis-cli --scan --pattern 'throttle:principal:<id>*'
    ```
 
 ## Mitigate
 
 - **Plan cache stale → wrong tier limit applied**: invalidate the cache key for the affected principals. Document the manual-upgrade path that bypassed `invalidatePlanCache` and ensure future paths call it.
 
-- **Principal-id missing → IP fallback throttling NAT-shared customers**: this is a security/auth bug, not a throttle bug. Confirm the auth guard ordering in `apps/api/src/modules/auth/auth.module.ts` — `ApiKeyGuard` must run before `PlanAwareThrottlerGuard`. Quick mitigation: temporarily lift FREE-tier limit (env var or plans.ts patch) until the root cause is fixed; long-term, add a metric `aegis_throttle_principal_missing_total` and alert on it.
+- **Principal-id missing → IP fallback throttling NAT-shared customers**: this is a security/auth bug, not a throttle bug. Confirm the auth guard ordering in `apps/api/src/modules/auth/auth.module.ts` — `ApiKeyGuard` must run before `PlanAwareThrottlerGuard`. Quick mitigation: temporarily lift FREE-tier limit (env var or plans.ts patch) until the root cause is fixed; long-term, add a metric `cerniq_throttle_principal_missing_total` and alert on it.
 
 - **ENTERPRISE seeing 429**: the short-circuit in `handleRequest` should detect ENTERPRISE before any Redis call. If it isn't, suspect:
   - The principal's `planTier` was downgraded in DB without anyone realizing (check audit log for `principal.tier_changed` events).
@@ -113,7 +114,7 @@ One or more of:
 # 429 rate on paid tiers must be 0 for 15 min.
 sum(rate(http_requests_total{status="429", path="/v1/verify", planTier=~"DEVELOPER|TEAM|SCALE|ENTERPRISE"}[5m])) == 0
 # Tracker miss rate must be 0 for 15 min (every authenticated request gets principal-id).
-sum(rate(aegis_throttle_principal_missing_total[5m])) == 0
+sum(rate(cerniq_throttle_principal_missing_total[5m])) == 0
 ```
 
 ## Escalate

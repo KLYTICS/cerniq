@@ -1,7 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, it, vi } from 'vitest';
 
-import { AegisVerifier } from '../../src/verifier.js';
+import { CerniqVerifier } from '../../src/verifier.js';
 import { generateKeypair, signTestToken, tamperToken } from '../_helpers/sign.js';
 
 function fakeRes(json: unknown): Response {
@@ -13,7 +13,7 @@ function fakeRes(json: unknown): Response {
   } as unknown as Response;
 }
 
-function makeVerifier(publicKey: Uint8Array): AegisVerifier {
+function makeVerifier(publicKey: Uint8Array): CerniqVerifier {
   const fetchMock = vi.fn(async () =>
     fakeRes({
       agentId: 'agt_property',
@@ -22,7 +22,7 @@ function makeVerifier(publicKey: Uint8Array): AegisVerifier {
       trustBand: 'VERIFIED',
     }),
   );
-  return new AegisVerifier({
+  return new CerniqVerifier({
     baseUrl: 'https://api.example.com/v1',
     getAgentPublicKey: async () => publicKey,
     fetch: fetchMock as unknown as typeof globalThis.fetch,
@@ -37,21 +37,15 @@ describe('verifier — property tests', () => {
     await fc.assert(
       fc.asyncProperty(
         fc.record({
-          action: fc.constantFrom(
-            'commerce.purchase',
-            'data.read',
-            'comms.send',
-            'sched.book',
-          ),
+          action: fc.constantFrom('commerce.purchase', 'data.read', 'comms.send', 'sched.book'),
           amount: fc.option(
             fc.integer({ min: 1, max: 9_999 }).map((n) => n + 0.5),
             { nil: undefined },
           ),
           currency: fc.option(fc.constantFrom('USD', 'EUR', 'GBP'), { nil: undefined }),
-          merchantDomain: fc.option(
-            fc.constantFrom('delta.com', 'shop.example.com', 'acme.io'),
-            { nil: undefined },
-          ),
+          merchantDomain: fc.option(fc.constantFrom('delta.com', 'shop.example.com', 'acme.io'), {
+            nil: undefined,
+          }),
           jti: fc.uuidV(4),
         }),
         async (params) => {
@@ -63,8 +57,7 @@ describe('verifier — property tests', () => {
           };
           if (params.amount !== undefined) ctx.amount = params.amount;
           if (params.currency !== undefined) ctx.currency = params.currency;
-          if (params.merchantDomain !== undefined)
-            ctx.merchantDomain = params.merchantDomain;
+          if (params.merchantDomain !== undefined) ctx.merchantDomain = params.merchantDomain;
           const token = await signTestToken(privateKey, 'agt_property', 'pol_x', ctx);
           const out = await verifier.verify(token);
           expect(out.valid).toBe(true);
@@ -79,20 +72,16 @@ describe('verifier — property tests', () => {
     const verifier = makeVerifier(publicKey);
 
     await fc.assert(
-      fc.asyncProperty(
-        fc.constantFrom<0 | 1 | 2>(0, 1, 2),
-        fc.uuidV(4),
-        async (segment, jti) => {
-          const token = await signTestToken(privateKey, 'agt_property', 'pol_x', {
-            action: 'commerce.purchase',
-            jti,
-          });
-          const tampered = tamperToken(token, segment);
-          if (tampered === token) return; // no-op tamper, skip
-          const out = await verifier.verify(tampered);
-          expect(out.valid).toBe(false);
-        },
-      ),
+      fc.asyncProperty(fc.constantFrom<0 | 1 | 2>(0, 1, 2), fc.uuidV(4), async (segment, jti) => {
+        const token = await signTestToken(privateKey, 'agt_property', 'pol_x', {
+          action: 'commerce.purchase',
+          jti,
+        });
+        const tampered = tamperToken(token, segment);
+        if (tampered === token) return; // no-op tamper, skip
+        const out = await verifier.verify(tampered);
+        expect(out.valid).toBe(false);
+      }),
       { numRuns: 30 },
     );
   });

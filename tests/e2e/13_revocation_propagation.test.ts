@@ -1,11 +1,11 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import type { Aegis } from '@aegis/sdk';
+import type { Cerniq } from '@cerniq/sdk';
 import { RawClient, makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixtures';
 import { pollUntil } from './_support/retry';
 
 describe('13 · revocation propagation', () => {
-  let sdk: Aegis;
+  let sdk: Cerniq;
   let raw: RawClient;
   const cleanup: string[] = [];
 
@@ -31,7 +31,9 @@ describe('13 · revocation propagation', () => {
     const policy = await createPolicy(sdk, agent.agentId, [SCOPES.commerce()]);
 
     // Sanity: status before revoke.
-    const before = await raw.get<{ status: string }>(`/v1/agents/${agent.agentId}/status`, { auth: 'none' });
+    const before = await raw.get<{ status: string }>(`/v1/agents/${agent.agentId}/status`, {
+      auth: 'none',
+    });
     expect(before.body.status.toLowerCase()).toMatch(/active|pending/);
 
     await sdk.agents.revoke(agent.agentId);
@@ -39,7 +41,9 @@ describe('13 · revocation propagation', () => {
     // Status flips to revoked within 1s.
     const after = await pollUntil(
       async () => {
-        const r = await raw.get<{ status: string }>(`/v1/agents/${agent.agentId}/status`, { auth: 'none' });
+        const r = await raw.get<{ status: string }>(`/v1/agents/${agent.agentId}/status`, {
+          auth: 'none',
+        });
         return r.body;
       },
       (b) => b.status.toLowerCase() === 'revoked',
@@ -53,7 +57,11 @@ describe('13 · revocation propagation', () => {
       amount: 1,
       currency: 'USD',
     });
-    const result = await sdk.verify(token, { action: 'commerce.purchase', amount: 1, currency: 'USD' });
+    const result = await sdk.verify(token, {
+      action: 'commerce.purchase',
+      amount: 1,
+      currency: 'USD',
+    });
     expect(result.valid).toBe(false);
     expect(result.denialReason).toBe('AGENT_REVOKED');
   });

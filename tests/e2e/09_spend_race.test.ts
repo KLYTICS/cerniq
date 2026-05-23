@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import type { Aegis } from '@aegis/sdk';
+import type { Cerniq } from '@cerniq/sdk';
 import { makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixtures';
 
@@ -15,7 +15,7 @@ import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixt
  * will hold the line.
  */
 describe('09 · spend race (TOCTOU)', () => {
-  let sdk: Aegis;
+  let sdk: Cerniq;
   const cleanup: string[] = [];
 
   beforeAll(() => {
@@ -54,7 +54,12 @@ describe('09 · spend race (TOCTOU)', () => {
 
     const results = await Promise.all(
       tokens.map((token) =>
-        sdk.verify(token, { action: 'commerce.purchase', amount: PER, currency: 'USD', merchantDomain: 'delta.com' }),
+        sdk.verify(token, {
+          action: 'commerce.purchase',
+          amount: PER,
+          currency: 'USD',
+          merchantDomain: 'delta.com',
+        }),
       ),
     );
 

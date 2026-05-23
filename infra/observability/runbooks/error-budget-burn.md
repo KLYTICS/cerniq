@@ -4,8 +4,8 @@
 
 - **Names**: `VerifyErrorBudgetFastBurn` (critical, 14.4x over 1h),
   `VerifyErrorBudgetSlowBurn` (warning, 6x over 6h)
-- **Group**: `aegis.verify.slo`
-- **File**: `infra/observability/alerts/aegis.rules.yml`
+- **Group**: `cerniq.verify.slo`
+- **File**: `infra/observability/alerts/cerniq.rules.yml`
 
 ## Symptom
 
@@ -35,20 +35,20 @@ windows catch different failure modes:
 
 ## Diagnose
 
-The recording rule `job:aegis_verify_success_ratio:5m` (and `:1h`,
+The recording rule `job:cerniq_verify_success_ratio:5m` (and `:1h`,
 `:6h`) is what the alerts read. Start there.
 
 1. **Confirm the burn is current and at what window.**
 
    ```promql
    # Current 5m success ratio (the leading edge)
-   job:aegis_verify_success_ratio:5m
+   job:cerniq_verify_success_ratio:5m
 
    # 1h ratio (fast-burn alert reads this)
-   job:aegis_verify_success_ratio:1h
+   job:cerniq_verify_success_ratio:1h
 
    # 6h ratio (slow-burn alert reads this)
-   job:aegis_verify_success_ratio:6h
+   job:cerniq_verify_success_ratio:6h
    ```
 
    If 5m is clean but 1h is bad, the issue is over but the budget is
@@ -62,34 +62,34 @@ The recording rule `job:aegis_verify_success_ratio:5m` (and `:1h`,
    ```promql
    # Denial-reason mix (excluded reasons should be ignored — see
    # docs/SECURITY.md denial precedence)
-   sum by (denial_reason) (rate(aegis_verify_total{decision="denied"}[5m]))
+   sum by (denial_reason) (rate(cerniq_verify_total{decision="denied"}[5m]))
 
    # 5xx rate (platform-level failures)
-   sum(rate(aegis_http_requests_total{status_class="5xx",route=~".*verify.*"}[5m]))
+   sum(rate(cerniq_http_requests_total{status_class="5xx",route=~".*verify.*"}[5m]))
    /
-   clamp_min(sum(rate(aegis_http_requests_total{route=~".*verify.*"}[5m])), 0.001)
+   clamp_min(sum(rate(cerniq_http_requests_total{route=~".*verify.*"}[5m])), 0.001)
    ```
 
 3. **Per-principal slice — slow-burn often hides here.** A single
    principal driving the budget is the classic slow-burn failure
    mode and is invisible at the global level.
 
-   The `aegis_verify_total` metric does not have a `principalId`
+   The `cerniq_verify_total` metric does not have a `principalId`
    label (intentional — too high cardinality). Drop to Postgres for
    per-principal slice:
 
    ```bash
-   railway run -s aegis-api -- psql "$DATABASE_URL" -c "SELECT \"principalId\", COUNT(*) FILTER (WHERE result='ERROR') AS errors, COUNT(*) AS total, ROUND(100.0 * COUNT(*) FILTER (WHERE result='ERROR') / GREATEST(COUNT(*),1), 2) AS err_pct FROM \"VerifyEvent\" WHERE \"createdAt\" > NOW() - INTERVAL '6 hours' GROUP BY 1 HAVING COUNT(*) > 100 ORDER BY err_pct DESC LIMIT 10;"
+   railway run -s cerniq-api -- psql "$DATABASE_URL" -c "SELECT \"principalId\", COUNT(*) FILTER (WHERE result='ERROR') AS errors, COUNT(*) AS total, ROUND(100.0 * COUNT(*) FILTER (WHERE result='ERROR') / GREATEST(COUNT(*),1), 2) AS err_pct FROM \"VerifyEvent\" WHERE \"createdAt\" > NOW() - INTERVAL '6 hours' GROUP BY 1 HAVING COUNT(*) > 100 ORDER BY err_pct DESC LIMIT 10;"
    ```
 
-   *(Replace table/column names if `VerifyEvent` is named differently
+   _(Replace table/column names if `VerifyEvent` is named differently
    in `apps/api/prisma/schema.prisma` — the audit-style verify log
-   table.)*
+   table.)_
 
 4. **Recent deploys and migrations** (same as the latency runbook):
 
    ```bash
-   railway deployments -s aegis-api --json | jq '.[0:5] | .[] | {createdAt, status}'
+   railway deployments -s cerniq-api --json | jq '.[0:5] | .[] | {createdAt, status}'
    ```
 
 5. **Compute remaining budget.**
@@ -99,12 +99,12 @@ The recording rule `job:aegis_verify_success_ratio:5m` (and `:1h`,
    # Consumed budget (rolling 30d) =
    1 - (
      (
-       sum(rate(aegis_verify_total{decision="approved"}[30d]))
+       sum(rate(cerniq_verify_total{decision="approved"}[30d]))
        +
-       sum(rate(aegis_verify_total{decision="denied",denial_reason=~"AGENT_REVOKED|POLICY_REVOKED|POLICY_EXPIRED"}[30d]))
+       sum(rate(cerniq_verify_total{decision="denied",denial_reason=~"AGENT_REVOKED|POLICY_REVOKED|POLICY_EXPIRED"}[30d]))
      )
      /
-     clamp_min(sum(rate(aegis_verify_total[30d])), 0.001)
+     clamp_min(sum(rate(cerniq_verify_total[30d])), 0.001)
    )
    ```
 
@@ -127,10 +127,10 @@ the burn.
   This is rarely fixable on our side without their change. Document
   the impact on budget in the incident timeline.
 - **Failures concentrated on a recent deploy** → rollback:
-  `railway rollback -s aegis-api <prev-deploy-id>`.
+  `railway rollback -s cerniq-api <prev-deploy-id>`.
 - **Budget exhaustion confirmed** (step 5 returns > 0.0005) →
   declare a release freeze on the verify surface. Notify
-  engineering in `#aegis-oncall` and operator. Only security and
+  engineering in `#cerniq-oncall` and operator. Only security and
   availability fixes ship until the next month boundary.
 
 ## Eradicate
@@ -151,11 +151,11 @@ the burn.
 
 ```promql
 # 5m and 1h success ratio both above 0.999 (SLO + buffer)
-job:aegis_verify_success_ratio:5m > 0.999
-job:aegis_verify_success_ratio:1h > 0.999
+job:cerniq_verify_success_ratio:5m > 0.999
+job:cerniq_verify_success_ratio:1h > 0.999
 ```
 
-Must hold for 30 min before declaring recovery. Note: the *budget*
+Must hold for 30 min before declaring recovery. Note: the _budget_
 itself does not recover — once spent, it's spent until the calendar
 window resets. "Recovery" here means we've stopped burning further.
 
@@ -168,7 +168,7 @@ window resets. "Recovery" here means we've stopped burning further.
   `${ESCALATION_CONTACT}` (OD-007 pending) and notify operator
   directly.
 - **Slow-burn (warning) not triaged by next business day** →
-  `#aegis-oncall` lead must explain why in the next standup.
+  `#cerniq-oncall` lead must explain why in the next standup.
 - **Budget exhausted** → operator decision required for any
   non-emergency verify-surface release until the budget window
   resets. Page operator.
@@ -177,7 +177,8 @@ window resets. "Recovery" here means we've stopped burning further.
 
 **Always yes for fast-burn (critical).** Always yes if the budget was
 exhausted in the affected window. **Yes for slow-burn** if it ran for
+
 > 6 h before triage (the alert exists specifically to catch silent
-regressions; if it caught one and we ignored it, that's a process
-defect worth a postmortem). **No** for slow-burn that was triaged
-within 30 min and traced to a known cause already in motion.
+> regressions; if it caught one and we ignored it, that's a process
+> defect worth a postmortem). **No** for slow-burn that was triaged
+> within 30 min and traced to a known cause already in motion.

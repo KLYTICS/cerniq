@@ -2,7 +2,7 @@ import { Controller, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 
-import { AuthenticationError, AuthorizationError } from '../../common/errors/aegis-error';
+import { AuthenticationError, AuthorizationError } from '../../common/errors/cerniq-error';
 
 import { ApiKeyGuard } from './api-key.guard';
 import { ApiKeyService } from './api-key.service';
@@ -21,7 +21,7 @@ interface RotateResponse {
  * Self-service API-key rotation.
  *
  * Flow:
- *   1. Caller authenticates with their CURRENT key in `x-aegis-api-key`.
+ *   1. Caller authenticates with their CURRENT key in `x-cerniq-api-key`.
  *   2. We generate a new key (scope inherited), return the plaintext ONCE,
  *      and stamp the OLD key with a 24 h `expiresAt` so deployed
  *      integrations have time to swap.
@@ -52,7 +52,10 @@ export class ApiKeyRotationController {
   })
   @ApiResponse({ status: 200, description: 'New plaintext key returned exactly once.' })
   @ApiResponse({ status: 401, description: 'Missing or invalid API key.' })
-  @ApiResponse({ status: 409, description: 'Calling key is already inside its rotation overlap window.' })
+  @ApiResponse({
+    status: 409,
+    description: 'Calling key is already inside its rotation overlap window.',
+  })
   async rotate(@Req() req: Request): Promise<RotateResponse> {
     const auth = req.auth;
     if (!auth) {
@@ -79,7 +82,7 @@ export class ApiKeyRotationController {
     // explicit lifecycle event by up to the cache TTL (60s). Best-effort —
     // failures swallow inside invalidateCache because the rotation row is
     // already committed and the 60s TTL is a soft upper bound anyway.
-    const callingPlaintext = req.headers['x-aegis-api-key'];
+    const callingPlaintext = req.headers['x-cerniq-api-key'];
     if (typeof callingPlaintext === 'string') {
       await this.apiKeys.invalidateCache(callingPlaintext);
     }

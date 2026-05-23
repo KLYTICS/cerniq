@@ -1,19 +1,19 @@
-// Reconciliation engine — joins AEGIS audit events to a downstream
-// system's records on the shared `endToEndId` (a.k.a. AEGIS jti,
+// Reconciliation engine — joins CERNIQ audit events to a downstream
+// system's records on the shared `endToEndId` (a.k.a. CERNIQ jti,
 // a.k.a. Stripe idempotency-key, a.k.a. ISO 20022 EndToEndId).
 //
 // The four mismatch classes from docs/INTEGRATION_PATTERNS.md §10:
 //
-//   matched_settled    — AEGIS approved + system has a settled record
+//   matched_settled    — CERNIQ approved + system has a settled record
 //                        (the happy path; the bulk of the report)
-//   approved_missing   — AEGIS approved but the system has NO record
+//   approved_missing   — CERNIQ approved but the system has NO record
 //                        of the action (network drop between gates;
 //                        always investigate)
-//   denied_present     — AEGIS denied but the system has a record
+//   denied_present     — CERNIQ denied but the system has a record
 //                        anyway (bug in the merchant glue OR an
-//                        attacker bypassing the AEGIS gate; always
+//                        attacker bypassing the CERNIQ gate; always
 //                        investigate)
-//   reversed           — AEGIS approved + system settled + system
+//   reversed           — CERNIQ approved + system settled + system
 //                        later reversed (chargeback / R-code / refund;
 //                        feeds back into BATE as fraud_confirmed or
 //                        false_positive depending on the reversal cause)
@@ -21,8 +21,8 @@
 // The engine is pure — takes the two streams, returns a structured
 // report. No I/O, no side-effects, no time-of-day dependency.
 
-export interface AegisAuditRow {
-  /** Shared key — the AEGIS jti / endToEndId / idempotency-key. */
+export interface CerniqAuditRow {
+  /** Shared key — the CERNIQ jti / endToEndId / idempotency-key. */
   endToEndId: string;
   eventId: string;
   decision: 'APPROVED' | 'DENIED' | 'FLAGGED';
@@ -33,7 +33,7 @@ export interface AegisAuditRow {
 }
 
 export interface UnderlyingSystemRow {
-  /** The same shared key as the AEGIS row. */
+  /** The same shared key as the CERNIQ row. */
   endToEndId: string;
   /** System-side identifier (Stripe ch_xxx, bank trace number, etc.). */
   systemId: string;
@@ -45,16 +45,12 @@ export interface UnderlyingSystemRow {
   timestamp: string;
 }
 
-export type MismatchClass =
-  | 'matched_settled'
-  | 'approved_missing'
-  | 'denied_present'
-  | 'reversed';
+export type MismatchClass = 'matched_settled' | 'approved_missing' | 'denied_present' | 'reversed';
 
 export interface ReconcileEntry {
   endToEndId: string;
   class: MismatchClass;
-  aegis: AegisAuditRow | null;
+  cerniq: CerniqAuditRow | null;
   system: UnderlyingSystemRow | null;
   /** When class='reversed', whether to fire fraud_confirmed (chargeback/r03/r05)
    *  or false_positive (refund) feedback. */
@@ -62,7 +58,7 @@ export interface ReconcileEntry {
 }
 
 export interface ReconcileReport {
-  totalAegisRows: number;
+  totalCerniqRows: number;
   totalSystemRows: number;
   matchedSettled: number;
   approvedMissing: number;
@@ -86,25 +82,25 @@ export interface ReconcileOptions {
 }
 
 /** Reconcile two streams. Both arrays are walked once each; runtime
- *  is O(N+M) using a Map for the AEGIS-side index. */
+ *  is O(N+M) using a Map for the CERNIQ-side index. */
 export function reconcile(
-  aegis: AegisAuditRow[],
+  cerniq: CerniqAuditRow[],
   system: UnderlyingSystemRow[],
   opts: ReconcileOptions = {},
 ): ReconcileReport {
   const includeMatched = opts.includeMatched ?? false;
-  const aegisById = new Map<string, AegisAuditRow>();
-  for (const row of aegis) {
-    if (aegisById.has(row.endToEndId)) {
-      // Duplicate AEGIS rows for the same endToEndId would mean a replay
+  const cerniqById = new Map<string, CerniqAuditRow>();
+  for (const row of cerniq) {
+    if (cerniqById.has(row.endToEndId)) {
+      // Duplicate CERNIQ rows for the same endToEndId would mean a replay
       // got past the gate; treat the second as `denied_present` later.
       // Keep the first APPROVED/FLAGGED if any; otherwise keep first.
-      const existing = aegisById.get(row.endToEndId)!;
+      const existing = cerniqById.get(row.endToEndId)!;
       if (existing.decision === 'DENIED' && row.decision !== 'DENIED') {
-        aegisById.set(row.endToEndId, row);
+        cerniqById.set(row.endToEndId, row);
       }
     } else {
-      aegisById.set(row.endToEndId, row);
+      cerniqById.set(row.endToEndId, row);
     }
   }
 
@@ -118,26 +114,26 @@ export function reconcile(
   const seenSystem = new Set<string>();
   for (const sysRow of system) {
     seenSystem.add(sysRow.endToEndId);
-    const aegisRow = aegisById.get(sysRow.endToEndId) ?? null;
+    const cerniqRow = cerniqById.get(sysRow.endToEndId) ?? null;
 
-    // System has a record but AEGIS has none — definite bypass; treat
-    // as denied_present with aegis=null so it surfaces in the report.
-    if (!aegisRow) {
+    // System has a record but CERNIQ has none — definite bypass; treat
+    // as denied_present with cerniq=null so it surfaces in the report.
+    if (!cerniqRow) {
       deniedPresentEntries.push({
         endToEndId: sysRow.endToEndId,
         class: 'denied_present',
-        aegis: null,
+        cerniq: null,
         system: sysRow,
       });
       continue;
     }
 
-    if (aegisRow.decision === 'DENIED') {
-      // AEGIS said no, system charged anyway.
+    if (cerniqRow.decision === 'DENIED') {
+      // CERNIQ said no, system charged anyway.
       deniedPresentEntries.push({
         endToEndId: sysRow.endToEndId,
         class: 'denied_present',
-        aegis: aegisRow,
+        cerniq: cerniqRow,
         system: sysRow,
       });
       continue;
@@ -147,7 +143,7 @@ export function reconcile(
       reversedEntries.push({
         endToEndId: sysRow.endToEndId,
         class: 'reversed',
-        aegis: aegisRow,
+        cerniq: cerniqRow,
         system: sysRow,
         bateFeedback: classifyReversal(sysRow.reversalCause),
       });
@@ -162,7 +158,7 @@ export function reconcile(
         matchedSettledEntries.push({
           endToEndId: sysRow.endToEndId,
           class: 'matched_settled',
-          aegis: aegisRow,
+          cerniq: cerniqRow,
           system: sysRow,
         });
       }
@@ -172,20 +168,20 @@ export function reconcile(
     // totalSystemRows but not flagged.
   }
 
-  // Approved-missing: AEGIS approved but system never reported it.
-  for (const aegisRow of aegis) {
-    if (aegisRow.decision === 'DENIED') continue;
-    if (seenSystem.has(aegisRow.endToEndId)) continue;
+  // Approved-missing: CERNIQ approved but system never reported it.
+  for (const cerniqRow of cerniq) {
+    if (cerniqRow.decision === 'DENIED') continue;
+    if (seenSystem.has(cerniqRow.endToEndId)) continue;
     approvedMissingEntries.push({
-      endToEndId: aegisRow.endToEndId,
+      endToEndId: cerniqRow.endToEndId,
       class: 'approved_missing',
-      aegis: aegisRow,
+      cerniq: cerniqRow,
       system: null,
     });
   }
 
   return {
-    totalAegisRows: aegis.length,
+    totalCerniqRows: cerniq.length,
     totalSystemRows: system.length,
     matchedSettled: matchedSettledCount,
     approvedMissing: approvedMissingEntries.length,
@@ -201,7 +197,9 @@ export function reconcile(
   };
 }
 
-function classifyReversal(cause: UnderlyingSystemRow['reversalCause']): 'fraud_confirmed' | 'false_positive' {
+function classifyReversal(
+  cause: UnderlyingSystemRow['reversalCause'],
+): 'fraud_confirmed' | 'false_positive' {
   // Chargebacks, NACHA R03 (no account/unable to locate) and R05
   // (unauthorized debit) all signal the agent shouldn't have moved the
   // money. Refunds are merchant-initiated reversals — usually a UX
@@ -221,8 +219,8 @@ function classifyReversal(cause: UnderlyingSystemRow['reversalCause']): 'fraud_c
 
 /** Parse NDJSON into rows. Permissive — drops blank lines, throws with
  *  line number on malformed JSON. */
-export function parseAegisNdjson(ndjson: string): AegisAuditRow[] {
-  return parseNdjson<AegisAuditRow>(ndjson, 'aegis');
+export function parseCerniqNdjson(ndjson: string): CerniqAuditRow[] {
+  return parseNdjson<CerniqAuditRow>(ndjson, 'cerniq');
 }
 
 export function parseSystemNdjson(ndjson: string): UnderlyingSystemRow[] {
@@ -239,7 +237,9 @@ function parseNdjson<T>(ndjson: string, label: string): T[] {
     try {
       out.push(JSON.parse(trimmed) as T);
     } catch (err) {
-      throw new Error(`reconcile: ${label} NDJSON line ${lineNo} invalid — ${(err as Error).message}`);
+      throw new Error(
+        `reconcile: ${label} NDJSON line ${lineNo} invalid — ${(err as Error).message}`,
+      );
     }
   }
   return out;

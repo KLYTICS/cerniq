@@ -4,30 +4,34 @@
 import type { Context, MiddlewareHandler } from 'hono';
 
 import type { VerifyContext, VerifyOptions } from '../types.js';
-import type { AegisVerifier } from '../verifier.js';
+import type { CerniqVerifier } from '../verifier.js';
 
-const DEFAULT_HEADER = 'X-AEGIS-Token';
+const DEFAULT_HEADER = 'X-CERNIQ-Token';
 
 export interface HonoGuardOptions {
-  verifier: AegisVerifier;
+  verifier: CerniqVerifier;
   headerName?: string;
   attachTo?: string;
   requiredScope?: string;
   contextFrom?: (c: Context) => VerifyContext;
 }
 
-export function aegisHonoMiddleware(options: HonoGuardOptions): MiddlewareHandler {
+export function cerniqHonoMiddleware(options: HonoGuardOptions): MiddlewareHandler {
   if (!options?.verifier) {
-    throw new TypeError('aegisHonoMiddleware: options.verifier is required');
+    throw new TypeError('cerniqHonoMiddleware: options.verifier is required');
   }
   const headerName = options.headerName ?? DEFAULT_HEADER;
-  const attachTo = options.attachTo ?? 'aegis';
+  const attachTo = options.attachTo ?? 'cerniq';
 
   return async (c, next) => {
     const token = c.req.header(headerName);
     if (!token) {
       return c.json(
-        { error: 'AEGIS_VERIFICATION_FAILED', reason: 'INVALID_SIGNATURE', detail: 'missing token' },
+        {
+          error: 'CERNIQ_VERIFICATION_FAILED',
+          reason: 'INVALID_SIGNATURE',
+          detail: 'missing token',
+        },
         401,
       );
     }
@@ -38,7 +42,7 @@ export function aegisHonoMiddleware(options: HonoGuardOptions): MiddlewareHandle
     const outcome = await options.verifier.verify(token, ctx, verifyOpts);
     if (!outcome.valid) {
       const body: Record<string, unknown> = {
-        error: 'AEGIS_VERIFICATION_FAILED',
+        error: 'CERNIQ_VERIFICATION_FAILED',
         reason: outcome.reason,
       };
       if (outcome.detail) body.detail = outcome.detail;
@@ -50,4 +54,4 @@ export function aegisHonoMiddleware(options: HonoGuardOptions): MiddlewareHandle
   };
 }
 
-export const honoMiddleware = aegisHonoMiddleware;
+export const honoMiddleware = cerniqHonoMiddleware;

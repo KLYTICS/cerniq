@@ -1,8 +1,8 @@
 {
-  "name": "@aegis/eslint-config",
+  "name": "@cerniq/eslint-config",
   "version": "0.1.0",
   "private": true,
-  "description": "Shared ESLint flat config presets for AEGIS workspaces.",
+  "description": "Shared ESLint flat config presets for CERNIQ workspaces.",
   "license": "UNLICENSED",
   "type": "module",
   "main": "./index.js",

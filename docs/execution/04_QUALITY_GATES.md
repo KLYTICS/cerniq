@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Quality Gates
+title: CERNIQ — Quality Gates
 audience: every Reviewer; every contributor before requesting review
 last-reviewed: 2026-05-08
 status: source-of-truth — v1
@@ -47,14 +47,14 @@ The bar for code merging into `main`.
 
 ### 1.1 Compilation and type-safety
 
-- ✅ `pnpm typecheck` (or per-app `pnpm --filter @aegis/<package>
-  typecheck`) passes with zero errors.
+- ✅ `pnpm typecheck` (or per-app `pnpm --filter @cerniq/<package>
+typecheck`) passes with zero errors.
 - ✅ `noUncheckedIndexedAccess` is on at the base `tsconfig`. The API
   workspace softens it; nothing else does.
 - ✅ No `any` without `// type-rationale: <reason>` comment immediately
   above.
 - ✅ Strict mode in TS is on; no `// @ts-ignore` without a `// FIXME:
-  <reason> + <issue link>` and an issue tracking the removal.
+<reason> + <issue link>` and an issue tracking the removal.
 
 ### 1.2 Lint and format
 
@@ -64,7 +64,7 @@ The bar for code merging into `main`.
 ### 1.3 Tests
 
 - ✅ Every public service method has a unit test or `// untestable:
-  <reason>`.
+<reason>`.
 - ✅ Cryptographic code has a paired `.spec.ts`. No exception. (See
   `CLAUDE.md` § Quality bar.)
 - ✅ Tests pass locally. The Reviewer runs them too for non-trivial
@@ -79,7 +79,7 @@ The bar for code merging into `main`.
 
 ### 1.4 Architectural invariants (`CLAUDE.md`)
 
-- ✅ Invariant 1 (private keys never enter AEGIS) — confirmed.
+- ✅ Invariant 1 (private keys never enter CERNIQ) — confirmed.
 - ✅ Invariant 2 (verify hot path is portable, no framework imports) —
   confirmed if the change is in `apps/api/src/modules/verify/` or
   related.
@@ -96,7 +96,7 @@ The bar for code merging into `main`.
 
 ### 1.5 Errors
 
-- ✅ Errors are typed (`AegisError` subclasses), not strings.
+- ✅ Errors are typed (`CerniqError` subclasses), not strings.
 - ✅ Error messages do not leak secrets.
 - ✅ Error responses follow the documented shape (the API contract in
   `packages/types`).
@@ -105,7 +105,7 @@ The bar for code merging into `main`.
 
 - ✅ Schema changes have a Prisma migration.
 - ✅ Migration is reversible (or has a documented `// IRREVERSIBLE:
-  <reason>` block).
+<reason>` block).
 - ✅ Data migration scripts (when needed) are idempotent.
 - ✅ No schema change introduces a `UPDATE` or `DELETE` capability on
   `AuditEvent` (invariant 3).
@@ -146,6 +146,7 @@ The bar for changes that touch the security surface.
 ### 2.1 Surface identification
 
 A change touches the security surface if it changes any of:
+
 - Cryptographic primitives or their use.
 - Signature creation or verification.
 - The audit chain (event creation, hashing, linking, export).
@@ -253,7 +254,7 @@ The bar for visual surfaces.
   request-lifecycle swim-lane) come from `packages/ui-brand/visuals/`,
   not redrawn locally.
 - ✅ Code samples follow `00_BRAND_FOUNDATION.md` § 10 — bold-italic
-  on AEGIS-specific calls, mono header strip, copy button, language
+  on CERNIQ-specific calls, mono header strip, copy button, language
   label.
 
 ### Gate 3 checklist
@@ -334,7 +335,7 @@ The bar for prose.
 
 ## Gate 5 — Compliance
 
-The bar for changes that affect what AEGIS claims externally about
+The bar for changes that affect what CERNIQ claims externally about
 controls.
 
 ### 5.1 Claim auditability
@@ -415,9 +416,9 @@ inherits.
 
 - ✅ Forward-looking statements (predictions, roadmaps, projections)
   are explicitly labeled. Examples:
-  - *"We project that BATE rule-based v1 will ship by Q3 2026 (subject
-    to engineering capacity and customer feedback)."*
-  - *"Pricing tiers may change as we learn from initial deployments."*
+  - _"We project that BATE rule-based v1 will ship by Q3 2026 (subject
+    to engineering capacity and customer feedback)."_
+  - _"Pricing tiers may change as we learn from initial deployments."_
 - ✅ Aggressive forward-looking statements are footnoted with the
   assumption set.
 - ✅ No implied guarantees of customer outcomes.
@@ -474,10 +475,10 @@ checking is proportional to the volume of risk.
 
 ## Calibrating the gates
 
-These gates are calibrated to AEGIS at the FAANG / public-company bar.
+These gates are calibrated to CERNIQ at the FAANG / public-company bar.
 Some are deliberately stricter than industry norms. The strictness is
-the point: AEGIS sells trust. The product makes a single substantive
-claim — *"every agent action is verifiable"* — and that claim is only
+the point: CERNIQ sells trust. The product makes a single substantive
+claim — _"every agent action is verifiable"_ — and that claim is only
 defensible if the company shipping it operates with the same
 discipline.
 

@@ -8,11 +8,11 @@
 // One Rego file per AGENT_POLICY → one compiled WASM blob stored on
 // `AgentPolicy.compiledArtifact`. The blob is the output of:
 //
-//   opa build -t wasm -e "data.aegis.authz" policy.rego -o policy.wasm
+//   opa build -t wasm -e "data.cerniq.authz" policy.rego -o policy.wasm
 //
-// At verify time we instantiate the WASM module with the AEGIS input
+// At verify time we instantiate the WASM module with the CERNIQ input
 // document (built by `OpaPolicyEngine.buildDocument`) and read both
-// `data.aegis.authz.allow` (boolean) and `data.aegis.authz.deny_reasons`
+// `data.cerniq.authz.allow` (boolean) and `data.cerniq.authz.deny_reasons`
 // (array of strings) from the result.
 
 import type { OpaEvaluatorLike } from './opa.engine.js';
@@ -57,10 +57,7 @@ export class OpaWasmEvaluator implements OpaEvaluatorLike {
     }
   }
 
-  async evaluate(args: {
-    artifact: unknown;
-    document: Record<string, unknown>;
-  }): Promise<{
+  async evaluate(args: { artifact: unknown; document: Record<string, unknown> }): Promise<{
     allow: boolean;
     deny_reasons?: string[];
     metadata?: Record<string, unknown>;
@@ -91,10 +88,16 @@ export class OpaWasmEvaluator implements OpaEvaluatorLike {
       // implicit deny (no `allow` rule fired).
       return { allow: false, deny_reasons: [] };
     }
-    const result = (out[0]?.result ?? {}) as { allow?: boolean; deny_reasons?: string[]; metadata?: Record<string, unknown> };
+    const result = (out[0]?.result ?? {}) as {
+      allow?: boolean;
+      deny_reasons?: string[];
+      metadata?: Record<string, unknown>;
+    };
     return {
       allow: Boolean(result.allow),
-      deny_reasons: Array.isArray(result.deny_reasons) ? result.deny_reasons.filter((s) => typeof s === 'string') : [],
+      deny_reasons: Array.isArray(result.deny_reasons)
+        ? result.deny_reasons.filter((s) => typeof s === 'string')
+        : [],
       metadata: result.metadata ?? undefined,
     };
   }

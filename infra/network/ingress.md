@@ -1,4 +1,4 @@
-# AEGIS — Network ingress
+# CERNIQ — Network ingress
 
 > Direction: **inbound** — public internet → Cloudflare → Railway edge → API.
 > See [`egress-policies.md`](./egress-policies.md) for outbound.
@@ -18,7 +18,7 @@
         │
         │  HTTP, internal
         ▼
-   AEGIS API (NestJS / Express, port 4000)
+   CERNIQ API (NestJS / Express, port 4000)
         │
         ├── Postgres   (Railway internal DNS only, not public)
         └── Redis      (Railway internal DNS only, not public)
@@ -54,8 +54,8 @@ topology and re-check after any platform change.
 
 ## Authentication at the edge
 
-- Every API request must carry `X-AEGIS-API-Key` (full) or
-  `X-AEGIS-Verify-Key` (verify-only) **except** the routes listed in
+- Every API request must carry `X-CERNIQ-API-Key` (full) or
+  `X-CERNIQ-Verify-Key` (verify-only) **except** the routes listed in
   [`../../docs/SECURITY.md`](../../docs/SECURITY.md) § 2 (health, root,
   docs, agent status, `.well-known/*`).
 - The `ApiKeyGuard` populates `req.principal` and runs before any
@@ -66,10 +66,10 @@ topology and re-check after any platform change.
 Two layers, both already documented in
 [`../../docs/SECURITY.md`](../../docs/SECURITY.md) § 7:
 
-| Layer            | Rule                                                            | Where enforced                                |
-|------------------|-----------------------------------------------------------------|-----------------------------------------------|
-| Cloudflare WAF   | 10000 req/min per IP, hard cap (credential-stuffing prevention) | Cloudflare zone rule — operator wires.        |
-| API throttler    | 1000 verify/min per API key, 120/min for non-verify endpoints   | `@nestjs/throttler` at the controller layer.  |
+| Layer          | Rule                                                            | Where enforced                               |
+| -------------- | --------------------------------------------------------------- | -------------------------------------------- |
+| Cloudflare WAF | 10000 req/min per IP, hard cap (credential-stuffing prevention) | Cloudflare zone rule — operator wires.       |
+| API throttler  | 1000 verify/min per API key, 120/min for non-verify endpoints   | `@nestjs/throttler` at the controller layer. |
 
 For `/v1/verify` specifically, the operator-recommended Cloudflare WAF rule:
 
@@ -92,9 +92,9 @@ Cloudflare WAF custom rules — block requests where:
 
 ## What goes wrong if this is misconfigured
 
-| Misconfig                                | Symptom                                      | Threat-model row                  |
-|------------------------------------------|----------------------------------------------|-----------------------------------|
-| `trust proxy` value too high             | Spoofable client IP in audit logs + ratelimit | Adjacent to T1 (token theft)      |
-| HSTS missing                             | Downgrade attack window during cert rotation | T2 (MitM)                         |
-| Cloudflare WAF disabled                  | DDoS reaches origin                          | T4 ([`../../docs/THREAT_MODEL.md`](../../docs/THREAT_MODEL.md))           |
-| API key guard bypass                     | Cross-tenant data exposure                   | T7 + invariant #5 (`CLAUDE.md`)   |
+| Misconfig                    | Symptom                                       | Threat-model row                                                |
+| ---------------------------- | --------------------------------------------- | --------------------------------------------------------------- |
+| `trust proxy` value too high | Spoofable client IP in audit logs + ratelimit | Adjacent to T1 (token theft)                                    |
+| HSTS missing                 | Downgrade attack window during cert rotation  | T2 (MitM)                                                       |
+| Cloudflare WAF disabled      | DDoS reaches origin                           | T4 ([`../../docs/THREAT_MODEL.md`](../../docs/THREAT_MODEL.md)) |
+| API key guard bypass         | Cross-tenant data exposure                    | T7 + invariant #5 (`CLAUDE.md`)                                 |

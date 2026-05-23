@@ -14,16 +14,16 @@
 //   - At verify time, the engine deserializes the artifact and evaluates
 //     against (principal, action, resource, context) attributes.
 //
-// Mapping AEGIS → Cedar:
+// Mapping CERNIQ → Cedar:
 //   principal = Agent::"<agent.id>"
 //   action    = Action::"<verify-input.action>"     e.g. Action::"commerce.purchase"
 //   resource  = MerchantDomain::"<verify-input.merchantDomain>" || Wildcard
 //   context   = { trustBand, trustScore, amount, currency, windowSpend, limit }
 //
-// AEGIS denial reasons are NOT one-to-one with Cedar's `Allow`/`Deny`.
+// CERNIQ denial reasons are NOT one-to-one with Cedar's `Allow`/`Deny`.
 // We map:
 //   Cedar Allow + spend within limit → APPROVE
-//   Cedar Deny                       → DENY (denialReason from `obligation.aegis_reason`
+//   Cedar Deny                       → DENY (denialReason from `obligation.cerniq_reason`
 //                                           if present, else POLICY_VIOLATION)
 //   Cedar Allow + spend exceeded     → DENY (SPEND_LIMIT_EXCEEDED)
 //   Cedar evaluation error           → DENY (POLICY_REVOKED with subReason)
@@ -64,7 +64,9 @@ export class CedarPolicyEngine implements PolicyEngine {
   constructor(private readonly evaluator: CedarEvaluatorLike) {}
 
   async evaluate(input: PolicyEvaluationInput): Promise<PolicyEvaluationResult> {
-    const artifact = (input.policy as PolicyEvaluationInput['policy'] & { compiledArtifact?: unknown }).compiledArtifact;
+    const artifact = (
+      input.policy as PolicyEvaluationInput['policy'] & { compiledArtifact?: unknown }
+    ).compiledArtifact;
     if (!artifact) {
       // No compiled Cedar artifact on the policy — operator misconfigured.
       // Fail closed.
@@ -87,12 +89,10 @@ export class CedarPolicyEngine implements PolicyEngine {
     }
 
     if (result.decision === 'Deny') {
-      const reasonClaim = result.obligations?.find((o) => o.kind === 'aegis.deny_reason');
+      const reasonClaim = result.obligations?.find((o) => o.kind === 'cerniq.deny_reason');
       const claimedReason = reasonClaim?.data.reason as DenialReason | undefined;
       const reason: DenialReason =
-        claimedReason && KNOWN_REASONS.has(claimedReason)
-          ? claimedReason
-          : 'SCOPE_NOT_GRANTED';
+        claimedReason && KNOWN_REASONS.has(claimedReason) ? claimedReason : 'SCOPE_NOT_GRANTED';
       return {
         decision: 'DENY',
         denialReason: reason,
@@ -102,7 +102,7 @@ export class CedarPolicyEngine implements PolicyEngine {
       };
     }
 
-    // Allow path — Cedar said yes; AEGIS still applies the spend gate
+    // Allow path — Cedar said yes; CERNIQ still applies the spend gate
     // because Cedar policies are state-less re: spend windows. Spend is
     // a runtime computation that lives outside the policy.
     if (input.amount && input.spend) {
@@ -121,12 +121,16 @@ export class CedarPolicyEngine implements PolicyEngine {
 
     // Cedar obligations are free-form `kind: string`; narrow to the
     // PolicyEngine vocabulary, dropping unknown kinds (including the
-    // sentinel `aegis.deny_reason` we already consumed above).
+    // sentinel `cerniq.deny_reason` we already consumed above).
     const KNOWN_OBLIGATION_KINDS = new Set(['audit_extra', 'webhook_notify', 'bate_signal']);
-    const narrowedObligations = (result.obligations ?? [])
-      .filter((o): o is { kind: 'audit_extra' | 'webhook_notify' | 'bate_signal'; data: Record<string, unknown> } =>
-        KNOWN_OBLIGATION_KINDS.has(o.kind),
-      );
+    const narrowedObligations = (result.obligations ?? []).filter(
+      (
+        o,
+      ): o is {
+        kind: 'audit_extra' | 'webhook_notify' | 'bate_signal';
+        data: Record<string, unknown>;
+      } => KNOWN_OBLIGATION_KINDS.has(o.kind),
+    );
     return {
       decision: 'APPROVE',
       obligations: narrowedObligations,

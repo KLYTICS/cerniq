@@ -1,9 +1,8 @@
-import { AegisInternalError, AegisServiceUnavailableError } from './errors.js';
+import { CerniqInternalError, CerniqServiceUnavailableError } from './errors.js';
 import type { VerifyResult } from './types.js';
 import { VerifyGateway } from './verify-gateway.js';
 
-import type { Aegis } from './index.js';
-
+import type { Cerniq } from './index.js';
 
 function makeResult(overrides: Partial<VerifyResult> = {}): VerifyResult {
   return {
@@ -20,18 +19,18 @@ function makeResult(overrides: Partial<VerifyResult> = {}): VerifyResult {
   };
 }
 
-interface FakeAegis {
+interface FakeCerniq {
   verify: jest.Mock;
 }
 
-function makeFake(impl: () => Promise<VerifyResult>): FakeAegis {
+function makeFake(impl: () => Promise<VerifyResult>): FakeCerniq {
   return { verify: jest.fn(impl) };
 }
 
 describe('VerifyGateway: caching', () => {
   it('caches valid results and serves them within TTL', async () => {
     const fake = makeFake(async () => makeResult({ ttl: 30 }));
-    const gw = new VerifyGateway(fake as unknown as Aegis);
+    const gw = new VerifyGateway(fake as unknown as Cerniq);
     const a = await gw.verify('tok', { amount: 10 });
     const b = await gw.verify('tok', { amount: 10 });
     expect(a.valid).toBe(true);
@@ -43,7 +42,7 @@ describe('VerifyGateway: caching', () => {
     const fake = makeFake(async () =>
       makeResult({ valid: false, denialReason: 'POLICY_REVOKED', ttl: 30 }),
     );
-    const gw = new VerifyGateway(fake as unknown as Aegis);
+    const gw = new VerifyGateway(fake as unknown as Cerniq);
     await gw.verify('tok');
     await gw.verify('tok');
     expect(fake.verify).toHaveBeenCalledTimes(2);
@@ -54,7 +53,7 @@ describe('VerifyGateway: caching', () => {
     const fake = makeFake(async () =>
       makeResult({ valid: false, denialReason: 'POLICY_REVOKED', ttl: 30 }),
     );
-    const gw = new VerifyGateway(fake as unknown as Aegis, {
+    const gw = new VerifyGateway(fake as unknown as Cerniq, {
       negativeTtlMs: 1_000,
       now: () => now,
     });
@@ -67,7 +66,7 @@ describe('VerifyGateway: caching', () => {
   it('clamps cached TTL to maxTtlMs (operator can tighten, never loosen)', async () => {
     let now = 0;
     const fake = makeFake(async () => makeResult({ ttl: 3600 })); // 1 hour
-    const gw = new VerifyGateway(fake as unknown as Aegis, {
+    const gw = new VerifyGateway(fake as unknown as Cerniq, {
       maxTtlMs: 1_000,
       now: () => now,
     });
@@ -79,7 +78,7 @@ describe('VerifyGateway: caching', () => {
 
   it('different context = different cache key', async () => {
     const fake = makeFake(async () => makeResult());
-    const gw = new VerifyGateway(fake as unknown as Aegis);
+    const gw = new VerifyGateway(fake as unknown as Cerniq);
     await gw.verify('tok', { amount: 10 });
     await gw.verify('tok', { amount: 20 });
     expect(fake.verify).toHaveBeenCalledTimes(2);
@@ -93,7 +92,7 @@ describe('VerifyGateway: single-flight', () => {
       resolveUpstream = r;
     });
     const fake = makeFake(() => upstream);
-    const gw = new VerifyGateway(fake as unknown as Aegis);
+    const gw = new VerifyGateway(fake as unknown as Cerniq);
     const p1 = gw.verify('tok');
     const p2 = gw.verify('tok');
     const p3 = gw.verify('tok');
@@ -109,7 +108,7 @@ describe('VerifyGateway: single-flight', () => {
     });
     const fake = makeFake(() => upstream);
     const onCoalesce = jest.fn();
-    const gw = new VerifyGateway(fake as unknown as Aegis, { hooks: { onCoalesce } });
+    const gw = new VerifyGateway(fake as unknown as Cerniq, { hooks: { onCoalesce } });
     const p1 = gw.verify('tok');
     const p2 = gw.verify('tok');
     resolveUpstream(makeResult());
@@ -121,19 +120,19 @@ describe('VerifyGateway: single-flight', () => {
 describe('VerifyGateway: circuit breaker', () => {
   it('opens after consecutive failures and fails fast', async () => {
     const fake = makeFake(async () => {
-      throw new AegisInternalError('boom', 500, undefined);
+      throw new CerniqInternalError('boom', 500, undefined);
     });
     const stateChanges: [string, string][] = [];
-    const gw = new VerifyGateway(fake as unknown as Aegis, {
+    const gw = new VerifyGateway(fake as unknown as Cerniq, {
       breakerThreshold: 2,
       hooks: {
         onBreakerStateChange: (from, to) => stateChanges.push([from, to]),
       },
     });
-    await expect(gw.verify('a')).rejects.toBeInstanceOf(AegisInternalError);
-    await expect(gw.verify('b')).rejects.toBeInstanceOf(AegisInternalError);
+    await expect(gw.verify('a')).rejects.toBeInstanceOf(CerniqInternalError);
+    await expect(gw.verify('b')).rejects.toBeInstanceOf(CerniqInternalError);
     // Breaker is now open — third call must fast-fail with 503.
-    await expect(gw.verify('c')).rejects.toBeInstanceOf(AegisServiceUnavailableError);
+    await expect(gw.verify('c')).rejects.toBeInstanceOf(CerniqServiceUnavailableError);
     expect(stateChanges).toEqual([['closed', 'open']]);
     // Upstream not called for the fast-fail.
     expect(fake.verify).toHaveBeenCalledTimes(2);
@@ -143,21 +142,21 @@ describe('VerifyGateway: circuit breaker', () => {
     let now = 0;
     let mode: 'fail' | 'ok' = 'fail';
     const fake = makeFake(async () => {
-      if (mode === 'fail') throw new AegisInternalError('boom', 500, undefined);
+      if (mode === 'fail') throw new CerniqInternalError('boom', 500, undefined);
       return makeResult();
     });
     const stateChanges: [string, string][] = [];
-    const gw = new VerifyGateway(fake as unknown as Aegis, {
+    const gw = new VerifyGateway(fake as unknown as Cerniq, {
       breakerThreshold: 1,
       breakerCooldownMs: 1_000,
       now: () => now,
       hooks: { onBreakerStateChange: (from, to) => stateChanges.push([from, to]) },
     });
-    await expect(gw.verify('a')).rejects.toBeInstanceOf(AegisInternalError);
+    await expect(gw.verify('a')).rejects.toBeInstanceOf(CerniqInternalError);
     expect(gw.state).toBe('open');
     // Within cooldown — still open.
     now = 500;
-    await expect(gw.verify('b')).rejects.toBeInstanceOf(AegisServiceUnavailableError);
+    await expect(gw.verify('b')).rejects.toBeInstanceOf(CerniqServiceUnavailableError);
     // After cooldown, probe succeeds → closed.
     now = 1_500;
     mode = 'ok';
@@ -174,11 +173,11 @@ describe('VerifyGateway: circuit breaker', () => {
     let now = 0;
     let mode: 'ok' | 'fail' = 'ok';
     const fake = makeFake(async () => {
-      if (mode === 'fail') throw new AegisInternalError('boom', 500, undefined);
+      if (mode === 'fail') throw new CerniqInternalError('boom', 500, undefined);
       return makeResult({ ttl: 1 });
     });
     const onStale = jest.fn();
-    const gw = new VerifyGateway(fake as unknown as Aegis, {
+    const gw = new VerifyGateway(fake as unknown as Cerniq, {
       breakerThreshold: 1,
       fallbackMode: 'serve-stale',
       now: () => now,
@@ -189,7 +188,7 @@ describe('VerifyGateway: circuit breaker', () => {
     // Move past TTL and trip breaker.
     now = 5_000;
     mode = 'fail';
-    await expect(gw.verify('other')).rejects.toBeInstanceOf(AegisInternalError);
+    await expect(gw.verify('other')).rejects.toBeInstanceOf(CerniqInternalError);
     expect(gw.state).toBe('open');
     // Original key — cache expired, but breaker is open → serve stale.
     const stale = await gw.verify('tok');
@@ -205,19 +204,19 @@ describe('VerifyGateway: half-open serialization', () => {
     let probeCount = 0;
     const fake = makeFake(() => {
       probeCount += 1;
-      if (probeCount === 1) throw new AegisInternalError('boom', 500, undefined);
+      if (probeCount === 1) throw new CerniqInternalError('boom', 500, undefined);
       // Second invocation returns a slow-resolving probe.
       return new Promise<VerifyResult>((r) => {
         resolveProbe = r;
       });
     });
-    const gw = new VerifyGateway(fake as unknown as Aegis, {
+    const gw = new VerifyGateway(fake as unknown as Cerniq, {
       breakerThreshold: 1,
       breakerCooldownMs: 1_000,
       now: () => now,
     });
     // Trip breaker.
-    await expect(gw.verify('a')).rejects.toBeInstanceOf(AegisInternalError);
+    await expect(gw.verify('a')).rejects.toBeInstanceOf(CerniqInternalError);
     expect(gw.state).toBe('open');
     // Advance past cooldown so next call transitions to half-open.
     now = 1_500;
@@ -228,8 +227,8 @@ describe('VerifyGateway: half-open serialization', () => {
     await Promise.resolve();
     expect(gw.state).toBe('half-open');
     // Concurrent callers during the probe must fast-fail, not slam upstream.
-    await expect(gw.verify('c')).rejects.toBeInstanceOf(AegisServiceUnavailableError);
-    await expect(gw.verify('d')).rejects.toBeInstanceOf(AegisServiceUnavailableError);
+    await expect(gw.verify('c')).rejects.toBeInstanceOf(CerniqServiceUnavailableError);
+    await expect(gw.verify('d')).rejects.toBeInstanceOf(CerniqServiceUnavailableError);
     expect(probeCount).toBe(2); // 1st failed pre-trip, 2nd is the probe — no third invocation.
     // Resolve the probe and let it close the breaker.
     resolveProbe(makeResult());
@@ -242,7 +241,7 @@ describe('VerifyGateway: TTL jitter', () => {
   it('cached expiresAt is at most server-clamped TTL (jitter only shortens)', async () => {
     const now = 0;
     const fake = makeFake(async () => makeResult({ ttl: 30 }));
-    const gw = new VerifyGateway(fake as unknown as Aegis, { now: () => now });
+    const gw = new VerifyGateway(fake as unknown as Cerniq, { now: () => now });
     await gw.verify('tok');
     // Run 50 fresh entries; every cached expiresAt must be <= now + 30s.
     for (let i = 0; i < 50; i += 1) {
@@ -256,7 +255,7 @@ describe('VerifyGateway: TTL jitter', () => {
     // Sample across many entries; max expiresAt must respect the ceiling.
     let now = 1_000_000;
     const fake = makeFake(async () => makeResult({ ttl: 30 }));
-    const gw = new VerifyGateway(fake as unknown as Aegis, {
+    const gw = new VerifyGateway(fake as unknown as Cerniq, {
       now: () => now,
       maxTtlMs: 30_000,
     });
@@ -278,7 +277,7 @@ describe('VerifyGateway: TTL jitter', () => {
 describe('VerifyGateway: metrics snapshot', () => {
   it('reports hits, misses, coalesced, breaker state', async () => {
     const fake = makeFake(async () => makeResult({ ttl: 30 }));
-    const gw = new VerifyGateway(fake as unknown as Aegis);
+    const gw = new VerifyGateway(fake as unknown as Cerniq);
     await gw.verify('tok');
     await gw.verify('tok');
     await gw.verify('other');
@@ -293,7 +292,7 @@ describe('VerifyGateway: metrics snapshot', () => {
 describe('VerifyGateway: invalidation', () => {
   it('drops a cached entry on invalidate()', async () => {
     const fake = makeFake(async () => makeResult({ ttl: 30 }));
-    const gw = new VerifyGateway(fake as unknown as Aegis);
+    const gw = new VerifyGateway(fake as unknown as Cerniq);
     await gw.verify('tok');
     await gw.invalidate('tok');
     await gw.verify('tok');

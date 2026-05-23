@@ -1,4 +1,4 @@
-// AEGIS — request size + JSON depth limits.
+// CERNIQ — request size + JSON depth limits.
 //
 // Default Express body parser accepts up to 100 KB JSON. For an identity
 // gateway that's both too generous (a 100 KB JWT is a guaranteed CPU DoS)
@@ -73,13 +73,22 @@ export function buildBodyParserStack(
     verify: makeJsonSafetyVerifier(config.maxJsonDepth),
   });
 
-  return (req: import('express').Request, res: Parameters<typeof verifyParser>[1], next: Parameters<typeof verifyParser>[2]) => {
+  return (
+    req: import('express').Request,
+    res: Parameters<typeof verifyParser>[1],
+    next: Parameters<typeof verifyParser>[2],
+  ) => {
     const url = req.url ?? '';
-    if (url.startsWith('/v1/verify') || url.startsWith('/v1/agents/') && url.includes('/status')) {
-      verifyParser(req, res, next); return;
+    if (
+      url.startsWith('/v1/verify') ||
+      (url.startsWith('/v1/agents/') && url.includes('/status'))
+    ) {
+      verifyParser(req, res, next);
+      return;
     }
-    if (url.startsWith('/v1/audit') || url.startsWith('/v1/agents/') && url.includes('/audit')) {
-      auditParser(req, res, next); return;
+    if (url.startsWith('/v1/audit') || (url.startsWith('/v1/agents/') && url.includes('/audit'))) {
+      auditParser(req, res, next);
+      return;
     }
     managementParser(req, res, next);
   };

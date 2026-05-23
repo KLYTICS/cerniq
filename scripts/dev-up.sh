@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dev-up.sh — bring up local Postgres + Redis for AEGIS development.
+# dev-up.sh — bring up local Postgres + Redis for CERNIQ development.
 #
 # Idempotent: detects already-running services and skips bring-up. Waits for
 # both containers to report healthy before returning. Exits non-zero with a
@@ -57,7 +57,7 @@ container_running() {
   [[ "$state" == "true" ]]
 }
 
-if container_running aegis-postgres && container_running aegis-redis; then
+if container_running cerniq-postgres && container_running cerniq-redis; then
   echo "dev-up: postgres + redis already running, skipping bring-up."
 else
   echo "dev-up: starting postgres + redis via ${COMPOSE[*]}..."
@@ -85,7 +85,7 @@ wait_for() {
   return 1
 }
 
-wait_for postgres "${COMPOSE[@]}" -f "$COMPOSE_FILE" exec -T postgres pg_isready -U aegis -d aegis
+wait_for postgres "${COMPOSE[@]}" -f "$COMPOSE_FILE" exec -T postgres pg_isready -U cerniq -d cerniq
 wait_for redis    "${COMPOSE[@]}" -f "$COMPOSE_FILE" exec -T redis    redis-cli ping
 
 echo "dev-up: stack healthy. Postgres on :5432, Redis on :6379."

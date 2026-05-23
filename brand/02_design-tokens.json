@@ -1,42 +1,66 @@
 {
   "$schema": "https://design-tokens.github.io/community-group/format/",
-  "name": "AEGIS Design Tokens",
+  "name": "CERNIQ Design Tokens",
   "version": "1.0.0",
-  "description": "Source-of-truth design tokens for the AEGIS brand. Cinematic immersive direction. Standalone-but-compatible ecosystem strategy.",
+  "description": "Source-of-truth design tokens for the CERNIQ brand. Cinematic immersive direction. Standalone-but-compatible ecosystem strategy.",
 
   "color": {
     "_philosophy": "Verified Light — a near-black canvas with a single beam of cyan-violet light that becomes the emotional center of every screen. Every color earns its place; nothing is decorative.",
 
     "canvas": {
-      "obsidian": { "value": "#050714", "description": "Deepest base. Page background. The void before light." },
-      "ink":      { "value": "#0B1020", "description": "Default surface. Cards, panels, navigation." },
-      "steel":    { "value": "#161D33", "description": "Elevated surface. Modals, raised cards, hover states." },
-      "graphite": { "value": "#1F2740", "description": "Subtle inset. Code blocks, kbd, secondary chips." },
-      "mist":     { "value": "#2B3554", "description": "Borders, dividers, low-emphasis strokes." }
+      "obsidian": {
+        "value": "#050714",
+        "description": "Deepest base. Page background. The void before light."
+      },
+      "ink": { "value": "#0B1020", "description": "Default surface. Cards, panels, navigation." },
+      "steel": {
+        "value": "#161D33",
+        "description": "Elevated surface. Modals, raised cards, hover states."
+      },
+      "graphite": {
+        "value": "#1F2740",
+        "description": "Subtle inset. Code blocks, kbd, secondary chips."
+      },
+      "mist": { "value": "#2B3554", "description": "Borders, dividers, low-emphasis strokes." }
     },
 
     "text": {
-      "halo":   { "value": "#F4F6FF", "description": "Primary text on dark. Default reading color." },
-      "fog":    { "value": "#A8B0CC", "description": "Secondary text, descriptions, captions." },
+      "halo": { "value": "#F4F6FF", "description": "Primary text on dark. Default reading color." },
+      "fog": { "value": "#A8B0CC", "description": "Secondary text, descriptions, captions." },
       "shadow": { "value": "#6B7494", "description": "Tertiary text, placeholder, disabled." },
-      "echo":   { "value": "#3F4869", "description": "De-emphasized labels, watermarks." }
+      "echo": { "value": "#3F4869", "description": "De-emphasized labels, watermarks." }
     },
 
     "signal": {
       "_role": "The brand. Use sparingly — these colors carry meaning, not decoration.",
-      "cyan":   { "value": "#5BE0FF", "description": "Primary brand. Verified state. The trust beacon." },
-      "cyan-soft":   { "value": "rgba(91, 224, 255, 0.16)", "description": "Cyan tint for chip backgrounds, focus rings." },
-      "violet": { "value": "#8B6BFF", "description": "Cryptographic accent. Proof, identity, secondary brand." },
-      "violet-soft": { "value": "rgba(139, 107, 255, 0.16)", "description": "Violet tint for chip backgrounds." },
-      "magenta":{ "value": "#FF5BD0", "description": "Aurora terminal. Used only inside the signature gradient." }
+      "cyan": {
+        "value": "#5BE0FF",
+        "description": "Primary brand. Verified state. The trust beacon."
+      },
+      "cyan-soft": {
+        "value": "rgba(91, 224, 255, 0.16)",
+        "description": "Cyan tint for chip backgrounds, focus rings."
+      },
+      "violet": {
+        "value": "#8B6BFF",
+        "description": "Cryptographic accent. Proof, identity, secondary brand."
+      },
+      "violet-soft": {
+        "value": "rgba(139, 107, 255, 0.16)",
+        "description": "Violet tint for chip backgrounds."
+      },
+      "magenta": {
+        "value": "#FF5BD0",
+        "description": "Aurora terminal. Used only inside the signature gradient."
+      }
     },
 
     "status": {
-      "verified":  { "value": "#4CFFA8", "description": "Success / verified state." },
+      "verified": { "value": "#4CFFA8", "description": "Success / verified state." },
       "verified-soft": { "value": "rgba(76, 255, 168, 0.14)" },
-      "denied":    { "value": "#FF5470", "description": "Denial / error state." },
+      "denied": { "value": "#FF5470", "description": "Denial / error state." },
       "denied-soft": { "value": "rgba(255, 84, 112, 0.14)" },
-      "pending":   { "value": "#FFB86B", "description": "Warning / in-flight / attention state." },
+      "pending": { "value": "#FFB86B", "description": "Warning / in-flight / attention state." },
       "pending-soft": { "value": "rgba(255, 184, 107, 0.14)" }
     },
 
@@ -64,47 +88,81 @@
     "_philosophy": "Three voices: a tight technical sans for UI, a humane sans for body, an editorial serif for emotional moments. The serif is the secret weapon — used once per page, always intentional.",
 
     "fontFamily": {
-      "display": { "value": "\"Geist\", \"Inter Tight\", \"Inter\", system-ui, -apple-system, sans-serif", "description": "Headlines, display, navigation. Tight, technical, modern." },
-      "body":    { "value": "\"Inter\", system-ui, -apple-system, \"Segoe UI\", sans-serif", "description": "Body, UI, all running text." },
-      "serif":   { "value": "\"Instrument Serif\", \"Newsreader\", Georgia, serif", "description": "Editorial headlines. Used when AEGIS needs to feel human, not infrastructural. Italic preferred." },
-      "mono":    { "value": "\"Geist Mono\", \"JetBrains Mono\", \"Berkeley Mono\", ui-monospace, monospace", "description": "Code, signatures, agent IDs, anything cryptographic. Mono is part of the brand." }
+      "display": {
+        "value": "\"Geist\", \"Inter Tight\", \"Inter\", system-ui, -apple-system, sans-serif",
+        "description": "Headlines, display, navigation. Tight, technical, modern."
+      },
+      "body": {
+        "value": "\"Inter\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        "description": "Body, UI, all running text."
+      },
+      "serif": {
+        "value": "\"Instrument Serif\", \"Newsreader\", Georgia, serif",
+        "description": "Editorial headlines. Used when CERNIQ needs to feel human, not infrastructural. Italic preferred."
+      },
+      "mono": {
+        "value": "\"Geist Mono\", \"JetBrains Mono\", \"Berkeley Mono\", ui-monospace, monospace",
+        "description": "Code, signatures, agent IDs, anything cryptographic. Mono is part of the brand."
+      }
     },
 
     "scale": {
       "_unit": "px / line-height / letter-spacing",
-      "display-xl": { "size": "112px", "lineHeight": "1.02", "letterSpacing": "-0.045em", "weight": 600, "description": "Hero only. One per page maximum." },
-      "display":    { "size": "80px",  "lineHeight": "1.04", "letterSpacing": "-0.04em",  "weight": 600 },
-      "h1":         { "size": "56px",  "lineHeight": "1.08", "letterSpacing": "-0.03em",  "weight": 600 },
-      "h2":         { "size": "40px",  "lineHeight": "1.15", "letterSpacing": "-0.025em", "weight": 600 },
-      "h3":         { "size": "28px",  "lineHeight": "1.25", "letterSpacing": "-0.02em",  "weight": 600 },
-      "h4":         { "size": "22px",  "lineHeight": "1.3",  "letterSpacing": "-0.015em", "weight": 600 },
-      "body-lg":    { "size": "18px",  "lineHeight": "1.6",  "letterSpacing": "-0.005em", "weight": 400 },
-      "body":       { "size": "16px",  "lineHeight": "1.6",  "letterSpacing": "0",        "weight": 400 },
-      "body-sm":    { "size": "14px",  "lineHeight": "1.55", "letterSpacing": "0",        "weight": 400 },
-      "caption":    { "size": "12px",  "lineHeight": "1.4",  "letterSpacing": "0.02em",   "weight": 500 },
-      "eyebrow":    { "size": "11px",  "lineHeight": "1.2",  "letterSpacing": "0.16em",   "weight": 600, "description": "Uppercase. Above section headlines." },
-      "mono":       { "size": "14px",  "lineHeight": "1.55", "letterSpacing": "0",        "weight": 450 },
-      "mono-sm":    { "size": "12px",  "lineHeight": "1.5",  "letterSpacing": "0",        "weight": 450 }
+      "display-xl": {
+        "size": "112px",
+        "lineHeight": "1.02",
+        "letterSpacing": "-0.045em",
+        "weight": 600,
+        "description": "Hero only. One per page maximum."
+      },
+      "display": {
+        "size": "80px",
+        "lineHeight": "1.04",
+        "letterSpacing": "-0.04em",
+        "weight": 600
+      },
+      "h1": { "size": "56px", "lineHeight": "1.08", "letterSpacing": "-0.03em", "weight": 600 },
+      "h2": { "size": "40px", "lineHeight": "1.15", "letterSpacing": "-0.025em", "weight": 600 },
+      "h3": { "size": "28px", "lineHeight": "1.25", "letterSpacing": "-0.02em", "weight": 600 },
+      "h4": { "size": "22px", "lineHeight": "1.3", "letterSpacing": "-0.015em", "weight": 600 },
+      "body-lg": {
+        "size": "18px",
+        "lineHeight": "1.6",
+        "letterSpacing": "-0.005em",
+        "weight": 400
+      },
+      "body": { "size": "16px", "lineHeight": "1.6", "letterSpacing": "0", "weight": 400 },
+      "body-sm": { "size": "14px", "lineHeight": "1.55", "letterSpacing": "0", "weight": 400 },
+      "caption": { "size": "12px", "lineHeight": "1.4", "letterSpacing": "0.02em", "weight": 500 },
+      "eyebrow": {
+        "size": "11px",
+        "lineHeight": "1.2",
+        "letterSpacing": "0.16em",
+        "weight": 600,
+        "description": "Uppercase. Above section headlines."
+      },
+      "mono": { "size": "14px", "lineHeight": "1.55", "letterSpacing": "0", "weight": 450 },
+      "mono-sm": { "size": "12px", "lineHeight": "1.5", "letterSpacing": "0", "weight": 450 }
     },
 
     "weight": {
       "regular": { "value": 400 },
-      "medium":  { "value": 500 },
+      "medium": { "value": 500 },
       "semibold": { "value": 600 },
-      "bold":    { "value": 700 }
+      "bold": { "value": 700 }
     }
   },
 
   "spacing": {
     "_unit": "8pt base. Use these values exclusively — no off-grid spacing.",
-    "0":  { "value": "0" },
-    "1":  { "value": "4px" },
-    "2":  { "value": "8px" },
-    "3":  { "value": "12px" },
-    "4":  { "value": "16px" },
-    "5":  { "value": "20px" },
-    "6":  { "value": "24px" },
-    "8":  { "value": "32px" },
+    "0": { "value": "0" },
+    "1": { "value": "4px" },
+    "2": { "value": "8px" },
+    "3": { "value": "12px" },
+    "4": { "value": "16px" },
+    "5": { "value": "20px" },
+    "6": { "value": "24px" },
+    "8": { "value": "32px" },
     "10": { "value": "40px" },
     "12": { "value": "48px" },
     "16": { "value": "64px" },
@@ -117,55 +175,91 @@
 
   "radius": {
     "none": { "value": "0" },
-    "xs":   { "value": "4px",  "description": "Inputs, kbd, small chips." },
-    "sm":   { "value": "8px",  "description": "Buttons, badges." },
-    "md":   { "value": "12px", "description": "Cards, panels." },
-    "lg":   { "value": "16px", "description": "Large cards, modals." },
-    "xl":   { "value": "24px", "description": "Hero panels, feature blocks." },
+    "xs": { "value": "4px", "description": "Inputs, kbd, small chips." },
+    "sm": { "value": "8px", "description": "Buttons, badges." },
+    "md": { "value": "12px", "description": "Cards, panels." },
+    "lg": { "value": "16px", "description": "Large cards, modals." },
+    "xl": { "value": "24px", "description": "Hero panels, feature blocks." },
     "pill": { "value": "999px", "description": "Pill chips, status badges." },
     "circle": { "value": "50%" }
   },
 
   "shadow": {
     "_role": "Shadows do two jobs: separate surfaces in the dark, and create the brand's signature glow. Never both at once.",
-    "elev-1": { "value": "0 1px 2px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04)", "description": "Subtle separation. Default cards." },
-    "elev-2": { "value": "0 4px 16px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05)", "description": "Lifted cards, dropdowns." },
-    "elev-3": { "value": "0 16px 48px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06)", "description": "Modals, hero panels." },
-    "elev-4": { "value": "0 32px 96px rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06)", "description": "Maximum lift. Featured hero card." },
-    "glow-cyan":   { "value": "0 0 0 1px rgba(91,224,255,0.3), 0 0 24px rgba(91,224,255,0.18)", "description": "Primary brand glow. Hover/focus on signal elements." },
+    "elev-1": {
+      "value": "0 1px 2px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04)",
+      "description": "Subtle separation. Default cards."
+    },
+    "elev-2": {
+      "value": "0 4px 16px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05)",
+      "description": "Lifted cards, dropdowns."
+    },
+    "elev-3": {
+      "value": "0 16px 48px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06)",
+      "description": "Modals, hero panels."
+    },
+    "elev-4": {
+      "value": "0 32px 96px rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06)",
+      "description": "Maximum lift. Featured hero card."
+    },
+    "glow-cyan": {
+      "value": "0 0 0 1px rgba(91,224,255,0.3), 0 0 24px rgba(91,224,255,0.18)",
+      "description": "Primary brand glow. Hover/focus on signal elements."
+    },
     "glow-violet": { "value": "0 0 0 1px rgba(139,107,255,0.3), 0 0 24px rgba(139,107,255,0.18)" },
-    "glow-aurora": { "value": "0 0 0 1px rgba(139,107,255,0.25), 0 0 40px rgba(91,224,255,0.15), 0 0 80px rgba(139,107,255,0.12)", "description": "Hero glow — used only on the page's anchor element." },
-    "inset-stroke": { "value": "inset 0 0 0 1px rgba(255,255,255,0.06)", "description": "Subtle inner stroke for depth on cards." }
+    "glow-aurora": {
+      "value": "0 0 0 1px rgba(139,107,255,0.25), 0 0 40px rgba(91,224,255,0.15), 0 0 80px rgba(139,107,255,0.12)",
+      "description": "Hero glow — used only on the page's anchor element."
+    },
+    "inset-stroke": {
+      "value": "inset 0 0 0 1px rgba(255,255,255,0.06)",
+      "description": "Subtle inner stroke for depth on cards."
+    }
   },
 
   "motion": {
     "_philosophy": "One easing curve. Movement should feel inevitable, not animated.",
     "easing": {
-      "signature": { "value": "cubic-bezier(0.16, 1, 0.3, 1)", "description": "ease-out-expo. The AEGIS curve. Use for 90% of motion." },
-      "linear":    { "value": "linear", "description": "Only for progress bars and continuous loops." },
-      "spring":    { "value": "cubic-bezier(0.34, 1.4, 0.64, 1)", "description": "Subtle overshoot for delight moments. Use rarely." }
+      "signature": {
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "description": "ease-out-expo. The CERNIQ curve. Use for 90% of motion."
+      },
+      "linear": {
+        "value": "linear",
+        "description": "Only for progress bars and continuous loops."
+      },
+      "spring": {
+        "value": "cubic-bezier(0.34, 1.4, 0.64, 1)",
+        "description": "Subtle overshoot for delight moments. Use rarely."
+      }
     },
     "duration": {
-      "instant": { "value": "80ms",  "description": "Hover state changes. Must feel free." },
-      "fast":    { "value": "160ms", "description": "Microinteractions. Buttons, toggles." },
-      "base":    { "value": "240ms", "description": "Default. Most state changes." },
-      "slow":    { "value": "480ms", "description": "Page transitions, large surface moves." },
-      "cinema":  { "value": "800ms", "description": "Cinematic reveals. Hero entries, scroll-triggered choreography." }
+      "instant": { "value": "80ms", "description": "Hover state changes. Must feel free." },
+      "fast": { "value": "160ms", "description": "Microinteractions. Buttons, toggles." },
+      "base": { "value": "240ms", "description": "Default. Most state changes." },
+      "slow": { "value": "480ms", "description": "Page transitions, large surface moves." },
+      "cinema": {
+        "value": "800ms",
+        "description": "Cinematic reveals. Hero entries, scroll-triggered choreography."
+      }
     },
     "reveal": {
-      "translateY": { "value": "24px", "description": "Default Y-offset for scroll-reveal entries." },
-      "stagger":    { "value": "60ms", "description": "Delay between staggered children." }
+      "translateY": {
+        "value": "24px",
+        "description": "Default Y-offset for scroll-reveal entries."
+      },
+      "stagger": { "value": "60ms", "description": "Delay between staggered children." }
     }
   },
 
   "z-index": {
-    "base":    { "value": 0 },
-    "raised":  { "value": 10 },
-    "sticky":  { "value": 100 },
-    "header":  { "value": 200 },
+    "base": { "value": 0 },
+    "raised": { "value": 10 },
+    "sticky": { "value": 100 },
+    "header": { "value": 200 },
     "overlay": { "value": 800 },
-    "modal":   { "value": 900 },
-    "toast":   { "value": 1000 },
+    "modal": { "value": 900 },
+    "toast": { "value": 1000 },
     "tooltip": { "value": 1100 }
   },
 
@@ -178,10 +272,10 @@
   },
 
   "container": {
-    "narrow":  { "value": "640px",  "description": "Editorial reading width." },
+    "narrow": { "value": "640px", "description": "Editorial reading width." },
     "default": { "value": "1120px", "description": "Standard product pages." },
-    "wide":    { "value": "1320px", "description": "Marketing hero, dashboards." },
-    "full":    { "value": "1536px", "description": "Maximum content width." }
+    "wide": { "value": "1320px", "description": "Marketing hero, dashboards." },
+    "full": { "value": "1536px", "description": "Maximum content width." }
   },
 
   "blur": {

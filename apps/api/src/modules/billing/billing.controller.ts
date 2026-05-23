@@ -41,10 +41,7 @@ import type { PlanTier } from '@prisma/client';
 import { IsEnum, IsOptional, IsUrl, MaxLength } from 'class-validator';
 
 import { Auth } from '../../common/decorators/auth.decorator';
-import {
-  ServiceUnavailableError,
-  ValidationError,
-} from '../../common/errors/aegis-error';
+import { ServiceUnavailableError, ValidationError } from '../../common/errors/cerniq-error';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AppConfigService } from '../../config/config.service';
 import { Public } from '../auth/api-key.guard';
@@ -81,8 +78,7 @@ export class CreateCheckoutDto {
   successUrl?: string;
 
   @ApiPropertyOptional({
-    description:
-      'Override the configured cancel URL. Defaults to STRIPE_CHECKOUT_CANCEL_URL.',
+    description: 'Override the configured cancel URL. Defaults to STRIPE_CHECKOUT_CANCEL_URL.',
   })
   @IsOptional()
   @IsUrl({ require_tld: false, protocols: ['https', 'http'] })
@@ -162,8 +158,7 @@ export class PlanSummaryDto {
   trialUsedCount!: number | null;
 
   @ApiPropertyOptional({
-    description:
-      'Trial cap (10,000 per ADR-0014) — null for paid tiers and Enterprise.',
+    description: 'Trial cap (10,000 per ADR-0014) — null for paid tiers and Enterprise.',
   })
   trialCap!: number | null;
 
@@ -322,9 +317,7 @@ export class BillingController {
     const monthlyQuota =
       plan.monthlyVerifyQuota === Number.POSITIVE_INFINITY ? -1 : plan.monthlyVerifyQuota;
     const monthVerifyCount =
-      monthlyQuota === -1 || quota.remaining < 0
-        ? -1
-        : Math.max(0, monthlyQuota - quota.remaining);
+      monthlyQuota === -1 || quota.remaining < 0 ? -1 : Math.max(0, monthlyQuota - quota.remaining);
 
     // Round 21: surface the lifetime trial counter for the dashboard so it
     // can render exact numbers without the "(approx.)" disclaimer.

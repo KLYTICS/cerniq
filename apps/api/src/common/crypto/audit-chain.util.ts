@@ -6,7 +6,7 @@
 //   prev_hash    = sha256(prev_event.signature || prev_event.id)   (32B)
 //   canonical    = canonicalize(payload)                           (RFC 8785-ish)
 //   sign_input   = prev_hash || canonical
-//   signature    = ed25519.sign(aegisAuditPrivateKey, sign_input)
+//   signature    = ed25519.sign(cerniqAuditPrivateKey, sign_input)
 //
 // Verifier (third party):
 //   1. Fetch /.well-known/audit-signing-key
@@ -174,11 +174,11 @@ export class AuditChainUtil {
    * Compute the prev_hash chain link. Returns 32-byte sha256 buffer.
    *
    * For the first event in a chain, both args are null and prev_hash is
-   * the sha256 of the literal string "AEGIS-AUDIT-GENESIS-v1".
+   * the sha256 of the literal string "CERNIQ-AUDIT-GENESIS-v1".
    */
   prevHash(prevEventId: string | null, prevSignatureB64Url: string | null): Buffer {
     if (prevEventId === null && prevSignatureB64Url === null) {
-      return createHash('sha256').update('AEGIS-AUDIT-GENESIS-v1').digest();
+      return createHash('sha256').update('CERNIQ-AUDIT-GENESIS-v1').digest();
     }
     if (prevEventId === null || prevSignatureB64Url === null) {
       throw new Error('prevEventId and prevSignatureB64Url must both be set or both be null');
@@ -201,7 +201,7 @@ export class AuditChainUtil {
   /**
    * KMS-friendly variant (M-037). Composes the same `prev_hash || canonical(payload)`
    * message but delegates the actual signing to a callback. Lets KMS-backed
-   * signers participate without exposing a private key bundle to AEGIS code.
+   * signers participate without exposing a private key bundle to CERNIQ code.
    */
   async signWithSigner(
     input: AuditChainInput,

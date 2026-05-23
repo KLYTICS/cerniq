@@ -1,18 +1,18 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import { decodeUnsafe } from '@aegis/sdk';
-import type { Aegis } from '@aegis/sdk';
-import { TOKEN_TTL_MAX_SECONDS } from '@aegis/types';
+import { decodeUnsafe } from '@cerniq/sdk';
+import type { Cerniq } from '@cerniq/sdk';
+import { TOKEN_TTL_MAX_SECONDS } from '@cerniq/types';
 import { makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixtures';
 
 /**
  * v2 design: tokens are signed *client-side* by the SDK using the agent's
- * private key. AEGIS never sees the private key, so there is no
+ * private key. CERNIQ never sees the private key, so there is no
  * /v1/token/sign endpoint to test. Instead we verify the SDK signer
  * produces a JWS with the contractual claim shape.
  */
 describe('05 · client-side token signing', () => {
-  let sdk: Aegis;
+  let sdk: Cerniq;
   const cleanup: string[] = [];
 
   beforeAll(() => {

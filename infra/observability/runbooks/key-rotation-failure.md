@@ -3,15 +3,16 @@
 ## Alert
 
 - **Names**: `ApiKeyRotationFailureRate` (warning),
-  `ApiKeyExpiredAuthSpike` (warning) — *both not yet emitted; flip on
-  metric land per round 15 backlog*.
-- **Group**: `aegis.auth`
-- **File**: `infra/observability/alerts/aegis.rules.yml`
+  `ApiKeyExpiredAuthSpike` (warning) — _both not yet emitted; flip on
+  metric land per round 15 backlog_.
+- **Group**: `cerniq.auth`
+- **File**: `infra/observability/alerts/cerniq.rules.yml`
 - **Source**: round-15 rotation surface — `apps/api/src/modules/auth/api-key-rotation.controller.ts`, `api-key.service.ts.rotate()`, `api-key.guard.ts`.
 
 ## Symptom
 
 One or more of:
+
 1. `POST /v1/principals/me/api-keys/rotate` returning 5xx at > 0.1/s for 5 min.
 2. Auth guard surfacing `EXPIRED_API_KEY` error code at > 1% of inbound auth attempts (the customer-visible signal that someone is using a rotated-out key past its 24h overlap window).
 3. `AlreadyRotatedError` (HTTP 409) firing — a principal tried to rotate twice within their overlap window.
@@ -34,12 +35,12 @@ One or more of:
    sum(rate(api_key_auth_total{result="expired"}[5m])) / sum(rate(api_key_auth_total[5m]))
    ```
 
-   The first two give success rate of the rotation endpoint. The third gives the customer-visible expired-rate. Round 15 metric naming may be `aegis_api_key_*` — confirm via `metrics.service.ts`.
+   The first two give success rate of the rotation endpoint. The third gives the customer-visible expired-rate. Round 15 metric naming may be `cerniq_api_key_*` — confirm via `metrics.service.ts`.
 
 2. **Pull the rotation audit events to see the chain state.**
 
    ```bash
-   railway run -s aegis-api -- psql "$DATABASE_URL" -c "
+   railway run -s cerniq-api -- psql "$DATABASE_URL" -c "
      SELECT id, \"createdAt\", \"principalId\", payload
      FROM \"AuditEvent\"
      WHERE \"eventType\" = 'api_key.rotated'

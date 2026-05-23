@@ -4,7 +4,7 @@
  * Coverage:
  *   status()          — delegates req.principalId to onboarding.getStatus
  *   markStep()        — delegates principalId + step to onboarding.markStep
- *   triggerBackfill() — admin-only gate (X-AEGIS-Admin header), delegates to backfill.run
+ *   triggerBackfill() — admin-only gate (X-CERNIQ-Admin header), delegates to backfill.run
  *   lastReport()      — admin-only gate, delegates to backfill.getLastReport
  */
 
@@ -27,14 +27,16 @@ function makeOnboarding(): jest.Mocked<Pick<OnboardingService, 'getStatus' | 'ma
 function makeBackfill(): jest.Mocked<Pick<OnboardingBackfill, 'run' | 'getLastReport'>> {
   return {
     run: jest.fn().mockResolvedValue({ ranAt: new Date().toISOString(), processed: 5, updated: 2 }),
-    getLastReport: jest.fn().mockReturnValue({ ranAt: new Date().toISOString(), processed: 3, updated: 1 }),
+    getLastReport: jest
+      .fn()
+      .mockReturnValue({ ranAt: new Date().toISOString(), processed: 3, updated: 1 }),
   };
 }
 
 function makeReq(opts: { principalId?: string; adminHeader?: string } = {}): Request {
   return {
     principalId: opts.principalId,
-    headers: opts.adminHeader !== undefined ? { 'x-aegis-admin': opts.adminHeader } : {},
+    headers: opts.adminHeader !== undefined ? { 'x-cerniq-admin': opts.adminHeader } : {},
   } as unknown as Request;
 }
 
@@ -53,12 +55,14 @@ const ADMIN_TOKEN = 'super_secret_admin';
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('OnboardingController', () => {
-  // Save and restore process.env.AEGIS_ADMIN_TOKEN
-  const originalToken = process.env.AEGIS_ADMIN_TOKEN;
-  beforeAll(() => { process.env.AEGIS_ADMIN_TOKEN = ADMIN_TOKEN; });
+  // Save and restore process.env.CERNIQ_ADMIN_TOKEN
+  const originalToken = process.env.CERNIQ_ADMIN_TOKEN;
+  beforeAll(() => {
+    process.env.CERNIQ_ADMIN_TOKEN = ADMIN_TOKEN;
+  });
   afterAll(() => {
-    if (originalToken === undefined) delete process.env.AEGIS_ADMIN_TOKEN;
-    else process.env.AEGIS_ADMIN_TOKEN = originalToken;
+    if (originalToken === undefined) delete process.env.CERNIQ_ADMIN_TOKEN;
+    else process.env.CERNIQ_ADMIN_TOKEN = originalToken;
   });
 
   describe('status()', () => {
@@ -83,13 +87,17 @@ describe('OnboardingController', () => {
   describe('markStep()', () => {
     it('delegates to onboarding.markStep with principalId and step', async () => {
       const { controller, onboarding } = makeController();
-      await controller.markStep(makeReq({ principalId: 'prn_A' }), { step: 'CREATE_AGENT' } as never);
+      await controller.markStep(makeReq({ principalId: 'prn_A' }), {
+        step: 'CREATE_AGENT',
+      } as never);
       expect(onboarding.markStep).toHaveBeenCalledWith('prn_A', 'CREATE_AGENT');
     });
 
     it('throws when req.principalId is missing', async () => {
       const { controller } = makeController();
-      await expect(controller.markStep(makeReq({}), { step: 'CREATE_AGENT' } as never)).rejects.toThrow('principal_missing');
+      await expect(
+        controller.markStep(makeReq({}), { step: 'CREATE_AGENT' } as never),
+      ).rejects.toThrow('principal_missing');
     });
   });
 
@@ -109,9 +117,7 @@ describe('OnboardingController', () => {
 
     it('throws ForbiddenException when admin header is missing', async () => {
       const { controller } = makeController();
-      await expect(
-        controller.triggerBackfill(makeReq({})),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(controller.triggerBackfill(makeReq({}))).rejects.toThrow(ForbiddenException);
     });
 
     it('returns the backfill report', async () => {
@@ -138,7 +144,9 @@ describe('OnboardingController', () => {
 
     it('throws ForbiddenException when admin header is wrong', () => {
       const { controller } = makeController();
-      expect(() => controller.lastReport(makeReq({ adminHeader: 'bad' }))).toThrow(ForbiddenException);
+      expect(() => controller.lastReport(makeReq({ adminHeader: 'bad' }))).toThrow(
+        ForbiddenException,
+      );
     });
   });
 });

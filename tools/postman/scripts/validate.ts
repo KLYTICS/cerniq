@@ -1,4 +1,4 @@
-// Static lint for the AEGIS Postman v2.1 collection.
+// Static lint for the CERNIQ Postman v2.1 collection.
 //
 // Run from this package: `pnpm run validate`.
 //
@@ -19,7 +19,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { DENIAL_REASON_PRECEDENCE as TYPES_DENIAL_REASON_PRECEDENCE } from '@aegis/types';
+import { DENIAL_REASON_PRECEDENCE as TYPES_DENIAL_REASON_PRECEDENCE } from '@cerniq/types';
 
 // type-rationale: the collection JSON has thousands of arbitrarily-shaped
 // fields and we only inspect a small surface. Anything we touch we narrow
@@ -59,7 +59,7 @@ export const DENIAL_PRECEDENCE_FOLDER = 'Denial Precedence Walk-through';
 
 /**
  * Canonical denial precedence for the Postman walk-through (CLAUDE.md
- * invariant 6). Imported from `@aegis/types` to eliminate the drift class
+ * invariant 6). Imported from `@cerniq/types` to eliminate the drift class
  * that bit Round 17 (TRIAL_EXHAUSTED appeared in 6+ files; this used to
  * be one of them).
  *
@@ -68,7 +68,7 @@ export const DENIAL_PRECEDENCE_FOLDER = 'Denial Precedence Walk-through';
  * 57-60) that fires before the verify chain and so isn't part of the
  * walkthrough — the walkthrough exercises the 10-step algorithm chain
  * only. Future denial reason additions only need to land in
- * `@aegis/types`; this filter still classifies them correctly.
+ * `@cerniq/types`; this filter still classifies them correctly.
  */
 export const DENIAL_REASON_PRECEDENCE = TYPES_DENIAL_REASON_PRECEDENCE.filter(
   (r) => r !== 'PLAN_LIMIT_EXCEEDED',
@@ -83,8 +83,8 @@ export const DENIAL_REASON_PRECEDENCE = TYPES_DENIAL_REASON_PRECEDENCE.filter(
  * substring scan handles that explicitly below.
  */
 const SECRET_PATTERNS: Array<{ name: string; re: RegExp }> = [
-  { name: 'aegis api key (aegis_*)', re: /\baegis_[A-Za-z0-9]{8,}\b/ },
-  { name: 'aegis verify key (aegisv_*)', re: /\baegisv_[A-Za-z0-9]{8,}\b/ },
+  { name: 'cerniq api key (cerniq_*)', re: /\bcerniq_[A-Za-z0-9]{8,}\b/ },
+  { name: 'cerniq verify key (cerniqv_*)', re: /\bcerniqv_[A-Za-z0-9]{8,}\b/ },
   { name: 'webhook secret (whsec_*)', re: /\bwhsec_[A-Za-z0-9]{8,}\b/ },
   { name: 'stripe secret (sk_*)', re: /\bsk_(live|test)_[A-Za-z0-9]{8,}\b/ },
 ];
@@ -120,9 +120,7 @@ function walk(
 
     if (node.request) {
       const url =
-        typeof node.request.url === 'string'
-          ? node.request.url
-          : node.request.url?.raw ?? '';
+        typeof node.request.url === 'string' ? node.request.url : (node.request.url?.raw ?? '');
       const headers = Array.isArray(node.request.header)
         ? node.request.header.map((h) => ({
             key: typeof h.key === 'string' ? h.key : '',
@@ -144,10 +142,7 @@ function walk(
  * Find the folder named `folderName` at the top level and return its
  * children. Returns null if absent.
  */
-function findTopFolder(
-  items: unknown[],
-  folderName: string,
-): unknown[] | null {
+function findTopFolder(items: unknown[], folderName: string): unknown[] | null {
   for (const raw of items) {
     if (!raw || typeof raw !== 'object') continue;
     const node = raw as { name?: string; item?: unknown[] };
@@ -177,7 +172,7 @@ function bearerLiteralViolations(serialised: string): string[] {
 
 export function runValidate(collectionPath?: string): ValidationResult {
   const here = dirname(fileURLToPath(import.meta.url));
-  const path = collectionPath ?? resolve(here, '..', 'aegis.collection.json');
+  const path = collectionPath ?? resolve(here, '..', 'cerniq.collection.json');
   const raw = readFileSync(path, 'utf8');
 
   const errors: string[] = [];
@@ -200,9 +195,7 @@ export function runValidate(collectionPath?: string): ValidationResult {
   // 1. Schema must be exactly the v2.1 URL.
   const schema = parsed.info?.schema;
   if (schema !== POSTMAN_V21_SCHEMA) {
-    errors.push(
-      `info.schema must equal "${POSTMAN_V21_SCHEMA}" — got "${schema ?? '<missing>'}"`,
-    );
+    errors.push(`info.schema must equal "${POSTMAN_V21_SCHEMA}" — got "${schema ?? '<missing>'}"`);
   }
 
   // 2. Walk the tree.
@@ -235,10 +228,7 @@ export function runValidate(collectionPath?: string): ValidationResult {
           );
         }
       }
-      if (
-        header.key.toLowerCase() === 'authorization' &&
-        /Bearer\s+(?!\{\{)/i.test(header.value)
-      ) {
+      if (header.key.toLowerCase() === 'authorization' && /Bearer\s+(?!\{\{)/i.test(header.value)) {
         errors.push(
           `request "${leaf.path}" header "Authorization" carries a literal Bearer token — use {{api_key}} or {{verify_key}}`,
         );

@@ -60,7 +60,7 @@ function buildRow(overrides: Partial<AuditEventRow> = {}): AuditEventRow {
     requestedAmountHash: null,
     policySnapshotHash: null,
     payloadVersion: 2,
-    aegisSignature: '', // populated by signEvent
+    cerniqSignature: '', // populated by signEvent
     ...overrides,
   };
 }
@@ -85,7 +85,7 @@ describe('canonicalize', () => {
 describe('prevHash', () => {
   it('returns the genesis hash when both args are null', () => {
     const h = prevHash(null, null);
-    expect(h).toEqual(createHash('sha256').update('AEGIS-AUDIT-GENESIS-v1').digest());
+    expect(h).toEqual(createHash('sha256').update('CERNIQ-AUDIT-GENESIS-v1').digest());
   });
 
   it('rejects partial inputs', () => {
@@ -107,7 +107,7 @@ describe('verifyChain', () => {
   it('passes a 1-event genesis chain', async () => {
     const { priv, pubB64Url } = await freshKeypair();
     const row = buildRow();
-    row.aegisSignature = await signEvent(row, null, null, priv);
+    row.cerniqSignature = await signEvent(row, null, null, priv);
 
     const out = await verifyChain([row], pubB64Url);
     expect(out.passed).toBe(1);
@@ -117,11 +117,11 @@ describe('verifyChain', () => {
   it('passes a 3-event chain', async () => {
     const { priv, pubB64Url } = await freshKeypair();
     const a = buildRow({ id: 'evt_a' });
-    a.aegisSignature = await signEvent(a, null, null, priv);
+    a.cerniqSignature = await signEvent(a, null, null, priv);
     const b = buildRow({ id: 'evt_b', timestamp: new Date('2026-05-02T10:00:01Z') });
-    b.aegisSignature = await signEvent(b, a.id, a.aegisSignature, priv);
+    b.cerniqSignature = await signEvent(b, a.id, a.cerniqSignature, priv);
     const c = buildRow({ id: 'evt_c', timestamp: new Date('2026-05-02T10:00:02Z') });
-    c.aegisSignature = await signEvent(c, b.id, b.aegisSignature, priv);
+    c.cerniqSignature = await signEvent(c, b.id, b.cerniqSignature, priv);
 
     const out = await verifyChain([a, b, c], pubB64Url);
     expect(out.passed).toBe(3);
@@ -131,9 +131,9 @@ describe('verifyChain', () => {
   it('detects tampering of a payload field — first break flagged at the tampered event', async () => {
     const { priv, pubB64Url } = await freshKeypair();
     const a = buildRow({ id: 'evt_a' });
-    a.aegisSignature = await signEvent(a, null, null, priv);
+    a.cerniqSignature = await signEvent(a, null, null, priv);
     const b = buildRow({ id: 'evt_b' });
-    b.aegisSignature = await signEvent(b, a.id, a.aegisSignature, priv);
+    b.cerniqSignature = await signEvent(b, a.id, a.cerniqSignature, priv);
 
     // After signing, an attacker mutates the action hash on event b.
     b.actionHash = createHash('sha256').update('commerce.refund').digest('base64url');
@@ -147,7 +147,7 @@ describe('verifyChain', () => {
     const { pubB64Url: pubA } = await freshKeypair();
     const { priv: privB } = await freshKeypair();
     const row = buildRow();
-    row.aegisSignature = await signEvent(row, null, null, privB);
+    row.cerniqSignature = await signEvent(row, null, null, privB);
 
     const out = await verifyChain([row], pubA);
     expect(out.firstBreakAt).toBe(0);
@@ -157,7 +157,7 @@ describe('verifyChain', () => {
   it('flags unsupported payload version with a typed reason', async () => {
     const { priv, pubB64Url } = await freshKeypair();
     const row = buildRow({ payloadVersion: 99 });
-    row.aegisSignature = await signEvent(row, null, null, priv);
+    row.cerniqSignature = await signEvent(row, null, null, priv);
 
     const out = await verifyChain([row], pubB64Url);
     expect(out.firstBreakAt).toBe(0);
@@ -167,12 +167,12 @@ describe('verifyChain', () => {
   it('reports passed count even when the chain breaks mid-stream', async () => {
     const { priv, pubB64Url } = await freshKeypair();
     const a = buildRow({ id: 'evt_a' });
-    a.aegisSignature = await signEvent(a, null, null, priv);
+    a.cerniqSignature = await signEvent(a, null, null, priv);
     const b = buildRow({ id: 'evt_b' });
-    b.aegisSignature = await signEvent(b, a.id, a.aegisSignature, priv);
+    b.cerniqSignature = await signEvent(b, a.id, a.cerniqSignature, priv);
     const c = buildRow({ id: 'evt_c' });
     // c is signed under a wrong prev (skip b) — chain break.
-    c.aegisSignature = await signEvent(c, a.id, a.aegisSignature, priv);
+    c.cerniqSignature = await signEvent(c, a.id, a.cerniqSignature, priv);
 
     const out = await verifyChain([a, b, c], pubB64Url);
     expect(out.passed).toBe(2);
@@ -182,7 +182,7 @@ describe('verifyChain', () => {
   it('invokes onEvent for every walked event', async () => {
     const { priv, pubB64Url } = await freshKeypair();
     const a = buildRow({ id: 'evt_a' });
-    a.aegisSignature = await signEvent(a, null, null, priv);
+    a.cerniqSignature = await signEvent(a, null, null, priv);
     const visits: Array<{ idx: number; ok: boolean }> = [];
 
     await verifyChain([a], pubB64Url, (idx: number, _row: AuditEventRow, ok: boolean) => {

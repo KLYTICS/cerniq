@@ -6,9 +6,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/klytics/aegis/packages/cli/internal/client"
-	"github.com/klytics/aegis/packages/cli/internal/cliutil"
-	"github.com/klytics/aegis/packages/cli/internal/ui"
+	"github.com/klytics/cerniq/packages/cli/internal/client"
+	"github.com/klytics/cerniq/packages/cli/internal/cliutil"
+	"github.com/klytics/cerniq/packages/cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -42,7 +42,7 @@ The audit chain is append-only and signed (CLAUDE.md invariant 3) so:
   export — streaming NDJSON dump to stdout or --out <file>
 
 The audit-admin surface (chain integrity check, key rotation) ships
-as a separate plugin binary 'aegis-audit'; this 'events' subcommand is
+as a separate plugin binary 'cerniq-audit'; this 'events' subcommand is
 the per-tenant read view.`,
 }
 

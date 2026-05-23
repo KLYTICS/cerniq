@@ -13,7 +13,7 @@ on:
     paths:
       - 'apps/docs/**'
       - 'packages/types/**'
-      - 'docs/spec/AEGIS_API_SPEC.yaml'
+      - 'docs/spec/CERNIQ_API_SPEC.yaml'
       - '.github/workflows/lighthouse-docs.yml'
 
 jobs:
@@ -30,15 +30,15 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Build @aegis/types (sibling workspace dep)
-        # apps/docs imports from @aegis/types which resolves to dist/;
+      - name: Build @cerniq/types (sibling workspace dep)
+        # apps/docs imports from @cerniq/types which resolves to dist/;
         # must be built before docs build can succeed.
-        run: pnpm --filter @aegis/types build
-      - name: Build @aegis/docs
-        run: pnpm --filter @aegis/docs build
+        run: pnpm --filter @cerniq/types build
+      - name: Build @cerniq/docs
+        run: pnpm --filter @cerniq/docs build
         env:
-          AEGIS_API_BASE_URL: https://api.aegislabs.io
-          NEXT_PUBLIC_DOCS_URL: https://docs.aegislabs.io
+          CERNIQ_API_BASE_URL: https://api.cerniq.io
+          NEXT_PUBLIC_DOCS_URL: https://docs.cerniq.io
       - name: Install Chrome (for Lighthouse)
         uses: browser-actions/setup-chrome@v1
       - name: Run Lighthouse CI

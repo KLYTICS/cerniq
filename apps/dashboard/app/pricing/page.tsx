@@ -1,11 +1,11 @@
 // Public pricing page. No auth required.
 //
 // Round 23: tier table now SSR-fetched from `/.well-known/pricing.json`
-// when `AEGIS_API_BASE_URL` is set, eliminating the dual-source drift
+// when `CERNIQ_API_BASE_URL` is set, eliminating the dual-source drift
 // risk that Round 21 deferred. Falls back to `lib/pricing.ts` when the
 // API is unreachable so the marketing page never fails to render.
 //
-// AEGIS sells to engineers; the tier table is the value prop. No
+// CERNIQ sells to engineers; the tier table is the value prop. No
 // marketing sermon.
 
 import type { Metadata } from 'next';
@@ -16,9 +16,9 @@ import { resolvePricing } from '../../lib/pricing-source';
 import { FeatureMatrix } from './_components/FeatureMatrix';
 
 export const metadata: Metadata = {
-  title: 'Pricing · AEGIS',
+  title: 'Pricing · CERNIQ',
   description:
-    'AEGIS pricing — Free trial, Developer ($49/mo), Team ($299/mo), Scale ($1,499/mo), and Enterprise tiers for agent verification, policy enforcement, and audit.',
+    'CERNIQ pricing — Free trial, Developer ($49/mo), Team ($299/mo), Scale ($1,499/mo), and Enterprise tiers for agent verification, policy enforcement, and audit.',
 };
 
 // Match the API endpoint's Cache-Control: public, max-age=3600. Page is
@@ -28,12 +28,12 @@ export const revalidate = 3600;
 export default async function PricingPage(): Promise<ReactElement> {
   const pricing = await resolvePricing();
   return (
-    <section className="aegis-page">
-      <header className="aegis-page-header">
+    <section className="cerniq-page">
+      <header className="cerniq-page-header">
         <h1>Pricing</h1>
         <p className="muted">
-          Per ADR-0014. Overage on every paid tier is $0.0008 per verify, billed monthly.
-          Annual contracts and self-hosted deployments are available on Enterprise.
+          Per ADR-0014. Overage on every paid tier is $0.0008 per verify, billed monthly. Annual
+          contracts and self-hosted deployments are available on Enterprise.
         </p>
       </header>
       <FeatureMatrix tiers={pricing.tiers} rows={pricing.rows} />

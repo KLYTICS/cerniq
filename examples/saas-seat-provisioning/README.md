@@ -2,7 +2,7 @@
 
 The SaaS vertical: when an enterprise customer onboards, their identity
 provider provisions agent identities and per-seat policies via
-SCIM-shaped endpoints. AEGIS holds the cryptographic identity; the
+SCIM-shaped endpoints. CERNIQ holds the cryptographic identity; the
 SaaS holds the seat assignment + business permissions.
 
 ## Why this pattern
@@ -15,25 +15,25 @@ agent provisioning shaped like SCIM, the customer's IDP team can
 auto-provision agent identities through the same workflows they
 already use for human users.
 
-AEGIS provides the identity primitive. The SaaS owns the SCIM endpoint
+CERNIQ provides the identity primitive. The SaaS owns the SCIM endpoint
 and the policy-per-seat mapping.
 
 ## The flow
 
 ```
-  Customer IDP (Okta, Azure AD, etc.)        Your SaaS                    AEGIS
+  Customer IDP (Okta, Azure AD, etc.)        Your SaaS                    CERNIQ
   ─────────────────────────────────         ──────────                    ──────
   1. POST /scim/v2/Agents          →        2. validate SCIM payload
-     { displayName, externalId,             3. aegis.agents.register()    →   created
+     { displayName, externalId,             3. cerniq.agents.register()    →   created
        publicKey, ... }                                                    ←   agentId
-                                            4. aegis.policies.create()    →   created
+                                            4. cerniq.policies.create()    →   created
                                                (scope per seat tier)       ←   policyJwt
                                             5. persist seat row
   ←  201 Created
      { id, agentId, ... }
 
   later, on every API call by the agent:
-                                            aegis.verify(...)             →   valid
+                                            cerniq.verify(...)             →   valid
                                             ↓
                                             apply per-seat business logic
 ```
@@ -43,8 +43,8 @@ and the policy-per-seat mapping.
 ```sh
 cd examples/saas-seat-provisioning
 pnpm install
-AEGIS_API_BASE=https://api.aegislabs.io \
-AEGIS_API_KEY=aegis_sk_... \
+CERNIQ_API_BASE=https://api.cerniq.io \
+CERNIQ_API_KEY=cerniq_sk_... \
 SAAS_TENANT_ID=acme \
 pnpm tsx src/scim-server.ts
 
@@ -56,14 +56,14 @@ pnpm tsx src/provisioning-batch.ts --tenant acme --count 10
 
 Implements a deliberate subset of SCIM 2.0:
 
-| Endpoint                       | Purpose                                                |
-| ------------------------------ | ------------------------------------------------------- |
-| `POST /scim/v2/Agents`         | Provision (creates AEGIS agent + per-seat policy)       |
-| `GET /scim/v2/Agents/:id`      | Read (joins SaaS seat row + AEGIS agent metadata)       |
-| `PATCH /scim/v2/Agents/:id`    | Update seat tier (re-mints policy at new scope)         |
-| `DELETE /scim/v2/Agents/:id`   | De-provision (revokes AEGIS agent + drops seat row)     |
-| `GET /scim/v2/ServiceProviderConfig` | Discovery — capabilities + auth                  |
-| `GET /scim/v2/Schemas`         | Discovery — agent schema                                |
+| Endpoint                             | Purpose                                              |
+| ------------------------------------ | ---------------------------------------------------- |
+| `POST /scim/v2/Agents`               | Provision (creates CERNIQ agent + per-seat policy)   |
+| `GET /scim/v2/Agents/:id`            | Read (joins SaaS seat row + CERNIQ agent metadata)   |
+| `PATCH /scim/v2/Agents/:id`          | Update seat tier (re-mints policy at new scope)      |
+| `DELETE /scim/v2/Agents/:id`         | De-provision (revokes CERNIQ agent + drops seat row) |
+| `GET /scim/v2/ServiceProviderConfig` | Discovery — capabilities + auth                      |
+| `GET /scim/v2/Schemas`               | Discovery — agent schema                             |
 
 The endpoints accept SCIM `application/scim+json` and emit the same.
 SCIM filtering (`?filter=`) is intentionally narrow — only `displayName
@@ -74,31 +74,31 @@ sw "..."` and `externalId eq "..."` are supported in v1, matching what
 
 The SaaS owns the policy table — one policy per (seat tier × tenant).
 On provisioning, the right policy is minted for the agent. Tier upgrade
-re-mints; the old policy is revoked. This keeps the AEGIS surface
+re-mints; the old policy is revoked. This keeps the CERNIQ surface
 narrow (one policy per seat at any time) and the SaaS surface
 expressive (whatever tiers, seats, add-ons the SaaS wants to offer).
 
-| Seat tier | AEGIS scope                | Spend cap    | Domain allow-list   |
-| --------- | -------------------------- | ------------ | ------------------- |
-| free      | `read:basic`               | $0           | (none — read-only)  |
-| pro       | `read:basic, write:own`    | $100/day     | `*.your-saas.com`   |
-| business  | `read:basic, write:any`    | $1,000/day   | `*.your-saas.com`   |
-| enterprise | `*`                       | per-contract | per-customer        |
+| Seat tier  | CERNIQ scope            | Spend cap    | Domain allow-list  |
+| ---------- | ----------------------- | ------------ | ------------------ |
+| free       | `read:basic`            | $0           | (none — read-only) |
+| pro        | `read:basic, write:own` | $100/day     | `*.your-saas.com`  |
+| business   | `read:basic, write:any` | $1,000/day   | `*.your-saas.com`  |
+| enterprise | `*`                     | per-contract | per-customer       |
 
 ## Production checklist
 
 - [ ] SCIM auth: HTTP Bearer with the customer-IDP's API key. Rotate
-      independently of AEGIS API keys; never use the same key for both.
+      independently of CERNIQ API keys; never use the same key for both.
 - [ ] Idempotency: SCIM provisioning by `externalId` must be idempotent.
       Re-POSTing the same `externalId` returns the existing seat row,
       not 409 Conflict, per SCIM 2.0 §3.3.
 - [ ] Webhook on policy.expired + agent.revoked: a customer IDP that
       revokes a user expects the agent to stop working within seconds.
-      The AEGIS webhook → SaaS handler tear-down path is the only way
+      The CERNIQ webhook → SaaS handler tear-down path is the only way
       to honor that SLA.
 - [ ] Audit slice export: enterprise customers need their own audit
-      slice. Use the AEGIS NDJSON export filtered by `principalId` (one
-      AEGIS principal per SaaS tenant).
+      slice. Use the CERNIQ NDJSON export filtered by `principalId` (one
+      CERNIQ principal per SaaS tenant).
 - [ ] Seat-tier upgrade race: when a customer upgrades a seat,
       re-minting the policy must happen before the user notices the
       old policy expired. Pre-mint the new policy, swap, then revoke
@@ -107,5 +107,5 @@ expressive (whatever tiers, seats, add-ons the SaaS wants to offer).
 ## Reference
 
 - RFC 7643 (SCIM 2.0 Core Schema), RFC 7644 (SCIM 2.0 Protocol)
-- `docs/AEGIS_AS_BACKBONE.md` § 2.3 — recommended consumption pattern
+- `docs/CERNIQ_AS_BACKBONE.md` § 2.3 — recommended consumption pattern
 - WORK_BOARD M-040g (the ticket this example completes)

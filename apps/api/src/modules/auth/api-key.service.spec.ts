@@ -34,28 +34,25 @@ function buildHarness() {
 
   const prisma = {
     apiKey: {
-      create: jest.fn(async ({ data }: { data: Omit<ApiKeyRow, 'id' | 'revokedAt' | 'lastUsedAt'> }) => {
-        const id = `ak_${++createCounter}`;
-        const row: ApiKeyRow = {
-          id,
-          keyHash: data.keyHash,
-          keyPrefix: data.keyPrefix,
-          principalId: data.principalId,
-          scope: data.scope,
-          label: data.label ?? null,
-          revokedAt: null,
-          lastUsedAt: null,
-        };
-        rows.set(id, row);
-        return row;
-      }),
+      create: jest.fn(
+        async ({ data }: { data: Omit<ApiKeyRow, 'id' | 'revokedAt' | 'lastUsedAt'> }) => {
+          const id = `ak_${++createCounter}`;
+          const row: ApiKeyRow = {
+            id,
+            keyHash: data.keyHash,
+            keyPrefix: data.keyPrefix,
+            principalId: data.principalId,
+            scope: data.scope,
+            label: data.label ?? null,
+            revokedAt: null,
+            lastUsedAt: null,
+          };
+          rows.set(id, row);
+          return row;
+        },
+      ),
       findMany: jest.fn(
-        async ({
-          where,
-        }: {
-          where: { keyPrefix: string; revokedAt: null };
-          select?: unknown;
-        }) => {
+        async ({ where }: { where: { keyPrefix: string; revokedAt: null }; select?: unknown }) => {
           return Array.from(rows.values()).filter(
             (r) => r.keyPrefix === where.keyPrefix && r.revokedAt === null,
           );
@@ -84,29 +81,29 @@ function buildHarness() {
 }
 
 describe('ApiKeyService.issue', () => {
-  it('returns plaintext exactly once with `aegis_sk_` prefix for FULL scope', async () => {
+  it('returns plaintext exactly once with `cerniq_sk_` prefix for FULL scope', async () => {
     const { svc } = buildHarness();
     const result = await svc.issue('p_1', 'CI key', 'FULL');
 
-    expect(result.plaintextKey.startsWith('aegis_sk_')).toBe(true);
-    expect(result.plaintextKey.startsWith('aegis_vk_')).toBe(false);
+    expect(result.plaintextKey.startsWith('cerniq_sk_')).toBe(true);
+    expect(result.plaintextKey.startsWith('cerniq_vk_')).toBe(false);
     expect(typeof result.apiKeyId).toBe('string');
     expect(result.apiKeyId.length).toBeGreaterThan(0);
   });
 
-  it('uses `aegis_vk_` prefix for VERIFY_ONLY scope', async () => {
+  it('uses `cerniq_vk_` prefix for VERIFY_ONLY scope', async () => {
     const { svc } = buildHarness();
     const result = await svc.issue('p_1', 'Verifier key', 'VERIFY_ONLY');
 
-    expect(result.plaintextKey.startsWith('aegis_vk_')).toBe(true);
-    expect(result.plaintextKey.startsWith('aegis_sk_')).toBe(false);
+    expect(result.plaintextKey.startsWith('cerniq_vk_')).toBe(true);
+    expect(result.plaintextKey.startsWith('cerniq_sk_')).toBe(false);
   });
 
   it('defaults to FULL scope when omitted', async () => {
     const { svc } = buildHarness();
     const result = await svc.issue('p_1', null);
 
-    expect(result.plaintextKey.startsWith('aegis_sk_')).toBe(true);
+    expect(result.plaintextKey.startsWith('cerniq_sk_')).toBe(true);
   });
 
   it('persists a bcrypt hash, never the plaintext', async () => {
@@ -126,7 +123,7 @@ describe('ApiKeyService.issue', () => {
 
     expect(result.keyPrefix).toEqual(result.plaintextKey.slice(0, 12));
     expect(result.keyPrefix).toHaveLength(12);
-    expect(result.keyPrefix.startsWith('aegis_sk_')).toBe(true);
+    expect(result.keyPrefix.startsWith('cerniq_sk_')).toBe(true);
   });
 
   it('honours the bcrypt cost from config', async () => {
@@ -162,12 +159,12 @@ describe('ApiKeyService.resolve', () => {
   it('returns null for an unknown plaintext with valid prefix', async () => {
     const { svc } = buildHarness();
     await svc.issue('p_owner', null, 'FULL');
-    const fake = `aegis_sk_${'x'.repeat(26)}`;
+    const fake = `cerniq_sk_${'x'.repeat(26)}`;
     const resolved = await svc.resolve(fake);
     expect(resolved).toBeNull();
   });
 
-  it('returns null when the plaintext is malformed (no aegis prefix)', async () => {
+  it('returns null when the plaintext is malformed (no cerniq prefix)', async () => {
     const { svc } = buildHarness();
     expect(await svc.resolve('garbage')).toBeNull();
     expect(await svc.resolve('')).toBeNull();
@@ -204,7 +201,7 @@ describe('ApiKeyService.resolve', () => {
     // Allow the fire-and-forget update to settle.
     await new Promise((r) => setImmediate(r));
 
-    const updateMock = (prisma.apiKey.update as unknown as jest.Mock);
+    const updateMock = prisma.apiKey.update as unknown as jest.Mock;
     expect(updateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: issued.apiKeyId },
@@ -216,9 +213,9 @@ describe('ApiKeyService.resolve', () => {
   it('does not bump lastUsedAt for an unknown key', async () => {
     const { svc, prisma } = buildHarness();
     await svc.issue('p_owner', null, 'FULL');
-    await svc.resolve(`aegis_sk_${'z'.repeat(26)}`);
+    await svc.resolve(`cerniq_sk_${'z'.repeat(26)}`);
 
     await new Promise((r) => setImmediate(r));
-    expect((prisma.apiKey.update as unknown as jest.Mock)).not.toHaveBeenCalled();
+    expect(prisma.apiKey.update as unknown as jest.Mock).not.toHaveBeenCalled();
   });
 });

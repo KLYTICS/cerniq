@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable */
 /**
- * AEGIS — container healthcheck
+ * CERNIQ — container healthcheck
  * -----------------------------------------------------------------------
  * Distroless images do not ship with a shell, so this is JavaScript that
  * `node` can execute directly. The `.sh` extension is preserved because
@@ -36,7 +36,7 @@ const req = http.request(
     path: PATH,
     method: 'GET',
     timeout: TIMEOUT_MS,
-    headers: { 'user-agent': 'aegis-healthcheck/1' },
+    headers: { 'user-agent': 'cerniq-healthcheck/1' },
   },
   (res) => {
     // Drain the body so the socket can close cleanly even on slow apps.

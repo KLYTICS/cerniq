@@ -13,7 +13,7 @@
 //   - 12-byte random IV (NIST SP 800-38D recommended size for GCM).
 //   - 16-byte GCM auth tag, separated for clarity (some libs concatenate;
 //     splitting keeps decode logic explicit).
-//   - AAD = "aegis.webhook-secret.v1" — domain-separates this DEK from any
+//   - AAD = "cerniq.webhook-secret.v1" — domain-separates this DEK from any
 //     other AES-GCM use of the same key, so a swapped ciphertext from a
 //     different feature would fail authentication.
 //
@@ -21,7 +21,7 @@
 //   - Pure node:crypto (no new deps; @noble/ed25519 + jose remain the only
 //     non-stdlib crypto in the repo).
 //   - Paired spec exists at webhook-secret-cipher.spec.ts.
-//   - Errors are typed via AegisError (InternalError) — never raw throws.
+//   - Errors are typed via CerniqError (InternalError) — never raw throws.
 //   - No `any`, no Math.random; randomness comes from `randomBytes`.
 
 import { createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from 'node:crypto';
@@ -29,14 +29,14 @@ import { createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from '
 import { Injectable, Logger } from '@nestjs/common';
 
 import { AppConfigService } from '../../config/config.service';
-import { InternalError } from '../errors/aegis-error';
+import { InternalError } from '../errors/cerniq-error';
 
 const VERSION = 'v1' as const;
 const VERSION_PREFIX = `${VERSION}:`;
 const IV_BYTES = 12;
 const TAG_BYTES = 16;
 const KEY_BYTES = 32;
-const AAD = Buffer.from('aegis.webhook-secret.v1', 'utf8');
+const AAD = Buffer.from('cerniq.webhook-secret.v1', 'utf8');
 
 @Injectable()
 export class WebhookSecretCipher {
@@ -51,7 +51,7 @@ export class WebhookSecretCipher {
         // Schema-level Zod refine should catch this, but defend in depth —
         // we'd rather crash at boot than silently truncate or pad.
         throw new InternalError(
-          `AEGIS_WEBHOOK_SECRET_DEK_B64 decoded to ${buf.length} bytes; expected ${KEY_BYTES}.`,
+          `CERNIQ_WEBHOOK_SECRET_DEK_B64 decoded to ${buf.length} bytes; expected ${KEY_BYTES}.`,
         );
       }
       this.dek = buf;
@@ -63,18 +63,18 @@ export class WebhookSecretCipher {
       // re-encrypted under an ephemeral key on every boot, instantly
       // bricking outgoing webhooks. Refuse to start.
       throw new InternalError(
-        'AEGIS_WEBHOOK_SECRET_DEK_B64 is required in production. Generate with: ' +
-          'node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"',
+        'CERNIQ_WEBHOOK_SECRET_DEK_B64 is required in production. Generate with: ' +
+          "node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"",
       );
     }
 
     // Dev/test: ephemeral key. Log so a developer can pin it across restarts
-    // by exporting AEGIS_WEBHOOK_SECRET_DEK_B64 — otherwise existing
+    // by exporting CERNIQ_WEBHOOK_SECRET_DEK_B64 — otherwise existing
     // ciphertexts in their local DB will fail to decrypt after a restart.
     this.dek = randomBytes(KEY_BYTES);
     this.logger.warn(
-      'AEGIS_WEBHOOK_SECRET_DEK_B64 not set — generated ephemeral DEK. ' +
-        `Pin across restarts: AEGIS_WEBHOOK_SECRET_DEK_B64=${this.dek.toString('base64')}`,
+      'CERNIQ_WEBHOOK_SECRET_DEK_B64 not set — generated ephemeral DEK. ' +
+        `Pin across restarts: CERNIQ_WEBHOOK_SECRET_DEK_B64=${this.dek.toString('base64')}`,
     );
   }
 

@@ -1,21 +1,25 @@
-# AEGIS Development Backlog
+# CERNIQ Development Backlog
+
 ## Sprint Queue — KLYTICS Internal
+
 ### Format: [PRIORITY] TASK — Owner | Estimate | Dependencies
 
 ---
 
 ## PHASE 0 — SPEC & FOUNDATION
-### Department: Architecture / Product
-*Owner: Erwin | Timeline: Weeks 1–4 (can begin now)*
 
-- [P0] Draft AEGIS_MASTER.md ✓ DONE
+### Department: Architecture / Product
+
+_Owner: Erwin | Timeline: Weeks 1–4 (can begin now)_
+
+- [P0] Draft CERNIQ_MASTER.md ✓ DONE
 - [P0] OpenAPI spec v1 ✓ DONE
 - [P0] This backlog ✓ DONE
 - [P1] Agent identity data model finalized — Erwin | 2h | None
 - [P1] Policy schema edge cases documented — Erwin | 3h | Data model
 - [P1] BATE scoring algorithm whitepaper (internal) — Erwin | 4h | None
 - [P1] SDK API surface TypeScript types (types-only, no impl) — Erwin | 3h | API spec
-- [P2] Legal entity research: AEGIS Labs LLC vs. sub-entity of KLYTICS — Erwin | 2h | None
+- [P2] Legal entity research: CERNIQ Labs LLC vs. sub-entity of KLYTICS — Erwin | 2h | None
 - [P2] Competitive intelligence deep-dive: Prefactor, Scalekit, Entro — Erwin | 4h | None
 - [P2] ACP spec read-through + integration design notes — Erwin | 3h | None
 - [P3] Validate pain in 3 dev communities (HN, discord, r/LLMDevs) — Erwin | 1h | None
@@ -24,17 +28,19 @@
 ---
 
 ## PHASE 1 — MVP BUILD
+
 ### Department: Backend Engineering
-*Post CERNIQ Gate 1 | Timeline: Weeks 1–8 of build | Stack: NestJS/PostgreSQL/Redis/Railway*
+
+_Post CERNIQ Gate 1 | Timeline: Weeks 1–8 of build | Stack: NestJS/PostgreSQL/Redis/Railway_
 
 ### Epic 1: Core Infrastructure
 
-- [P0] Initialize NestJS monorepo for AEGIS API — BE | 4h | None
+- [P0] Initialize NestJS monorepo for CERNIQ API — BE | 4h | None
 - [P0] Prisma schema: AgentIdentity, Principal, Policy, PolicyScope, AuditEvent — BE | 6h | Data model
 - [P0] Railway deploy pipeline (CI/CD via GitHub Actions) — BE | 3h | NestJS init
 - [P0] Redis connection + cache module (for trust scores) — BE | 2h | NestJS init
 - [P1] Ed25519 keypair utils (libsodium-wrappers) — BE | 4h | None
-- [P1] JWT token generation/parsing module (AEGIS-signed tokens) — BE | 4h | Ed25519
+- [P1] JWT token generation/parsing module (CERNIQ-signed tokens) — BE | 4h | Ed25519
 
 ### Epic 2: Identity API
 
@@ -70,13 +76,13 @@
 - [P0] AuditEvent write on every verify call — BE | 4h | Prisma, Verify
 - [P1] GET /v1/agents/:agentId/audit (paginated) — BE | 4h | Prisma
 - [P1] Cursor-based pagination — BE | 3h | Audit GET
-- [P2] AEGIS signature over each audit record (tamper-evidence) — BE | 4h | Ed25519, Audit write
+- [P2] CERNIQ signature over each audit record (tamper-evidence) — BE | 4h | Ed25519, Audit write
 
 ### Epic 6: Webhooks (Phase 1 minimal)
 
 - [P2] Webhook subscription model (Prisma) — BE | 3h | Prisma
 - [P2] POST endpoint for managing subscriptions — BE | 3h | Model
-- [P2] BullMQ worker: deliver aegis.agent.policy_expired events — BE | 4h | BullMQ, Webhooks
+- [P2] BullMQ worker: deliver cerniq.agent.policy_expired events — BE | 4h | BullMQ, Webhooks
 - [P3] Retry logic with exponential backoff — BE | 3h | Worker
 
 ### Epic 7: Developer Dashboard (minimal React)
@@ -99,8 +105,10 @@
 ---
 
 ## PHASE 2 — BATE ENGINE
+
 ### Department: Data / ML Engineering
-*Post $500 MRR | Timeline: Weeks 1–10 of Phase 2*
+
+_Post $500 MRR | Timeline: Weeks 1–10 of Phase 2_
 
 ### Epic 9: Signal Ingestion
 
@@ -124,16 +132,18 @@
 
 ### Epic 11: Developer Signals
 
-- [P1] Webhook: aegis.agent.trust_score_changed — BE | 3h | Webhooks, BATE
-- [P1] Webhook: aegis.agent.anomaly_detected — BE | 3h | Webhooks, BATE
+- [P1] Webhook: cerniq.agent.trust_score_changed — BE | 3h | Webhooks, BATE
+- [P1] Webhook: cerniq.agent.anomaly_detected — BE | 3h | Webhooks, BATE
 - [P2] Trust score dashboard widget (FE) — FE | 6h | BATE API
 - [P2] Anomaly alert view (FE) — FE | 4h | BATE API
 
 ---
 
 ## PHASE 3 — EDGE & ENTERPRISE
+
 ### Department: Infrastructure / Enterprise
-*Post $5,000 MRR | Timeline: Weeks 1–12 of Phase 3*
+
+_Post $5,000 MRR | Timeline: Weeks 1–12 of Phase 3_
 
 ### Epic 12: Cloudflare Workers Edge
 
@@ -155,8 +165,8 @@
 ### Epic 14: ACP Integration Connector
 
 - [P0] ACP-compatible response format (policy claims mapped to ACP scopes) — BE | 6h | Verify
-- [P0] SPT passthrough context (attach AEGIS token alongside Stripe SPT) — BE | 8h | ACP spec
-- [P1] ACP merchant adapter (webhook→AEGIS report flow) — BE | 8h | Reporting, ACP
+- [P0] SPT passthrough context (attach CERNIQ token alongside Stripe SPT) — BE | 8h | ACP spec
+- [P1] ACP merchant adapter (webhook→CERNIQ report flow) — BE | 8h | Reporting, ACP
 - [P2] agenticcommerce.dev listing + documentation PR — Product | 4h | None
 
 ### Epic 15: Enterprise & Compliance
@@ -171,6 +181,7 @@
 ## CROSS-CUTTING CONCERNS
 
 ### Security (all phases)
+
 - [P0] Input sanitization + SQL injection prevention (Prisma mitigates most) — BE | ongoing
 - [P0] API key hashing (store bcrypt hash, never plaintext) — BE | 3h | Epic 1
 - [P1] Secret scanning in CI (Gitleaks or Trufflehog) — Infra | 2h | CI
@@ -179,12 +190,14 @@
 - [P2] Penetration test (self-conducted with GHOST SWARM methodology) — Security | 8h | MVP live
 
 ### Documentation
+
 - [P1] README.md (developer quickstart, <10 min to first verify call) — Erwin | 4h | MVP
-- [P1] docs.aegislabs.io (Docusaurus or Mintlify) — FE | 6h | None
+- [P1] docs.cerniq.io (Docusaurus or Mintlify) — FE | 6h | None
 - [P2] SDK reference docs (auto-generated from TypeDoc) — FE | 3h | SDK
 - [P2] Integration guides: LangChain, AutoGen, CrewAI — Erwin | 6h | SDK
 
 ### Testing
+
 - [P0] Unit tests: Policy engine, BATE scoring, JWT utils — BE | 8h | Each epic
 - [P0] Integration tests: Verify endpoint scenarios — BE | 8h | Verify
 - [P1] Load test: 1000 concurrent verify calls (<200ms p99) — Infra | 4h | MVP
@@ -194,11 +207,11 @@
 
 ## SPRINT PRIORITY MATRIX
 
-| Sprint | Focus | Exit Gate |
-|---|---|---|
-| S1 (weeks 1-2) | NestJS init, Prisma schema, Ed25519, API key auth | Can register an agent and get a keypair |
-| S2 (weeks 3-4) | Policy create/revoke, signed token generation | Can create a scoped policy token |
-| S3 (weeks 5-6) | Verify endpoint (all paths), audit log | Can verify a signed agent token end-to-end |
-| S4 (weeks 7-8) | Dashboard v1, Stripe billing, public launch | 10 signups, 1 paying customer |
-| S5 (weeks 9-12) | BATE v1, webhooks, anomaly detection | Trust score live and updating |
-| S6 (weeks 13-18) | Edge, delegation, ACP connector | <80ms global, enterprise-ready |
+| Sprint           | Focus                                             | Exit Gate                                  |
+| ---------------- | ------------------------------------------------- | ------------------------------------------ |
+| S1 (weeks 1-2)   | NestJS init, Prisma schema, Ed25519, API key auth | Can register an agent and get a keypair    |
+| S2 (weeks 3-4)   | Policy create/revoke, signed token generation     | Can create a scoped policy token           |
+| S3 (weeks 5-6)   | Verify endpoint (all paths), audit log            | Can verify a signed agent token end-to-end |
+| S4 (weeks 7-8)   | Dashboard v1, Stripe billing, public launch       | 10 signups, 1 paying customer              |
+| S5 (weeks 9-12)  | BATE v1, webhooks, anomaly detection              | Trust score live and updating              |
+| S6 (weeks 13-18) | Edge, delegation, ACP connector                   | <80ms global, enterprise-ready             |

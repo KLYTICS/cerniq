@@ -9,7 +9,7 @@ import { AppConfigService } from '../../config/config.service';
 
 import { WorkOsAdapter, type WorkOsClientLike } from './workos.adapter';
 
-const WORKOS_CLIENT = 'AEGIS_WORKOS_CLIENT';
+const WORKOS_CLIENT = 'CERNIQ_WORKOS_CLIENT';
 
 const workosClientProvider: Provider = {
   provide: WORKOS_CLIENT,
@@ -24,21 +24,43 @@ const workosClientProvider: Provider = {
     const { WorkOS } = require('@workos-inc/node') as { WorkOS: new (key: string) => unknown };
     const sdk = new WorkOS(apiKey) as {
       userManagement: {
-        authenticateWithSessionCookie: (args: { sessionData: string; cookiePassword: string }) => Promise<unknown>;
+        authenticateWithSessionCookie: (args: {
+          sessionData: string;
+          cookiePassword: string;
+        }) => Promise<unknown>;
       };
       organizations: { getOrganization: (id: string) => Promise<unknown> };
     };
     return {
       authenticateSession: async (cookie) => {
-        const cookiePassword = (config as unknown as { workosCookiePassword?: string }).workosCookiePassword ?? '';
+        const cookiePassword =
+          (config as unknown as { workosCookiePassword?: string }).workosCookiePassword ?? '';
         const out = (await sdk.userManagement.authenticateWithSessionCookie({
           sessionData: cookie,
           cookiePassword,
-        })) as { user: { id: string; email: string; emailVerified: boolean; firstName?: string; lastName?: string; organizationId?: string }; organizationId?: string; roles?: string[]; mfaEnrolled?: boolean; sessionId: string; expiresAt: number };
+        })) as {
+          user: {
+            id: string;
+            email: string;
+            emailVerified: boolean;
+            firstName?: string;
+            lastName?: string;
+            organizationId?: string;
+          };
+          organizationId?: string;
+          roles?: string[];
+          mfaEnrolled?: boolean;
+          sessionId: string;
+          expiresAt: number;
+        };
         return out;
       },
       getOrganization: async (id) => {
-        const out = (await sdk.organizations.getOrganization(id)) as { id: string; name: string; domains?: { domain: string }[] };
+        const out = (await sdk.organizations.getOrganization(id)) as {
+          id: string;
+          name: string;
+          domains?: { domain: string }[];
+        };
         return out;
       },
     };

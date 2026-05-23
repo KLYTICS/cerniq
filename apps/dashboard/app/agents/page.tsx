@@ -4,8 +4,8 @@
 import type { Metadata } from 'next';
 
 import {
-  AegisApiError,
-  AegisAuthMissingError,
+  CerniqApiError,
+  CerniqAuthMissingError,
   listAgents,
   type AgentListParams,
   type AgentListResult,
@@ -17,7 +17,7 @@ import { AgentTable } from './components/AgentTable';
 import { RegisterAgentForm } from './components/RegisterAgentForm';
 
 export const metadata: Metadata = {
-  title: 'Agents · AEGIS',
+  title: 'Agents · CERNIQ',
 };
 
 interface PageProps {
@@ -33,13 +33,15 @@ async function safeListAgents(params: AgentListParams): Promise<FetchOutcome> {
   try {
     return { result: await listAgents(params) };
   } catch (err) {
-    if (err instanceof AegisAuthMissingError) {
-      return { error: { code: err.code, message: 'Set AEGIS_DASHBOARD_API_KEY to populate this view.' } };
+    if (err instanceof CerniqAuthMissingError) {
+      return {
+        error: { code: err.code, message: 'Set CERNIQ_DASHBOARD_API_KEY to populate this view.' },
+      };
     }
-    if (err instanceof AegisApiError) {
+    if (err instanceof CerniqApiError) {
       return { error: { code: err.code, message: err.message } };
     }
-    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting AEGIS API.' } };
+    return { error: { code: 'UNKNOWN', message: 'Unexpected error contacting CERNIQ API.' } };
   }
 }
 
@@ -56,14 +58,14 @@ export default async function AgentsPage({ searchParams }: PageProps) {
   const outcome = await safeListAgents(filter);
 
   return (
-    <section className="aegis-page">
-      <header className="aegis-page-header">
-        <div className="aegis-page-header-row">
+    <section className="cerniq-page">
+      <header className="cerniq-page-header">
+        <div className="cerniq-page-header-row">
           <div>
             <h1>Agents</h1>
             <p className="muted">
-              Cryptographic identities registered to your principal. AEGIS holds public keys
-              only — private keys never leave the SDK (CLAUDE.md invariant 1).
+              Cryptographic identities registered to your principal. CERNIQ holds public keys only —
+              private keys never leave the SDK (CLAUDE.md invariant 1).
             </p>
           </div>
           {authConfigured() ? <RegisterAgentForm /> : null}
@@ -95,7 +97,11 @@ export default async function AgentsPage({ searchParams }: PageProps) {
   );
 }
 
-function FilterBar({ current }: { current: { status?: string; runtime?: string; search?: string } }) {
+function FilterBar({
+  current,
+}: {
+  current: { status?: string; runtime?: string; search?: string };
+}) {
   const statusOptions = ['', 'ACTIVE', 'PENDING_VERIFICATION', 'SUSPENDED', 'REVOKED'];
   const runtimeOptions = ['', 'ANTHROPIC', 'OPENAI', 'GOOGLE', 'HUGGINGFACE', 'CUSTOM'];
   return (
@@ -124,7 +130,7 @@ function FilterBar({ current }: { current: { status?: string; runtime?: string; 
         <span>search</span>
         <input name="search" defaultValue={current.search ?? ''} placeholder="id, label, model…" />
       </label>
-      <button type="submit" className="aegis-button-ghost">
+      <button type="submit" className="cerniq-button-ghost">
         apply
       </button>
     </form>

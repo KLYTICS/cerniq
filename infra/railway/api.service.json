@@ -1,18 +1,18 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
-  "_comment": "AEGIS API service — production descriptor. Phase 1 deploys here. Use `railway up --service aegis-api` after `railway link`. NIXPACKS is the default builder; the Dockerfile.api alternative lives at infra/docker/Dockerfile.api and can be selected by setting builder='DOCKERFILE' + dockerfilePath.",
+  "_comment": "CERNIQ API service — production descriptor. Phase 1 deploys here. Use `railway up --service cerniq-api` after `railway link`. NIXPACKS is the default builder; the Dockerfile.api alternative lives at infra/docker/Dockerfile.api and can be selected by setting builder='DOCKERFILE' + dockerfilePath.",
   "_planTier": "Hobby for $5K MRR runway; bump to Pro before launching paid GA so we get committed CPU and the regional failover SLA.",
   "_region": "us-east — colocate with Neon Postgres us-east; switching means re-provisioning the DB or eating cross-region read latency.",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "pnpm install --frozen-lockfile && pnpm --filter @aegis/api prisma:generate && pnpm --filter @aegis/api build",
+    "buildCommand": "pnpm install --frozen-lockfile && pnpm --filter @cerniq/api prisma:generate && pnpm --filter @cerniq/api build",
     "_dockerfileAlternative": {
       "builder": "DOCKERFILE",
       "dockerfilePath": "infra/docker/Dockerfile.api"
     }
   },
   "deploy": {
-    "startCommand": "pnpm --filter @aegis/api prisma:deploy && pnpm --filter @aegis/api start:prod",
+    "startCommand": "pnpm --filter @cerniq/api prisma:deploy && pnpm --filter @cerniq/api start:prod",
     "healthcheckPath": "/v1/health/ready",
     "healthcheckTimeout": 30,
     "restartPolicyType": "ON_FAILURE",
@@ -23,19 +23,52 @@
   "regions": ["us-east"],
   "envVars": [
     { "key": "NODE_ENV", "value": "production", "secret": false },
-    { "key": "AEGIS_ENV", "value": "production", "secret": false },
+    { "key": "CERNIQ_ENV", "value": "production", "secret": false },
     { "key": "PORT", "value": "4000", "secret": false },
     { "key": "LOG_LEVEL", "value": "info", "secret": false },
-    { "key": "API_BASE_URL", "value": "https://api.aegis.<operator domain>", "secret": false, "_note": "Replace with the production hostname before first deploy." },
+    {
+      "key": "API_BASE_URL",
+      "value": "https://api.cerniq.<operator domain>",
+      "secret": false,
+      "_note": "Replace with the production hostname before first deploy."
+    },
 
-    { "key": "DATABASE_URL", "secret": true, "_provision": "Railway Postgres plugin OR Neon — paste the pooled connection string. If using Neon's pgbouncer, append ?pgbouncer=true&connection_limit=1." },
-    { "key": "DATABASE_DIRECT_URL", "secret": true, "_provision": "Same source as DATABASE_URL but the unpooled / direct endpoint. Used by `prisma migrate deploy` only." },
-    { "key": "REDIS_URL", "secret": true, "_provision": "Railway Redis plugin OR Upstash — must include the password (rediss:// for TLS)." },
+    {
+      "key": "DATABASE_URL",
+      "secret": true,
+      "_provision": "Railway Postgres plugin OR Neon — paste the pooled connection string. If using Neon's pgbouncer, append ?pgbouncer=true&connection_limit=1."
+    },
+    {
+      "key": "DATABASE_DIRECT_URL",
+      "secret": true,
+      "_provision": "Same source as DATABASE_URL but the unpooled / direct endpoint. Used by `prisma migrate deploy` only."
+    },
+    {
+      "key": "REDIS_URL",
+      "secret": true,
+      "_provision": "Railway Redis plugin OR Upstash — must include the password (rediss:// for TLS)."
+    },
 
-    { "key": "JWT_ED25519_PRIVATE_KEY_B64", "secret": true, "_provision": "Generate via `pnpm tsx scripts/generate-aegis-keys.ts --env`. NEVER reuse the dev keypair in prod." },
-    { "key": "JWT_ED25519_PUBLIC_KEY_B64", "secret": false, "_provision": "Public companion of JWT_ED25519_PRIVATE_KEY_B64. Served at /.well-known/jwks.json." },
-    { "key": "AUDIT_ED25519_PRIVATE_KEY_B64", "secret": true, "_provision": "Separate keypair from JWT — separation of duties (docs/SECURITY.md § 4)." },
-    { "key": "AUDIT_ED25519_PUBLIC_KEY_B64", "secret": false, "_provision": "Public companion — published at /.well-known/audit-signing-key for chain verification." },
+    {
+      "key": "JWT_ED25519_PRIVATE_KEY_B64",
+      "secret": true,
+      "_provision": "Generate via `pnpm tsx scripts/generate-cerniq-keys.ts --env`. NEVER reuse the dev keypair in prod."
+    },
+    {
+      "key": "JWT_ED25519_PUBLIC_KEY_B64",
+      "secret": false,
+      "_provision": "Public companion of JWT_ED25519_PRIVATE_KEY_B64. Served at /.well-known/jwks.json."
+    },
+    {
+      "key": "AUDIT_ED25519_PRIVATE_KEY_B64",
+      "secret": true,
+      "_provision": "Separate keypair from JWT — separation of duties (docs/SECURITY.md § 4)."
+    },
+    {
+      "key": "AUDIT_ED25519_PUBLIC_KEY_B64",
+      "secret": false,
+      "_provision": "Public companion — published at /.well-known/audit-signing-key for chain verification."
+    },
 
     { "key": "API_KEY_BCRYPT_COST", "value": "12", "secret": false },
     { "key": "THROTTLE_VERIFY_PER_MIN", "value": "1000", "secret": false },
@@ -43,13 +76,38 @@
 
     { "key": "ENABLE_BATE", "value": "true", "secret": false },
     { "key": "ENABLE_WEBHOOKS", "value": "true", "secret": false },
-    { "key": "ENABLE_SWAGGER", "value": "false", "secret": false, "_note": "Swagger off in prod; enable temporarily for partner integration debugging only." },
+    {
+      "key": "ENABLE_SWAGGER",
+      "value": "false",
+      "secret": false,
+      "_note": "Swagger off in prod; enable temporarily for partner integration debugging only."
+    },
 
-    { "key": "STRIPE_SECRET_KEY", "secret": true, "_provision": "Stripe dashboard → Developers → API keys → Live secret key. Rotate via Stripe before changing here." },
-    { "key": "STRIPE_WEBHOOK_SECRET", "secret": true, "_provision": "Stripe dashboard → Developers → Webhooks → endpoint signing secret." },
+    {
+      "key": "STRIPE_SECRET_KEY",
+      "secret": true,
+      "_provision": "Stripe dashboard → Developers → API keys → Live secret key. Rotate via Stripe before changing here."
+    },
+    {
+      "key": "STRIPE_WEBHOOK_SECRET",
+      "secret": true,
+      "_provision": "Stripe dashboard → Developers → Webhooks → endpoint signing secret."
+    },
 
-    { "key": "SENTRY_DSN", "secret": true, "_provision": "Sentry project settings → Client Keys (DSN). Optional — empty disables Sentry cleanly." },
-    { "key": "OTEL_EXPORTER_OTLP_ENDPOINT", "secret": false, "_provision": "Pointer to the otel-collector deployment (see infra/observability/otel-collector.yaml). Internal Railway URL preferred." },
-    { "key": "OTEL_EXPORTER_OTLP_HEADERS", "secret": true, "_provision": "Bearer token for the OTLP receiver if the collector requires auth. Format: Authorization=Bearer%20<token>." }
+    {
+      "key": "SENTRY_DSN",
+      "secret": true,
+      "_provision": "Sentry project settings → Client Keys (DSN). Optional — empty disables Sentry cleanly."
+    },
+    {
+      "key": "OTEL_EXPORTER_OTLP_ENDPOINT",
+      "secret": false,
+      "_provision": "Pointer to the otel-collector deployment (see infra/observability/otel-collector.yaml). Internal Railway URL preferred."
+    },
+    {
+      "key": "OTEL_EXPORTER_OTLP_HEADERS",
+      "secret": true,
+      "_provision": "Bearer token for the OTLP receiver if the collector requires auth. Format: Authorization=Bearer%20<token>."
+    }
   ]
 }

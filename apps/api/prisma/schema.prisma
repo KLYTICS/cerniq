@@ -1,5 +1,5 @@
-// AEGIS — Prisma schema v1.0
-// Source: 03_AEGIS_TECHNICAL_SPEC.md §2
+// CERNIQ — Prisma schema v1.0
+// Source: 03_CERNIQ_TECHNICAL_SPEC.md §2
 
 generator client {
   provider = "prisma-client-js"
@@ -98,7 +98,7 @@ model Principal {
 }
 
 /// PrincipalOnboarding — one-row-per-principal activation tracker
-/// (OD-012, M-039 follow-up). Drives dashboard wizard + `aegis doctor`.
+/// (OD-012, M-039 follow-up). Drives dashboard wizard + `cerniq doctor`.
 /// Booleans are one-way (never flipped back to false on revoke); the
 /// timestamps are populated on the same write that toggles each boolean.
 model PrincipalOnboarding {
@@ -243,7 +243,7 @@ model AgentPolicy {
   verifyCount Int @default(0)
 
   // ── Key rotation (ADR-0011) ────────────────────────────────────────
-  // Records which AEGIS JWT signing key signed this policy's token at
+  // Records which CERNIQ JWT signing key signed this policy's token at
   // create-time. Verifiers use this to look up the pubkey at JWKS even
   // after rotation — old policies remain verifiable until natural expiry.
   signedTokenKeyId String?
@@ -352,12 +352,12 @@ model AuditEvent {
   trustScoreAtEvent Int
   trustBandAtEvent  TrustBand
 
-  aegisSignature String @db.Text
+  cerniqSignature String @db.Text
   // Audit-chain payload schema version — verifiers branch on this.
   payloadVersion Int    @default(2)
 
   // ── Enterprise backbone fields (ADR-0011, ADR-0012, ADR-0008) ─────
-  // signingKeyId stamps which AEGIS audit-signing key signed this row;
+  // signingKeyId stamps which CERNIQ audit-signing key signed this row;
   // verifiers fetch the matching pubkey from /.well-known/audit-signing-key.
   // policyEngineId + engineMetadata record which PolicyEngine produced
   // the decision (`builtin`/`cedar`/`opa`) and any engine-specific data.

@@ -1,10 +1,10 @@
-// RedactService — implements GDPR Art. 17 erasure for AEGIS audit events.
+// RedactService — implements GDPR Art. 17 erasure for CERNIQ audit events.
 //
 // IMPORTANT: this service does NOT modify `audit.service.ts`. It uses
 // Prisma directly for the redact write (zeroing raw columns) and then
 // calls `AuditService.append()` to record a `audit.redact` meta-event
 // in the chain. The chain remains tamper-evident because the redacted
-// row's *Hash columns and aegisSignature are not modified.
+// row's *Hash columns and cerniqSignature are not modified.
 //
 // Failure modes:
 //   - eventId not found → 404.
@@ -42,7 +42,10 @@ export class RedactService {
     private readonly audit: AuditService,
   ) {}
 
-  async redactEvent(principalId: string, dto: RedactAuditEventDto): Promise<RedactAuditEventResultDto> {
+  async redactEvent(
+    principalId: string,
+    dto: RedactAuditEventDto,
+  ): Promise<RedactAuditEventResultDto> {
     const event = await this.prisma.auditEvent.findFirst({
       where: { id: dto.eventId, principalId },
       select: { id: true, redactedAt: true, agentId: true },
@@ -95,7 +98,10 @@ export class RedactService {
     };
   }
 
-  async redactByAgent(principalId: string, dto: RedactAuditByAgentDto): Promise<RedactAuditByAgentResultDto> {
+  async redactByAgent(
+    principalId: string,
+    dto: RedactAuditByAgentDto,
+  ): Promise<RedactAuditByAgentResultDto> {
     // Verify the agent is in scope. We don't fail-loud on no-events — a
     // legitimate "delete a freshly created agent" might match zero rows
     // and that's fine; the dataSubject still gets the meta-event.

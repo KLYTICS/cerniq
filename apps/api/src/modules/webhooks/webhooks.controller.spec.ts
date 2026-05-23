@@ -100,7 +100,7 @@ describe('WebhooksController', () => {
     it('creates a subscription and returns id + one-time secret', async () => {
       const result = await controller.subscribe(authA as never, {
         url: 'https://example.com/webhooks',
-        events: ['aegis.agent.trust_score_changed'],
+        events: ['cerniq.agent.trust_score_changed'],
       });
 
       expect(result).toMatchObject({
@@ -115,11 +115,9 @@ describe('WebhooksController', () => {
         events: ['*'],
       });
 
-      expect(service.subscribe).toHaveBeenCalledWith(
-        authA.principalId,
-        'https://example.com/wh',
-        ['*'],
-      );
+      expect(service.subscribe).toHaveBeenCalledWith(authA.principalId, 'https://example.com/wh', [
+        '*',
+      ]);
       // The subscription must be scoped to A, not leaked to B
       expect(store.prn_A).toHaveLength(1);
       expect(store.prn_B).toBeUndefined();
@@ -145,11 +143,11 @@ describe('WebhooksController', () => {
       // Seed A and B independently
       await controller.subscribe(authA as never, {
         url: 'https://a.example.com/wh',
-        events: ['aegis.agent.revoked'],
+        events: ['cerniq.agent.revoked'],
       });
       await controller.subscribe(authB as never, {
         url: 'https://b.example.com/wh',
-        events: ['aegis.agent.anomaly_detected'],
+        events: ['cerniq.agent.anomaly_detected'],
       });
 
       const aList = await controller.list(authA as never);
@@ -176,11 +174,11 @@ describe('WebhooksController', () => {
     it('returns all subscriptions for the principal (multiple)', async () => {
       await controller.subscribe(authA as never, {
         url: 'https://a.example.com/wh1',
-        events: ['aegis.agent.trust_score_changed'],
+        events: ['cerniq.agent.trust_score_changed'],
       });
       await controller.subscribe(authA as never, {
         url: 'https://a.example.com/wh2',
-        events: ['aegis.agent.revoked'],
+        events: ['cerniq.agent.revoked'],
       });
 
       const list = await controller.list(authA as never);

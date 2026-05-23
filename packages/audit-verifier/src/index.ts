@@ -1,4 +1,4 @@
-// Public surface of @aegis/audit-verifier.
+// Public surface of @cerniq/audit-verifier.
 //
 // Stability guarantee:
 //   - The exported types in `./types` are part of the wire contract.
@@ -40,7 +40,9 @@ export function parseAuditNdjson(ndjson: string): AuditEventRow[] {
     try {
       parsed = JSON.parse(trimmed);
     } catch (err) {
-      throw new Error(`audit-verifier: NDJSON line ${lineNo} is not valid JSON — ${(err as Error).message}`);
+      throw new Error(
+        `audit-verifier: NDJSON line ${lineNo} is not valid JSON — ${(err as Error).message}`,
+      );
     }
     if (!parsed || typeof parsed !== 'object') {
       throw new Error(`audit-verifier: NDJSON line ${lineNo} is not an object`);

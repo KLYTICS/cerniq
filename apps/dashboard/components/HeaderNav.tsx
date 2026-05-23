@@ -30,18 +30,13 @@ export function HeaderNav() {
   const pathname = usePathname() ?? '/';
 
   return (
-    <header className="aegis-header">
-      <span className="aegis-logo">AEGIS</span>
+    <header className="cerniq-header">
+      <span className="cerniq-logo">CERNIQ</span>
       <nav aria-label="Primary">
         {LINKS.map((l) => {
           const active = l.href === '/' ? pathname === '/' : pathname.startsWith(l.href);
           return (
-            <Link
-              key={l.href}
-              href={l.href}
-              data-active={active ? 'true' : undefined}
-              prefetch
-            >
+            <Link key={l.href} href={l.href} data-active={active ? 'true' : undefined} prefetch>
               {l.label}
             </Link>
           );
@@ -50,7 +45,7 @@ export function HeaderNav() {
           API
         </a>
       </nav>
-      <span className="aegis-header-spacer" />
+      <span className="cerniq-header-spacer" />
       <button
         type="button"
         className="kbd-trigger"

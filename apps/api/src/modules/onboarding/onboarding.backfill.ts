@@ -24,7 +24,7 @@
 //
 // This module is wired in OnboardingModule's providers list and uses
 // `@nestjs/schedule` Cron decorators when available; otherwise the
-// operator triggers it via `aegis-cli onboarding backfill` (M-027).
+// operator triggers it via `cerniq-cli onboarding backfill` (M-027).
 
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
@@ -43,7 +43,7 @@ try {
 }
 
 /**
- * Result of a backfill run. Operators surface this in `aegis doctor`.
+ * Result of a backfill run. Operators surface this in `cerniq doctor`.
  */
 export interface BackfillReport {
   ranAt: string;
@@ -72,7 +72,9 @@ export class OnboardingBackfill implements OnModuleInit {
    */
   async onModuleInit(): Promise<void> {
     setTimeout(() => {
-      this.run().catch((err) => { this.logger.error(`backfill on-boot run failed: ${(err as Error).message}`); });
+      this.run().catch((err) => {
+        this.logger.error(`backfill on-boot run failed: ${(err as Error).message}`);
+      });
     }, 30_000);
   }
 
@@ -80,9 +82,9 @@ export class OnboardingBackfill implements OnModuleInit {
    * Periodic reconciler. Default cadence: every 5 minutes — fast enough
    * to keep the dashboard wizard feeling live, slow enough to not
    * thrash on principals with no recent activity. Operators tune via
-   * `AEGIS_ONBOARDING_BACKFILL_CRON` if needed.
+   * `CERNIQ_ONBOARDING_BACKFILL_CRON` if needed.
    */
-  @Cron(process.env.AEGIS_ONBOARDING_BACKFILL_CRON ?? '*/5 * * * *')
+  @Cron(process.env.CERNIQ_ONBOARDING_BACKFILL_CRON ?? '*/5 * * * *')
   async runScheduled(): Promise<void> {
     try {
       await this.run();
@@ -173,11 +175,7 @@ export class OnboardingBackfill implements OnModuleInit {
    * boolean and (only if the timestamp column was null) the first-seen
    * timestamp. Returns the number of rows updated.
    */
-  private async flipStep(
-    boolCol: string,
-    tsCol: string,
-    sourceCte: string,
-  ): Promise<number> {
+  private async flipStep(boolCol: string, tsCol: string, sourceCte: string): Promise<number> {
     // Two-step write so we count rows updated. We could collapse but
     // keeping them separate gives us per-step metrics.
     const result = await this.prisma.$executeRawUnsafe(

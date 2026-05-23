@@ -15,13 +15,13 @@ The audit endpoints expose the chain documented in
 | GET    | `/v1/audit/export.ndjson`       | Streaming NDJSON export for SOC2/GDPR  |
 | GET    | `/.well-known/audit-signing-key` | JWKS for offline chain verification    |
 
-Authentication: `X-AEGIS-API-Key` with **FULL** scope.
+Authentication: `X-CERNIQ-API-Key` with **FULL** scope.
 
 ## Paginated read
 
 ```bash
-curl "https://api.aegislabs.io/v1/audit/events?agentId=agent_01HXYZ...&limit=50" \
-  -H "X-AEGIS-API-Key: $AEGIS_API_KEY"
+curl "https://api.cerniq.io/v1/audit/events?agentId=agent_01HXYZ...&limit=50" \
+  -H "X-CERNIQ-API-Key: $CERNIQ_API_KEY"
 ```
 
 Response:
@@ -40,14 +40,14 @@ Pass `cursor=<nextCursor>` on the next call to continue. Date range filters:
 ## Streaming export
 
 ```bash
-curl -N "https://api.aegislabs.io/v1/audit/export.ndjson?since=2026-04-01" \
-  -H "X-AEGIS-API-Key: $AEGIS_API_KEY" \
+curl -N "https://api.cerniq.io/v1/audit/export.ndjson?since=2026-04-01" \
+  -H "X-CERNIQ-API-Key: $CERNIQ_API_KEY" \
   -o audit-export.ndjson
 ```
 
 Response is `Content-Type: application/x-ndjson` with one JSON event per
 line. Replayable with
-[`@aegis/verifier-rp`](https://github.com/klytics/aegis/tree/main/packages/verifier-rp):
+[`@cerniq/verifier-rp`](https://github.com/klytics/cerniq/tree/main/packages/verifier-rp):
 
 ```ts
 const result = await verifier.verifyAuditExport(ndjsonString);

@@ -1,4 +1,4 @@
-// Cross-package parity test: an EdDSA JWT signed by `@aegis/sdk` MUST
+// Cross-package parity test: an EdDSA JWT signed by `@cerniq/sdk` MUST
 // verify under `apps/api`'s `JwtUtil`, and vice versa.
 //
 // Why this exists: the SDK and the API each implement compact-JWT
@@ -14,7 +14,12 @@
 import * as ed from '@noble/ed25519';
 import { sha512 } from '@noble/hashes/sha512';
 import { describe, expect, it, beforeAll } from 'vitest';
-import { signAgentToken, generateKeypair, b64uDecode, b64uEncode } from '../../packages/sdk-ts/src/crypto';
+import {
+  signAgentToken,
+  generateKeypair,
+  b64uDecode,
+  b64uEncode,
+} from '../../packages/sdk-ts/src/crypto';
 import { JwtUtil } from '../../apps/api/src/common/crypto/jwt.util';
 import type { AgentTokenClaims } from '../../apps/api/src/common/crypto/jwt.util';
 
@@ -65,7 +70,11 @@ describe('SDK ↔ API JWT parity', () => {
     // Verify via the SDK's path: decompose + verify ed25519 + parse.
     const [headerB64, payloadB64, sigB64] = token.split('.');
     const enc = new TextEncoder();
-    const ok = await ed.verifyAsync(b64uDecode(sigB64), enc.encode(`${headerB64}.${payloadB64}`), pub);
+    const ok = await ed.verifyAsync(
+      b64uDecode(sigB64),
+      enc.encode(`${headerB64}.${payloadB64}`),
+      pub,
+    );
     expect(ok).toBe(true);
     const parsed = JSON.parse(new TextDecoder().decode(b64uDecode(payloadB64)));
     expect(parsed.sub).toBe('agt_round');
@@ -78,10 +87,7 @@ describe('SDK ↔ API JWT parity', () => {
     const { privateKey } = await generateKeypair();
     const sdkToken = await signAgentToken(privateKey, 'a', 'p', { action: 'x', ttlSeconds: 60 });
     const apiPriv = ed.utils.randomPrivateKey();
-    const apiToken = await jwt.sign(
-      { sub: 'a', pid: 'p', iat: 1, exp: 2, jti: 'j' },
-      apiPriv,
-    );
+    const apiToken = await jwt.sign({ sub: 'a', pid: 'p', iat: 1, exp: 2, jti: 'j' }, apiPriv);
     const sdkHeader = sdkToken.split('.')[0];
     const apiHeader = apiToken.split('.')[0];
     expect(sdkHeader).toBe(apiHeader);

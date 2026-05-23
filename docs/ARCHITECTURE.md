@@ -1,14 +1,14 @@
-# AEGIS — Architecture
+# CERNIQ — Architecture
 
 > Companion to `docs/spec/03_TECHNICAL_SPEC.md` (the canonical reference).
-> This document explains *why* the design looks the way it does and where
+> This document explains _why_ the design looks the way it does and where
 > the bodies are buried.
 
 ---
 
 ## 1. Two surfaces, one core
 
-AEGIS is two services joined at the hip:
+CERNIQ is two services joined at the hip:
 
 ```
                  ┌─────────────────────┐
@@ -56,10 +56,10 @@ AEGIS is two services joined at the hip:
 The two surfaces share **the same Postgres + Redis**. They differ in
 latency budget, deployment cadence, and write authority:
 
-| Surface       | p99 budget    | Writes          | Deploy cadence | Phase 3 home |
-|---------------|---------------|-----------------|----------------|--------------|
-| Management    | 500 ms        | Yes (full)      | Daily          | Railway      |
-| Hot verify    | 200 ms (P1) / 80 ms (P3) | Append-only audit + Redis counters | Weekly | CF Workers |
+| Surface    | p99 budget               | Writes                             | Deploy cadence | Phase 3 home |
+| ---------- | ------------------------ | ---------------------------------- | -------------- | ------------ |
+| Management | 500 ms                   | Yes (full)                         | Daily          | Railway      |
+| Hot verify | 200 ms (P1) / 80 ms (P3) | Append-only audit + Redis counters | Weekly         | CF Workers   |
 
 ---
 
@@ -72,7 +72,7 @@ verify logic that touches a request lives in **framework-free utilities**:
 ```
 apps/api/src/common/crypto/         ← pure (no @nestjs imports)
    ├── ed25519.util.ts              sign / verify / generate
-   ├── jwt.util.ts                   issue / parse AEGIS-signed JWTs
+   ├── jwt.util.ts                   issue / parse CERNIQ-signed JWTs
    └── audit-chain.util.ts           prev-hash + signature
 
 apps/api/src/modules/verify/
@@ -125,14 +125,14 @@ The full schema is `apps/api/prisma/schema.prisma`. Notable choices:
 
 ## 4. Caching strategy
 
-| Key                                 | TTL      | Source of truth   | Invalidated by                |
-|-------------------------------------|----------|-------------------|-------------------------------|
-| `agent:{id}`                        | 60 s     | Postgres          | Identity update / revoke      |
-| `agent:{id}:trust`                  | 60 s     | Postgres          | BATE worker on score change   |
-| `policy:{id}`                       | 30 s     | Postgres          | Policy revoke / expire        |
-| `verify:{tokenHash}:{action}`       | 30 s     | computed          | Same key naturally expires    |
-| `spend:{policyId}:day:{YYYY-MM-DD}` | until midnight UTC | Postgres SpendRecord (lazy reconcile) | Atomic INCRBY |
-| `spend:{policyId}:month:{YYYY-MM}`  | until next month | same | same |
+| Key                                 | TTL                | Source of truth                       | Invalidated by              |
+| ----------------------------------- | ------------------ | ------------------------------------- | --------------------------- |
+| `agent:{id}`                        | 60 s               | Postgres                              | Identity update / revoke    |
+| `agent:{id}:trust`                  | 60 s               | Postgres                              | BATE worker on score change |
+| `policy:{id}`                       | 30 s               | Postgres                              | Policy revoke / expire      |
+| `verify:{tokenHash}:{action}`       | 30 s               | computed                              | Same key naturally expires  |
+| `spend:{policyId}:day:{YYYY-MM-DD}` | until midnight UTC | Postgres SpendRecord (lazy reconcile) | Atomic INCRBY               |
+| `spend:{policyId}:month:{YYYY-MM}`  | until next month   | same                                  | same                        |
 
 We choose TTL-based invalidation over event-based for most keys because
 60 s of stale state is acceptable for a verify call (the agent's
@@ -144,10 +144,10 @@ service before returning success).
 
 ## 5. Error model
 
-All errors descend from `AegisError` (in `apps/api/src/common/errors/`):
+All errors descend from `CerniqError` (in `apps/api/src/common/errors/`):
 
 ```
-AegisError                                    HTTP   Code
+CerniqError                                    HTTP   Code
 ├── AuthenticationError                        401   AUTH_REQUIRED
 ├── AuthorizationError                         403   FORBIDDEN
 ├── NotFoundError                              404   NOT_FOUND
@@ -170,12 +170,12 @@ Every event:
 
 1. We canonicalize the event payload (RFC 8785 JSON Canonicalization).
 2. We compute `prev_hash = sha256(prev_event.signature || event_id)`.
-3. We sign `prev_hash || canonical_payload` with the AEGIS Ed25519 key.
-4. We persist event with `aegisSignature` field.
+3. We sign `prev_hash || canonical_payload` with the CERNIQ Ed25519 key.
+4. We persist event with `cerniqSignature` field.
 
 Verification (third party):
 
-1. Fetch the AEGIS public key from `/.well-known/audit-signing-key`.
+1. Fetch the CERNIQ public key from `/.well-known/audit-signing-key`.
 2. For each event in chronological order, recompute `prev_hash` and
    verify the signature.
 3. Any break = tampering or storage corruption.
@@ -187,7 +187,7 @@ Implementation: `apps/api/src/common/crypto/audit-chain.util.ts`.
 ## 7. Observability hooks
 
 - **Logs**: `nestjs-pino`, JSON in prod, `pino-pretty` in dev. Redacts
-  `x-aegis-api-key`, `x-aegis-verify-key`, `authorization` headers.
+  `x-cerniq-api-key`, `x-cerniq-verify-key`, `authorization` headers.
 - **Metrics**: Prometheus via `prom-client` (M-010). Key SLIs:
   `verify_latency_seconds{decision}`, `verify_total{denial_reason}`,
   `bate_score_delta{signal_type}`.
@@ -217,11 +217,11 @@ posture.
 
 - **Phase 1 (Railway)**: no canary. The management surface is low-QPS
   and rollback is fast enough. Daily releases with manual smoke
-  (`pnpm --filter @aegis/api smoke`) before promoting.
+  (`pnpm --filter @cerniq/api smoke`) before promoting.
 - **Phase 3 (Workers)**: traffic split via Cloudflare Worker Routes —
   5% canary for 30 min, then 100% on green metrics. Per-route SLI watch:
   `verify_latency_seconds` p99, `verify_total{denial_reason}` per-reason
-  rate, and `aegis_cache_set_failed_total` (the round-4 silent-failure
+  rate, and `cerniq_cache_set_failed_total` (the round-4 silent-failure
   detector). Page on > 0.5% delta over baseline.
 
 ### 8.3 Database migrations
@@ -230,7 +230,7 @@ Forward-only, three-step contract:
 
 1. **Additive migration** ships first (new column nullable, new table
    coexists with old). Runs on every Railway deploy via `prisma migrate
-   deploy` in the API container's start script.
+deploy` in the API container's start script.
 2. **App deploy** uses both old and new column behind a feature flag.
 3. **Cleanup migration** ships once the feature is fully ramped and the
    old column is unreferenced.
@@ -252,17 +252,17 @@ verification semantics require an ADR.
 
 ## 9. Incident communication
 
-Closes audit finding **A-009**, satisfies SOC 2 CC7.4. AEGIS holds
+Closes audit finding **A-009**, satisfies SOC 2 CC7.4. CERNIQ holds
 verification authority for downstream payment flows; incidents are not
 private to us.
 
-| P-tier | Time-to-customer-notify | Mechanism                                            |
-|--------|-------------------------|------------------------------------------------------|
-| P1     | 4 hours                 | Webhook `aegis.incident.declared` + dashboard banner + email to principal contact |
-| P2     | 24 hours                | Dashboard banner + email                            |
-| P3     | Next status-page post   | Status page only                                    |
+| P-tier | Time-to-customer-notify | Mechanism                                                                          |
+| ------ | ----------------------- | ---------------------------------------------------------------------------------- |
+| P1     | 4 hours                 | Webhook `cerniq.incident.declared` + dashboard banner + email to principal contact |
+| P2     | 24 hours                | Dashboard banner + email                                                           |
+| P3     | Next status-page post   | Status page only                                                                   |
 
-- **Status page**: `status.aegislabs.io`, sourced from
+- **Status page**: `status.cerniq.io`, sourced from
   `incidents.{open,history}.json` published from the management API
   (Statuspage / self-hosted decision pending — see `OPERATOR_DECISIONS.md`
   OD-007 once filed).
@@ -284,7 +284,7 @@ the architect.
 
 - **Redis miss** → fetch from Postgres, populate cache. Normal.
 - **Redis error (timeout, connection refused)** → fetch from Postgres
-  directly. Increment `aegis_cache_set_failed_total` (round-4 metric).
+  directly. Increment `cerniq_cache_set_failed_total` (round-4 metric).
   Operator alert at `> 1/sec sustained` (Redis is silently piling DB
   load).
 - **Postgres miss after Redis miss** → 404 (legitimate).
@@ -299,7 +299,7 @@ performance. On Redis error during spend evaluation:
 
 - Return `503 SERVICE_UNAVAILABLE` with `code: SPEND_GUARD_UNAVAILABLE`.
 - Audit-append the denial (so the agent's later reconciliation can show
-  the request was *attempted* but unverified).
+  the request was _attempted_ but unverified).
 - Do **not** fall back to Postgres for the live increment — the latency
   cost violates the p99 budget and the contention pattern fights the
   audit-append transaction.
@@ -316,13 +316,13 @@ in THREAT_MODEL_v2 § 8.4.
 
 ### 10.4 Postgres unavailability
 
-| Path                      | Behavior on PG-down                                                                   |
-|---------------------------|----------------------------------------------------------------------------------------|
-| `/v1/verify` cache hit    | Continues, audit append falls through to **outbox** (ADR-0007); CLAUDE.md inv. 3 holds because the outbox row carries the signed payload that will land on PG recovery. |
-| `/v1/verify` cache miss   | `503` with `code: BACKEND_UNAVAILABLE`.                                                |
-| Identity / policy CRUD    | `503`.                                                                                 |
-| Audit retrieval           | `503`. Past events are not served from cache.                                          |
-| Webhook delivery          | Continues from BullMQ until queue saturation; then `503` on `POST /v1/webhooks` create. |
+| Path                    | Behavior on PG-down                                                                                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/v1/verify` cache hit  | Continues, audit append falls through to **outbox** (ADR-0007); CLAUDE.md inv. 3 holds because the outbox row carries the signed payload that will land on PG recovery. |
+| `/v1/verify` cache miss | `503` with `code: BACKEND_UNAVAILABLE`.                                                                                                                                 |
+| Identity / policy CRUD  | `503`.                                                                                                                                                                  |
+| Audit retrieval         | `503`. Past events are not served from cache.                                                                                                                           |
+| Webhook delivery        | Continues from BullMQ until queue saturation; then `503` on `POST /v1/webhooks` create.                                                                                 |
 
 ### 10.5 Multi-region / DR posture (closes A-022)
 
@@ -357,11 +357,11 @@ in `docs/SLO.md` achievable.
 
 ### 11.1 Throughput targets
 
-| Surface       | Phase 1     | Phase 3 (per region) | Notes                                              |
-|---------------|-------------|----------------------|----------------------------------------------------|
-| `/v1/verify`  | 1 000 rps   | 10 000 rps           | Phase 1 single Railway instance; P3 KV-fronted     |
-| Management    | 100 rps     | 100 rps              | Identity / policy / audit CRUD + dashboard         |
-| Webhook out   | 50 rps      | 200 rps              | BullMQ-paced; bursts buffered                      |
+| Surface      | Phase 1   | Phase 3 (per region) | Notes                                          |
+| ------------ | --------- | -------------------- | ---------------------------------------------- |
+| `/v1/verify` | 1 000 rps | 10 000 rps           | Phase 1 single Railway instance; P3 KV-fronted |
+| Management   | 100 rps   | 100 rps              | Identity / policy / audit CRUD + dashboard     |
+| Webhook out  | 50 rps    | 200 rps              | BullMQ-paced; bursts buffered                  |
 
 ### 11.2 Postgres
 
@@ -385,22 +385,22 @@ in `docs/SLO.md` achievable.
 
 ### 11.4 BullMQ concurrency (per app instance)
 
-| Queue                | Concurrency | Notes                                |
-|----------------------|-------------|--------------------------------------|
-| `webhook:deliver`    | 5           | Per-subscription HMAC sign + POST    |
-| `bate:signal`        | 3           | Score recompute + cache invalidate   |
-| `audit:dlq`          | 1           | Outbox drain to AuditEvent           |
-| `policy:expiry-sweep`| 1           | Cron every 5 min                     |
-| `bate:webhook-emit`  | 2           | Trust-band-crossing notifications    |
+| Queue                 | Concurrency | Notes                              |
+| --------------------- | ----------- | ---------------------------------- |
+| `webhook:deliver`     | 5           | Per-subscription HMAC sign + POST  |
+| `bate:signal`         | 3           | Score recompute + cache invalidate |
+| `audit:dlq`           | 1           | Outbox drain to AuditEvent         |
+| `policy:expiry-sweep` | 1           | Cron every 5 min                   |
+| `bate:webhook-emit`   | 2           | Trust-band-crossing notifications  |
 
 ### 11.5 Storage growth
 
-| Entity        | Row size  | At 10× projected scale (Phase 1) | At Phase 3 (1B verifies/yr)         |
-|---------------|-----------|----------------------------------|-------------------------------------|
-| `AgentIdentity` | ~512 B  | 50 K rows ≈ 25 MB                | 1 M rows ≈ 500 MB                   |
-| `AgentPolicy` | ~2 KB     | 500 K rows ≈ 1 GB                | 50 M rows ≈ 100 GB                  |
-| `AuditEvent`  | ~1 KB     | 10 M rows ≈ 10 GB                | **1 B rows ≈ 1 TB / yr**            |
-| `BateSignal`  | ~256 B    | 100 M rows ≈ 25 GB               | 10 B rows ≈ 2.5 TB                  |
+| Entity          | Row size | At 10× projected scale (Phase 1) | At Phase 3 (1B verifies/yr) |
+| --------------- | -------- | -------------------------------- | --------------------------- |
+| `AgentIdentity` | ~512 B   | 50 K rows ≈ 25 MB                | 1 M rows ≈ 500 MB           |
+| `AgentPolicy`   | ~2 KB    | 500 K rows ≈ 1 GB                | 50 M rows ≈ 100 GB          |
+| `AuditEvent`    | ~1 KB    | 10 M rows ≈ 10 GB                | **1 B rows ≈ 1 TB / yr**    |
+| `BateSignal`    | ~256 B   | 100 M rows ≈ 25 GB               | 10 B rows ≈ 2.5 TB          |
 
 The 1 TB/year audit growth drives the partitioning policy in §12.
 
@@ -424,16 +424,16 @@ contract.
 
 ### 12.2 Retention tiers
 
-| Tier              | Storage       | Duration              | Access pattern              |
-|-------------------|---------------|-----------------------|------------------------------|
-| Hot (live)        | Postgres      | 18 months             | Indexed read, audit GET API  |
-| Warm (archived)   | S3 + GCS dual | 18 months → 7 years   | NDJSON export on request     |
-| Cold (sealed)     | Glacier / Coldline | 7 years → forever | Legal hold only              |
+| Tier            | Storage            | Duration            | Access pattern              |
+| --------------- | ------------------ | ------------------- | --------------------------- |
+| Hot (live)      | Postgres           | 18 months           | Indexed read, audit GET API |
+| Warm (archived) | S3 + GCS dual      | 18 months → 7 years | NDJSON export on request    |
+| Cold (sealed)   | Glacier / Coldline | 7 years → forever   | Legal hold only             |
 
 - **Encryption**: archive files AES-256-GCM with per-month KEK rotated
-  via `infra/kms/rotate-aegis-keys.sh`.
+  via `infra/kms/rotate-cerniq-keys.sh`.
 - **Integrity pin**: each archived month's Merkle root is signed with
-  the AEGIS audit-signing key and published to the
+  the CERNIQ audit-signing key and published to the
   `/.well-known/audit-archive-roots.json` endpoint, plus mirrored to a
   third-party notarization (e.g. OpenTimestamps) to constrain insider
   risk on operator-controlled archives.
@@ -443,10 +443,10 @@ contract.
 
 ### 12.3 GDPR Article 17 ("right to erasure")
 
-The conflict — *audit chain is append-only* vs. *PII must be
-erasable* — is resolved by **redactable signed payloads** (ADR-0006).
+The conflict — _audit chain is append-only_ vs. _PII must be
+erasable_ — is resolved by **redactable signed payloads** (ADR-0006).
 
-`AuditEvent.aegisSignature` signs over a payload v2 that contains
+`AuditEvent.cerniqSignature` signs over a payload v2 that contains
 **hashed leaves** for free-text and PII columns:
 
 - `actionHash`, `relyingPartyHash`, `requestedAmountHash`,
@@ -460,13 +460,13 @@ erasable* — is resolved by **redactable signed payloads** (ADR-0006).
 
 1. Soft-delete on `Principal` (30-day grace).
 2. After grace period, redaction job:
-    - NULLs raw free-text on `AuditEvent` rows for that principal.
-    - Hard-deletes `Principal`, `ApiKey`, `AgentIdentity`,
-      `AgentPolicy`, `WebhookSubscription`, `BateSignal`,
-      `TrustScoreHistory`, `SpendRecord`.
-    - Writes `audit.redact` meta-events with the redacted column list
-      and the operator/tenant who authorized erasure (per
-      ADR-0006 § "Operator authorization").
+   - NULLs raw free-text on `AuditEvent` rows for that principal.
+   - Hard-deletes `Principal`, `ApiKey`, `AgentIdentity`,
+     `AgentPolicy`, `WebhookSubscription`, `BateSignal`,
+     `TrustScoreHistory`, `SpendRecord`.
+   - Writes `audit.redact` meta-events with the redacted column list
+     and the operator/tenant who authorized erasure (per
+     ADR-0006 § "Operator authorization").
 3. `redactedAt` and `redactionReason` columns on `AuditEvent` flag
    downstream readers to suppress non-essential fields.
 
@@ -490,9 +490,9 @@ contract, not the implementation.
 - **No password storage anywhere.**
 
 The Auth0 bridge (peer's ADR-0009, `modules/auth0/`) brokers the IdP
-trust into AEGIS principals — see `FederatedIdentity` row in the
-forthcoming schema. Sessions are AEGIS-managed; Auth0 issues the
-identity claim, AEGIS issues the session.
+trust into CERNIQ principals — see `FederatedIdentity` row in the
+forthcoming schema. Sessions are CERNIQ-managed; Auth0 issues the
+identity claim, CERNIQ issues the session.
 
 ### 13.2 Session model
 
@@ -510,7 +510,7 @@ API-key-authenticated requests are CSRF-immune (no ambient credential).
 Cookie-authenticated dashboard requests get the full belt + braces:
 
 - Double-submit CSRF token on state-changing requests
-  (`X-AEGIS-CSRF`), validated against a session-bound secret.
+  (`X-CERNIQ-CSRF`), validated against a session-bound secret.
 - `Origin` header allow-list validated against the dashboard's known
   origin set (env: `DASHBOARD_ALLOWED_ORIGINS`).
 - `SameSite=Strict` cookie blocks cross-origin cookie transmission
@@ -523,17 +523,17 @@ Cookie-authenticated dashboard requests get the full belt + braces:
 Closes audit finding **A-020**. BullMQ at-least-once delivery means
 every worker must be safe under duplicate fire.
 
-| Queue                | Idempotency key       | Dedup mechanism                                    |
-|----------------------|-----------------------|-----------------------------------------------------|
-| `audit:append`       | `eventId` (CSPRNG)    | `INSERT ... ON CONFLICT (id) DO NOTHING`            |
-| `bate:signal`        | `signalId`            | `BateSignal` PK; score-delta computed only once     |
-| `webhook:deliver`    | `WebhookDelivery.id`  | `Idempotency-Key` HTTP header → customer endpoints  |
-| `policy:expiry-sweep`| natural (idempotent)  | UPDATE WHERE revokedAt IS NULL AND expiresAt < now()|
-| outbox drain         | `OutboxEvent.id`      | `SELECT ... FOR UPDATE SKIP LOCKED` per ADR-0007    |
+| Queue                 | Idempotency key      | Dedup mechanism                                      |
+| --------------------- | -------------------- | ---------------------------------------------------- |
+| `audit:append`        | `eventId` (CSPRNG)   | `INSERT ... ON CONFLICT (id) DO NOTHING`             |
+| `bate:signal`         | `signalId`           | `BateSignal` PK; score-delta computed only once      |
+| `webhook:deliver`     | `WebhookDelivery.id` | `Idempotency-Key` HTTP header → customer endpoints   |
+| `policy:expiry-sweep` | natural (idempotent) | UPDATE WHERE revokedAt IS NULL AND expiresAt < now() |
+| outbox drain          | `OutboxEvent.id`     | `SELECT ... FOR UPDATE SKIP LOCKED` per ADR-0007     |
 
 Customer webhook endpoints **should** dedup on `Idempotency-Key`; we
-publish the contract in `docs/spec/AEGIS_API_SPEC.yaml` § "Webhooks".
-Failure of a customer to dedup does not violate AEGIS guarantees.
+publish the contract in `docs/spec/CERNIQ_API_SPEC.yaml` § "Webhooks".
+Failure of a customer to dedup does not violate CERNIQ guarantees.
 
 ---
 
@@ -557,14 +557,14 @@ without context.
 ## 16. Cross-references
 
 | Topic                  | Authoritative source                                |
-|------------------------|------------------------------------------------------|
-| Threat model           | `docs/THREAT_MODEL_v2.md` (v1 retained for history)  |
-| Security controls      | `docs/SECURITY.md`                                   |
-| SLOs / SLIs            | `docs/SLO.md`                                        |
-| Disaster recovery      | `docs/DR_RUNBOOK.md`                                 |
-| Operator runbook       | `docs/RUNBOOK.md`                                    |
-| Compliance posture     | `docs/COMPLIANCE.md`, `docs/EU_RESIDENCY.md`         |
-| Post-quantum roadmap   | `docs/POST_QUANTUM_ROADMAP.md`                       |
-| BATE algorithm         | `docs/BATE_ALGORITHM.md`                             |
-| Decision records       | `docs/decisions/0001-0013`                           |
-| Multi-project adoption | `docs/AEGIS_AS_BACKBONE.md`                          |
+| ---------------------- | --------------------------------------------------- |
+| Threat model           | `docs/THREAT_MODEL_v2.md` (v1 retained for history) |
+| Security controls      | `docs/SECURITY.md`                                  |
+| SLOs / SLIs            | `docs/SLO.md`                                       |
+| Disaster recovery      | `docs/DR_RUNBOOK.md`                                |
+| Operator runbook       | `docs/RUNBOOK.md`                                   |
+| Compliance posture     | `docs/COMPLIANCE.md`, `docs/EU_RESIDENCY.md`        |
+| Post-quantum roadmap   | `docs/POST_QUANTUM_ROADMAP.md`                      |
+| BATE algorithm         | `docs/BATE_ALGORITHM.md`                            |
+| Decision records       | `docs/decisions/0001-0013`                          |
+| Multi-project adoption | `docs/CERNIQ_AS_BACKBONE.md`                        |

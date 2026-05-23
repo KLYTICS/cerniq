@@ -1,18 +1,18 @@
-// Example AI-platform tool server. Wraps every MCP tool call with AEGIS
-// verification via `@aegis/mcp-bridge` (ADR-0008).
+// Example AI-platform tool server. Wraps every MCP tool call with CERNIQ
+// verification via `@cerniq/mcp-bridge` (ADR-0008).
 //
 // Every `tools/call` arrives with an `Authorization: Bearer <jwt>` header.
-// `wrapMcpHandler` extracts the token, calls aegis.verify(), and only
+// `wrapMcpHandler` extracts the token, calls cerniq.verify(), and only
 // invokes the underlying handler if the verify succeeds.
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { wrapMcpHandler, BridgeDenialError } from '@aegis/mcp-bridge';
-import { aegis } from './aegis.js';
+import { wrapMcpHandler, BridgeDenialError } from '@cerniq/mcp-bridge';
+import { cerniq } from './cerniq.js';
 
 const server = new Server(
-  { name: 'aegis-example-ai-platform', version: '0.1.0' },
+  { name: 'cerniq-example-ai-platform', version: '0.1.0' },
   { capabilities: { tools: {} } },
 );
 
@@ -33,7 +33,7 @@ const TOOLS = [
   },
   {
     name: 'data.export',
-    description: 'Export the user\'s data as a download link.',
+    description: "Export the user's data as a download link.",
     inputSchema: {
       type: 'object',
       properties: { format: { type: 'string', enum: ['csv', 'json'] } },
@@ -44,21 +44,23 @@ const TOOLS = [
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
 
-const a = aegis();
+const a = cerniq();
 
-// AEGIS-gated handler. The `wrap` lifts (req, ctx) → handler shape and
-// adds `ctx.aegisVerify` for the inner handler to use (e.g., for
+// CERNIQ-gated handler. The `wrap` lifts (req, ctx) → handler shape and
+// adds `ctx.cerniqVerify` for the inner handler to use (e.g., for
 // per-request audit metadata).
 const handle = wrapMcpHandler<typeof CallToolRequestSchema._type, unknown>(
   {
-    aegis: a,
+    cerniq: a,
     actionPrefix: 'tools.',
     minTrustBand: 'VERIFIED',
   },
   async (req, ctx) => {
     const { name, arguments: args } = req.params;
     console.log(`[server] tools/call name=${name}`);
-    console.log(`[server] aegis verify: APPROVED agent=${ctx.aegisVerify.agentId} band=${ctx.aegisVerify.trustBand}`);
+    console.log(
+      `[server] cerniq verify: APPROVED agent=${ctx.cerniqVerify.agentId} band=${ctx.cerniqVerify.trustBand}`,
+    );
 
     if (name === 'commerce.purchase') {
       // Real implementation would call a payment processor here.
@@ -77,9 +79,11 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     return { content: [{ type: 'text', text: JSON.stringify(result) }] };
   } catch (err) {
     if (err instanceof BridgeDenialError) {
-      console.log(`[server] aegis verify: DENIED reason=${err.reason}`);
+      console.log(`[server] cerniq verify: DENIED reason=${err.reason}`);
       return {
-        content: [{ type: 'text', text: JSON.stringify({ error: 'AEGIS_DENIED', reason: err.reason }) }],
+        content: [
+          { type: 'text', text: JSON.stringify({ error: 'CERNIQ_DENIED', reason: err.reason }) },
+        ],
         isError: true,
       };
     }
@@ -89,4 +93,4 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.log('[server] aegis-gated MCP tool server running on stdio');
+console.log('[server] cerniq-gated MCP tool server running on stdio');

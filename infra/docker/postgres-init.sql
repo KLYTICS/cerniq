@@ -1,4 +1,4 @@
--- AEGIS — Postgres initialization
+-- CERNIQ — Postgres initialization
 -- Mounted at /docker-entrypoint-initdb.d/ via docker-compose.
 -- Idempotent: safe to re-run.
 --
@@ -16,26 +16,26 @@ CREATE EXTENSION IF NOT EXISTS citext;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
--- Confirm AEGIS database exists with sane defaults.
-ALTER DATABASE aegis SET timezone TO 'UTC';
-ALTER DATABASE aegis SET log_min_duration_statement TO 250;  -- log queries > 250ms
+-- Confirm CERNIQ database exists with sane defaults.
+ALTER DATABASE cerniq SET timezone TO 'UTC';
+ALTER DATABASE cerniq SET log_min_duration_statement TO 250;  -- log queries > 250ms
 
 -- Application role (lower-privilege than the migration owner). Apps connect
 -- as this role in production; migrations run as the owner.
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'aegis_app') THEN
-    CREATE ROLE aegis_app LOGIN PASSWORD 'aegis_app_dev_only';
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'cerniq_app') THEN
+    CREATE ROLE cerniq_app LOGIN PASSWORD 'cerniq_app_dev_only';
   END IF;
 END
 $$;
 
-GRANT CONNECT ON DATABASE aegis TO aegis_app;
-GRANT USAGE ON SCHEMA public TO aegis_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO aegis_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO aegis_app;
+GRANT CONNECT ON DATABASE cerniq TO cerniq_app;
+GRANT USAGE ON SCHEMA public TO cerniq_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO cerniq_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO cerniq_app;
 
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO aegis_app;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO cerniq_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT USAGE, SELECT ON SEQUENCES TO aegis_app;
+  GRANT USAGE, SELECT ON SEQUENCES TO cerniq_app;

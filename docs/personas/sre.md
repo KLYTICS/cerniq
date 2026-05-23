@@ -1,29 +1,29 @@
 ---
-title: AEGIS for site reliability engineers
-audience: SREs operating AEGIS or operating services that depend on AEGIS
+title: CERNIQ for site reliability engineers
+audience: SREs operating CERNIQ or operating services that depend on CERNIQ
 last-reviewed: 2026-05-02
 ---
 
-# AEGIS for SREs — what to watch, what to page on
+# CERNIQ for SREs — what to watch, what to page on
 
-AEGIS is on the hot path for every relying-party action. If AEGIS is
+CERNIQ is on the hot path for every relying-party action. If CERNIQ is
 unhealthy, every dependent service degrades. The SLOs and runbooks are
 sized for that reality.
 
 ## SLOs
 
-| Surface              | SLO                                              | Source                         |
-| -------------------- | ------------------------------------------------ | ------------------------------ |
-| `/v1/verify` (origin) | p99 < 200 ms, error rate < 0.1%                  | `docs/SLO.md`                  |
-| `/v1/verify` (edge)  | p99 < 80 ms, error rate < 0.05%                  | Phase 3 — gated on M-013 / $5K MRR |
-| `/v1/audit` write    | p99 < 100 ms, error rate < 0.05%                 | `docs/SLO.md`                  |
-| `/.well-known/jwks.json` | 99.99% availability (this is the offline-verify fallback) | `docs/SLO.md`                  |
-| Webhook delivery     | p99 first attempt < 5s; 99% within 10 attempts   | M-008                          |
+| Surface                  | SLO                                                       | Source                             |
+| ------------------------ | --------------------------------------------------------- | ---------------------------------- |
+| `/v1/verify` (origin)    | p99 < 200 ms, error rate < 0.1%                           | `docs/SLO.md`                      |
+| `/v1/verify` (edge)      | p99 < 80 ms, error rate < 0.05%                           | Phase 3 — gated on M-013 / $5K MRR |
+| `/v1/audit` write        | p99 < 100 ms, error rate < 0.05%                          | `docs/SLO.md`                      |
+| `/.well-known/jwks.json` | 99.99% availability (this is the offline-verify fallback) | `docs/SLO.md`                      |
+| Webhook delivery         | p99 first attempt < 5s; 99% within 10 attempts            | M-008                              |
 
-Alert rules live in `infra/observability/alerts/aegis-security.rules.yml`
-(peer-shipped 2026-05-02). The alerts are *security-flavored* — auth
+Alert rules live in `infra/observability/alerts/cerniq-security.rules.yml`
+(peer-shipped 2026-05-02). The alerts are _security-flavored_ — auth
 failure spikes, audit append failures, replay-cache failures — because
-those are the cases where degraded AEGIS turns into a security
+those are the cases where degraded CERNIQ turns into a security
 incident, not just a latency one.
 
 ## Dashboards
@@ -70,7 +70,7 @@ out across CF regions.
 ## Failure modes
 
 `docs/FAILURE_MODES.md` (sid=a9198691, 2026-05-02) enumerates how
-AEGIS degrades when each dependency (Postgres, Redis, KMS, Auth0)
+CERNIQ degrades when each dependency (Postgres, Redis, KMS, Auth0)
 goes away. Worth reading before you're paged at 3am.
 
 ## Reference
@@ -78,5 +78,5 @@ goes away. Worth reading before you're paged at 3am.
 - `docs/SLO.md`, `docs/RUNBOOK.md`, `docs/DR_RUNBOOK.md`, `docs/SMOKE_TEST.md`
 - `docs/SECURITY_RUNBOOK.md`, `docs/CAPACITY_PLAN.md`, `docs/FAILURE_MODES.md`
 - `infra/observability/` — alert rules + Grafana dashboards.
-- `aegis doctor` — for the operator side, the same probes the SRE
+- `cerniq doctor` — for the operator side, the same probes the SRE
   dashboard surfaces, but on demand.

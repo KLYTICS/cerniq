@@ -2,7 +2,7 @@ import * as ed from '@noble/ed25519';
 
 import { generateKeypair, signAgentToken, signHandshake, decodeUnsafe, b64uDecode } from './crypto';
 
-describe('@aegis/sdk crypto', () => {
+describe('@cerniq/sdk crypto', () => {
   it('generates keypairs in base64url', async () => {
     const kp = await generateKeypair();
     expect(b64uDecode(kp.privateKey)).toHaveLength(32);
@@ -33,7 +33,7 @@ describe('@aegis/sdk crypto', () => {
 
   it('signHandshake round-trips through Ed25519 verify (M-003)', async () => {
     const { privateKey, publicKey } = await generateKeypair();
-    const message = 'aegis-handshake-v1::agt_demo::WoQRdRAVOFhKtnxyNVz6jjW9PQ5gN_DKCsADKHsozqo';
+    const message = 'cerniq-handshake-v1::agt_demo::WoQRdRAVOFhKtnxyNVz6jjW9PQ5gN_DKCsADKHsozqo';
 
     const sigB64u = await signHandshake(privateKey, message);
 
@@ -48,8 +48,8 @@ describe('@aegis/sdk crypto', () => {
 
   it('signHandshake produces different signatures for different challenges (no determinism leak)', async () => {
     const { privateKey } = await generateKeypair();
-    const a = await signHandshake(privateKey, 'aegis-handshake-v1::a::AAAA');
-    const b = await signHandshake(privateKey, 'aegis-handshake-v1::a::BBBB');
+    const a = await signHandshake(privateKey, 'cerniq-handshake-v1::a::AAAA');
+    const b = await signHandshake(privateKey, 'cerniq-handshake-v1::a::BBBB');
     expect(a).not.toBe(b);
   });
 });

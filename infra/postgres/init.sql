@@ -1,5 +1,5 @@
 -- =============================================================================
--- AEGIS — Postgres production initialization
+-- CERNIQ — Postgres production initialization
 -- =============================================================================
 -- Mounted at /docker-entrypoint-initdb.d/init.sql by the Postgres container.
 -- Runs EXACTLY ONCE on first boot — Postgres skips the init dir on subsequent
@@ -53,28 +53,28 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- -----------------------------------------------------------------------------
 -- Database-level defaults
 -- -----------------------------------------------------------------------------
--- All timestamps in AEGIS are UTC. Setting timezone here saves a
+-- All timestamps in CERNIQ are UTC. Setting timezone here saves a
 -- per-connection SET TIME ZONE on every Prisma client.
-ALTER DATABASE aegis SET timezone TO 'UTC';
+ALTER DATABASE cerniq SET timezone TO 'UTC';
 
 -- Slow-query log threshold. 250 ms is well above expected verify-path
 -- latency; anything tripping this is worth a pull-request investigation.
-ALTER DATABASE aegis SET log_min_duration_statement TO 250;
+ALTER DATABASE cerniq SET log_min_duration_statement TO 250;
 
 -- Force statement_timeout for application connections so a runaway query
 -- can't block the verify path indefinitely. Migration / admin connections
 -- override this with `SET statement_timeout = 0` when needed.
-ALTER DATABASE aegis SET statement_timeout TO '15s';
+ALTER DATABASE cerniq SET statement_timeout TO '15s';
 
 -- -----------------------------------------------------------------------------
 -- Roles
 -- -----------------------------------------------------------------------------
--- aegis_app:
+-- cerniq_app:
 --   Application role. The API + worker connect as this role. CANNOT run
---   DDL — schema migrations run as the database owner (`aegis`), which is
+--   DDL — schema migrations run as the database owner (`cerniq`), which is
 --   the only role with CREATE on the public schema.
 --
--- aegis_readonly:
+-- cerniq_readonly:
 --   For ad-hoc analytics, BI tools, and on-call read access. CANNOT write
 --   — full stop. SOC2 CC6.3 (least privilege) is satisfied by this
 --   separation: a stolen analytics credential cannot mutate audit events.
@@ -85,34 +85,34 @@ ALTER DATABASE aegis SET statement_timeout TO '15s';
 -- -----------------------------------------------------------------------------
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'aegis_app') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'cerniq_app') THEN
     -- placeholder password; operator MUST rotate via:
-    --   ALTER ROLE aegis_app WITH PASSWORD '<from secrets manager>';
-    CREATE ROLE aegis_app LOGIN PASSWORD 'REPLACE_ME_AT_DEPLOY_TIME';
+    --   ALTER ROLE cerniq_app WITH PASSWORD '<from secrets manager>';
+    CREATE ROLE cerniq_app LOGIN PASSWORD 'REPLACE_ME_AT_DEPLOY_TIME';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'aegis_readonly') THEN
-    CREATE ROLE aegis_readonly LOGIN PASSWORD 'REPLACE_ME_AT_DEPLOY_TIME';
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'cerniq_readonly') THEN
+    CREATE ROLE cerniq_readonly LOGIN PASSWORD 'REPLACE_ME_AT_DEPLOY_TIME';
   END IF;
 END
 $$;
 
--- aegis_app: full DML on the public schema.
-GRANT CONNECT ON DATABASE aegis TO aegis_app;
-GRANT USAGE ON SCHEMA public TO aegis_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO aegis_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO aegis_app;
+-- cerniq_app: full DML on the public schema.
+GRANT CONNECT ON DATABASE cerniq TO cerniq_app;
+GRANT USAGE ON SCHEMA public TO cerniq_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO cerniq_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO cerniq_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO aegis_app;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO cerniq_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT USAGE, SELECT ON SEQUENCES TO aegis_app;
+  GRANT USAGE, SELECT ON SEQUENCES TO cerniq_app;
 
--- aegis_readonly: SELECT only, including future tables.
-GRANT CONNECT ON DATABASE aegis TO aegis_readonly;
-GRANT USAGE ON SCHEMA public TO aegis_readonly;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO aegis_readonly;
+-- cerniq_readonly: SELECT only, including future tables.
+GRANT CONNECT ON DATABASE cerniq TO cerniq_readonly;
+GRANT USAGE ON SCHEMA public TO cerniq_readonly;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO cerniq_readonly;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT SELECT ON TABLES TO aegis_readonly;
+  GRANT SELECT ON TABLES TO cerniq_readonly;
 
 -- pg_stat_statements is in the `public` schema by default; both roles see
 -- it via the GRANT above. If you move it to its own schema later, mirror
@@ -122,7 +122,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 -- What this file deliberately does NOT do
 -- -----------------------------------------------------------------------------
 -- 1. Row-Level Security (RLS).
---    AEGIS enforces multi-tenant isolation at the application layer (every
+--    CERNIQ enforces multi-tenant isolation at the application layer (every
 --    service method takes principalId as the first arg — see
 --    docs/SECURITY.md § 5). RLS is planned as defense-in-depth but it
 --    belongs in a Prisma migration that ships alongside the role split,
@@ -135,7 +135,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 --
 -- 2. Table-level GRANTs beyond DEFAULT PRIVILEGES.
 --    The DEFAULT PRIVILEGES above cover tables created by the migration
---    owner (the `aegis` role). If a future migration runs as a different
+--    owner (the `cerniq` role). If a future migration runs as a different
 --    role, that role's freshly-created tables won't pick up the defaults
 --    — re-issue table-level grants in the migration itself.
 --

@@ -1,10 +1,10 @@
 ---
 title: SaaS — SCIM seat provisioning
-description: SCIM-shaped agent provisioning. The cleanest greenfield wedge for AEGIS adoption.
+description: SCIM-shaped agent provisioning. The cleanest greenfield wedge for CERNIQ adoption.
 ---
 
 Full runnable example:
-[`examples/saas-seat-provisioning/`](https://github.com/klytics/aegis/tree/main/examples/saas-seat-provisioning).
+[`examples/saas-seat-provisioning/`](https://github.com/klytics/cerniq/tree/main/examples/saas-seat-provisioning).
 
 ## Why SCIM-shaped
 
@@ -17,16 +17,16 @@ and spend.
 
 | Method  | Path                  | Maps to                                       |
 | ------- | --------------------- | --------------------------------------------- |
-| POST    | `/scim/v2/Agents`     | `aegis.agents.register({ publicKey, label })` |
-| GET     | `/scim/v2/Agents/:id` | `aegis.agents.show(id)`                       |
-| DELETE  | `/scim/v2/Agents/:id` | `aegis.agents.revoke(id)`                     |
-| POST    | `/scim/v2/Policies`   | `aegis.policies.create({ agentId, scope })`   |
+| POST    | `/scim/v2/Agents`     | `cerniq.agents.register({ publicKey, label })` |
+| GET     | `/scim/v2/Agents/:id` | `cerniq.agents.show(id)`                       |
+| DELETE  | `/scim/v2/Agents/:id` | `cerniq.agents.revoke(id)`                     |
+| POST    | `/scim/v2/Policies`   | `cerniq.policies.create({ agentId, scope })`   |
 
 ## Flow
 
 ```ts
 // 1. Enterprise IDP provisions an agent seat via SCIM POST.
-const agent = await aegis.agents.register({
+const agent = await cerniq.agents.register({
   publicKey: scimRequest.body.publicKey,
   label: scimRequest.body.userName,
   metadata: {
@@ -36,7 +36,7 @@ const agent = await aegis.agents.register({
 });
 
 // 2. A default per-seat policy is issued automatically.
-const policy = await aegis.policies.create({
+const policy = await cerniq.policies.create({
   agentId: agent.id,
   scope: {
     actions: defaultActionsForDepartment(scimRequest.body.department),
@@ -51,14 +51,14 @@ const policy = await aegis.policies.create({
 return {
   id: agent.id,
   externalId: scimRequest.body.externalId,
-  meta: { aegisPolicyId: policy.id },
+  meta: { cerniqPolicyId: policy.id },
 };
 ```
 
 ## Deprovisioning
 
-A SCIM DELETE on `/scim/v2/Agents/:id` maps to `aegis.agents.revoke(id)`,
+A SCIM DELETE on `/scim/v2/Agents/:id` maps to `cerniq.agents.revoke(id)`,
 which is irreversible. All future verify requests using that agent's
 signature return `AGENT_REVOKED` from the [denial precedence](/docs/concepts/denial-precedence).
 The audit chain preserves the revocation event under
-`aegis.agent.revoked` (see [webhook events](/docs/concepts/webhooks)).
+`cerniq.agent.revoked` (see [webhook events](/docs/concepts/webhooks)).

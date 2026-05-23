@@ -22,8 +22,8 @@
 
 import { trace, SpanStatusCode, type Span, type SpanOptions } from '@opentelemetry/api';
 
-/** AEGIS tracer name. Single tracer per service is the OTel convention. */
-const TRACER_NAME = 'aegis-api';
+/** CERNIQ tracer name. Single tracer per service is the OTel convention. */
+const TRACER_NAME = 'cerniq-api';
 
 /** Allowed attribute key prefixes — for reviewer reference, not runtime enforcement. */
 export const SPAN_ATTRIBUTE_KEYS = [
@@ -93,7 +93,9 @@ export async function withSpan<T>(
  * results need to be tagged (e.g. tagging the agent.id once it's
  * resolved, before the spend check runs).
  */
-export function setActiveSpanAttributes(attrs: Record<string, SpanAttributeValue | undefined>): void {
+export function setActiveSpanAttributes(
+  attrs: Record<string, SpanAttributeValue | undefined>,
+): void {
   const span = trace.getActiveSpan();
   if (!span) return;
   for (const [key, value] of Object.entries(attrs)) {

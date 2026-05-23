@@ -1,6 +1,6 @@
-# AEGIS — Security model & threat analysis
+# CERNIQ — Security model & threat analysis
 
-> AEGIS is a security product. Bugs here have asymmetric downside.
+> CERNIQ is a security product. Bugs here have asymmetric downside.
 > Every change to this document or to crypto code requires a second pair
 > of eyes, even from a peer Claude session — message the operator first.
 
@@ -8,18 +8,18 @@
 
 ## 1. Asset inventory
 
-| Asset                         | Sensitivity | Where it lives                | Compromise impact        |
-|-------------------------------|-------------|-------------------------------|--------------------------|
-| Agent **public** keys         | Low         | Postgres, Redis cache         | None                     |
-| Agent **private** keys        | (NOT HELD)  | client-side only              | Customer-side incident   |
-| AEGIS audit signing key       | Critical    | env var, KMS in prod          | Audit chain forgery      |
-| AEGIS JWT signing key         | Critical    | env var, KMS in prod          | Forged policy tokens     |
-| API keys (developers)         | High        | bcrypt(cost=12) in Postgres   | Account takeover         |
-| Verify-only keys              | Medium      | bcrypt in Postgres            | Read-only verify spam    |
-| Stripe webhook secret         | High        | env var                       | Billing forgery          |
-| Webhook subscription secrets  | High        | Postgres (encrypted at rest)  | Customer-side forgery    |
-| Audit events                  | Confidential| Postgres (append-only)        | Compliance / privacy     |
-| BATE signal history           | Internal    | Postgres                      | Anti-fraud reverse-eng   |
+| Asset                        | Sensitivity  | Where it lives               | Compromise impact      |
+| ---------------------------- | ------------ | ---------------------------- | ---------------------- |
+| Agent **public** keys        | Low          | Postgres, Redis cache        | None                   |
+| Agent **private** keys       | (NOT HELD)   | client-side only             | Customer-side incident |
+| CERNIQ audit signing key     | Critical     | env var, KMS in prod         | Audit chain forgery    |
+| CERNIQ JWT signing key       | Critical     | env var, KMS in prod         | Forged policy tokens   |
+| API keys (developers)        | High         | bcrypt(cost=12) in Postgres  | Account takeover       |
+| Verify-only keys             | Medium       | bcrypt in Postgres           | Read-only verify spam  |
+| Stripe webhook secret        | High         | env var                      | Billing forgery        |
+| Webhook subscription secrets | High         | Postgres (encrypted at rest) | Customer-side forgery  |
+| Audit events                 | Confidential | Postgres (append-only)       | Compliance / privacy   |
+| BATE signal history          | Internal     | Postgres                     | Anti-fraud reverse-eng |
 
 ---
 
@@ -36,7 +36,7 @@
             └──────────┬─────────────┘
                        ▼
             ┌────────────────────────┐
-            │  AEGIS API (Railway)    │   ← API key auth required
+            │  CERNIQ API (Railway)    │   ← API key auth required
             └──────────┬─────────────┘
                        ▼
        ┌───────────────┴────────────┐
@@ -46,8 +46,8 @@
 ```
 
 **Inbound**: every request crossing into the API layer **must** carry
-either `X-AEGIS-API-Key` (full) or `X-AEGIS-Verify-Key` (verify-only),
-*except* `/health`, `/`, `/docs`, `/v1/agents/:id/status`, and
+either `X-CERNIQ-API-Key` (full) or `X-CERNIQ-Verify-Key` (verify-only),
+_except_ `/health`, `/`, `/docs`, `/v1/agents/:id/status`, and
 `/.well-known/*`. Health endpoints never depend on Redis/DB and never
 expose principal data.
 
@@ -55,14 +55,14 @@ expose principal data.
 
 ## 3. Cryptographic choices (and the reasons)
 
-| Use                             | Algorithm           | Library             | Why this not that                              |
-|---------------------------------|---------------------|---------------------|------------------------------------------------|
-| Agent identity                  | Ed25519             | `@noble/ed25519`    | Fast, small keys, modern, zero malleability    |
-| AEGIS JWT signing               | EdDSA over Ed25519  | `jose`              | Same curve as identity, audited                |
-| Audit chain signature           | Ed25519             | `@noble/ed25519`    | Reuse curve, deterministic signatures          |
-| API key hashing                 | bcrypt cost 12      | `bcryptjs`          | Industry standard, cheap to verify             |
-| Webhook signature               | HMAC-SHA256         | `node:crypto`       | Stripe-style, easy for customers to verify     |
-| Token IDs / nonces              | crypto.randomUUID() | `node:crypto`       | Native, cryptographically secure               |
+| Use                   | Algorithm           | Library          | Why this not that                           |
+| --------------------- | ------------------- | ---------------- | ------------------------------------------- |
+| Agent identity        | Ed25519             | `@noble/ed25519` | Fast, small keys, modern, zero malleability |
+| CERNIQ JWT signing    | EdDSA over Ed25519  | `jose`           | Same curve as identity, audited             |
+| Audit chain signature | Ed25519             | `@noble/ed25519` | Reuse curve, deterministic signatures       |
+| API key hashing       | bcrypt cost 12      | `bcryptjs`       | Industry standard, cheap to verify          |
+| Webhook signature     | HMAC-SHA256         | `node:crypto`    | Stripe-style, easy for customers to verify  |
+| Token IDs / nonces    | crypto.randomUUID() | `node:crypto`    | Native, cryptographically secure            |
 
 We **deliberately do not** use:
 
@@ -75,7 +75,7 @@ We **deliberately do not** use:
 
 ## 4. Key handling rules
 
-1. **AEGIS private keys are never logged.** The Pino redaction list in
+1. **CERNIQ private keys are never logged.** The Pino redaction list in
    `app.module.ts` blocks header tokens; environment-variable private
    keys must never appear in logs by name (`audit_signing.b64` etc.).
 2. **Production keys live in Railway secrets / KMS**, not in `.env`.
@@ -118,7 +118,7 @@ in the `denialReason` enum so relying parties can match it cleanly.
 
 0. `PLAN_LIMIT_EXCEEDED` — billing pre-gate; principal exhausted the
    monthly verify quota for their paid plan. Direct user to upgrade.
-   *(Position 0 — fires before the algorithm runs.)*
+   _(Position 0 — fires before the algorithm runs.)_
 
 The 10-step algorithm chain (top wins, fires only if PLAN_LIMIT_EXCEEDED
 is not triggered):
@@ -131,7 +131,7 @@ is not triggered):
 6. `SCOPE_NOT_GRANTED` — requested action/category not in policy scopes.
 7. `TRIAL_EXHAUSTED` — free-trial principal has consumed the lifetime
    10K-verify cap (ADR-0014). Direct user to a paid plan.
-   *(Added 2026-05-05 between SCOPE_NOT_GRANTED and SPEND_LIMIT_EXCEEDED.)*
+   _(Added 2026-05-05 between SCOPE_NOT_GRANTED and SPEND_LIMIT_EXCEEDED.)_
 8. `SPEND_LIMIT_EXCEEDED` — request amount + period total > policy limit.
 9. `TRUST_SCORE_TOO_LOW` — agent score below relying-party threshold (if
    relying party supplied a `minTrustScore` in the request).
@@ -164,35 +164,39 @@ was never going to be accepted anyway.
 
 See `docs/ARCHITECTURE.md` § "The audit chain". Threat model:
 
-| Threat                        | Mitigation                                       |
-|-------------------------------|--------------------------------------------------|
-| Insider tampers with a row    | Signature breaks; chain check at export catches  |
-| Insider replaces signature    | Prev-hash includes signature; chain still breaks |
-| Insider replaces whole chain  | We publish hourly chain head to a public log     |
-| AEGIS signing key compromised | KMS rotation + revocation list at /.well-known/   |
+| Threat                         | Mitigation                                       |
+| ------------------------------ | ------------------------------------------------ |
+| Insider tampers with a row     | Signature breaks; chain check at export catches  |
+| Insider replaces signature     | Prev-hash includes signature; chain still breaks |
+| Insider replaces whole chain   | We publish hourly chain head to a public log     |
+| CERNIQ signing key compromised | KMS rotation + revocation list at /.well-known/  |
 
 ---
 
 ## 9. Threat scenarios (abridged)
 
 ### T-1: Stolen developer API key
+
 Attacker registers agents under victim's principal, runs up bills.
 **Mitigation**: bcrypt slows brute force; per-key rate limit; audit
 events surface anomalous IP/UA in dashboard; revoke endpoint instant.
 
 ### T-2: Replay attack on `/v1/verify`
+
 Attacker captures a signed agent token and replays it.
 **Mitigation**: tokens carry `nonce` + `iat`; verifier rejects tokens
 with `iat < now() - 15min`. Spend counters increment per-call; replays
 that pass time check still consume quota.
 
 ### T-3: Revoked agent continues to verify
+
 Attacker keeps using a revoked agent's signed token.
 **Mitigation**: revoke endpoint busts cache synchronously before
 returning. Stale cache window in worst case = 60s, but typically <2s
 because revoke writes a Redis SET in addition to invalidate.
 
 ### T-4: Forged BATE signal
+
 Attacker submits fake `RELYING_PARTY_FRAUD_REPORT` to drop a
 competitor's trust score.
 **Mitigation**: `RelyingParty.reportWeight` defaults to 0.0 for
@@ -200,6 +204,7 @@ unverified reporters. Verified reporters require domain validation
 (DNS TXT record). Signal score deltas capped per source per day.
 
 ### T-5: Audit log gap (silent failure)
+
 Verify succeeds but audit write fails, leaving no record.
 **Mitigation**: audit append is in the same transaction as the spend
 counter increment when possible; otherwise a BullMQ "audit pending"
@@ -208,7 +213,7 @@ party can detect a gap if missing.
 
 ---
 
-## 10. What we deliberately *do not* protect against
+## 10. What we deliberately _do not_ protect against
 
 - **Compromised customer infrastructure**: if the developer's environment
   is owned, their keys are owned. We provide audit trails to detect, not

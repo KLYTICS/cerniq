@@ -21,26 +21,30 @@ function readPyVersion(path: string): string | undefined {
   }
 }
 
-interface Badge { name: string; version: string | undefined; install: string }
+interface Badge {
+  name: string;
+  version: string | undefined;
+  install: string;
+}
 
 function loadBadges(): Badge[] {
   // Resolve from apps/docs/ up to the monorepo root.
   const repoRoot = join(process.cwd(), '..', '..');
   return [
     {
-      name: '@aegis/sdk',
+      name: '@cerniq/sdk',
       version: readJsonVersion(join(repoRoot, 'packages', 'sdk-ts', 'package.json')),
-      install: 'npm install @aegis/sdk',
+      install: 'npm install @cerniq/sdk',
     },
     {
-      name: 'aegis (python)',
+      name: 'cerniq (python)',
       version: readPyVersion(join(repoRoot, 'packages', 'sdk-py', 'pyproject.toml')),
-      install: 'pip install aegis',
+      install: 'pip install cerniq',
     },
     {
-      name: 'aegis (cli)',
+      name: 'cerniq (cli)',
       version: readJsonVersion(join(repoRoot, 'packages', 'cli', 'package.json')),
-      install: 'brew install klytics/aegis/aegis',
+      install: 'brew install klytics/cerniq/cerniq',
     },
   ];
 }
@@ -52,13 +56,13 @@ export function SdkVersionBadges() {
       {badges.map((b) => (
         <div
           key={b.name}
-          className="inline-flex items-center gap-3 rounded-lg border border-[var(--aegis-mist)] bg-[var(--aegis-ink)] px-4 py-2"
+          className="inline-flex items-center gap-3 rounded-lg border border-[var(--cerniq-mist)] bg-[var(--cerniq-ink)] px-4 py-2"
         >
-          <span className="font-mono text-xs text-[var(--aegis-fog)]">{b.name}</span>
-          <span className="rounded bg-[var(--aegis-graphite)] px-2 py-0.5 font-mono text-xs text-[var(--aegis-cyan)]">
+          <span className="font-mono text-xs text-[var(--cerniq-fog)]">{b.name}</span>
+          <span className="rounded bg-[var(--cerniq-graphite)] px-2 py-0.5 font-mono text-xs text-[var(--cerniq-cyan)]">
             {b.version ? `v${b.version}` : 'unreleased'}
           </span>
-          <code className="font-mono text-xs text-[var(--aegis-shadow)]">{b.install}</code>
+          <code className="font-mono text-xs text-[var(--cerniq-shadow)]">{b.install}</code>
         </div>
       ))}
     </div>

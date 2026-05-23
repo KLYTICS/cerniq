@@ -1,6 +1,10 @@
 import type { Request } from 'express';
 
-import { AlreadyRotatedError, AuthenticationError, AuthorizationError } from '../../common/errors/aegis-error';
+import {
+  AlreadyRotatedError,
+  AuthenticationError,
+  AuthorizationError,
+} from '../../common/errors/cerniq-error';
 
 import { ApiKeyRotationController } from './api-key-rotation.controller';
 import type { ApiKeyService } from './api-key.service';
@@ -31,12 +35,20 @@ interface RotateMock {
   rotate: jest.Mock<Promise<RotateResult>, [string, string, number]>;
 }
 
-function buildSvc(impl: (callingId: string, principalId: string, hours: number) => Promise<RotateResult> | RotateResult): {
+function buildSvc(
+  impl: (
+    callingId: string,
+    principalId: string,
+    hours: number,
+  ) => Promise<RotateResult> | RotateResult,
+): {
   controller: ApiKeyRotationController;
   svc: RotateMock;
 } {
   const svc: RotateMock = {
-    rotate: jest.fn(async (callingId, principalId, hours) => await impl(callingId, principalId, hours)),
+    rotate: jest.fn(
+      async (callingId, principalId, hours) => await impl(callingId, principalId, hours),
+    ),
   };
   const controller = new ApiKeyRotationController(svc as unknown as ApiKeyService);
   return { controller, svc };
@@ -50,7 +62,7 @@ describe('ApiKeyRotationController.rotate (happy path)', () => {
       expect(principalId).toBe('p_alice');
       expect(hours).toBe(24);
       return {
-        newKey: { id: 'ak_new', plaintext: 'aegis_sk_NEWKEYNEWKEYNEWKEYNEWKE', expiresAt: null },
+        newKey: { id: 'ak_new', plaintext: 'cerniq_sk_NEWKEYNEWKEYNEWKEYNEWKE', expiresAt: null },
         oldKey: { id: callingId, expiresAt: oldExpiresAt },
       };
     });
@@ -58,7 +70,7 @@ describe('ApiKeyRotationController.rotate (happy path)', () => {
     const res = await controller.rotate(buildReq(buildAuth()));
 
     expect(res.id).toBe('ak_new');
-    expect(res.key).toBe('aegis_sk_NEWKEYNEWKEYNEWKEYNEWKE');
+    expect(res.key).toBe('cerniq_sk_NEWKEYNEWKEYNEWKEYNEWKE');
     expect(res.expiresAt).toBe(''); // new key has no native expiry
     expect(res.oldKey.id).toBe('ak_old');
     expect(res.oldKey.expiresAt).toBe(oldExpiresAt.toISOString());
@@ -67,7 +79,7 @@ describe('ApiKeyRotationController.rotate (happy path)', () => {
 
   it('passes the calling key id from the guard to the service (no client-supplied id)', async () => {
     const { controller, svc } = buildSvc(async (callingId) => ({
-      newKey: { id: 'ak_new', plaintext: 'aegis_sk_AAAAAAAAAAAAAAAAAAAAAAAAAA', expiresAt: null },
+      newKey: { id: 'ak_new', plaintext: 'cerniq_sk_AAAAAAAAAAAAAAAAAAAAAAAAAA', expiresAt: null },
       oldKey: { id: callingId, expiresAt: new Date(FIXED_NOW.getTime() + 24 * 60 * 60 * 1000) },
     }));
     await controller.rotate(buildReq(buildAuth({ apiKeyId: 'ak_specific', principalId: 'p_bob' })));
@@ -85,7 +97,9 @@ describe('ApiKeyRotationController.rotate (guard contract)', () => {
       throw new Error('should not be called');
     });
 
-    await expect(controller.rotate(buildReq(undefined))).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(controller.rotate(buildReq(undefined))).rejects.toBeInstanceOf(
+      AuthenticationError,
+    );
   });
 
   it('throws AuthorizationError if auth has no apiKeyId', async () => {
@@ -115,7 +129,9 @@ describe('ApiKeyRotationController.rotate (error propagation)', () => {
       throw new AuthorizationError('API key does not belong to the calling principal.');
     });
 
-    await expect(controller.rotate(buildReq(buildAuth()))).rejects.toBeInstanceOf(AuthorizationError);
+    await expect(controller.rotate(buildReq(buildAuth()))).rejects.toBeInstanceOf(
+      AuthorizationError,
+    );
   });
 
   it('cross-principal: principal A cannot rotate principal B s key — service rejects', async () => {
@@ -128,7 +144,11 @@ describe('ApiKeyRotationController.rotate (error propagation)', () => {
         throw new AuthorizationError('API key does not belong to the calling principal.');
       }
       return {
-        newKey: { id: 'ak_new', plaintext: 'aegis_sk_AAAAAAAAAAAAAAAAAAAAAAAAAA', expiresAt: null },
+        newKey: {
+          id: 'ak_new',
+          plaintext: 'cerniq_sk_AAAAAAAAAAAAAAAAAAAAAAAAAA',
+          expiresAt: null,
+        },
         oldKey: { id: 'ak_old', expiresAt: new Date(FIXED_NOW.getTime() + 24 * 60 * 60 * 1000) },
       };
     });
@@ -143,13 +163,13 @@ describe('ApiKeyRotationController.rotate (error propagation)', () => {
 describe('ApiKeyRotationController.rotate (audit safety, indirect)', () => {
   it('does not leak plaintext through the response body for the OLD key', async () => {
     const { controller } = buildSvc(async () => ({
-      newKey: { id: 'ak_new', plaintext: 'aegis_sk_PLAINTEXTPLAINTEXTPLAINTEX', expiresAt: null },
+      newKey: { id: 'ak_new', plaintext: 'cerniq_sk_PLAINTEXTPLAINTEXTPLAINTEX', expiresAt: null },
       oldKey: { id: 'ak_old', expiresAt: new Date(FIXED_NOW.getTime() + 24 * 60 * 60 * 1000) },
     }));
 
     const res = await controller.rotate(buildReq(buildAuth()));
     // The new-key plaintext IS returned — that's the point.
-    expect(res.key).toMatch(/^aegis_(sk|vk)_/);
+    expect(res.key).toMatch(/^cerniq_(sk|vk)_/);
     // But the old-key block must NOT contain a plaintext field.
     expect(Object.keys(res.oldKey).sort()).toEqual(['expiresAt', 'id']);
     expect((res.oldKey as Record<string, unknown>).plaintext).toBeUndefined();

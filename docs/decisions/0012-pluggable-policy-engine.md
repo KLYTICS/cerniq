@@ -13,6 +13,7 @@ expiration, scope match, spend limits, trust band, anomaly. Each is
 hand-coded in `verify.algorithm.ts`. This works and ships.
 
 Two enterprise demands push past hand-coded:
+
 1. **Custom rules per relying party.** "Block all `commerce.purchase`
    from agents below `PLATINUM` between 22:00–06:00 UTC unless the
    merchantDomain is on our nightly-batch allow list." We can either
@@ -22,14 +23,15 @@ Two enterprise demands push past hand-coded:
    reject "the rule is implicit in 200 lines of TypeScript."
 
 Two industry-standard policy engines fit:
+
 - **AWS Cedar** (Apache 2.0, AWS) — verifiable static analysis,
   human-readable syntax, used by Verified Permissions. Ed25519-friendly,
   WASM-portable.
 - **Open Policy Agent (OPA) Rego** (Apache 2.0, CNCF) — declarative
   Datalog dialect, ubiquitous in K8s shops, rich tooling.
 
-We commit to *neither one* as the only engine — we commit to the
-*interface* that lets either (or both) plug in. AEGIS's builtin engine
+We commit to _neither one_ as the only engine — we commit to the
+_interface_ that lets either (or both) plug in. CERNIQ's builtin engine
 (the Phase 0 hand-coded logic) is one implementation of this interface.
 
 ## Decision
@@ -61,7 +63,7 @@ We commit to *neither one* as the only engine — we commit to the
    engine per tenant for now; multi-engine per tenant is a v2 problem).
 4. **Denial precedence stays locked.** ADR-0004's denial enum is the
    contract; engines MAY NOT invent new denial reasons. If an engine
-   produces an unrecognized denial, AEGIS surfaces `POLICY_REJECTED`
+   produces an unrecognized denial, CERNIQ surfaces `POLICY_REJECTED`
    (added to enum if unanimous, else mapped). Cedar/OPA policies that
    need finer-grained reasons emit them as `engineMetadata.subReason`
    for audit, but the public API stays stable.
@@ -78,16 +80,18 @@ We commit to *neither one* as the only engine — we commit to the
 ## Consequences
 
 ### Positive
+
 - Customers can express domain-specific rules in industry-standard
   syntax. "Send us your Cedar/OPA policy, we'll plug it in."
 - Auditor-facing artifact: the policy is the rule. Reviewers read Cedar
   schema; we don't translate.
-- Enables marketplace plays: "AEGIS-certified policy bundles" for
+- Enables marketplace plays: "CERNIQ-certified policy bundles" for
   PCI-DSS, HIPAA, GDPR. Pre-written, audited, drop-in.
 - A breaking change to one engine (Cedar v3, OPA v2) doesn't break the
   others — interface absorbs the divergence.
 
 ### Negative
+
 - Two more engines to test, version-pin, security-monitor.
 - Policy DSL learning curve for customers who don't know Cedar/OPA.
   Mitigation: `BuiltinPolicyEngine` covers 80% of cases without any DSL.
@@ -96,24 +100,28 @@ We commit to *neither one* as the only engine — we commit to the
   that trade-off.
 
 ### Neutral
+
 - New folder: `apps/api/src/common/policy-engine/`.
 - Verify algorithm refactor (M-019) calls `engine.evaluate()` instead
   of hand-coded checks. Behavior preserved bit-for-bit by
   `BuiltinPolicyEngine`. Peer holds verify path; my work is interface
-  + builtin scaffold only.
+  - builtin scaffold only.
 - Audit log gains `policyEngineId` + `engineMetadata` columns (M-026).
 
 ## Alternatives considered
 
 ### Alt A: Pick one (Cedar)
+
 Rejected for ecosystem reasons: K8s/CNCF shops want OPA, AWS-native
 shops want Cedar. Locking out half the market is poor strategy.
 
 ### Alt B: Pick neither, stay hand-coded forever
+
 Works for v1, breaks at the first enterprise that demands custom rules.
 We lose deals.
 
 ### Alt C: Build our own policy DSL
+
 Tempting (vendor lock-in, brand). Rejected: SOC2 reviewers reject
 homegrown evaluators ("show us the formal semantics") — Cedar/OPA both
 have peer-reviewed semantics.

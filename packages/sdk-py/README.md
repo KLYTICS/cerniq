@@ -1,20 +1,20 @@
-# aegis (Python)
+# cerniq (Python)
 
-The official AEGIS SDK for Python. AEGIS is the neutral verification, policy
+The official CERNIQ SDK for Python. CERNIQ is the neutral verification, policy
 enforcement, and behavioral attestation layer between AI agents and the
 services they act on. Private keys never leave your host — only public keys
-register with AEGIS.
+register with CERNIQ.
 
 - Async-first via `httpx`
 - Ed25519 via `cryptography`
-- Bit-identical token format to the TypeScript SDK (`@aegis/sdk`)
+- Bit-identical token format to the TypeScript SDK (`@cerniq/sdk`)
 - Strict typing — `mypy --strict` clean
 - Sync and async surfaces
 
 ## Install
 
 ```bash
-pip install aegis
+pip install cerniq
 ```
 
 Requires Python 3.11+.
@@ -27,15 +27,15 @@ Requires Python 3.11+.
 import asyncio
 import os
 
-from aegis import AsyncAegis, generate_keypair
+from cerniq import AsyncCerniq, generate_keypair
 
 
 async def main() -> None:
-    # Private key stays on this host — AEGIS only sees the public half.
+    # Private key stays on this host — CERNIQ only sees the public half.
     kp = generate_keypair()
 
-    async with AsyncAegis(api_key=os.environ["AEGIS_API_KEY"]) as aegis:
-        agent = await aegis.agents.register(
+    async with AsyncCerniq(api_key=os.environ["CERNIQ_API_KEY"]) as cerniq:
+        agent = await cerniq.agents.register(
             public_key=kp.public_key,
             runtime="anthropic",
             principal_id="principal_acme",
@@ -45,7 +45,7 @@ async def main() -> None:
         # Example agent_id shape: agt_01HZ9YZXM4QT3B7P8WKJD6R5V
         print("registered:", agent.agent_id)
 
-        policy = await aegis.policies.create(
+        policy = await cerniq.policies.create(
             agent.agent_id,
             scopes=[
                 {
@@ -66,7 +66,7 @@ asyncio.run(main())
 ### Sign a per-request agent token
 
 ```python
-from aegis import sign_agent_token
+from cerniq import sign_agent_token
 
 token = sign_agent_token(
     private_key_b64u=kp.private_key,
@@ -87,12 +87,12 @@ token = sign_agent_token(
 ```python
 import asyncio
 
-from aegis import AsyncAegis
+from cerniq import AsyncCerniq
 
 
 async def check(token: str) -> None:
-    async with AsyncAegis(verify_key=os.environ["AEGIS_VERIFY_KEY"]) as aegis:
-        result = await aegis.verify(
+    async with AsyncCerniq(verify_key=os.environ["CERNIQ_VERIFY_KEY"]) as cerniq:
+        result = await cerniq.verify(
             token,
             action="commerce.purchase",
             amount=347,
@@ -108,15 +108,15 @@ asyncio.run(check("eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9..."))
 
 ### Sync surface
 
-If you don't have an event loop, use `Aegis` (a thin sync wrapper):
+If you don't have an event loop, use `Cerniq` (a thin sync wrapper):
 
 ```python
-from aegis import Aegis, generate_keypair
+from cerniq import Cerniq, generate_keypair
 
 kp = generate_keypair()
 
-with Aegis(api_key="aegis_sk_...") as aegis:
-    agent = aegis.agents.register(
+with Cerniq(api_key="cerniq_sk_...") as cerniq:
+    agent = cerniq.agents.register(
         public_key=kp.public_key,
         runtime="custom",
         principal_id="principal_acme",
@@ -125,29 +125,29 @@ with Aegis(api_key="aegis_sk_...") as aegis:
 
 ## Configuration
 
-| Argument        | Default                              | Notes                                                      |
-| --------------- | ------------------------------------ | ---------------------------------------------------------- |
-| `api_key`       | required for management calls        | Header `X-AEGIS-API-Key`                                   |
-| `verify_key`    | required only for `verify()`         | Header `X-AEGIS-Verify-Key`                                |
-| `base_url`      | `https://api.aegislabs.io/v1`        | Override for sandbox/self-hosted                           |
-| `timeout_ms`    | `5000`                               | Per-request timeout                                        |
-| `user_agent`    | `aegis-python/<version>`             | Sent on every request                                      |
-| `max_retries`   | `3`                                  | Exponential backoff (250ms, 500ms, 1000ms) on 5xx + connect errors |
+| Argument      | Default                       | Notes                                                              |
+| ------------- | ----------------------------- | ------------------------------------------------------------------ |
+| `api_key`     | required for management calls | Header `X-CERNIQ-API-Key`                                          |
+| `verify_key`  | required only for `verify()`  | Header `X-CERNIQ-Verify-Key`                                       |
+| `base_url`    | `https://api.cerniq.io/v1`    | Override for sandbox/self-hosted                                   |
+| `timeout_ms`  | `5000`                        | Per-request timeout                                                |
+| `user_agent`  | `cerniq-python/<version>`     | Sent on every request                                              |
+| `max_retries` | `3`                           | Exponential backoff (250ms, 500ms, 1000ms) on 5xx + connect errors |
 
 ## Errors
 
-All HTTP failures raise a typed `AegisError` subclass:
+All HTTP failures raise a typed `CerniqError` subclass:
 
-| Status | Exception              |
-| ------ | ---------------------- |
-| 400    | `ValidationError`      |
-| 401    | `AuthError`            |
-| 403    | `AuthError`            |
-| 404    | `NotFoundError`        |
-| 429    | `RateLimitedError`     |
-| 5xx    | `ServerError`          |
+| Status | Exception          |
+| ------ | ------------------ |
+| 400    | `ValidationError`  |
+| 401    | `AuthError`        |
+| 403    | `AuthError`        |
+| 404    | `NotFoundError`    |
+| 429    | `RateLimitedError` |
+| 5xx    | `ServerError`      |
 
-`AegisError` exposes `.status_code`, `.request_id`, `.code`, and `.details`.
+`CerniqError` exposes `.status_code`, `.request_id`, `.code`, and `.details`.
 
 ## License
 

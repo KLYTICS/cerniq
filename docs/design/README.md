@@ -1,13 +1,13 @@
 ---
-title: AEGIS — Design Prompt Library
-audience: every Claude session, designer, and contractor designing an AEGIS surface
+title: CERNIQ — Design Prompt Library
+audience: every Claude session, designer, and contractor designing an CERNIQ surface
 last-reviewed: 2026-05-08
 status: source-of-truth
 ---
 
-# AEGIS Design Prompt Library
+# CERNIQ Design Prompt Library
 
-The set of prompts and briefs that take AEGIS from "shipping engineering"
+The set of prompts and briefs that take CERNIQ from "shipping engineering"
 to "shipping a product." Anchored to a single brand foundation; structured
 so any surface (marketing, dashboard, docs, identity, deck) can be shipped
 through one of four prompt flavors:
@@ -20,14 +20,14 @@ through one of four prompt flavors:
 
 ## Files
 
-| File | Role |
-|---|---|
-| `00_BRAND_FOUNDATION.md` | The upstream contract. Tokens, voice, principles. Everything below references this. |
-| `01_MARKETING_SITE_PROMPTS.md` | Landing page, /security, /how-it-works, /pricing, footer. |
-| `02_DASHBOARD_PROMPTS.md` | The developer dashboard at apps/dashboard — agents, policies, audit, BATE, billing. |
-| `03_DOCS_SITE_PROMPTS.md` | docs.aegis.dev — quickstart, concepts, API ref, guides, integrations. |
-| `04_BRAND_IDENTITY_PROMPTS.md` | Logo/wordmark/mark + the supporting visual system (recurring diagrams). |
-| `05_PITCH_DECK_PROMPTS.md` | Investor + enterprise sales decks. |
+| File                           | Role                                                                                |
+| ------------------------------ | ----------------------------------------------------------------------------------- |
+| `00_BRAND_FOUNDATION.md`       | The upstream contract. Tokens, voice, principles. Everything below references this. |
+| `01_MARKETING_SITE_PROMPTS.md` | Landing page, /security, /how-it-works, /pricing, footer.                           |
+| `02_DASHBOARD_PROMPTS.md`      | The developer dashboard at apps/dashboard — agents, policies, audit, BATE, billing. |
+| `03_DOCS_SITE_PROMPTS.md`      | docs.cerniq.dev — quickstart, concepts, API ref, guides, integrations.              |
+| `04_BRAND_IDENTITY_PROMPTS.md` | Logo/wordmark/mark + the supporting visual system (recurring diagrams).             |
+| `05_PITCH_DECK_PROMPTS.md`     | Investor + enterprise sales decks.                                                  |
 
 ## Read order (first time)
 
@@ -38,13 +38,13 @@ through one of four prompt flavors:
 
 ## Pick the right flavor
 
-| You are... | Use |
-|---|---|
-| ...exploring a layout idea solo at 11pm | A (AI UI tools) |
-| ...trying to ship a real Next.js page in apps/marketing | D (Cursor in-repo) |
-| ...handing visual work to an agency or a senior designer | C (designer brief) |
-| ...scaffolding initial design frames in Figma so engineers aren't blocked while a designer is engaged | B (Figma AI) |
-| ...generating a first-draft deck for an investor call this week | A or D (deck), then refine |
+| You are...                                                                                            | Use                        |
+| ----------------------------------------------------------------------------------------------------- | -------------------------- |
+| ...exploring a layout idea solo at 11pm                                                               | A (AI UI tools)            |
+| ...trying to ship a real Next.js page in apps/marketing                                               | D (Cursor in-repo)         |
+| ...handing visual work to an agency or a senior designer                                              | C (designer brief)         |
+| ...scaffolding initial design frames in Figma so engineers aren't blocked while a designer is engaged | B (Figma AI)               |
+| ...generating a first-draft deck for an investor call this week                                       | A or D (deck), then refine |
 
 ## Pick the right ship order
 
@@ -76,10 +76,12 @@ Week 7-8   Bug-bash, performance, Lighthouse pass, accessibility pass
 ```
 
 Two surfaces are launch-critical and should not slip:
+
 - Marketing /, /security, /how-it-works
 - Dashboard component library, Overview, /agents, /audit
 
 Two surfaces matter but can ship 30-60 days post-launch:
+
 - Docs (functional MDX is enough at launch; full polish can follow)
 - Decks (a programmatic v1 is fine; designer polish can come later)
 
@@ -110,12 +112,12 @@ review:
 - AI-generated photoreal imagery on production surfaces
 - Mascot or anthropomorphic-agent illustrations
 - Glow orbs, neon gradients, "magic sparkles"
-- Multiple brand accent colors (aegis-500 is the only one)
+- Multiple brand accent colors (cerniq-500 is the only one)
 - Crypto / web3 visual cues (chain links, abstract Ξ, gradient orbs)
 - Security clichés (shield, padlock, fingerprint, eye)
 - Bullet-pointed prose where paragraphs would be clearer
 - Hardcoded hex colors anywhere (always tokens)
-- Any claim that AEGIS holds private keys (we do not — invariant 1
+- Any claim that CERNIQ holds private keys (we do not — invariant 1
   in CLAUDE.md)
 - Any claim that we are an "identity provider" or "single source of truth"
 - Any animation longer than 320ms or with bounce/elastic easing
@@ -142,11 +144,12 @@ a small migration section noting what changed.
 
 Add new surface files as `06_*`, `07_*`, etc. Suggested next additions
 when needed:
-- Status page (`statuspage.aegis.dev`) — small surface, can live in 01
+
+- Status page (`statuspage.cerniq.dev`) — small surface, can live in 01
   for v1
 - Email templates (transactional + onboarding) — when product growth
   emails ship
-- Conference / booth materials — when AEGIS goes physical
+- Conference / booth materials — when CERNIQ goes physical
 
 ## When in doubt
 

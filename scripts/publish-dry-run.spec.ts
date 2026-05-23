@@ -17,10 +17,7 @@ import {
   type PackRunner,
   type PackageReport,
 } from './publish-dry-run.js';
-import {
-  findAegisPackages,
-  type AegisPackageManifest,
-} from './lib/package-introspect.js';
+import { findCerniqPackages, type CerniqPackageManifest } from './lib/package-introspect.js';
 
 // ──────────────────────────────────────────────────────────────────────
 // Fake repo helper
@@ -32,7 +29,7 @@ interface FakeRepo {
 }
 
 function makeFakeRepo(): FakeRepo {
-  const root = mkdtempSync(path.join(tmpdir(), 'aegis-pubdry-'));
+  const root = mkdtempSync(path.join(tmpdir(), 'cerniq-pubdry-'));
   writeFileSync(path.join(root, 'pnpm-workspace.yaml'), 'packages:\n  - "packages/*"\n');
   mkdirSync(path.join(root, 'packages'), { recursive: true });
   return { root, pkgDir: (n) => path.join(root, 'packages', n) };
@@ -42,18 +39,18 @@ function writePkg(
   repo: FakeRepo,
   folder: string,
   manifest: Record<string, unknown>,
-): AegisPackageManifest {
+): CerniqPackageManifest {
   const dir = repo.pkgDir(folder);
   mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(dir, 'package.json'), JSON.stringify(manifest, null, 2));
   // Touch dist files referenced by entrypoints so source-map check is happy.
-  return findAegisPackages({ repoRoot: repo.root }).find((p) => p.dir === dir)!;
+  return findCerniqPackages({ repoRoot: repo.root }).find((p) => p.dir === dir)!;
 }
 
 const goodManifest = (overrides: Record<string, unknown> = {}) => ({
-  name: '@aegis/sdk',
+  name: '@cerniq/sdk',
   version: '1.2.3',
-  description: 'AEGIS SDK',
+  description: 'CERNIQ SDK',
   license: 'MIT',
   main: 'dist/index.cjs',
   module: 'dist/index.mjs',
@@ -65,9 +62,9 @@ const goodManifest = (overrides: Record<string, unknown> = {}) => ({
       require: './dist/index.cjs',
     },
   },
-  repository: { type: 'git', url: 'https://github.com/x/aegis.git' },
+  repository: { type: 'git', url: 'https://github.com/x/cerniq.git' },
   engines: { node: '>=18' },
-  keywords: ['aegis', 'sdk', 'agent'],
+  keywords: ['cerniq', 'sdk', 'agent'],
   ...overrides,
 });
 
@@ -85,10 +82,12 @@ const cleanPackOutput = JSON.stringify([
   },
 ]);
 
-const stubRunner = (stdout: string): PackRunner => async () => ({
-  stdout,
-  stderr: '',
-});
+const stubRunner =
+  (stdout: string): PackRunner =>
+  async () => ({
+    stdout,
+    stderr: '',
+  });
 
 // ──────────────────────────────────────────────────────────────────────
 // parseFlags
@@ -99,8 +98,8 @@ describe('parseFlags', () => {
     expect(parseFlags([])).toEqual({ all: true, strict: false, json: false });
   });
   it('--package implies !all', () => {
-    expect(parseFlags(['--package', '@aegis/sdk'])).toMatchObject({
-      packageFilter: '@aegis/sdk',
+    expect(parseFlags(['--package', '@cerniq/sdk'])).toMatchObject({
+      packageFilter: '@cerniq/sdk',
       all: false,
     });
   });
@@ -162,7 +161,7 @@ describe('collectEntrypointPaths', () => {
         main: './dist/a.cjs',
         module: './dist/a.mjs',
         types: './dist/a.d.ts',
-        bin: { aegis: './bin/cli.js' },
+        bin: { cerniq: './bin/cli.js' },
         exports: {
           '.': { import: './dist/a.mjs', require: './dist/a.cjs' },
           './sub': './dist/sub.mjs',
@@ -170,13 +169,7 @@ describe('collectEntrypointPaths', () => {
       }),
     ).toEqual(
       // sorted asc
-      [
-        './bin/cli.js',
-        './dist/a.cjs',
-        './dist/a.d.ts',
-        './dist/a.mjs',
-        './dist/sub.mjs',
-      ],
+      ['./bin/cli.js', './dist/a.cjs', './dist/a.d.ts', './dist/a.mjs', './dist/sub.mjs'],
     );
   });
   it('handles missing fields', () => {
@@ -216,16 +209,13 @@ describe('findLeakedAbsolutePathsInMaps', () => {
     mkdirSync(path.join(dir, 'dist'), { recursive: true });
     writeFileSync(
       path.join(dir, 'dist', 'index.js.map'),
-      JSON.stringify({ sources: ['/Users/secret/aegis/src/index.ts'] }),
+      JSON.stringify({ sources: ['/Users/secret/cerniq/src/index.ts'] }),
     );
     writeFileSync(
       path.join(dir, 'dist', 'clean.js.map'),
       JSON.stringify({ sources: ['../src/index.ts'] }),
     );
-    const leaks = findLeakedAbsolutePathsInMaps(dir, [
-      'dist/index.js.map',
-      'dist/clean.js.map',
-    ]);
+    const leaks = findLeakedAbsolutePathsInMaps(dir, ['dist/index.js.map', 'dist/clean.js.map']);
     expect(leaks).toEqual(['dist/index.js.map']);
   });
   it('returns [] when no maps in tarball', () => {
@@ -267,7 +257,7 @@ describe('renderHumanReport', () => {
     const out = renderHumanReport(
       [
         {
-          name: '@aegis/sdk',
+          name: '@cerniq/sdk',
           version: '1.0.0',
           dir: '/x',
           checks: [
@@ -279,7 +269,7 @@ describe('renderHumanReport', () => {
       ],
       { passed: 1, warned: 0, failed: 1 },
     );
-    expect(out).toContain('@aegis/sdk@1.0.0');
+    expect(out).toContain('@cerniq/sdk@1.0.0');
     expect(out).toContain('✓ [a]');
     expect(out).toContain('✗ [b]');
     expect(out).toContain('1 pass · 0 warn · 1 fail');
@@ -309,9 +299,7 @@ describe('checkPackage manifest checks', () => {
     const report = await checkPackage(pkg, {
       packRunner: stubRunner(cleanPackOutput),
     });
-    expect(report.checks.find((c) => c.id === 'manifest.description')?.level).toBe(
-      'fail',
-    );
+    expect(report.checks.find((c) => c.id === 'manifest.description')?.level).toBe('fail');
   });
 
   it('fails on bad semver', async () => {
@@ -333,9 +321,7 @@ describe('checkPackage manifest checks', () => {
     const report = await checkPackage(pkg, {
       packRunner: stubRunner(cleanPackOutput),
     });
-    expect(report.checks.find((c) => c.id === 'manifest.repository')?.level).toBe(
-      'fail',
-    );
+    expect(report.checks.find((c) => c.id === 'manifest.repository')?.level).toBe('fail');
   });
 
   it('fails when keywords < 3', async () => {
@@ -344,9 +330,7 @@ describe('checkPackage manifest checks', () => {
     const report = await checkPackage(pkg, {
       packRunner: stubRunner(cleanPackOutput),
     });
-    expect(report.checks.find((c) => c.id === 'manifest.keywords')?.level).toBe(
-      'fail',
-    );
+    expect(report.checks.find((c) => c.id === 'manifest.keywords')?.level).toBe('fail');
   });
 
   it('fails on link:/file: deps', async () => {
@@ -354,14 +338,12 @@ describe('checkPackage manifest checks', () => {
     const pkg = writePkg(
       repo,
       'sdk-ts',
-      goodManifest({ dependencies: { '@aegis/types': 'link:../types' } }),
+      goodManifest({ dependencies: { '@cerniq/types': 'link:../types' } }),
     );
     const report = await checkPackage(pkg, {
       packRunner: stubRunner(cleanPackOutput),
     });
-    expect(report.checks.find((c) => c.id === 'manifest.deps-no-link-file')?.level).toBe(
-      'fail',
-    );
+    expect(report.checks.find((c) => c.id === 'manifest.deps-no-link-file')?.level).toBe('fail');
   });
 
   it('warns on workspace: deps', async () => {
@@ -369,14 +351,12 @@ describe('checkPackage manifest checks', () => {
     const pkg = writePkg(
       repo,
       'sdk-ts',
-      goodManifest({ dependencies: { '@aegis/types': 'workspace:*' } }),
+      goodManifest({ dependencies: { '@cerniq/types': 'workspace:*' } }),
     );
     const report = await checkPackage(pkg, {
       packRunner: stubRunner(cleanPackOutput),
     });
-    expect(
-      report.checks.find((c) => c.id === 'manifest.deps-workspace')?.level,
-    ).toBe('warn');
+    expect(report.checks.find((c) => c.id === 'manifest.deps-workspace')?.level).toBe('warn');
   });
 });
 
@@ -402,9 +382,7 @@ describe('checkPackage tarball checks', () => {
       },
     ]);
     const report = await checkPackage(pkg, { packRunner: stubRunner(dirty) });
-    expect(
-      report.checks.find((c) => c.id === 'forbid.no-test-files')?.level,
-    ).toBe('fail');
+    expect(report.checks.find((c) => c.id === 'forbid.no-test-files')?.level).toBe('fail');
   });
 
   it('fails when README missing', async () => {
@@ -461,9 +439,7 @@ describe('checkPackage tarball checks', () => {
     const report = await checkPackage(pkg, {
       packRunner: stubRunner(missingEntry),
     });
-    expect(
-      report.checks.find((c) => c.id === 'require.entry.dist/index.cjs')?.level,
-    ).toBe('fail');
+    expect(report.checks.find((c) => c.id === 'require.entry.dist/index.cjs')?.level).toBe('fail');
   });
 
   it('fails when npm pack runner throws', async () => {
@@ -495,7 +471,7 @@ describe('run()', () => {
   it('exits 0 when all packages clean', async () => {
     const repo = makeFakeRepo();
     writePkg(repo, 'sdk-ts', goodManifest());
-    writePkg(repo, 'types', goodManifest({ name: '@aegis/types' }));
+    writePkg(repo, 'types', goodManifest({ name: '@cerniq/types' }));
     const { exitCode, result } = await run(
       { all: true, strict: false, json: false, repoRoot: repo.root },
       { packRunner: stubRunner(cleanPackOutput), log: () => undefined },
@@ -522,7 +498,7 @@ describe('run()', () => {
         all: false,
         strict: false,
         json: false,
-        packageFilter: '@aegis/nope',
+        packageFilter: '@cerniq/nope',
         repoRoot: repo.root,
       },
       { packRunner: stubRunner(cleanPackOutput), log: () => undefined },
@@ -542,17 +518,13 @@ describe('run()', () => {
       },
     );
     const parsed = JSON.parse(captured);
-    expect(parsed.reports[0].name).toBe('@aegis/sdk');
+    expect(parsed.reports[0].name).toBe('@cerniq/sdk');
     expect(typeof parsed.exitCode).toBe('number');
   });
 
   it('--strict promotes warnings to failures', async () => {
     const repo = makeFakeRepo();
-    writePkg(
-      repo,
-      'sdk-ts',
-      goodManifest({ dependencies: { '@aegis/types': 'workspace:*' } }),
-    );
+    writePkg(repo, 'sdk-ts', goodManifest({ dependencies: { '@cerniq/types': 'workspace:*' } }));
     const lax = await run(
       { all: true, strict: false, json: false, repoRoot: repo.root },
       { packRunner: stubRunner(cleanPackOutput), log: () => undefined },

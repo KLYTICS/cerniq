@@ -1,8 +1,8 @@
 // Core MCP server. Constructs an MCP server instance whose tools are
-// the AEGIS API surface. Auth is by AEGIS API key, supplied either via
-// env (`AEGIS_API_KEY`) or via the host's MCP `initialize` metadata.
+// the CERNIQ API surface. Auth is by CERNIQ API key, supplied either via
+// env (`CERNIQ_API_KEY`) or via the host's MCP `initialize` metadata.
 
-import { Aegis } from '@aegis/sdk';
+import { Cerniq } from '@cerniq/sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
@@ -12,10 +12,10 @@ import { registerPoliciesTools } from './tools/policies.js';
 import { TOOL_NAMES, type ToolDefinition } from './tools/registry.js';
 import { registerVerifyTool } from './tools/verify.js';
 
-export interface AegisMcpServerOptions {
-  /** AEGIS API key. If omitted, the server reads `AEGIS_API_KEY` from env. */
+export interface CerniqMcpServerOptions {
+  /** CERNIQ API key. If omitted, the server reads `CERNIQ_API_KEY` from env. */
   apiKey?: string;
-  /** AEGIS base URL. Defaults to `https://api.aegis.dev`. */
+  /** CERNIQ base URL. Defaults to `https://api.cerniq.dev`. */
   baseUrl?: string;
   /** Override server name in MCP `initialize`. */
   name?: string;
@@ -24,35 +24,35 @@ export interface AegisMcpServerOptions {
 }
 
 /**
- * Build an MCP server that exposes AEGIS as tools. The caller is
+ * Build an MCP server that exposes CERNIQ as tools. The caller is
  * responsible for connecting it to a transport (`StdioServerTransport`
- * for `npx aegis-mcp`, `SSEServerTransport` for hosted deployments).
+ * for `npx cerniq-mcp`, `SSEServerTransport` for hosted deployments).
  *
- * Tool naming follows ADR-0008: `aegis.<resource>.<action>`.
+ * Tool naming follows ADR-0008: `cerniq.<resource>.<action>`.
  */
-export function createAegisMcpServer(opts: AegisMcpServerOptions = {}): Server {
-  const apiKey = opts.apiKey ?? process.env.AEGIS_API_KEY;
+export function createCerniqMcpServer(opts: CerniqMcpServerOptions = {}): Server {
+  const apiKey = opts.apiKey ?? process.env.CERNIQ_API_KEY;
   if (!apiKey) {
-    throw new Error('AEGIS_API_KEY required (pass via opts.apiKey or env)');
+    throw new Error('CERNIQ_API_KEY required (pass via opts.apiKey or env)');
   }
-  const aegis = new Aegis({
+  const cerniq = new Cerniq({
     apiKey,
-    baseUrl: opts.baseUrl ?? process.env.AEGIS_BASE_URL ?? 'https://api.aegis.dev',
+    baseUrl: opts.baseUrl ?? process.env.CERNIQ_BASE_URL ?? 'https://api.cerniq.dev',
   });
 
   // TODO(mcp-sdk): migrate to `McpServer` high-level API; `Server` is deprecated
   // but the migration touches transport wiring and handler shapes — separate PR.
   const server = new Server(
-    { name: opts.name ?? 'aegis-mcp', version: '0.1.0' },
+    { name: opts.name ?? 'cerniq-mcp', version: '0.1.0' },
     { capabilities: { tools: {} } },
   );
 
   // Build the tool registry.
   const tools = new Map<string, ToolDefinition>();
-  registerVerifyTool(aegis, tools);
-  registerAgentsTools(aegis, tools);
-  registerPoliciesTools(aegis, tools);
-  registerAuditTool(aegis, tools);
+  registerVerifyTool(cerniq, tools);
+  registerAgentsTools(cerniq, tools);
+  registerPoliciesTools(cerniq, tools);
+  registerAuditTool(cerniq, tools);
 
   const allowedTools = new Set(opts.allowedTools ?? TOOL_NAMES);
 
@@ -67,7 +67,12 @@ export function createAegisMcpServer(opts: AegisMcpServerOptions = {}): Server {
     const tool = tools.get(req.params.name);
     if (!tool || !allowedTools.has(tool.name)) {
       return {
-        content: [{ type: 'text', text: JSON.stringify({ error: 'tool_not_found', name: req.params.name }) }],
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ error: 'tool_not_found', name: req.params.name }),
+          },
+        ],
         isError: true,
       };
     }
@@ -76,7 +81,12 @@ export function createAegisMcpServer(opts: AegisMcpServerOptions = {}): Server {
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
     } catch (err) {
       return {
-        content: [{ type: 'text', text: JSON.stringify({ error: 'tool_failed', message: (err as Error).message }) }],
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ error: 'tool_failed', message: (err as Error).message }),
+          },
+        ],
         isError: true,
       };
     }

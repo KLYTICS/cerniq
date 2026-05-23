@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --import=tsx
 /**
- * AEGIS — `pnpm db:index-audit` — verify-hot-path index recommendation.
+ * CERNIQ — `pnpm db:index-audit` — verify-hot-path index recommendation.
  *
  * Connects to `DATABASE_URL` and runs `EXPLAIN (ANALYZE, FORMAT JSON)`
  * against six representative hot queries the verify path issues against
@@ -99,7 +99,8 @@ export function buildHotQueries(args: {
     },
     {
       id: 'audit-by-principal-ts',
-      description: 'AuditEvent ordered by (principalId, timestamp DESC) (retention scan + dashboard)',
+      description:
+        'AuditEvent ordered by (principalId, timestamp DESC) (retention scan + dashboard)',
       sql: 'SELECT id, decision, "denialReason", "timestamp" FROM "AuditEvent" WHERE "principalId" = $1 ORDER BY "timestamp" DESC LIMIT 100',
       params: [args.principalId],
       remediation: { table: 'AuditEvent', columns: ['principalId', 'timestamp DESC'] },
@@ -113,7 +114,8 @@ export function buildHotQueries(args: {
     },
     {
       id: 'webhooks-by-principal-active',
-      description: 'WebhookSubscription filtered by (principalId, active=true, events @> X) (fan-out)',
+      description:
+        'WebhookSubscription filtered by (principalId, active=true, events @> X) (fan-out)',
       sql: 'SELECT id, url, secret, events FROM "WebhookSubscription" WHERE "principalId" = $1 AND active = TRUE AND events @> $2',
       params: [args.principalId, ['verify.allowed']],
       remediation: {
@@ -180,7 +182,8 @@ export function summarizeExplain(planJson: ReadonlyArray<{ Plan: ExplainNode }>)
   return {
     scanType: classifyScan(worst['Node Type']),
     totalCost: worst['Total Cost'] ?? 0,
-    actualTimeMs: typeof worst['Actual Total Time'] === 'number' ? worst['Actual Total Time'] : null,
+    actualTimeMs:
+      typeof worst['Actual Total Time'] === 'number' ? worst['Actual Total Time'] : null,
     rawNodeType: worst['Node Type'] ?? 'Unknown',
   };
 }
@@ -225,7 +228,11 @@ export function buildRecommendation(query: HotQueryDef): string {
   return `CREATE INDEX CONCURRENTLY IF NOT EXISTS "${idxName}" ON "${query.remediation.table}" (${cols})${whereClause};`;
 }
 
-export function evaluateRow(query: HotQueryDef, plan: PlanSummary, costThreshold: number): AuditRow {
+export function evaluateRow(
+  query: HotQueryDef,
+  plan: PlanSummary,
+  costThreshold: number,
+): AuditRow {
   const flagged = plan.scanType === 'Seq Scan' && plan.totalCost > costThreshold;
   return {
     query,
@@ -241,11 +248,13 @@ export function evaluateRow(query: HotQueryDef, plan: PlanSummary, costThreshold
 
 export function renderMarkdownReport(rows: ReadonlyArray<AuditRow>, generatedAt: string): string {
   const lines: string[] = [];
-  lines.push('# AEGIS — DB Index Audit (verify hot path)');
+  lines.push('# CERNIQ — DB Index Audit (verify hot path)');
   lines.push('');
   lines.push(`Generated: ${generatedAt}`);
   lines.push('');
-  lines.push('Source: `scripts/db-index-audit.ts` — runs `EXPLAIN ANALYZE` against six representative hot queries on the verify path. Read-only; no schema changes are applied.');
+  lines.push(
+    'Source: `scripts/db-index-audit.ts` — runs `EXPLAIN ANALYZE` against six representative hot queries on the verify path. Read-only; no schema changes are applied.',
+  );
   lines.push('');
   lines.push('| # | Query | Scan Type | Total Cost | Actual Time (ms) | Flagged |');
   lines.push('|---|-------|-----------|-----------:|-----------------:|---------|');
@@ -263,11 +272,15 @@ export function renderMarkdownReport(rows: ReadonlyArray<AuditRow>, generatedAt:
   if (flagged.length === 0) {
     lines.push('## Recommendations');
     lines.push('');
-    lines.push('No sequential scans above the cost threshold detected. Indexes look healthy for the demo dataset; re-run after meaningful traffic growth.');
+    lines.push(
+      'No sequential scans above the cost threshold detected. Indexes look healthy for the demo dataset; re-run after meaningful traffic growth.',
+    );
   } else {
     lines.push('## Recommended Indexes (operator review required)');
     lines.push('');
-    lines.push('Each statement below uses `CREATE INDEX CONCURRENTLY` so it can be applied without locking the table. Add them to a Prisma migration; do not apply directly to production.');
+    lines.push(
+      'Each statement below uses `CREATE INDEX CONCURRENTLY` so it can be applied without locking the table. Add them to a Prisma migration; do not apply directly to production.',
+    );
     lines.push('');
     for (const r of flagged) {
       lines.push(`### ${r.query.id}`);
@@ -347,22 +360,29 @@ async function main(): Promise<void> {
   program
     .name('db-index-audit')
     .description('EXPLAIN ANALYZE the verify-hot-path queries; flag missing indexes.')
-    .addOption(new Option('--cost-threshold <n>', 'flag Seq Scan above this total-cost').default('100'))
-    .addOption(new Option('--bate-days <n>', 'BateSignal lookback window in days').default('30'))
-    .addOption(new Option('--output <path>', 'markdown report path').default('dist/db-index-audit-report.md'))
     .addOption(
-      new Option('--principal-id <id>', 'principalId to bind into the EXPLAIN params').default(
-        env.AEGIS_DEMO_PRINCIPAL_ID ?? DEFAULT_DEMO_PRINCIPAL_ID,
+      new Option('--cost-threshold <n>', 'flag Seq Scan above this total-cost').default('100'),
+    )
+    .addOption(new Option('--bate-days <n>', 'BateSignal lookback window in days').default('30'))
+    .addOption(
+      new Option('--output <path>', 'markdown report path').default(
+        'dist/db-index-audit-report.md',
       ),
     )
     .addOption(
-      new Option('--agent-id <id>', 'agentId (DB id, not label) to bind into EXPLAIN params').default(
-        env.AEGIS_DEMO_AGENT_ID ?? DEFAULT_DEMO_AGENT_ID,
+      new Option('--principal-id <id>', 'principalId to bind into the EXPLAIN params').default(
+        env.CERNIQ_DEMO_PRINCIPAL_ID ?? DEFAULT_DEMO_PRINCIPAL_ID,
       ),
+    )
+    .addOption(
+      new Option(
+        '--agent-id <id>',
+        'agentId (DB id, not label) to bind into EXPLAIN params',
+      ).default(env.CERNIQ_DEMO_AGENT_ID ?? DEFAULT_DEMO_AGENT_ID),
     )
     .addOption(
       new Option('--api-key-hash <hash>', 'bcrypt hash to bind into the ApiKey EXPLAIN').default(
-        env.AEGIS_DEMO_API_KEY_HASH ?? DEFAULT_DEMO_KEY_HASH,
+        env.CERNIQ_DEMO_API_KEY_HASH ?? DEFAULT_DEMO_KEY_HASH,
       ),
     );
 
@@ -416,7 +436,9 @@ async function main(): Promise<void> {
 
     const flagged = rows.filter((r) => r.flagged);
     if (flagged.length > 0) {
-      stdout.write(`\nFLAGGED: ${flagged.length} sequential scan(s) above cost ${costThreshold}.\n`);
+      stdout.write(
+        `\nFLAGGED: ${flagged.length} sequential scan(s) above cost ${costThreshold}.\n`,
+      );
       for (const f of flagged) {
         stdout.write(`  ${f.query.id}: ${f.recommendation}\n`);
       }

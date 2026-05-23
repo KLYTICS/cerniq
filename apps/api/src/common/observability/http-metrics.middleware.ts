@@ -4,7 +4,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { MetricsService } from './metrics.service';
 
 /**
- * HTTP request middleware. Increments `aegis_http_requests_total` per
+ * HTTP request middleware. Increments `cerniq_http_requests_total` per
  * request keyed by method + (low-cardinality) route + status class.
  *
  * "Low-cardinality" matters: we use the matched route template
@@ -17,7 +17,8 @@ export class HttpMetricsMiddleware implements NestMiddleware {
 
   use(req: Request, res: Response, next: NextFunction): void {
     res.on('finish', () => {
-      const route = (req.route as { path?: string } | undefined)?.path ?? routeFromUrl(req.originalUrl);
+      const route =
+        (req.route as { path?: string } | undefined)?.path ?? routeFromUrl(req.originalUrl);
       const statusClass = `${Math.floor(res.statusCode / 100)}xx`;
       this.metrics.httpRequestsTotal.inc({ method: req.method, route, status_class: statusClass });
     });

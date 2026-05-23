@@ -1,4 +1,4 @@
-// StripeService — checkout + webhook handler for AEGIS billing (G-3).
+// StripeService — checkout + webhook handler for CERNIQ billing (G-3).
 //
 // Design notes:
 //
@@ -31,10 +31,10 @@ import { forwardRef, Inject, Injectable, Logger, Optional } from '@nestjs/common
 import type { PlanTier } from '@prisma/client';
 
 import {
-  AegisError,
+  CerniqError,
   ServiceUnavailableError,
   ValidationError,
-} from '../../common/errors/aegis-error';
+} from '../../common/errors/cerniq-error';
 import { MetricsService } from '../../common/observability/metrics.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
@@ -48,7 +48,6 @@ import { AuditService } from '../audit/audit.service';
 
 import { getPlan, PLANS } from './plans';
 import { UsageGuardService } from './usage-guard.service';
-
 
 // We avoid `import Stripe from 'stripe'` at module-eval time because the
 // dependency is optional in dev. The factory below resolves the SDK on
@@ -81,16 +80,12 @@ interface StripeSdk {
   subscriptionItems: {
     createUsageRecord: (
       subscriptionItemId: string,
-       
+
       params: { quantity: number; timestamp?: number; action?: 'increment' | 'set' },
     ) => Promise<{ id: string }>;
   };
   webhooks: {
-    constructEvent: (
-      payload: string | Buffer,
-      sigHeader: string,
-      secret: string,
-    ) => StripeEvent;
+    constructEvent: (payload: string | Buffer, sigHeader: string, secret: string) => StripeEvent;
   };
 }
 
@@ -139,7 +134,7 @@ export class StripeService {
   private stripeClient: StripeSdk | null = null;
 
   /** SETNX idempotency key for Stripe events. 7-day TTL. */
-  private readonly EVENT_IDEMPOTENCY_PREFIX = 'aegis:stripe:event';
+  private readonly EVENT_IDEMPOTENCY_PREFIX = 'cerniq:stripe:event';
   private readonly EVENT_IDEMPOTENCY_TTL_S = 7 * 86_400;
 
   /**
@@ -168,10 +163,12 @@ export class StripeService {
     this.stripeFactory = stripeFactory ?? defaultStripeFactory;
     const sink: BreakerMetricsSink | undefined = metrics
       ? {
-          setState: (name, numeric) =>
-            { metrics.circuitBreakerStateGauge.set({ breaker: name }, numeric); },
-          recordTrip: (name) =>
-            { metrics.circuitBreakerTripsTotal.inc({ breaker: name }); },
+          setState: (name, numeric) => {
+            metrics.circuitBreakerStateGauge.set({ breaker: name }, numeric);
+          },
+          recordTrip: (name) => {
+            metrics.circuitBreakerTripsTotal.inc({ breaker: name });
+          },
         }
       : undefined;
     this.breaker = new CircuitBreaker<unknown>({
@@ -206,9 +203,7 @@ export class StripeService {
    * - Throws on FREE / ENTERPRISE (FREE: no purchase needed; ENTERPRISE:
    *   custom invoiced — sales-led, not self-serve).
    */
-  async createCheckoutSession(
-    input: CreateCheckoutSessionInput,
-  ): Promise<{ url: string }> {
+  async createCheckoutSession(input: CreateCheckoutSessionInput): Promise<{ url: string }> {
     if (!this.isEnabled()) {
       throw new ServiceUnavailableError('Stripe billing is not configured.');
     }
@@ -220,9 +215,7 @@ export class StripeService {
 
     const priceId = this.planTierToPriceId(input.planTier);
     if (!priceId) {
-      throw new ServiceUnavailableError(
-        `Stripe price id for ${input.planTier} is not configured.`,
-      );
+      throw new ServiceUnavailableError(`Stripe price id for ${input.planTier} is not configured.`);
     }
 
     const principal = await this.prisma.principal.findUnique({
@@ -268,9 +261,7 @@ export class StripeService {
     );
 
     if (!session.url) {
-      throw new ServiceUnavailableError(
-        'Stripe returned a checkout session without a URL.',
-      );
+      throw new ServiceUnavailableError('Stripe returned a checkout session without a URL.');
     }
     return { url: session.url };
   }
@@ -384,9 +375,7 @@ export class StripeService {
         });
         await this.usageGuard.invalidatePlanCache(metaPrincipalId);
       } else {
-        this.logger.warn(
-          `Stripe subscription ${stripeSubId} not linked to any principal.`,
-        );
+        this.logger.warn(`Stripe subscription ${stripeSubId} not linked to any principal.`);
       }
       return;
     }
@@ -446,10 +435,7 @@ export class StripeService {
     if (!principal) return;
     if (principal.planTier === 'FREE') return; // defence in depth (Invariant 2)
     if (!principal.stripeOverageItemId) {
-      if (
-        principal.planTier === 'DEVELOPER' ||
-        principal.planTier === 'GROWTH'
-      ) {
+      if (principal.planTier === 'DEVELOPER' || principal.planTier === 'GROWTH') {
         // Paid tier without a metered line — operator hasn't wired the
         // STRIPE_PRICE_OVERAGE_VERIFY price onto the subscription yet, or
         // the webhook hasn't backfilled it. Log so ops can reconcile.
@@ -549,8 +535,7 @@ export class StripeService {
       client_reference_id?: string | null;
       metadata?: Record<string, string> | null;
     };
-    const principalId =
-      session.metadata?.principalId ?? session.client_reference_id ?? null;
+    const principalId = session.metadata?.principalId ?? session.client_reference_id ?? null;
     if (!principalId) {
       throw new ValidationError(
         `Stripe checkout.session.completed (event ${event.id}) missing principalId metadata.`,
@@ -592,8 +577,7 @@ export class StripeService {
     await this.prisma.principal.update({
       where: { id: principalId },
       data: {
-        stripeCustomerId:
-          typeof session.customer === 'string' ? session.customer : undefined,
+        stripeCustomerId: typeof session.customer === 'string' ? session.customer : undefined,
         stripeSubscriptionId:
           typeof session.subscription === 'string' ? session.subscription : undefined,
         planTier,
@@ -611,8 +595,7 @@ export class StripeService {
         from: previousTier,
         to: planTier,
         stripeEventId: event.id,
-        subscriptionId:
-          typeof session.subscription === 'string' ? session.subscription : null,
+        subscriptionId: typeof session.subscription === 'string' ? session.subscription : null,
       });
     }
 
@@ -633,9 +616,7 @@ export class StripeService {
     }
     const state = this.deriveSubscriptionState(sub);
     if (!state) {
-      this.logger.warn(
-        `Stripe ${event.type} for ${subId}: no matching price id; ignoring.`,
-      );
+      this.logger.warn(`Stripe ${event.type} for ${subId}: no matching price id; ignoring.`);
       return { handled: false };
     }
 
@@ -658,8 +639,7 @@ export class StripeService {
           data: {
             stripeSubscriptionId: subId,
             planTier: state.planTier,
-            stripeCustomerId:
-              typeof sub.customer === 'string' ? sub.customer : undefined,
+            stripeCustomerId: typeof sub.customer === 'string' ? sub.customer : undefined,
             ...(subscriptionStatus !== null ? { subscriptionStatus } : {}),
             stripeOverageItemId: overageItemId,
           },
@@ -676,9 +656,7 @@ export class StripeService {
         }
         return { handled: true, principalId: metaPid, planTier: state.planTier };
       }
-      this.logger.warn(
-        `Stripe ${event.type} for ${subId}: no principal linked; ignoring.`,
-      );
+      this.logger.warn(`Stripe ${event.type} for ${subId}: no principal linked; ignoring.`);
       return { handled: false };
     }
 
@@ -715,9 +693,7 @@ export class StripeService {
       select: { id: true, planTier: true },
     });
     if (!principal) {
-      this.logger.warn(
-        `Stripe customer.subscription.deleted for ${sub.id}: no principal linked.`,
-      );
+      this.logger.warn(`Stripe customer.subscription.deleted for ${sub.id}: no principal linked.`);
       return { handled: false };
     }
     await this.prisma.principal.update({
@@ -878,10 +854,7 @@ export class StripeService {
    * (passed in by the dashboard so the customer lands on a tier-specific
    * success page).
    */
-  async createPortalSession(
-    principalId: string,
-    returnUrl: string,
-  ): Promise<{ url: string }> {
+  async createPortalSession(principalId: string, returnUrl: string): Promise<{ url: string }> {
     if (!this.isEnabled()) {
       throw new ServiceUnavailableError('Stripe billing is not configured.');
     }
@@ -914,9 +887,7 @@ export class StripeService {
    * type-rationale: Stripe.Subscription.items.data[].price.id is deeply
    * nested; we narrow with optional chaining instead of importing the type.
    */
-  private deriveSubscriptionState(
-    sub: unknown,
-  ): { planTier: PlanTier; priceId: string } | null {
+  private deriveSubscriptionState(sub: unknown): { planTier: PlanTier; priceId: string } | null {
     if (typeof sub !== 'object' || sub === null) return null;
     // type-rationale: traversing untyped Stripe response shape.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -953,4 +924,4 @@ export class StripeService {
 
 // Re-export the error type so callers can `instanceof` against the public
 // surface without importing the deep path.
-export { AegisError };
+export { CerniqError };

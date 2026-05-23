@@ -1,10 +1,10 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import type { Aegis } from '@aegis/sdk';
+import type { Cerniq } from '@cerniq/sdk';
 import { RawClient, makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, futureIso, pastIso } from './_support/fixtures';
 
 describe('04 · policy engine', () => {
-  let sdk: Aegis;
+  let sdk: Cerniq;
   let raw: RawClient;
   const agentsToRevoke: string[] = [];
 
@@ -28,7 +28,11 @@ describe('04 · policy engine', () => {
     const agent = await createAgent(sdk);
     agentsToRevoke.push(agent.agentId);
     const policy = await createPolicy(sdk, agent.agentId, [
-      SCOPES.commerce({ maxPerTransaction: 500, maxPerDay: 1000, allowedDomains: ['delta.com', 'united.com'] }),
+      SCOPES.commerce({
+        maxPerTransaction: 500,
+        maxPerDay: 1000,
+        allowedDomains: ['delta.com', 'united.com'],
+      }),
     ]);
     expect(policy.policyId).toMatch(/^pol_/);
     // JWT compact form
@@ -66,9 +70,14 @@ describe('04 · policy engine', () => {
   it('data-read scope grammar accepts dataScopes array', async () => {
     const agent = await createAgent(sdk);
     agentsToRevoke.push(agent.agentId);
-    const policy = await createPolicy(sdk, agent.agentId, [SCOPES.dataRead(['read:calendar', 'read:email'])], {
-      expiresAt: futureIso(),
-    });
+    const policy = await createPolicy(
+      sdk,
+      agent.agentId,
+      [SCOPES.dataRead(['read:calendar', 'read:email'])],
+      {
+        expiresAt: futureIso(),
+      },
+    );
     expect(policy.policyId).toMatch(/^pol_/);
   });
 

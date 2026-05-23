@@ -1,6 +1,6 @@
-# AEGIS Postman Collection
+# CERNIQ Postman Collection
 
-Postman v2.1 collection for the AEGIS public API. Drop-in for **Postman**,
+Postman v2.1 collection for the CERNIQ public API. Drop-in for **Postman**,
 **Insomnia** (which imports v2.1 directly), **Bruno** (via the v2.1
 importer), or any client that speaks the schema. Every authenticated
 request reads its credential from a Postman variable — there is **zero**
@@ -14,20 +14,20 @@ their `api_key` and `verify_key` into the environment, and (c) click
 collection auto-populates `agent_id`, `policy_id`, and `policy_token` as
 you walk the prerequisite requests, and the **Denial Precedence
 Walk-through** folder gives you a reproducible tour through every
-`denialReason` AEGIS can emit, in canonical precedence order.
+`denialReason` CERNIQ can emit, in canonical precedence order.
 
 ## 60-second setup
 
 1. Open Postman → **Import** → drag in:
-   - `tools/postman/aegis.collection.json`
-   - `tools/postman/aegis.environment.json`
-2. Top-right environment dropdown → select **AEGIS Local**.
+   - `tools/postman/cerniq.collection.json`
+   - `tools/postman/cerniq.environment.json`
+2. Top-right environment dropdown → select **CERNIQ Local**.
 3. Click the eye icon next to the dropdown → fill in:
    - `base_url` — e.g. `http://localhost:3000` for `pnpm dev`, or
-     `https://api.aegislabs.io` for production.
-   - `api_key` — your full-scope API key (`aegis_…`). Used everywhere
+     `https://api.cerniq.io` for production.
+   - `api_key` — your full-scope API key (`cerniq_…`). Used everywhere
      except `/v1/verify`.
-   - `verify_key` — your verify-only key (`aegisv_…`). Used **only** by
+   - `verify_key` — your verify-only key (`cerniqv_…`). Used **only** by
      `/v1/verify` and the **Denial Precedence Walk-through** folder.
    - `principal_id` — optional, useful for grepping local logs.
 4. Walk the happy-path order:
@@ -42,7 +42,7 @@ You're done.
 - **Auto-rotated `X-Idempotency-Key`** on every POST/PUT/PATCH (via the
   collection-level pre-request script — uses Postman's `{{$guid}}`).
 - **Auto-rotated `X-Request-Id`** on every request, for end-to-end
-  tracing through the AEGIS audit chain.
+  tracing through the CERNIQ audit chain.
 - **2xx JSON responses** are parsed once at the test layer.
 - **4xx responses** are asserted to carry a `code` field — this matches
   the Round-15 error catalog contract and lets SDKs switch on the code
@@ -55,15 +55,15 @@ You're done.
 - **Insomnia**: File → Import → Postman → pick the collection. The
   v2.1 schema imports cleanly. Pre-request and test scripts run
   unmodified under Insomnia's `pm.*` shim.
-- **Bruno**: `bru import postman aegis.collection.json` produces a
+- **Bruno**: `bru import postman cerniq.collection.json` produces a
   `.bru` tree. The pre-request scripts will need a manual port — Bruno
   uses its own `req.setHeader(…)` API.
 
 ## Validation
 
 ```bash
-pnpm --filter @aegis/postman run validate   # static collection lint
-pnpm --filter @aegis/postman exec vitest run  # validator unit tests
+pnpm --filter @cerniq/postman run validate   # static collection lint
+pnpm --filter @cerniq/postman exec vitest run  # validator unit tests
 ```
 
 The validator (`scripts/validate.ts`) walks the entire collection tree
@@ -72,12 +72,12 @@ and asserts:
 - top-level schema is exactly the v2.1 collection schema URL
 - every request has a `name` and a `request.url.raw`
 - every URL starts with `{{base_url}}` (catches any literal hosts)
-- no literal API keys in any header value (catches `aegis_…` /
-  `aegisv_…` / `whsec_…` / `Bearer …` slip-ups)
+- no literal API keys in any header value (catches `cerniq_…` /
+  `cerniqv_…` / `whsec_…` / `Bearer …` slip-ups)
 - the **Denial Precedence Walk-through** folder has exactly 9
   requests, in the canonical order
 
-## Known drift vs. `docs/spec/AEGIS_API_SPEC.yaml`
+## Known drift vs. `docs/spec/CERNIQ_API_SPEC.yaml`
 
 This collection is built against the **wired controllers** in
 `apps/api/src/modules/*/*.controller.ts` — when those diverge from
@@ -94,7 +94,7 @@ collection but not yet in the OpenAPI:
   activation checklist (Onboarding folder).
 - `POST/GET/DELETE /v1/webhooks` — subscription management (Webhooks
   folder).
-- `GET /.well-known/aegis-configuration`, `/.well-known/jwks.json`,
+- `GET /.well-known/cerniq-configuration`, `/.well-known/jwks.json`,
   `/.well-known/audit-signing-key`, `/.well-known/security.txt`,
   `/.well-known/llms.txt` — discovery surface (Health & Discovery
   folder).
@@ -107,9 +107,9 @@ collection but not yet in the OpenAPI:
 
 ```
 tools/postman/
-├── aegis.collection.json     # the collection (v2.1)
-├── aegis.environment.json    # variable template
-├── package.json              # @aegis/postman (private)
+├── cerniq.collection.json     # the collection (v2.1)
+├── cerniq.environment.json    # variable template
+├── package.json              # @cerniq/postman (private)
 ├── README.md                 # you are here
 └── scripts/
     ├── validate.ts           # static collection lint

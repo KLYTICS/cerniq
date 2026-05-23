@@ -1,7 +1,7 @@
 // Handshake panel for the agent detail page. Server-rendered, read-only,
 // instructional. The dashboard intentionally cannot trigger the handshake
-// itself — CLAUDE.md invariant 1 forbids private keys from entering AEGIS,
-// and the dashboard is part of AEGIS. The operator runs the handshake from
+// itself — CLAUDE.md invariant 1 forbids private keys from entering CERNIQ,
+// and the dashboard is part of CERNIQ. The operator runs the handshake from
 // the SDK / CLI and the panel reflects state via Redis-backed status.
 
 import type { HandshakeStatus } from '../lib/api-client';
@@ -21,9 +21,9 @@ export function HandshakePanel({ agentId, status, apiBaseUrl }: Props) {
   const verifiedAt = status?.verifiedAt;
 
   return (
-    <section className="aegis-panel handshake-panel" aria-labelledby={`handshake-${agentId}`}>
+    <section className="cerniq-panel handshake-panel" aria-labelledby={`handshake-${agentId}`}>
       <header className="handshake-panel-head">
-        <h2 id={`handshake-${agentId}`} className="aegis-panel-title">
+        <h2 id={`handshake-${agentId}`} className="cerniq-panel-title">
           Key verification
         </h2>
         <StatusDot
@@ -47,7 +47,7 @@ export function HandshakePanel({ agentId, status, apiBaseUrl }: Props) {
         </p>
       ) : (
         <p className="muted">
-          AEGIS holds only this agent's <em>public</em> key. To prove the matching private key is
+          CERNIQ holds only this agent's <em>public</em> key. To prove the matching private key is
           actually held by you, run a handshake from a machine that has it. Three equivalent paths
           below.
         </p>
@@ -57,11 +57,11 @@ export function HandshakePanel({ agentId, status, apiBaseUrl }: Props) {
         <HandshakePath
           label="SDK · TypeScript"
           snippet={[
-            `import { Aegis, generateKeypair } from '@aegis/sdk';`,
+            `import { Cerniq, generateKeypair } from '@cerniq/sdk';`,
             ``,
-            `const aegis = new Aegis({ apiKey: process.env.AEGIS_API_KEY });`,
+            `const cerniq = new Cerniq({ apiKey: process.env.CERNIQ_API_KEY });`,
             `// privateKeyB64u was generated client-side at register time.`,
-            `const result = await aegis.handshake('${agentId}', privateKeyB64u);`,
+            `const result = await cerniq.handshake('${agentId}', privateKeyB64u);`,
             `console.log(result.verifiedAt, result.trustScore); // ≥600`,
           ].join('\n')}
         />
@@ -70,24 +70,24 @@ export function HandshakePanel({ agentId, status, apiBaseUrl }: Props) {
           snippet={[
             `# 1) issue challenge`,
             `curl -X POST ${apiBaseUrl}/v1/agents/${agentId}/challenge \\`,
-            `  -H "X-AEGIS-API-Key: $AEGIS_API_KEY" | tee /tmp/challenge.json`,
+            `  -H "X-CERNIQ-API-Key: $CERNIQ_API_KEY" | tee /tmp/challenge.json`,
             ``,
             `# 2) sign the .message field with your Ed25519 private key (your tooling)`,
             `SIG=$(...your-signer... < /tmp/challenge.json)`,
             ``,
             `# 3) verify`,
             `curl -X POST ${apiBaseUrl}/v1/agents/${agentId}/verify-handshake \\`,
-            `  -H "X-AEGIS-API-Key: $AEGIS_API_KEY" \\`,
+            `  -H "X-CERNIQ-API-Key: $CERNIQ_API_KEY" \\`,
             `  -H 'content-type: application/json' \\`,
             `  -d "{\\"signature\\":\\"$SIG\\"}"`,
           ].join('\n')}
         />
         <HandshakePath
-          label="aegis CLI"
+          label="cerniq CLI"
           snippet={[
-            `# requires aegis CLI logged in`,
-            `aegis agents handshake ${agentId} \\`,
-            `  --private-key ~/.config/aegis/keys/${agentId}.key`,
+            `# requires cerniq CLI logged in`,
+            `cerniq agents handshake ${agentId} \\`,
+            `  --private-key ~/.config/cerniq/keys/${agentId}.key`,
           ].join('\n')}
         />
       </div>
@@ -95,8 +95,8 @@ export function HandshakePanel({ agentId, status, apiBaseUrl }: Props) {
       <p className="muted handshake-note">
         Why this matters — registration alone proves nothing about who holds the private key. The
         handshake is the cryptographic act that binds this agent ID to a key the operator
-        demonstrably possesses. Domain-separated under <code>aegis-handshake-v1::</code>; the
-        signature isn't replayable against any other AEGIS sub-protocol.
+        demonstrably possesses. Domain-separated under <code>cerniq-handshake-v1::</code>; the
+        signature isn't replayable against any other CERNIQ sub-protocol.
       </p>
     </section>
   );

@@ -4,7 +4,7 @@
 //
 // We do NOT generate the actual ISO 20022 XML here — that's the bank
 // transport's job. We model the canonical action shape an agent would
-// authorize and AEGIS would gate. The bank-side adapter (out of scope
+// authorize and CERNIQ would gate. The bank-side adapter (out of scope
 // for this example) translates these to pacs.008 / pain.001 / etc.
 //
 // Why a unified shape across rails: ACH, wire, RTP, FedNow, and SEPA
@@ -14,7 +14,14 @@
 // reversal semantics) are properties of the rail, not the action.
 // The agent authorizes the action; the bank routes it.
 
-export type RailType = 'ach' | 'wire' | 'rtp' | 'fednow' | 'sepa-ct' | 'sepa-instant' | 'book-transfer';
+export type RailType =
+  | 'ach'
+  | 'wire'
+  | 'rtp'
+  | 'fednow'
+  | 'sepa-ct'
+  | 'sepa-instant'
+  | 'book-transfer';
 
 export type Iso4217Currency = 'USD' | 'EUR' | 'GBP' | 'JPY' | 'CAD' | 'AUD' | 'BRL' | 'CHF' | 'MXN';
 
@@ -30,19 +37,27 @@ export interface AccountIdentifier {
   /** Identifier kind. The string set is open by intent — extensions
    *  like `colombia-cc`, `india-vpa` are valid for emerging-market
    *  rails. */
-  kind: 'bic' | 'aba' | 'iban' | 'sort-code-account' | 'pix-key' | 'rtp-tn' | 'book-transfer-id' | string;
+  kind:
+    | 'bic'
+    | 'aba'
+    | 'iban'
+    | 'sort-code-account'
+    | 'pix-key'
+    | 'rtp-tn'
+    | 'book-transfer-id'
+    | string;
 }
 
-/** A programmable-banking action. AEGIS gates "is the agent authorized
+/** A programmable-banking action. CERNIQ gates "is the agent authorized
  *  to move money on behalf of this principal under this scope?".
  *  The bank-adapter answers "can the bank actually deliver this?". */
 export interface PaymentInstruction {
   /** End-to-end id (E2EID) — propagated to the rail message and back
-   *  on the camt.054 settlement notification. We use AEGIS jti for
+   *  on the camt.054 settlement notification. We use CERNIQ jti for
    *  same reasons as the ACP example: single unique key end-to-end. */
   endToEndId: string;
   /** Which rail to use. The rail can be selected by the merchant or
-   *  by the bank-adapter based on cutoffs / cost. AEGIS's policy may
+   *  by the bank-adapter based on cutoffs / cost. CERNIQ's policy may
    *  also restrict rails (e.g. no wires from CUSTOMER_SUPPORT scope). */
   rail: RailType;
   /** Debtor — the principal's account being debited. */
@@ -80,13 +95,13 @@ export interface BankSubmitVerdict {
 export interface InstructResponse {
   allowed: boolean;
   endToEndId: string;
-  /** AEGIS audit event id — lets a regulator independently verify
+  /** CERNIQ audit event id — lets a regulator independently verify
    *  the agent-leg of the audit trail. */
   auditEventId?: string;
   /** Bank id when accepted. */
   bankId?: string;
-  /** When denied at AEGIS: which reason. */
-  aegisDenialReason?: string;
+  /** When denied at CERNIQ: which reason. */
+  cerniqDenialReason?: string;
   /** When denied at bank: rail rejection code. */
   bankRejectionCode?: string;
 }

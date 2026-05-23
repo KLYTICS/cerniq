@@ -76,8 +76,9 @@ describe('IdentityService.list', () => {
         return rows.slice(0, args.take);
       },
     );
-    const count = jest.fn(async (args: { where: { principalId: string } }) =>
-      seed.filter((a) => a.principalId === args.where.principalId).length,
+    const count = jest.fn(
+      async (args: { where: { principalId: string } }) =>
+        seed.filter((a) => a.principalId === args.where.principalId).length,
     );
 
     const prisma = { agentIdentity: { findMany, count } } as unknown as PrismaService;
@@ -148,9 +149,24 @@ describe('IdentityService.list', () => {
 
   it('filters by status and runtime', async () => {
     const svc = build([
-      fakeAgent({ id: 'agt_active', principalId: 'prn_alpha', status: 'ACTIVE', runtime: 'OPENAI' }),
-      fakeAgent({ id: 'agt_revoked', principalId: 'prn_alpha', status: 'REVOKED', runtime: 'OPENAI' }),
-      fakeAgent({ id: 'agt_anthropic', principalId: 'prn_alpha', status: 'ACTIVE', runtime: 'ANTHROPIC' }),
+      fakeAgent({
+        id: 'agt_active',
+        principalId: 'prn_alpha',
+        status: 'ACTIVE',
+        runtime: 'OPENAI',
+      }),
+      fakeAgent({
+        id: 'agt_revoked',
+        principalId: 'prn_alpha',
+        status: 'REVOKED',
+        runtime: 'OPENAI',
+      }),
+      fakeAgent({
+        id: 'agt_anthropic',
+        principalId: 'prn_alpha',
+        status: 'ACTIVE',
+        runtime: 'ANTHROPIC',
+      }),
     ]);
 
     const onlyRevoked = await svc.list('prn_alpha', { status: AgentStatusFilter.REVOKED });
@@ -182,7 +198,9 @@ describe('IdentityService.findOne / revoke', () => {
     const redis = { get: jest.fn(), set: jest.fn(), del: jest.fn() } as unknown as RedisService;
     const svc = new IdentityService(prisma, redis);
 
-    await expect(svc.findOne('prn_alpha', 'agt_belongs_to_beta')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(svc.findOne('prn_alpha', 'agt_belongs_to_beta')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });
 
@@ -201,7 +219,10 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
     const updates: { where: { id: string }; data: Record<string, unknown> }[] = [];
 
     const findFirst = jest.fn(
-      async (args: { where: { id: string; principalId: string }; select?: Record<string, true> }) => {
+      async (args: {
+        where: { id: string; principalId: string };
+        select?: Record<string, true>;
+      }) => {
         if (args.where.id !== agentId || args.where.principalId !== principalId) return null;
         return {
           id: agentId,
@@ -211,10 +232,12 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
         };
       },
     );
-    const update = jest.fn(async (args: { where: { id: string }; data: Record<string, unknown> }) => {
-      updates.push(args);
-      return { trustScore: (args.data.trustScore as number) ?? initialTrust };
-    });
+    const update = jest.fn(
+      async (args: { where: { id: string }; data: Record<string, unknown> }) => {
+        updates.push(args);
+        return { trustScore: (args.data.trustScore as number) ?? initialTrust };
+      },
+    );
 
     const store = new Map<string, string>();
     const setCalls: [string, unknown, number | undefined][] = [];
@@ -253,11 +276,11 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
 
     const res = await h.svc.issueChallenge(h.principalId, h.agentId);
 
-    expect(res.protocolVersion).toBe('aegis-handshake-v1');
+    expect(res.protocolVersion).toBe('cerniq-handshake-v1');
     expect(res.expiresIn).toBe(300);
     // 32 raw bytes encoded as base64url ⇒ 43 chars (no padding).
     expect(res.challenge).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(res.message).toBe(`aegis-handshake-v1::${h.agentId}::${res.challenge}`);
+    expect(res.message).toBe(`cerniq-handshake-v1::${h.agentId}::${res.challenge}`);
     expect(h.store.get(`agent:challenge:${h.agentId}`)).toBe(JSON.stringify(res.challenge));
     // TTL must be applied — fail-closed semantics depend on it.
     expect(h.setCalls[0]?.[2]).toBe(300);
@@ -291,7 +314,7 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
 
     const verified = await h.svc.verifyHandshake(h.principalId, h.agentId, sig);
 
-    expect(verified.protocolVersion).toBe('aegis-handshake-v1');
+    expect(verified.protocolVersion).toBe('cerniq-handshake-v1');
     expect(verified.agentId).toBe(h.agentId);
     expect(verified.trustScore).toBe(600);
     expect(verified.recordTtlSeconds).toBe(30 * 86_400);
@@ -327,9 +350,9 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
     await h.svc.issueChallenge(h.principalId, h.agentId);
     const wrongSig = b64Url(randomBytes(64));
 
-    await expect(
-      h.svc.verifyHandshake(h.principalId, h.agentId, wrongSig),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(h.svc.verifyHandshake(h.principalId, h.agentId, wrongSig)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
 
     // Nonce must be deleted even on failure — next attempt requires a fresh challenge.
     expect(h.store.has(`agent:challenge:${h.agentId}`)).toBe(false);
@@ -345,7 +368,7 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
     await h.svc.issueChallenge(h.principalId, h.agentId);
     // Attacker signs a self-chosen message rather than the stored nonce.
     const sigForOtherMessage = await kp.signMessage(
-      `aegis-handshake-v1::${h.agentId}::AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA`,
+      `cerniq-handshake-v1::${h.agentId}::AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA`,
     );
 
     await expect(
@@ -358,9 +381,9 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
     const h = buildHarness({ publicKeyB64: kp.publicKeyB64 });
     const sig = await kp.signMessage('whatever');
 
-    await expect(
-      h.svc.verifyHandshake(h.principalId, h.agentId, sig),
-    ).rejects.toBeInstanceOf(GoneException);
+    await expect(h.svc.verifyHandshake(h.principalId, h.agentId, sig)).rejects.toBeInstanceOf(
+      GoneException,
+    );
   });
 
   it('rejects replay: second verify after success has no nonce → CHALLENGE_EXPIRED', async () => {
@@ -373,9 +396,9 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
     // First call succeeds.
     await h.svc.verifyHandshake(h.principalId, h.agentId, sig);
     // Replaying the same signature: nonce gone, throws GoneException.
-    await expect(
-      h.svc.verifyHandshake(h.principalId, h.agentId, sig),
-    ).rejects.toBeInstanceOf(GoneException);
+    await expect(h.svc.verifyHandshake(h.principalId, h.agentId, sig)).rejects.toBeInstanceOf(
+      GoneException,
+    );
   });
 
   it('rejects malformed signature length without crashing (input validation, fail-closed)', async () => {
@@ -384,9 +407,9 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
     await h.svc.issueChallenge(h.principalId, h.agentId);
 
     const tooShort = b64Url(randomBytes(32));
-    await expect(
-      h.svc.verifyHandshake(h.principalId, h.agentId, tooShort),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(h.svc.verifyHandshake(h.principalId, h.agentId, tooShort)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 
   it('rejects cross-principal verify-handshake (cannot verify handshake for someone else’s agent)', async () => {
@@ -395,9 +418,9 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
     const challenge = await h.svc.issueChallenge(h.principalId, h.agentId);
     const sig = await kp.signMessage(challenge.message);
 
-    await expect(
-      h.svc.verifyHandshake('prn_attacker', h.agentId, sig),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(h.svc.verifyHandshake('prn_attacker', h.agentId, sig)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('getHandshakeStatus returns verified=false when no record exists', async () => {
@@ -419,15 +442,15 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
     const status = await h.svc.getHandshakeStatus(h.principalId, h.agentId);
     expect(status.verified).toBe(true);
     expect(status.verifiedAt).toBe(verified.verifiedAt);
-    expect(status.protocolVersion).toBe('aegis-handshake-v1');
+    expect(status.protocolVersion).toBe('cerniq-handshake-v1');
   });
 
   it('getHandshakeStatus is principal-scoped (cross-principal reads throw AGENT_NOT_FOUND)', async () => {
     const kp = await makeKeypair();
     const h = buildHarness({ publicKeyB64: kp.publicKeyB64 });
 
-    await expect(
-      h.svc.getHandshakeStatus('prn_attacker', h.agentId),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(h.svc.getHandshakeStatus('prn_attacker', h.agentId)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });

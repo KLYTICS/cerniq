@@ -4,13 +4,14 @@ const config: Config = {
   rootDir: '.',
   testRegex: '.*\\.spec\\.ts$',
   transform: {
-    '^.+\\.[tj]s$': ['ts-jest', { tsconfig: 'tsconfig.json', useESM: false, diagnostics: { ignoreCodes: [151002] } }],
+    '^.+\\.[tj]s$': [
+      'ts-jest',
+      { tsconfig: 'tsconfig.json', useESM: false, diagnostics: { ignoreCodes: [151002] } },
+    ],
   },
   // pnpm hoists @noble under .pnpm/<scope>+<pkg>@<ver>/. The @noble packages
   // are ESM-only so they must pass through ts-jest at test time.
-  transformIgnorePatterns: [
-    '/node_modules/(?!(\\.pnpm/)?(@noble|@aegis)([+/]|$))',
-  ],
+  transformIgnorePatterns: ['/node_modules/(?!(\\.pnpm/)?(@noble|@cerniq)([+/]|$))'],
   // ESM-style relative imports (`./foo.js`) must resolve to the `.ts` source
   // when ts-jest emits CJS.
   moduleNameMapper: {

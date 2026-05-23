@@ -1,4 +1,4 @@
-// Deterministic JSON canonicalization — byte-identical to the AEGIS
+// Deterministic JSON canonicalization — byte-identical to the CERNIQ
 // signer's output. The signer uses a recursive sorted-key
 // stable-stringify; we do the same here.
 //

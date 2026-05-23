@@ -1,4 +1,5 @@
-# AEGIS — Monitoring & Observability
+# CERNIQ — Monitoring & Observability
+
 ## OTel Spans, Prometheus Metrics, Alerting Rules, and Dashboards
 
 > **Owner:** Engineering Lead  
@@ -9,13 +10,13 @@
 
 ## 1. Observability Pillars
 
-AEGIS uses the three pillars. Each serves a different diagnostic need:
+CERNIQ uses the three pillars. Each serves a different diagnostic need:
 
-| Pillar | Tool | What It Answers |
-|--------|------|----------------|
-| **Metrics** | Prometheus + Grafana | "Is the system healthy right now?" (rate, error, latency) |
-| **Traces** | OpenTelemetry (Jaeger/Datadog APM) | "Where did this specific request spend its time?" |
-| **Logs** | Pino JSON → Railway/Datadog | "What happened in detail for this request?" |
+| Pillar      | Tool                               | What It Answers                                           |
+| ----------- | ---------------------------------- | --------------------------------------------------------- |
+| **Metrics** | Prometheus + Grafana               | "Is the system healthy right now?" (rate, error, latency) |
+| **Traces**  | OpenTelemetry (Jaeger/Datadog APM) | "Where did this specific request spend its time?"         |
+| **Logs**    | Pino JSON → Railway/Datadog        | "What happened in detail for this request?"               |
 
 ---
 
@@ -25,63 +26,64 @@ AEGIS uses the three pillars. Each serves a different diagnostic need:
 
 These are the metrics that matter most. Every on-call engineer must know them.
 
-| Metric | Type | Labels | Description |
-|--------|------|--------|-------------|
-| `aegis_verify_total` | Counter | `outcome` (approved/denied/error), `denial_reason` | All verify calls |
-| `aegis_verify_duration_seconds` | Histogram | `outcome` | Verify latency — check p50/p95/p99 |
-| `aegis_verify_token_age_seconds` | Histogram | — | How old are tokens when presented (monitors clock skew) |
-| `aegis_verify_spend_amount` | Histogram | `currency` | Distribution of spend amounts |
+| Metric                            | Type      | Labels                                             | Description                                             |
+| --------------------------------- | --------- | -------------------------------------------------- | ------------------------------------------------------- |
+| `cerniq_verify_total`             | Counter   | `outcome` (approved/denied/error), `denial_reason` | All verify calls                                        |
+| `cerniq_verify_duration_seconds`  | Histogram | `outcome`                                          | Verify latency — check p50/p95/p99                      |
+| `cerniq_verify_token_age_seconds` | Histogram | —                                                  | How old are tokens when presented (monitors clock skew) |
+| `cerniq_verify_spend_amount`      | Histogram | `currency`                                         | Distribution of spend amounts                           |
 
 **SLO targets:**
-- `aegis_verify_duration_seconds{quantile="0.99"}` < 200ms
-- `aegis_verify_total{outcome="error"}` rate < 0.1%
-- `aegis_verify_total{outcome="approved"}` / total > 85% (healthy traffic baseline)
+
+- `cerniq_verify_duration_seconds{quantile="0.99"}` < 200ms
+- `cerniq_verify_total{outcome="error"}` rate < 0.1%
+- `cerniq_verify_total{outcome="approved"}` / total > 85% (healthy traffic baseline)
 
 ### 2.2 Identity Metrics
 
-| Metric | Type | Labels | Description |
-|--------|------|--------|-------------|
-| `aegis_agents_registered_total` | Counter | — | Cumulative agent registrations |
-| `aegis_agents_active` | Gauge | — | Active (non-revoked) agents |
-| `aegis_agents_revoked_total` | Counter | `reason` | Revocations by reason |
-| `aegis_trust_score` | Histogram | `band` | Distribution of trust scores |
-| `aegis_trust_band_transitions_total` | Counter | `from`, `to` | Band promotions/demotions |
+| Metric                                | Type      | Labels       | Description                    |
+| ------------------------------------- | --------- | ------------ | ------------------------------ |
+| `cerniq_agents_registered_total`      | Counter   | —            | Cumulative agent registrations |
+| `cerniq_agents_active`                | Gauge     | —            | Active (non-revoked) agents    |
+| `cerniq_agents_revoked_total`         | Counter   | `reason`     | Revocations by reason          |
+| `cerniq_trust_score`                  | Histogram | `band`       | Distribution of trust scores   |
+| `cerniq_trust_band_transitions_total` | Counter   | `from`, `to` | Band promotions/demotions      |
 
 ### 2.3 BATE Metrics
 
-| Metric | Type | Labels | Description |
-|--------|------|--------|-------------|
-| `aegis_bate_signals_total` | Counter | `type` | Signals received by type |
-| `aegis_bate_anomaly_triggers_total` | Counter | `rule` (R-1..R-5) | Anomaly rule firings |
-| `aegis_bate_anomaly_trigger_total` | Counter | `rule` (low cardinality, values `detector.r1`..`detector.r5`) | Count of BATE behavioral anomaly detector rule triggers, partitioned by rule. Increments inside `BateService.recompute` when `BateAnomalyDetector.detect()` emits a signal. Use to detect rules with abnormal trigger rates (sudden jump = either an attacker pattern or a tuning regression). Source: `apps/api/src/common/observability/metrics.service.ts`, `apps/api/src/modules/bate/bate.worker.ts`. Suggested alert: `rate(aegis_bate_anomaly_trigger_total{rule="detector.r3"}[5m]) > 0.5` (geographic-inconsistency rule firing >0.5/sec sustained = likely tenant compromise). |
-| `aegis_bate_score_computation_seconds` | Histogram | — | BATE scoring latency |
+| Metric                                  | Type      | Labels                                                        | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --------------------------------------- | --------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cerniq_bate_signals_total`             | Counter   | `type`                                                        | Signals received by type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `cerniq_bate_anomaly_triggers_total`    | Counter   | `rule` (R-1..R-5)                                             | Anomaly rule firings                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `cerniq_bate_anomaly_trigger_total`     | Counter   | `rule` (low cardinality, values `detector.r1`..`detector.r5`) | Count of BATE behavioral anomaly detector rule triggers, partitioned by rule. Increments inside `BateService.recompute` when `BateAnomalyDetector.detect()` emits a signal. Use to detect rules with abnormal trigger rates (sudden jump = either an attacker pattern or a tuning regression). Source: `apps/api/src/common/observability/metrics.service.ts`, `apps/api/src/modules/bate/bate.worker.ts`. Suggested alert: `rate(cerniq_bate_anomaly_trigger_total{rule="detector.r3"}[5m]) > 0.5` (geographic-inconsistency rule firing >0.5/sec sustained = likely tenant compromise). |
+| `cerniq_bate_score_computation_seconds` | Histogram | —                                                             | BATE scoring latency                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
 ### 2.4 Audit Metrics
 
-| Metric | Type | Labels | Description |
-|--------|------|--------|-------------|
-| `aegis_audit_events_total` | Counter | `outcome`, `denial_reason` | Audit events written |
-| `aegis_audit_chain_breaks_total` | Counter | — | Chain integrity failures (should be 0 always) |
-| `aegis_audit_signing_latency_seconds` | Histogram | `signer` (kms/env/ephemeral) | KMS vs env var signing latency |
+| Metric                                 | Type      | Labels                       | Description                                   |
+| -------------------------------------- | --------- | ---------------------------- | --------------------------------------------- |
+| `cerniq_audit_events_total`            | Counter   | `outcome`, `denial_reason`   | Audit events written                          |
+| `cerniq_audit_chain_breaks_total`      | Counter   | —                            | Chain integrity failures (should be 0 always) |
+| `cerniq_audit_signing_latency_seconds` | Histogram | `signer` (kms/env/ephemeral) | KMS vs env var signing latency                |
 
 ### 2.5 Infrastructure Metrics
 
-| Metric | Type | Labels | Description |
-|--------|------|--------|-------------|
-| `aegis_db_query_duration_seconds` | Histogram | `operation` | Prisma query latency |
-| `aegis_db_pool_connections` | Gauge | `state` (active/idle) | Connection pool utilization |
-| `aegis_redis_operations_total` | Counter | `operation`, `status` | Redis command count |
-| `aegis_redis_latency_seconds` | Histogram | `operation` | Redis operation latency |
-| `aegis_http_requests_total` | Counter | `method`, `path`, `status` | HTTP request count |
-| `aegis_http_duration_seconds` | Histogram | `method`, `path` | HTTP latency by endpoint |
+| Metric                             | Type      | Labels                     | Description                 |
+| ---------------------------------- | --------- | -------------------------- | --------------------------- |
+| `cerniq_db_query_duration_seconds` | Histogram | `operation`                | Prisma query latency        |
+| `cerniq_db_pool_connections`       | Gauge     | `state` (active/idle)      | Connection pool utilization |
+| `cerniq_redis_operations_total`    | Counter   | `operation`, `status`      | Redis command count         |
+| `cerniq_redis_latency_seconds`     | Histogram | `operation`                | Redis operation latency     |
+| `cerniq_http_requests_total`       | Counter   | `method`, `path`, `status` | HTTP request count          |
+| `cerniq_http_duration_seconds`     | Histogram | `method`, `path`           | HTTP latency by endpoint    |
 
 ### 2.6 Business Metrics
 
-| Metric | Type | Labels | Description |
-|--------|------|--------|-------------|
-| `aegis_principals_total` | Gauge | `tier` (free/developer/pro/enterprise) | Active principals by plan |
-| `aegis_onboarding_step_total` | Counter | `step` | Onboarding funnel progression |
-| `aegis_webhook_deliveries_total` | Counter | `status` (success/failed/retrying) | Webhook delivery health |
+| Metric                            | Type    | Labels                                 | Description                   |
+| --------------------------------- | ------- | -------------------------------------- | ----------------------------- |
+| `cerniq_principals_total`         | Gauge   | `tier` (free/developer/pro/enterprise) | Active principals by plan     |
+| `cerniq_onboarding_step_total`    | Counter | `step`                                 | Onboarding funnel progression |
+| `cerniq_webhook_deliveries_total` | Counter | `status` (success/failed/retrying)     | Webhook delivery health       |
 
 ---
 
@@ -93,11 +95,11 @@ These are the metrics that matter most. Every on-call engineer must know them.
 # prometheus.yml (or Grafana Agent config)
 
 scrape_configs:
-  - job_name: 'aegis-api'
+  - job_name: 'cerniq-api'
     metrics_path: '/metrics'
     bearer_token: '${METRICS_TOKEN}'
     static_configs:
-      - targets: ['api.aegislabs.io']
+      - targets: ['api.cerniq.io']
     scrape_interval: 15s
     scrape_timeout: 10s
 ```
@@ -106,13 +108,13 @@ scrape_configs:
 
 ```bash
 # Verify metrics endpoint is working
-curl https://api.aegislabs.io/metrics \
+curl https://api.cerniq.io/metrics \
   -H "Authorization: Bearer $METRICS_TOKEN"
 
 # Expected: Prometheus text format
-# aegis_verify_total{outcome="approved"} 12453
-# aegis_verify_total{outcome="denied",denial_reason="SPEND_LIMIT_EXCEEDED"} 234
-# aegis_verify_duration_seconds_bucket{le="0.05"} 11200
+# cerniq_verify_total{outcome="approved"} 12453
+# cerniq_verify_total{outcome="denied",denial_reason="SPEND_LIMIT_EXCEEDED"} 234
+# cerniq_verify_duration_seconds_bucket{le="0.05"} 11200
 # ...
 ```
 
@@ -121,34 +123,34 @@ curl https://api.aegislabs.io/metrics \
 Pre-compute expensive queries for dashboards:
 
 ```yaml
-# aegis-recording-rules.yml
+# cerniq-recording-rules.yml
 
 groups:
-  - name: aegis.verify
+  - name: cerniq.verify
     interval: 30s
     rules:
-      - record: aegis:verify_error_rate:5m
+      - record: cerniq:verify_error_rate:5m
         expr: |
-          rate(aegis_verify_total{outcome="error"}[5m])
+          rate(cerniq_verify_total{outcome="error"}[5m])
           /
-          rate(aegis_verify_total[5m])
+          rate(cerniq_verify_total[5m])
 
-      - record: aegis:verify_approval_rate:5m
+      - record: cerniq:verify_approval_rate:5m
         expr: |
-          rate(aegis_verify_total{outcome="approved"}[5m])
+          rate(cerniq_verify_total{outcome="approved"}[5m])
           /
-          rate(aegis_verify_total[5m])
+          rate(cerniq_verify_total[5m])
 
-      - record: aegis:verify_p99:5m
+      - record: cerniq:verify_p99:5m
         expr: |
           histogram_quantile(0.99, 
-            rate(aegis_verify_duration_seconds_bucket[5m])
+            rate(cerniq_verify_duration_seconds_bucket[5m])
           )
 
-      - record: aegis:verify_p50:5m
+      - record: cerniq:verify_p50:5m
         expr: |
           histogram_quantile(0.50, 
-            rate(aegis_verify_duration_seconds_bucket[5m])
+            rate(cerniq_verify_duration_seconds_bucket[5m])
           )
 ```
 
@@ -159,124 +161,124 @@ groups:
 ### 4.1 P0 Alerts (Page Immediately)
 
 ```yaml
-# aegis-alerts.yml
+# cerniq-alerts.yml
 
 groups:
-  - name: aegis.p0
+  - name: cerniq.p0
     rules:
-      - alert: AegisApiDown
-        expr: up{job="aegis-api"} == 0
+      - alert: CerniqApiDown
+        expr: up{job="cerniq-api"} == 0
         for: 1m
         labels:
           severity: critical
           runbook: RB-001
         annotations:
-          summary: "AEGIS API is down"
-          description: "Health endpoint not responding for 1 minute."
+          summary: 'CERNIQ API is down'
+          description: 'Health endpoint not responding for 1 minute.'
 
-      - alert: AegisVerifyErrorRate
-        expr: aegis:verify_error_rate:5m > 0.01
+      - alert: CerniqVerifyErrorRate
+        expr: cerniq:verify_error_rate:5m > 0.01
         for: 5m
         labels:
           severity: critical
           runbook: RB-102
         annotations:
-          summary: "Verify error rate > 1%"
-          description: "{{ $value | humanizePercentage }} of verify calls are erroring."
+          summary: 'Verify error rate > 1%'
+          description: '{{ $value | humanizePercentage }} of verify calls are erroring.'
 
-      - alert: AegisAuditChainBreak
-        expr: increase(aegis_audit_chain_breaks_total[5m]) > 0
+      - alert: CerniqAuditChainBreak
+        expr: increase(cerniq_audit_chain_breaks_total[5m]) > 0
         labels:
           severity: critical
           runbook: RB-003
         annotations:
-          summary: "Audit chain integrity break detected"
-          description: "THIS IS A P0 SECURITY INCIDENT."
+          summary: 'Audit chain integrity break detected'
+          description: 'THIS IS A P0 SECURITY INCIDENT.'
 
-      - alert: AegisRedisDown
+      - alert: CerniqRedisDown
         expr: |
-          rate(aegis_redis_operations_total{status="error"}[1m]) 
-          / rate(aegis_redis_operations_total[1m]) > 0.9
+          rate(cerniq_redis_operations_total{status="error"}[1m]) 
+          / rate(cerniq_redis_operations_total[1m]) > 0.9
         for: 1m
         labels:
           severity: critical
           runbook: RB-001
         annotations:
-          summary: "Redis is unreachable"
-          description: "Spend counters and JTI replay cache non-functional."
+          summary: 'Redis is unreachable'
+          description: 'Spend counters and JTI replay cache non-functional.'
 ```
 
 ### 4.2 P1 Alerts (Page Within 15 Min)
 
 ```yaml
-  - name: aegis.p1
-    rules:
-      - alert: AegisVerifyLatencyHigh
-        expr: aegis:verify_p99:5m > 0.5
-        for: 5m
-        labels:
-          severity: high
-          runbook: RB-101
-        annotations:
-          summary: "Verify p99 latency > 500ms"
-          description: "Current p99: {{ $value | humanizeDuration }}"
+- name: cerniq.p1
+  rules:
+    - alert: CerniqVerifyLatencyHigh
+      expr: cerniq:verify_p99:5m > 0.5
+      for: 5m
+      labels:
+        severity: high
+        runbook: RB-101
+      annotations:
+        summary: 'Verify p99 latency > 500ms'
+        description: 'Current p99: {{ $value | humanizeDuration }}'
 
-      - alert: AegisDBConnectionPoolExhausted
-        expr: |
-          aegis_db_pool_connections{state="active"}
-          / (aegis_db_pool_connections{state="active"} + aegis_db_pool_connections{state="idle"})
-          > 0.9
-        for: 5m
-        labels:
-          severity: high
-          runbook: RB-101
-        annotations:
-          summary: "DB connection pool > 90% utilized"
+    - alert: CerniqDBConnectionPoolExhausted
+      expr: |
+        cerniq_db_pool_connections{state="active"}
+        / (cerniq_db_pool_connections{state="active"} + cerniq_db_pool_connections{state="idle"})
+        > 0.9
+      for: 5m
+      labels:
+        severity: high
+        runbook: RB-101
+      annotations:
+        summary: 'DB connection pool > 90% utilized'
 
-      - alert: AegisWebhookBacklogHigh
-        expr: aegis_webhook_queue_depth > 1000
-        for: 10m
-        labels:
-          severity: high
-          runbook: RB-103
+    - alert: CerniqWebhookBacklogHigh
+      expr: cerniq_webhook_queue_depth > 1000
+      for: 10m
+      labels:
+        severity: high
+        runbook: RB-103
 
-      - alert: AegisSuddenApprovalRateDrop
-        expr: aegis:verify_approval_rate:5m < 0.5
-        for: 3m
-        labels:
-          severity: high
-        annotations:
-          summary: "Approval rate < 50% — possible mass denial bug"
+    - alert: CerniqSuddenApprovalRateDrop
+      expr: cerniq:verify_approval_rate:5m < 0.5
+      for: 3m
+      labels:
+        severity: high
+      annotations:
+        summary: 'Approval rate < 50% — possible mass denial bug'
 ```
 
 ### 4.3 P2 Alerts (Non-Paging)
 
 ```yaml
-  - name: aegis.p2
-    rules:
-      - alert: AegisVerifyLatencyElevated
-        expr: aegis:verify_p50:5m > 0.1
-        for: 10m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Verify p50 > 100ms (elevated, not yet paging)"
+- name: cerniq.p2
+  rules:
+    - alert: CerniqVerifyLatencyElevated
+      expr: cerniq:verify_p50:5m > 0.1
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: 'Verify p50 > 100ms (elevated, not yet paging)'
 
-      - alert: AegisTrustBandDegradation
-        expr: |
-          rate(aegis_trust_band_transitions_total{to="FLAGGED"}[1h])
-          > 10
-        labels:
-          severity: warning
-        annotations:
-          summary: "High rate of agents dropping to FLAGGED band"
+    - alert: CerniqTrustBandDegradation
+      expr: |
+        rate(cerniq_trust_band_transitions_total{to="FLAGGED"}[1h])
+        > 10
+      labels:
+        severity: warning
+      annotations:
+        summary: 'High rate of agents dropping to FLAGGED band'
 
-      - alert: AegisKeyExpiringSoon
-        expr: aegis_signing_key_expiry_seconds < 86400 * 7  # 7 days
-        labels:
-          severity: warning
-        annotations:
-          summary: "Signing key expires in < 7 days — rotate now"
+    - alert: CerniqKeyExpiringSoon
+      expr: cerniq_signing_key_expiry_seconds < 86400 * 7 # 7 days
+      labels:
+        severity: warning
+      annotations:
+        summary: 'Signing key expires in < 7 days — rotate now'
 ```
 
 ---
@@ -287,8 +289,8 @@ groups:
 
 ```bash
 # .env.production
-AEGIS_OTEL_ENABLED=true
-OTEL_SERVICE_NAME=aegis-api
+CERNIQ_OTEL_ENABLED=true
+OTEL_SERVICE_NAME=cerniq-api
 OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector.your-infra.io:4318
 OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer ${OTEL_TOKEN}
 ```
@@ -314,6 +316,7 @@ POST /v1/verify (root span, ~total latency)
 ```
 
 If total span > 200ms, look for:
+
 - `db.query.*` spans > 50ms → missing index or N+1
 - `kms.sign.*` > 100ms → KMS latency spike, consider caching
 - `redis.*` > 10ms → Redis overloaded or high latency
@@ -324,16 +327,16 @@ Every verify span carries these attributes for filtering in APM:
 
 ```typescript
 span.setAttributes({
-  'aegis.principal_id': principalId,
-  'aegis.agent_id': agentId,
-  'aegis.outcome': outcome,
-  'aegis.denial_reason': denialReason ?? null,
-  'aegis.trust_band': trustBand,
-  'aegis.trust_score': trustScore,
-  'aegis.spend_amount': amount ?? 0,
-  'aegis.spend_currency': currency ?? null,
-  'aegis.token_age_ms': tokenAgeMs,
-  'aegis.scopes': scopes.join(','),
+  'cerniq.principal_id': principalId,
+  'cerniq.agent_id': agentId,
+  'cerniq.outcome': outcome,
+  'cerniq.denial_reason': denialReason ?? null,
+  'cerniq.trust_band': trustBand,
+  'cerniq.trust_score': trustScore,
+  'cerniq.spend_amount': amount ?? 0,
+  'cerniq.spend_currency': currency ?? null,
+  'cerniq.token_age_ms': tokenAgeMs,
+  'cerniq.scopes': scopes.join(','),
 });
 ```
 
@@ -345,13 +348,11 @@ const sampler = new ParentBasedSampler({
   // Sample 100% of errors (we never want to miss a failing trace)
   // Sample 10% of successful verify calls at high traffic
   root: new TraceIdRatioBased(
-    process.env.AEGIS_OTEL_SAMPLE_RATE 
-      ? parseFloat(process.env.AEGIS_OTEL_SAMPLE_RATE) 
-      : 0.1
+    process.env.CERNIQ_OTEL_SAMPLE_RATE ? parseFloat(process.env.CERNIQ_OTEL_SAMPLE_RATE) : 0.1,
   ),
 });
 
-// In production: AEGIS_OTEL_SAMPLE_RATE=0.05 (5% of successful traces)
+// In production: CERNIQ_OTEL_SAMPLE_RATE=0.05 (5% of successful traces)
 // On errors: always 100% (SDK auto-upgrades error traces)
 ```
 
@@ -370,7 +371,7 @@ All logs are Pino JSON. Every log line must include:
   "msg": "verify.completed",
   "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
   "spanId": "00f067aa0ba902b7",
-  "service": "aegis-api",
+  "service": "cerniq-api",
   "version": "1.2.3",
   "principalId": "prin_abc123",
   "agentId": "agent_xyz789",
@@ -382,6 +383,7 @@ All logs are Pino JSON. Every log line must include:
 ```
 
 **NEVER log:**
+
 - Private keys (grep for `privateKey` — should be zero hits in non-test code)
 - API key values (only last 4 chars for identification)
 - Full JWT tokens
@@ -389,12 +391,12 @@ All logs are Pino JSON. Every log line must include:
 
 ### 6.2 Log Levels
 
-| Level | When | Examples |
-|-------|------|---------|
-| `error` | Unexpected failures that need attention | DB connection lost, signing failure |
-| `warn` | Degraded but functional | Ephemeral key used (not KMS), Redis reconnect |
-| `info` | Normal operations (structured events) | verify.completed, agent.registered |
-| `debug` | Verbose (disabled in production) | Each DB query, each Redis operation |
+| Level   | When                                    | Examples                                      |
+| ------- | --------------------------------------- | --------------------------------------------- |
+| `error` | Unexpected failures that need attention | DB connection lost, signing failure           |
+| `warn`  | Degraded but functional                 | Ephemeral key used (not KMS), Redis reconnect |
+| `info`  | Normal operations (structured events)   | verify.completed, agent.registered            |
+| `debug` | Verbose (disabled in production)        | Each DB query, each Redis operation           |
 
 ### 6.3 Key Log Events
 
@@ -419,27 +421,27 @@ Every verify call produces exactly one structured log line at `info` level:
 ```typescript
 logger.info({
   msg: 'verify.completed',
-  
+
   // Request context
   requestId: req.id,
   traceId: trace.getActiveSpan()?.spanContext().traceId,
-  
+
   // Identity
   principalId: req.principal.id,
   agentId: input.agentId,
   relyingPartyId: input.relyingPartyId ?? null,
-  
+
   // Result
   outcome: result.outcome,
   denialReason: result.denialReason ?? null,
   trustBand: result.trustBand,
   trustScore: result.trustScore,
-  
+
   // Performance
   latencyMs: Date.now() - startTime,
   dbQueryCount: ctx.queryCount,
   redisOps: ctx.redisOps,
-  
+
   // No PII, no keys, no token
 });
 ```
@@ -453,6 +455,7 @@ logger.info({
 **Purpose:** Primary ops dashboard. Should be open during any incident.
 
 Panels:
+
 ```
 Row 1: Traffic
   - Verify RPS (approved vs denied vs error, stacked area)
@@ -481,6 +484,7 @@ Row 4: Capacity
 **Purpose:** Understanding agent behavioral health.
 
 Panels:
+
 ```
 Row 1: Trust Score Distribution
   - Score histogram (0-1000, 50-point buckets)
@@ -503,6 +507,7 @@ Row 3: Agent Activity
 **Purpose:** Erwin's daily driver for beta health.
 
 Panels:
+
 ```
 Row 1: Acquisition
   - New principals this week (stat)
@@ -530,6 +535,7 @@ Row 4: Revenue (Phase 2+)
 **Purpose:** Compliance and security monitoring.
 
 Panels:
+
 ```
 Row 1: Chain Health
   - Chain breaks total (stat, should always be 0)
@@ -564,11 +570,12 @@ env.ANALYTICS.writeDataPoint({
 });
 ```
 
-Cloudflare dashboard → Workers → Analytics → custom dataset: `aegis_edge_verify`
+Cloudflare dashboard → Workers → Analytics → custom dataset: `cerniq_edge_verify`
 
 Additional edge metrics to track:
+
 - Cache hit rate for agent/policy lookups (target: >80%)
-- `X-AEGIS-Edge-Divergence` header rate (shadow mode: how often edge disagrees with origin)
+- `X-CERNIQ-Edge-Divergence` header rate (shadow mode: how often edge disagrees with origin)
 - Edge vs origin latency comparison
 
 ---
@@ -577,17 +584,17 @@ Additional edge metrics to track:
 
 Every alert links to the correct runbook section. Quick reference:
 
-| Alert | Runbook |
-|-------|---------|
-| API down | INCIDENT_RESPONSE.md §RB-001 |
-| Wrong verify results | INCIDENT_RESPONSE.md §RB-002 |
-| Audit chain break | INCIDENT_RESPONSE.md §RB-003 |
-| Key exposure | INCIDENT_RESPONSE.md §RB-004 |
-| DB down | INCIDENT_RESPONSE.md §RB-005 |
-| High latency | INCIDENT_RESPONSE.md §RB-101 |
-| High error rate | INCIDENT_RESPONSE.md §RB-102 |
-| Webhook backlog | INCIDENT_RESPONSE.md §RB-103 |
-| Key expiring | SECURITY_RUNBOOK.md §Key Rotation |
+| Alert                | Runbook                           |
+| -------------------- | --------------------------------- |
+| API down             | INCIDENT_RESPONSE.md §RB-001      |
+| Wrong verify results | INCIDENT_RESPONSE.md §RB-002      |
+| Audit chain break    | INCIDENT_RESPONSE.md §RB-003      |
+| Key exposure         | INCIDENT_RESPONSE.md §RB-004      |
+| DB down              | INCIDENT_RESPONSE.md §RB-005      |
+| High latency         | INCIDENT_RESPONSE.md §RB-101      |
+| High error rate      | INCIDENT_RESPONSE.md §RB-102      |
+| Webhook backlog      | INCIDENT_RESPONSE.md §RB-103      |
+| Key expiring         | SECURITY_RUNBOOK.md §Key Rotation |
 
 ---
 
@@ -595,22 +602,22 @@ Every alert links to the correct runbook section. Quick reference:
 
 ```bash
 # Health (unauthenticated — used by load balancers)
-curl https://api.aegislabs.io/health
+curl https://api.cerniq.io/health
 # Expected: {"status":"ok","timestamp":"2026-05-04T12:00:00.000Z"}
 # This must NEVER require auth. Never block on DB/Redis.
 
 # Readiness (authenticated — deep health check)
-curl https://api.aegislabs.io/ready \
-  -H "X-AEGIS-Admin: $AEGIS_ADMIN_TOKEN"
+curl https://api.cerniq.io/ready \
+  -H "X-CERNIQ-Admin: $CERNIQ_ADMIN_TOKEN"
 # Expected: {"status":"ready","db":"ok","redis":"ok","migrations":"current"}
 
 # Metrics
-curl https://api.aegislabs.io/metrics \
+curl https://api.cerniq.io/metrics \
   -H "Authorization: Bearer $METRICS_TOKEN"
 # Expected: Prometheus text format
 
 # Version info
-curl https://api.aegislabs.io/version
+curl https://api.cerniq.io/version
 # Expected: {"version":"1.2.3","commit":"abc123","build":"2026-05-04"}
 ```
 
@@ -632,5 +639,5 @@ Before handing off to the next on-call engineer:
 
 ---
 
-*Observability guide version: 1.0 | AEGIS Phase 1*  
-*Next review: after first week of production traffic*
+_Observability guide version: 1.0 | CERNIQ Phase 1_  
+_Next review: after first week of production traffic_

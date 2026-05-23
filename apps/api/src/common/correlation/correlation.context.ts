@@ -10,7 +10,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 /**
- * Fields the AEGIS request context carries. Each field is optional because
+ * Fields the CERNIQ request context carries. Each field is optional because
  * the context is populated incrementally:
  *
  *   middleware → guard → service → audit / metrics / pino
@@ -44,7 +44,7 @@ const storage = new AsyncLocalStorage<CorrelationState>();
  * call sites don't need to inject anything — the AsyncLocalStorage is a
  * module-level singleton scoped to the Node process.
  */
- 
+
 export class CorrelationContext {
   /**
    * Run `fn` with `state` bound to the current async chain. Nested `run`

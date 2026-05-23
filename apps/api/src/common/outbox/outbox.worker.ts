@@ -43,7 +43,10 @@ export const DEFAULT_TICK_INTERVAL_MS = 1_000;
 /** Max attempts before a row is left in the outbox as dead-letter. */
 export const DEFAULT_MAX_ATTEMPTS = 8;
 
-export type OutboxHandler<K extends OutboxKind> = (payload: OutboxPayload[K], context: OutboxHandlerContext) => Promise<void>;
+export type OutboxHandler<K extends OutboxKind> = (
+  payload: OutboxPayload[K],
+  context: OutboxHandlerContext,
+) => Promise<void>;
 
 export interface OutboxHandlerContext {
   /** Outbox row id — used by handlers for trace correlation only. */
@@ -66,7 +69,7 @@ const DEFAULT_CONFIG: OutboxWorkerConfig = {
   lockTtlMs: DEFAULT_LOCK_TTL_MS,
   tickIntervalMs: DEFAULT_TICK_INTERVAL_MS,
   maxAttempts: DEFAULT_MAX_ATTEMPTS,
-  workerId: process.env.HOSTNAME ?? 'aegis-api',
+  workerId: process.env.HOSTNAME ?? 'cerniq-api',
 };
 
 @Injectable()

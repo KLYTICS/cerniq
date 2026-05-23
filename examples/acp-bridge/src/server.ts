@@ -1,41 +1,41 @@
-// Merchant API — the ACP + AEGIS dual-verify gate.
+// Merchant API — the ACP + CERNIQ dual-verify gate.
 //
 // Inbound /api/charge carries TWO tokens:
 //   - paymentToken: the Stripe SPT from ACP authorization (answers:
 //                   "is the cardholder authorized for this amount?")
-//   - aegisToken:   the AEGIS-signed agent token (answers:
+//   - cerniqToken:   the CERNIQ-signed agent token (answers:
 //                   "is THIS agent the one the cardholder authorized,
 //                    is the policy still valid, has it behaved well?")
 //
-// AEGIS is additive to ACP. ACP solves the payment-leg (SPT covers
-// the amount); AEGIS solves the identity / policy / trust leg. Both
+// CERNIQ is additive to ACP. ACP solves the payment-leg (SPT covers
+// the amount); CERNIQ solves the identity / policy / trust leg. Both
 // must pass before the merchant charges. This example IS the §6.2
 // integration shape from the master handoff, made runnable.
 //
 // Design notes:
-//   - AEGIS is checked FIRST (cheaper, denial-precedence is well-
-//     understood). If AEGIS denies, we never call Stripe — saves
+//   - CERNIQ is checked FIRST (cheaper, denial-precedence is well-
+//     understood). If CERNIQ denies, we never call Stripe — saves
 //     network and avoids burning an SPT slot for a rejected request.
 //   - Both verdicts are recorded, even on denial — the merchant's
 //     own audit trail captures why the charge didn't happen.
-//   - Idempotency: the AEGIS jti is reused as the Stripe
+//   - Idempotency: the CERNIQ jti is reused as the Stripe
 //     idempotency-key when the caller doesn't supply one. Single
-//     unique key end-to-end avoids "AEGIS approved, Stripe charged
+//     unique key end-to-end avoids "CERNIQ approved, Stripe charged
 //     twice" scenarios under retry.
 //
-// AEGIS does NOT see card data; Stripe does NOT see the agent's
+// CERNIQ does NOT see card data; Stripe does NOT see the agent's
 // private key. Each gate stays in its own scope.
 
 import express, { type Request, type Response } from 'express';
-import { Aegis } from '@aegis/sdk';
+import { Cerniq } from '@cerniq/sdk';
 
 import { verifySpt } from './spt-verify.js';
 import type { ChargeRequest, ChargeResponse, ChargeId } from './types.js';
 
-const aegis = new Aegis({
-  baseUrl: process.env.AEGIS_API_BASE ?? 'https://api.aegislabs.io',
+const cerniq = new Cerniq({
+  baseUrl: process.env.CERNIQ_API_BASE ?? 'https://api.cerniq.io',
   // Verify-only key — never a management key on a service edge.
-  verifyKey: requireEnv('AEGIS_VERIFY_KEY'),
+  verifyKey: requireEnv('CERNIQ_VERIFY_KEY'),
 });
 
 const MIN_TRUST_SCORE = Number(process.env.MIN_TRUST_SCORE ?? '700');
@@ -55,28 +55,28 @@ app.post('/api/charge', async (req: Request, res: Response) => {
     });
   }
 
-  // Gate 1 — AEGIS. Cheaper than Stripe; identity errors are the
+  // Gate 1 — CERNIQ. Cheaper than Stripe; identity errors are the
   // overwhelming majority of denials in agent-driven traffic.
-  const aegisVerdict = await aegis.verify({
-    token: body.aegisToken,
+  const cerniqVerdict = await cerniq.verify({
+    token: body.cerniqToken,
     action: { kind: 'commerce.purchase', payload: body },
-    requestedAmount: (body.amount / 100).toFixed(2), // SPT is cents; AEGIS spend is decimal
+    requestedAmount: (body.amount / 100).toFixed(2), // SPT is cents; CERNIQ spend is decimal
     requestedDomain: body.merchantDomain,
     minTrustScore: MIN_TRUST_SCORE,
     jti: body.idempotencyKey ?? cryptoRandom(),
     now: new Date().toISOString(),
   });
 
-  if (!aegisVerdict.valid) {
+  if (!cerniqVerdict.valid) {
     return respond(res, 402, {
       allowed: false,
-      denialSource: 'aegis',
-      aegisDenialReason: aegisVerdict.denialReason ?? undefined,
-      auditEventId: aegisVerdict.auditEventId,
+      denialSource: 'cerniq',
+      cerniqDenialReason: cerniqVerdict.denialReason ?? undefined,
+      auditEventId: cerniqVerdict.auditEventId,
     });
   }
 
-  // Gate 2 — Stripe SPT verify. AEGIS approved the agent's identity +
+  // Gate 2 — Stripe SPT verify. CERNIQ approved the agent's identity +
   // policy + trust; now confirm the cardholder's SPT actually covers
   // this amount in this currency.
   const sptVerdict = await verifySpt({
@@ -89,19 +89,19 @@ app.post('/api/charge', async (req: Request, res: Response) => {
       allowed: false,
       denialSource: 'stripe',
       stripeError: sptVerdict.errorCode,
-      auditEventId: aegisVerdict.auditEventId,
+      auditEventId: cerniqVerdict.auditEventId,
     });
   }
 
-  // Cross-check: the SPT was issued to userId X; AEGIS says agent's
+  // Cross-check: the SPT was issued to userId X; CERNIQ says agent's
   // principalId is Y. If your IdP federation maps these (they should),
   // an X !== Y here means the agent is presenting an SPT NOT issued
   // for THEIR principal — a high-signal anomaly worth reporting back
-  // to AEGIS via /v1/agents/:id/report. Skipped in the example; left
+  // to CERNIQ via /v1/agents/:id/report. Skipped in the example; left
   // as a // INTEGRATION-CHECK comment so reviewers don't miss it.
-  // INTEGRATION-CHECK: confirm sptVerdict.payerUserId maps to aegisVerdict.principalId.
+  // INTEGRATION-CHECK: confirm sptVerdict.payerUserId maps to cerniqVerdict.principalId.
 
-  // Both gates green — charge the card. We use the AEGIS jti as the
+  // Both gates green — charge the card. We use the CERNIQ jti as the
   // Stripe idempotency-key so retries are idempotent end-to-end.
   const chargeId = await chargeCard({
     amount: body.amount,
@@ -113,7 +113,7 @@ app.post('/api/charge', async (req: Request, res: Response) => {
   return respond(res, 200, {
     allowed: true,
     chargeId,
-    auditEventId: aegisVerdict.auditEventId,
+    auditEventId: cerniqVerdict.auditEventId,
   });
 });
 
@@ -127,11 +127,15 @@ app.listen(port, () => {
 function validateChargeBody(b: unknown): string | null {
   if (!b || typeof b !== 'object') return 'missing_body';
   const o = b as Record<string, unknown>;
-  if (typeof o.paymentToken !== 'string' || !o.paymentToken.startsWith('spt_')) return 'paymentToken_invalid';
-  if (typeof o.aegisToken !== 'string' || o.aegisToken.split('.').length !== 3) return 'aegisToken_invalid';
-  if (typeof o.amount !== 'number' || !Number.isFinite(o.amount) || o.amount <= 0) return 'amount_invalid';
+  if (typeof o.paymentToken !== 'string' || !o.paymentToken.startsWith('spt_'))
+    return 'paymentToken_invalid';
+  if (typeof o.cerniqToken !== 'string' || o.cerniqToken.split('.').length !== 3)
+    return 'cerniqToken_invalid';
+  if (typeof o.amount !== 'number' || !Number.isFinite(o.amount) || o.amount <= 0)
+    return 'amount_invalid';
   if (typeof o.currency !== 'string' || o.currency.length !== 3) return 'currency_invalid';
-  if (typeof o.merchantDomain !== 'string' || o.merchantDomain.length === 0) return 'merchantDomain_invalid';
+  if (typeof o.merchantDomain !== 'string' || o.merchantDomain.length === 0)
+    return 'merchantDomain_invalid';
   return null;
 }
 
@@ -157,7 +161,9 @@ function requireEnv(name: string): string {
 }
 
 function cryptoRandom(): string {
-  // Match @aegis/sdk's jti shape (ULID-ish); falls back if uuid is
+  // Match @cerniq/sdk's jti shape (ULID-ish); falls back if uuid is
   // unavailable.
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${process.hrtime.bigint().toString(36)}`;
+  return (
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${process.hrtime.bigint().toString(36)}`
+  );
 }

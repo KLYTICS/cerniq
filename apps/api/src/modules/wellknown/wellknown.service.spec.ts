@@ -8,41 +8,47 @@ import { PLANS, TRIAL_LIFETIME_CAP } from '../billing/plans';
 
 import { WellknownService, computeKid } from './wellknown.service';
 
-
-
 // 32-byte canonical "all-zeros" Ed25519 public key — fine for the hash test
 // (we're testing the kid derivation, not the curve point validity).
 const ZERO_KEY = new Uint8Array(32);
 const ZERO_KEY_B64 = encodeBase64Url(ZERO_KEY);
 const FIXED_ROTATED_AT = '2026-01-01T00:00:00.000Z';
 
-function buildConfig(overrides: Partial<{ pub: string; rotatedAt: string }> = {}): AppConfigService {
+function buildConfig(
+  overrides: Partial<{ pub: string; rotatedAt: string }> = {},
+): AppConfigService {
   return {
-    aegisSigningPublicKey: overrides.pub,
-    aegisSigningKeyRotatedAt: overrides.rotatedAt,
+    cerniqSigningPublicKey: overrides.pub,
+    cerniqSigningKeyRotatedAt: overrides.rotatedAt,
   } as unknown as AppConfigService;
 }
 
 describe('WellknownService', () => {
   describe('onModuleInit / configuration', () => {
-    it('throws a clear error when AEGIS_SIGNING_PUBLIC_KEY is missing', () => {
+    it('throws a clear error when CERNIQ_SIGNING_PUBLIC_KEY is missing', () => {
       const svc = new WellknownService(buildConfig({ rotatedAt: FIXED_ROTATED_AT }));
-      expect(() => { svc.onModuleInit(); }).toThrow(/AEGIS_SIGNING_PUBLIC_KEY env var must be set/);
+      expect(() => {
+        svc.onModuleInit();
+      }).toThrow(/CERNIQ_SIGNING_PUBLIC_KEY env var must be set/);
     });
 
-    it('throws a clear error when AEGIS_SIGNING_PUBLIC_KEY is empty', () => {
+    it('throws a clear error when CERNIQ_SIGNING_PUBLIC_KEY is empty', () => {
       const svc = new WellknownService(buildConfig({ pub: '', rotatedAt: FIXED_ROTATED_AT }));
-      expect(() => { svc.onModuleInit(); }).toThrow(/AEGIS_SIGNING_PUBLIC_KEY env var must be set/);
+      expect(() => {
+        svc.onModuleInit();
+      }).toThrow(/CERNIQ_SIGNING_PUBLIC_KEY env var must be set/);
     });
 
     it('throws when the key decodes to the wrong length', () => {
       // 8-byte payload — definitely not 32.
       const tooShort = encodeBase64Url(new Uint8Array(8));
       const svc = new WellknownService(buildConfig({ pub: tooShort, rotatedAt: FIXED_ROTATED_AT }));
-      expect(() => { svc.onModuleInit(); }).toThrow(/decoded to 8 bytes; expected 32/);
+      expect(() => {
+        svc.onModuleInit();
+      }).toThrow(/decoded to 8 bytes; expected 32/);
     });
 
-    it('flags rotatedAt as DEGRADED when AEGIS_SIGNING_KEY_ROTATED_AT is missing', () => {
+    it('flags rotatedAt as DEGRADED when CERNIQ_SIGNING_KEY_ROTATED_AT is missing', () => {
       const svc = new WellknownService(buildConfig({ pub: ZERO_KEY_B64 }));
       svc.onModuleInit();
       expect(svc.isRotatedAtDegraded()).toBe(true);
@@ -51,7 +57,9 @@ describe('WellknownService', () => {
     });
 
     it('uses configured rotatedAt verbatim when present', () => {
-      const svc = new WellknownService(buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }));
+      const svc = new WellknownService(
+        buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }),
+      );
       svc.onModuleInit();
       expect(svc.isRotatedAtDegraded()).toBe(false);
       expect(svc.getAuditSigningKey().rotatedAt).toBe(FIXED_ROTATED_AT);
@@ -60,15 +68,21 @@ describe('WellknownService', () => {
 
   describe('kid derivation', () => {
     it('is deterministic — sha256(rawPublicKey) base64url, first 16 chars', () => {
-      const expectedFull = encodeBase64Url(new Uint8Array(createHash('sha256').update(ZERO_KEY).digest()));
+      const expectedFull = encodeBase64Url(
+        new Uint8Array(createHash('sha256').update(ZERO_KEY).digest()),
+      );
       const expected = expectedFull.slice(0, 16);
       expect(computeKid(ZERO_KEY)).toBe(expected);
       expect(computeKid(ZERO_KEY)).toHaveLength(16);
     });
 
     it('derives the same kid across two service instances for the same key', () => {
-      const a = new WellknownService(buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }));
-      const b = new WellknownService(buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }));
+      const a = new WellknownService(
+        buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }),
+      );
+      const b = new WellknownService(
+        buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }),
+      );
       a.onModuleInit();
       b.onModuleInit();
       expect(a.getKid()).toBe(b.getKid());
@@ -77,7 +91,9 @@ describe('WellknownService', () => {
     it('produces different kids for different keys', () => {
       const otherKey = new Uint8Array(32);
       otherKey[0] = 1;
-      const a = new WellknownService(buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }));
+      const a = new WellknownService(
+        buildConfig({ pub: ZERO_KEY_B64, rotatedAt: FIXED_ROTATED_AT }),
+      );
       const b = new WellknownService(
         buildConfig({ pub: encodeBase64Url(otherKey), rotatedAt: FIXED_ROTATED_AT }),
       );
@@ -101,10 +117,10 @@ describe('WellknownService', () => {
         publicKey: ZERO_KEY_B64,
         algorithm: 'EdDSA',
         curve: 'Ed25519',
-        issuer: 'https://aegislabs.io',
+        issuer: 'https://cerniq.io',
         rotatedAt: FIXED_ROTATED_AT,
         purpose: 'audit-event-signing',
-        verificationGuide: 'https://docs.aegislabs.io/audit/verify',
+        verificationGuide: 'https://docs.cerniq.io/audit/verify',
       });
     });
 
@@ -128,7 +144,9 @@ describe('WellknownService', () => {
       // Add stray padding to the input — output should still match the
       // canonical (unpadded) form.
       const padded = `${ZERO_KEY_B64}=`;
-      const padSvc = new WellknownService(buildConfig({ pub: padded, rotatedAt: FIXED_ROTATED_AT }));
+      const padSvc = new WellknownService(
+        buildConfig({ pub: padded, rotatedAt: FIXED_ROTATED_AT }),
+      );
       padSvc.onModuleInit();
       expect(padSvc.getAuditSigningKey().publicKey).toBe(ZERO_KEY_B64);
     });
@@ -164,7 +182,7 @@ describe('WellknownService', () => {
       // 24h in seconds — must mirror DEFAULT_RETENTION_RUN_INTERVAL_MS in
       // compliance/audit-retention.service.ts. Drift fails this spec.
       expect(out.operational.retention_run_interval_seconds).toBe(86_400);
-      expect(out.operational.configurable_via_env).toBe('AEGIS_AUDIT_RETENTION_INTERVAL_MS');
+      expect(out.operational.configurable_via_env).toBe('CERNIQ_AUDIT_RETENTION_INTERVAL_MS');
     });
 
     it('includes the three contracted guarantees verbatim', () => {
@@ -254,7 +272,9 @@ describe('WellknownService', () => {
       // JSON has no native Infinity — JSON.stringify(Infinity) === "null",
       // but we want our DTO to declare null intentionally rather than rely
       // on stringify behavior. Asserting the parsed shape proves it.
-      const parsed = JSON.parse(json) as { tiers: Record<string, { monthly_verify_quota: number | null }> };
+      const parsed = JSON.parse(json) as {
+        tiers: Record<string, { monthly_verify_quota: number | null }>;
+      };
       expect(parsed.tiers.FREE.monthly_verify_quota).toBeNull();
       expect(parsed.tiers.ENTERPRISE.monthly_verify_quota).toBeNull();
     });

@@ -1,11 +1,11 @@
 {
   "mcpServers": {
-    "your-svc-via-aegis": {
+    "your-svc-via-cerniq": {
       "command": "pnpm",
-      "args": ["tsx", "/path/to/aegis/examples/ai-platform-tool-call/src/mcp-server.ts"],
+      "args": ["tsx", "/path/to/cerniq/examples/ai-platform-tool-call/src/mcp-server.ts"],
       "env": {
-        "AEGIS_API_BASE": "https://api.aegislabs.io",
-        "AEGIS_VERIFY_KEY": "aegis_vk_REPLACE_ME",
+        "CERNIQ_API_BASE": "https://api.cerniq.io",
+        "CERNIQ_VERIFY_KEY": "cerniq_vk_REPLACE_ME",
         "DOWNSTREAM_API_BASE": "https://api.your-svc.example.com",
         "MIN_TRUST_SCORE": "600"
       }

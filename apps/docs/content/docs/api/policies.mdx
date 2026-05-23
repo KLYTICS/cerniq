@@ -16,13 +16,13 @@ trust band — for a bounded TTL.
 | GET    | `/v1/policies/:id`   | Inspect a single policy                        |
 | DELETE | `/v1/policies/:id`   | Revoke a policy (sets `revokedAt`)             |
 
-Authentication: `X-AEGIS-API-Key` with **FULL** scope.
+Authentication: `X-CERNIQ-API-Key` with **FULL** scope.
 
 ## Create
 
 ```bash
-curl -X POST https://api.aegislabs.io/v1/policies \
-  -H "X-AEGIS-API-Key: $AEGIS_API_KEY" \
+curl -X POST https://api.cerniq.io/v1/policies \
+  -H "X-CERNIQ-API-Key: $CERNIQ_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "agentId": "agent_01HXYZ...",
@@ -49,7 +49,7 @@ Response (`201 Created`):
 }
 ```
 
-The `signedToken` is the JWT signed by AEGIS's policy signing key. The
+The `signedToken` is the JWT signed by CERNIQ's policy signing key. The
 agent's authority token (the one passed to `/v1/verify`) embeds this
 policy id and is signed by the agent's private key.
 
@@ -63,8 +63,8 @@ authority tokens minted against it are short-lived.
 ## Revocation
 
 ```bash
-curl -X DELETE https://api.aegislabs.io/v1/policies/pol_01HXYZ... \
-  -H "X-AEGIS-API-Key: $AEGIS_API_KEY"
+curl -X DELETE https://api.cerniq.io/v1/policies/pol_01HXYZ... \
+  -H "X-CERNIQ-API-Key: $CERNIQ_API_KEY"
 ```
 
 Sets `revokedAt`. Future verify requests using this policy fail with

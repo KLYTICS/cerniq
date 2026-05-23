@@ -1,19 +1,19 @@
 openapi: 3.1.0
 info:
-  title: AEGIS Agent Identity & Verification API
+  title: CERNIQ Agent Identity & Verification API
   version: 1.0.0
   description: |
-    The AEGIS API provides verified identity, scoped authorization, and behavioral
+    The CERNIQ API provides verified identity, scoped authorization, and behavioral
     attestation for AI agents. Neutral, platform-agnostic, ACP-compatible.
   contact:
-    email: dev@aegislabs.io
+    email: dev@cerniq.io
   license:
     name: Proprietary
 
 servers:
-  - url: https://api.aegislabs.io/v1
+  - url: https://api.cerniq.io/v1
     description: Production
-  - url: https://sandbox.aegislabs.io/v1
+  - url: https://sandbox.cerniq.io/v1
     description: Sandbox
 
 tags:
@@ -39,7 +39,7 @@ paths:
       summary: Register a new agent identity
       description: |
         Creates a new agent identity record. The developer provides their Ed25519
-        public key; AEGIS never holds the private key. Returns an agentId and
+        public key; CERNIQ never holds the private key. Returns an agentId and
         a verification token for confirming the keypair.
       security:
         - ApiKeyAuth: []
@@ -278,11 +278,11 @@ components:
     ApiKeyAuth:
       type: apiKey
       in: header
-      name: X-AEGIS-API-Key
+      name: X-CERNIQ-API-Key
     PublicVerifyKey:
       type: apiKey
       in: header
-      name: X-AEGIS-Verify-Key
+      name: X-CERNIQ-Verify-Key
       description: Separate key for relying parties (read-only verify access)
 
   parameters:
@@ -292,14 +292,14 @@ components:
       required: true
       schema:
         type: string
-        example: "agt_01HZ9YZXM4QT3B7P8WKJD6R5V"
+        example: 'agt_01HZ9YZXM4QT3B7P8WKJD6R5V'
     PolicyId:
       name: policyId
       in: path
       required: true
       schema:
         type: string
-        example: "pol_01HZ9YZXM4QT3B7P8WKJD6R5V"
+        example: 'pol_01HZ9YZXM4QT3B7P8WKJD6R5V'
 
   responses:
     BadRequest:
@@ -328,7 +328,6 @@ components:
             $ref: '#/components/schemas/Error'
 
   schemas:
-
     AgentRegistrationRequest:
       type: object
       required: [publicKey, runtime, principalId]
@@ -336,27 +335,27 @@ components:
         publicKey:
           type: string
           description: Ed25519 public key (base64url encoded)
-          example: "MCowBQYDK2VwAyEA..."
+          example: 'MCowBQYDK2VwAyEA...'
         runtime:
           type: string
           enum: [openai, anthropic, google, custom]
         model:
           type: string
-          example: "gpt-4o"
+          example: 'gpt-4o'
         principalId:
           type: string
-          description: Your AEGIS principal (human/org) ID
+          description: Your CERNIQ principal (human/org) ID
         label:
           type: string
           description: Human-readable label for this agent
-          example: "Shopping agent for erwin@klytics.io"
+          example: 'Shopping agent for erwin@klytics.io'
 
     AgentRegistrationResponse:
       type: object
       properties:
         agentId:
           type: string
-          example: "agt_01HZ9YZXM4QT3B7P8WKJD6R5V"
+          example: 'agt_01HZ9YZXM4QT3B7P8WKJD6R5V'
         verificationToken:
           type: string
           description: Sign this with your private key to confirm keypair ownership
@@ -430,7 +429,7 @@ components:
           format: date-time
         label:
           type: string
-          example: "Book flights under $500"
+          example: 'Book flights under $500'
 
     PolicyCreateResponse:
       type: object
@@ -439,7 +438,7 @@ components:
           type: string
         signedToken:
           type: string
-          description: JWT signed by AEGIS — attach to agent outbound requests
+          description: JWT signed by CERNIQ — attach to agent outbound requests
         expiresAt:
           type: string
           format: date-time
@@ -492,17 +491,17 @@ components:
           items:
             type: string
           description: MCC codes (e.g. ["3000-3299"] for airlines)
-          example: ["3000-3299", "5411"]
+          example: ['3000-3299', '5411']
         allowedDomains:
           type: array
           items:
             type: string
-          example: ["delta.com", "united.com"]
+          example: ['delta.com', 'united.com']
         dataScopes:
           type: array
           items:
             type: string
-          example: ["read:email", "write:calendar"]
+          example: ['read:email', 'write:calendar']
         validFrom:
           type: string
           format: date-time
@@ -516,22 +515,22 @@ components:
       properties:
         token:
           type: string
-          description: Signed AEGIS token from the agent (JWT format)
+          description: Signed CERNIQ token from the agent (JWT format)
         action:
           type: string
-          example: "commerce.purchase"
+          example: 'commerce.purchase'
         amount:
           type: number
           example: 450.00
         currency:
           type: string
-          example: "USD"
+          example: 'USD'
         merchantId:
           type: string
-          example: "delta-airlines"
+          example: 'delta-airlines'
         merchantDomain:
           type: string
-          example: "delta.com"
+          example: 'delta.com'
         context:
           type: object
           additionalProperties: true
@@ -557,7 +556,7 @@ components:
           type: array
           items:
             type: string
-          example: ["commerce", "commerce.purchase"]
+          example: ['commerce', 'commerce.purchase']
         spendRemaining:
           type: object
           properties:
@@ -613,7 +612,7 @@ components:
           type: integer
         signature:
           type: string
-          description: AEGIS signature over this event (immutability proof)
+          description: CERNIQ signature over this event (immutability proof)
 
     AuditLogResponse:
       type: object

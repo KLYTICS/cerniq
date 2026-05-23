@@ -2,7 +2,7 @@
 
 // Server Action wrapper for /v1/billing/portal.
 //
-// The portal endpoint does not yet ship in the AEGIS API (Round 21
+// The portal endpoint does not yet ship in the CERNIQ API (Round 21
 // follow-up). To avoid crashing the dashboard when this lane lands first,
 // we degrade gracefully: HTTP 404 → `{ unavailable: true }`, any other
 // failure → `{ error }`. The ManageButton renders an explanatory message
@@ -12,7 +12,7 @@ import 'server-only';
 
 import { getSessionApiKey } from '../../../lib/auth';
 
-const AEGIS_HEADER_API_KEY = 'X-AEGIS-API-Key';
+const CERNIQ_HEADER_API_KEY = 'X-CERNIQ-API-Key';
 
 export type PortalResult =
   | { url: string }
@@ -22,9 +22,9 @@ export type PortalResult =
 export async function openPortal(returnUrl: string): Promise<PortalResult> {
   const apiKey = await getSessionApiKey();
   if (!apiKey) {
-    return { error: 'Dashboard not authorized — set AEGIS_DASHBOARD_API_KEY.' };
+    return { error: 'Dashboard not authorized — set CERNIQ_DASHBOARD_API_KEY.' };
   }
-  const base = process.env.AEGIS_API_URL ?? 'http://localhost:3001/v1/';
+  const base = process.env.CERNIQ_API_URL ?? 'http://localhost:3001/v1/';
   const baseNorm = base.endsWith('/') ? base : `${base}/`;
   const target = new URL('billing/portal', baseNorm).toString();
 
@@ -34,7 +34,7 @@ export async function openPortal(returnUrl: string): Promise<PortalResult> {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        [AEGIS_HEADER_API_KEY]: apiKey,
+        [CERNIQ_HEADER_API_KEY]: apiKey,
       },
       body: JSON.stringify({ returnUrl }),
       cache: 'no-store',

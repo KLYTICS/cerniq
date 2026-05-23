@@ -1,4 +1,4 @@
-# AEGIS — Security workflow
+# CERNIQ — Security workflow
 #
 # Complements .github/workflows/ci.yml. CI handles lint/typecheck/build/tests;
 # this file handles supply-chain, SAST, secrets, license, SBOM, and workflow-
@@ -241,7 +241,7 @@ jobs:
               const md = [
                 '## License policy violation',
                 '',
-                'The following packages have licenses outside the AEGIS allowlist:',
+                'The following packages have licenses outside the CERNIQ allowlist:',
                 '',
                 '```',
                 ...bad,
@@ -304,8 +304,8 @@ jobs:
         uses: anchore/sbom-action@v0 # pin: replace with full sha before merge
         with:
           format: spdx-json
-          artifact-name: aegis-sbom.spdx.json
-          output-file: aegis-sbom.spdx.json
+          artifact-name: cerniq-sbom.spdx.json
+          output-file: cerniq-sbom.spdx.json
           upload-artifact: true
           upload-artifact-retention: 90
 
@@ -400,7 +400,7 @@ jobs:
           )
 
           {
-            echo '# AEGIS Security Gate';
+            echo '# CERNIQ Security Gate';
             echo '';
             echo '| Job | Result |';
             echo '| --- | --- |';

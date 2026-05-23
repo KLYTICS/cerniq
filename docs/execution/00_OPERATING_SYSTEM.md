@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Master Operating System
+title: CERNIQ — Master Operating System
 audience: every contributor
 last-reviewed: 2026-05-08
 status: source-of-truth — v1
@@ -7,7 +7,7 @@ status: source-of-truth — v1
 
 # 00 — Master Operating System
 
-> The thesis: AEGIS executes today as if every artifact will be read by
+> The thesis: CERNIQ executes today as if every artifact will be read by
 > a Series A diligence partner, an S-1 reviewer, and a forensic auditor
 > in the same week. Not because we are about to be reviewed. Because the
 > companies that survive that review are the ones that built the muscle
@@ -17,11 +17,11 @@ status: source-of-truth — v1
 
 ## 1. The thesis in one paragraph
 
-AEGIS is a verification, policy enforcement, and behavioral attestation
+CERNIQ is a verification, policy enforcement, and behavioral attestation
 infrastructure for AI agents (read `docs/spec/01_MASTER.md`). The
-product makes a single substantive claim — *"every agent action is
+product makes a single substantive claim — _"every agent action is
 verifiable by a third party because the audit chain is signed and the
-public-key registry is the only thing we hold."* That claim is only
+public-key registry is the only thing we hold."_ That claim is only
 credible if the company shipping it operates with the same discipline.
 Every commit, every ADR, every roadmap doc, every customer conversation,
 every investor update is therefore held to the same bar: defensible,
@@ -33,7 +33,7 @@ that makes that bar achievable without slowing down.
 ## 2. The non-negotiables (the public-company contract)
 
 These are inherited from `CLAUDE.md` and extended with the institutional
-disciplines that make AEGIS a credible enterprise vendor and, in 24-36
+disciplines that make CERNIQ a credible enterprise vendor and, in 24-36
 months, a public company candidate.
 
 ### 2.1 Architectural invariants (from CLAUDE.md)
@@ -41,7 +41,7 @@ months, a public company candidate.
 Reproduced here for emphasis. Violating any of these is a stop-the-line
 event, regardless of who is asking and how urgent the request.
 
-1. **Private keys never enter AEGIS.** Public-key registry only.
+1. **Private keys never enter CERNIQ.** Public-key registry only.
 2. **Verify hot path is portable.** No framework imports in the verify
    path; the path must Cloudflare-Workers cleanly.
 3. **Audit log is append-only and signed.** Hash-chained, no UPDATE,
@@ -84,7 +84,7 @@ company.
 
 ## 3. The 4 axes
 
-Every unit of work at AEGIS resolves to a 4-tuple. The axes are
+Every unit of work at CERNIQ resolves to a 4-tuple. The axes are
 orthogonal — a person can change roles without changing departments,
 move a task across stages without changing roles, etc.
 
@@ -185,7 +185,7 @@ an island. The integration model:
 
 ## 5. The Claude session as a first-class operator
 
-AEGIS is built by parallel sessions. Some are humans at keyboards. Many
+CERNIQ is built by parallel sessions. Some are humans at keyboards. Many
 are Claude sessions, claimed via `claude-peers` per `WORK_BOARD.md`.
 This OS treats both as first-class operators. The same charters apply,
 the same gates apply, the same audit trail applies.
@@ -237,15 +237,15 @@ The audit trail enforces it.
 
 ## 7. What doesn't change at IPO scale
 
-Some things public companies do that do not apply to AEGIS today and
+Some things public companies do that do not apply to CERNIQ today and
 should not be retrofitted prematurely:
 
 - **Quarterly guidance** — pre-revenue, pre-Series-A, premature.
 - **Earnings calls** — N/A. Do not write monthly all-hands updates as
   if they were earnings calls.
-- **Annual report production process** — adopt the *artifacts* (SOX-
+- **Annual report production process** — adopt the _artifacts_ (SOX-
   mappable change management, MD&A-quality writing) without adopting
-  the *cadence* until the cadence makes sense.
+  the _cadence_ until the cadence makes sense.
 - **Investor day** — N/A. A focused founder/operator-to-investor update
   monthly is sufficient.
 
@@ -259,6 +259,7 @@ guidance, formal investor day, earnings call) until they create value.
 ## 8. What this is and isn't
 
 This OS **is**:
+
 - A coordination layer for parallel sessions.
 - A bar for what shipping looks like.
 - A contract for what every artifact must satisfy.
@@ -266,6 +267,7 @@ This OS **is**:
   retrofit project.
 
 This OS **is not**:
+
 - A bureaucracy. If a step in `03_TASK_LIFECYCLE.md` does not pay off
   its cost, propose an ADR removing it.
 - A replacement for thinking. The lifecycle scaffolds thinking; it does

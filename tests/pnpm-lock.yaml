@@ -8,14 +8,14 @@ importers:
 
   .:
     dependencies:
-      '@aegis/sdk':
+      '@cerniq/sdk':
         specifier: link:../packages/sdk-ts
         version: link:../packages/sdk-ts
-      '@aegis/types':
+      '@cerniq/types':
         specifier: link:../packages/types
         version: link:../packages/types
     devDependencies:
-      '@aegis/tsconfig':
+      '@cerniq/tsconfig':
         specifier: link:../packages/tsconfig
         version: link:../packages/tsconfig
       '@types/node':

@@ -1,4 +1,4 @@
-// JWKS client — fetches the AEGIS JWKS once, caches by kid with TTL +
+// JWKS client — fetches the CERNIQ JWKS once, caches by kid with TTL +
 // stale-while-revalidate. Used to verify policy tokens (issuer-signed) where
 // the JWS header carries a `kid`.
 
@@ -79,7 +79,10 @@ export class JwksClient {
   }
 
   private async refreshOnce(): Promise<void> {
-    if (this.inFlight) { await this.inFlight; return; }
+    if (this.inFlight) {
+      await this.inFlight;
+      return;
+    }
     this.inFlight = (async () => {
       try {
         const url = this.buildUrl();

@@ -4,7 +4,7 @@ import { WellknownController } from './wellknown.controller';
 import { WellknownService } from './wellknown.service';
 
 /**
- * Publishes AEGIS's audit-event Ed25519 signing public key at the IETF
+ * Publishes CERNIQ's audit-event Ed25519 signing public key at the IETF
  * well-known prefix:
  *
  *   GET /.well-known/audit-signing-key   plain JSON helper

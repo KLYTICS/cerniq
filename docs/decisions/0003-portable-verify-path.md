@@ -23,10 +23,11 @@ NestJS adapter (`verify.service.ts`) and the future Cloudflare Worker
 adapter (`workers/cf-verify`) implement `VerifyPorts` against their
 respective I/O backends and call the same algorithm.
 
-**Allowed imports in the algorithm file**: `@aegis/types` and
+**Allowed imports in the algorithm file**: `@cerniq/types` and
 TypeScript primitives only.
 
 **Forbidden imports in the algorithm file**:
+
 - `@nestjs/*`
 - `@prisma/client`
 - `bullmq`, `ioredis`
@@ -38,6 +39,7 @@ enforces this list.
 ## Consequences
 
 ### Positive
+
 - Phase 3 migration becomes a deploy-target swap, not a rewrite. The
   CF Worker imports `verify.algorithm.ts` and supplies KV/Durable
   Objects implementations of the ports.
@@ -47,6 +49,7 @@ enforces this list.
   re-use**, not by maintaining two parallel implementations.
 
 ### Negative
+
 - Slight indirection cost — the Nest service can't reach into the
   algorithm's local state, so observability has to bubble through the
   ports. We use the `ports.now()` clock and metric-emission via
@@ -56,24 +59,28 @@ enforces this list.
   Worker, future on-prem deployments).
 
 ### Neutral
+
 - Open gap: as of 2026-05-01 the canonical `verify.ports.ts` imports
   `TrustBand` from `@prisma/client`, which technically violates the
   "no `@prisma/client` import" rule. Tracked as a follow-up — mirror
-  the type into `@aegis/types` and drop the Prisma import. (See peer
+  the type into `@cerniq/types` and drop the Prisma import. (See peer
   message log + agent review `docs/reviews/architecture-compliance.md`.)
 
 ## Alternatives considered
 
 ### Alt A: Two implementations (one Nest, one CF Worker), reconciled by tests
+
 Tests detect drift but don't prevent it. Engineers under deadline
 press will fix one side and not the other. Rejected.
 
 ### Alt B: A shared NPM package with the algorithm
+
 Same effect as the current monorepo arrangement but with publish
 overhead. Rejected for Phase 1 since the algorithm is internal.
 Reconsider when we offer a self-host product (Enterprise tier).
 
 ### Alt C: Use NestJS everywhere (CF Workers can run NestJS via adapters)
+
 The adapter cost dwarfs the latency budget at the edge. Rejected.
 
 ## How to reverse this decision

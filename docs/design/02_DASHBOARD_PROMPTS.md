@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Developer Dashboard Design Prompts
+title: CERNIQ — Developer Dashboard Design Prompts
 audience: design AI tools, contract designers, in-repo Cursor sessions working in apps/dashboard
 last-reviewed: 2026-05-08
 prerequisites: read `docs/design/00_BRAND_FOUNDATION.md` first
@@ -54,12 +54,12 @@ A tabular page must show ≥15 rows above the fold at 1440×900.
 ### A.1 Dashboard home
 
 ```
-Build a dashboard home page for AEGIS — a verification + attestation
+Build a dashboard home page for CERNIQ — a verification + attestation
 infrastructure for AI agents. Stack: Next.js App Router + Tailwind +
 shadcn/ui. The user is a developer or security ops engineer logging in
 to check on production verifies.
 
-Follow the AEGIS Brand Foundation v1 (slate neutrals + aegis-500 #06B6D4
+Follow the CERNIQ Brand Foundation v1 (slate neutrals + cerniq-500 #06B6D4
 brand, Inter + JetBrains Mono, Cloudflare/Auth0 visual lane, security-
 forward but developer-first, no gradients on text, no stock photos, no
 mascots, motion confirms not entertains). Dashboard ships dark-mode
@@ -70,7 +70,7 @@ Layout:
   KeyboardShortcuts mounted)
 - 240px left sidebar with icon + label nav: Home, Agents, Policies,
   Audit, Webhooks, MCP servers, Billing, Settings. Active item has a
-  3px aegis-500 left border + slate-800 bg.
+  3px cerniq-500 left border + slate-800 bg.
 - Main content area, max-width none, 24px padding
 
 Page contents (top to bottom):
@@ -88,7 +88,7 @@ Page contents (top to bottom):
 3. Two-column grid below:
    - Left col (2/3 width): "Verify volume" line chart, slate-800 bg,
      rounded-lg, 320px tall. Use Recharts. Two series: total verifies
-     (aegis-500), denied verifies (rose-500). Tooltip on hover with
+     (cerniq-500), denied verifies (rose-500). Tooltip on hover with
      mono numbers.
    - Right col (1/3 width): "Denial precedence breakdown" — vertical
      bar list of the 10 denial reasons with counts and a 4px bar at
@@ -125,7 +125,7 @@ Output the page.tsx file plus any sub-components inline. Default export.
 ### A.2 Agents list page
 
 ```
-Build the /agents page for the AEGIS dashboard. Same project + brand
+Build the /agents page for the CERNIQ dashboard. Same project + brand
 foundation.
 
 The page is a dense, sortable, filterable table of agents. Modeled on
@@ -212,7 +212,7 @@ POLICIES:
 
 BATE HISTORY:
 - A 720px-tall area chart of BATE score over the last 30 days,
-  Recharts, aegis-500 line. Gridlines at 300 and 700.
+  Recharts, cerniq-500 line. Gridlines at 300 and 700.
 - Below chart: signal contributors table — Velocity (weight), Geo
   (weight), Spend pattern (weight), Failed-verify rate (weight),
   Cross-RP consistency (weight). Pull weights from
@@ -254,7 +254,7 @@ Top filter bar:
 - Reason filter (multi-select of the 10 denial reasons + VALID)
 - Free-text search (matches event ID, agent ID, policy ID, RP ID)
 - "Live" toggle — when on, new events stream in at top with a 320ms
-  fade-in row + 1px aegis-500 left-border pulse
+  fade-in row + 1px cerniq-500 left-border pulse
 - "Export NDJSON" button on right (calls /v1/audit/export)
 - "Verify chain integrity" button — runs the audit chain verification
   client-side and shows a green check if the chain is intact, red x
@@ -336,7 +336,7 @@ Validation:
 - Form is built with react-hook-form + zod, schema imported from
   packages/types. Inline error messages below each field.
 - Submit disabled until valid; required fields marked with a small
-  text-xs aegis-500 asterisk after the label.
+  text-xs cerniq-500 asterisk after the label.
 
 Output the form as a single component, plus the ScopeBuilder
 sub-component.
@@ -357,12 +357,12 @@ Right: a live terminal-style log that updates as the user completes steps.
 Steps (each is a Card on the left):
 1. Install the CLI — shows the curl one-liner; "I've installed it"
    button → verifies via a quickstart-status endpoint.
-2. Authenticate — shows `aegis login --device-code`; polls for
+2. Authenticate — shows `cerniq login --device-code`; polls for
    completion.
-3. Run aegis doctor — shows the command; the right-side terminal
+3. Run cerniq doctor — shows the command; the right-side terminal
    streams the diagnostic output.
 4. Scaffold an integration — radio picker (fintech-payments / ai-platform-
-   tool-call / saas-seat-provisioning), then `aegis init --industry ...`
+   tool-call / saas-seat-provisioning), then `cerniq init --industry ...`
    one-liner.
 5. Verify your first call — shows the curl + SDK examples; on success,
    confetti is forbidden — instead show a single 24px emerald-500
@@ -370,7 +370,7 @@ Steps (each is a Card on the left):
 
 Each step:
 - 64px tall when collapsed, expanded card when active
-- Status: pending (slate-400 circle), in-progress (aegis-500 with
+- Status: pending (slate-400 circle), in-progress (cerniq-500 with
   spinner), complete (emerald-500 with check), failed (rose-500 with x)
 
 Right pane (terminal):
@@ -396,12 +396,12 @@ components.
 ### B.1 Dashboard system frame
 
 ```
-Design the AEGIS developer dashboard in Figma. Audience: developers
+Design the CERNIQ developer dashboard in Figma. Audience: developers
 and security ops; daily-use operational tool. Visual lane: Cloudflare/
 Auth0 with Vercel-like polish on density and keyboard affordances.
 Dark mode is the default.
 
-Token foundation: the AEGIS Brand Foundation v1 in
+Token foundation: the CERNIQ Brand Foundation v1 in
 docs/design/00_BRAND_FOUNDATION.md. Bind every fill, stroke, and text
 style to a Figma variable; do not hardcode colors anywhere.
 
@@ -475,8 +475,8 @@ and customer trust conversations. They earn extra design time.
 ## C. Designer brief (long-form)
 
 ```
-PROJECT: AEGIS Developer Dashboard v1 (apps/dashboard)
-CONTEXT: AEGIS is a verification + attestation infrastructure for AI
+PROJECT: CERNIQ Developer Dashboard v1 (apps/dashboard)
+CONTEXT: CERNIQ is a verification + attestation infrastructure for AI
 agents (read `docs/spec/01_MASTER.md` and `CLAUDE.md`). This dashboard
 is the operational surface — daily-use, dense, dark-default. Users are
 developers and security/ops engineers.
@@ -577,8 +577,8 @@ Goal: bring apps/dashboard to parity with the Brand Foundation. The
 package currently has Next 16 + React 19 only; no styling pipeline.
 
 Read first:
-- /Users/money/Desktop/AEGIS/CLAUDE.md
-- /Users/money/Desktop/AEGIS/docs/design/00_BRAND_FOUNDATION.md
+- /Users/money/Desktop/CERNIQ/CLAUDE.md
+- /Users/money/Desktop/CERNIQ/docs/design/00_BRAND_FOUNDATION.md
 - apps/dashboard/package.json
 - apps/dashboard/components/AppShell.tsx
 
@@ -586,18 +586,18 @@ Tasks:
 1. Install tailwindcss + @tailwindcss/forms + @tailwindcss/typography
    + class-variance-authority + tailwind-merge in apps/dashboard.
 2. Add tailwind.config.ts at apps/dashboard/ with the full token set
-   from §13 of the foundation doc. The aegis ramp must be exposed as
-   `colors.aegis.*` so utilities like `bg-aegis-500` work.
+   from §13 of the foundation doc. The cerniq ramp must be exposed as
+   `colors.cerniq.*` so utilities like `bg-cerniq-500` work.
 3. Add app/globals.css with @tailwind base/components/utilities and a
    :root with CSS vars for light + .dark for dark. Default dark.
 4. Wire Inter + JetBrains Mono via next/font/google. Expose --font-sans
    and --font-mono to globals.css.
 5. Initialize shadcn/ui at apps/dashboard with the new-york style.
-   Override primary to aegis-500 in the components.json.
+   Override primary to cerniq-500 in the components.json.
 6. Add the canonical components from §11: Button, Input, Card, Badge,
    Modal, Sheet, Toast (Sonner), Table, Tabs, DropdownMenu, Tooltip,
    Skeleton, Command (for the palette).
-7. Verify by running `pnpm --filter @aegis/dashboard build`. Lint must
+7. Verify by running `pnpm --filter @cerniq/dashboard build`. Lint must
    pass with --max-warnings 0.
 8. Update WORK_BOARD.md and docs/SESSION_HANDOFF.md.
 
@@ -629,8 +629,8 @@ Tasks:
 1. Build the page exactly as in § A.1: KPI strip, verify-volume chart,
    denial-precedence breakdown, recent activity table, alerts rail.
 2. Data fetching: use Server Components. Add loaders in
-   apps/dashboard/app/_data/ that call the AEGIS API via the SDK
-   (@aegis/sdk). Key invariant: every loader takes principalId from
+   apps/dashboard/app/_data/ that call the CERNIQ API via the SDK
+   (@cerniq/sdk). Key invariant: every loader takes principalId from
    the session and passes it through. No cross-principal leaks
    (CLAUDE.md invariant 5).
 3. Charts: use Recharts. The verify-volume chart loads only the time
@@ -671,7 +671,7 @@ Tasks:
 3. The "Verify chain integrity" button runs the verification CLIENT-
    SIDE — pull the events for the selected window, run audit-chain
    verification using the same util as audit-chain.util.spec.ts, show
-   pass/fail. This proves to the user that AEGIS does not need to be
+   pass/fail. This proves to the user that CERNIQ does not need to be
    trusted for integrity.
 4. The export-NDJSON button calls /v1/audit/export with the current
    filters. Permission-gate it to roles with audit.export scope.
@@ -720,7 +720,7 @@ Tasks:
 Tests:
 - Machine transitions match the docs/personas/developer.md flow.
 - localStorage persistence round-trips.
-- Failure of step 3 (aegis doctor) routes the user to a "Diagnose"
+- Failure of step 3 (cerniq doctor) routes the user to a "Diagnose"
   panel with the relevant doctor output and docs links.
 
 Update SESSION_HANDOFF.md.
@@ -773,6 +773,7 @@ component library that doesn't anchor to a Figma source of truth will
 drift in 6 weeks.
 
 Recommended order:
+
 1. Designer ships the component library in Figma (C, week 1).
 2. Engineering bootstraps Tailwind + tokens in-repo (D.1, week 1, in
    parallel with designer).

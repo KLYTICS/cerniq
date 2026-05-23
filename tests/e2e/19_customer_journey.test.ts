@@ -6,7 +6,7 @@
  *
  * Narrative (one continuous principal):
  *   T1 · register agent + policy + mint a token, verify SUCCEEDS (FREE tier)
- *   T2 · drive verifies until trial exhausts (requires AEGIS_E2E_TRIAL_CAP_OVERRIDE)
+ *   T2 · drive verifies until trial exhausts (requires CERNIQ_E2E_TRIAL_CAP_OVERRIDE)
  *   T3 · verify denies with denialReason='TRIAL_EXHAUSTED'
  *   T4 · simulate Stripe checkout.session.completed → DEVELOPER tier
  *   T5 · GET /v1/billing/plan reflects DEVELOPER + active + trial counters
@@ -22,27 +22,27 @@
  * preconditions are met, otherwise banner + skip):
  *   - Baseline structural test (GET /v1/billing/plan shape) ALWAYS runs.
  *   - Full journey requires:
- *       AEGIS_E2E_FREE_API_KEY                  — operator FREE principal
- *       AEGIS_STRIPE_WEBHOOK_SECRET             — == API STRIPE_WEBHOOK_SECRET
- *       AEGIS_E2E_STRIPE_DEVELOPER_PRICE_ID
- *       AEGIS_E2E_STRIPE_TEST_PRINCIPAL_ID      — must match the FREE key's principal
- *       AEGIS_E2E_TRIAL_CAP_OVERRIDE            — small int (1..50) the API also reads
+ *       CERNIQ_E2E_FREE_API_KEY                  — operator FREE principal
+ *       CERNIQ_STRIPE_WEBHOOK_SECRET             — == API STRIPE_WEBHOOK_SECRET
+ *       CERNIQ_E2E_STRIPE_DEVELOPER_PRICE_ID
+ *       CERNIQ_E2E_STRIPE_TEST_PRINCIPAL_ID      — must match the FREE key's principal
+ *       CERNIQ_E2E_TRIAL_CAP_OVERRIDE            — small int (1..50) the API also reads
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import type { Aegis } from '@aegis/sdk';
-import { Aegis as AegisCtor } from '@aegis/sdk';
+import type { Cerniq } from '@cerniq/sdk';
+import { Cerniq as CerniqCtor } from '@cerniq/sdk';
 
 import { RawClient, makeSdk, readConfig } from './_support/client';
 import { SCOPES, createAgent, createPolicy, signTokenFor } from './_support/fixtures';
 import { buildEvent, signStripeEvent } from './_support/stripe';
 
-const FREE_KEY = process.env['AEGIS_E2E_FREE_API_KEY'];
-const SECRET = process.env['AEGIS_STRIPE_WEBHOOK_SECRET'];
-const DEVELOPER_PRICE_ID = process.env['AEGIS_E2E_STRIPE_DEVELOPER_PRICE_ID'];
-const TEST_PRINCIPAL_ID = process.env['AEGIS_E2E_STRIPE_TEST_PRINCIPAL_ID'];
-const CAP_OVERRIDE_RAW = process.env['AEGIS_E2E_TRIAL_CAP_OVERRIDE'];
+const FREE_KEY = process.env['CERNIQ_E2E_FREE_API_KEY'];
+const SECRET = process.env['CERNIQ_STRIPE_WEBHOOK_SECRET'];
+const DEVELOPER_PRICE_ID = process.env['CERNIQ_E2E_STRIPE_DEVELOPER_PRICE_ID'];
+const TEST_PRINCIPAL_ID = process.env['CERNIQ_E2E_STRIPE_TEST_PRINCIPAL_ID'];
+const CAP_OVERRIDE_RAW = process.env['CERNIQ_E2E_TRIAL_CAP_OVERRIDE'];
 const CAP_OVERRIDE = CAP_OVERRIDE_RAW ? Number.parseInt(CAP_OVERRIDE_RAW, 10) : NaN;
 
 const TEST_CUSTOMER_ID = `cus_e2e_${randomUUID().slice(0, 12)}`;
@@ -71,7 +71,7 @@ async function step(label: string, fn: () => Promise<void>): Promise<void> {
 describe('19 · customer journey (trial → exhaust → upgrade → downgrade)', () => {
   const cfg = readConfig();
   const raw = new RawClient(cfg);
-  let sdk: Aegis;
+  let sdk: Cerniq;
   const cleanup: string[] = [];
 
   beforeAll(() => {
@@ -122,19 +122,19 @@ describe('19 · customer journey (trial → exhaust → upgrade → downgrade)',
 
   it('full journey · trial → exhaust → upgrade → verify → downgrade → deny', async () => {
     const missing: string[] = [];
-    if (!FREE_KEY) missing.push('AEGIS_E2E_FREE_API_KEY');
-    if (!SECRET) missing.push('AEGIS_STRIPE_WEBHOOK_SECRET');
-    if (!DEVELOPER_PRICE_ID) missing.push('AEGIS_E2E_STRIPE_DEVELOPER_PRICE_ID');
-    if (!TEST_PRINCIPAL_ID) missing.push('AEGIS_E2E_STRIPE_TEST_PRINCIPAL_ID');
+    if (!FREE_KEY) missing.push('CERNIQ_E2E_FREE_API_KEY');
+    if (!SECRET) missing.push('CERNIQ_STRIPE_WEBHOOK_SECRET');
+    if (!DEVELOPER_PRICE_ID) missing.push('CERNIQ_E2E_STRIPE_DEVELOPER_PRICE_ID');
+    if (!TEST_PRINCIPAL_ID) missing.push('CERNIQ_E2E_STRIPE_TEST_PRINCIPAL_ID');
     if (!Number.isInteger(CAP_OVERRIDE) || CAP_OVERRIDE < 1 || CAP_OVERRIDE > 50) {
-      missing.push('AEGIS_E2E_TRIAL_CAP_OVERRIDE(1..50)');
+      missing.push('CERNIQ_E2E_TRIAL_CAP_OVERRIDE(1..50)');
     }
     if (missing.length > 0) {
       banner(`required env missing: ${missing.join(', ')}`);
       return;
     }
 
-    const free = new AegisCtor({ apiKey: FREE_KEY as string, baseUrl: cfg.baseUrl });
+    const free = new CerniqCtor({ apiKey: FREE_KEY as string, baseUrl: cfg.baseUrl });
     const freeRaw = new RawClient({ baseUrl: cfg.baseUrl, apiKey: FREE_KEY as string });
     const ctx = { action: 'commerce.purchase' as const, amount: 1, currency: 'USD' as const };
 
@@ -184,7 +184,10 @@ describe('19 · customer journey (trial → exhaust → upgrade → downgrade)',
     // operator-specific; customer.subscription.created is the canonical flip
     // covered by 18_stripe_subscription and reused here).
     await step('T4 · simulate customer.subscription.created → DEVELOPER', async () => {
-      const status = await fireWebhook('customer.subscription.created', subscriptionObject('active'));
+      const status = await fireWebhook(
+        'customer.subscription.created',
+        subscriptionObject('active'),
+      );
       expect(status, 'webhook must 200').toBe(200);
     });
 

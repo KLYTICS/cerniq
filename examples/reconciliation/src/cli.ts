@@ -1,15 +1,20 @@
 #!/usr/bin/env node
 // reconciliation CLI — joins two NDJSON streams, prints a report.
 //
-//   pnpm tsx src/cli.ts --aegis <ndjson> --psp <ndjson> [options]
+//   pnpm tsx src/cli.ts --cerniq <ndjson> --psp <ndjson> [options]
 
 import { readFile } from 'node:fs/promises';
 import { argv, exit, stderr, stdout } from 'node:process';
 
-import { parseAegisNdjson, parseSystemNdjson, reconcile, type ReconcileReport } from './reconcile.js';
+import {
+  parseCerniqNdjson,
+  parseSystemNdjson,
+  reconcile,
+  type ReconcileReport,
+} from './reconcile.js';
 
 interface CliArgs {
-  aegisPath: string;
+  cerniqPath: string;
   systemPath: string;
   json: boolean;
   includeMatched: boolean;
@@ -21,14 +26,14 @@ function parseArgs(input: string[]): CliArgs {
     if (idx === -1 || idx === input.length - 1) return undefined;
     return input[idx + 1];
   };
-  const aegisPath = get('--aegis');
+  const cerniqPath = get('--cerniq');
   const systemPath = get('--psp') ?? get('--system');
-  if (!aegisPath || !systemPath) {
-    stderr.write(`reconcile: --aegis <path> and --psp <path> (or --system) are required\n`);
+  if (!cerniqPath || !systemPath) {
+    stderr.write(`reconcile: --cerniq <path> and --psp <path> (or --system) are required\n`);
     exit(2);
   }
   return {
-    aegisPath,
+    cerniqPath,
     systemPath,
     json: input.includes('--json'),
     includeMatched: input.includes('--include-matched'),
@@ -37,13 +42,13 @@ function parseArgs(input: string[]): CliArgs {
 
 async function main(): Promise<number> {
   const args = parseArgs(argv.slice(2));
-  const [aegisRaw, systemRaw] = await Promise.all([
-    readFile(args.aegisPath, 'utf8'),
+  const [cerniqRaw, systemRaw] = await Promise.all([
+    readFile(args.cerniqPath, 'utf8'),
     readFile(args.systemPath, 'utf8'),
   ]);
-  const aegis = parseAegisNdjson(aegisRaw);
+  const cerniq = parseCerniqNdjson(cerniqRaw);
   const system = parseSystemNdjson(systemRaw);
-  const report = reconcile(aegis, system, { includeMatched: args.includeMatched });
+  const report = reconcile(cerniq, system, { includeMatched: args.includeMatched });
 
   if (args.json) {
     stdout.write(JSON.stringify(report, null, 2) + '\n');
@@ -56,12 +61,14 @@ async function main(): Promise<number> {
 
 function printHumanReport(report: ReconcileReport): void {
   const banner = report.approvedMissing + report.deniedPresent === 0 ? '✓ CLEAN' : '✗ MISMATCH';
-  stdout.write(`AEGIS reconciliation — ${banner}\n`);
+  stdout.write(`CERNIQ reconciliation — ${banner}\n`);
   stdout.write('─'.repeat(60) + '\n');
-  stdout.write(`aegis rows           : ${report.totalAegisRows}\n`);
+  stdout.write(`cerniq rows           : ${report.totalCerniqRows}\n`);
   stdout.write(`system rows          : ${report.totalSystemRows}\n`);
   stdout.write(`matched & settled    : ${report.matchedSettled}\n`);
-  stdout.write(`approved + missing   : ${report.approvedMissing}  ← network drop or system never executed\n`);
+  stdout.write(
+    `approved + missing   : ${report.approvedMissing}  ← network drop or system never executed\n`,
+  );
   stdout.write(`denied + present     : ${report.deniedPresent}    ← gate bypass — INVESTIGATE\n`);
   stdout.write(`reversed             : ${report.reversed}         ← BATE feedback signal\n`);
   if (Object.keys(report.matchedTotalsByCurrency).length > 0) {
@@ -78,7 +85,7 @@ function printHumanReport(report: ReconcileReport): void {
     stdout.write(`\nrows requiring investigation (${investigations.length}):\n`);
     for (const e of investigations.slice(0, 20)) {
       stdout.write(`  • ${e.class.padEnd(20)} ${e.endToEndId}`);
-      if (e.aegis) stdout.write(`  agent=${e.aegis.agentId}`);
+      if (e.cerniq) stdout.write(`  agent=${e.cerniq.agentId}`);
       if (e.system) stdout.write(`  system=${e.system.systemId}`);
       stdout.write('\n');
     }
@@ -91,6 +98,8 @@ function printHumanReport(report: ReconcileReport): void {
 main()
   .then((code) => exit(code))
   .catch((err: unknown) => {
-    stderr.write(`reconcile: fatal — ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
+    stderr.write(
+      `reconcile: fatal — ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`,
+    );
     exit(2);
   });

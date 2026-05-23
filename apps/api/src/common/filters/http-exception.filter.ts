@@ -1,9 +1,20 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ulid } from 'ulid';
 
-import { AegisError } from '../errors/aegis-error.js';
-import { getCatalogEntry, getInternalFallback, type ErrorCatalogEntry } from '../errors/error-catalog.js';
+import { CerniqError } from '../errors/cerniq-error.js';
+import {
+  getCatalogEntry,
+  getInternalFallback,
+  type ErrorCatalogEntry,
+} from '../errors/error-catalog.js';
 
 /**
  * Public error envelope. The `error` + `message` + `statusCode` +
@@ -11,7 +22,7 @@ import { getCatalogEntry, getInternalFallback, type ErrorCatalogEntry } from '..
  * code already depend on. Round 15 adds `code` (stable lower-snake-case
  * identifier) and `retryable` so SDKs can match without parsing prose.
  *
- * `details` is preserved for AegisError subclasses that explicitly opt
+ * `details` is preserved for CerniqError subclasses that explicitly opt
  * in (e.g. RateLimitedError exposes `retryAfterSeconds`); it is NEVER
  * populated for unknown exceptions, which would risk leaking internals.
  */
@@ -42,7 +53,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let details: unknown;
     let catalogEntry: ErrorCatalogEntry | null = null;
 
-    if (exception instanceof AegisError) {
+    if (exception instanceof CerniqError) {
       // First-party typed error: trust the catalog, return customer-safe wording.
       status = exception.getStatus();
       const body = exception.getResponse();
@@ -58,7 +69,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         // Subclass missing from catalog — log it but never leak. The audit
         // script catches this in CI; here we behave defensively.
         this.logger.warn(
-          `AegisError subclass "${exception.constructor.name}" is not in ERROR_CATALOG [${requestId}]`,
+          `CerniqError subclass "${exception.constructor.name}" is not in ERROR_CATALOG [${requestId}]`,
         );
         const fb = getInternalFallback();
         message = fb.customerMessage;
@@ -76,7 +87,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
       } else if (body && typeof body === 'object') {
         const b = body as Record<string, unknown>;
         message = (b.message as string) ?? message;
-        error = (b.error as string) ?? exception.constructor.name.replace(/Exception$/, '').toUpperCase();
+        error =
+          (b.error as string) ?? exception.constructor.name.replace(/Exception$/, '').toUpperCase();
         if (b.details) details = b.details;
       }
     } else if (exception instanceof Error) {
@@ -89,7 +101,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message = entry.customerMessage;
         error = entry.code.toUpperCase();
         this.logger.error(
-          `Cataloged non-Aegis error [${requestId}] ${exception.constructor.name}: ${exception.message}`,
+          `Cataloged non-Cerniq error [${requestId}] ${exception.constructor.name}: ${exception.message}`,
           exception.stack,
         );
       } else {

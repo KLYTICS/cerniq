@@ -12,7 +12,7 @@
 //   6. /ready overall=ok when Stripe disabled (isEnabled=false).
 //   7. /ready captures latencyMs as a positive number.
 //   8. /ready never leaks sensitive error text — assert error strings
-//      do not contain `aegis_`, `whsec_`, or `sk_`.
+//      do not contain `cerniq_`, `whsec_`, or `sk_`.
 //   9. /version returns { version, gitSha, builtAt } shape.
 
 import type { AuditSignerService } from '../../common/crypto/audit-signer.service';
@@ -171,11 +171,7 @@ describe('HealthController', () => {
       const ctrl = build({ stripeEnabled: true });
       const res = makeResponseStub();
       const out = await ctrl.ready(res as unknown as Parameters<typeof ctrl.ready>[0]);
-      for (const c of [
-        out.checks.database,
-        out.checks.redis,
-        out.checks.kms,
-      ]) {
+      for (const c of [out.checks.database, out.checks.redis, out.checks.kms]) {
         expect(typeof c.latencyMs).toBe('number');
         expect(c.latencyMs).toBeGreaterThanOrEqual(0);
       }
@@ -188,7 +184,7 @@ describe('HealthController', () => {
       // strips none of these as a safety property: NO secret-shaped text
       // appears in error fields. We construct errors without the canary
       // patterns and assert the output also lacks them.
-      const sensitivePatterns = ['aegis_', 'whsec_', 'sk_'];
+      const sensitivePatterns = ['cerniq_', 'whsec_', 'sk_'];
       const ctrl = build({
         dbThrows: new Error('postgres connection refused at db.host:5432'),
         kmsThrows: new Error('kms RPC failed: deadline exceeded'),
@@ -213,8 +209,7 @@ describe('HealthController', () => {
       // Stub a slow DB to force the 200ms timeout to trip.
       const prisma = {
         // type-rationale: minimal stub for $queryRaw — slow promise.
-        $queryRaw: () =>
-          new Promise((resolve) => setTimeout(resolve, 1_000)),
+        $queryRaw: () => new Promise((resolve) => setTimeout(resolve, 1_000)),
       } as unknown as PrismaService;
       const { redis, signer, stripe } = makeStubs();
       const ctrl = new HealthController(prisma, redis, signer, stripe);

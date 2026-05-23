@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * AEGIS — post-deploy health check.
+ * CERNIQ — post-deploy health check.
  * Used by CI deploy job and Railway healthcheck.
  *
  * Walks: /health (liveness), /ready (readiness incl. DB+Redis),
@@ -11,16 +11,16 @@
  *
  * Usage:
  *   node scripts/health-check.mjs                              # localhost:4000
- *   AEGIS_BASE_URL=https://api.aegislabs.io node scripts/health-check.mjs
+ *   CERNIQ_BASE_URL=https://api.cerniq.io node scripts/health-check.mjs
  */
 
-const BASE = process.env.AEGIS_BASE_URL ?? 'http://localhost:4000';
+const BASE = process.env.CERNIQ_BASE_URL ?? 'http://localhost:4000';
 const TIMEOUT_MS = 5_000;
 
 const checks = [
-  { name: 'liveness',  path: '/health',         expectStatus: 200, expectJson: { status: 'ok' } },
-  { name: 'readiness', path: '/ready',          expectStatus: [200, 503] },
-  { name: 'swagger',   path: '/docs',           expectStatus: [200, 301, 302], skipBody: true },
+  { name: 'liveness', path: '/health', expectStatus: 200, expectJson: { status: 'ok' } },
+  { name: 'readiness', path: '/ready', expectStatus: [200, 503] },
+  { name: 'swagger', path: '/docs', expectStatus: [200, 301, 302], skipBody: true },
 ];
 
 async function fetchWithTimeout(url) {
@@ -66,7 +66,9 @@ for (const r of results) {
     console.log(`✓ ${r.name.padEnd(10)} ${r.url}  →  ${r.status}  (${r.ms}ms)`);
   } else {
     allOk = false;
-    console.error(`✗ ${r.name.padEnd(10)} ${r.url}  →  ${r.error ?? `${r.status}, expected ${r.expected}`}  (${r.ms}ms)`);
+    console.error(
+      `✗ ${r.name.padEnd(10)} ${r.url}  →  ${r.error ?? `${r.status}, expected ${r.expected}`}  (${r.ms}ms)`,
+    );
   }
 }
 

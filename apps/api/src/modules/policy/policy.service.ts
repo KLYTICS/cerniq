@@ -18,16 +18,16 @@ import {
 /**
  * Phase 1 policy issuance.
  *
- * AEGIS issues a JWT containing the policy claims and signs it with the
- * AEGIS Ed25519 service key (loaded from env, ephemeral in dev). The signed
+ * CERNIQ issues a JWT containing the policy claims and signs it with the
+ * CERNIQ Ed25519 service key (loaded from env, ephemeral in dev). The signed
  * token is what relying parties can verify offline; per-request signing is
  * the agent's responsibility, referencing this policy by ID.
  */
 @Injectable()
 export class PolicyService {
   private readonly logger = new Logger(PolicyService.name);
-  private aegisPrivateKey?: Uint8Array;
-  private aegisPublicKeyB64?: string;
+  private cerniqPrivateKey?: Uint8Array;
+  private cerniqPublicKeyB64?: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -36,27 +36,38 @@ export class PolicyService {
   ) {}
 
   setSigningMaterial(privateKey: Uint8Array, publicKeyB64: string): void {
-    this.aegisPrivateKey = privateKey;
-    this.aegisPublicKeyB64 = publicKeyB64;
+    this.cerniqPrivateKey = privateKey;
+    this.cerniqPublicKeyB64 = publicKeyB64;
   }
 
-  async create(principalId: string, agentId: string, dto: CreatePolicyDto): Promise<CreatePolicyResponseDto> {
+  async create(
+    principalId: string,
+    agentId: string,
+    dto: CreatePolicyDto,
+  ): Promise<CreatePolicyResponseDto> {
     const agent = await this.prisma.agentIdentity.findFirst({
       where: { id: agentId, principalId },
       select: { id: true, status: true },
     });
-    if (!agent) throw new NotFoundException({ error: 'AGENT_NOT_FOUND', message: 'Agent not found.' });
+    if (!agent)
+      throw new NotFoundException({ error: 'AGENT_NOT_FOUND', message: 'Agent not found.' });
     if (agent.status === 'REVOKED') {
-      throw new ForbiddenException({ error: 'AGENT_REVOKED', message: 'Cannot create policies for a revoked agent.' });
+      throw new ForbiddenException({
+        error: 'AGENT_REVOKED',
+        message: 'Cannot create policies for a revoked agent.',
+      });
     }
 
-    if (!this.aegisPrivateKey || !this.aegisPublicKeyB64) {
+    if (!this.cerniqPrivateKey || !this.cerniqPublicKeyB64) {
       throw new Error('Policy signing material not initialised. Check JWT_ED25519_* env vars.');
     }
 
     const expiresAt = new Date(dto.expiresAt);
     if (expiresAt.getTime() <= Date.now()) {
-      throw new ForbiddenException({ error: 'INVALID_EXPIRY', message: 'expiresAt must be in the future.' });
+      throw new ForbiddenException({
+        error: 'INVALID_EXPIRY',
+        message: 'expiresAt must be in the future.',
+      });
     }
 
     const policyId = `pol_${ulid()}`;
@@ -68,17 +79,17 @@ export class PolicyService {
       iat: nowSec,
       exp: Math.floor(expiresAt.getTime() / 1000),
       jti: ulid(),
-      // AEGIS-policy-token shape (informational)
+      // CERNIQ-policy-token shape (informational)
       scopes: dto.scopes,
       label: dto.label ?? null,
     };
 
     const signedToken = await this.jwt.sign(
       // The JwtUtil signs with the supplied key. We reuse the agent token shape
-      // because relying parties only need to confirm AEGIS' EdDSA signature.
-       
+      // because relying parties only need to confirm CERNIQ' EdDSA signature.
+
       tokenPayload,
-      this.aegisPrivateKey,
+      this.cerniqPrivateKey,
     );
 
     const tokenHash = createHash('sha256').update(signedToken).digest('hex');
@@ -96,7 +107,9 @@ export class PolicyService {
       },
     });
 
-    this.logger.log(`Policy created: ${created.id} agent=${agentId} expires=${expiresAt.toISOString()}`);
+    this.logger.log(
+      `Policy created: ${created.id} agent=${agentId} expires=${expiresAt.toISOString()}`,
+    );
 
     return {
       policyId: created.id,
@@ -117,7 +130,8 @@ export class PolicyService {
   async revoke(principalId: string, agentId: string, policyId: string): Promise<void> {
     await this.assertOwnership(principalId, agentId);
     const policy = await this.prisma.agentPolicy.findFirst({ where: { id: policyId, agentId } });
-    if (!policy) throw new NotFoundException({ error: 'POLICY_NOT_FOUND', message: 'Policy not found.' });
+    if (!policy)
+      throw new NotFoundException({ error: 'POLICY_NOT_FOUND', message: 'Policy not found.' });
 
     await this.prisma.agentPolicy.update({
       where: { id: policyId },
@@ -132,7 +146,8 @@ export class PolicyService {
       where: { id: agentId, principalId },
       select: { id: true },
     });
-    if (!agent) throw new NotFoundException({ error: 'AGENT_NOT_FOUND', message: 'Agent not found.' });
+    if (!agent)
+      throw new NotFoundException({ error: 'AGENT_NOT_FOUND', message: 'Agent not found.' });
   }
 
   private toResponse(p: AgentPolicy): PolicyResponseDto {

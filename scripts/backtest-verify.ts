@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --import=tsx
 /**
- * AEGIS — verify backtest harness.
+ * CERNIQ — verify backtest harness.
  *
  * Reads N AuditEvent rows in chronological order, reconstructs a verify input
  * from each row's `policySnapshot` jsonb + denormalised columns, replays the
@@ -26,8 +26,8 @@
  * `ALGORITHM_NOT_PORTABLE`. Never report match=0 as success.
  *
  * Usage:
- *   pnpm --filter @aegis/scripts run backtest-verify -- --since 2026-04-01 --limit 1000
- *   pnpm --filter @aegis/scripts run backtest-verify -- --json
+ *   pnpm --filter @cerniq/scripts run backtest-verify -- --since 2026-04-01 --limit 1000
+ *   pnpm --filter @cerniq/scripts run backtest-verify -- --json
  */
 
 import { stdout, stderr, exit, argv, env } from 'node:process';
@@ -164,7 +164,7 @@ async function loadAlgorithm(): Promise<VerifyAlgorithmFn> {
   let mod: { verifyAlgorithm?: VerifyAlgorithmFn };
   try {
     // Dynamic import path computed at runtime so this script doesn't gain a
-    // build-time dep on @aegis/api — keeps backtest tooling cleanly outside
+    // build-time dep on @cerniq/api — keeps backtest tooling cleanly outside
     // the api workspace.
     const algoPath = '../apps/api/src/modules/verify/algorithm/verify.algorithm';
     mod = (await import(/* @vite-ignore */ algoPath)) as { verifyAlgorithm?: VerifyAlgorithmFn };
@@ -447,7 +447,7 @@ if (invokedDirectly) {
     stderr.write(`${msg}\n`);
     // Distinguish ALGORITHM_NOT_PORTABLE in env so wrappers can grep:
     if (msg.startsWith('ALGORITHM_NOT_PORTABLE')) {
-      env.AEGIS_BACKTEST_FAILURE = 'ALGORITHM_NOT_PORTABLE';
+      env.CERNIQ_BACKTEST_FAILURE = 'ALGORITHM_NOT_PORTABLE';
     }
     exit(1);
   });

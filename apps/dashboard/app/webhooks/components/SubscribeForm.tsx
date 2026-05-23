@@ -5,10 +5,10 @@ import { useState, useTransition } from 'react';
 import { subscribeWebhook, type SubscribeOutcome } from './actions';
 
 const DEFAULT_EVENTS = [
-  'aegis.agent.trust_score_changed',
-  'aegis.agent.revoked',
-  'aegis.policy.expired',
-  'aegis.anomaly.detected',
+  'cerniq.agent.trust_score_changed',
+  'cerniq.agent.revoked',
+  'cerniq.policy.expired',
+  'cerniq.anomaly.detected',
 ];
 
 export function SubscribeForm() {
@@ -28,15 +28,21 @@ export function SubscribeForm() {
 
   if (!open) {
     return (
-      <button type="button" className="aegis-button" onClick={() => { setOpen(true); }}>
+      <button
+        type="button"
+        className="cerniq-button"
+        onClick={() => {
+          setOpen(true);
+        }}
+      >
         Subscribe a URL
       </button>
     );
   }
 
   return (
-    <div className="aegis-panel" role="dialog" aria-label="Subscribe webhook">
-      <p className="aegis-panel-title">New webhook subscription</p>
+    <div className="cerniq-panel" role="dialog" aria-label="Subscribe webhook">
+      <p className="cerniq-panel-title">New webhook subscription</p>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -49,7 +55,7 @@ export function SubscribeForm() {
             name="url"
             type="url"
             required
-            placeholder="https://api.example.com/webhooks/aegis"
+            placeholder="https://api.example.com/webhooks/cerniq"
             disabled={pending}
           />
         </label>
@@ -72,8 +78,8 @@ export function SubscribeForm() {
         {outcome?.ok ? (
           <div role="status">
             <p className="form-warning">
-              Saved. <strong>Copy the secret below now</strong> — it is shown
-              once and never recoverable.
+              Saved. <strong>Copy the secret below now</strong> — it is shown once and never
+              recoverable.
             </p>
             <pre className="codeblock" aria-label="Webhook secret">
               {outcome.secret}
@@ -87,7 +93,7 @@ export function SubscribeForm() {
         <div className="form-actions">
           <button
             type="button"
-            className="aegis-button-ghost"
+            className="cerniq-button-ghost"
             onClick={() => {
               setOpen(false);
               setOutcome(null);
@@ -96,7 +102,7 @@ export function SubscribeForm() {
           >
             Close
           </button>
-          <button type="submit" className="aegis-button" disabled={pending}>
+          <button type="submit" className="cerniq-button" disabled={pending}>
             {pending ? 'Subscribing…' : 'Subscribe'}
           </button>
         </div>

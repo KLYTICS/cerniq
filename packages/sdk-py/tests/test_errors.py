@@ -7,9 +7,9 @@ from typing import Any
 import httpx
 import pytest
 
-from aegis import (
-    AegisError,
-    AsyncAegis,
+from cerniq import (
+    CerniqError,
+    AsyncCerniq,
     AuthError,
     ConflictError,
     NetworkError,
@@ -18,7 +18,7 @@ from aegis import (
     ServerError,
     ValidationError,
 )
-from aegis.errors import from_status
+from cerniq.errors import from_status
 
 
 def _envelope(status: int, code: str = "INTERNAL", message: str = "boom") -> dict[str, Any]:
@@ -45,7 +45,7 @@ def _envelope(status: int, code: str = "INTERNAL", message: str = "boom") -> dic
         (599, ServerError),
     ],
 )
-def test_from_status_maps_correctly(status: int, exc_type: type[AegisError]) -> None:
+def test_from_status_maps_correctly(status: int, exc_type: type[CerniqError]) -> None:
     err = from_status(
         status,
         message="m",
@@ -73,14 +73,14 @@ def test_from_status_maps_correctly(status: int, exc_type: type[AegisError]) -> 
     ],
 )
 async def test_http_errors_propagate_typed(
-    aegis: AsyncAegis,
+    cerniq: AsyncCerniq,
     respx_mock: Any,
     status: int,
-    exc_type: type[AegisError],
+    exc_type: type[CerniqError],
 ) -> None:
     respx_mock.get("/agents/agt_x").respond(status, json=_envelope(status, message=f"e{status}"))
     with pytest.raises(exc_type) as ei:
-        await aegis.agents.get("agt_x")
+        await cerniq.agents.get("agt_x")
     assert ei.value.status_code == status
     assert ei.value.message == f"e{status}"
     assert ei.value.request_id == "req_test_01"
@@ -92,7 +92,7 @@ async def test_network_error_on_connect_failure(
     """A connect error after retries are exhausted surfaces as NetworkError."""
     import respx as _respx
 
-    async with AsyncAegis(
+    async with AsyncCerniq(
         api_key=api_key, base_url=base_url, max_retries=0, timeout_ms=500
     ) as a:
         with _respx.mock(base_url=base_url, assert_all_called=False) as router:
@@ -108,7 +108,7 @@ async def test_5xx_is_retried_until_success(
 ) -> None:
     import respx as _respx
 
-    async with AsyncAegis(
+    async with AsyncCerniq(
         api_key=api_key,
         base_url=base_url,
         max_retries=2,
@@ -129,7 +129,7 @@ async def test_5xx_is_retried_until_success(
 async def test_4xx_is_not_retried(api_key: str, base_url: str) -> None:
     import respx as _respx
 
-    async with AsyncAegis(
+    async with AsyncCerniq(
         api_key=api_key, base_url=base_url, max_retries=3, timeout_ms=2_000
     ) as a:
         with _respx.mock(base_url=base_url, assert_all_called=False) as router:
@@ -142,7 +142,7 @@ async def test_4xx_is_not_retried(api_key: str, base_url: str) -> None:
             assert route.call_count == 1
 
 
-def test_aegis_error_has_helpful_repr() -> None:
+def test_cerniq_error_has_helpful_repr() -> None:
     err = ValidationError("bad", status_code=400, request_id="rid", code="X", details={"f": 1})
     s = repr(err)
     assert "ValidationError" in s
@@ -150,7 +150,7 @@ def test_aegis_error_has_helpful_repr() -> None:
     assert "rid" in s
 
 
-async def test_missing_keys_raises_aegis_error_eagerly() -> None:
+async def test_missing_keys_raises_cerniq_error_eagerly() -> None:
     """SDK should refuse to construct without any key configured."""
-    with pytest.raises(AegisError):
-        AsyncAegis()
+    with pytest.raises(CerniqError):
+        AsyncCerniq()

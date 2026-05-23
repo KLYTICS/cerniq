@@ -13,9 +13,9 @@
  * without any outbound Stripe traffic.
  *
  * Required env (operator provisions; missing → soft skip per scenario):
- *   AEGIS_STRIPE_WEBHOOK_SECRET            (== API's STRIPE_WEBHOOK_SECRET)
- *   AEGIS_E2E_STRIPE_TEST_PRINCIPAL_ID     target principal id
- *   AEGIS_E2E_STRIPE_DEVELOPER_PRICE_ID    price_id mapped to DEVELOPER
+ *   CERNIQ_STRIPE_WEBHOOK_SECRET            (== API's STRIPE_WEBHOOK_SECRET)
+ *   CERNIQ_E2E_STRIPE_TEST_PRINCIPAL_ID     target principal id
+ *   CERNIQ_E2E_STRIPE_DEVELOPER_PRICE_ID    price_id mapped to DEVELOPER
  *
  * CLAUDE.md invariant #4: when preconditions are met, hard-assert. The
  * structural baseline (malformed body → 400) always runs.
@@ -27,9 +27,9 @@ import { randomUUID } from 'node:crypto';
 import { RawClient, makeSdk, readConfig } from './_support/client';
 import { buildEvent, signStripeEvent, tamperSignature } from './_support/stripe';
 
-const SECRET = process.env['AEGIS_STRIPE_WEBHOOK_SECRET'];
-const TEST_PRINCIPAL_ID = process.env['AEGIS_E2E_STRIPE_TEST_PRINCIPAL_ID'];
-const DEVELOPER_PRICE_ID = process.env['AEGIS_E2E_STRIPE_DEVELOPER_PRICE_ID'];
+const SECRET = process.env['CERNIQ_STRIPE_WEBHOOK_SECRET'];
+const TEST_PRINCIPAL_ID = process.env['CERNIQ_E2E_STRIPE_TEST_PRINCIPAL_ID'];
+const DEVELOPER_PRICE_ID = process.env['CERNIQ_E2E_STRIPE_DEVELOPER_PRICE_ID'];
 
 const TEST_CUSTOMER_ID = `cus_e2e_${randomUUID().slice(0, 12)}`;
 const TEST_SUB_ID = `sub_e2e_${randomUUID().slice(0, 12)}`;
@@ -63,9 +63,9 @@ describe('18 · Stripe subscription state machine', () => {
   beforeAll(() => {
     if (!fullCoverage) {
       const missing = [
-        !SECRET && 'AEGIS_STRIPE_WEBHOOK_SECRET',
-        !TEST_PRINCIPAL_ID && 'AEGIS_E2E_STRIPE_TEST_PRINCIPAL_ID',
-        !DEVELOPER_PRICE_ID && 'AEGIS_E2E_STRIPE_DEVELOPER_PRICE_ID',
+        !SECRET && 'CERNIQ_STRIPE_WEBHOOK_SECRET',
+        !TEST_PRINCIPAL_ID && 'CERNIQ_E2E_STRIPE_TEST_PRINCIPAL_ID',
+        !DEVELOPER_PRICE_ID && 'CERNIQ_E2E_STRIPE_DEVELOPER_PRICE_ID',
       ].filter(Boolean);
       // eslint-disable-next-line no-console
       console.warn(
@@ -110,7 +110,7 @@ describe('18 · Stripe subscription state machine', () => {
     // rows whose metadata.stripeEventId matches. Idempotency must yield ≤ 1.
     const r = await fetch(`${cfg.baseUrl}/v1/audit-events/export`, {
       method: 'GET',
-      headers: { 'x-aegis-key': cfg.apiKey },
+      headers: { 'x-cerniq-key': cfg.apiKey },
     });
     expect(r.status, `audit export → ${r.status}`).toBe(200);
     const text = await r.text();
@@ -228,7 +228,10 @@ describe('18 · Stripe subscription state machine', () => {
     );
     expect(second.status, 'replay must still 200').toBe(200);
     const n = await countPlanChanged(replayId);
-    expect(n, `expected exactly one billing.plan_changed for ${replayId}, got ${n}`).toBeLessThanOrEqual(1);
+    expect(
+      n,
+      `expected exactly one billing.plan_changed for ${replayId}, got ${n}`,
+    ).toBeLessThanOrEqual(1);
   });
 
   it('6 · tampered signature → HTTP 400', async () => {

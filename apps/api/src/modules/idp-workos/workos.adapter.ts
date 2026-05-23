@@ -5,7 +5,7 @@
 // in SAML / OIDC federation to corporate IdPs (Okta, Microsoft Entra,
 // Google Workspace, ADFS, OneLogin, JumpCloud). WorkOS issues its own
 // short-lived sealed sessions (`workos_session_<base64>`) that the
-// dashboard hands to AEGIS for verification.
+// dashboard hands to CERNIQ for verification.
 //
 // Why ship this NOW: ADR-0009 §6 commits to `IdpAdapter` swappability.
 // Two adapters (Auth0 + Clerk) prove the contract holds for the same
@@ -14,10 +14,10 @@
 // stronger validation. After this, adding Okta-direct / Entra-direct /
 // Keycloak is a 1-day exercise.
 //
-// Trust model: AEGIS trusts WorkOS to authenticate the human, then maps
-// WorkOS Organizations → AEGIS Principals via `idpProvider='workos'` +
+// Trust model: CERNIQ trusts WorkOS to authenticate the human, then maps
+// WorkOS Organizations → CERNIQ Principals via `idpProvider='workos'` +
 // `idpOrganizationId=<workos_org_id>`. WorkOS Roles are propagated as
-// `aegis:*` claims via the WorkOS Directory Sync custom-claims feature.
+// `cerniq:*` claims via the WorkOS Directory Sync custom-claims feature.
 
 import { createHash } from 'node:crypto';
 
@@ -54,7 +54,9 @@ export interface WorkOsClientLike {
     expiresAt: number; // unix seconds
   }>;
   /** Fetch organization metadata for principal-bind (org domain → idpDomain). */
-  getOrganization(orgId: string): Promise<{ id: string; name: string; domains?: { domain: string }[] }>;
+  getOrganization(
+    orgId: string,
+  ): Promise<{ id: string; name: string; domains?: { domain: string }[] }>;
 }
 
 @Injectable()
@@ -72,7 +74,7 @@ export class WorkOsAdapter implements IdpAdapter {
   }
 
   async verifyAccessToken(token: string): Promise<IdpUser | null> {
-    // WorkOS access tokens are "sealed sessions" — opaque to AEGIS.
+    // WorkOS access tokens are "sealed sessions" — opaque to CERNIQ.
     // Verification == calling WorkOS's introspection. Cache aggressively
     // (per session) so we don't spam WorkOS on every verify.
     const cacheKey = `idp:workos:session:${createHash('sha256').update(token).digest('hex').slice(0, 24)}`;
@@ -99,8 +101,8 @@ export class WorkOsAdapter implements IdpAdapter {
       emailVerified: session.user.emailVerified,
       name: [session.user.firstName, session.user.lastName].filter(Boolean).join(' ') || null,
       // WorkOS roles propagate verbatim from the corporate IdP. We filter
-      // to `aegis:*` so customer-side IdP role names don't leak in.
-      roles: (session.roles ?? []).filter((r) => typeof r === 'string' && r.startsWith('aegis:')),
+      // to `cerniq:*` so customer-side IdP role names don't leak in.
+      roles: (session.roles ?? []).filter((r) => typeof r === 'string' && r.startsWith('cerniq:')),
       mfaSatisfied: Boolean(session.mfaEnrolled),
       rawClaims: {
         sessionId: session.sessionId,
@@ -129,7 +131,10 @@ export class WorkOsAdapter implements IdpAdapter {
     });
     if (existing) return { principalId: existing.id, created: false };
 
-    const fingerprint = createHash('sha256').update(`workos:${args.idpOrganizationId}`).digest('hex').slice(0, 12);
+    const fingerprint = createHash('sha256')
+      .update(`workos:${args.idpOrganizationId}`)
+      .digest('hex')
+      .slice(0, 12);
     const principal = await this.prisma.principal.create({
       data: {
         id: `p_wo_${fingerprint}`,

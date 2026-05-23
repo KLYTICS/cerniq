@@ -69,7 +69,8 @@ export class ClerkAdapter implements IdpAdapter {
     // Clerk does NOT use `aud` for application-level audience the way
     // Auth0 does — instead operators verify by `iss` + a list of allowed
     // `azp` values. Skip strict aud check; verify azp if configured.
-    const allowedAzps = (this.config as unknown as { clerkAllowedAzps?: string[] }).clerkAllowedAzps;
+    const allowedAzps = (this.config as unknown as { clerkAllowedAzps?: string[] })
+      .clerkAllowedAzps;
     if (allowedAzps && allowedAzps.length > 0) {
       if (typeof claims.azp !== 'string' || !allowedAzps.includes(claims.azp)) return null;
     }
@@ -83,7 +84,8 @@ export class ClerkAdapter implements IdpAdapter {
     });
     const data = Buffer.from(`${headerB64}.${payloadB64}`, 'utf8');
     const sig = Buffer.from(sigB64, 'base64url');
-    const algoOid = header.alg === 'RS512' ? 'RSA-SHA512' : header.alg === 'RS384' ? 'RSA-SHA384' : 'RSA-SHA256';
+    const algoOid =
+      header.alg === 'RS512' ? 'RSA-SHA512' : header.alg === 'RS384' ? 'RSA-SHA384' : 'RSA-SHA256';
     if (!verifyAsymmetric(algoOid, data, pubKey, sig)) return null;
 
     return {
@@ -102,12 +104,15 @@ export class ClerkAdapter implements IdpAdapter {
       emailVerified: Boolean(claims.email_verified),
       name: typeof claims.name === 'string' ? claims.name : null,
       // Clerk roles arrive as `org_role` (single string for active org) or
-      // a custom claim. We normalize: only `aegis:*` roles propagate.
-      roles: typeof claims.org_role === 'string' && claims.org_role.startsWith('aegis:')
-        ? [claims.org_role]
-        : Array.isArray(claims['https://aegis.dev/roles'])
-          ? (claims['https://aegis.dev/roles'] as string[]).filter((r) => r.startsWith('aegis:'))
-          : [],
+      // a custom claim. We normalize: only `cerniq:*` roles propagate.
+      roles:
+        typeof claims.org_role === 'string' && claims.org_role.startsWith('cerniq:')
+          ? [claims.org_role]
+          : Array.isArray(claims['https://cerniq.dev/roles'])
+            ? (claims['https://cerniq.dev/roles'] as string[]).filter((r) =>
+                r.startsWith('cerniq:'),
+              )
+            : [],
       mfaSatisfied: Array.isArray(claims.amr) && (claims.amr as string[]).includes('mfa'),
       rawClaims: claims,
     };
@@ -125,7 +130,10 @@ export class ClerkAdapter implements IdpAdapter {
     });
     if (existing) return { principalId: existing.id, created: false };
 
-    const fingerprint = createHash('sha256').update(`clerk:${args.idpOrganizationId}`).digest('hex').slice(0, 12);
+    const fingerprint = createHash('sha256')
+      .update(`clerk:${args.idpOrganizationId}`)
+      .digest('hex')
+      .slice(0, 12);
     const principal = await this.prisma.principal.create({
       data: {
         id: `p_ck_${fingerprint}`,

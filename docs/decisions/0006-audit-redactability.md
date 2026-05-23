@@ -37,7 +37,7 @@ The fields in `AuditEvent` that may carry personal data:
 Cascaded delete handles the easy case: when a Principal exercises
 account deletion, all their agents + audit rows go via the existing
 `Cascade` FK and other tenants' chains are untouched. The hard case is
-when an *individual data subject* (the human behind a B2B transaction —
+when an _individual data subject_ (the human behind a B2B transaction —
 e.g. the natural person whose name appears in `relyingParty` for a
 sole-proprietor merchant) requests erasure: their data must come out
 without breaking the chain that other parties rely on.
@@ -54,23 +54,23 @@ intact, so the chain still verifies.
 ```ts
 interface AuditChainPayload {
   // unchanged — opaque or non-PII
-  agentId:           string;
-  claimedAgentId:    string | null;
-  principalId:       string;
-  decision:          'APPROVED' | 'DENIED' | 'FLAGGED';
-  denialReason:      string | null;       // enum, not free-text
-  policyId:          string | null;
+  agentId: string;
+  claimedAgentId: string | null;
+  principalId: string;
+  decision: 'APPROVED' | 'DENIED' | 'FLAGGED';
+  denialReason: string | null; // enum, not free-text
+  policyId: string | null;
   trustScoreAtEvent: number;
-  trustBandAtEvent:  'PLATINUM' | 'VERIFIED' | 'WATCH' | 'FLAGGED';
-  currency:          string | null;
-  timestamp:         string;
+  trustBandAtEvent: 'PLATINUM' | 'VERIFIED' | 'WATCH' | 'FLAGGED';
+  currency: string | null;
+  timestamp: string;
   // hashed — base64url(sha256(value)) when value present, null otherwise
-  actionHash:          string | null;
-  relyingPartyHash:    string | null;
+  actionHash: string | null;
+  relyingPartyHash: string | null;
   requestedAmountHash: string | null;
-  policySnapshotHash:  string | null;
+  policySnapshotHash: string | null;
   // schema version — verifiers must check this
-  v:                 2;
+  v: 2;
 }
 ```
 
@@ -98,6 +98,7 @@ model AuditEvent {
 ### Hash construction
 
 `hash(value)` =
+
 - For strings: `base64url(sha256(utf8(value)))`
 - For numbers (requestedAmount): `base64url(sha256(utf8(value.toFixed(2))))` —
   using the Decimal-to-string convention `audit-chain.util.ts` already enforces.
@@ -144,7 +145,7 @@ raw columns; hashes are immutable.
 
 - GDPR Art. 17 compliance without chain breakage.
 - Hash commitments are independent of redaction state — third-party
-  verifiers can prove integrity without trusting AEGIS.
+  verifiers can prove integrity without trusting CERNIQ.
 - Migration is additive: existing v1 rows can be lazily upgraded by
   computing hashes from existing raw columns; no chain re-signing.
 - Storage cost: ~140 bytes per row for the four extra hash columns.

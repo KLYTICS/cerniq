@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # ---------------------------------------------------------------------------
-# AEGIS — API image (Phase 1 Railway target)
+# CERNIQ — API image (Phase 1 Railway target)
 # ---------------------------------------------------------------------------
 # Base choice rationale (recorded here so future you doesn't re-litigate):
 #   builder : node:20.18.0-bookworm-slim   — has corepack, apt, build toolchain
@@ -68,11 +68,11 @@ FROM deps AS build
 COPY tsconfig.base.json ./
 COPY packages/ packages/
 COPY apps/api/ apps/api/
-RUN pnpm --filter @aegis/api prisma:generate \
- && pnpm --filter @aegis/api build
+RUN pnpm --filter @cerniq/api prisma:generate \
+ && pnpm --filter @cerniq/api build
 # Prune dev dependencies for the runtime stage. We keep the workspace layout
 # so relative `workspace:*` resolution still works from apps/api/node_modules.
-RUN pnpm --filter @aegis/api --prod deploy /deploy/api \
+RUN pnpm --filter @cerniq/api --prod deploy /deploy/api \
  && cp -r apps/api/dist /deploy/api/dist \
  && cp -r apps/api/prisma /deploy/api/prisma
 

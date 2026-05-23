@@ -37,7 +37,11 @@ function basePayload(decision: AuditChainPayload['decision']): AuditChainPayload
   };
 }
 
-async function buildChain(privateKey: Uint8Array, kid: string, count: number): Promise<AuditEventRow[]> {
+async function buildChain(
+  privateKey: Uint8Array,
+  kid: string,
+  count: number,
+): Promise<AuditEventRow[]> {
   const rows: AuditEventRow[] = [];
   let prevEventId: string | null = null;
   let prevSignature: string | null = null;
@@ -64,7 +68,7 @@ function jwksFor(kid: string, publicKey: Uint8Array): JwksDocument {
 describe('computePrevHash', () => {
   it('returns the genesis hash when both inputs are null', () => {
     const got = computePrevHash(null, null);
-    const expected = sha256(utf8('AEGIS-AUDIT-GENESIS-v1'));
+    const expected = sha256(utf8('CERNIQ-AUDIT-GENESIS-v1'));
     expect(Array.from(got)).toEqual(Array.from(expected));
   });
 
@@ -106,14 +110,33 @@ describe('verifyChain (intact path)', () => {
       const payload = basePayload('APPROVED');
       const message = buildSignedMessage(prevEventId, prevSignature, payload);
       const signature = encodeBase64Url(await ed.signAsync(message, kp2.privateKey));
-      newer.push({ eventId, prevEventId, prevSignature, signingKeyId: 'kid-2026-05', signature, payload });
+      newer.push({
+        eventId,
+        prevEventId,
+        prevSignature,
+        signingKeyId: 'kid-2026-05',
+        signature,
+        payload,
+      });
       prevEventId = eventId;
       prevSignature = signature;
     }
     const jwks: JwksDocument = {
       keys: [
-        { kty: 'OKP', crv: 'Ed25519', x: encodeBase64Url(kp1.publicKey), kid: 'kid-2026-04', use: 'sig' },
-        { kty: 'OKP', crv: 'Ed25519', x: encodeBase64Url(kp2.publicKey), kid: 'kid-2026-05', use: 'sig' },
+        {
+          kty: 'OKP',
+          crv: 'Ed25519',
+          x: encodeBase64Url(kp1.publicKey),
+          kid: 'kid-2026-04',
+          use: 'sig',
+        },
+        {
+          kty: 'OKP',
+          crv: 'Ed25519',
+          x: encodeBase64Url(kp2.publicKey),
+          kid: 'kid-2026-05',
+          use: 'sig',
+        },
       ],
     };
     const report = await verifyChain([...old, ...newer], { jwks });
@@ -153,7 +176,15 @@ describe('verifyChain (break detection)', () => {
     const kp = await makeKeypair();
     const rows = await buildChain(kp.privateKey, 'kid-test', 1);
     const wrongJwks: JwksDocument = {
-      keys: [{ kty: 'OKP', crv: 'Ed25519', x: encodeBase64Url(kp.publicKey), kid: 'kid-other', use: 'sig' }],
+      keys: [
+        {
+          kty: 'OKP',
+          crv: 'Ed25519',
+          x: encodeBase64Url(kp.publicKey),
+          kid: 'kid-other',
+          use: 'sig',
+        },
+      ],
     };
     const report = await verifyChain(rows, { jwks: wrongJwks });
     expect(report.valid).toBe(false);

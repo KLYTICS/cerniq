@@ -5,7 +5,7 @@
 // response body keyed by `(principalId, route, idempotencyKey)`. Replay
 // of the SAME key returns the original response (200/201/4xx/5xx alike).
 // Replay with the same key but a DIFFERENT body returns 409
-// IDEMPOTENCY_CONFLICT (per @aegis/types `ERROR_CODE.IDEMPOTENCY_CONFLICT`).
+// IDEMPOTENCY_CONFLICT (per @cerniq/types `ERROR_CODE.IDEMPOTENCY_CONFLICT`).
 //
 // What this protects against:
 //   - Network retries causing duplicate agent registrations.

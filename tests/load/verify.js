@@ -1,10 +1,10 @@
 // k6 load script — sustained verify throughput.
 //
 // Run:
-//   AEGIS_E2E_URL=http://localhost:3000 \
-//   AEGIS_E2E_API_KEY=aegis_sk_... \
-//   AEGIS_E2E_AGENT_ID=agt_... \
-//   AEGIS_E2E_POLICY_TOKEN=eyJ... \
+//   CERNIQ_E2E_URL=http://localhost:3000 \
+//   CERNIQ_E2E_API_KEY=cerniq_sk_... \
+//   CERNIQ_E2E_AGENT_ID=agt_... \
+//   CERNIQ_E2E_POLICY_TOKEN=eyJ... \
 //   k6 run load/verify.js
 //
 // Pre-reqs: install k6 (`brew install k6` on macOS), seed an agent + policy
@@ -12,8 +12,8 @@
 // re-sign per-iteration tokens client-side.
 //
 // Note: k6 has no Ed25519 module out of the box; this script accepts a
-// policyToken (signed by AEGIS) and a *single* pre-signed agent request
-// token (`AEGIS_E2E_REQUEST_TOKEN`). Replay safety is acknowledged — for a
+// policyToken (signed by CERNIQ) and a *single* pre-signed agent request
+// token (`CERNIQ_E2E_REQUEST_TOKEN`). Replay safety is acknowledged — for a
 // pure load test we accept that all VUs re-use the same jti. To exercise
 // jti uniqueness at scale, add a /v1/token/sign endpoint or pre-mint a
 // pool of tokens via a Node helper and load them with --tag from-file.
@@ -23,33 +23,33 @@ import { check } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
 import { SharedArray } from 'k6/data';
 
-const BASE = (__ENV.AEGIS_E2E_URL || 'http://localhost:3000').replace(/\/+$/, '');
-const KEY = __ENV.AEGIS_E2E_API_KEY;
-const REQUEST_TOKEN = __ENV.AEGIS_E2E_REQUEST_TOKEN;
-const TOKEN_POOL_FILE = __ENV.AEGIS_E2E_TOKEN_POOL;
+const BASE = (__ENV.CERNIQ_E2E_URL || 'http://localhost:3000').replace(/\/+$/, '');
+const KEY = __ENV.CERNIQ_E2E_API_KEY;
+const REQUEST_TOKEN = __ENV.CERNIQ_E2E_REQUEST_TOKEN;
+const TOKEN_POOL_FILE = __ENV.CERNIQ_E2E_TOKEN_POOL;
 
-if (!KEY) throw new Error('AEGIS_E2E_API_KEY is required');
+if (!KEY) throw new Error('CERNIQ_E2E_API_KEY is required');
 if (!REQUEST_TOKEN && !TOKEN_POOL_FILE) {
-  throw new Error('Either AEGIS_E2E_REQUEST_TOKEN or AEGIS_E2E_TOKEN_POOL is required');
+  throw new Error('Either CERNIQ_E2E_REQUEST_TOKEN or CERNIQ_E2E_TOKEN_POOL is required');
 }
 
 // Round-24 token pool — replay protection rejects same-jti reuse, so a
 // single static token caps measurable throughput at "1 approved + N
 // replay-denied per 60s." Pre-mint a pool via `tests/load/mint-token-pool.mjs`
-// and feed via `AEGIS_E2E_TOKEN_POOL=/tmp/aegis-token-pool.txt`. Each VU
+// and feed via `CERNIQ_E2E_TOKEN_POOL=/tmp/cerniq-token-pool.txt`. Each VU
 // iteration round-robins through the pool so distinct jtis exercise
 // approve-throughput. SharedArray loads once into init memory; copies are
 // COW-shared across VUs by the goja runtime.
-const tokenPool = new SharedArray('aegis-token-pool', function () {
+const tokenPool = new SharedArray('cerniq-token-pool', function () {
   if (!TOKEN_POOL_FILE) return REQUEST_TOKEN ? [REQUEST_TOKEN] : [];
   // k6's setup-time `open()` is a built-in global (no import).
   const text = open(TOKEN_POOL_FILE);
   return text.split('\n').filter((l) => l.length > 0);
 });
 
-const denialCounter = new Counter('aegis_verify_denials');
-const approvedCounter = new Counter('aegis_verify_approved');
-const verifyLatency = new Trend('aegis_verify_latency_ms', true);
+const denialCounter = new Counter('cerniq_verify_denials');
+const approvedCounter = new Counter('cerniq_verify_approved');
+const verifyLatency = new Trend('cerniq_verify_latency_ms', true);
 
 export const options = {
   // 50 RPS sustained for 60s (steady-state). Ramp shapes the warm-up.
@@ -67,7 +67,7 @@ export const options = {
   thresholds: {
     http_req_failed: ['rate<0.01'],
     http_req_duration: ['p(95)<200', 'p(99)<500'],
-    aegis_verify_latency_ms: ['p(95)<200', 'p(99)<500'],
+    cerniq_verify_latency_ms: ['p(95)<200', 'p(99)<500'],
   },
   summaryTrendStats: ['avg', 'min', 'med', 'p(95)', 'p(99)', 'max'],
 };
@@ -93,7 +93,7 @@ export default function () {
       'content-type': 'application/json',
       // verify path expects the verify-only key header per OpenAPI security
       // definition `PublicVerifyKey`. FULL-scope keys are accepted there too.
-      'X-AEGIS-Verify-Key': KEY,
+      'X-CERNIQ-Verify-Key': KEY,
     },
     tags: { name: 'verify' },
   });

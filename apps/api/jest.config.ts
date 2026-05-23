@@ -10,9 +10,7 @@ const config: Config = {
   // pnpm hoists ESM packages under node_modules/.pnpm/<scope>+<pkg>@<ver>/...
   // Both shapes must be allowed through ts-jest, so the negative-lookahead
   // covers the .pnpm subdir as well as the top-level @noble path.
-  transformIgnorePatterns: [
-    '/node_modules/(?!(\\.pnpm/)?(@noble|@aegis)([+/]|$))',
-  ],
+  transformIgnorePatterns: ['/node_modules/(?!(\\.pnpm/)?(@noble|@cerniq)([+/]|$))'],
   // ESM-style imports (`./foo.js`) must resolve to the `.ts` source under
   // ts-jest's CJS transform. Without this mapper, every relative `.js`
   // import in source code fails at test time.

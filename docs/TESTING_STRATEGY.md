@@ -1,4 +1,5 @@
-# AEGIS — Testing Strategy
+# CERNIQ — Testing Strategy
+
 ## Unit, Integration, E2E, Load, Chaos, and Property Testing
 
 > **Owner:** Engineering Lead  
@@ -9,11 +10,12 @@
 
 ## 1. Testing Philosophy
 
-AEGIS tests must answer one question: **"Would a user be approved who should be denied, or denied who should be approved?"**
+CERNIQ tests must answer one question: **"Would a user be approved who should be denied, or denied who should be approved?"**
 
 Everything flows from that. We have zero tolerance for false approvals. A missed denial is a security failure. A false denial is an availability failure. Both are P0.
 
 **Testing pyramid:**
+
 ```
        /\          E2E + load (slow, high-value smoke)
       /  \
@@ -22,20 +24,20 @@ Everything flows from that. We have zero tolerance for false approvals. A missed
    /--------\      Unit (pure functions — crypto, BATE, algorithm)
 ```
 
-The middle tier is the most valuable for AEGIS. Pure function unit tests validate logic. Integration tests validate the DB/Redis wiring. E2E tests validate the full contract.
+The middle tier is the most valuable for CERNIQ. Pure function unit tests validate logic. Integration tests validate the DB/Redis wiring. E2E tests validate the full contract.
 
 ---
 
 ## 2. Test Framework Decisions
 
-| Layer | Framework | Reason |
-|-------|-----------|--------|
-| NestJS services (apps/api) | **Jest** | NestJS testing module integration |
-| Pure packages (types, verifier-rp) | **Vitest** | Faster, ESM-native |
-| E2E (full API) | **Vitest** | Runs against live API process |
-| Load testing | **k6** | Scriptable, CI-friendly, Grafana integration |
-| Property-based | **fast-check** | Parametric tests for crypto and algorithm |
-| Multi-tenant isolation | **Jest** (dedicated suite) | Parallel principal tests |
+| Layer                              | Framework                  | Reason                                       |
+| ---------------------------------- | -------------------------- | -------------------------------------------- |
+| NestJS services (apps/api)         | **Jest**                   | NestJS testing module integration            |
+| Pure packages (types, verifier-rp) | **Vitest**                 | Faster, ESM-native                           |
+| E2E (full API)                     | **Vitest**                 | Runs against live API process                |
+| Load testing                       | **k6**                     | Scriptable, CI-friendly, Grafana integration |
+| Property-based                     | **fast-check**             | Parametric tests for crypto and algorithm    |
+| Multi-tenant isolation             | **Jest** (dedicated suite) | Parallel principal tests                     |
 
 ---
 
@@ -44,15 +46,17 @@ The middle tier is the most valuable for AEGIS. Pure function unit tests validat
 ### 3.1 What Gets Unit Tests
 
 **Always:**
+
 - Every pure function in `apps/api/src/common/crypto/*`
 - `verify.algorithm.ts` (every step, every branch)
 - `bate.scorer.ts` (every signal type, every band boundary)
 - `bate.anomaly.ts` (every rule: R-1 through R-5)
 - Every Zod schema in `packages/types`
-- Every `AegisError` subclass
+- Every `CerniqError` subclass
 - `audit-chain.ts` (signing, verification, tamper detection)
 
 **With exceptions documented:**
+
 - NestJS controllers (usually integration-tested)
 - Service methods that are pure wrappers over Prisma calls
 
@@ -66,7 +70,7 @@ Every crypto function requires a paired `.spec.ts`. No exceptions.
 describe('ed25519', () => {
   it('round-trips: sign → verify with same key', async () => {
     const { privateKey, publicKey } = await generateKeyPair();
-    const message = new TextEncoder().encode('hello aegis');
+    const message = new TextEncoder().encode('hello cerniq');
     const sig = await sign(message, privateKey);
     expect(await verify(sig, message, publicKey)).toBe(true);
   });
@@ -106,7 +110,7 @@ Test every denial reason explicitly:
 
 describe('verifyAlgorithm', () => {
   // For each denial reason, there must be a test.
-  
+
   it('returns AGENT_NOT_FOUND when agent does not exist', async () => {
     const ports = mockPorts({ getAgent: async () => null });
     const result = await verifyAlgorithm(validInput, ports);
@@ -138,7 +142,9 @@ describe('verifyAlgorithm', () => {
 
   it('fails closed on Redis unavailability → ANOMALY_FLAGGED', async () => {
     const ports = mockPorts({
-      checkJtiReplay: async () => { throw new Error('ECONNREFUSED'); },
+      checkJtiReplay: async () => {
+        throw new Error('ECONNREFUSED');
+      },
     });
     const result = await verifyAlgorithm(validInput, ports);
     expect(result.outcome).toBe('denied');
@@ -179,12 +185,13 @@ describe('BateScorer', () => {
   });
 
   it('AGENT_DPOP_REPLAY_ATTEMPT is -200 per occurrence, capped at -600', () => {
-    const signals = [1, 2, 3, 4].map(() => ({ 
-      type: 'AGENT_DPOP_REPLAY_ATTEMPT', ts: Date.now() 
+    const signals = [1, 2, 3, 4].map(() => ({
+      type: 'AGENT_DPOP_REPLAY_ATTEMPT',
+      ts: Date.now(),
     }));
     const result = bateScorer.explain(signals);
     // 4 occurrences × -200 = -800, but cap is -600
-    const contributor = result.contributors.find(c => c.type === 'AGENT_DPOP_REPLAY_ATTEMPT');
+    const contributor = result.contributors.find((c) => c.type === 'AGENT_DPOP_REPLAY_ATTEMPT');
     expect(contributor?.delta).toBe(-600);
   });
 
@@ -241,16 +248,16 @@ describe('VerifyService (integration)', () => {
     const module = await Test.createTestingModule({
       imports: [AppModule],
     })
-    .overrideProvider(CONFIG_SERVICE)
-    .useValue(testConfig) // BCRYPT_COST=4 in tests
-    .compile();
+      .overrideProvider(CONFIG_SERVICE)
+      .useValue(testConfig) // BCRYPT_COST=4 in tests
+      .compile();
 
     app = module.createNestApplication();
     await app.init();
-    
+
     prisma = app.get(PrismaService);
     verifyService = app.get(VerifyService);
-    
+
     // Seed test data
     testPrincipal = await seedPrincipal(prisma);
     keyPair = await generateKeyPair();
@@ -272,7 +279,7 @@ describe('VerifyService (integration)', () => {
       currency: 'USD',
     });
     expect(result.outcome).toBe('approved');
-    
+
     // Verify audit event was written
     const auditEvent = await prisma.auditEvent.findFirst({
       where: { agentId: testAgent.id },
@@ -303,7 +310,7 @@ describe('Multi-tenant isolation', () => {
       .get('/v1/agents')
       .set('Authorization', `Bearer ${apiKeyA}`)
       .expect(200);
-    
+
     const agentIds = response.body.agents.map((a: any) => a.id);
     expect(agentIds).toContain(agentA.id);
     expect(agentIds).not.toContain(agentB.id); // key assertion
@@ -324,7 +331,7 @@ describe('Multi-tenant isolation', () => {
   it('audit events are scoped to principal', async () => {
     // Make a verify call as principal A
     await verifyService.verify({ ..., principalId: principalA.id });
-    
+
     // Principal B querying audit should NOT see principal A's events
     const events = await auditService.query({ principalId: principalB.id });
     const agentAEvents = events.filter(e => e.agentId === agentA.id);
@@ -334,7 +341,7 @@ describe('Multi-tenant isolation', () => {
   it('spend counters are isolated per principal', async () => {
     // Exhaust principal A's spend limit
     await exhaustSpendLimit(principalA);
-    
+
     // Principal B should still be able to spend
     const result = await verifyService.verify({
       token: tokenForB,
@@ -424,13 +431,13 @@ const denialTests: Array<{
 test.each(denialTests)('returns %s → HTTP %i', async ({ reason, setup, expectedStatus }) => {
   const ctx = await TestContext.create();
   const request = await setup(ctx);
-  
+
   const response = await ctx.post('/v1/verify', request);
-  
+
   expect(response.status).toBe(expectedStatus);
   expect(response.body.approved).toBe(false);
   expect(response.body.denialReason).toBe(reason);
-  
+
   // Verify audit event was written with correct denial
   const audit = await ctx.getLatestAuditEvent(ctx.agent.id);
   expect(audit.denialReason).toBe(reason);
@@ -452,15 +459,17 @@ it('concurrent spend requests never collectively exceed the limit', async () => 
 
   // Fire 20 concurrent requests
   const results = await Promise.all(
-    Array(CONCURRENT).fill(null).map(() =>
-      ctx.post('/v1/verify', {
-        token: await ctx.signToken({ amt: AMOUNT_PER_REQUEST }),
-      })
-    )
+    Array(CONCURRENT)
+      .fill(null)
+      .map(() =>
+        ctx.post('/v1/verify', {
+          token: await ctx.signToken({ amt: AMOUNT_PER_REQUEST }),
+        }),
+      ),
   );
 
-  const approved = results.filter(r => r.body.approved);
-  const denied = results.filter(r => !r.body.approved);
+  const approved = results.filter((r) => r.body.approved);
+  const denied = results.filter((r) => !r.body.approved);
 
   // Total approved spend must not exceed LIMIT
   const totalApprovedSpend = approved.length * AMOUNT_PER_REQUEST;
@@ -468,7 +477,7 @@ it('concurrent spend requests never collectively exceed the limit', async () => 
 
   // Some must be denied
   expect(denied.length).toBeGreaterThan(0);
-  denied.forEach(r => {
+  denied.forEach((r) => {
     expect(r.body.denialReason).toBe('SPEND_LIMIT_EXCEEDED');
   });
 });
@@ -492,27 +501,27 @@ const verifyDuration = new Trend('verify_duration_ms', true);
 
 export const options = {
   stages: [
-    { duration: '2m', target: 50 },   // ramp up to 50 RPS
-    { duration: '5m', target: 500 },  // sustain 500 RPS
-    { duration: '2m', target: 0 },    // ramp down
+    { duration: '2m', target: 50 }, // ramp up to 50 RPS
+    { duration: '5m', target: 500 }, // sustain 500 RPS
+    { duration: '2m', target: 0 }, // ramp down
   ],
   thresholds: {
-    http_req_duration: ['p(99)<200'],  // p99 < 200ms (SLO)
-    errors: ['rate<0.001'],            // < 0.1% error rate
+    http_req_duration: ['p(99)<200'], // p99 < 200ms (SLO)
+    errors: ['rate<0.001'], // < 0.1% error rate
     verify_duration_ms: ['p(95)<150'],
   },
 };
 
-const BASE_URL = __ENV.BASE_URL || 'https://api.aegislabs.io/v1';
+const BASE_URL = __ENV.BASE_URL || 'https://api.cerniq.io/v1';
 const API_KEY = __ENV.API_KEY;
 
 export default function () {
   const token = generateToken(); // pre-signed in setup()
-  
+
   const res = http.post(`${BASE_URL}/verify`, JSON.stringify({ token }), {
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${API_KEY}`,
+      Authorization: `Bearer ${API_KEY}`,
     },
   });
 
@@ -530,9 +539,10 @@ export default function () {
 ```
 
 Run against staging before every GA milestone:
+
 ```bash
 k6 run tests/load/verify.js \
-  -e BASE_URL=https://staging.api.aegislabs.io/v1 \
+  -e BASE_URL=https://staging.api.cerniq.io/v1 \
   -e API_KEY=$STAGING_API_KEY
 
 # Expected results for Phase 1 GA:
@@ -555,10 +565,14 @@ export const options = {
 };
 
 export default function () {
-  const res = http.post(`${BASE_URL}/verify`, JSON.stringify({
-    token: generateTokenWithAmount(AMOUNT_AT_BOUNDARY),
-  }), headers);
-  
+  const res = http.post(
+    `${BASE_URL}/verify`,
+    JSON.stringify({
+      token: generateTokenWithAmount(AMOUNT_AT_BOUNDARY),
+    }),
+    headers,
+  );
+
   // Record: was this approved or denied?
   approvedCounter.add(res.status === 200);
   deniedCounter.add(res.status === 429);
@@ -567,7 +581,7 @@ export default function () {
 export function handleSummary(data) {
   const totalApproved = data.metrics.approved_counter.values.count;
   const totalSpend = totalApproved * AMOUNT_AT_BOUNDARY;
-  
+
   if (totalSpend > SPEND_LIMIT) {
     throw new Error(`RACE CONDITION: approved $${totalSpend} > limit $${SPEND_LIMIT}`);
   }
@@ -586,49 +600,49 @@ import fc from 'fast-check';
 
 describe('Ed25519 properties', () => {
   it('for all messages: sign → verify = true', async () => {
-    await fc.assert(fc.asyncProperty(
-      fc.uint8Array({ minLength: 1, maxLength: 1024 }),
-      async (message) => {
+    await fc.assert(
+      fc.asyncProperty(fc.uint8Array({ minLength: 1, maxLength: 1024 }), async (message) => {
         const { privateKey, publicKey } = await generateKeyPair();
         const sig = await sign(message, privateKey);
         return await verify(sig, message, publicKey);
-      }
-    ));
+      }),
+    );
   });
 
   it('for all messages: verify with wrong key = false', async () => {
-    await fc.assert(fc.asyncProperty(
-      fc.uint8Array({ minLength: 1, maxLength: 1024 }),
-      async (message) => {
+    await fc.assert(
+      fc.asyncProperty(fc.uint8Array({ minLength: 1, maxLength: 1024 }), async (message) => {
         const kp1 = await generateKeyPair();
         const kp2 = await generateKeyPair();
         const sig = await sign(message, kp1.privateKey);
         return !(await verify(sig, message, kp2.publicKey));
-      }
-    ));
+      }),
+    );
   });
 });
 
 // Algorithm property: denial precedence is a total order
 describe('Denial precedence properties', () => {
   it('if AGENT_NOT_FOUND fires, no other denial reason can fire first', async () => {
-    await fc.assert(fc.asyncProperty(
-      fc.record({
-        agentExists: fc.constant(false),
-        // All other conditions can be anything
-        agentRevoked: fc.boolean(),
-        signatureValid: fc.boolean(),
-      }),
-      async ({ agentRevoked, signatureValid }) => {
-        const ports = mockPorts({
-          getAgent: async () => null, // agent doesn't exist
-          isRevoked: async () => agentRevoked,
-          verifySignature: async () => signatureValid,
-        });
-        const result = await verifyAlgorithm(validInput, ports);
-        return result.denialReason === 'AGENT_NOT_FOUND';
-      }
-    ));
+    await fc.assert(
+      fc.asyncProperty(
+        fc.record({
+          agentExists: fc.constant(false),
+          // All other conditions can be anything
+          agentRevoked: fc.boolean(),
+          signatureValid: fc.boolean(),
+        }),
+        async ({ agentRevoked, signatureValid }) => {
+          const ports = mockPorts({
+            getAgent: async () => null, // agent doesn't exist
+            isRevoked: async () => agentRevoked,
+            verifySignature: async () => signatureValid,
+          });
+          const result = await verifyAlgorithm(validInput, ports);
+          return result.denialReason === 'AGENT_NOT_FOUND';
+        },
+      ),
+    );
   });
 });
 ```
@@ -645,7 +659,7 @@ it('chain verifies correctly after N verify calls', async () => {
   for (let i = 0; i < N; i++) {
     await ctx.post('/v1/verify', validRequest);
   }
-  
+
   const result = await runChainVerification({ limit: N });
   expect(result.breaks).toBe(0);
   expect(result.eventsVerified).toBe(N);
@@ -656,14 +670,14 @@ it('chain detects a tampered row', async () => {
   for (let i = 0; i < 5; i++) {
     await ctx.post('/v1/verify', validRequest);
   }
-  
+
   // Tamper with one row directly in DB
   const eventId = await ctx.getLatestAuditEventId();
   await ctx.prisma.auditEvent.update({
     where: { id: eventId },
     data: { action: 'tampered-action' },
   });
-  
+
   // Chain verification should detect the break
   const result = await runChainVerification({ limit: 5 });
   expect(result.breaks).toBe(1);
@@ -672,10 +686,10 @@ it('chain detects a tampered row', async () => {
 
 it('GDPR erasure: hashing a field preserves chain integrity', async () => {
   const eventId = await ctx.getLatestAuditEventId();
-  
+
   // Hash the agentId field (GDPR erasure)
   await ctx.post(`/v1/audit/${eventId}/erase-field`, { field: 'agentId' });
-  
+
   // Chain should still verify — *Hash columns are included in the signature
   const result = await runChainVerification({ limit: 10 });
   expect(result.breaks).toBe(0);
@@ -719,7 +733,7 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_PASSWORD: test
-          POSTGRES_DB: aegis_test
+          POSTGRES_DB: cerniq_test
       redis:
         image: redis:7
     steps:
@@ -735,7 +749,7 @@ jobs:
     steps:
       # Three parallel checks:
       # 1. OpenAPI ↔ Zod schema parity
-      # 2. OpenAPI ↔ Prisma schema parity  
+      # 2. OpenAPI ↔ Prisma schema parity
       # 3. DenialReason enum byte-identical in OpenAPI, Zod, TypeScript
       - run: pnpm tsx scripts/check-openapi-zod-parity.ts
       - run: pnpm tsx scripts/check-openapi-prisma-parity.ts
@@ -753,17 +767,17 @@ jobs:
 
 ## 10. Coverage Targets
 
-| Package / Module | Line Coverage Target | Branch Coverage Target |
-|-----------------|---------------------|----------------------|
-| `verify.algorithm.ts` | **100%** | **100%** |
-| `common/crypto/*` | **100%** | **100%** |
-| `bate.scorer.ts` | **100%** | 95% |
-| `bate.anomaly.ts` | 95% | 90% |
-| `audit.service.ts` | 90% | 85% |
-| `verify.service.ts` | 85% | 80% |
-| `identity.service.ts` | 80% | 75% |
-| `policy.service.ts` | 80% | 75% |
-| Controllers | 70% (E2E covers the rest) | — |
+| Package / Module      | Line Coverage Target      | Branch Coverage Target |
+| --------------------- | ------------------------- | ---------------------- |
+| `verify.algorithm.ts` | **100%**                  | **100%**               |
+| `common/crypto/*`     | **100%**                  | **100%**               |
+| `bate.scorer.ts`      | **100%**                  | 95%                    |
+| `bate.anomaly.ts`     | 95%                       | 90%                    |
+| `audit.service.ts`    | 90%                       | 85%                    |
+| `verify.service.ts`   | 85%                       | 80%                    |
+| `identity.service.ts` | 80%                       | 75%                    |
+| `policy.service.ts`   | 80%                       | 75%                    |
+| Controllers           | 70% (E2E covers the rest) | —                      |
 
 Coverage is a floor, not a goal. 100% coverage with meaningless tests is worse than 80% coverage with property tests.
 
@@ -793,14 +807,14 @@ afterAll(async () => {
   await prisma.agentIdentity.deleteMany({ where: { principalId: testPrincipalId } });
   await prisma.apiKey.deleteMany({ where: { principalId: testPrincipalId } });
   await prisma.principal.delete({ where: { id: testPrincipalId } });
-  
+
   // Clean Redis keys for this principal
-  const keys = await redis.keys(`aegis:*:${testPrincipalId}:*`);
+  const keys = await redis.keys(`cerniq:*:${testPrincipalId}:*`);
   if (keys.length > 0) await redis.del(...keys);
 });
 ```
 
 ---
 
-*Testing strategy version: 1.0 | AEGIS Phase 1*  
-*Next review: after first 50K verify calls in production*
+_Testing strategy version: 1.0 | CERNIQ Phase 1_  
+_Next review: after first 50K verify calls in production_

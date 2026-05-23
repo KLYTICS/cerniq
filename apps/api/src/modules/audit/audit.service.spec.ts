@@ -46,7 +46,7 @@ interface AuditEventRow {
   policySnapshotHash: string | null;
   trustScoreAtEvent: number;
   trustBandAtEvent: string;
-  aegisSignature: string;
+  cerniqSignature: string;
   payloadVersion: number;
   redactedAt: Date | null;
   redactionReason: string | null;
@@ -162,7 +162,7 @@ function makePrisma(
           policySnapshotHash: data.policySnapshotHash ?? null,
           trustScoreAtEvent: data.trustScoreAtEvent ?? 0,
           trustBandAtEvent: data.trustBandAtEvent ?? 'VERIFIED',
-          aegisSignature: data.aegisSignature ?? '',
+          cerniqSignature: data.cerniqSignature ?? '',
           payloadVersion: data.payloadVersion ?? 2,
           redactedAt: null,
           redactionReason: null,
@@ -329,10 +329,10 @@ describe('AuditService', () => {
       expect(chain.sign).toHaveBeenCalledTimes(1);
     });
 
-    it('writes the chain signature to the aegisSignature column', async () => {
+    it('writes the chain signature to the cerniqSignature column', async () => {
       const { svc, events } = makeService();
       await svc.append(BASE_APPEND);
-      expect(events[0].aegisSignature).toBe('fake_audit_sig_b64url');
+      expect(events[0].cerniqSignature).toBe('fake_audit_sig_b64url');
     });
 
     it('passes prevEventId=null for the first event in a chain', async () => {
@@ -462,7 +462,7 @@ describe('AuditService', () => {
           policySnapshotHash: null,
           trustScoreAtEvent: 700,
           trustBandAtEvent: 'PLATINUM',
-          aegisSignature: 'sig_x',
+          cerniqSignature: 'sig_x',
           payloadVersion: 2,
           redactedAt: null,
           redactionReason: null,
@@ -499,7 +499,7 @@ describe('AuditService', () => {
         policySnapshotHash: null,
         trustScoreAtEvent: 600,
         trustBandAtEvent: 'VERIFIED',
-        aegisSignature: 'sig',
+        cerniqSignature: 'sig',
         payloadVersion: 2,
         redactedAt: null,
         redactionReason: null,
@@ -532,7 +532,7 @@ describe('AuditService', () => {
           policySnapshotHash: null,
           trustScoreAtEvent: 200,
           trustBandAtEvent: 'WATCH',
-          aegisSignature: 'sig2',
+          cerniqSignature: 'sig2',
           payloadVersion: 2,
           redactedAt: null,
           redactionReason: null,
@@ -580,14 +580,14 @@ describe('AuditService', () => {
       expect(yielded).toEqual(['evt_a', 'evt_b']); // chronological asc
     });
 
-    it('yields each event with the aegisSignature field', async () => {
+    it('yields each event with the cerniqSignature field', async () => {
       const events = [{ ...makeEventRow('evt_x', 'agt_1', 'prn_A', new Date()) }];
       const { svc } = makeService({ agents: [AGENT], initialEvents: events });
-      const items: { aegisSignature: string; eventId: string }[] = [];
+      const items: { cerniqSignature: string; eventId: string }[] = [];
       for await (const row of svc.exportStream('prn_A', 'agt_1', {})) {
         items.push(row);
       }
-      expect(items[0].aegisSignature).toBeDefined();
+      expect(items[0].cerniqSignature).toBeDefined();
     });
   });
 
@@ -736,7 +736,7 @@ function makeEventRow(
     policySnapshotHash: null,
     trustScoreAtEvent: 650,
     trustBandAtEvent: 'VERIFIED',
-    aegisSignature: `sig_${id}`,
+    cerniqSignature: `sig_${id}`,
     payloadVersion: 2,
     redactedAt: null,
     redactionReason: null,

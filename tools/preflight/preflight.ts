@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * AEGIS — preflight ship-readiness orchestrator.
+ * CERNIQ — preflight ship-readiness orchestrator.
  *
  * Single executable that runs every gating + warning check the operator
  * needs before deploy. Encodes `docs/TERMINAL_ORCHESTRATION.md` §5 (FAANG
@@ -20,7 +20,7 @@
  *   2  gating failure — DO NOT SHIP
  *   3  internal error in the preflight itself
  *
- * Why this exists: AEGIS has 15 quality scripts (tsc, lint, audit:errors,
+ * Why this exists: CERNIQ has 15 quality scripts (tsc, lint, audit:errors,
  * benchmark-verify, db-index-audit, check:migrations, etc.) but no single
  * orchestrator. Operators need ONE command that says "ship or don't ship."
  * This is that command.
@@ -90,8 +90,10 @@ export function parseFlags(argv: readonly string[]): Flags {
     if (arg === '--fast') flags.fast = true;
     else if (arg === '--json') flags.json = true;
     else if (arg === '--prod') flags.prod = true;
-    else if (arg.startsWith('--only=')) flags.only = new Set(arg.slice(7).split(',').filter(Boolean));
-    else if (arg.startsWith('--skip=')) flags.skip = new Set(arg.slice(7).split(',').filter(Boolean));
+    else if (arg.startsWith('--only='))
+      flags.only = new Set(arg.slice(7).split(',').filter(Boolean));
+    else if (arg.startsWith('--skip='))
+      flags.skip = new Set(arg.slice(7).split(',').filter(Boolean));
     else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -104,7 +106,7 @@ export function parseFlags(argv: readonly string[]): Flags {
 }
 
 function printHelp(): void {
-  process.stdout.write(`AEGIS preflight — ship-readiness gate
+  process.stdout.write(`CERNIQ preflight — ship-readiness gate
 
 Usage: tsx tools/preflight/preflight.ts [flags]
 
@@ -130,7 +132,11 @@ interface ExecResult {
   stderr: string;
 }
 
-function exec(cmd: string, args: readonly string[], opts: { cwd?: string; timeoutMs?: number } = {}): ExecResult {
+function exec(
+  cmd: string,
+  args: readonly string[],
+  opts: { cwd?: string; timeoutMs?: number } = {},
+): ExecResult {
   const r = spawnSync(cmd, args as string[], {
     cwd: opts.cwd ?? REPO_ROOT,
     encoding: 'utf8',
@@ -189,34 +195,37 @@ export const CHECKS: Check[] = [
       const unique = Array.from(new Set(sids));
       return {
         status: 'pass',
-        details: unique.length === 0 ? 'no active claims' : `${unique.length} active (${unique.join(', ')})`,
+        details:
+          unique.length === 0
+            ? 'no active claims'
+            : `${unique.length} active (${unique.join(', ')})`,
         metrics: { activeClaims: unique.length },
       };
     },
   },
   {
     id: 'tsc-api',
-    label: 'tsc @aegis/api',
+    label: 'tsc @cerniq/api',
     category: 'gating',
     fastSafe: true,
     run(): CheckResult {
-      const r = exec('pnpm', ['-F', '@aegis/api', 'exec', 'tsc', '--noEmit']);
+      const r = exec('pnpm', ['-F', '@cerniq/api', 'exec', 'tsc', '--noEmit']);
       if (r.status === 0) return { status: 'pass', details: '0 errors' };
       const errCount = (r.stdout.match(/error TS\d+/g) ?? []).length;
       return {
         status: 'fail',
         details: `${errCount} error(s)`,
-        remediation: 'pnpm -F @aegis/api exec tsc --noEmit  # see full output',
+        remediation: 'pnpm -F @cerniq/api exec tsc --noEmit  # see full output',
       };
     },
   },
   {
     id: 'lint-api',
-    label: 'lint @aegis/api',
+    label: 'lint @cerniq/api',
     category: 'gating',
     fastSafe: true,
     run(): CheckResult {
-      const r = exec('pnpm', ['-F', '@aegis/api', 'lint']);
+      const r = exec('pnpm', ['-F', '@cerniq/api', 'lint']);
       if (r.status === 0) return { status: 'pass', details: '0 warnings' };
       // Distinguish environmental (missing plugin / config error) from code lint failure.
       const combined = r.stdout + r.stderr;
@@ -224,7 +233,9 @@ export const CHECKS: Check[] = [
         const m = combined.match(/Cannot find package '([^']+)'/);
         return {
           status: 'warn',
-          details: m ? `eslint config can't load '${m[1]}' (env issue, not lint)` : 'eslint config load error',
+          details: m
+            ? `eslint config can't load '${m[1]}' (env issue, not lint)`
+            : 'eslint config load error',
           remediation: 'pnpm install  # ensure all eslint plugins materialized',
         };
       }
@@ -235,13 +246,13 @@ export const CHECKS: Check[] = [
         return {
           status: 'warn',
           details: `eslint exit ${r.status} but no parsed findings`,
-          remediation: 'pnpm -F @aegis/api lint  # see full output',
+          remediation: 'pnpm -F @cerniq/api lint  # see full output',
         };
       }
       return {
         status: 'fail',
         details: `${errCount} error(s) · ${warnCount} warning(s)`,
-        remediation: 'pnpm -F @aegis/api lint  # see full output',
+        remediation: 'pnpm -F @cerniq/api lint  # see full output',
       };
     },
   },
@@ -269,7 +280,7 @@ export const CHECKS: Check[] = [
     category: 'gating',
     fastSafe: true,
     run(): CheckResult {
-      const r = exec('pnpm', ['-F', '@aegis/scripts', 'audit:errors']);
+      const r = exec('pnpm', ['-F', '@cerniq/scripts', 'audit:errors']);
       if (r.status === 0) {
         const m = r.stdout.match(/(\d+)\s+files\s+scanned[\s,]+(\d+)\s+throw\s+sites/i);
         return {
@@ -279,7 +290,7 @@ export const CHECKS: Check[] = [
       }
       return {
         status: 'fail',
-        details: 'uncataloged AegisError subclass thrown',
+        details: 'uncataloged CerniqError subclass thrown',
         remediation: 'register the class in apps/api/src/common/errors/error-catalog.ts',
       };
     },
@@ -309,16 +320,16 @@ export const CHECKS: Check[] = [
     fastSafe: true,
     run(ctx: Context): CheckResult {
       // Names sourced from .env.example (the canonical surface). Round 13
-      // renamed AUDIT_* → AEGIS_SIGNING_*; old names are deprecated aliases.
+      // renamed AUDIT_* → CERNIQ_SIGNING_*; old names are deprecated aliases.
       // ADR-0014 added STRIPE_PRICE_TEAM and STRIPE_PRICE_SCALE.
       const required = [
         'DATABASE_URL',
         'REDIS_URL',
-        'AEGIS_SIGNING_PRIVATE_KEY',
-        'AEGIS_SIGNING_PUBLIC_KEY',
+        'CERNIQ_SIGNING_PRIVATE_KEY',
+        'CERNIQ_SIGNING_PUBLIC_KEY',
         'JWT_ED25519_PRIVATE_KEY_B64',
         'JWT_ED25519_PUBLIC_KEY_B64',
-        'AEGIS_WEBHOOK_SECRET_DEK_B64',  // round-13 webhook secret-at-rest DEK
+        'CERNIQ_WEBHOOK_SECRET_DEK_B64', // round-13 webhook secret-at-rest DEK
         'STRIPE_SECRET_KEY',
         'STRIPE_WEBHOOK_SECRET',
         'STRIPE_PRICE_DEVELOPER',
@@ -327,7 +338,8 @@ export const CHECKS: Check[] = [
       ];
       const set = required.filter((k) => process.env[k]);
       const missing = required.filter((k) => !process.env[k]);
-      if (missing.length === 0) return { status: 'pass', details: `${set.length}/${required.length} set` };
+      if (missing.length === 0)
+        return { status: 'pass', details: `${set.length}/${required.length} set` };
       const status: CheckStatus = ctx.prod ? 'fail' : 'warn';
       return {
         status,
@@ -363,8 +375,14 @@ export const CHECKS: Check[] = [
       return {
         status: 'warn',
         details: detail,
-        metrics: { open: openCount, od003Open: od003Open ? 1 : 0, od003Decided: od003Decided ? 1 : 0 },
-        remediation: od003Open ? 'resolve OD-003 in OPERATOR_DECISIONS.md before live billing' : 'review remaining OPEN decisions for ship blockers',
+        metrics: {
+          open: openCount,
+          od003Open: od003Open ? 1 : 0,
+          od003Decided: od003Decided ? 1 : 0,
+        },
+        remediation: od003Open
+          ? 'resolve OD-003 in OPERATOR_DECISIONS.md before live billing'
+          : 'review remaining OPEN decisions for ship blockers',
       };
     },
   },
@@ -383,7 +401,10 @@ export const CHECKS: Check[] = [
       };
       const expected = map[provider];
       if (!expected) {
-        return { status: 'warn', details: `unknown provider '${provider}' (expected: aws|gcp|vault|memory)` };
+        return {
+          status: 'warn',
+          details: `unknown provider '${provider}' (expected: aws|gcp|vault|memory)`,
+        };
       }
       if (existsSync(resolve(REPO_ROOT, expected))) {
         return { status: 'pass', details: `${provider} SDK installed` };
@@ -415,13 +436,18 @@ export const CHECKS: Check[] = [
         return {
           status: 'warn',
           details: 'targets only — no real measurements yet',
-          remediation: 'pnpm bench:verify --output apps/api/perf-baseline.json  # after make dev + seed:demo',
+          remediation:
+            'pnpm bench:verify --output apps/api/perf-baseline.json  # after make dev + seed:demo',
         };
       }
       const ageMs = Date.now() - statSync(path).mtimeMs;
       const ageDays = Math.floor(ageMs / 86_400_000);
       if (ageDays > 30) {
-        return { status: 'warn', details: `${ageDays}d old`, remediation: 'pnpm bench:verify --output apps/api/perf-baseline.json' };
+        return {
+          status: 'warn',
+          details: `${ageDays}d old`,
+          remediation: 'pnpm bench:verify --output apps/api/perf-baseline.json',
+        };
       }
       return { status: 'pass', details: `${ageDays}d old` };
     },
@@ -435,15 +461,20 @@ export const CHECKS: Check[] = [
       // Round 15 left a self-arming setInterval in audit-retention.service.ts as
       // an interim until @nestjs/schedule lands (Terminal H). Flag this until
       // it migrates to @Cron — the framework cron is the right long-term shape.
-      const retentionPath = resolve(REPO_ROOT, 'apps/api/src/modules/compliance/audit-retention.service.ts');
-      if (!existsSync(retentionPath)) return { status: 'skip', details: 'retention service not found' };
+      const retentionPath = resolve(
+        REPO_ROOT,
+        'apps/api/src/modules/compliance/audit-retention.service.ts',
+      );
+      if (!existsSync(retentionPath))
+        return { status: 'skip', details: 'retention service not found' };
       const body = readFileSync(retentionPath, 'utf8');
       const stillSelfArming = body.includes('setInterval') && !body.includes('@Cron(');
       if (stillSelfArming) {
         return {
           status: 'warn',
           details: 'audit-retention uses setInterval — Terminal H owes @nestjs/schedule swap',
-          remediation: 'pnpm add @nestjs/schedule -F @aegis/api · ScheduleModule.forRoot() in app.module.ts · @Cron in retention service',
+          remediation:
+            'pnpm add @nestjs/schedule -F @cerniq/api · ScheduleModule.forRoot() in app.module.ts · @Cron in retention service',
         };
       }
       return { status: 'pass', details: 'audit-retention on framework cron' };
@@ -459,8 +490,8 @@ export const CHECKS: Check[] = [
       // real file. Catches the inverse drift: alert references a renamed or
       // deleted runbook → on-call hits 404 mid-incident.
       const ruleFiles = [
-        'infra/observability/alerts/aegis.rules.yml',
-        'infra/observability/alerts/aegis-security.rules.yml',
+        'infra/observability/alerts/cerniq.rules.yml',
+        'infra/observability/alerts/cerniq-security.rules.yml',
       ];
       const broken: Array<{ rule: string; runbook: string }> = [];
       let totalRefs = 0;
@@ -493,7 +524,10 @@ export const CHECKS: Check[] = [
         status: 'fail',
         details: `${broken.length}/${totalRefs} runbook refs broken`,
         metrics: { totalRefs, broken: broken.length },
-        remediation: `fix or remove: ${broken.map((b) => b.runbook).slice(0, 3).join(', ')}${broken.length > 3 ? '…' : ''}`,
+        remediation: `fix or remove: ${broken
+          .map((b) => b.runbook)
+          .slice(0, 3)
+          .join(', ')}${broken.length > 3 ? '…' : ''}`,
       };
     },
   },
@@ -507,7 +541,8 @@ export const CHECKS: Check[] = [
       // never plaintext. Detect regression by confirming the cipher import is
       // wired and `subscribe()` calls `cipher.encrypt()` before persisting.
       const servicePath = resolve(REPO_ROOT, 'apps/api/src/modules/webhooks/webhooks.service.ts');
-      if (!existsSync(servicePath)) return { status: 'skip', details: 'webhooks.service.ts not found' };
+      if (!existsSync(servicePath))
+        return { status: 'skip', details: 'webhooks.service.ts not found' };
       const body = readFileSync(servicePath, 'utf8');
       const importsCipher = /WebhookSecretCipher|webhook-secret-cipher/.test(body);
       const callsEncrypt = /\.encrypt\s*\(\s*secret\s*\)|cipher\.encrypt\(/.test(body);
@@ -522,7 +557,8 @@ export const CHECKS: Check[] = [
       return {
         status: 'fail',
         details: `webhook secret hardening regressed: missing ${missing.join(', ')}`,
-        remediation: 'restore round-13 design: import WebhookSecretCipher; call cipher.encrypt(secret); persist as ciphertext, never plaintext',
+        remediation:
+          'restore round-13 design: import WebhookSecretCipher; call cipher.encrypt(secret); persist as ciphertext, never plaintext',
       };
     },
   },
@@ -540,7 +576,8 @@ export const CHECKS: Check[] = [
       const body = readFileSync(constantsPath, 'utf8');
       // The canonical list is `export const DENIAL_REASON_PRECEDENCE = [...]`.
       const m = body.match(/DENIAL_REASON_PRECEDENCE[^\[]*\[([\s\S]*?)\]/);
-      if (!m) return { status: 'skip', details: 'DENIAL_REASON_PRECEDENCE not found in constants.ts' };
+      if (!m)
+        return { status: 'skip', details: 'DENIAL_REASON_PRECEDENCE not found in constants.ts' };
       const reasons = Array.from((m[1] ?? '').matchAll(/'([A-Z_]+)'/g)).map((mm) => mm[1]!);
       const hasTrialExhausted = reasons.includes('TRIAL_EXHAUSTED');
       if (hasTrialExhausted) {
@@ -554,7 +591,8 @@ export const CHECKS: Check[] = [
         status: 'warn',
         details: `${reasons.length} reasons — TRIAL_EXHAUSTED missing per ADR-0014`,
         metrics: { reasonCount: reasons.length },
-        remediation: 'add TRIAL_EXHAUSTED between SCOPE_NOT_GRANTED and SPEND_LIMIT_EXCEEDED in constants.ts; cascade to verify.dto.ts, OpenAPI spec, SECURITY.md, CLAUDE.md inv 6, denial-precedence-enum.spec.ts',
+        remediation:
+          'add TRIAL_EXHAUSTED between SCOPE_NOT_GRANTED and SPEND_LIMIT_EXCEEDED in constants.ts; cascade to verify.dto.ts, OpenAPI spec, SECURITY.md, CLAUDE.md inv 6, denial-precedence-enum.spec.ts',
       };
     },
   },
@@ -570,7 +608,8 @@ function countFiles(dir: string, include: RegExp, exclude?: RegExp): number {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = resolve(dir, entry.name);
     if (entry.isDirectory()) {
-      if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name === '.next') continue;
+      if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name === '.next')
+        continue;
       n += countFiles(full, include, exclude);
     } else if (include.test(entry.name) && (!exclude || !exclude.test(entry.name))) {
       n++;
@@ -616,14 +655,16 @@ function symbol(s: CheckStatus): string {
 function printPretty(results: CompletedCheck[], totalMs: number, exitCode: number): void {
   const ts = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
   const sep = '─'.repeat(70);
-  process.stdout.write(`\n${C.bold}AEGIS Preflight${C.reset} — ${ts}\n${C.dim}${sep}${C.reset}\n`);
+  process.stdout.write(`\n${C.bold}CERNIQ Preflight${C.reset} — ${ts}\n${C.dim}${sep}${C.reset}\n`);
   const labelWidth = Math.max(...results.map((r) => r.label.length));
   for (let i = 0; i < results.length; i++) {
     const r = results[i]!;
     const idx = `[${String(i + 1).padStart(2)}/${results.length}]`;
     const label = r.label.padEnd(labelWidth);
     const elapsed = r.elapsedMs > 0 ? `${C.dim}${(r.elapsedMs / 1000).toFixed(1)}s${C.reset}` : '';
-    process.stdout.write(`${C.dim}${idx}${C.reset} ${symbol(r.status)} ${label}  ${r.details ?? ''} ${elapsed}\n`);
+    process.stdout.write(
+      `${C.dim}${idx}${C.reset} ${symbol(r.status)} ${label}  ${r.details ?? ''} ${elapsed}\n`,
+    );
     if (r.status === 'fail' && r.remediation) {
       process.stdout.write(`${C.dim}        fix: ${r.remediation}${C.reset}\n`);
     }
@@ -631,11 +672,12 @@ function printPretty(results: CompletedCheck[], totalMs: number, exitCode: numbe
   process.stdout.write(`${C.dim}${sep}${C.reset}\n`);
   const counts = tally(results);
   const summary = `${C.green}${counts.pass} pass${C.reset} · ${C.yellow}${counts.warn} warn${C.reset} · ${C.red}${counts.fail} fail${C.reset} · ${C.gray}${counts.skip} skip${C.reset}`;
-  const verdict = exitCode === 0
-    ? `${C.green}${C.bold}READY TO SHIP${C.reset}`
-    : exitCode === 1
-      ? `${C.yellow}${C.bold}SHIP WITH CARE${C.reset} (warnings)`
-      : `${C.red}${C.bold}DO NOT SHIP${C.reset} (gating failure)`;
+  const verdict =
+    exitCode === 0
+      ? `${C.green}${C.bold}READY TO SHIP${C.reset}`
+      : exitCode === 1
+        ? `${C.yellow}${C.bold}SHIP WITH CARE${C.reset} (warnings)`
+        : `${C.red}${C.bold}DO NOT SHIP${C.reset} (gating failure)`;
   process.stdout.write(`${verdict}\n`);
   process.stdout.write(`Result: ${summary}\n`);
   process.stdout.write(`Total:  ${(totalMs / 1000).toFixed(1)}s · exit ${exitCode}\n\n`);
@@ -654,8 +696,16 @@ function printJson(results: CompletedCheck[], totalMs: number, exitCode: number)
   process.stdout.write(JSON.stringify(payload, null, 2) + '\n');
 }
 
-export function tally(results: readonly CompletedCheck[]): Record<CheckStatus, number> & { total: number } {
-  const t: Record<CheckStatus, number> & { total: number } = { pass: 0, warn: 0, fail: 0, skip: 0, total: results.length };
+export function tally(
+  results: readonly CompletedCheck[],
+): Record<CheckStatus, number> & { total: number } {
+  const t: Record<CheckStatus, number> & { total: number } = {
+    pass: 0,
+    warn: 0,
+    fail: 0,
+    skip: 0,
+    total: results.length,
+  };
   for (const r of results) t[r.status]++;
   return t;
 }

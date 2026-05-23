@@ -1,11 +1,11 @@
-# goreleaser config for the AEGIS CLI.
+# goreleaser config for the CERNIQ CLI.
 # https://goreleaser.com/customization/
 #
 # Cross-compiles to darwin/linux/windows × amd64/arm64. Publishes:
 #   - GitHub release with archives + checksums.txt + checksums.txt.sig
 #     (cosign keyless via GitHub OIDC)
-#   - Homebrew tap at klytics/homebrew-aegis
-#   - Scoop bucket at klytics/scoop-aegis
+#   - Homebrew tap at klytics/homebrew-cerniq
+#   - Scoop bucket at klytics/scoop-cerniq
 #   - SBOM (cyclonedx) per archive
 #
 # Local snapshot build (no publish):
@@ -17,29 +17,29 @@
 
 version: 2
 
-project_name: aegis
+project_name: cerniq
 
 before:
   hooks:
     - go mod tidy
 
 builds:
-  - id: aegis
+  - id: cerniq
     main: ./packages/cli
-    binary: aegis
+    binary: cerniq
     env:
       - CGO_ENABLED=0
     goos: [darwin, linux, windows]
     goarch: [amd64, arm64]
     ldflags:
       - -s -w
-      - -X github.com/klytics/aegis/packages/cli/internal/version.Version={{.Version}}
-      - -X github.com/klytics/aegis/packages/cli/internal/version.Commit={{.ShortCommit}}
-      - -X github.com/klytics/aegis/packages/cli/internal/version.BuildDate={{.Date}}
+      - -X github.com/klytics/cerniq/packages/cli/internal/version.Version={{.Version}}
+      - -X github.com/klytics/cerniq/packages/cli/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/klytics/cerniq/packages/cli/internal/version.BuildDate={{.Date}}
 
 archives:
-  - id: aegis
-    name_template: "aegis_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - id: cerniq
+    name_template: 'cerniq_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
     format: tar.gz
     format_overrides:
       - goos: windows
@@ -49,7 +49,7 @@ archives:
       - README.md
 
 checksum:
-  name_template: "checksums.txt"
+  name_template: 'checksums.txt'
   algorithm: sha256
 
 # Cosign keyless signing of the checksums file. Allows install.sh to
@@ -59,12 +59,12 @@ signs:
   - cmd: cosign
     env:
       - COSIGN_EXPERIMENTAL=1
-    certificate: "${artifact}.pem"
+    certificate: '${artifact}.pem'
     args:
       - sign-blob
-      - "--output-certificate=${certificate}"
-      - "--output-signature=${signature}"
-      - "${artifact}"
+      - '--output-certificate=${certificate}'
+      - '--output-signature=${signature}'
+      - '${artifact}'
       - --yes
     artifacts: checksum
     output: true
@@ -72,25 +72,25 @@ signs:
 sboms:
   - artifacts: archive
     documents:
-      - "${artifact}.cyclonedx.sbom.json"
+      - '${artifact}.cyclonedx.sbom.json'
 
 snapshot:
-  version_template: "{{ incpatch .Version }}-snap"
+  version_template: '{{ incpatch .Version }}-snap'
 
 changelog:
   sort: asc
   use: github
   filters:
     exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
-      - "merge conflict"
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - 'merge conflict'
   groups:
     - title: Features
       regexp: '^.*?feat(\(.+\))??!?:.+$'
       order: 0
-    - title: "Bug fixes"
+    - title: 'Bug fixes'
       regexp: '^.*?(fix|refactor)(\(.+\))??!?:.+$'
       order: 1
     - title: Others
@@ -99,34 +99,34 @@ changelog:
 brews:
   - repository:
       owner: klytics
-      name: homebrew-aegis
-    name: aegis
-    homepage: "https://aegislabs.io"
-    description: "Operator CLI for the AEGIS agent gateway"
-    license: "Proprietary"
+      name: homebrew-cerniq
+    name: cerniq
+    homepage: 'https://cerniq.io'
+    description: 'Operator CLI for the CERNIQ agent gateway'
+    license: 'Proprietary'
     install: |
-      bin.install "aegis"
-      generate_completions_from_executable(bin/"aegis", "completion")
+      bin.install "cerniq"
+      generate_completions_from_executable(bin/"cerniq", "completion")
     test: |
-      system "#{bin}/aegis", "--version"
+      system "#{bin}/cerniq", "--version"
 
 scoops:
   - repository:
       owner: klytics
-      name: scoop-aegis
-    name: aegis
-    homepage: "https://aegislabs.io"
-    description: "Operator CLI for the AEGIS agent gateway"
+      name: scoop-cerniq
+    name: cerniq
+    homepage: 'https://cerniq.io'
+    description: 'Operator CLI for the CERNIQ agent gateway'
     license: Proprietary
 
 release:
   draft: false
   prerelease: auto
-  name_template: "v{{.Version}}"
+  name_template: 'v{{.Version}}'
   header: |
-    ## AEGIS CLI {{ .Tag }}
+    ## CERNIQ CLI {{ .Tag }}
 
-    Install: `curl -fsSL https://get.aegis.dev/install.sh | sh`
+    Install: `curl -fsSL https://get.cerniq.dev/install.sh | sh`
   footer: |
     **Verifying the release**
 
@@ -134,7 +134,7 @@ release:
     cosign verify-blob \
       --certificate checksums.txt.pem \
       --signature checksums.txt.sig \
-      --certificate-identity-regexp 'https://github.com/klytics/aegis/.+' \
+      --certificate-identity-regexp 'https://github.com/klytics/cerniq/.+' \
       --certificate-oidc-issuer https://token.actions.githubusercontent.com \
       checksums.txt
     ```

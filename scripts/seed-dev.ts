@@ -1,17 +1,17 @@
 #!/usr/bin/env -S node --import=tsx
 /**
- * AEGIS — idempotent dev seed.
+ * CERNIQ — idempotent dev seed.
  *
  * Creates (or no-ops on) the minimum row set a developer needs to hit the
  * API end-to-end:
  *
- *   1. Principal             — email "dev@aegis.local", planTier=DEVELOPER
- *   2. ApiKey                — full-scope key prefixed "aegis_sk_"  (per ref impl)
+ *   1. Principal             — email "dev@cerniq.local", planTier=DEVELOPER
+ *   2. ApiKey                — full-scope key prefixed "cerniq_sk_"  (per ref impl)
  *   3. AgentIdentity         — with a freshly generated Ed25519 keypair;
  *                              public key persisted; private key written
  *                              0600 to BOTH:
  *                                ./.local/keys/dev-agent.private  (durable)
- *                                ./.aegis-dev-key.txt             (operator-facing)
+ *                                ./.cerniq-dev-key.txt             (operator-facing)
  *   4. AgentPolicy ACTIVE    — commerce scope, $500 / txn (50 000 cents) USD,
  *                              30 day expiry
  *   5. RelyingParty          — domain "localhost:4000", kind GENERIC
@@ -37,8 +37,8 @@
  * Bcrypt cost: 12 always (key issuance is rare in this script). --fast drops
  * to 4 for test environments where we hash a key on every run.
  *
- *   pnpm --filter @aegis/scripts seed -- --fast
- *   NODE_ENV=development pnpm --filter @aegis/scripts seed -- --reset
+ *   pnpm --filter @cerniq/scripts seed -- --fast
+ *   NODE_ENV=development pnpm --filter @cerniq/scripts seed -- --reset
  */
 
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -55,16 +55,16 @@ ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
 
 // ── Constants tied to the reference impl ──────────────────────────
 
-const PRINCIPAL_EMAIL = 'dev@aegis.local';
+const PRINCIPAL_EMAIL = 'dev@cerniq.local';
 const PRINCIPAL_NAME = 'Local Dev';
 const API_KEY_LABEL = 'dev-key';
 const AGENT_LABEL = 'dev-agent';
 const POLICY_LABEL = 'dev-policy';
-const API_KEY_PREFIX = 'aegis_sk_';
+const API_KEY_PREFIX = 'cerniq_sk_';
 const AGENT_PRIVATE_KEY_PATH = resolve('./.local/keys/dev-agent.private');
 // Operator-facing copy of the agent private key. Easier to find than the
 // nested ./.local/keys/ path. Same 0600 mode + .gitignore expectation.
-const AGENT_PRIVATE_KEY_OP_PATH = resolve('./.aegis-dev-key.txt');
+const AGENT_PRIVATE_KEY_OP_PATH = resolve('./.cerniq-dev-key.txt');
 // $500 maxPerTransaction. The user-facing seed contract (50_000 cents)
 // kept in cents form here for clarity; we surface USD on the wire.
 const POLICY_SPEND_MAX_PER_TX_CENTS = 50_000;
@@ -83,7 +83,7 @@ function toB64Url(bytes: Uint8Array | Buffer): string {
   return Buffer.from(bytes).toString('base64url');
 }
 
-/** `aegis_sk_<22-char b64url of 16 random bytes>` — matches ref impl shape. */
+/** `cerniq_sk_<22-char b64url of 16 random bytes>` — matches ref impl shape. */
 export function mintApiKey(): { plaintext: string; prefix: string } {
   const raw = toB64Url(randomBytes(16));
   const plaintext = `${API_KEY_PREFIX}${raw}`;
@@ -97,7 +97,7 @@ export function mintApiKey(): { plaintext: string; prefix: string } {
 /**
  * Mint a real Ed25519-signed compact JWT for the seed policy. Not fabricated
  * — the signature verifies under the keypair we just generated. This is a
- * dev-only convenience; real policies are signed by the AEGIS audit key.
+ * dev-only convenience; real policies are signed by the CERNIQ audit key.
  */
 async function mintSeedPolicyToken(
   privateKey: Uint8Array,
@@ -264,7 +264,7 @@ async function writeAgentPrivateKey(privateKeyB64Url: string): Promise<void> {
   await writeFile(AGENT_PRIVATE_KEY_PATH, `${privateKeyB64Url}\n`, { mode: 0o600 });
   // Operator-facing copy at repo root. Required by Phase-1 launch swarm
   // contract — easier to discover than the .local/keys/ nested path.
-  // NOTE: .gitignore must exclude .aegis-dev-key.txt (verify post-seed).
+  // NOTE: .gitignore must exclude .cerniq-dev-key.txt (verify post-seed).
   await writeFile(AGENT_PRIVATE_KEY_OP_PATH, `${privateKeyB64Url}\n`, { mode: 0o600 });
 }
 
@@ -374,11 +374,11 @@ async function main(): Promise<void> {
     });
     if (!policy) {
       // For seed we mint the token under the agent's own key. Real production
-      // policies are signed by the AEGIS audit key; this is a dev convenience.
+      // policies are signed by the CERNIQ audit key; this is a dev convenience.
       // privateKeyB64Url is set when we just created the agent; otherwise we
       // generate an ephemeral throwaway signer for the seed token only — the
       // token is never used for real verification because real policies are
-      // signed under the AEGIS audit key, not the agent key. Documented above.
+      // signed under the CERNIQ audit key, not the agent key. Documented above.
       const signerPriv = privateKeyB64Url
         ? new Uint8Array(Buffer.from(privateKeyB64Url, 'base64url'))
         : ed.utils.randomPrivateKey();
@@ -389,7 +389,7 @@ async function main(): Promise<void> {
         scopes: ['commerce'],
         iat: Math.floor(now.getTime() / 1000),
         exp: Math.floor(expiresAt.getTime() / 1000),
-        type: 'aegis_policy_seed',
+        type: 'cerniq_policy_seed',
       });
       policy = await prisma.agentPolicy.create({
         data: {
@@ -461,7 +461,7 @@ async function main(): Promise<void> {
   Relying Party ID: ${relyingParty.id}  (${RELYING_PARTY_DOMAIN})
   Public key:       ${publicKeyB64Url}
   Private key file: ${AGENT_PRIVATE_KEY_OP_PATH}
-${issuedApiKey ? `  API key (use as x-aegis-api-key): ${issuedApiKey}\n` : '  API key: already issued (use --reset to rotate)\n'}`,
+${issuedApiKey ? `  API key (use as x-cerniq-api-key): ${issuedApiKey}\n` : '  API key: already issued (use --reset to rotate)\n'}`,
     );
   } finally {
     await prisma.$disconnect();

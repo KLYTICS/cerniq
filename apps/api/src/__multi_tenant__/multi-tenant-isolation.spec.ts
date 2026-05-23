@@ -41,9 +41,24 @@ interface AgentRow {
   revokedAt: Date | null;
   revokedReason: string | null;
 }
-interface AuditRow { id: string; agentId: string; principalId: string; timestamp: Date }
-interface PolicyRow { id: string; agentId: string }
-interface SubRow { id: string; principalId: string; url: string; events: string[]; active: boolean; secret: string }
+interface AuditRow {
+  id: string;
+  agentId: string;
+  principalId: string;
+  timestamp: Date;
+}
+interface PolicyRow {
+  id: string;
+  agentId: string;
+}
+interface SubRow {
+  id: string;
+  principalId: string;
+  url: string;
+  events: string[];
+  active: boolean;
+  secret: string;
+}
 
 function rowMatches(row: object, where: Record<string, unknown>): boolean {
   const r = row as Record<string, unknown>;
@@ -82,7 +97,21 @@ function buildPrismaMock() {
       findMany: jest.fn(async ({ where, take }: { where: { agentId: string }; take?: number }) => {
         const matched = audits
           .filter((e) => e.agentId === where.agentId)
-          .map((e) => ({ ...e, claimedAgentId: null, action: 'verify', decision: 'APPROVED', denialReason: null, relyingParty: null, requestedAmount: null, currency: null, policyId: null, policySnapshot: null, trustScoreAtEvent: 500, trustBandAtEvent: 'VERIFIED', aegisSignature: 'sig' }));
+          .map((e) => ({
+            ...e,
+            claimedAgentId: null,
+            action: 'verify',
+            decision: 'APPROVED',
+            denialReason: null,
+            relyingParty: null,
+            requestedAmount: null,
+            currency: null,
+            policyId: null,
+            policySnapshot: null,
+            trustScoreAtEvent: 500,
+            trustBandAtEvent: 'VERIFIED',
+            cerniqSignature: 'sig',
+          }));
         return take ? matched.slice(0, take) : matched;
       }),
     },
@@ -96,18 +125,16 @@ function buildPrismaMock() {
       findMany: jest.fn(async ({ where }: { where: Record<string, unknown> }) => {
         return Array.from(subs.values()).filter((s) => rowMatches(s, where));
       }),
-      deleteMany: jest.fn(
-        async ({ where }: { where: { id: string; principalId: string } }) => {
-          let deleted = 0;
-          for (const [k, v] of subs) {
-            if (v.id === where.id && v.principalId === where.principalId) {
-              subs.delete(k);
-              deleted += 1;
-            }
+      deleteMany: jest.fn(async ({ where }: { where: { id: string; principalId: string } }) => {
+        let deleted = 0;
+        for (const [k, v] of subs) {
+          if (v.id === where.id && v.principalId === where.principalId) {
+            subs.delete(k);
+            deleted += 1;
           }
-          return { count: deleted };
-        },
-      ),
+        }
+        return { count: deleted };
+      }),
     },
   } as unknown as PrismaService;
 
@@ -122,9 +149,19 @@ const noopRedis = {
 
 function makeAgent(id: string, principalId: string): AgentRow {
   return {
-    id, principalId, status: 'ACTIVE', publicKey: 'pk', runtime: 'CUSTOM',
-    model: null, label: null, trustScore: 500, trustBand: 'VERIFIED',
-    createdAt: new Date(), lastSeenAt: null, revokedAt: null, revokedReason: null,
+    id,
+    principalId,
+    status: 'ACTIVE',
+    publicKey: 'pk',
+    runtime: 'CUSTOM',
+    model: null,
+    label: null,
+    trustScore: 500,
+    trustBand: 'VERIFIED',
+    createdAt: new Date(),
+    lastSeenAt: null,
+    revokedAt: null,
+    revokedReason: null,
   };
 }
 
@@ -208,7 +245,12 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
     it('denies cross-principal audit list — ownership check uses caller principalId', async () => {
       const harness = buildPrismaMock();
       harness.agents.set('agt_b', makeAgent('agt_b', PRINCIPAL_B));
-      harness.audits.push({ id: 'evt_1', agentId: 'agt_b', principalId: PRINCIPAL_B, timestamp: new Date() });
+      harness.audits.push({
+        id: 'evt_1',
+        agentId: 'agt_b',
+        principalId: PRINCIPAL_B,
+        timestamp: new Date(),
+      });
       const svc = makeAuditSvc(harness.prisma);
 
       await expect(svc.list(PRINCIPAL_A, 'agt_b', {})).rejects.toBeInstanceOf(NotFoundException);
@@ -220,12 +262,22 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       expect(harness.prisma.auditEvent.findMany as unknown as jest.Mock).not.toHaveBeenCalled();
     });
 
-    it('owner sees only their own agent\'s events', async () => {
+    it("owner sees only their own agent's events", async () => {
       const harness = buildPrismaMock();
       harness.agents.set('agt_a', makeAgent('agt_a', PRINCIPAL_A));
-      harness.audits.push({ id: 'evt_1', agentId: 'agt_a', principalId: PRINCIPAL_A, timestamp: new Date() });
+      harness.audits.push({
+        id: 'evt_1',
+        agentId: 'agt_a',
+        principalId: PRINCIPAL_A,
+        timestamp: new Date(),
+      });
       // Foreign-tenant noise:
-      harness.audits.push({ id: 'evt_2', agentId: 'agt_b', principalId: PRINCIPAL_B, timestamp: new Date() });
+      harness.audits.push({
+        id: 'evt_2',
+        agentId: 'agt_b',
+        principalId: PRINCIPAL_B,
+        timestamp: new Date(),
+      });
 
       const svc = makeAuditSvc(harness.prisma);
       const out = await svc.list(PRINCIPAL_A, 'agt_a', {});
@@ -241,7 +293,9 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
 
   describe('WebhooksService', () => {
     function makeWebhooksSvc(prisma: PrismaService) {
-      const delivery = { enqueue: jest.fn().mockResolvedValue(undefined) } as unknown as WebhookDeliveryWorker;
+      const delivery = {
+        enqueue: jest.fn().mockResolvedValue(undefined),
+      } as unknown as WebhookDeliveryWorker;
       // Identity-encrypt cipher: tenant isolation tests don't care about
       // ciphertext shape, only that the principalId scoping is honored.
       const cipher = {
@@ -256,9 +310,13 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       const harness = buildPrismaMock();
       const svc = makeWebhooksSvc(harness.prisma);
 
-      const { id } = await svc.subscribe(PRINCIPAL_A, 'https://example.com/hook', ['policy.created']);
+      const { id } = await svc.subscribe(PRINCIPAL_A, 'https://example.com/hook', [
+        'policy.created',
+      ]);
 
-      expect(harness.prisma.webhookSubscription.create as unknown as jest.Mock).toHaveBeenCalledWith(
+      expect(
+        harness.prisma.webhookSubscription.create as unknown as jest.Mock,
+      ).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ principalId: PRINCIPAL_A }),
         }),
@@ -277,12 +335,12 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       expect(aList).toHaveLength(1);
       expect(aList[0].url).toBe('https://a.example.com');
 
-      expect(harness.prisma.webhookSubscription.findMany as unknown as jest.Mock).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { principalId: PRINCIPAL_A } }),
-      );
+      expect(
+        harness.prisma.webhookSubscription.findMany as unknown as jest.Mock,
+      ).toHaveBeenCalledWith(expect.objectContaining({ where: { principalId: PRINCIPAL_A } }));
     });
 
-    it('unsubscribe is principalId-scoped — A cannot delete B\'s subscription', async () => {
+    it("unsubscribe is principalId-scoped — A cannot delete B's subscription", async () => {
       const harness = buildPrismaMock();
       const svc = makeWebhooksSvc(harness.prisma);
 
@@ -292,7 +350,9 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
 
       // The deleteMany call MUST include both id AND principalId — the
       // primary defence against cross-tenant deletion.
-      expect(harness.prisma.webhookSubscription.deleteMany as unknown as jest.Mock).toHaveBeenCalledWith(
+      expect(
+        harness.prisma.webhookSubscription.deleteMany as unknown as jest.Mock,
+      ).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: bSub.id, principalId: PRINCIPAL_A } }),
       );
       // And the row still exists.
@@ -331,21 +391,19 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
 
       // Handles both list's simple `{ principalId }` and enqueue's
       // `{ principalId, active, events: { has: X } }` shape.
-      const subFindMany = jest.fn(
-        async ({ where }: { where: Record<string, unknown> }) => {
-          return Array.from(subs.values()).filter((s) => {
-            for (const [k, v] of Object.entries(where)) {
-              if (k === 'events') {
-                const filter = v as { has?: string };
-                if (filter.has !== undefined && !s.events.includes(filter.has)) return false;
-                continue;
-              }
-              if ((s as unknown as Record<string, unknown>)[k] !== v) return false;
+      const subFindMany = jest.fn(async ({ where }: { where: Record<string, unknown> }) => {
+        return Array.from(subs.values()).filter((s) => {
+          for (const [k, v] of Object.entries(where)) {
+            if (k === 'events') {
+              const filter = v as { has?: string };
+              if (filter.has !== undefined && !s.events.includes(filter.has)) return false;
+              continue;
             }
-            return true;
-          });
-        },
-      );
+            if ((s as unknown as Record<string, unknown>)[k] !== v) return false;
+          }
+          return true;
+        });
+      });
 
       const subDeleteMany = jest.fn(
         async ({ where }: { where: { id: string; principalId: string } }) => {
@@ -360,13 +418,11 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
         },
       );
 
-      const deliveryCreate = jest.fn(
-        async ({ data }: { data: Omit<DeliveryRow, 'id'> }) => {
-          const row: DeliveryRow = { id: `del_${deliveries.length + 1}`, ...data };
-          deliveries.push(row);
-          return row;
-        },
-      );
+      const deliveryCreate = jest.fn(async ({ data }: { data: Omit<DeliveryRow, 'id'> }) => {
+        const row: DeliveryRow = { id: `del_${deliveries.length + 1}`, ...data };
+        deliveries.push(row);
+        return row;
+      });
 
       // type-rationale: $transaction here just sequentially awaits the
       // promise array the service passes in; matches Prisma's array-form
@@ -400,7 +456,7 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       return new WebhooksService(prisma, delivery, cipher);
     }
 
-    it('subscribe is principal-scoped — list returns only the caller\'s subscription', async () => {
+    it("subscribe is principal-scoped — list returns only the caller's subscription", async () => {
       const harness = buildWebhooksHarness();
       const svc = makeWebhooksSvc(harness.prisma);
 
@@ -420,11 +476,13 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       expect(bList.some((s) => s.url === 'https://hookA.example.com')).toBe(false);
     });
 
-    it('unsubscribe respects principal scope — B cannot delete A\'s subscription', async () => {
+    it("unsubscribe respects principal scope — B cannot delete A's subscription", async () => {
       const harness = buildWebhooksHarness();
       const svc = makeWebhooksSvc(harness.prisma);
 
-      const subA = await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', ['verify.completed']);
+      const subA = await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', [
+        'verify.completed',
+      ]);
 
       // B attacks A's id — must be a no-op deleteMany.
       await svc.unsubscribe(PRINCIPAL_B, subA.id);
@@ -463,12 +521,16 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       expect(bList.some((s) => s.url.startsWith('https://a-'))).toBe(false);
     });
 
-    it('enqueue routes only to the subscribing principal — B\'s sub is never enqueued for A\'s event', async () => {
+    it("enqueue routes only to the subscribing principal — B's sub is never enqueued for A's event", async () => {
       const harness = buildWebhooksHarness();
       const svc = makeWebhooksSvc(harness.prisma);
 
-      const subA = await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', ['verify.completed']);
-      const subB = await svc.subscribe(PRINCIPAL_B, 'https://hookB.example.com', ['verify.completed']);
+      const subA = await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', [
+        'verify.completed',
+      ]);
+      const subB = await svc.subscribe(PRINCIPAL_B, 'https://hookB.example.com', [
+        'verify.completed',
+      ]);
 
       await svc.enqueue({ type: 'verify.completed', data: { agentId: 'agt_a' } }, PRINCIPAL_A);
 
@@ -495,7 +557,9 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       const harness = buildWebhooksHarness();
       const svc = makeWebhooksSvc(harness.prisma);
 
-      const subA = await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', ['verify.completed']);
+      const subA = await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', [
+        'verify.completed',
+      ]);
 
       await svc.unsubscribe(PRINCIPAL_B, subA.id);
 

@@ -1,11 +1,11 @@
 /* ============================================================================
-   AEGIS Design Tokens v1.0
+   CERNIQ Design Tokens v1.0
    ----------------------------------------------------------------------------
    Direction: Cinematic Immersive
    Philosophy: Verified Light — a near-black canvas with a single beam of
    cyan-violet light that becomes the emotional center of every screen.
 
-   Drop this file into any HTML/Tailwind/CSS-in-JS project. All AEGIS surfaces
+   Drop this file into any HTML/Tailwind/CSS-in-JS project. All CERNIQ surfaces
    should derive from these variables. Do not introduce off-token colors,
    spacing, or motion curves without updating this file.
    ============================================================================ */
@@ -16,160 +16,160 @@
   /* --------------------------------------------------------------------------
      COLOR — Canvas (the void)
      -------------------------------------------------------------------------- */
-  --aegis-obsidian:  #050714;  /* deepest base, page bg */
-  --aegis-ink:       #0B1020;  /* default surface */
-  --aegis-steel:     #161D33;  /* elevated surface */
-  --aegis-graphite:  #1F2740;  /* subtle inset */
-  --aegis-mist:      #2B3554;  /* borders, dividers */
+  --cerniq-obsidian:  #050714;  /* deepest base, page bg */
+  --cerniq-ink:       #0B1020;  /* default surface */
+  --cerniq-steel:     #161D33;  /* elevated surface */
+  --cerniq-graphite:  #1F2740;  /* subtle inset */
+  --cerniq-mist:      #2B3554;  /* borders, dividers */
 
   /* COLOR — Text (the voice) */
-  --aegis-halo:      #F4F6FF;  /* primary text */
-  --aegis-fog:       #A8B0CC;  /* secondary text */
-  --aegis-shadow:    #6B7494;  /* tertiary, placeholder */
-  --aegis-echo:      #3F4869;  /* de-emphasized */
+  --cerniq-halo:      #F4F6FF;  /* primary text */
+  --cerniq-fog:       #A8B0CC;  /* secondary text */
+  --cerniq-shadow:    #6B7494;  /* tertiary, placeholder */
+  --cerniq-echo:      #3F4869;  /* de-emphasized */
 
   /* COLOR — Signal (the brand) */
-  --aegis-cyan:           #5BE0FF;
-  --aegis-cyan-soft:      rgba(91, 224, 255, 0.16);
-  --aegis-violet:         #8B6BFF;
-  --aegis-violet-soft:    rgba(139, 107, 255, 0.16);
-  --aegis-magenta:        #FF5BD0;  /* aurora terminal — gradient only */
+  --cerniq-cyan:           #5BE0FF;
+  --cerniq-cyan-soft:      rgba(91, 224, 255, 0.16);
+  --cerniq-violet:         #8B6BFF;
+  --cerniq-violet-soft:    rgba(139, 107, 255, 0.16);
+  --cerniq-magenta:        #FF5BD0;  /* aurora terminal — gradient only */
 
   /* COLOR — Status (the verdicts) */
-  --aegis-verified:       #4CFFA8;
-  --aegis-verified-soft:  rgba(76, 255, 168, 0.14);
-  --aegis-denied:         #FF5470;
-  --aegis-denied-soft:    rgba(255, 84, 112, 0.14);
-  --aegis-pending:        #FFB86B;
-  --aegis-pending-soft:   rgba(255, 184, 107, 0.14);
+  --cerniq-verified:       #4CFFA8;
+  --cerniq-verified-soft:  rgba(76, 255, 168, 0.14);
+  --cerniq-denied:         #FF5470;
+  --cerniq-denied-soft:    rgba(255, 84, 112, 0.14);
+  --cerniq-pending:        #FFB86B;
+  --cerniq-pending-soft:   rgba(255, 184, 107, 0.14);
 
   /* COLOR — Gradients (the signature lights) */
-  --aegis-gradient-aurora:
+  --cerniq-gradient-aurora:
     linear-gradient(135deg, #5BE0FF 0%, #8B6BFF 50%, #FF5BD0 100%);
-  --aegis-gradient-aurora-soft:
+  --cerniq-gradient-aurora-soft:
     linear-gradient(135deg, rgba(91,224,255,0.18) 0%, rgba(139,107,255,0.18) 50%, rgba(255,91,208,0.12) 100%);
-  --aegis-gradient-void:
+  --cerniq-gradient-void:
     radial-gradient(ellipse at top, #0B1020 0%, #050714 60%);
-  --aegis-gradient-beam:
+  --cerniq-gradient-beam:
     linear-gradient(180deg, transparent 0%, rgba(91,224,255,0.6) 50%, transparent 100%);
 
   /* --------------------------------------------------------------------------
      TYPOGRAPHY
      -------------------------------------------------------------------------- */
-  --aegis-font-display: "Inter Tight", "Inter", system-ui, -apple-system, sans-serif;
-  --aegis-font-body:    "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --aegis-font-serif:   "Instrument Serif", "Newsreader", Georgia, serif;
-  --aegis-font-mono:    "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
+  --cerniq-font-display: "Inter Tight", "Inter", system-ui, -apple-system, sans-serif;
+  --cerniq-font-body:    "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --cerniq-font-serif:   "Instrument Serif", "Newsreader", Georgia, serif;
+  --cerniq-font-mono:    "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
 
-  --aegis-fs-display-xl: 112px;
-  --aegis-fs-display:    80px;
-  --aegis-fs-h1:         56px;
-  --aegis-fs-h2:         40px;
-  --aegis-fs-h3:         28px;
-  --aegis-fs-h4:         22px;
-  --aegis-fs-body-lg:    18px;
-  --aegis-fs-body:       16px;
-  --aegis-fs-body-sm:    14px;
-  --aegis-fs-caption:    12px;
-  --aegis-fs-eyebrow:    11px;
-  --aegis-fs-mono:       14px;
-  --aegis-fs-mono-sm:    12px;
+  --cerniq-fs-display-xl: 112px;
+  --cerniq-fs-display:    80px;
+  --cerniq-fs-h1:         56px;
+  --cerniq-fs-h2:         40px;
+  --cerniq-fs-h3:         28px;
+  --cerniq-fs-h4:         22px;
+  --cerniq-fs-body-lg:    18px;
+  --cerniq-fs-body:       16px;
+  --cerniq-fs-body-sm:    14px;
+  --cerniq-fs-caption:    12px;
+  --cerniq-fs-eyebrow:    11px;
+  --cerniq-fs-mono:       14px;
+  --cerniq-fs-mono-sm:    12px;
 
-  --aegis-lh-tight:    1.04;
-  --aegis-lh-snug:     1.15;
-  --aegis-lh-normal:   1.5;
-  --aegis-lh-relaxed:  1.6;
+  --cerniq-lh-tight:    1.04;
+  --cerniq-lh-snug:     1.15;
+  --cerniq-lh-normal:   1.5;
+  --cerniq-lh-relaxed:  1.6;
 
-  --aegis-tracking-tight:  -0.04em;
-  --aegis-tracking-snug:   -0.025em;
-  --aegis-tracking-normal: 0;
-  --aegis-tracking-wide:   0.16em;   /* eyebrow */
+  --cerniq-tracking-tight:  -0.04em;
+  --cerniq-tracking-snug:   -0.025em;
+  --cerniq-tracking-normal: 0;
+  --cerniq-tracking-wide:   0.16em;   /* eyebrow */
 
   /* --------------------------------------------------------------------------
      SPACING — 8pt base
      -------------------------------------------------------------------------- */
-  --aegis-space-0:  0;
-  --aegis-space-1:  4px;
-  --aegis-space-2:  8px;
-  --aegis-space-3:  12px;
-  --aegis-space-4:  16px;
-  --aegis-space-5:  20px;
-  --aegis-space-6:  24px;
-  --aegis-space-8:  32px;
-  --aegis-space-10: 40px;
-  --aegis-space-12: 48px;
-  --aegis-space-16: 64px;
-  --aegis-space-20: 80px;
-  --aegis-space-24: 96px;
-  --aegis-space-32: 128px;
-  --aegis-space-40: 160px;
-  --aegis-space-48: 192px;
+  --cerniq-space-0:  0;
+  --cerniq-space-1:  4px;
+  --cerniq-space-2:  8px;
+  --cerniq-space-3:  12px;
+  --cerniq-space-4:  16px;
+  --cerniq-space-5:  20px;
+  --cerniq-space-6:  24px;
+  --cerniq-space-8:  32px;
+  --cerniq-space-10: 40px;
+  --cerniq-space-12: 48px;
+  --cerniq-space-16: 64px;
+  --cerniq-space-20: 80px;
+  --cerniq-space-24: 96px;
+  --cerniq-space-32: 128px;
+  --cerniq-space-40: 160px;
+  --cerniq-space-48: 192px;
 
   /* --------------------------------------------------------------------------
      RADII
      -------------------------------------------------------------------------- */
-  --aegis-radius-xs:     4px;
-  --aegis-radius-sm:     8px;
-  --aegis-radius-md:     12px;
-  --aegis-radius-lg:     16px;
-  --aegis-radius-xl:     24px;
-  --aegis-radius-pill:   999px;
-  --aegis-radius-circle: 50%;
+  --cerniq-radius-xs:     4px;
+  --cerniq-radius-sm:     8px;
+  --cerniq-radius-md:     12px;
+  --cerniq-radius-lg:     16px;
+  --cerniq-radius-xl:     24px;
+  --cerniq-radius-pill:   999px;
+  --cerniq-radius-circle: 50%;
 
   /* --------------------------------------------------------------------------
      SHADOWS — separation + signature glow
      -------------------------------------------------------------------------- */
-  --aegis-elev-1: 0 1px 2px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04);
-  --aegis-elev-2: 0 4px 16px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
-  --aegis-elev-3: 0 16px 48px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06);
-  --aegis-elev-4: 0 32px 96px rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
+  --cerniq-elev-1: 0 1px 2px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04);
+  --cerniq-elev-2: 0 4px 16px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
+  --cerniq-elev-3: 0 16px 48px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06);
+  --cerniq-elev-4: 0 32px 96px rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
 
-  --aegis-glow-cyan:   0 0 0 1px rgba(91,224,255,0.3), 0 0 24px rgba(91,224,255,0.18);
-  --aegis-glow-violet: 0 0 0 1px rgba(139,107,255,0.3), 0 0 24px rgba(139,107,255,0.18);
-  --aegis-glow-aurora: 0 0 0 1px rgba(139,107,255,0.25), 0 0 40px rgba(91,224,255,0.15), 0 0 80px rgba(139,107,255,0.12);
-  --aegis-inset-stroke: inset 0 0 0 1px rgba(255,255,255,0.06);
+  --cerniq-glow-cyan:   0 0 0 1px rgba(91,224,255,0.3), 0 0 24px rgba(91,224,255,0.18);
+  --cerniq-glow-violet: 0 0 0 1px rgba(139,107,255,0.3), 0 0 24px rgba(139,107,255,0.18);
+  --cerniq-glow-aurora: 0 0 0 1px rgba(139,107,255,0.25), 0 0 40px rgba(91,224,255,0.15), 0 0 80px rgba(139,107,255,0.12);
+  --cerniq-inset-stroke: inset 0 0 0 1px rgba(255,255,255,0.06);
 
   /* --------------------------------------------------------------------------
      MOTION — one curve
      -------------------------------------------------------------------------- */
-  --aegis-ease:        cubic-bezier(0.16, 1, 0.3, 1);   /* signature */
-  --aegis-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --cerniq-ease:        cubic-bezier(0.16, 1, 0.3, 1);   /* signature */
+  --cerniq-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 
-  --aegis-dur-instant: 80ms;
-  --aegis-dur-fast:    160ms;
-  --aegis-dur-base:    240ms;
-  --aegis-dur-slow:    480ms;
-  --aegis-dur-cinema:  800ms;
+  --cerniq-dur-instant: 80ms;
+  --cerniq-dur-fast:    160ms;
+  --cerniq-dur-base:    240ms;
+  --cerniq-dur-slow:    480ms;
+  --cerniq-dur-cinema:  800ms;
 
   /* --------------------------------------------------------------------------
      LAYOUT
      -------------------------------------------------------------------------- */
-  --aegis-container-narrow:  640px;
-  --aegis-container-default: 1120px;
-  --aegis-container-wide:    1320px;
-  --aegis-container-full:    1536px;
+  --cerniq-container-narrow:  640px;
+  --cerniq-container-default: 1120px;
+  --cerniq-container-wide:    1320px;
+  --cerniq-container-full:    1536px;
 
-  --aegis-z-base:    0;
-  --aegis-z-raised:  10;
-  --aegis-z-sticky:  100;
-  --aegis-z-header:  200;
-  --aegis-z-overlay: 800;
-  --aegis-z-modal:   900;
-  --aegis-z-toast:   1000;
-  --aegis-z-tooltip: 1100;
+  --cerniq-z-base:    0;
+  --cerniq-z-raised:  10;
+  --cerniq-z-sticky:  100;
+  --cerniq-z-header:  200;
+  --cerniq-z-overlay: 800;
+  --cerniq-z-modal:   900;
+  --cerniq-z-toast:   1000;
+  --cerniq-z-tooltip: 1100;
 }
 
 /* ============================================================================
    BASE — apply to <body>
    ============================================================================ */
-.aegis-root,
-body.aegis {
-  background: var(--aegis-obsidian);
-  background-image: var(--aegis-gradient-void);
-  color: var(--aegis-halo);
-  font-family: var(--aegis-font-body);
-  font-size: var(--aegis-fs-body);
-  line-height: var(--aegis-lh-relaxed);
+.cerniq-root,
+body.cerniq {
+  background: var(--cerniq-obsidian);
+  background-image: var(--cerniq-gradient-void);
+  color: var(--cerniq-halo);
+  font-family: var(--cerniq-font-body);
+  font-size: var(--cerniq-fs-body);
+  line-height: var(--cerniq-lh-relaxed);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -177,8 +177,8 @@ body.aegis {
 /* ============================================================================
    UTILITY — text gradient helper for the aurora
    ============================================================================ */
-.aegis-text-aurora {
-  background: var(--aegis-gradient-aurora);
+.cerniq-text-aurora {
+  background: var(--cerniq-gradient-aurora);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -188,11 +188,11 @@ body.aegis {
 /* ============================================================================
    FOCUS — cyan ring for keyboard users
    ============================================================================ */
-.aegis-root :focus-visible,
-body.aegis :focus-visible {
-  outline: 2px solid var(--aegis-cyan);
+.cerniq-root :focus-visible,
+body.cerniq :focus-visible {
+  outline: 2px solid var(--cerniq-cyan);
   outline-offset: 2px;
-  border-radius: var(--aegis-radius-xs);
+  border-radius: var(--cerniq-radius-xs);
 }
 
 /* ============================================================================

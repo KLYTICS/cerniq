@@ -1,4 +1,4 @@
-// `@aegis/mcp-bridge` — verification middleware for MCP servers.
+// `@cerniq/mcp-bridge` — verification middleware for MCP servers.
 //
 // **Why this package exists:**
 // MCP (Model Context Protocol) is the universal tool-call protocol for
@@ -8,26 +8,26 @@
 // have no way to know whether a tool call is from a trusted agent or a
 // jailbroken / compromised one.
 //
-// `@aegis/mcp-bridge` wraps any MCP server transport with AEGIS
-// verification. The result: every tool call carries an AEGIS-signed
+// `@cerniq/mcp-bridge` wraps any MCP server transport with CERNIQ
+// verification. The result: every tool call carries an CERNIQ-signed
 // token, the MCP server verifies the token before executing the tool,
 // and policy enforcement (spend limits, scope restrictions, trust band)
 // applies at the tool-call level.
 //
 // **Distribution wedge** (per docs/standards/0001-mcp-bridge-positioning.md):
-// Every MCP server in the wild becomes a potential AEGIS customer with
+// Every MCP server in the wild becomes a potential CERNIQ customer with
 // one `import` and one `wrap()` call.
 //
 // **Status**: skeleton. The bridge interface is finalized; the
 // MCP-SDK-version-specific glue is wired stub-shaped pending the 1.0
 // MCP transport API.
 
-import type { Aegis, VerifyResult as VerifyResponse } from '@aegis/sdk';
-import { AEGIS_HEADER_TOKEN, type DenialReason } from '@aegis/types';
+import type { Cerniq, VerifyResult as VerifyResponse } from '@cerniq/sdk';
+import { CERNIQ_HEADER_TOKEN, type DenialReason } from '@cerniq/types';
 
 export interface BridgeConfig {
-  /** AEGIS client configured with a verify-only key. */
-  aegis: Aegis;
+  /** CERNIQ client configured with a verify-only key. */
+  cerniq: Cerniq;
   /**
    * Required minimum trust band. Tool calls from agents below this band
    * are rejected. Defaults to `VERIFIED` (≥500). Set `'WATCH'` to also
@@ -36,7 +36,7 @@ export interface BridgeConfig {
   minTrustBand?: 'PLATINUM' | 'VERIFIED' | 'WATCH' | 'FLAGGED';
   /**
    * Action prefix for the MCP server, e.g. `'mcp.fs.'`. Will be
-   * concatenated with the MCP method name to form the AEGIS `action`
+   * concatenated with the MCP method name to form the CERNIQ `action`
    * claim — e.g. `mcp.fs.read_file`. Used for scope matching.
    */
   actionPrefix: string;
@@ -63,35 +63,35 @@ export class BridgeDenialError extends Error {
     public readonly reason: DenialReason,
     public readonly verifyResponse: VerifyResponse,
   ) {
-    super(`AEGIS denied tool call: ${reason}`);
+    super(`CERNIQ denied tool call: ${reason}`);
     this.name = 'BridgeDenialError';
   }
 }
 
 /**
- * Wrap an MCP server's `handle` function with AEGIS verification.
+ * Wrap an MCP server's `handle` function with CERNIQ verification.
  *
  * The wrapped function inspects every incoming MCP request for the
- * `X-AEGIS-Token` header (or `aegis_token` arg in the JSON-RPC params),
- * verifies it against the AEGIS API, and only invokes the underlying
+ * `X-CERNIQ-Token` header (or `cerniq_token` arg in the JSON-RPC params),
+ * verifies it against the CERNIQ API, and only invokes the underlying
  * handler if the verification passes.
  *
  * Typical usage:
  *
  * ```ts
  * import { Server } from '@modelcontextprotocol/sdk/server/index.js';
- * import { wrapMcpHandler } from '@aegis/mcp-bridge';
- * import { Aegis } from '@aegis/sdk';
+ * import { wrapMcpHandler } from '@cerniq/mcp-bridge';
+ * import { Cerniq } from '@cerniq/sdk';
  *
- * const aegis = new Aegis({ verifyKey: process.env.AEGIS_VERIFY_KEY });
+ * const cerniq = new Cerniq({ verifyKey: process.env.CERNIQ_VERIFY_KEY });
  * const server = new Server({ name: 'my-mcp-server', version: '1.0.0' });
  *
  * server.setRequestHandler(myToolSchema, wrapMcpHandler({
- *   aegis,
+ *   cerniq,
  *   actionPrefix: 'mcp.fs.',
  *   minTrustBand: 'VERIFIED',
  * }, async (req, ctx) => {
- *   // ctx.aegisVerify carries trust score, scope, principal — use it.
+ *   // ctx.cerniqVerify carries trust score, scope, principal — use it.
  *   return await readFile(req.params.path);
  * }));
  * ```
@@ -120,12 +120,12 @@ export function wrapMcpHandler<TReq extends McpRequest, TRes>(
     // SDK's VerifyResult shape doesn't carry a free-form `context` field
     // today — when the verify-call shape gains one, thread mcpMethod/mcpTarget
     // through here. For now the action string carries the discriminator.
-    const result = await config.aegis.verify(token, {
+    const result = await config.cerniq.verify(token, {
       action: `${config.actionPrefix}${req.method}`,
     });
 
     if (!result.valid) {
-      const reason: DenialReason = (result.denialReason ?? 'AGENT_NOT_FOUND');
+      const reason: DenialReason = result.denialReason ?? 'AGENT_NOT_FOUND';
       if (config.onDenial) await config.onDenial(reason, ctx);
       throw new BridgeDenialError(reason, result);
     }
@@ -136,12 +136,12 @@ export function wrapMcpHandler<TReq extends McpRequest, TRes>(
       throw new BridgeDenialError(reason, result);
     }
 
-    return await handler(req, { ...ctx, aegisVerify: result });
+    return await handler(req, { ...ctx, cerniqVerify: result });
   };
 }
 
 export interface BridgeContextWithVerification extends BridgeContext {
-  aegisVerify: VerifyResponse;
+  cerniqVerify: VerifyResponse;
 }
 
 interface McpRequest {
@@ -162,16 +162,14 @@ function extractHeaders(req: McpRequest): Record<string, string> {
   // smuggled in the params. For sse/ws, the transport adapter populates
   // them. This extractor handles both.
   const params = req.params ?? {};
-  const headers = params._aegis_headers;
-  return typeof headers === 'object' && headers !== null
-    ? (headers as Record<string, string>)
-    : {};
+  const headers = params._cerniq_headers;
+  return typeof headers === 'object' && headers !== null ? (headers as Record<string, string>) : {};
 }
 
 function extractToken(req: McpRequest, ctx: BridgeContext): string | null {
-  const headerToken = ctx.headers[AEGIS_HEADER_TOKEN.toLowerCase()];
+  const headerToken = ctx.headers[CERNIQ_HEADER_TOKEN.toLowerCase()];
   if (headerToken) return headerToken;
-  const argToken = req.params?._aegis_token;
+  const argToken = req.params?._cerniq_token;
   return typeof argToken === 'string' ? argToken : null;
 }
 

@@ -46,7 +46,7 @@ function describeSsrfRejection(r: SsrfRejection): string {
   }
 }
 
-export const WEBHOOK_QUEUE = 'aegis.webhooks';
+export const WEBHOOK_QUEUE = 'cerniq.webhooks';
 
 /** OD-005 default. Override via env once operator decides. */
 export const MAX_ATTEMPTS = 8;
@@ -66,9 +66,7 @@ interface DeliveryJobData {
 }
 
 @Injectable()
-export class WebhookDeliveryWorker
-  implements OnModuleInit, OnModuleDestroy, OnApplicationShutdown
-{
+export class WebhookDeliveryWorker implements OnModuleInit, OnModuleDestroy, OnApplicationShutdown {
   private readonly logger = new Logger(WebhookDeliveryWorker.name);
   private connection?: IORedis;
   private queue?: Queue<DeliveryJobData>;
@@ -94,7 +92,9 @@ export class WebhookDeliveryWorker
     this.queue = new Queue<DeliveryJobData>(WEBHOOK_QUEUE, { connection: this.connection });
     this.worker = new Worker<DeliveryJobData>(
       WEBHOOK_QUEUE,
-      async (job) => { await this.process(job); },
+      async (job) => {
+        await this.process(job);
+      },
       {
         connection: this.connection.duplicate(),
         // 8 attempts with exponential backoff: 1s → 2s → 4s → … → ~256s.
@@ -106,9 +106,13 @@ export class WebhookDeliveryWorker
 
     this.worker.on('failed', (job, err) => {
       const attempts = job?.attemptsMade ?? 0;
-      this.logger.warn(`webhook delivery failed deliveryId=${job?.data.deliveryId} attempts=${attempts}: ${err?.message}`);
+      this.logger.warn(
+        `webhook delivery failed deliveryId=${job?.data.deliveryId} attempts=${attempts}: ${err?.message}`,
+      );
       if (job && attempts >= MAX_ATTEMPTS) {
-        void this.markAbandoned(job.data.deliveryId, err?.message ?? 'max attempts').catch(() => undefined);
+        void this.markAbandoned(job.data.deliveryId, err?.message ?? 'max attempts').catch(
+          () => undefined,
+        );
         this.metrics.bullmqJobsTotal.inc({
           queue: WEBHOOK_QUEUE,
           event: 'deliver',
@@ -205,7 +209,7 @@ export class WebhookDeliveryWorker
    * One-shot sample of `queue.getJobCounts()` → 6 gauge series. We catch
    * Redis errors so a transient outage doesn't unhandled-reject and crash
    * the process; sustained failures will surface as the gauge going stale
-   * (Prometheus `staleness` rule on `aegis_bullmq_queue_depth`).
+   * (Prometheus `staleness` rule on `cerniq_bullmq_queue_depth`).
    */
   private async sampleQueueDepth(): Promise<void> {
     if (!this.queue) return;
@@ -228,16 +232,11 @@ export class WebhookDeliveryWorker
       ] as const) {
         const value = counts[state];
         if (typeof value === 'number') {
-          this.metrics.bullmqQueueDepthGauge.set(
-            { queue: WEBHOOK_QUEUE, state },
-            value,
-          );
+          this.metrics.bullmqQueueDepthGauge.set({ queue: WEBHOOK_QUEUE, state }, value);
         }
       }
     } catch (err) {
-      this.logger.warn(
-        `queue depth sample failed: ${(err as Error).message}`,
-      );
+      this.logger.warn(`queue depth sample failed: ${(err as Error).message}`);
     }
   }
 
@@ -313,7 +312,12 @@ export class WebhookDeliveryWorker
     }
 
     const ts = Math.floor(Date.now() / 1000);
-    const body = JSON.stringify({ id: delivery.id, event: delivery.event, data: delivery.payload, ts });
+    const body = JSON.stringify({
+      id: delivery.id,
+      event: delivery.event,
+      data: delivery.payload,
+      ts,
+    });
 
     // Decrypt the per-subscription HMAC secret just-in-time. Subscriptions
     // created before envelope encryption rolled out still hold a plaintext
@@ -339,7 +343,9 @@ export class WebhookDeliveryWorker
     const signature = WebhookDeliveryWorker.sign(plainSecret, ts, body);
 
     const ctrl = new AbortController();
-    const timer = setTimeout(() => { ctrl.abort(); }, REQUEST_TIMEOUT_MS);
+    const timer = setTimeout(() => {
+      ctrl.abort();
+    }, REQUEST_TIMEOUT_MS);
 
     let responseCode: number | null = null;
     let responseBody: string | null = null;
@@ -350,10 +356,10 @@ export class WebhookDeliveryWorker
         signal: ctrl.signal,
         headers: {
           'Content-Type': 'application/json',
-          'X-AEGIS-Signature': signature,
-          'X-AEGIS-Event': delivery.event,
-          'X-AEGIS-Delivery-Id': delivery.id,
-          'User-Agent': '@aegis/webhooks 0.1',
+          'X-CERNIQ-Signature': signature,
+          'X-CERNIQ-Event': delivery.event,
+          'X-CERNIQ-Delivery-Id': delivery.id,
+          'User-Agent': '@cerniq/webhooks 0.1',
         },
         body,
       });
@@ -395,7 +401,11 @@ export class WebhookDeliveryWorker
     }
   }
 
-  private async recordTransientFailure(id: string, code: number | null, body: string | null): Promise<void> {
+  private async recordTransientFailure(
+    id: string,
+    code: number | null,
+    body: string | null,
+  ): Promise<void> {
     await this.prisma.webhookDelivery.update({
       where: { id },
       data: {

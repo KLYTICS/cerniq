@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Marketing Site Design Prompts
+title: CERNIQ — Marketing Site Design Prompts
 audience: design AI tools, contract designers, in-repo Cursor sessions
 last-reviewed: 2026-05-08
 prerequisites: read `docs/design/00_BRAND_FOUNDATION.md` first — every prompt below assumes it
@@ -8,8 +8,8 @@ prerequisites: read `docs/design/00_BRAND_FOUNDATION.md` first — every prompt 
 # 01 — Marketing Site Prompts
 
 The marketing site is the first surface a CTO, security lead, or developer
-sees. It must in <8 seconds communicate: *what AEGIS is*, *why it isn't a
-competitor to Auth0/Stripe ACP*, and *what a 30-line integration looks like*.
+sees. It must in <8 seconds communicate: _what CERNIQ is_, _why it isn't a
+competitor to Auth0/Stripe ACP_, and _what a 30-line integration looks like_.
 
 ## Information architecture (the same across all prompt flavors)
 
@@ -39,11 +39,11 @@ tool can read MDX or similar; tweak the framing if not.
 ### A.1 Hero section
 
 ```
-Build a marketing hero section for AEGIS — a neutral verification, policy,
+Build a marketing hero section for CERNIQ — a neutral verification, policy,
 and attestation layer for AI agents. Stack: Next.js App Router + Tailwind
 + shadcn/ui.
 
-Follow the AEGIS Brand Foundation v1 (slate neutrals + aegis-500 #06B6D4
+Follow the CERNIQ Brand Foundation v1 (slate neutrals + cerniq-500 #06B6D4
 brand, Inter + JetBrains Mono, Cloudflare/Auth0 visual lane, security-
 forward but developer-first, no gradients on text, no stock photos, no
 mascots, motion confirms not entertains).
@@ -54,27 +54,27 @@ Layout (desktop ≥1024px):
 - Right column (cols 7–12): a live code sample (see below)
 - 96px top padding, 128px bottom padding
 - Background: slate-50 with a faint 24px-grid pattern at 4% opacity
-- A subtle radial gradient anchored top-right at aegis-100 → transparent
+- A subtle radial gradient anchored top-right at cerniq-100 → transparent
 
 Copy:
-- Eyebrow (text-xs all-caps tracking-wider aegis-700): "Verification layer"
+- Eyebrow (text-xs all-caps tracking-wider cerniq-700): "Verification layer"
 - H1 (text-6xl tracking-tight font-bold slate-900):
   "Sign every agent action.\nVerify in 80ms.\nHold zero keys."
   (preserve the line breaks; each line is a separate <span> with
   block display)
 - Lede (text-lg slate-600, max-width 540px):
-  "AEGIS is the neutral cryptographic gate for AI agents.
+  "CERNIQ is the neutral cryptographic gate for AI agents.
   Public-key registry, signed audit chain, policy-bound scopes —
   drop-in SDK for any agent runtime."
 - Two CTAs:
-  1) Primary: "Read the quickstart" — aegis-500 bg, white text, ArrowRight icon
+  1) Primary: "Read the quickstart" — cerniq-500 bg, white text, ArrowRight icon
   2) Secondary: "View on GitHub" — slate-200 border, GitHub icon
 - Below CTAs (32px gap), three small stats in a row:
   · "<80ms p99 verify"
   · "Ed25519, public-key only"
   · "MIT-licensed SDK"
   Each: text-sm slate-500, with a small Lucide icon (Zap, KeyRound, Github)
-  in aegis-500.
+  in cerniq-500.
 
 Right column code sample:
 - Wrapped in a Card with rounded-lg, slate-200 border
@@ -82,26 +82,26 @@ Right column code sample:
   right, both text-xs all-caps tracking-wider slate-500
 - Code (JetBrains Mono 14px line-height 24px):
 
-    import { Aegis } from "@aegis/sdk";
+    import { Cerniq } from "@cerniq/sdk";
 
-    const aegis = new Aegis({ apiKey: process.env.AEGIS_KEY });
+    const cerniq = new Cerniq({ apiKey: process.env.CERNIQ_KEY });
 
     // Register an agent (one-time)
-    const agent = await aegis.agents.create({
+    const agent = await cerniq.agents.create({
       runtime: "anthropic",
       model:   "claude-opus-4-5",
     });
 
     // Sign + verify on every outbound action
     const signed = agent.sign(payload);
-    const result = await aegis.verify(signed);
+    const result = await cerniq.verify(signed);
 
     if (!result.valid) {
       throw new Error(result.reason); // e.g. SCOPE_NOT_GRANTED
     }
 
-- Highlight lines 9–12 with a 3px aegis-500 left border
-- The tokens "aegis.verify" and "agent.sign" must render in aegis-500
+- Highlight lines 9–12 with a 3px cerniq-500 left border
+- The tokens "cerniq.verify" and "agent.sign" must render in cerniq-500
   bold-italic
 - A copy button (top-right of card) using Lucide ClipboardCopy icon
 
@@ -131,7 +131,7 @@ Layout: full-bleed slate-50 background, 96px vertical padding, 1280px
 content max-width. Single h2 above a 4-row stack diagram.
 
 Headline (text-4xl tracking-tight slate-900): "Four layers, one verify call."
-Subhead (text-lg slate-600 max-width 720px): "Each AEGIS request runs
+Subhead (text-lg slate-600 max-width 720px): "Each CERNIQ request runs
 through identity, policy, behavioral attestation, and audit — in that
 order — then returns a signed verdict."
 
@@ -140,7 +140,7 @@ columns). Each card:
 - 100% width, 88px tall, rounded-lg, 1px slate-200 border, white bg
 - Left side (96px wide): a layer number badge (slate-100 bg, slate-700
   text, text-2xl font-mono "01"–"04") and a Lucide icon (KeyRound,
-  ShieldCheck, Activity, FileCheck respectively) at 24px aegis-500
+  ShieldCheck, Activity, FileCheck respectively) at 24px cerniq-500
 - Middle: layer name in text-lg font-medium slate-900, and a one-line
   description in text-sm slate-500
 - Right side: a small mono code label, e.g. "POST /v1/verify",
@@ -153,7 +153,7 @@ The four layers, top to bottom:
    Signed JWT, cached revocation." → /v1/policies
 3. Behavioral Attestation Engine (BATE) — "Trust score 0-1000.
    Velocity, geographic, spend-pattern signals." → /v1/agents/:id/score
-4. Audit & Compliance Rail — "Append-only, hash-chained, AEGIS-signed.
+4. Audit & Compliance Rail — "Append-only, hash-chained, CERNIQ-signed.
    Exportable as NDJSON for SOC2 / FINRA evidence." → /v1/audit/export
 
 Between cards, render a thin vertical line (1px slate-200) with a small
@@ -182,10 +182,10 @@ Right blocks — each is a card with rounded-lg, white bg, 1px slate-200
 border, 24px padding, 16px gap between cards:
 
 Block 1 — "Non-custodial by design."
-  Body: "AEGIS issues an Ed25519 keypair. The private key is generated
+  Body: "CERNIQ issues an Ed25519 keypair. The private key is generated
   client-side and stored on the agent host. We register only the public
-  key. A breach of AEGIS does not compromise an agent."
-  Footer link: "Read ADR-0002 →" (aegis-600, text-sm)
+  key. A breach of CERNIQ does not compromise an agent."
+  Footer link: "Read ADR-0002 →" (cerniq-600, text-sm)
 
 Block 2 — "Append-only, signed audit."
   Body: "Every decision writes a hash-chained event. Each event signs
@@ -210,7 +210,7 @@ Block 4 — "Multi-tenant isolation by principal."
   Footer link: "View threat model →"
 
 All Lucide icons: Lock, FileSignature, ListChecks, Users — at 20px
-aegis-500, top-left of each card.
+cerniq-500, top-left of each card.
 
 Output one React component.
 ```
@@ -221,7 +221,7 @@ Output one React component.
 Build a pricing section. Four tiers, single row on desktop, stacked on
 mobile.
 
-Tiers (anchor card 3 as the recommended one — slight aegis-500
+Tiers (anchor card 3 as the recommended one — slight cerniq-500
 border, "Recommended" pill at top):
 
 IMPORTANT: tier names, prices, and verify-volume gates are not finalized
@@ -242,9 +242,9 @@ Each card:
 - white bg, rounded-lg, 1px slate-200 border, 32px padding, 320px height
 - Tier name (text-lg font-medium), price (text-3xl font-bold slate-900,
   with /mo in text-sm slate-500), 4–5 feature bullets with Lucide Check
-  icon at 16px aegis-500.
-- Recommended card has aegis-500 1px border, aegis-50/40 bg tint, and a
-  pill at top center: "Recommended" (text-xs all-caps aegis-700 on aegis-100).
+  icon at 16px cerniq-500.
+- Recommended card has cerniq-500 1px border, cerniq-50/40 bg tint, and a
+  pill at top center: "Recommended" (text-xs all-caps cerniq-700 on cerniq-100).
 
 Above the cards, an h2: "Pricing that scales with verifies, not seats."
 Below the cards, a single line in text-sm slate-500: "All tiers are
@@ -263,20 +263,20 @@ Build the marketing footer. Stack:
 - Each column: text-xs all-caps tracking-wider slate-500 header, then
   text-sm slate-700 links, 12px gap
 - Below the columns, a single horizontal divider (1px slate-200), then a
-  bottom row: AEGIS wordmark left, copyright + status pill right.
+  bottom row: CERNIQ wordmark left, copyright + status pill right.
 
 Status pill: "All systems operational" with a 6px filled emerald-500 dot,
-text-xs slate-500. Links to status.aegis.dev (placeholder).
+text-xs slate-500. Links to status.cerniq.dev (placeholder).
 
 Links by column:
 - Product: How it works, Security, Pricing, Changelog, Roadmap
 - Developers: Quickstart, API reference, SDKs, CLI, Examples, GitHub
 - Security: Threat model, Denial precedence, Audit chain, Compliance,
-  Bug bounty, security@aegis.dev
+  Bug bounty, security@cerniq.dev
 - Company: About, Blog, Customers, Careers, Legal, Contact
 
 Brand block (left, span 1 col):
-- Wordmark "AEGIS" (Inter 700 tracking-tight aegis-500 text-xl)
+- Wordmark "CERNIQ" (Inter 700 tracking-tight cerniq-500 text-xl)
 - One-liner below: "The verification layer for AI agents." (text-sm slate-500)
 - Three small social icons (GitHub, X, LinkedIn) in slate-400, 16px
 
@@ -296,7 +296,7 @@ ship directly.
 ### B.1 Marketing landing page — full layout
 
 ```
-Design a marketing landing page for AEGIS, an AI-agent verification &
+Design a marketing landing page for CERNIQ, an AI-agent verification &
 attestation infrastructure product. Audience: developers and enterprise
 security buyers, developer-first hierarchy. Visual lane: Cloudflare meets
 Auth0 — neutral slate palette with a single cyan-blue accent (#06B6D4),
@@ -310,28 +310,28 @@ Page structure (top to bottom):
    primary button).
 2. Hero section, 720px tall, slate-50 bg with a faint 24px grid pattern
    at 4% opacity. Two-column: left = headline / lede / CTAs / stat
-   row; right = a code sample card with copy button. See AEGIS Brand
+   row; right = a code sample card with copy button. See CERNIQ Brand
    Foundation §10 for code sample treatment.
 3. Logo cloud strip, 96px tall, white bg, 6 customer/partner logos in
    grayscale at 50% opacity, label "Trusted by" eyebrow above.
 4. "How it works" section — 4 horizontal stacked cards representing the
-   AEGIS layer stack (Identity, Policy, BATE, Audit). Each card has a
+   CERNIQ layer stack (Identity, Policy, BATE, Audit). Each card has a
    layer number, icon, name, one-line description, mono endpoint label.
 5. Live-integration section — a wider code sample (full integration in
    ~30 lines) on left, a vertical timeline on right showing what each
-   line triggers in the AEGIS pipeline.
+   line triggers in the CERNIQ pipeline.
 6. Security model section — split layout, sticky headline left, four
    feature cards right (non-custodial, signed audit, denial precedence,
    tenant isolation).
 7. Quote block — single dev/security quote in text-2xl slate-700, with
    attribution including company name + role.
-8. Pricing section — 4 tiers, recommended tier highlighted with aegis-500
+8. Pricing section — 4 tiers, recommended tier highlighted with cerniq-500
    border.
-9. Final CTA band — slate-900 bg, white text, single h2 "Drop AEGIS into
+9. Final CTA band — slate-900 bg, white text, single h2 "Drop CERNIQ into
    your stack in 10 minutes." with two CTAs.
 10. Footer — 5-column links, brand block, status pill.
 
-Use the AEGIS Brand Foundation tokens (color §4, type §5, spacing §6,
+Use the CERNIQ Brand Foundation tokens (color §4, type §5, spacing §6,
 component intent §11). Light mode only for v1. Output the design as a
 single 1440px-wide Figma frame with auto-layout on every section, plus
 a 375px-wide mobile companion frame.
@@ -343,7 +343,7 @@ a 375px-wide mobile companion frame.
 Design /security — the page that converts a CISO into a buyer.
 
 Visual register: heavier, more documentation-like than the homepage.
-Reads as "this is a control we'd actually evaluate." Use AEGIS Brand
+Reads as "this is a control we'd actually evaluate." Use CERNIQ Brand
 Foundation, light mode.
 
 Sections:
@@ -362,11 +362,11 @@ Sections:
    plus a hash-mismatch highlighted in danger color.
 5. Key handling — three columns: "We never see private keys", "Public
    keys are stored encrypted at rest", "Rotation is one CLI call".
-6. Compliance posture — a table mapping AEGIS controls to SOC2 CC#,
+6. Compliance posture — a table mapping CERNIQ controls to SOC2 CC#,
    ISO 27001 A#, NIST CSF, EU AI Act. Status column: In place /
    In progress / Roadmap. Be honest — pre-launch, most cells are
    "In progress."
-7. Reporting + bug bounty — small section with security@aegis.dev,
+7. Reporting + bug bounty — small section with security@cerniq.dev,
    GPG key fingerprint placeholder, response SLA.
 8. Footer — same as homepage.
 
@@ -381,7 +381,7 @@ Design /how-it-works — the page a senior developer reads after the hero.
 Sections:
 1. Hero — "Verify, in detail." text-only, slate-50 bg, 360px tall.
 2. The request lifecycle diagram — a horizontal swim-lane diagram
-   showing 5 actors (Agent, AEGIS Edge, AEGIS Origin, Relying Party,
+   showing 5 actors (Agent, CERNIQ Edge, CERNIQ Origin, Relying Party,
    Audit Sink) and the 8 sequential steps of a verify call, with
    timing annotations (e.g. "12ms" between agent and edge, "30ms"
    for policy lookup, etc.). This is the page's centerpiece — make
@@ -409,8 +409,8 @@ Use this verbatim when handing off to a human. Trim to fit your engagement
 contract.
 
 ```
-PROJECT: AEGIS Marketing Site v1 (launch)
-CONTEXT: AEGIS is the neutral verification, policy, and behavioral
+PROJECT: CERNIQ Marketing Site v1 (launch)
+CONTEXT: CERNIQ is the neutral verification, policy, and behavioral
 attestation layer for AI agents. We sit between AI agents and the
 services they act on. We are the "Switzerland" of agent identity —
 protocol-, vendor-, and model-neutral. Read `docs/spec/01_MASTER.md`
@@ -463,13 +463,13 @@ ANTI-REFERENCES (do not borrow):
 - Auth0's character illustrations
 
 KEY MESSAGES (in priority order):
-1. AEGIS is non-custodial. We hold public keys only.
+1. CERNIQ is non-custodial. We hold public keys only.
 2. Verify in <80ms. Drop-in SDK. ~30 lines of integration.
 3. Append-only, signed audit chain. SOC2-mappable.
 4. Neutral — works with any LLM, any stack, any payment protocol.
 
 HARD CONSTRAINTS:
-- Aegis-500 (#06B6D4) is the only brand accent. No purple, no orange,
+- Cerniq-500 (#06B6D4) is the only brand accent. No purple, no orange,
   no pink anywhere on the site.
 - Inter and JetBrains Mono only. No serifs, no display fonts.
 - Code samples are first-class visual elements (see Brand Foundation §10).
@@ -507,7 +507,7 @@ PRIMARY POINT OF CONTACT: [fill in]
 
 ## D. Cursor / Claude Code in-repo prompts
 
-These prompts assume the agent has the AEGIS repo open and can run pnpm,
+These prompts assume the agent has the CERNIQ repo open and can run pnpm,
 edit files, and read `docs/`. They build the marketing site as a real
 Next.js app. Tailwind + shadcn must be initialized first; the first
 prompt sets that up.
@@ -516,25 +516,25 @@ prompt sets that up.
 
 ```
 Goal: scaffold a marketing site app at apps/marketing using Next.js 16
-App Router, Tailwind CSS, shadcn/ui, and the AEGIS design tokens.
+App Router, Tailwind CSS, shadcn/ui, and the CERNIQ design tokens.
 
 Read first:
-- /Users/money/Desktop/AEGIS/CLAUDE.md
-- /Users/money/Desktop/AEGIS/docs/design/00_BRAND_FOUNDATION.md
-- /Users/money/Desktop/AEGIS/apps/dashboard/package.json (mirror Next/React versions)
+- /Users/money/Desktop/CERNIQ/CLAUDE.md
+- /Users/money/Desktop/CERNIQ/docs/design/00_BRAND_FOUNDATION.md
+- /Users/money/Desktop/CERNIQ/apps/dashboard/package.json (mirror Next/React versions)
 
 Tasks:
-1. Create apps/marketing/ as a pnpm workspace package, name "@aegis/marketing".
+1. Create apps/marketing/ as a pnpm workspace package, name "@cerniq/marketing".
 2. Match Next 16 + React 19 versions from apps/dashboard.
 3. Install tailwindcss + @tailwindcss/typography, set up tailwind.config.ts
-   with the full AEGIS color system from §13 of the foundation doc
-   (slate ramp + aegis ramp + semantic) and font stacks from §5.
+   with the full CERNIQ color system from §13 of the foundation doc
+   (slate ramp + cerniq ramp + semantic) and font stacks from §5.
 4. Install shadcn/ui with the new-york style, but override its default
-   `primary` color to aegis-500 and its `radius` to 6px. Initialize only
+   `primary` color to cerniq-500 and its `radius` to 6px. Initialize only
    these components: Button, Card, Badge, Separator, Sheet (for mobile nav).
 5. Add a /lib/seo.ts helper that returns a complete OpenGraph + Twitter
    card payload from a single { title, description, path } object, using
-   "AEGIS — The verification layer for AI agents" as the default suffix.
+   "CERNIQ — The verification layer for AI agents" as the default suffix.
 6. Add a /styles/globals.css that imports Inter (variable) and JetBrains
    Mono via next/font/google, exposes them as CSS vars, and applies the
    §6 base spacing.
@@ -543,7 +543,7 @@ Tasks:
 8. Add a /app/page.tsx that imports those components in the order
    defined in IA above (Hero, LogoCloud, HowItWorks, LiveIntegration,
    SecurityModel, Quote, Pricing, FinalCta).
-9. Verify by running `pnpm --filter @aegis/marketing dev` and confirming
+9. Verify by running `pnpm --filter @cerniq/marketing dev` and confirming
    port 3001 (port 3000 is dashboard).
 10. Update WORK_BOARD.md with claim entry + docs/SESSION_HANDOFF.md
     with what shipped.
@@ -575,9 +575,9 @@ Implement:
 2. The CodeSample component should be reusable; export it from
    components/marketing/CodeSample.tsx with props { filename, language,
    code, highlightLines }.
-3. The bold-italic on AEGIS-specific calls is implemented via a custom
-   `aegisHighlight` Prism plugin or a regex-based wrapper that wraps
-   `aegis.\w+` and `agent.sign` in <span class="aegis-call"> with the
+3. The bold-italic on CERNIQ-specific calls is implemented via a custom
+   `cerniqHighlight` Prism plugin or a regex-based wrapper that wraps
+   `cerniq.\w+` and `agent.sign` in <span class="cerniq-call"> with the
    class styled in globals.css.
 4. The grid background uses `background-image: linear-gradient(...)` —
    never an SVG asset. Pure CSS.
@@ -588,7 +588,7 @@ Tests (Jest + Testing Library):
 - The hero h1 contains "Sign every agent action" in a single <h1> node.
 - The CodeSample copy button copies the exact code text to the clipboard
   (mock navigator.clipboard).
-- The aegis-500 calls render with the .aegis-call class.
+- The cerniq-500 calls render with the .cerniq-call class.
 
 Update SESSION_HANDOFF.md when done.
 ```
@@ -643,7 +643,7 @@ lifecycle diagram.
 
 Read first:
 - docs/design/00_BRAND_FOUNDATION.md (§9 diagrams)
-- docs/AEGIS_AS_BACKBONE.md § 2.3 (the canonical 20-line consumption
+- docs/CERNIQ_AS_BACKBONE.md § 2.3 (the canonical 20-line consumption
   pattern — use it verbatim as the code sample)
 
 Implement:
@@ -704,7 +704,7 @@ Most teams should run them in this order:
 
 1. **Designer brief (C)** — to a contract designer for the high-fidelity
    Figma source of truth.
-2. **Figma AI (B)** — to scaffold initial frames *while* the designer
+2. **Figma AI (B)** — to scaffold initial frames _while_ the designer
    is engaged, so engineering isn't blocked.
 3. **AI UI tools (A)** — to spike interactive prototypes for stakeholder
    review and to validate copy.

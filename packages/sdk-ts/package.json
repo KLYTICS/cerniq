@@ -1,17 +1,17 @@
 {
-  "name": "@aegis/sdk",
+  "name": "@cerniq/sdk",
   "version": "0.1.0",
-  "description": "AEGIS — Agent Gateway & Identity Stack — TypeScript SDK. Cryptographic identity, scoped policies, and verification for AI agents.",
+  "description": "CERNIQ — Agent Gateway & Identity Stack — TypeScript SDK. Cryptographic identity, scoped policies, and verification for AI agents.",
   "license": "MIT",
-  "author": "AEGIS Labs <hello@aegislabs.io>",
-  "homepage": "https://aegislabs.io",
+  "author": "CERNIQ Labs <hello@cerniq.io>",
+  "homepage": "https://cerniq.io",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/klytics/aegis.git",
+    "url": "git+https://github.com/klytics/cerniq.git",
     "directory": "packages/sdk-ts"
   },
   "bugs": {
-    "url": "https://github.com/klytics/aegis/issues"
+    "url": "https://github.com/klytics/cerniq/issues"
   },
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
@@ -23,7 +23,11 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
@@ -34,7 +38,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aegis/types": "workspace:*",
+    "@cerniq/types": "workspace:*",
     "@noble/ed25519": "^2.1.0",
     "@noble/hashes": "^1.5.0",
     "ulid": "^2.3.0"
@@ -53,5 +57,14 @@
   "engines": {
     "node": ">=18"
   },
-  "keywords": ["aegis", "agent", "identity", "verification", "ai-agent", "auth", "ed25519", "trust-score"]
+  "keywords": [
+    "cerniq",
+    "agent",
+    "identity",
+    "verification",
+    "ai-agent",
+    "auth",
+    "ed25519",
+    "trust-score"
+  ]
 }

@@ -1,5 +1,7 @@
-# AEGIS — Technical Implementation Deep Specification
+# CERNIQ — Technical Implementation Deep Specification
+
 ## Document 03 — Architecture, Data Models, Service Design, Security
+
 ### KLYTICS Internal | Version 1.0 | May 2026
 
 ---
@@ -12,11 +14,11 @@
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         DEVELOPER PLANE                              │
 │                                                                       │
-│  Dashboard (Next.js)    Docs Site (Mintlify)    SDK (@aegis/sdk)    │
+│  Dashboard (Next.js)    Docs Site (Mintlify)    SDK (@cerniq/sdk)    │
 │       │                       │                       │              │
 │       └───────────────────────┴───────────────────────┘              │
 │                               │                                       │
-│                      AEGIS API Gateway                                │
+│                      CERNIQ API Gateway                                │
 │                    (Railway / Cloudflare)                             │
 └───────────────────────────────┬─────────────────────────────────────┘
                                 │
@@ -65,7 +67,7 @@ EDGE LAYER (Phase 3 — Cloudflare Workers):
 ### 1.2 Directory Structure (NestJS Monorepo)
 
 ```
-aegis/
+cerniq/
 ├── apps/
 │   ├── api/                    # NestJS core API
 │   │   ├── src/
@@ -132,7 +134,7 @@ aegis/
 │       ├── components/
 │       └── lib/
 ├── packages/
-│   ├── sdk-ts/                 # @aegis/sdk (TypeScript)
+│   ├── sdk-ts/                 # @cerniq/sdk (TypeScript)
 │   │   ├── src/
 │   │   │   ├── index.ts
 │   │   │   ├── client.ts
@@ -141,8 +143,8 @@ aegis/
 │   │   │   ├── policy.ts
 │   │   │   └── types.ts
 │   │   └── package.json
-│   └── sdk-py/                 # aegis-sdk (Python)
-│       ├── aegis/
+│   └── sdk-py/                 # cerniq-sdk (Python)
+│       ├── cerniq/
 │       │   ├── __init__.py
 │       │   ├── client.py
 │       │   ├── agent.py
@@ -163,7 +165,7 @@ aegis/
 ## SECTION 2 — COMPLETE PRISMA SCHEMA
 
 ```prisma
-// schema.prisma — AEGIS v1.0
+// schema.prisma — CERNIQ v1.0
 
 generator client {
   provider = "prisma-client-js"
@@ -182,18 +184,18 @@ model Principal {
   name              String?
   planTier          PlanTier @default(FREE)
   billingCustomerId String?  // Stripe customer ID
-  
+
   // Verification
   emailVerified     Boolean  @default(false)
   kycVerified       Boolean  @default(false)
-  
+
   // API access
   apiKeys           ApiKey[]
-  
+
   // Ownership
   agents            AgentIdentity[]
   webhooks          WebhookSubscription[]
-  
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -203,7 +205,7 @@ model Principal {
 model ApiKey {
   id          String    @id @default(cuid())
   keyHash     String    @unique // bcrypt hash — never store plaintext
-  keyPrefix   String    // First 8 chars for identification: "aegis_sk_xxxx"
+  keyPrefix   String    // First 8 chars for identification: "cerniq_sk_xxxx"
   label       String?
   principalId String
   principal   Principal @relation(fields: [principalId], references: [id], onDelete: Cascade)
@@ -229,34 +231,34 @@ model AgentIdentity {
   publicKey       String      // Ed25519 public key, base64url
   principalId     String
   principal       Principal   @relation(fields: [principalId], references: [id], onDelete: Cascade)
-  
+
   // Metadata
   label           String?
   runtime         AgentRuntime
   model           String?     // "gpt-4o", "claude-3-7-sonnet", etc.
-  
+
   // Status
   status          AgentStatus @default(PENDING_VERIFICATION)
   revokedAt       DateTime?
   revokedReason   String?
-  
+
   // Trust (computed by BATE)
   trustScore      Int         @default(500) // 0-1000
   trustBand       TrustBand   @default(VERIFIED)
   lastScoredAt    DateTime?
-  
+
   // Activity
   lastSeenAt      DateTime?
   verifyCount     Int         @default(0)
   verifyCountDay  Int         @default(0) // Reset daily
-  
+
   // Relations
   policies        AgentPolicy[]
   auditEvents     AuditEvent[]
   bateSignals     BateSignal[]
   delegations     AgentDelegation[] @relation("delegator")
   delegatedTo     AgentDelegation[] @relation("delegate")
-  
+
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -294,22 +296,22 @@ model AgentPolicy {
   agentId     String
   agent       AgentIdentity @relation(fields: [agentId], references: [id], onDelete: Cascade)
   label       String?
-  
+
   // Token (signed JWT containing policy claims)
   signedToken String        @db.Text
   tokenHash   String        // SHA256 of signed token for fast lookup
-  
+
   // Status
   status      PolicyStatus  @default(ACTIVE)
   revokedAt   DateTime?
   expiresAt   DateTime
-  
+
   // Scopes (stored as JSON for flexibility)
   scopes      Json          // PolicyScope[]
-  
+
   // Usage tracking
   verifyCount Int           @default(0)
-  
+
   createdAt   DateTime      @default(now())
 
   @@index([agentId])
@@ -334,7 +336,7 @@ model SpendRecord {
   merchantId  String?
   domain      String?
   date        DateTime @default(now())
-  
+
   // Aggregation helpers (updated on insert)
   dateKey     String   // "2026-05-01" — for daily aggregation
   monthKey    String   // "2026-05" — for monthly aggregation
@@ -350,28 +352,28 @@ model AuditEvent {
   agentId           String
   agent             AgentIdentity @relation(fields: [agentId], references: [id])
   principalId       String
-  
+
   // Event detail
   action            String        // "commerce.purchase", "data.read", etc.
   decision          AuditDecision
   denialReason      String?
-  
+
   // Context
   relyingParty      String?       // Domain or ID of the service that called /verify
   requestedAmount   Decimal?      @db.Decimal(10, 2)
   currency          String?
-  
+
   // Policy snapshot (exact policy at time of event)
   policyId          String?
   policySnapshot    Json?         // Full PolicyScope[] at time of decision
-  
+
   // Trust snapshot
   trustScoreAtEvent Int
   trustBandAtEvent  TrustBand
-  
+
   // Integrity
-  aegisSignature    String        @db.Text // AEGIS signs this record
-  
+  cerniqSignature    String        @db.Text // CERNIQ signs this record
+
   timestamp         DateTime      @default(now())
 
   @@index([agentId, timestamp])
@@ -392,22 +394,22 @@ model BateSignal {
   id            String          @id @default(cuid())
   agentId       String
   agent         AgentIdentity   @relation(fields: [agentId], references: [id])
-  
+
   signalType    BateSignalType
   severity      SignalSeverity  @default(MEDIUM)
   source        String          // "internal" | "relying_party:{id}"
-  
+
   // Signal payload
   payload       Json            // Flexible — varies by signalType
-  
+
   // Idempotency
   idempotencyKey String?        @unique
-  
+
   // Processing
   processed     Boolean         @default(false)
   processedAt   DateTime?
   scoreDelta    Int?            // How much this signal moved the score
-  
+
   occurredAt    DateTime        @default(now())
 
   @@index([agentId, processed])
@@ -420,7 +422,7 @@ enum BateSignalType {
   PRINCIPAL_KYC_VERIFIED
   CONSISTENT_GEOGRAPHY
   NORMAL_VELOCITY
-  
+
   // Negative signals
   RELYING_PARTY_FRAUD_REPORT
   VELOCITY_ANOMALY
@@ -445,7 +447,7 @@ model TrustScoreHistory {
   band        TrustBand
   reason      String        // Human-readable reason for change
   signalId    String?       // BateSignal that triggered this change
-  
+
   recordedAt  DateTime      @default(now())
 
   @@index([agentId, recordedAt])
@@ -459,17 +461,17 @@ model AgentDelegation {
   delegator     AgentIdentity @relation("delegator", fields: [delegatorId], references: [id])
   delegateId    String        // The agent receiving delegation
   delegate      AgentIdentity @relation("delegate", fields: [delegateId], references: [id])
-  
+
   // What the delegate can do (subset of delegator's policies)
   scopeSubset   Json          // PolicyScope[] — must be subset of delegator scopes
-  
+
   // Chain
   chainDepth    Int           @default(1) // How deep in the chain
   chainRoot     String        // The original human principal's agent
-  
+
   // Token
   delegationToken String      @db.Text // Signed JWT with full delegation chain
-  
+
   status        PolicyStatus  @default(ACTIVE)
   expiresAt     DateTime
   createdAt     DateTime      @default(now())
@@ -484,14 +486,14 @@ model WebhookSubscription {
   id          String      @id @default(cuid())
   principalId String
   principal   Principal   @relation(fields: [principalId], references: [id], onDelete: Cascade)
-  
+
   url         String
   secret      String      // HMAC secret for signature verification
-  events      String[]    // ["aegis.agent.trust_score_changed", ...]
-  
+  events      String[]    // ["cerniq.agent.trust_score_changed", ...]
+
   active      Boolean     @default(true)
   createdAt   DateTime    @default(now())
-  
+
   deliveries  WebhookDelivery[]
 
   @@index([principalId])
@@ -501,17 +503,17 @@ model WebhookDelivery {
   id              String              @id @default(cuid())
   subscriptionId  String
   subscription    WebhookSubscription @relation(fields: [subscriptionId], references: [id])
-  
+
   event           String
   payload         Json
-  
+
   status          DeliveryStatus      @default(PENDING)
   attempts        Int                 @default(0)
   lastAttemptAt   DateTime?
   nextRetryAt     DateTime?
   responseCode    Int?
   responseBody    String?             @db.Text
-  
+
   createdAt       DateTime            @default(now())
 
   @@index([subscriptionId, status])
@@ -532,13 +534,13 @@ model RelyingParty {
   name        String
   domain      String   @unique
   apiKeyHash  String   @unique // Their verify-key hash
-  
+
   // Trust weight for their reports (higher = more weight in BATE)
   reportWeight Float   @default(1.0)
-  
+
   verified    Boolean  @default(false)
   verifiedAt  DateTime?
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -581,7 +583,7 @@ export class VerifyService {
 
   async verify(dto: VerifyRequestDto): Promise<VerifyResponseDto> {
     const startMs = Date.now();
-    
+
     // Step 1 — Decode token (fail fast, no DB hit)
     let claims: AgentTokenClaims;
     try {
@@ -595,7 +597,7 @@ export class VerifyService {
     // Step 2 — Agent status (Redis cache first, 60s TTL)
     const cacheKey = `agent:status:${agentId}`;
     let agent = await this.redis.get<CachedAgent>(cacheKey);
-    
+
     if (!agent) {
       const dbAgent = await this.prisma.agentIdentity.findUnique({
         where: { id: agentId },
@@ -626,10 +628,7 @@ export class VerifyService {
     }
 
     // Step 3 — Cryptographic signature verification
-    const isValidSig = await this.ed25519.verify(
-      dto.token,
-      agent.publicKey,
-    );
+    const isValidSig = await this.ed25519.verify(dto.token, agent.publicKey);
 
     if (!isValidSig) {
       return this.deny('INVALID_SIGNATURE', agentId, agent.principalId, startMs);
@@ -638,7 +637,7 @@ export class VerifyService {
     // Step 4 — Policy check (Redis cache first, 30s TTL)
     const policyCacheKey = `policy:${policyId}`;
     let policy = await this.redis.get<CachedPolicy>(policyCacheKey);
-    
+
     if (!policy) {
       const dbPolicy = await this.prisma.agentPolicy.findUnique({
         where: { id: policyId, agentId },
@@ -670,7 +669,7 @@ export class VerifyService {
     // Step 5 — Scope check
     const scopes = policy.scopes as PolicyScope[];
     const requestedScope = dto.action?.split('.')[0] ?? 'general';
-    const matchingScope = scopes.find(s => s.category === requestedScope);
+    const matchingScope = scopes.find((s) => s.category === requestedScope);
 
     if (dto.action && !matchingScope) {
       return this.deny('SCOPE_NOT_GRANTED', agentId, agent.principalId, startMs);
@@ -704,34 +703,38 @@ export class VerifyService {
 
     // Step 9 — Record spend (fire-and-forget, non-blocking)
     if (dto.amount) {
-      this.spendGuard.recordSpend(agentId, policyId, dto.amount, dto.currency ?? 'USD', dto.merchantId).catch(
-        e => this.logger.error('Spend record failed', e)
-      );
+      this.spendGuard
+        .recordSpend(agentId, policyId, dto.amount, dto.currency ?? 'USD', dto.merchantId)
+        .catch((e) => this.logger.error('Spend record failed', e));
     }
 
     // Step 10 — Audit log (fire-and-forget, non-blocking)
-    this.audit.record({
-      agentId,
-      principalId: agent.principalId,
-      action: dto.action ?? 'verify',
-      decision: 'APPROVED',
-      relyingParty: dto.merchantDomain,
-      requestedAmount: dto.amount,
-      currency: dto.currency,
-      policyId,
-      policySnapshot: scopes,
-      trustScoreAtEvent: trustScore,
-      trustBandAtEvent: trustBand,
-    }).catch(e => this.logger.error('Audit record failed', e));
+    this.audit
+      .record({
+        agentId,
+        principalId: agent.principalId,
+        action: dto.action ?? 'verify',
+        decision: 'APPROVED',
+        relyingParty: dto.merchantDomain,
+        requestedAmount: dto.amount,
+        currency: dto.currency,
+        policyId,
+        policySnapshot: scopes,
+        trustScoreAtEvent: trustScore,
+        trustBandAtEvent: trustBand,
+      })
+      .catch((e) => this.logger.error('Audit record failed', e));
 
     // Step 11 — BATE signal (fire-and-forget)
-    this.bate.ingestSignal({
-      agentId,
-      signalType: 'CLEAN_TRANSACTION',
-      severity: 'LOW',
-      source: 'internal',
-      payload: { action: dto.action, amount: dto.amount, merchantDomain: dto.merchantDomain },
-    }).catch(e => this.logger.error('BATE signal failed', e));
+    this.bate
+      .ingestSignal({
+        agentId,
+        signalType: 'CLEAN_TRANSACTION',
+        severity: 'LOW',
+        source: 'internal',
+        payload: { action: dto.action, amount: dto.amount, merchantDomain: dto.merchantDomain },
+      })
+      .catch((e) => this.logger.error('BATE signal failed', e));
 
     const latencyMs = Date.now() - startMs;
     this.logger.debug(`Verify approved: ${agentId} in ${latencyMs}ms`);
@@ -742,7 +745,7 @@ export class VerifyService {
       principalId: agent.principalId,
       trustScore,
       trustBand,
-      scopesGranted: scopes.map(s => s.category),
+      scopesGranted: scopes.map((s) => s.category),
       verifiedAt: new Date().toISOString(),
       ttl: 30,
       denialReason: null,
@@ -756,18 +759,20 @@ export class VerifyService {
     startMs: number,
   ): Promise<VerifyResponseDto> {
     this.logger.debug(`Verify denied: ${reason} for agent ${agentId}`);
-    
+
     if (agentId) {
       // Fire-and-forget audit on denial too
-      this.audit.record({
-        agentId,
-        principalId: principalId ?? 'unknown',
-        action: 'verify',
-        decision: 'DENIED',
-        denialReason: reason,
-        trustScoreAtEvent: 0,
-        trustBandAtEvent: 'FLAGGED',
-      }).catch(() => {});
+      this.audit
+        .record({
+          agentId,
+          principalId: principalId ?? 'unknown',
+          action: 'verify',
+          decision: 'DENIED',
+          denialReason: reason,
+          trustScoreAtEvent: 0,
+          trustBandAtEvent: 'FLAGGED',
+        })
+        .catch(() => {});
     }
 
     return {
@@ -795,8 +800,8 @@ Denial Precedence — it is what relying parties code against.
 
 **Tier 0 — Pre-algorithm gate (billing / commercial):**
 
-| Reason | When it fires | Source of truth |
-|--------|---------------|-----------------|
+| Reason                | When it fires                                                                                                                                                                                                                                                                                                                           | Source of truth                                                                                        |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `PLAN_LIMIT_EXCEEDED` | Principal has exceeded their plan-tier monthly verify quota. Returned with HTTP 200 (not 429) because it's a contractual quota, not a transient throttle. Body includes `remaining: 0`, `monthlyQuota: <N>`, `planTier: <tier>`. Fires **before** any signature, policy, or trust evaluation — the 9-step chain below is not consulted. | `apps/api/src/modules/billing/usage-guard.service.ts`, `apps/api/src/modules/verify/verify.service.ts` |
 
 **Tier 1 — Denial precedence chain (top wins, order is fixed):**
@@ -823,14 +828,13 @@ of the verification algorithm itself, untouched by commercial concerns.
 
 interface ScoringContext {
   agent: AgentIdentity;
-  recentSignals: BateSignal[];  // Last 30 days
+  recentSignals: BateSignal[]; // Last 30 days
   signalCounts: Record<BateSignalType, number>;
 }
 
 export class BateScorer {
-
   compute(ctx: ScoringContext): number {
-    let score = ctx.agent.trustScore;  // Start from current score (not 500 always)
+    let score = ctx.agent.trustScore; // Start from current score (not 500 always)
 
     // ── POSITIVE SIGNALS ──────────────────────────────
 
@@ -852,7 +856,7 @@ export class BateScorer {
 
     // Normal velocity maintained for 7+ days: +10
     const normalVelocityDays = ctx.recentSignals.filter(
-      s => s.signalType === 'NORMAL_VELOCITY'
+      (s) => s.signalType === 'NORMAL_VELOCITY',
     ).length;
     if (normalVelocityDays >= 7) score += 10;
 
@@ -860,15 +864,16 @@ export class BateScorer {
 
     // Relying party fraud report: -100 to -500 by severity
     const fraudReports = ctx.recentSignals.filter(
-      s => s.signalType === 'RELYING_PARTY_FRAUD_REPORT'
+      (s) => s.signalType === 'RELYING_PARTY_FRAUD_REPORT',
     );
     for (const report of fraudReports) {
-      const penalty = {
-        LOW: -25,
-        MEDIUM: -100,
-        HIGH: -250,
-        CRITICAL: -500,
-      }[report.severity] ?? -100;
+      const penalty =
+        {
+          LOW: -25,
+          MEDIUM: -100,
+          HIGH: -250,
+          CRITICAL: -500,
+        }[report.severity] ?? -100;
       score += penalty;
     }
 
@@ -916,8 +921,8 @@ export class SpendGuardService {
     currency: string,
     limit: SpendLimit,
   ): Promise<{ allowed: boolean; remainingDay: number; remainingMonth: number }> {
-    const today = new Date().toISOString().slice(0, 10);      // "2026-05-01"
-    const month = new Date().toISOString().slice(0, 7);       // "2026-05"
+    const today = new Date().toISOString().slice(0, 10); // "2026-05-01"
+    const month = new Date().toISOString().slice(0, 7); // "2026-05"
 
     const dayKey = `spend:day:${agentId}:${policyId}:${today}`;
     const monthKey = `spend:month:${agentId}:${policyId}:${month}`;
@@ -927,8 +932,8 @@ export class SpendGuardService {
       this.redis.get<number>(monthKey) ?? 0,
     ]);
 
-    const wouldExceedDay = limit.maxPerDay && (daySpend + amount) > limit.maxPerDay;
-    const wouldExceedMonth = limit.maxPerMonth && (monthSpend + amount) > limit.maxPerMonth;
+    const wouldExceedDay = limit.maxPerDay && daySpend + amount > limit.maxPerDay;
+    const wouldExceedMonth = limit.maxPerMonth && monthSpend + amount > limit.maxPerMonth;
     const wouldExceedTx = limit.maxPerTransaction && amount > limit.maxPerTransaction;
 
     if (wouldExceedDay || wouldExceedMonth || wouldExceedTx) {
@@ -961,7 +966,7 @@ export class SpendGuardService {
 
     // Atomic increment with TTL (day key expires in 2 days, month in 35 days)
     await Promise.all([
-      this.redis.incrBy(dayKey, amount, 172800),    // 2 days TTL
+      this.redis.incrBy(dayKey, amount, 172800), // 2 days TTL
       this.redis.incrBy(monthKey, amount, 3024000), // 35 days TTL
     ]);
   }
@@ -973,22 +978,22 @@ export class SpendGuardService {
 ## SECTION 4 — SDK DESIGN (TypeScript)
 
 ```typescript
-// @aegis/sdk — index.ts
+// @cerniq/sdk — index.ts
 
-export class Aegis {
-  private readonly config: AegisConfig;
-  private readonly http: AegisHttpClient;
+export class Cerniq {
+  private readonly config: CerniqConfig;
+  private readonly http: CerniqHttpClient;
 
   public readonly agent: AgentClient;
   public readonly policy: PolicyClient;
 
-  constructor(config: AegisConfig) {
+  constructor(config: CerniqConfig) {
     this.config = {
       apiKey: config.apiKey,
-      baseUrl: config.baseUrl ?? 'https://api.aegislabs.io/v1',
+      baseUrl: config.baseUrl ?? 'https://api.cerniq.io/v1',
       timeout: config.timeout ?? 5000,
     };
-    this.http = new AegisHttpClient(this.config);
+    this.http = new CerniqHttpClient(this.config);
     this.agent = new AgentClient(this.http);
     this.policy = new PolicyClient(this.http);
   }
@@ -1000,14 +1005,10 @@ export class Aegis {
 }
 
 export class AgentClient {
-  constructor(private readonly http: AegisHttpClient) {}
+  constructor(private readonly http: CerniqHttpClient) {}
 
   // Sign an outbound request — the developer calls this before each agent action
-  async sign(
-    privateKey: string,
-    policyToken: string,
-    context?: SignContext,
-  ): Promise<string> {
+  async sign(privateKey: string, policyToken: string, context?: SignContext): Promise<string> {
     // Creates a signed JWT: { agentId, policyId, action, amount, iat, exp }
     return signAgentToken(privateKey, policyToken, context);
   }
@@ -1041,12 +1042,12 @@ export class AgentClient {
 //
 // Developer-side (agent builder):
 //
-// import { Aegis } from '@aegis/sdk';
+// import { Cerniq } from '@cerniq/sdk';
 //
-// const aegis = new Aegis({ apiKey: process.env.AEGIS_API_KEY });
+// const cerniq = new Cerniq({ apiKey: process.env.CERNIQ_API_KEY });
 //
 // // One-time setup: register agent and create policy
-// const agent = await aegis.agent.register({
+// const agent = await cerniq.agent.register({
 //   publicKey: myEd25519PublicKey,
 //   runtime: 'anthropic',
 //   model: 'claude-sonnet-4-5',
@@ -1054,7 +1055,7 @@ export class AgentClient {
 //   principalId: 'principal_abc123',
 // });
 //
-// const policy = await aegis.policy.create(agent.agentId, {
+// const policy = await cerniq.policy.create(agent.agentId, {
 //   label: 'Buy flights under $500',
 //   scopes: [{
 //     category: 'commerce',
@@ -1065,7 +1066,7 @@ export class AgentClient {
 // });
 //
 // // Before each agent action: sign the request
-// const token = await aegis.agent.sign(myPrivateKey, policy.signedToken, {
+// const token = await cerniq.agent.sign(myPrivateKey, policy.signedToken, {
 //   action: 'commerce.purchase',
 //   amount: 347.00,
 //   currency: 'USD',
@@ -1074,15 +1075,15 @@ export class AgentClient {
 //
 // // Send token with agent request to Delta
 // const response = await fetch('https://api.delta.com/book', {
-//   headers: { 'X-AEGIS-Token': token },
+//   headers: { 'X-CERNIQ-Token': token },
 //   body: JSON.stringify({ flight: 'DL401', ... }),
 // });
 //
 // ── RELYING PARTY USAGE (Delta's server):
 //
-// const aegis = new Aegis({ apiKey: process.env.AEGIS_VERIFY_KEY });
+// const cerniq = new Cerniq({ apiKey: process.env.CERNIQ_VERIFY_KEY });
 //
-// const result = await aegis.verify(req.headers['x-aegis-token'], {
+// const result = await cerniq.verify(req.headers['x-cerniq-token'], {
 //   action: 'commerce.purchase',
 //   amount: 347.00,
 //   merchantDomain: 'delta.com',
@@ -1106,22 +1107,23 @@ export class AgentClient {
 
 ### 5.1 Threat Model
 
-| Threat | Description | Mitigation |
-|---|---|---|
-| Token theft | Attacker steals signed token and replays | JWT `exp` of 60s max; single-use `jti` claim on high-value actions |
-| Key compromise | Developer's private key stolen | Immediate revocation API; AEGIS never holds private key |
-| BATE poisoning | Attacker floods fake signals to inflate score | Report weight by verified relying party only; rate limiting on reports |
-| DDoS on verify | Flood /verify endpoint | Cloudflare WAF + rate limiting per API key; edge caching |
-| Prompt injection | Agent is jailbroken into signing bad requests | Policy hard limits enforced server-side; client-side signing is advisory |
-| Principal spoofing | Attacker registers as a legitimate company | Email verification + optional KYC for BATE bonus |
-| Insider threat | AEGIS employee reads audit logs | Audit records AEGIS-signed and tamper-evident; access logged |
-| Supply chain | SDK dependency compromised | pinned deps, Sigstore signing of npm packages |
+| Threat             | Description                                   | Mitigation                                                               |
+| ------------------ | --------------------------------------------- | ------------------------------------------------------------------------ |
+| Token theft        | Attacker steals signed token and replays      | JWT `exp` of 60s max; single-use `jti` claim on high-value actions       |
+| Key compromise     | Developer's private key stolen                | Immediate revocation API; CERNIQ never holds private key                 |
+| BATE poisoning     | Attacker floods fake signals to inflate score | Report weight by verified relying party only; rate limiting on reports   |
+| DDoS on verify     | Flood /verify endpoint                        | Cloudflare WAF + rate limiting per API key; edge caching                 |
+| Prompt injection   | Agent is jailbroken into signing bad requests | Policy hard limits enforced server-side; client-side signing is advisory |
+| Principal spoofing | Attacker registers as a legitimate company    | Email verification + optional KYC for BATE bonus                         |
+| Insider threat     | CERNIQ employee reads audit logs              | Audit records CERNIQ-signed and tamper-evident; access logged            |
+| Supply chain       | SDK dependency compromised                    | pinned deps, Sigstore signing of npm packages                            |
 
 ### 5.2 Cryptographic Details
 
 **Agent signing:** Ed25519 (libsodium). 32-byte private key, 32-byte public key. Signatures are 64 bytes. Signing is ~50μs — effectively free.
 
 **Token format:** Compact JWT, Ed25519-signed.
+
 ```json
 Header: { "alg": "EdDSA", "typ": "JWT" }
 Payload: {
@@ -1137,20 +1139,20 @@ Payload: {
 }
 ```
 
-**Audit record signing:** AEGIS signs each AuditEvent with an AEGIS-held Ed25519 keypair (separate from the policy-signing keypair so a policy-key compromise does not invalidate the audit chain). Decision rationale and post-quantum migration plan live in `docs/THREAT_MODEL_v2.md` § 4.2 and `docs/POST_QUANTUM_ROADMAP.md`. This allows third parties to verify audit records without AEGIS involvement. Public key published at `https://api.aegislabs.io/.well-known/jwks.json` (and the convenience endpoint `https://api.aegislabs.io/.well-known/audit-signing-key`).
+**Audit record signing:** CERNIQ signs each AuditEvent with an CERNIQ-held Ed25519 keypair (separate from the policy-signing keypair so a policy-key compromise does not invalidate the audit chain). Decision rationale and post-quantum migration plan live in `docs/THREAT_MODEL_v2.md` § 4.2 and `docs/POST_QUANTUM_ROADMAP.md`. This allows third parties to verify audit records without CERNIQ involvement. Public key published at `https://api.cerniq.io/.well-known/jwks.json` (and the convenience endpoint `https://api.cerniq.io/.well-known/audit-signing-key`).
 
-**API key format:** `aegis_sk_[32 random bytes base58]`. Stored as bcrypt hash (cost 12). Only the `aegis_sk_` prefix + first 4 chars stored as `keyPrefix` for identification in dashboards.
+**API key format:** `cerniq_sk_[32 random bytes base58]`. Stored as bcrypt hash (cost 12). Only the `cerniq_sk_` prefix + first 4 chars stored as `keyPrefix` for identification in dashboards.
 
 ### 5.3 Compliance Mapping
 
-| Standard | AEGIS Coverage | Gap |
-|---|---|---|
-| NIST AI Agent Identity (2026 draft) | Agent identity, authorization, auditing | Prompt injection controls (agent-side) |
-| SOC2 Type II | Audit trail, access controls, availability | Requires 6-month evidence window |
-| GDPR | Minimal data (public key + transaction metadata) | Data residency option needed for EU |
-| FINRA | Audit trail, revocation, principal accountability | Needs FINRA-specific report templates |
-| COSSEC (PR) | Audit trail, compliance artifacts | COSSEC-specific module in Phase 3 |
+| Standard                            | CERNIQ Coverage                                   | Gap                                    |
+| ----------------------------------- | ------------------------------------------------- | -------------------------------------- |
+| NIST AI Agent Identity (2026 draft) | Agent identity, authorization, auditing           | Prompt injection controls (agent-side) |
+| SOC2 Type II                        | Audit trail, access controls, availability        | Requires 6-month evidence window       |
+| GDPR                                | Minimal data (public key + transaction metadata)  | Data residency option needed for EU    |
+| FINRA                               | Audit trail, revocation, principal accountability | Needs FINRA-specific report templates  |
+| COSSEC (PR)                         | Audit trail, compliance artifacts                 | COSSEC-specific module in Phase 3      |
 
 ---
 
-*Document 03 of 05 | AEGIS KLYTICS Internal Suite*
+_Document 03 of 05 | CERNIQ KLYTICS Internal Suite_

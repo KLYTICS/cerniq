@@ -1,12 +1,12 @@
-# `@aegis/cf-verify`
+# `@cerniq/cf-verify`
 
 Cloudflare Worker port of `POST /v1/verify`. **Phase 3 deliverable** —
-gated behind $5K AEGIS MRR per the Revenue-Gate doctrine.
+gated behind $5K CERNIQ MRR per the Revenue-Gate doctrine.
 
 ## Status
 
 Scaffold. The current `src/index.ts` forwards every request to the origin
-and adds an `X-AEGIS-Edge: forward` header. This is intentional — it lets
+and adds an `X-CERNIQ-Edge: forward` header. This is intentional — it lets
 us:
 
 1. Wire up the deploy pipeline before optimizing.
@@ -26,15 +26,15 @@ us:
 ```bash
 # Deploy is intentionally broken until Phase 3 unlocks.
 pnpm deploy
-# → "Phase 3 only — gated behind $5K AEGIS MRR. Edit me when ready."
+# → "Phase 3 only — gated behind $5K CERNIQ MRR. Edit me when ready."
 ```
 
 When unlocking:
 
 1. Provision KV namespace: `npx wrangler kv:namespace create TRUST_KV`
 2. Replace `REPLACE_ME_AT_DEPLOY` in `wrangler.toml`
-3. `wrangler secret put AEGIS_FALLBACK_API_KEY`
-4. `wrangler secret put AEGIS_AUDIT_PUBLIC_KEY_B64`
+3. `wrangler secret put CERNIQ_FALLBACK_API_KEY`
+4. `wrangler secret put CERNIQ_AUDIT_PUBLIC_KEY_B64`
 5. Replace the `pnpm deploy` script body in `package.json`
 6. `wrangler deploy --env production`
 

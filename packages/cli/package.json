@@ -1,21 +1,21 @@
 {
-  "name": "@aegis/cli",
+  "name": "@cerniq/cli",
   "version": "0.1.0",
-  "description": "AEGIS operator CLI — manage agents, policies, KMS, audit, and MCP from the terminal.",
+  "description": "CERNIQ operator CLI — manage agents, policies, KMS, audit, and MCP from the terminal.",
   "type": "module",
   "license": "MIT",
-  "author": "AEGIS Labs <hello@aegislabs.io>",
-  "homepage": "https://aegislabs.io",
+  "author": "CERNIQ Labs <hello@cerniq.io>",
+  "homepage": "https://cerniq.io",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/klytics/aegis.git",
+    "url": "git+https://github.com/klytics/cerniq.git",
     "directory": "packages/cli"
   },
   "bugs": {
-    "url": "https://github.com/klytics/aegis/issues"
+    "url": "https://github.com/klytics/cerniq/issues"
   },
   "keywords": [
-    "aegis",
+    "cerniq",
     "agent",
     "identity",
     "cli",
@@ -27,7 +27,7 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "aegis": "./dist/bin.js"
+    "cerniq": "./dist/bin.js"
   },
   "files": [
     "dist",
@@ -43,8 +43,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aegis/sdk": "workspace:*",
-    "@aegis/types": "workspace:*",
+    "@cerniq/sdk": "workspace:*",
+    "@cerniq/types": "workspace:*",
     "@noble/ed25519": "^2.1.0",
     "@noble/hashes": "^1.5.0",
     "commander": "^12.1.0",
@@ -52,7 +52,7 @@
     "prompts": "^2.4.2"
   },
   "devDependencies": {
-    "@aegis/tsconfig": "workspace:*",
+    "@cerniq/tsconfig": "workspace:*",
     "@types/prompts": "^2.4.9",
     "tsup": "^8.3.5",
     "typescript": "^5.6.3",

@@ -18,7 +18,7 @@ export function AgentTable({ agents }: Props) {
       <div className="data-empty">
         <p>No agents registered yet.</p>
         <pre className="hint">{`# from your terminal:
-aegis agents register --runtime anthropic --label "shopper-bot"`}</pre>
+cerniq agents register --runtime anthropic --label "shopper-bot"`}</pre>
       </div>
     );
   }
@@ -56,7 +56,9 @@ aegis agents register --runtime anthropic --label "shopper-bot"`}</pre>
                   <a
                     href={`/agents/${encodeURIComponent(a.agentId)}`}
                     title={a.agentId}
-                    onClick={(e) => { e.stopPropagation(); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
                   >
                     {shortId(a.agentId, 8, 4)}
                   </a>
@@ -70,7 +72,9 @@ aegis agents register --runtime anthropic --label "shopper-bot"`}</pre>
                   status={a.status}
                   pulse={a.status === 'ACTIVE' && isLive(a)}
                   label={
-                    <span className={`badge badge-${statusTone(a.status)}`}>{a.status.toLowerCase()}</span>
+                    <span className={`badge badge-${statusTone(a.status)}`}>
+                      {a.status.toLowerCase()}
+                    </span>
                   }
                 />
               </td>

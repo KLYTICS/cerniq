@@ -1,14 +1,14 @@
-// Package cmd hosts the cobra command tree for the aegis CLI.
+// Package cmd hosts the cobra command tree for the cerniq CLI.
 //
 // The root command:
 //  1. Defines global flags (--config, --api-key, --base-url, --json,
 //     --no-color, --verbose) which subcommands inherit.
 //  2. Registers every built-in subcommand.
 //  3. Hooks plugin discovery: when an unknown subcommand is invoked,
-//     the resolver looks for `aegis-<name>` on PATH (kubectl model)
+//     the resolver looks for `cerniq-<name>` on PATH (kubectl model)
 //     and execs it, forwarding arguments and inheriting stdin/stdout.
-//     This is what lets the peer-owned `aegis-audit` binary appear as
-//     `aegis audit ...` without code coupling between the two binaries.
+//     This is what lets the peer-owned `cerniq-audit` binary appear as
+//     `cerniq audit ...` without code coupling between the two binaries.
 package cmd
 
 import (
@@ -18,33 +18,33 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/klytics/aegis/packages/cli/internal/plugin"
-	"github.com/klytics/aegis/packages/cli/internal/version"
+	"github.com/klytics/cerniq/packages/cli/internal/plugin"
+	"github.com/klytics/cerniq/packages/cli/internal/version"
 	"github.com/spf13/cobra"
 )
 
 // rootCmd is the top-level cobra command tree.
 var rootCmd = &cobra.Command{
-	Use:   "aegis",
-	Short: "AEGIS — neutral identity / policy / audit gateway for AI agents",
-	Long: `aegis is the operator-grade CLI for the AEGIS agent gateway.
+	Use:   "cerniq",
+	Short: "CERNIQ — neutral identity / policy / audit gateway for AI agents",
+	Long: `cerniq is the operator-grade CLI for the CERNIQ agent gateway.
 
 Built for parity with the public API: every verb you see in
-docs.aegislabs.io exists here, plus terminal-first ergonomics
+docs.cerniq.io exists here, plus terminal-first ergonomics
 (login via device-code OAuth, OS-keychain credential caching,
 Bloomberg-density status output, kubectl-style plugin discovery).
 
 Get started:
-  aegis login              # one-time auth via device-code OAuth
-  aegis doctor             # check connectivity + onboarding state
-  aegis init --industry fintech-payments  # scaffold a relying-party project
-  aegis agents register    # register your first agent
-  aegis policy create      # mint a scoped policy
-  aegis verify <token>     # run a verification round-trip
+  cerniq login              # one-time auth via device-code OAuth
+  cerniq doctor             # check connectivity + onboarding state
+  cerniq init --industry fintech-payments  # scaffold a relying-party project
+  cerniq agents register    # register your first agent
+  cerniq policy create      # mint a scoped policy
+  cerniq verify <token>     # run a verification round-trip
 
-Plugins: any binary named 'aegis-<x>' on PATH is invoked as 'aegis x'.
+Plugins: any binary named 'cerniq-<x>' on PATH is invoked as 'cerniq x'.
 The 'audit' subcommand is shipped as a separate plugin binary
-(aegis-audit) and is not part of this binary's source tree.
+(cerniq-audit) and is not part of this binary's source tree.
 
 See ` + "`docs/personas/developer.md`" + ` for the developer-onboarding
 path and ` + "`docs/INDUSTRY_QUICKSTARTS.md`" + ` for the per-vertical
@@ -67,11 +67,11 @@ var (
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&flagConfig, "config", "",
-		"path to config file (default: $XDG_CONFIG_HOME/aegis/config.toml)")
+		"path to config file (default: $XDG_CONFIG_HOME/cerniq/config.toml)")
 	rootCmd.PersistentFlags().StringVar(&flagAPIKey, "api-key", "",
-		"AEGIS API key (overrides keychain + AEGIS_API_KEY env)")
+		"CERNIQ API key (overrides keychain + CERNIQ_API_KEY env)")
 	rootCmd.PersistentFlags().StringVar(&flagBaseURL, "base-url", "",
-		"AEGIS API base URL (default: from config or https://api.aegislabs.io)")
+		"CERNIQ API base URL (default: from config or https://api.cerniq.io)")
 	rootCmd.PersistentFlags().BoolVar(&flagJSON, "json", false,
 		"emit machine-readable JSON instead of human-formatted output")
 	rootCmd.PersistentFlags().BoolVar(&flagNoColor, "no-color", false,
@@ -99,7 +99,7 @@ func Execute() error {
 		if errors.As(err, &exitErr) {
 			os.Exit(exitErr.ExitCode())
 		}
-		return fmt.Errorf("aegis: %w", err)
+		return fmt.Errorf("cerniq: %w", err)
 	}
 	return nil
 }

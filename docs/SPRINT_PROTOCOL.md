@@ -1,4 +1,5 @@
-# AEGIS — Sprint Protocol
+# CERNIQ — Sprint Protocol
+
 ## How 100 Engineers Ship in Parallel Without Stepping on Each Other
 
 > **Owner:** Engineering Lead + Operator  
@@ -9,7 +10,7 @@
 
 ## 1. Core Principle
 
-AEGIS is built by parallel sessions (humans, Claude agents, or both) working concurrently. Without discipline, parallel sessions cause merge conflicts, duplicate work, and broken invariants. This protocol prevents that.
+CERNIQ is built by parallel sessions (humans, Claude agents, or both) working concurrently. Without discipline, parallel sessions cause merge conflicts, duplicate work, and broken invariants. This protocol prevents that.
 
 The claim protocol is the coordination layer. **It is not optional.** Every session that touches code must claim its module before writing a single line.
 
@@ -34,13 +35,15 @@ STATUS: cancelled    → no longer needed
 
 ```markdown
 ## M-057: Stripe Billing Integration
+
 **Status:** open
 **Priority:** P0 (blocks $500 MRR gate)
 **Est:** 4h
-**Files:** apps/api/src/modules/billing/*, packages/types/src/billing.ts
+**Files:** apps/api/src/modules/billing/\*, packages/types/src/billing.ts
 **Depends on:** OD-003 (pricing tiers)
 **Description:** Wire Stripe webhooks for plan upgrades, enforce tier limits at verify level
 **Acceptance criteria:**
+
 - Stripe webhook handler processes checkout.session.completed
 - FREE tier enforced: 10K verifies/month hard limit
 - PRO tier unenforced: unlimited until billing milestone
@@ -60,7 +63,7 @@ cat WORK_BOARD.md | grep "STATUS: open"
 # Step 2: Read the full module entry — understand scope and file paths
 
 # Step 3: Claim it
-claude-peers claim aegis <module-id> \
+claude-peers claim cerniq <module-id> \
   --note "Implementing Stripe billing integration" \
   --ttl 7200   # 2 hours; extend if needed
 
@@ -70,11 +73,11 @@ claude-peers claim aegis <module-id> \
 
 ### 3.2 Claim TTL Rules
 
-| TTL | When to Use |
-|-----|-------------|
-| `--ttl 3600` (1h) | Small bugs, single file changes |
-| `--ttl 7200` (2h) | Standard features |
-| `--ttl 14400` (4h) | Complex features, multi-file changes |
+| TTL                | When to Use                               |
+| ------------------ | ----------------------------------------- |
+| `--ttl 3600` (1h)  | Small bugs, single file changes           |
+| `--ttl 7200` (2h)  | Standard features                         |
+| `--ttl 14400` (4h) | Complex features, multi-file changes      |
 | `--ttl 28800` (8h) | Full sprint session (renew before expiry) |
 
 **Expired claims are fair game.** If a claim is > 2 hours past its TTL with no PR and no activity, it can be re-claimed. Always check for a stale PR first.
@@ -83,15 +86,16 @@ claude-peers claim aegis <module-id> \
 
 ```bash
 # Before TTL expires
-claude-peers extend aegis:<module-id> --ttl 3600
+claude-peers extend cerniq:<module-id> --ttl 3600
 # Update WORK_BOARD.md: add (extended HH:MM UTC)
 ```
 
 ### 3.4 Releasing a Claim
 
 After your PR is merged:
+
 ```bash
-claude-peers release aegis:<module-id>
+claude-peers release cerniq:<module-id>
 # Update WORK_BOARD.md: STATUS: landed
 # Append to docs/SESSION_HANDOFF.md
 ```
@@ -103,10 +107,11 @@ claude-peers release aegis:<module-id>
 Every module lists its file paths explicitly. Stay within them.
 
 ```markdown
-**Files:** apps/api/src/modules/billing/*, packages/types/src/billing.ts
+**Files:** apps/api/src/modules/billing/\*, packages/types/src/billing.ts
 ```
 
 This means:
+
 - ✅ `apps/api/src/modules/billing/billing.service.ts` — in scope
 - ✅ `packages/types/src/billing.ts` — in scope
 - ❌ `apps/api/src/modules/verify/verify.service.ts` — not in scope
@@ -148,27 +153,33 @@ After every session, append to `docs/SESSION_HANDOFF.md`. This is the institutio
 
 ```markdown
 ## Session: <session-id> | <module-id> | <date>
+
 **Duration:** Xh Ym
 **Status:** ✅ Landed / 🟡 PR Open / ❌ Blocked
 
 ### What landed
+
 - [List of files changed and what changed]
 - [Key architectural decisions made]
 - [Tests added]
 
 ### What did NOT land (be explicit)
+
 - [Things you started but didn't finish]
 - [Known gaps in what you shipped]
 
 ### Spec drift logged
+
 - [Any divergence found between spec and code]
 - [OpenAPI changes made]
 
 ### Open questions / next steps
+
 - [Things the next session should know]
 - [TODOs with file:line references]
 
 ### OPERATOR-INPUT-NEEDED
+
 - [Any decisions that were deferred to the operator]
 ```
 
@@ -193,6 +204,7 @@ Before releasing a claim, verify:
 ### 6.1 Per-PR Gates (Required for Merge)
 
 CI must pass:
+
 ```
 [ ] pnpm lint (zero warnings)
 [ ] pnpm typecheck (zero errors, noUncheckedIndexedAccess on)
@@ -202,6 +214,7 @@ CI must pass:
 ```
 
 Human review gates:
+
 ```
 [ ] At least 1 approval from engineering team member
 [ ] For crypto changes: engineering lead must approve
@@ -215,6 +228,7 @@ Human review gates:
 These are not suggestions:
 
 **No `any`:**
+
 ```typescript
 // ❌ Unacceptable (even in a hurry)
 async function processPayment(data: any): Promise<any> { ... }
@@ -228,6 +242,7 @@ const metadata = event.metadata as Record<string, unknown>;
 ```
 
 **Typed errors:**
+
 ```typescript
 // ❌ Never
 throw new Error('Agent not found');
@@ -237,6 +252,7 @@ throw new AgentNotFoundError({ agentId, principalId });
 ```
 
 **No fabricated data:**
+
 ```typescript
 // ❌ Never return synthetic "success" when downstream fails
 if (error) return { score: 500, band: 'VERIFIED' }; // NEVER
@@ -246,17 +262,19 @@ if (error) throw new BateScoringError({ cause: error });
 ```
 
 **Constants in packages/types:**
+
 ```typescript
 // ❌ Never
 const MAX_DELEGATION_DEPTH = 5; // in verify.service.ts
 
 // ✅ Always
-import { MAX_DELEGATION_DEPTH } from '@aegis/types'; // in packages/types
+import { MAX_DELEGATION_DEPTH } from '@cerniq/types'; // in packages/types
 ```
 
 ### 6.3 Architecture Change Protocol
 
 A change is architectural if it:
+
 - Adds a new dependency (even a dev dependency in production code)
 - Changes a public interface in packages/types
 - Modifies verify.algorithm.ts behavior
@@ -265,6 +283,7 @@ A change is architectural if it:
 - Changes the audit chain format
 
 For any architectural change:
+
 1. Write an ADR in `docs/decisions/ADR-XXXX-title.md`
 2. Post in #engineering: "Proposing ADR-XXXX: [summary]"
 3. Wait 24h for objections
@@ -297,7 +316,7 @@ claude-peers msg <session-id> "Question about your M-044 PR..."
 claude-peers broadcast "Heads up: changing verify.algorithm.ts step 7 semantics"
 
 # List all active sessions and their claims
-claude-peers list --repo aegis
+claude-peers list --repo cerniq
 ```
 
 ### 7.3 Conflict Resolution
@@ -315,17 +334,18 @@ If two sessions need the same file simultaneously:
 
 ### 8.1 Sprint Cadence
 
-| Event | Frequency | Duration | Owner |
-|-------|-----------|---------|-------|
-| Sprint planning | Every 2 weeks | 30 min | Engineering lead |
-| Module prioritization | Every sprint | 15 min | Erwin |
-| PR review cycle | Continuous | N/A | All engineers |
-| Release cut | Every sprint | 1h | Engineering lead |
-| Operator review | Every sprint | 30 min | Erwin |
+| Event                 | Frequency     | Duration | Owner            |
+| --------------------- | ------------- | -------- | ---------------- |
+| Sprint planning       | Every 2 weeks | 30 min   | Engineering lead |
+| Module prioritization | Every sprint  | 15 min   | Erwin            |
+| PR review cycle       | Continuous    | N/A      | All engineers    |
+| Release cut           | Every sprint  | 1h       | Engineering lead |
+| Operator review       | Every sprint  | 30 min   | Erwin            |
 
 ### 8.2 Module Prioritization Rules
 
 Modules are prioritized by:
+
 1. **P0:** Blocks first paying customer or production GA
 2. **P1:** Needed for first 10 design partners to succeed
 3. **P2:** Needed for Phase 2 gate ($5K MRR)
@@ -338,6 +358,7 @@ Never work on P3 if there are open P0 items.
 Current sprint goal: **Ship the minimum for first paying user.**
 
 Blockers (do not close sprint until these are done):
+
 ```
 [x] G-1: /.well-known/audit-signing-key endpoint — LANDED (wellknown.controller.ts, prior session)
 [x] G-2: Free tier fully enforced — LANDED (UsageGuardService + BillingModule + VerifyService gate, 2026-05-04)
@@ -347,6 +368,7 @@ Blockers (do not close sprint until these are done):
 ```
 
 **All Phase 1 GA sprint gates are now closed.** Remaining pre-GA work:
+
 - OD-003 Stripe wiring (billing source-of-truth; quota enforcement already live)
 - `UsageGuardService` unit tests
 - `WebhookSubscription.secret` bcrypt hardening (see SESSION_HANDOFF.md 2026-05-04)
@@ -418,5 +440,5 @@ grep "Priority: P0" WORK_BOARD.md                    # urgent modules
 
 ---
 
-*Sprint protocol version: 1.0 | AEGIS Phase 1*  
-*Next review: after first sprint with >5 concurrent engineers*
+_Sprint protocol version: 1.0 | CERNIQ Phase 1_  
+_Next review: after first sprint with >5 concurrent engineers_

@@ -1,27 +1,27 @@
 ---
-title: Relying-party verifier (@aegis/verifier-rp)
-description: Offline AEGIS token + audit-chain verification. JWKS-cached. Express, Fastify, Hono, and edge-runtime adapters.
+title: Relying-party verifier (@cerniq/verifier-rp)
+description: Offline CERNIQ token + audit-chain verification. JWKS-cached. Express, Fastify, Hono, and edge-runtime adapters.
 ---
 
-`@aegis/verifier-rp` is the package merchants and downstream services ship
-when they want to verify AEGIS tokens **without** a network round-trip to
-AEGIS on the hot path. It validates the token's EdDSA signature against
-the JWKS published at `/.well-known/aegis-jwks.json`, with a small in-
+`@cerniq/verifier-rp` is the package merchants and downstream services ship
+when they want to verify CERNIQ tokens **without** a network round-trip to
+CERNIQ on the hot path. It validates the token's EdDSA signature against
+the JWKS published at `/.well-known/cerniq-jwks.json`, with a small in-
 memory revocation cache (`/status` poll + invalidation hook).
 
 ## Install
 
 ```bash
-npm install @aegis/verifier-rp
+npm install @cerniq/verifier-rp
 ```
 
 ## Quickstart
 
 ```ts
-import { AegisVerifier } from '@aegis/verifier-rp';
+import { CerniqVerifier } from '@cerniq/verifier-rp';
 
-const verifier = new AegisVerifier({
-  jwksUri: 'https://api.aegislabs.io/.well-known/aegis-jwks.json',
+const verifier = new CerniqVerifier({
+  jwksUri: 'https://api.cerniq.io/.well-known/cerniq-jwks.json',
   getAgentPublicKey: async (agentId) => {
     // The RP supplies how to resolve agent public keys. Typically:
     // - a DB lookup if you've cached agent registration callbacks
@@ -40,9 +40,9 @@ if (!result.allowed) {
 
 Offline verification cannot enforce:
 
-- **Spend limits** — relies on AEGIS's atomic counter
+- **Spend limits** — relies on CERNIQ's atomic counter
 - **Trust scores** — relies on BATE recomputation
-- **Real-time anomaly detection** — relies on AEGIS signal ingestion
+- **Real-time anomaly detection** — relies on CERNIQ signal ingestion
 
 Design your policy scopes accordingly: hard limits (action allow-list,
 TTL, signature, scope) are offline-enforceable; soft limits (spend, trust,
@@ -75,16 +75,16 @@ Drop-in middleware for the most common frameworks:
 
 ```ts
 // Express
-import { expressAegis } from '@aegis/verifier-rp/express';
-app.use('/api', expressAegis(verifier));
+import { expressCerniq } from '@cerniq/verifier-rp/express';
+app.use('/api', expressCerniq(verifier));
 
 // Fastify
-import { fastifyAegis } from '@aegis/verifier-rp/fastify';
-await app.register(fastifyAegis, { verifier });
+import { fastifyCerniq } from '@cerniq/verifier-rp/fastify';
+await app.register(fastifyCerniq, { verifier });
 
 // Hono (edge-runtime safe)
-import { honoAegis } from '@aegis/verifier-rp/hono';
-app.use('/api/*', honoAegis(verifier));
+import { honoCerniq } from '@cerniq/verifier-rp/hono';
+app.use('/api/*', honoCerniq(verifier));
 ```
 
 All adapters are tree-shakeable subpath exports — importing one does not
@@ -92,4 +92,4 @@ bring in the others.
 
 ## Source
 
-[`packages/verifier-rp/`](https://github.com/klytics/aegis/tree/main/packages/verifier-rp)
+[`packages/verifier-rp/`](https://github.com/klytics/cerniq/tree/main/packages/verifier-rp)

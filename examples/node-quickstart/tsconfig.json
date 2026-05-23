@@ -1,5 +1,5 @@
 {
-  "extends": "@aegis/tsconfig/node.json",
+  "extends": "@cerniq/tsconfig/node.json",
   "include": ["src/**/*"],
   "compilerOptions": {
     "outDir": "dist"

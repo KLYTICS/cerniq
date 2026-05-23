@@ -1,4 +1,4 @@
-# AEGIS CLI v{X.Y.Z} — release notes template
+# CERNIQ CLI v{X.Y.Z} — release notes template
 
 > Copy this file to a fresh title (e.g. `docs/releases/v0.1.0.md`) when
 > cutting a release. The same prose is used as the goreleaser changelog
@@ -13,19 +13,19 @@ One-paragraph summary of the change. Lead with the user-facing impact
 
 ```sh
 # Homebrew
-brew upgrade klytics/aegis/aegis
+brew upgrade klytics/cerniq/cerniq
 
 # Scoop
-scoop update aegis
+scoop update cerniq
 
 # curl installer
-curl -fsSL https://get.aegis.dev/install.sh | sh
+curl -fsSL https://get.cerniq.dev/install.sh | sh
 
 # Verify the release
 cosign verify-blob \
   --certificate checksums.txt.pem \
   --signature checksums.txt.sig \
-  --certificate-identity-regexp 'https://github.com/klytics/aegis/.+' \
+  --certificate-identity-regexp 'https://github.com/klytics/cerniq/.+' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   checksums.txt
 ```
@@ -37,7 +37,7 @@ template here is the merchandiser's view, not the engineer's diff.
 
 ### Added
 
-- One-line user benefit. Reference the command (`aegis foo bar`).
+- One-line user benefit. Reference the command (`cerniq foo bar`).
 
 ### Changed
 
@@ -55,18 +55,18 @@ upgrade command sequence and what fails if skipped.
 ## Verify the upgrade
 
 ```sh
-aegis version            # prints {X.Y.Z}, commit, build date
-aegis doctor             # 10-check battery; expect zero failures
-aegis agents status agt_KNOWN_GOOD   # round-trips a public endpoint
+cerniq version            # prints {X.Y.Z}, commit, build date
+cerniq doctor             # 10-check battery; expect zero failures
+cerniq agents status agt_KNOWN_GOOD   # round-trips a public endpoint
 ```
 
 ## Compatibility
 
-- AEGIS API: requires v{X.Y} or later (matches /v1 + this release's
+- CERNIQ API: requires v{X.Y} or later (matches /v1 + this release's
   added endpoints, if any).
 - Plugin contract: unchanged from v{prior}. Plugins built against the
   prior release continue to work.
-- Config file at `$XDG_CONFIG_HOME/aegis/config.toml`: forward-compatible.
+- Config file at `$XDG_CONFIG_HOME/cerniq/config.toml`: forward-compatible.
   No migration required.
 
 ## Known issues

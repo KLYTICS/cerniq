@@ -45,7 +45,7 @@ export function ManageButton({
     <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
       <button
         type="button"
-        className="aegis-button"
+        className="cerniq-button"
         aria-label={ariaLabel}
         disabled={pending}
         onClick={go}

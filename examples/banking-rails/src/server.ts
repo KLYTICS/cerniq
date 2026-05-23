@@ -1,25 +1,25 @@
-// Treasury API — AEGIS verify gate in front of a programmable-banking
+// Treasury API — CERNIQ verify gate in front of a programmable-banking
 // action. The merchant (or in this vertical, the treasury team) layers
-// AEGIS over their bank adapter (Modern Treasury, Increase, Mercury,
+// CERNIQ over their bank adapter (Modern Treasury, Increase, Mercury,
 // or direct ISO 20022 to a sponsor bank).
 //
 // Inbound /api/instruct carries:
-//   - aegisToken: agent identity + policy + trust
+//   - cerniqToken: agent identity + policy + trust
 //   - instruction: the rail-agnostic payment shape (see iso20022-shape)
 //
-// We gate the agent first, then submit to the (mock) bank rail. AEGIS
+// We gate the agent first, then submit to the (mock) bank rail. CERNIQ
 // signs an audit event regardless of rail outcome — even if the bank
 // rejects, you have a tamper-evident record of the agent's attempt.
 //
 // Why this matters: agent-driven money movement is the highest-stakes
-// AEGIS surface. A leaked credential moving funds via wire is
+// CERNIQ surface. A leaked credential moving funds via wire is
 // unrecoverable. The combination of (a) Ed25519 identity, (b) scoped
 // policy with spend caps, (c) BATE trust score gating high-value
 // rails, and (d) signed audit chain is the entire defence-in-depth
 // story for treasury automation.
 
 import express, { type Request, type Response } from 'express';
-import { Aegis } from '@aegis/sdk';
+import { Cerniq } from '@cerniq/sdk';
 
 import type {
   PaymentInstruction,
@@ -28,9 +28,9 @@ import type {
   RailType,
 } from './iso20022-shape.js';
 
-const aegis = new Aegis({
-  baseUrl: process.env.AEGIS_API_BASE ?? 'https://api.aegislabs.io',
-  verifyKey: requireEnv('AEGIS_VERIFY_KEY'),
+const cerniq = new Cerniq({
+  baseUrl: process.env.CERNIQ_API_BASE ?? 'https://api.cerniq.io',
+  verifyKey: requireEnv('CERNIQ_VERIFY_KEY'),
 });
 
 const TREASURY_DOMAIN = requireEnv('TREASURY_DOMAIN');
@@ -41,12 +41,12 @@ const TREASURY_DOMAIN = requireEnv('TREASURY_DOMAIN');
  *  industry "limits by rail" pattern most banks already enforce
  *  internally. Operators tune via env. */
 const RAIL_MIN_TRUST: Readonly<Record<RailType, number>> = Object.freeze({
-  'wire': 800,
-  'fednow': 800,
-  'rtp': 750,
+  wire: 800,
+  fednow: 800,
+  rtp: 750,
   'sepa-instant': 750,
   'sepa-ct': 700,
-  'ach': 650,
+  ach: 650,
   'book-transfer': 500,
 });
 
@@ -54,7 +54,7 @@ const app = express();
 app.use(express.json({ limit: '64kb' }));
 
 interface InstructBody {
-  aegisToken: string;
+  cerniqToken: string;
   instruction: PaymentInstruction;
 }
 
@@ -69,11 +69,11 @@ app.post('/api/instruct', async (req: Request, res: Response) => {
     });
   }
 
-  const { aegisToken, instruction } = body;
+  const { cerniqToken, instruction } = body;
   const minTrust = RAIL_MIN_TRUST[instruction.rail] ?? 700;
 
-  const verdict = await aegis.verify({
-    token: aegisToken,
+  const verdict = await cerniq.verify({
+    token: cerniqToken,
     action: { kind: 'banking.payment', payload: instruction },
     requestedAmount: (instruction.amount / 100).toFixed(2),
     requestedDomain: instruction.creditor.identifier, // bind scope to counterparty
@@ -87,11 +87,11 @@ app.post('/api/instruct', async (req: Request, res: Response) => {
       allowed: false,
       endToEndId: instruction.endToEndId,
       auditEventId: verdict.auditEventId,
-      aegisDenialReason: verdict.denialReason ?? undefined,
+      cerniqDenialReason: verdict.denialReason ?? undefined,
     });
   }
 
-  // AEGIS approved — submit to the bank rail. In production this is
+  // CERNIQ approved — submit to the bank rail. In production this is
   // a Modern Treasury client.payments.create() call (or Increase, or
   // direct pacs.008 to your sponsor bank). The mock below shows the
   // shape; swapping to a real adapter is a 1-file change.
@@ -99,7 +99,7 @@ app.post('/api/instruct', async (req: Request, res: Response) => {
 
   if (!submit.accepted) {
     // The bank refused (malformed routing, insufficient funds, etc.).
-    // We still have an AEGIS audit row — the agent's INTENT to make
+    // We still have an CERNIQ audit row — the agent's INTENT to make
     // this payment is recorded even though the bank wouldn't deliver.
     return respond(res, 502, {
       allowed: false,
@@ -127,11 +127,14 @@ app.listen(port, () => {
 function validateInstruct(b: unknown): string | null {
   if (!b || typeof b !== 'object') return 'missing_body';
   const o = b as Record<string, unknown>;
-  if (typeof o.aegisToken !== 'string' || (o.aegisToken as string).split('.').length !== 3) return 'aegisToken_invalid';
+  if (typeof o.cerniqToken !== 'string' || (o.cerniqToken as string).split('.').length !== 3)
+    return 'cerniqToken_invalid';
   const inst = o.instruction as PaymentInstruction | undefined;
   if (!inst) return 'instruction_missing';
-  if (typeof inst.endToEndId !== 'string' || inst.endToEndId.length === 0) return 'endToEndId_invalid';
-  if (typeof inst.amount !== 'number' || !Number.isFinite(inst.amount) || inst.amount <= 0) return 'amount_invalid';
+  if (typeof inst.endToEndId !== 'string' || inst.endToEndId.length === 0)
+    return 'endToEndId_invalid';
+  if (typeof inst.amount !== 'number' || !Number.isFinite(inst.amount) || inst.amount <= 0)
+    return 'amount_invalid';
   if (typeof inst.currency !== 'string' || inst.currency.length !== 3) return 'currency_invalid';
   if (!inst.debtor?.identifier || !inst.creditor?.identifier) return 'parties_invalid';
   return null;
@@ -145,7 +148,7 @@ function respond(res: Response, status: number, body: InstructResponse): Respons
 // Increase, Mercury, or direct ISO 20022 SOAP / SFTP to a sponsor.
 async function submitToBank(inst: PaymentInstruction): Promise<BankSubmitVerdict> {
   // Refuse same-day wires after 4pm ET (a real cutoff). Demonstrates
-  // a bank-side denial that is NOT an AEGIS denial — you can see
+  // a bank-side denial that is NOT an CERNIQ denial — you can see
   // the two rejection paths in the response shape.
   const hourEt = new Date().getUTCHours() - 4;
   if (inst.rail === 'wire' && hourEt >= 16) {

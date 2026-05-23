@@ -2,7 +2,7 @@ import { describe, expect, it, beforeAll } from 'vitest';
 import { RawClient, readConfig } from './_support/client';
 
 /**
- * The well-known endpoint serves the AEGIS audit-event signing key so
+ * The well-known endpoint serves the CERNIQ audit-event signing key so
  * any third party can verify the chain offline. M-016 + M-006 contract:
  * shape may be either a JWKS (`{ keys: [...] }`) or a single key object —
  * accept either.

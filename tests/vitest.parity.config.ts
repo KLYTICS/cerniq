@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
 /**
- * Vitest config for the AEGIS cross-package parity suite.
+ * Vitest config for the CERNIQ cross-package parity suite.
  *
  * Why this is separate from `vitest.config.ts`:
  * The e2e config wires `globalSetup: ['e2e/setup.ts']` to bring up the

@@ -119,7 +119,7 @@ export class CreatePolicyResponseDto {
   @ApiProperty()
   policyId!: string;
 
-  @ApiProperty({ description: 'AEGIS-signed JWT carrying policy claims.' })
+  @ApiProperty({ description: 'CERNIQ-signed JWT carrying policy claims.' })
   signedToken!: string;
 
   @ApiProperty()

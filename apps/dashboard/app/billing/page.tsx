@@ -5,7 +5,7 @@
 // Reads from `GET /v1/billing/plan` (controller in
 // apps/api/src/modules/billing). Upgrade actions POST to
 // `/v1/billing/checkout`; manage actions POST to `/v1/billing/portal`.
-// Card data never touches AEGIS — see ADR-0011.
+// Card data never touches CERNIQ — see ADR-0011.
 
 import type { Metadata } from 'next';
 import type { ReactElement } from 'react';
@@ -22,7 +22,7 @@ import { UpgradeButton } from './_components/UpgradeButton';
 import { UsageStrip } from './_components/UsageStrip';
 
 export const metadata: Metadata = {
-  title: 'Billing · AEGIS',
+  title: 'Billing · CERNIQ',
 };
 
 const NUM = new Intl.NumberFormat('en-US');
@@ -61,16 +61,14 @@ export default async function BillingPage({
 
   if (!authConfigured()) {
     return (
-      <section className="aegis-page">
-        <header className="aegis-page-header">
+      <section className="cerniq-page">
+        <header className="cerniq-page-header">
           <h1>Billing</h1>
-          <p className="muted">
-            Plan tier, monthly verify usage, and Stripe linkage.
-          </p>
+          <p className="muted">Plan tier, monthly verify usage, and Stripe linkage.</p>
         </header>
         <div className="data-empty">
           <p>
-            Set <code>AEGIS_DASHBOARD_API_KEY</code> to populate this view.
+            Set <code>CERNIQ_DASHBOARD_API_KEY</code> to populate this view.
           </p>
         </div>
       </section>
@@ -80,13 +78,12 @@ export default async function BillingPage({
   const outcome = await loadPlan();
 
   return (
-    <section className="aegis-page">
-      <header className="aegis-page-header">
+    <section className="cerniq-page">
+      <header className="cerniq-page-header">
         <h1>Billing</h1>
         <p className="muted">
-          Plan tier, monthly verify usage, and Stripe linkage. AEGIS stores
-          only customer/subscription identifiers — card data never leaves
-          Stripe.
+          Plan tier, monthly verify usage, and Stripe linkage. CERNIQ stores only
+          customer/subscription identifiers — card data never leaves Stripe.
         </p>
       </header>
 
@@ -112,11 +109,7 @@ function BillingBody({ plan }: { plan: PlanSummary }): ReactElement {
 
       <PlanMetricStrip plan={plan} />
 
-      {plan.planTier === 'FREE' ? (
-        <TrialCountdown plan={plan} />
-      ) : (
-        <UsageStrip plan={plan} />
-      )}
+      {plan.planTier === 'FREE' ? <TrialCountdown plan={plan} /> : <UsageStrip plan={plan} />}
 
       <div
         style={{
@@ -129,23 +122,17 @@ function BillingBody({ plan }: { plan: PlanSummary }): ReactElement {
         {plan.planTier === 'FREE' || plan.planTier === 'DEVELOPER' ? (
           <UpgradeButton currentTier={plan.planTier} />
         ) : null}
-        {plan.planTier === 'DEVELOPER' || plan.planTier === 'GROWTH' ? (
-          <ManageButton />
-        ) : null}
+        {plan.planTier === 'DEVELOPER' || plan.planTier === 'GROWTH' ? <ManageButton /> : null}
       </div>
 
       <h2>Stripe linkage</h2>
       <dl className="kv">
         <dt>customer id</dt>
         <dd className="break">
-          {plan.stripeCustomerId ?? (
-            <span className="muted">— (no Stripe customer yet)</span>
-          )}
+          {plan.stripeCustomerId ?? <span className="muted">— (no Stripe customer yet)</span>}
         </dd>
         <dt>subscription id</dt>
-        <dd className="break">
-          {plan.stripeSubscriptionId ?? <span className="muted">—</span>}
-        </dd>
+        <dd className="break">{plan.stripeSubscriptionId ?? <span className="muted">—</span>}</dd>
         <dt>status</dt>
         <dd>{plan.subscriptionStatus ?? <span className="muted">—</span>}</dd>
       </dl>
@@ -157,17 +144,14 @@ function BillingBody({ plan }: { plan: PlanSummary }): ReactElement {
 
 function PlanMetricStrip({ plan }: { plan: PlanSummary }): ReactElement {
   const statusToneClass = statusTone(plan.subscriptionStatus);
-  const quotaLabel =
-    plan.monthlyQuota === -1 ? 'unlimited' : `${NUM.format(plan.monthlyQuota)}/mo`;
+  const quotaLabel = plan.monthlyQuota === -1 ? 'unlimited' : `${NUM.format(plan.monthlyQuota)}/mo`;
   return (
     <dl
       className="metric-strip"
       style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}
       aria-label="Plan summary"
     >
-      <div
-        className={`metric ${plan.planTier === 'FREE' ? 'metric-muted' : 'metric-ok'}`}
-      >
+      <div className={`metric ${plan.planTier === 'FREE' ? 'metric-muted' : 'metric-ok'}`}>
         <dt>tier</dt>
         <dd>{plan.planTier}</dd>
       </div>

@@ -1,15 +1,16 @@
 'use client';
 
 // Cmd-K command palette. Mounted globally by AppShell. Listens for Cmd/Ctrl-K
-// and a custom `aegis:open-palette` event so chord shortcuts can also trigger
+// and a custom `cerniq:open-palette` event so chord shortcuts can also trigger
 // it. Uses native portal-free fixed positioning + focus trap on input.
 
+import type { Route } from 'next';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { searchCommands, type Command } from '../lib/commands';
 
-const OPEN_EVENT = 'aegis:open-palette';
+const OPEN_EVENT = 'cerniq:open-palette';
 
 export function CommandPalette() {
   const router = useRouter();
@@ -47,7 +48,9 @@ export function CommandPalette() {
       setActiveIdx(0);
       // Wait one frame for paint so the input element is mounted.
       const id = requestAnimationFrame(() => inputRef.current?.focus());
-      return () => { cancelAnimationFrame(id); };
+      return () => {
+        cancelAnimationFrame(id);
+      };
     }
     return undefined;
   }, [open]);
@@ -75,7 +78,7 @@ export function CommandPalette() {
     } else {
       // Commands carry runtime-string hrefs (`?action=register`, etc.) that
       // typedRoutes can't statically analyze — cast to Route at the boundary.
-      router.push(cmd.href);
+      router.push(cmd.href as Route);
     }
   }
 
@@ -141,7 +144,9 @@ export function CommandPalette() {
               aria-selected={i === activeIdx}
               data-idx={i}
               data-active={i === activeIdx ? 'true' : undefined}
-              onMouseEnter={() => { setActiveIdx(i); }}
+              onMouseEnter={() => {
+                setActiveIdx(i);
+              }}
               onMouseDown={(e) => {
                 e.preventDefault();
                 execute(r.cmd);

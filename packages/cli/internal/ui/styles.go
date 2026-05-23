@@ -63,7 +63,7 @@ func AutoDisable(w io.Writer) {
 }
 
 // Row writes a single label/value row in Bloomberg-density format:
-// "label (right-padded to 18) : value". Used by aegis whoami, doctor,
+// "label (right-padded to 18) : value". Used by cerniq whoami, doctor,
 // agents show, etc.
 func Row(w io.Writer, label, value string) {
 	fmt.Fprintf(w, "%s  %s\n",

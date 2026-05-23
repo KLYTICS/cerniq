@@ -3,8 +3,8 @@
 import { revalidatePath } from 'next/cache';
 
 import {
-  AegisApiError,
-  AegisAuthMissingError,
+  CerniqApiError,
+  CerniqAuthMissingError,
   createWebhook,
   deleteWebhook,
 } from '../../../lib/api-client';
@@ -12,7 +12,7 @@ import {
 export interface SubscribeResult {
   ok: true;
   id: string;
-  /** Shown ONCE on creation. Caller must record it; AEGIS only stores the bcrypt hash. */
+  /** Shown ONCE on creation. Caller must record it; CERNIQ only stores the bcrypt hash. */
   secret: string;
 }
 
@@ -36,10 +36,10 @@ export async function subscribeWebhook(formData: FormData): Promise<SubscribeOut
     revalidatePath('/webhooks');
     return { ok: true, id: result.id, secret: result.secret };
   } catch (err) {
-    if (err instanceof AegisAuthMissingError) {
-      return { ok: false, error: 'Dashboard not authorized — set AEGIS_DASHBOARD_API_KEY.' };
+    if (err instanceof CerniqAuthMissingError) {
+      return { ok: false, error: 'Dashboard not authorized — set CERNIQ_DASHBOARD_API_KEY.' };
     }
-    if (err instanceof AegisApiError) {
+    if (err instanceof CerniqApiError) {
       return { ok: false, error: `${err.code}: ${err.message}` };
     }
     return { ok: false, error: (err as Error).message ?? 'Subscribe failed.' };
@@ -52,7 +52,7 @@ export async function unsubscribeWebhook(id: string): Promise<{ ok: boolean; err
     revalidatePath('/webhooks');
     return { ok: true };
   } catch (err) {
-    if (err instanceof AegisApiError) {
+    if (err instanceof CerniqApiError) {
       return { ok: false, error: `${err.code}: ${err.message}` };
     }
     return { ok: false, error: (err as Error).message ?? 'Unsubscribe failed.' };

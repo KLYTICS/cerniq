@@ -1,14 +1,14 @@
 #!/usr/bin/env -S node --import=tsx
 /**
- * AEGIS — `pnpm seed:demo` — believable, multi-principal demo dataset.
+ * CERNIQ — `pnpm seed:demo` — believable, multi-principal demo dataset.
  *
- * A fresh AEGIS install boots to an empty database. The dashboard is blank,
+ * A fresh CERNIQ install boots to an empty database. The dashboard is blank,
  * `/v1/verify` has nothing to verify. New devs can't see the product
  * end-to-end without first hand-crafting principals, agents, policies, and
  * audit events. This script fills that gap with a deterministic-but-realistic
  * dataset that exercises:
  *
- *   - multi-principal isolation (`maria@aegis-demo.test`, `roberto@aegis-demo.test`)
+ *   - multi-principal isolation (`maria@cerniq-demo.test`, `roberto@cerniq-demo.test`)
  *   - agent identities (Ed25519 keypairs minted client-side, public-only at rest)
  *   - active and revoked agents (so AGENT_REVOKED denial is demonstrable)
  *   - policy issuance with realistic scopes/spend caps
@@ -22,7 +22,7 @@
  * `WebhookSecretCipher`, structural Prisma surface for testability).
  *
  * Idempotent: re-runs delete every row whose principal email ends in
- * `@aegis-demo.test` and recreate from scratch. Production rows are untouched.
+ * `@cerniq-demo.test` and recreate from scratch. Production rows are untouched.
  *
  * Flags:
  *   --reset-only   delete demo rows and exit (cleanup utility)
@@ -52,8 +52,8 @@ ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
 // shape at a glance.
 // ──────────────────────────────────────────────────────────────────
 
-export const DEMO_EMAIL_SUFFIX = '@aegis-demo.test' as const;
-const API_KEY_PREFIX = 'aegis_sk_' as const;
+export const DEMO_EMAIL_SUFFIX = '@cerniq-demo.test' as const;
+const API_KEY_PREFIX = 'cerniq_sk_' as const;
 const BCRYPT_COST_FAST = 4;
 const AUDIT_PAYLOAD_VERSION = 2 as const;
 
@@ -93,7 +93,7 @@ export const PERSONAS: ReadonlyArray<PersonaSpec> = [
       { label: 'maria/refund-agent', status: 'ACTIVE' },
       { label: 'maria/loyalty-agent', status: 'ACTIVE' },
     ],
-    webhookUrl: 'https://hooks.aegis-demo.test/maria',
+    webhookUrl: 'https://hooks.cerniq-demo.test/maria',
     auditEventCount: 10,
   },
   {
@@ -110,7 +110,7 @@ export const PERSONAS: ReadonlyArray<PersonaSpec> = [
         revokedReason: 'demo: rotated to dispatch-bot',
       },
     ],
-    webhookUrl: 'https://hooks.aegis-demo.test/roberto',
+    webhookUrl: 'https://hooks.cerniq-demo.test/roberto',
     auditEventCount: 50,
   },
 ] as const;
@@ -128,12 +128,15 @@ function sha256B64Url(input: string | Buffer): string {
 }
 
 /**
- * Mint an `aegis_sk_<random>` API key. Same shape as
+ * Mint an `cerniq_sk_<random>` API key. Same shape as
  * `apps/api/src/modules/auth/api-key.service.ts` so verify-time resolution
  * via `keyPrefix` works without a code change.
  */
 export function mintApiKeyPlaintext(): { plaintext: string; prefix: string } {
-  const random = randomBytes(24).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 26);
+  const random = randomBytes(24)
+    .toString('base64url')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .slice(0, 26);
   const plaintext = `${API_KEY_PREFIX}${random}`;
   return { plaintext, prefix: plaintext.slice(0, 12) };
 }
@@ -159,7 +162,7 @@ function sortKeys(v: unknown): unknown {
  */
 export function prevHash(prevEventId: string | null, prevSignatureB64Url: string | null): Buffer {
   if (prevEventId === null && prevSignatureB64Url === null) {
-    return createHash('sha256').update('AEGIS-AUDIT-GENESIS-v1').digest();
+    return createHash('sha256').update('CERNIQ-AUDIT-GENESIS-v1').digest();
   }
   if (prevEventId === null || prevSignatureB64Url === null) {
     throw new Error('prevEventId and prevSignatureB64Url must both be set or both be null');
@@ -196,7 +199,7 @@ export interface PlannedAuditEvent {
   // Chain
   payloadVersion: typeof AUDIT_PAYLOAD_VERSION;
   timestamp: Date;
-  aegisSignature: string;
+  cerniqSignature: string;
   prevEventId: string | null;
 }
 
@@ -223,9 +226,11 @@ interface PlanAuditEventsArgs {
  * NOTE: this returns the *plan* — the signature is filled in by
  * `signAuditChain()` once the chain order across all agents is finalised.
  */
-export function planAgentEvents(args: PlanAuditEventsArgs): Omit<PlannedAuditEvent, 'aegisSignature' | 'prevEventId'>[] {
+export function planAgentEvents(
+  args: PlanAuditEventsArgs,
+): Omit<PlannedAuditEvent, 'cerniqSignature' | 'prevEventId'>[] {
   const span = 14 * 24 * 60 * 60 * 1000; // 14 days
-  const out: Omit<PlannedAuditEvent, 'aegisSignature' | 'prevEventId'>[] = [];
+  const out: Omit<PlannedAuditEvent, 'cerniqSignature' | 'prevEventId'>[] = [];
   for (let i = 0; i < args.count; i++) {
     const r = args.rng();
     const isDenied = r < 0.2;
@@ -242,7 +247,9 @@ export function planAgentEvents(args: PlanAuditEventsArgs): Omit<PlannedAuditEve
     const denialReason = isDenied ? (DENIAL_REASONS[reasonIdx] ?? null) : null;
 
     out.push({
-      id: `evt_${toB64Url(randomBytes(15)).replace(/[^a-zA-Z0-9]/g, '').slice(0, 22)}`,
+      id: `evt_${toB64Url(randomBytes(15))
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .slice(0, 22)}`,
       agentId: args.agentId,
       claimedAgentId: args.agentLabel,
       principalId: args.principalId,
@@ -269,9 +276,9 @@ export function planAgentEvents(args: PlanAuditEventsArgs): Omit<PlannedAuditEve
 }
 
 interface SignAuditChainArgs {
-  events: Omit<PlannedAuditEvent, 'aegisSignature' | 'prevEventId'>[];
+  events: Omit<PlannedAuditEvent, 'cerniqSignature' | 'prevEventId'>[];
   /**
-   * AEGIS audit-signing private key (32-byte Ed25519 seed). One key per
+   * CERNIQ audit-signing private key (32-byte Ed25519 seed). One key per
    * partition (agentId or principal) keeps the chain deterministic per
    * partition; the script uses one global key because the verifier only
    * cares about `prev` linkage within a partition, not across.
@@ -285,7 +292,9 @@ interface SignAuditChainArgs {
   partitionBy: 'agentId';
 }
 
-function rebuildPayload(row: Omit<PlannedAuditEvent, 'aegisSignature' | 'prevEventId'>): Record<string, unknown> {
+function rebuildPayload(
+  row: Omit<PlannedAuditEvent, 'cerniqSignature' | 'prevEventId'>,
+): Record<string, unknown> {
   // Mirrors AuditChainPayload v2 verbatim. CRITICAL: field set + names +
   // nullability MUST match the signer in audit-chain.util.ts. If that file
   // grows a field, mirror it here AND in audit-verify-chain.ts.
@@ -325,7 +334,7 @@ export async function signAuditChain(args: SignAuditChainArgs): Promise<PlannedA
     const message = Buffer.concat([prev, canonical]);
     const sig = await ed.signAsync(message, args.privateKey);
     const sigB64Url = toB64Url(sig);
-    out.push({ ...ev, aegisSignature: sigB64Url, prevEventId: part.prevId });
+    out.push({ ...ev, cerniqSignature: sigB64Url, prevEventId: part.prevId });
     partitions.set(partKey, { prevId: ev.id, prevSig: sigB64Url });
   }
   return out;
@@ -349,7 +358,7 @@ export async function verifySignedChain(
     const prev = prevHash(part.prevId, part.prevSig);
     const canonical = enc.encode(canonicalize(rebuildPayload(ev)));
     const message = Buffer.concat([prev, canonical]);
-    const sig = Buffer.from(ev.aegisSignature, 'base64url');
+    const sig = Buffer.from(ev.cerniqSignature, 'base64url');
     let ok = false;
     try {
       ok = await ed.verifyAsync(sig, message, publicKey);
@@ -357,7 +366,7 @@ export async function verifySignedChain(
       return { ok: false, firstBreakAt: i, reason: (err as Error).message };
     }
     if (!ok) return { ok: false, firstBreakAt: i, reason: 'signature failed' };
-    partitions.set(partKey, { prevId: ev.id, prevSig: ev.aegisSignature });
+    partitions.set(partKey, { prevId: ev.id, prevSig: ev.cerniqSignature });
   }
   return { ok: true };
 }
@@ -459,8 +468,10 @@ export function planBateForAgent(args: PlanBateForAgentArgs): PlannedBateSignal[
       agentId: args.agentId,
       signalType: 'CLEAN_TRANSACTION',
       severity: 'LOW',
-      source: 'aegis-demo-seed',
-      occurredAt: new Date(args.endTime.getTime() - span + (i / Math.max(1, args.cleanCount)) * span),
+      source: 'cerniq-demo-seed',
+      occurredAt: new Date(
+        args.endTime.getTime() - span + (i / Math.max(1, args.cleanCount)) * span,
+      ),
       scoreDelta: +4,
       payload: { reason: 'demo:clean-tx', idx: i },
     });
@@ -470,7 +481,7 @@ export function planBateForAgent(args: PlanBateForAgentArgs): PlannedBateSignal[
       agentId: args.agentId,
       signalType: 'FAILED_VERIFY_SPIKE',
       severity: 'HIGH',
-      source: 'aegis-demo-seed',
+      source: 'cerniq-demo-seed',
       occurredAt: new Date(args.endTime.getTime() - span / 2 + i * 60_000),
       scoreDelta: -25,
       payload: { reason: 'demo:failed-spike', idx: i },
@@ -566,7 +577,7 @@ export async function runSeedDemo(
   const records: SeededPrincipalRecord[] = [];
   let totalAuditEvents = 0;
   let totalBateSignals = 0;
-  const allPlannedEvents: Omit<PlannedAuditEvent, 'aegisSignature' | 'prevEventId'>[] = [];
+  const allPlannedEvents: Omit<PlannedAuditEvent, 'cerniqSignature' | 'prevEventId'>[] = [];
 
   // Step 3 — for each persona, create principal + apiKey + agents + policies + webhook.
   for (let pIdx = 0; pIdx < PERSONAS.length; pIdx++) {
@@ -639,7 +650,7 @@ export async function runSeedDemo(
         scopes: scopes.map((s) => s.category),
         iat: Math.floor(startedAt / 1000),
         exp: Math.floor(startedAt / 1000) + 30 * 24 * 60 * 60,
-        type: 'aegis_policy_demo',
+        type: 'cerniq_policy_demo',
       };
       const tokenHeader = { alg: 'EdDSA', typ: 'JWT' };
       const headerB64 = toB64Url(Buffer.from(JSON.stringify(tokenHeader)));
@@ -746,7 +757,7 @@ export async function runSeedDemo(
           policySnapshotHash: ev.policySnapshotHash,
           trustScoreAtEvent: ev.trustScoreAtEvent,
           trustBandAtEvent: ev.trustBandAtEvent,
-          aegisSignature: ev.aegisSignature,
+          cerniqSignature: ev.cerniqSignature,
           payloadVersion: ev.payloadVersion,
           timestamp: ev.timestamp,
         },
@@ -829,7 +840,10 @@ export async function runSeedDemo(
 // ──────────────────────────────────────────────────────────────────
 
 interface CipherCtor {
-  new (config: { webhookSecretDekB64: string; nodeEnv: 'production' | 'development' | 'test' }): DemoCipher;
+  new (config: {
+    webhookSecretDekB64: string;
+    nodeEnv: 'production' | 'development' | 'test';
+  }): DemoCipher;
 }
 
 async function loadWebhookSecretCipher(): Promise<CipherCtor> {
@@ -853,12 +867,12 @@ function emitHumanSummary(records: SeededPrincipalRecord[], outcome: SeedDemoOut
   const lines: string[] = [];
   lines.push('');
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  lines.push(' AEGIS demo seed — STORE NOW — never shown again');
+  lines.push(' CERNIQ demo seed — STORE NOW — never shown again');
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   for (const rec of records) {
     lines.push('');
     lines.push(`Principal: ${rec.email}  (id=${rec.principalId})`);
-    lines.push(`  API key (use as x-aegis-api-key):`);
+    lines.push(`  API key (use as x-cerniq-api-key):`);
     lines.push(`    ${rec.apiKey}`);
     lines.push(`  Webhook URL:    ${rec.webhookUrl}`);
     lines.push(`  Webhook secret (HMAC plaintext, encrypted at rest):`);
@@ -877,7 +891,7 @@ function emitHumanSummary(records: SeededPrincipalRecord[], outcome: SeedDemoOut
     lines.push('Try it — verify a request as maria/checkout-bot:');
     lines.push('');
     lines.push(`  curl -sS -X POST http://localhost:4000/v1/verify \\`);
-    lines.push(`    -H "x-aegis-api-key: ${maria.apiKey}" \\`);
+    lines.push(`    -H "x-cerniq-api-key: ${maria.apiKey}" \\`);
     lines.push(`    -H "content-type: application/json" \\`);
     lines.push(`    -d '{`);
     lines.push(`      "agentId": "${mariaAgent.label}",`);
@@ -913,7 +927,9 @@ async function main(): Promise<void> {
   const program = new Command();
   program
     .name('seed-demo')
-    .description('Idempotent demo seed for AEGIS — multi-principal, multi-agent, valid audit chain.')
+    .description(
+      'Idempotent demo seed for CERNIQ — multi-principal, multi-agent, valid audit chain.',
+    )
     .addOption(new Option('--reset-only', 'delete demo rows and exit').default(false))
     .addOption(new Option('--dry-run', 'log the plan but write nothing').default(false))
     .addOption(new Option('--quiet', 'suppress the human-readable summary').default(false));
@@ -938,7 +954,7 @@ async function main(): Promise<void> {
     const Ctor = await loadWebhookSecretCipher();
     cipher = new Ctor({
       webhookSecretDekB64:
-        env.AEGIS_WEBHOOK_SECRET_DEK_B64 ?? Buffer.from(randomBytes(32)).toString('base64'),
+        env.CERNIQ_WEBHOOK_SECRET_DEK_B64 ?? Buffer.from(randomBytes(32)).toString('base64'),
       nodeEnv: env.NODE_ENV === 'production' ? 'production' : 'development',
     });
   } catch (err) {
@@ -972,8 +988,7 @@ async function main(): Promise<void> {
 }
 
 const isMain =
-  argv[1] !== undefined &&
-  (argv[1].endsWith('seed-demo.ts') || argv[1].endsWith('seed-demo.js'));
+  argv[1] !== undefined && (argv[1].endsWith('seed-demo.ts') || argv[1].endsWith('seed-demo.js'));
 if (isMain) {
   main().catch((err) => {
     stderr.write(`fatal: ${(err as Error).message}\n`);

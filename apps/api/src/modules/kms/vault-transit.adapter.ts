@@ -1,6 +1,6 @@
 // VaultTransitAdapter — HashiCorp Vault Transit secrets engine.
 //
-// Vault's transit/sign endpoint supports `ed25519` natively. AEGIS sends
+// Vault's transit/sign endpoint supports `ed25519` natively. CERNIQ sends
 // the message bytes; Vault returns a signature in `vault:v1:<b64>` format
 // which we strip + decode. The Ed25519 private key never leaves Vault.
 //
@@ -28,7 +28,7 @@ export interface VaultTransitAdapterConfig {
   /**
    * Map of purpose → registered transit keys (one active per purpose).
    * The transit key NAME is what Vault's `/v1/transit/sign/{name}` URL uses;
-   * AEGIS's `kid` is its own naming and may differ from the transit name.
+   * CERNIQ's `kid` is its own naming and may differ from the transit name.
    */
   keys: Partial<Record<KmsKeyPurpose, VaultTransitKey[]>>;
 }
@@ -89,14 +89,17 @@ export class VaultTransitAdapter implements KmsAdapter {
           const inputB64 = Buffer.from(message).toString('base64');
           const result = await this.signWithRetry({ name: entry.key.transitName, input: inputB64 });
           const sig = parseVaultSignature(result.data.signature, entry.key.version);
-          if (sig.length !== 64) throw new Error(`VaultTransitAdapter: bad signature length ${sig.length}`);
+          if (sig.length !== 64)
+            throw new Error(`VaultTransitAdapter: bad signature length ${sig.length}`);
           return sig;
         });
       },
     };
   }
 
-  async getKeyByKid(kid: string): Promise<{ kid: string; publicKey: string; algorithm: KeyMetadata['algorithm'] } | null> {
+  async getKeyByKid(
+    kid: string,
+  ): Promise<{ kid: string; publicKey: string; algorithm: KeyMetadata['algorithm'] } | null> {
     const e = this.byKid.get(kid);
     if (!e) return null;
     return { kid: e.key.kid, publicKey: e.key.publicKey, algorithm: e.key.algorithm };
@@ -119,7 +122,10 @@ export class VaultTransitAdapter implements KmsAdapter {
     };
   }
 
-  private async signWithRetry(input: { name: string; input: string }): Promise<{ data: { signature: string } }> {
+  private async signWithRetry(input: {
+    name: string;
+    input: string;
+  }): Promise<{ data: { signature: string } }> {
     try {
       return await this.vault.signTransit(input);
     } catch (err) {
@@ -132,7 +138,7 @@ export class VaultTransitAdapter implements KmsAdapter {
 
 /**
  * Parse Vault's `"vault:v{n}:<base64>"` envelope. Asserts the version
- * matches what AEGIS expects — a mismatched version means Vault rotated
+ * matches what CERNIQ expects — a mismatched version means Vault rotated
  * under us and we missed the kid update.
  */
 export function parseVaultSignature(envelope: string, expectedVersion: number): Uint8Array {

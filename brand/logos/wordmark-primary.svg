@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  AEGIS Wordmark — Primary
+  CERNIQ Wordmark — Primary
   —
-  Pairs the recommended Shield mark with the AEGIS wordmark in tight
+  Pairs the recommended Shield mark with the CERNIQ wordmark in tight
   technical sans (Inter Tight / Geist). Tracking is open (0.16em) and
   weight is medium-bold (600) to match the geometric mark.
   Use this as the default lockup in marketing surfaces.
@@ -33,11 +33,11 @@
     <circle cx="32" cy="44" r="1.7" fill="#5BE0FF"/>
   </g>
 
-  <!-- Wordmark: AEGIS — uppercase, open tracking, medium-bold geometric sans -->
+  <!-- Wordmark: CERNIQ — uppercase, open tracking, medium-bold geometric sans -->
   <text x="92" y="52"
         font-family="'Inter Tight', 'Inter', system-ui, sans-serif"
         font-size="38"
         font-weight="600"
         letter-spacing="6"
-        fill="#F4F6FF">AEGIS</text>
+        fill="#F4F6FF">CERNIQ</text>
 </svg>

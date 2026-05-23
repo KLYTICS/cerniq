@@ -1,29 +1,30 @@
-# Auth0 Actions for AEGIS
+# Auth0 Actions for CERNIQ
 
 Two Actions ship here. Both run in the Auth0 Actions sandbox and have
-their own secrets, completely separate from AEGIS's API keys.
+their own secrets, completely separate from CERNIQ's API keys.
 
-## `aegis-audit-login.js`
+## `cerniq-audit-login.js`
 
 **Trigger**: `post-login`.
 
-Posts the login event to AEGIS at
-`POST /v1/idp/auth0/action` so AEGIS audits every human login as a
+Posts the login event to CERNIQ at
+`POST /v1/idp/auth0/action` so CERNIQ audits every human login as a
 hash-chain event (ADR-0009 §4).
 
 **Required secrets**:
-- `AEGIS_API_BASE` — e.g. `https://api.aegis.dev`
-- `AEGIS_ACTION_SECRET` — shared HMAC secret with the AEGIS API
+
+- `CERNIQ_API_BASE` — e.g. `https://api.cerniq.dev`
+- `CERNIQ_ACTION_SECRET` — shared HMAC secret with the CERNIQ API
   (`AUTH0_ACTION_SECRET` env on the API side)
 
 **Failure semantics**: action errors do NOT block login. The dashboard's
 token-exchange call (also audited) catches dropped events on next login.
 
-## `aegis-block-non-admin-mfa-skip.js`
+## `cerniq-block-non-admin-mfa-skip.js`
 
 **Trigger**: `post-login`.
 
-Denies logins where a user with the `aegis:admin` role hasn't satisfied
+Denies logins where a user with the `cerniq:admin` role hasn't satisfied
 MFA. Belt-and-suspenders to Auth0's tenant-level MFA settings.
 
 ## Deployment

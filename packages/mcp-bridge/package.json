@@ -1,23 +1,23 @@
 {
-  "name": "@aegis/mcp-bridge",
+  "name": "@cerniq/mcp-bridge",
   "version": "0.1.0",
-  "description": "AEGIS verification middleware for any MCP (Model Context Protocol) server. Wraps an MCP transport so every tool call carries a verified AEGIS agent identity.",
+  "description": "CERNIQ verification middleware for any MCP (Model Context Protocol) server. Wraps an MCP transport so every tool call carries a verified CERNIQ agent identity.",
   "license": "MIT",
-  "author": "AEGIS Labs <hello@aegislabs.io>",
-  "homepage": "https://aegislabs.io/mcp",
+  "author": "CERNIQ Labs <hello@cerniq.io>",
+  "homepage": "https://cerniq.io/mcp",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/klytics/aegis.git",
+    "url": "git+https://github.com/klytics/cerniq.git",
     "directory": "packages/mcp-bridge"
   },
   "bugs": {
-    "url": "https://github.com/klytics/aegis/issues"
+    "url": "https://github.com/klytics/cerniq/issues"
   },
   "engines": {
     "node": ">=20.11.0"
   },
   "keywords": [
-    "aegis",
+    "cerniq",
     "mcp",
     "model-context-protocol",
     "agent-identity",
@@ -35,7 +35,11 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
@@ -47,12 +51,12 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@aegis/sdk": "workspace:*",
-    "@aegis/types": "workspace:*",
+    "@cerniq/sdk": "workspace:*",
+    "@cerniq/types": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "devDependencies": {
-    "@aegis/tsconfig": "workspace:*",
+    "@cerniq/tsconfig": "workspace:*",
     "tsup": "^8.3.5",
     "typescript": "^5.6.3",
     "vitest": "^2.1.8"

@@ -1,4 +1,4 @@
-// AuditSignerService — single signing surface for the AEGIS audit chain.
+// AuditSignerService — single signing surface for the CERNIQ audit chain.
 // Closes M-037 ("audit signing routed through `KmsAdapter`").
 //
 // Resolution order at init():
@@ -34,11 +34,7 @@ import './crypto.bootstrap.js';
 import { AppConfigService } from '../../config/config.service';
 
 import { getKmsAdapter, type ActiveSigner } from './crypto.bootstrap';
-import {
-  decodeBase64Url,
-  encodeBase64Url,
-  Ed25519Util,
-} from './ed25519.util';
+import { decodeBase64Url, encodeBase64Url, Ed25519Util } from './ed25519.util';
 
 const FALLBACK_KID = 'kid-genesis-v1';
 
@@ -87,8 +83,10 @@ export class AuditSignerService implements OnModuleDestroy {
     }
 
     // Path 2: env-derived Ed25519 fallback.
-    const priv = (this.config as unknown as { auditEd25519PrivateB64?: string }).auditEd25519PrivateB64;
-    const pub = (this.config as unknown as { auditEd25519PublicB64?: string }).auditEd25519PublicB64;
+    const priv = (this.config as unknown as { auditEd25519PrivateB64?: string })
+      .auditEd25519PrivateB64;
+    const pub = (this.config as unknown as { auditEd25519PublicB64?: string })
+      .auditEd25519PublicB64;
     const isProd = (this.config as unknown as { nodeEnv?: string }).nodeEnv === 'production';
 
     if (priv && pub) {
@@ -137,7 +135,8 @@ export class AuditSignerService implements OnModuleDestroy {
 
   private async ensureResolved(): Promise<ResolvedSigner> {
     if (!this.resolved) await this.init();
-    if (!this.resolved) throw new Error('AuditSignerService: init did not produce a resolved signer.');
+    if (!this.resolved)
+      throw new Error('AuditSignerService: init did not produce a resolved signer.');
     return this.resolved;
   }
 
@@ -158,7 +157,12 @@ export class AuditSignerService implements OnModuleDestroy {
   }
 
   /** For `/.well-known/audit-signing-key` publishing. */
-  async getPublishedKey(): Promise<{ format: 'ed25519-base64url'; key: string; kid: string; source: ResolvedSigner['source'] }> {
+  async getPublishedKey(): Promise<{
+    format: 'ed25519-base64url';
+    key: string;
+    kid: string;
+    source: ResolvedSigner['source'];
+  }> {
     const signer = await this.ensureResolved();
     return {
       format: 'ed25519-base64url',

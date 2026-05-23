@@ -5,8 +5,8 @@ type HealthResult =
   | { source: 'fallback'; reason: string };
 
 async function fetchHealth(): Promise<HealthResult> {
-  const base = process.env.AEGIS_API_BASE_URL;
-  if (!base) return { source: 'fallback', reason: 'AEGIS_API_BASE_URL unset' };
+  const base = process.env.CERNIQ_API_BASE_URL;
+  if (!base) return { source: 'fallback', reason: 'CERNIQ_API_BASE_URL unset' };
   try {
     const res = await fetch(`${base.replace(/\/$/, '')}/health`, {
       next: { revalidate: 60 },
@@ -28,9 +28,9 @@ async function fetchHealth(): Promise<HealthResult> {
 }
 
 const COLOR: Record<string, string> = {
-  ok: 'var(--aegis-verified)',
-  degraded: 'var(--aegis-pending)',
-  down: 'var(--aegis-denied)',
+  ok: 'var(--cerniq-verified)',
+  degraded: 'var(--cerniq-pending)',
+  down: 'var(--cerniq-denied)',
 };
 
 const LABEL: Record<string, string> = {
@@ -46,7 +46,7 @@ export async function StatusBadge() {
   const label = result.source === 'api' ? LABEL[tone] : 'Unknown';
   return (
     <span
-      className="inline-flex items-center gap-2 rounded-full border border-[var(--aegis-mist)] bg-[var(--aegis-ink)] px-3 py-1 text-xs"
+      className="inline-flex items-center gap-2 rounded-full border border-[var(--cerniq-mist)] bg-[var(--cerniq-ink)] px-3 py-1 text-xs"
       data-source={result.source}
       data-status={tone}
       data-testid="status-badge"
@@ -56,9 +56,9 @@ export async function StatusBadge() {
         className="inline-block h-2 w-2 rounded-full"
         style={{ background: color, boxShadow: `0 0 8px ${color}` }}
       />
-      <span className="font-mono text-[var(--aegis-halo)]">api.aegislabs.io · {label}</span>
+      <span className="font-mono text-[var(--cerniq-halo)]">api.cerniq.io · {label}</span>
       {result.source === 'fallback' && (
-        <span className="font-mono text-[var(--aegis-shadow)]">({result.reason})</span>
+        <span className="font-mono text-[var(--cerniq-shadow)]">({result.reason})</span>
       )}
     </span>
   );

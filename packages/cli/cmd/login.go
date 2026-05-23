@@ -6,16 +6,16 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/klytics/aegis/packages/cli/internal/client"
-	"github.com/klytics/aegis/packages/cli/internal/config"
-	"github.com/klytics/aegis/packages/cli/internal/keychain"
-	"github.com/klytics/aegis/packages/cli/internal/ui"
+	"github.com/klytics/cerniq/packages/cli/internal/client"
+	"github.com/klytics/cerniq/packages/cli/internal/config"
+	"github.com/klytics/cerniq/packages/cli/internal/keychain"
+	"github.com/klytics/cerniq/packages/cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 
 func init() {
 	loginCmd.Flags().StringP("api-key", "k", "",
-		"AEGIS API key (use this in CI / non-interactive environments)")
+		"CERNIQ API key (use this in CI / non-interactive environments)")
 	loginCmd.Flags().Bool("force", false,
 		"overwrite an existing credential without prompting")
 	rootCmd.AddCommand(loginCmd)
@@ -23,8 +23,8 @@ func init() {
 
 var loginCmd = &cobra.Command{
 	Use:   "login",
-	Short: "Authenticate the CLI against an AEGIS API",
-	Long: `Authenticate the CLI against an AEGIS API.
+	Short: "Authenticate the CLI against an CERNIQ API",
+	Long: `Authenticate the CLI against an CERNIQ API.
 
 Default flow: device-code OAuth (mirrors gh auth login). The CLI prints
 a short user code and a verification URL. Open the URL in any browser,
@@ -69,9 +69,9 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		fmt.Fprintln(cmd.ErrOrStderr(),
 			"Until then, mint a key in the dashboard and run:")
 		fmt.Fprintf(cmd.ErrOrStderr(),
-			"  aegis login --api-key aegis_sk_...\n")
+			"  cerniq login --api-key cerniq_sk_...\n")
 		fmt.Fprintln(cmd.ErrOrStderr(),
-			"Or set AEGIS_API_KEY in your shell.")
+			"Or set CERNIQ_API_KEY in your shell.")
 		return errors.New("interactive login not yet wired — use --api-key")
 	}
 

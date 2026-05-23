@@ -1,19 +1,24 @@
-import { GENERATED_ERROR_CATALOG, getEntry, getEntryByClassName, type ErrorCatalogEntry } from '@aegis/types';
-import type { ErrorEnvelope } from '@aegis/types';
+import {
+  GENERATED_ERROR_CATALOG,
+  getEntry,
+  getEntryByClassName,
+  type ErrorCatalogEntry,
+} from '@cerniq/types';
+import type { ErrorEnvelope } from '@cerniq/types';
 
-// SDK-side error hierarchy. Mirrors the API's AegisError tree but lives in
-// its own namespace so consumers can `instanceof AegisError` without
+// SDK-side error hierarchy. Mirrors the API's CerniqError tree but lives in
+// its own namespace so consumers can `instanceof CerniqError` without
 // importing server packages.
 //
 // Each subclass exposes a `static catalog: ErrorCatalogEntry` reference so
 // callers can introspect retry semantics without instantiating the class.
 // The legacy public `code` field (uppercase) is preserved for backwards
 // compatibility — `catalogCode` is the new stable lower-snake-case form
-// from `@aegis/types` ErrorCatalog.
+// from `@cerniq/types` ErrorCatalog.
 
-export type { ErrorCatalogEntry } from '@aegis/types';
+export type { ErrorCatalogEntry } from '@cerniq/types';
 
-export abstract class AegisError extends Error {
+export abstract class CerniqError extends Error {
   override readonly name: string;
   abstract readonly code: string;
   /** Stable lower-snake-case code from the server catalog (or undefined for transport-only errors). */
@@ -41,59 +46,59 @@ export abstract class AegisError extends Error {
     super(message);
     const target = new.target;
     if (target.catalogKey === '') {
-      throw new Error('AegisError subclass missing static catalogKey: ' + new.target.name);
+      throw new Error('CerniqError subclass missing static catalogKey: ' + new.target.name);
     }
     this.name = target.catalogKey;
     this.catalogCode = catalogCode ?? target.catalog?.code;
   }
 }
 
-export class AegisAuthenticationError extends AegisError {
-  static override readonly catalogKey = 'AegisAuthenticationError';
+export class CerniqAuthenticationError extends CerniqError {
+  static override readonly catalogKey = 'CerniqAuthenticationError';
   override readonly code = 'AUTH_REQUIRED';
-  static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('auth_required');
+  static override readonly catalog: ErrorCatalogEntry | undefined = getEntry('auth_required');
 }
-export class AegisAuthorizationError extends AegisError {
-  static override readonly catalogKey = 'AegisAuthorizationError';
+export class CerniqAuthorizationError extends CerniqError {
+  static override readonly catalogKey = 'CerniqAuthorizationError';
   override readonly code = 'FORBIDDEN';
-  static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('forbidden');
+  static override readonly catalog: ErrorCatalogEntry | undefined = getEntry('forbidden');
 }
-export class AegisNotFoundError extends AegisError {
-  static override readonly catalogKey = 'AegisNotFoundError';
+export class CerniqNotFoundError extends CerniqError {
+  static override readonly catalogKey = 'CerniqNotFoundError';
   override readonly code = 'NOT_FOUND';
-  static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('not_found');
+  static override readonly catalog: ErrorCatalogEntry | undefined = getEntry('not_found');
 }
-export class AegisValidationError extends AegisError {
-  static override readonly catalogKey = 'AegisValidationError';
+export class CerniqValidationError extends CerniqError {
+  static override readonly catalogKey = 'CerniqValidationError';
   override readonly code = 'INVALID_REQUEST';
-  static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('invalid_request');
+  static override readonly catalog: ErrorCatalogEntry | undefined = getEntry('invalid_request');
 }
-export class AegisConflictError extends AegisError {
-  static override readonly catalogKey = 'AegisConflictError';
+export class CerniqConflictError extends CerniqError {
+  static override readonly catalogKey = 'CerniqConflictError';
   override readonly code = 'CONFLICT';
-  static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('conflict');
+  static override readonly catalog: ErrorCatalogEntry | undefined = getEntry('conflict');
 }
-export class AegisRateLimitedError extends AegisError {
-  static override readonly catalogKey = 'AegisRateLimitedError';
+export class CerniqRateLimitedError extends CerniqError {
+  static override readonly catalogKey = 'CerniqRateLimitedError';
   override readonly code = 'RATE_LIMITED';
-  static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('rate_limited');
+  static override readonly catalog: ErrorCatalogEntry | undefined = getEntry('rate_limited');
 }
-export class AegisInternalError extends AegisError {
-  static override readonly catalogKey = 'AegisInternalError';
+export class CerniqInternalError extends CerniqError {
+  static override readonly catalogKey = 'CerniqInternalError';
   override readonly code = 'INTERNAL';
-  static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('internal_error');
+  static override readonly catalog: ErrorCatalogEntry | undefined = getEntry('internal_error');
 }
-export class AegisServiceUnavailableError extends AegisError {
-  static override readonly catalogKey = 'AegisServiceUnavailableError';
+export class CerniqServiceUnavailableError extends CerniqError {
+  static override readonly catalogKey = 'CerniqServiceUnavailableError';
   override readonly code = 'SERVICE_UNAVAILABLE';
-  static override readonly catalog: ErrorCatalogEntry | undefined =getEntry('service_unavailable');
+  static override readonly catalog: ErrorCatalogEntry | undefined = getEntry('service_unavailable');
 }
-export class AegisNetworkError extends AegisError {
-  static override readonly catalogKey = 'AegisNetworkError';
+export class CerniqNetworkError extends CerniqError {
+  static override readonly catalogKey = 'CerniqNetworkError';
   override readonly code = 'NETWORK_ERROR';
   // Transport-layer error — no server catalog entry exists. We treat it as
   // retryable with exponential backoff at the wrapper level (see http.ts).
-  static override readonly catalog: ErrorCatalogEntry | undefined =undefined;
+  static override readonly catalog: ErrorCatalogEntry | undefined = undefined;
   constructor(message: string, cause?: unknown) {
     super(message, 0, undefined);
     if (cause !== undefined) (this as { cause?: unknown }).cause = cause;
@@ -101,12 +106,12 @@ export class AegisNetworkError extends AegisError {
 }
 
 /**
- * Map an envelope to an AegisError. Prefers the `code` field on the
+ * Map an envelope to an CerniqError. Prefers the `code` field on the
  * envelope (stable lower-snake-case from the server catalog) when
- * present, falling back to status-code mapping for older / non-AEGIS
+ * present, falling back to status-code mapping for older / non-CERNIQ
  * responses.
  */
-export function fromEnvelope(env: ErrorEnvelope): AegisError {
+export function fromEnvelope(env: ErrorEnvelope): CerniqError {
   // Server envelope's `error` field carries the legacy uppercase code; the
   // new server filter also embeds `code` in `details`. Try both.
   const detailsCode = extractCatalogCode(env);
@@ -118,26 +123,33 @@ export function fromEnvelope(env: ErrorEnvelope): AegisError {
   }
   switch (env.statusCode) {
     case 400:
-      return new AegisValidationError(env.message, env.statusCode, env.requestId, env.details);
+      return new CerniqValidationError(env.message, env.statusCode, env.requestId, env.details);
     case 401:
-      return new AegisAuthenticationError(env.message, env.statusCode, env.requestId, env.details);
+      return new CerniqAuthenticationError(env.message, env.statusCode, env.requestId, env.details);
     case 403:
-      return new AegisAuthorizationError(env.message, env.statusCode, env.requestId, env.details);
+      return new CerniqAuthorizationError(env.message, env.statusCode, env.requestId, env.details);
     case 404:
-      return new AegisNotFoundError(env.message, env.statusCode, env.requestId, env.details);
+      return new CerniqNotFoundError(env.message, env.statusCode, env.requestId, env.details);
     case 409:
-      return new AegisConflictError(env.message, env.statusCode, env.requestId, env.details);
+      return new CerniqConflictError(env.message, env.statusCode, env.requestId, env.details);
     case 429:
-      return new AegisRateLimitedError(env.message, env.statusCode, env.requestId, env.details);
+      return new CerniqRateLimitedError(env.message, env.statusCode, env.requestId, env.details);
     case 503:
-      return new AegisServiceUnavailableError(env.message, env.statusCode, env.requestId, env.details);
+      return new CerniqServiceUnavailableError(
+        env.message,
+        env.statusCode,
+        env.requestId,
+        env.details,
+      );
     default:
-      return new AegisInternalError(env.message, env.statusCode, env.requestId, env.details);
+      return new CerniqInternalError(env.message, env.statusCode, env.requestId, env.details);
   }
 }
 
 /** Pull a catalog `code` out of either the envelope's details bag or top-level fields. */
-export function extractCatalogCode(env: ErrorEnvelope | { details?: unknown; error?: string }): string | undefined {
+export function extractCatalogCode(
+  env: ErrorEnvelope | { details?: unknown; error?: string },
+): string | undefined {
   // Catalog `code` lives in details for the new filter shape.
   const details = (env as { details?: unknown }).details;
   if (details !== null && typeof details === 'object') {
@@ -157,7 +169,7 @@ export function extractCatalogCode(env: ErrorEnvelope | { details?: unknown; err
   return undefined;
 }
 
-function classFromCatalogEntry(entry: ErrorCatalogEntry, env: ErrorEnvelope): AegisError {
+function classFromCatalogEntry(entry: ErrorCatalogEntry, env: ErrorEnvelope): CerniqError {
   // Pick the SDK class whose static catalog matches; fall back to status.
   const ctor = SDK_ERROR_BY_CODE[entry.code];
   if (ctor !== undefined) {
@@ -167,47 +179,100 @@ function classFromCatalogEntry(entry: ErrorCatalogEntry, env: ErrorEnvelope): Ae
   // (e.g. denial-precedence codes that the SDK surfaces as 403 forbidden).
   switch (entry.httpStatus) {
     case 400:
-      return new AegisValidationError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new CerniqValidationError(
+        env.message,
+        entry.httpStatus,
+        env.requestId,
+        env.details,
+        entry.code,
+      );
     case 401:
-      return new AegisAuthenticationError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new CerniqAuthenticationError(
+        env.message,
+        entry.httpStatus,
+        env.requestId,
+        env.details,
+        entry.code,
+      );
     case 402:
     case 403:
-      return new AegisAuthorizationError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new CerniqAuthorizationError(
+        env.message,
+        entry.httpStatus,
+        env.requestId,
+        env.details,
+        entry.code,
+      );
     case 404:
-      return new AegisNotFoundError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new CerniqNotFoundError(
+        env.message,
+        entry.httpStatus,
+        env.requestId,
+        env.details,
+        entry.code,
+      );
     case 409:
-      return new AegisConflictError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new CerniqConflictError(
+        env.message,
+        entry.httpStatus,
+        env.requestId,
+        env.details,
+        entry.code,
+      );
     case 429:
-      return new AegisRateLimitedError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new CerniqRateLimitedError(
+        env.message,
+        entry.httpStatus,
+        env.requestId,
+        env.details,
+        entry.code,
+      );
     case 503:
-      return new AegisServiceUnavailableError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new CerniqServiceUnavailableError(
+        env.message,
+        entry.httpStatus,
+        env.requestId,
+        env.details,
+        entry.code,
+      );
     default:
-      return new AegisInternalError(env.message, entry.httpStatus, env.requestId, env.details, entry.code);
+      return new CerniqInternalError(
+        env.message,
+        entry.httpStatus,
+        env.requestId,
+        env.details,
+        entry.code,
+      );
   }
 }
 
-type AegisErrorCtor = new (message: string, statusCode: number, requestId: string | undefined, details?: unknown) => AegisError;
+type CerniqErrorCtor = new (
+  message: string,
+  statusCode: number,
+  requestId: string | undefined,
+  details?: unknown,
+) => CerniqError;
 
-const SDK_ERROR_BY_CODE: Readonly<Record<string, AegisErrorCtor>> = Object.freeze({
-  auth_required: AegisAuthenticationError,
-  forbidden: AegisAuthorizationError,
-  not_found: AegisNotFoundError,
-  invalid_request: AegisValidationError,
-  conflict: AegisConflictError,
-  rate_limited: AegisRateLimitedError,
-  internal_error: AegisInternalError,
-  service_unavailable: AegisServiceUnavailableError,
+const SDK_ERROR_BY_CODE: Readonly<Record<string, CerniqErrorCtor>> = Object.freeze({
+  auth_required: CerniqAuthenticationError,
+  forbidden: CerniqAuthorizationError,
+  not_found: CerniqNotFoundError,
+  invalid_request: CerniqValidationError,
+  conflict: CerniqConflictError,
+  rate_limited: CerniqRateLimitedError,
+  internal_error: CerniqInternalError,
+  service_unavailable: CerniqServiceUnavailableError,
 });
 
-/** True iff the given AegisError's catalog entry says it's retryable. */
-export function isAegisErrorRetryable(err: AegisError): boolean {
-  if (err instanceof AegisNetworkError) return true;
+/** True iff the given CerniqError's catalog entry says it's retryable. */
+export function isCerniqErrorRetryable(err: CerniqError): boolean {
+  if (err instanceof CerniqNetworkError) return true;
   if (err.catalogCode === undefined) return false;
   return getEntry(err.catalogCode)?.retryable === true;
 }
 
-/** Resolve the catalog entry for a thrown AegisError, if any. */
-export function catalogEntryFor(err: AegisError): ErrorCatalogEntry | undefined {
+/** Resolve the catalog entry for a thrown CerniqError, if any. */
+export function catalogEntryFor(err: CerniqError): ErrorCatalogEntry | undefined {
   if (err.catalogCode === undefined) return undefined;
   return getEntry(err.catalogCode);
 }

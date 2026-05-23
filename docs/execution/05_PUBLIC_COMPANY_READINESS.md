@@ -1,5 +1,5 @@
 ---
-title: AEGIS — Public-Company Readiness
+title: CERNIQ — Public-Company Readiness
 audience: every contributor; the operator most of all
 last-reviewed: 2026-05-08
 status: source-of-truth — v1
@@ -7,13 +7,13 @@ status: source-of-truth — v1
 
 # 05 — Public-Company Readiness
 
-> The disciplines that take AEGIS from "well-run private company" to
+> The disciplines that take CERNIQ from "well-run private company" to
 > "S-1-ready private company." Adopt the institutional muscle that
 > compounds today; defer the disciplines that only make sense with a
 > reporting cadence we don't yet have.
 >
-> This is not aspirational. The patterns here are how AEGIS operates
-> *now*, not how it will operate someday. The gap between current
+> This is not aspirational. The patterns here are how CERNIQ operates
+> _now_, not how it will operate someday. The gap between current
 > practice and this document is a gap to close in this quarter.
 
 ---
@@ -22,9 +22,9 @@ status: source-of-truth — v1
 
 A company that becomes publicly traded in 24-36 months will be audited
 on the operating model it had in the years before. The S-1 reviewer
-asks not "are you SOX-compliant *now*?" but "show us the change
+asks not "are you SOX-compliant _now_?" but "show us the change
 management trail from two years ago." The institutional disciplines
-must therefore be installed *before* they are required, on the
+must therefore be installed _before_ they are required, on the
 schedule of compounding return — not on the schedule of regulatory
 deadline.
 
@@ -56,9 +56,9 @@ prematurely:
 - Investor day theatrics.
 - Annual report production overhead.
 
-The principle: install the *muscle* (sourcing, change management,
+The principle: install the _muscle_ (sourcing, change management,
 segregation of duties, materiality discipline, MD&A voice) without
-installing the *cadence* (quarterly guidance, earnings call) until
+installing the _cadence_ (quarterly guidance, earnings call) until
 the cadence creates value.
 
 ---
@@ -67,7 +67,7 @@ the cadence creates value.
 
 ### 2.1 The rule
 
-Every public claim AEGIS makes — about latency, scale, customers,
+Every public claim CERNIQ makes — about latency, scale, customers,
 compliance status, financial position, capability, roadmap — is:
 
 1. **Sourced.** A specific artifact (CI run, Stripe export, customer
@@ -147,7 +147,7 @@ is suitable as a Reviewer, the work blocks pending an available
 Reviewer. The block is the discipline. Bypassing it is the audit
 failure.
 
-In practice for AEGIS today: spawn a Claude session as Reviewer for
+In practice for CERNIQ today: spawn a Claude session as Reviewer for
 operator-authored substantive PRs. Confirmation of the SoD discipline
 goes in `SESSION_HANDOFF.md`:
 
@@ -210,7 +210,7 @@ review.
 
 ### 5.1 The rule
 
-Default tone is historical or factual ("AEGIS verifies in <80ms p99
+Default tone is historical or factual ("CERNIQ verifies in <80ms p99
 over the last 30 days," "Our test suite passes with zero typecheck
 errors as of round 23"). Speculation about future capability,
 pricing, customer outcomes, or roadmap timing is **explicitly
@@ -220,20 +220,20 @@ bracketed**.
 
 Acceptable bracket forms:
 
-- *"We expect to ship X by Q3 2026, subject to engineering capacity
-  and customer feedback."*
-- *"Pricing tiers may evolve as we learn from initial deployments."*
-- *"Internal projection: at $0.002/verify and 10B daily verifications,
+- _"We expect to ship X by Q3 2026, subject to engineering capacity
+  and customer feedback."_
+- _"Pricing tiers may evolve as we learn from initial deployments."_
+- _"Internal projection: at $0.002/verify and 10B daily verifications,
   $20M/day run rate. This is illustrative; actual outcomes depend on
-  market adoption."*
-- *"Our roadmap as of [date] includes [items]; the roadmap is reviewed
-  monthly and may change."*
+  market adoption."_
+- _"Our roadmap as of [date] includes [items]; the roadmap is reviewed
+  monthly and may change."_
 
 Unacceptable forms:
 
 - "We will be SOC2 compliant by Q3." (Implied guarantee.)
 - "Customers will save 80% on integration time." (No basis cited.)
-- "AEGIS is the dominant verification layer." (Speculative; remove.)
+- "CERNIQ is the dominant verification layer." (Speculative; remove.)
 
 ### 5.3 Why this matters
 
@@ -255,7 +255,7 @@ brackets go in.
 
 ### 6.1 The rule
 
-Information about AEGIS is "material" if a reasonable customer,
+Information about CERNIQ is "material" if a reasonable customer,
 investor, employee, or regulator would consider it important to a
 decision they are making. Material information is treated with
 disclosure-bar discipline; non-material information is treated with
@@ -270,7 +270,7 @@ true:
 - It affects an existing customer's security posture (e.g. a
   vulnerability).
 - It affects financial reporting (revenue, burn, runway by >5%).
-- It changes a public claim AEGIS has made (compliance status,
+- It changes a public claim CERNIQ has made (compliance status,
   performance, capability).
 - It affects fundraising (term-altering events, lead-investor change).
 - It triggers a regulatory reporting obligation (data breach,
@@ -367,7 +367,7 @@ docs/data_room/
     └── (chronological log)
 ```
 
-The "_current" suffix is the conceptual handle. In practice these are
+The "\_current" suffix is the conceptual handle. In practice these are
 symlinks or canonical references to the source-of-truth document
 maintained in the relevant department.
 
@@ -376,7 +376,7 @@ maintained in the relevant department.
 - Public access: README and customer-list (anonymized).
 - Investor access: investor/, strategic partner memos.
 - Acquirer access: full data room under NDA.
-- AEGIS contributor access: everything except customer-restricted
+- CERNIQ contributor access: everything except customer-restricted
   contracts.
 
 ### 7.4 Maintenance
@@ -395,7 +395,7 @@ it in days, not months, because the answers are pre-staged. A Series A
 investor signing a term sheet on Friday gets confirmation the
 following Wednesday because the data room is ready.
 
-This is achievable today — at AEGIS's current scale — at low cost.
+This is achievable today — at CERNIQ's current scale — at low cost.
 Achieving it at the scale of "company that just signed its 200th
 customer" is much harder. Install the muscle now.
 
@@ -480,7 +480,7 @@ Detailed metric drill-downs, customer-by-customer health, etc.
 - 7 days after month close: monthly update goes out.
 - Quarterly: a more substantial review with year-to-date and
   forward 12-month framing.
-- Annually: a "state of AEGIS" comprehensive update.
+- Annually: a "state of CERNIQ" comprehensive update.
 
 ---
 
@@ -509,13 +509,13 @@ defensive about claims, forthright about risks.
 
 **Marketing voice (acceptable for marketing surface, not for board):**
 
-> AEGIS delivers blazing-fast verification with industry-leading
+> CERNIQ delivers blazing-fast verification with industry-leading
 > security. Every agent transaction is sealed in our tamper-proof
 > audit chain.
 
 **MD&A voice (the bar for board / investor / regulator artifacts):**
 
-> AEGIS verified [X] agent actions in April 2026 with a p99 latency
+> CERNIQ verified [X] agent actions in April 2026 with a p99 latency
 > of 71ms (Datadog, dashboard <link>). The audit chain remained
 > hash-chain-intact across all events (see audit-chain integrity
 > test, run [link]). Latency has held within ±5% of target over the
@@ -525,23 +525,23 @@ defensive about claims, forthright about risks.
 
 ### 9.4 Where each voice belongs
 
-| Surface | Voice |
-|---|---|
-| Marketing site | Marketing voice (still: precise, sourced, no superlatives) |
-| Docs site | Documentation voice — terse, imperative, exact |
-| Customer email | Marketing voice (when announcing); MD&A voice (when reporting) |
-| Sales deck | Marketing voice with MD&A-grade backing in appendix |
-| Investor deck | MD&A voice |
-| Monthly board update | MD&A voice |
-| ADR | Engineering voice — terse, complete, alternatives-aware |
-| Customer postmortem | MD&A voice |
-| Internal Slack | Whatever voice you like (no gate) |
+| Surface              | Voice                                                          |
+| -------------------- | -------------------------------------------------------------- |
+| Marketing site       | Marketing voice (still: precise, sourced, no superlatives)     |
+| Docs site            | Documentation voice — terse, imperative, exact                 |
+| Customer email       | Marketing voice (when announcing); MD&A voice (when reporting) |
+| Sales deck           | Marketing voice with MD&A-grade backing in appendix            |
+| Investor deck        | MD&A voice                                                     |
+| Monthly board update | MD&A voice                                                     |
+| ADR                  | Engineering voice — terse, complete, alternatives-aware        |
+| Customer postmortem  | MD&A voice                                                     |
+| Internal Slack       | Whatever voice you like (no gate)                              |
 
 ---
 
 ## 10. The implementation gap
 
-### 10.1 Where AEGIS is today
+### 10.1 Where CERNIQ is today
 
 - Sourcing: strong on engineering metrics (CI tracks them); weak on
   customer claims and pricing claims (drift risk).
@@ -599,7 +599,7 @@ to install it. The retrofit project is the one that delays Series A,
 that fails an acquirer's diligence, that becomes the IPO-blocking
 project the year before listing.
 
-The discipline installed at AEGIS's current scale costs maybe 10% of
+The discipline installed at CERNIQ's current scale costs maybe 10% of
 contributor time. Installed at 50 employees, the same discipline
 costs a $500k retrofit project. Installed under acquisition pressure
 or under SEC scrutiny, the cost is incalculable.

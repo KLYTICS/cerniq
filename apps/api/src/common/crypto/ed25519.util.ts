@@ -11,7 +11,7 @@ const enc = new TextEncoder();
 export class Ed25519Util {
   /**
    * Generate a fresh keypair. Used in dev/sandbox flows; real production
-   * keypairs are generated client-side and never transit the AEGIS API.
+   * keypairs are generated client-side and never transit the CERNIQ API.
    */
   async generateKeypair(): Promise<{ privateKey: Uint8Array; publicKey: Uint8Array }> {
     const privateKey = ed.utils.randomPrivateKey();
@@ -26,7 +26,11 @@ export class Ed25519Util {
    * @param signatureB64Url base64url-encoded signature
    * @param publicKeyB64Url base64url-encoded public key
    */
-  async verify(message: string | Uint8Array, signatureB64Url: string, publicKeyB64Url: string): Promise<boolean> {
+  async verify(
+    message: string | Uint8Array,
+    signatureB64Url: string,
+    publicKeyB64Url: string,
+  ): Promise<boolean> {
     try {
       const msg = typeof message === 'string' ? enc.encode(message) : message;
       const sig = decodeBase64Url(signatureB64Url);
