@@ -57,25 +57,29 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Generate Prisma client
-        run: pnpm --filter @cerniq/api prisma:generate
+      - name: Doctor (preflight + invariant gates)
+        # `pnpm doctor:full` is the canonical health check from CLAUDE.md.
+        # It subsumes the two previous manual preflight steps:
+        #   - prisma generate (apps/api)               — was an explicit step
+        #   - @cerniq/types build for consumers        — was an explicit step
+        # AND adds invariant assertions that the manual steps never gated:
+        #   - denial-precedence chain (CLAUDE.md invariant 6) intact
+        #   - error catalog TS/Py parity (R16/R17)
+        #   - postman walkthrough vs. 10-step chain
+        #   - discovery surface (.well-known/*) all present
+        #   - peer-review regression guards (R19) intact
+        #   - cross-package parity wired
+        #
+        # Net CI runtime impact: ~neutral (≈30s, vs ≈30s for the two steps
+        # this replaces). Net assertion surface: much larger.
+        #
+        # `Apply Prisma migrations` below stays separate — doctor:full only
+        # produces the client; applying migrations to the test DB is a
+        # different concern.
+        run: pnpm doctor:full
 
       - name: Apply Prisma migrations
         run: pnpm --filter @cerniq/api prisma:deploy
-
-      - name: Build @cerniq/types (consumer dependency for lint/typecheck)
-        # @cerniq/types publishes dist/*.d.ts via package.json `types`/`main`,
-        # and ~every workspace consumer (sdk-ts, cli, mcp-server, postman,
-        # verifier-rp, api, dashboard, etc.) imports from it via package
-        # name resolution. Without this build, lint and typecheck across
-        # multiple workspaces fail with:
-        #   ERR_MODULE_NOT_FOUND: Cannot find module '.../@cerniq/types/dist/index.js'
-        # The existing `Build` step at the end of this job produces these,
-        # but consumers need them earlier. Limiting scope to @cerniq/types
-        # (not all of packages/*) keeps this step fast and avoids coupling
-        # to other packages' build health — building everything here would
-        # turn unrelated package build failures into lint-step failures.
-        run: pnpm --filter @cerniq/types build
 
       - name: Lint
         run: pnpm lint
