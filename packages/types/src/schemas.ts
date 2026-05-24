@@ -225,6 +225,13 @@ export const AgentPolicySchema = z.object({
   createdAt: IsoDateTimeSchema,
   expiresAt: IsoDateTimeSchema,
   label: z.string().nullable().optional(),
+  // OD-024 Phase A2 — wire revocation provenance into the catalog response.
+  // `revokedAt` mirrors the server clock at DELETE; `revokedReason` carries
+  // the operator-supplied audit context from
+  // `DELETE /agents/:agentId/policies/:policyId` body `{ reason: "..." }`.
+  // Both null when the policy was never revoked.
+  revokedAt: IsoDateTimeSchema.nullable().optional(),
+  revokedReason: z.string().nullable().optional(),
 });
 
 // ── Verify ───────────────────────────────────────────────────────
