@@ -19,8 +19,12 @@ export async function agentsCreate(opts: {
   const priv = ed.utils.randomPrivateKey();
   const pub = await ed.getPublicKeyAsync(priv);
   const cerniq = await client();
-  const agent = await cerniq.agents.create({ name: opts.name, publicKey: b64u(pub) });
-  ok(`agent created: ${(agent as { id: string }).id}`);
+  const agent = await cerniq.agents.create({
+    label: opts.name,
+    publicKey: b64u(pub),
+    runtime: 'CUSTOM',
+  });
+  ok(`agent created: ${agent.agentId}`);
   emitJson(agent);
   if (opts.printPrivateKey) {
     info('PRIVATE KEY (store securely — CERNIQ never sees this):');
@@ -36,17 +40,15 @@ export async function agentsList(opts: {
   json?: boolean;
 }): Promise<void> {
   const cerniq = await client();
-  const result = (await cerniq.agents.list({ limit: opts.limit, cursor: opts.cursor })) as {
-    agents: { id: string; name: string; status: string; trustScore: number; trustBand: string }[];
-  };
+  const result = await cerniq.agents.list({ limit: opts.limit, cursor: opts.cursor });
   if (opts.json) {
     emitJson(result);
     return;
   }
   emitTable(
     result.agents.map((a) => ({
-      id: a.id,
-      name: a.name,
+      id: a.agentId,
+      name: a.label ?? '',
       status: a.status,
       score: a.trustScore,
       band: a.trustBand,

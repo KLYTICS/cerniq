@@ -111,7 +111,7 @@ describe('07 · verify denials (all 9 reasons)', () => {
       amount: 10,
       currency: 'USD',
     });
-    await sdk.policies.revoke(agent.agentId, policy.policyId);
+    await sdk.policies.revoke(policy.policyId, { agentId: agent.agentId });
     const result = await sdk.verify(token, {
       action: 'commerce.purchase',
       amount: 10,

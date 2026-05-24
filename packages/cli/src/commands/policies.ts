@@ -1,5 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
+import type { PolicyScope } from '@cerniq/sdk';
+
 import { client } from '../client.js';
 import { emitJson, emitTable, ok } from '../output.js';
 
@@ -10,32 +12,32 @@ export async function policiesCreate(opts: {
   json?: boolean;
 }): Promise<void> {
   const raw = await readFile(opts.scopesFile, 'utf8');
-  const scopes = JSON.parse(raw);
+  const scopes = JSON.parse(raw) as PolicyScope[];
   const cerniq = await client();
   const policy = await cerniq.policies.create({
     agentId: opts.agentId,
     scopes,
-    expiresInSeconds: opts.ttl,
+    expiresInSeconds: opts.ttl ?? 86400,
   });
-  ok(`policy created: ${(policy as { id: string }).id}`);
+  ok(`policy created: ${policy.policyId}`);
   emitJson(policy);
 }
 
 export async function policiesList(opts: {
-  agentId?: string;
+  agentId: string;
   status?: string;
   json?: boolean;
 }): Promise<void> {
   const cerniq = await client();
-  const result = (await cerniq.policies.list({
+  const result = await cerniq.policies.list({
     agentId: opts.agentId,
     status: opts.status as 'ACTIVE' | 'REVOKED' | 'EXPIRED' | undefined,
-  })) as { policies: { id: string; agentId: string; status: string; expiresAt: string }[] };
+  });
   if (opts.json) emitJson(result);
   else
     emitTable(
       result.policies.map((p) => ({
-        id: p.id,
+        id: p.policyId,
         agent: p.agentId,
         status: p.status,
         expires: p.expiresAt,
@@ -43,8 +45,11 @@ export async function policiesList(opts: {
     );
 }
 
-export async function policiesRevoke(id: string, opts: { reason?: string }): Promise<void> {
+export async function policiesRevoke(
+  policyId: string,
+  opts: { agentId: string; reason?: string },
+): Promise<void> {
   const cerniq = await client();
-  await cerniq.policies.revoke(id, { reason: opts.reason });
-  ok(`policy revoked: ${id}`);
+  await cerniq.policies.revoke(policyId, { agentId: opts.agentId, reason: opts.reason });
+  ok(`policy revoked: ${policyId}`);
 }

@@ -44,9 +44,9 @@ describe('04 · policy engine', () => {
     const agent = await createAgent(sdk);
     agentsToRevoke.push(agent.agentId);
     const policy = await createPolicy(sdk, agent.agentId, [SCOPES.commerce()]);
-    const list = await sdk.policies.list(agent.agentId);
-    expect(Array.isArray(list)).toBe(true);
-    expect(list.find((p) => p.policyId === policy.policyId)).toBeDefined();
+    const list = await sdk.policies.list({ agentId: agent.agentId });
+    expect(Array.isArray(list.policies)).toBe(true);
+    expect(list.policies.find((p) => p.policyId === policy.policyId)).toBeDefined();
   });
 
   it('revoke policy returns 204 and removes it from active list', async () => {
