@@ -13,6 +13,79 @@
 
 ---
 
+## 2026-05-23 (CI lint reversal + mirror workflow repair + bootstrap runbook) · claim=cerniq:provider-migration-tail · sid=anakin
+
+**Status:** ✅ Lint regression in apps/docs corrected (direction-reversed from
+prior turn). ✅ `mirror-from-radicle.yml` install step rewritten (pinned binary
+download instead of HTML-as-script). ✅ `docs/CREDENTIALS_BOOTSTRAP.md` authored
+as the sequenced runbook for Tier 0–4 auth surfaces.
+
+### What shipped
+
+1. **apps/docs lint — corrected the previous turn's wrong-direction fix.**
+   Modern fumadocs (via pretypecheck-generated types) types `page.data.title`
+   and `description` as `string` (not `any`). The team's older `String()` and
+   `as string | undefined` coercions are now redundant per the type system, and
+   the new typescript-eslint rules `no-unnecessary-type-conversion` /
+   `no-unnecessary-type-assertion` flag them. My previous turn silenced these
+   with `eslint-disable-next-line` — CI then flagged the disables as
+   `Unused eslint-disable directive` (because the rules they suppress don't
+   fire on the tightened types), and `--max-warnings=0` made each unused
+   directive a CI block. Fix: removed the `String()` calls and the `as`
+   assertion entirely, replaced the silencing comments with a forward-
+   looking note explaining the conditions under which they'd need to come
+   back. Two files: `apps/docs/app/docs/[[...slug]]/page.tsx`,
+   `apps/docs/app/llms.txt/route.ts`.
+
+2. **`.github/workflows/mirror-from-radicle.yml` — root cause: `curl |
+   sh` against an HTML install page.** The Radicle install URL at
+   https://radicle.xyz/install serves an HTML page (for humans), not a
+   shell script. The pipe to `sh` crashed with `cannot open html: No such
+   file`. Rewrote to download the pinned binary directly from
+   `files.radicle.xyz/releases/${RAD_VERSION}/...tar.xz` (currently
+   `RAD_VERSION=1.9.1`), arch-detect linux/x86_64 vs aarch64, and added
+   the missing prerequisites: `rad auth` (ephemeral CI-only identity with
+   empty passphrase) → `rad node start` → wait for seeder peering →
+   `rad clone`. The mirror loop now has no upstream-script dependency
+   that can silently change.
+
+3. **`docs/CREDENTIALS_BOOTSTRAP.md` — new sequenced runbook.** Tiered:
+   Tier 0 (already provisioned), Tier 1 (Ed25519 keys + webhook DEK +
+   Auth0 — required for a real local demo), Tier 2 (Stripe + KMS +
+   Postgres/Redis + Vercel + Cloudflare + DNS + GitHub Actions secrets —
+   required to take a paying customer), Tier 3 (OTel + Sentry + status
+   page + sales mailbox), Tier 4 (Radicle key passphrase rotation,
+   self-hosted seed, Dependabot triage, operator-decision register
+   review). Each provider section names the exact env vars touched, the
+   verification command, and links the OPERATOR_DECISIONS.md row it
+   implements. Appendix maps every env var to its consumer file with
+   absence behavior.
+
+### Verification
+
+- `pnpm --filter @cerniq/docs lint` — green
+- `pnpm doctor:full` — green (all 6 gates pass, prisma client and
+  @cerniq/types build ready)
+
+### Open after this turn
+
+- **CI on the next push** will tell us if apps/docs lint actually flips
+  to green on the CI environment too (with `pretypecheck` running upstream
+  of `lint`). Local-vs-CI divergence on fumadocs type generation was the
+  trap this turn fixed; if CI still divergent, fumadocs version pin in
+  apps/docs/package.json is the next investigation.
+- **mirror-from-radicle workflow** will be exercised on its next 15-min
+  cron tick or via `workflow_dispatch`. If it still fails, the next
+  likely cause is the `rad clone` step needing more time for the
+  ephemeral node to peer with public seeders before fetching.
+- Other CI workflow reds (`Release`, `SBOM`, `docs` link-check,
+  `Security`) remain — each tracked separately in
+  `docs/CREDENTIALS_BOOTSTRAP.md` (Tier 2 §2.7 — GH Actions secrets
+  needed) or `docs/SESSION_HANDOFF.md` 2026-05-22 entry (pre-existing
+  drift). Not regressions from this session.
+
+---
+
 ## 2026-05-23 (provider migration + PR #53 merged to local main) · claim=cerniq:provider-migration · sid=anakin
 
 **Status:** ✅ Source-of-truth moved to Radicle (canonical). PR #53 (the

@@ -44,15 +44,12 @@ export function GET() {
       `## ${section.charAt(0).toUpperCase()}${section.slice(1)}`,
       '',
       ...ps.map(
-        // p.data is typed `any` by fumadocs source — coerce title and
-        // description to string for the template literal (per
-        // @typescript-eslint/restrict-template-expressions). Non-string
-        // values render visibly so frontmatter bugs fail loud.
-        //
-        // See apps/docs/app/docs/[[...slug]]/page.tsx for the same pattern
-        // and the no-unnecessary-type-conversion rationale.
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-conversion
-        (p) => `- [${String(p.data.title)}](${SITE}${p.url}): ${String(p.data.description ?? '')}`,
+        // Modern fumadocs types p.data.title/description as string (the
+        // pretypecheck step generates tightened types), so no String()
+        // coercion is needed. See apps/docs/app/docs/[[...slug]]/page.tsx
+        // for the same pattern and the historical reason for the
+        // coercion if fumadocs ever loosens types back to `any`.
+        (p) => `- [${p.data.title}](${SITE}${p.url}): ${p.data.description ?? ''}`,
       ),
       '',
     ]),

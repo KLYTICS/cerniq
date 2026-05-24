@@ -1,13 +1,14 @@
 name: mirror-from-radicle
 
-# Pulls the latest signed state from a Radicle public seeder and force-pushes
+# Pulls the latest signed state from the Radicle canonical and force-pushes
 # the refs allowed by scripts/mirror-policy.sh out to this GitHub repo.
 #
-# Radicle is canonical; this workflow makes GitHub a derivative read-only view.
+# Radicle (rad:z3JUSaS2iRrV1raoSaqXxowLDHq6b) is canonical; this workflow
+# makes GitHub a derivative read-only view.
 
 on:
   schedule:
-    - cron: '*/15 * * * *'   # every 15 minutes — gossip lag is typically under a minute
+    - cron: '*/15 * * * *'   # every 15 minutes — Radicle gossip lag is sub-minute
   workflow_dispatch:           # manual trigger for ad-hoc syncs
 
 concurrency:
@@ -17,22 +18,78 @@ concurrency:
 permissions:
   contents: write
 
+env:
+  # Pin Radicle to a known-good release. Bump deliberately; do not float.
+  RAD_VERSION: '1.9.1'
+  CERNIQ_RID: 'rad:z3JUSaS2iRrV1raoSaqXxowLDHq6b'
+
 jobs:
   mirror:
     runs-on: ubuntu-latest
-    steps:
-      - name: Install Radicle CLI
-        run: |
-          curl -sSf https://radicle.xyz/install | sh
-          echo "$HOME/.radicle/bin" >> "$GITHUB_PATH"
+    timeout-minutes: 10
 
-      - name: Fetch from Radicle canonical
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # we need full history for the mirror push
+
+      - name: Install Radicle CLI (pinned binary)
+        # Prior attempt used `curl -sSf https://radicle.xyz/install | sh` —
+        # that URL serves an HTML install page, not a shell script, so the
+        # pipe to `sh` crashed with "cannot open html". We download the
+        # binary tarball directly from Radicle's release CDN instead.
+        # The version is pinned via the workflow-level env above so an
+        # upstream change can't silently break this job.
+        run: |
+          set -euo pipefail
+          cd /tmp
+          ARCH=$(uname -m)
+          case "$ARCH" in
+            x86_64)  RAD_ARCH='x86_64-unknown-linux-musl' ;;
+            aarch64) RAD_ARCH='aarch64-unknown-linux-musl' ;;
+            *) echo "unsupported arch: $ARCH" >&2; exit 1 ;;
+          esac
+          URL="https://files.radicle.xyz/releases/${RAD_VERSION}/radicle-${RAD_VERSION}-${RAD_ARCH}.tar.xz"
+          echo "downloading $URL"
+          curl -fsSL "$URL" -o radicle.tar.xz
+          tar -xJf radicle.tar.xz
+          sudo cp radicle-*/bin/* /usr/local/bin/
+          rad --version
+
+      - name: Mint ephemeral Radicle identity (CI-only)
+        # `rad clone` needs a running node, and the node needs an identity.
+        # We mint a throwaway one with an empty passphrase — it never signs
+        # anything outbound (we only PULL from the network), so this is
+        # acceptable hygiene for a CI mirror context. The identity dies
+        # with the runner.
         env:
-          CERNIQ_RID: rad:z3JUSaS2iRrV1raoSaqXxowLDHq6b
+          RAD_PASSPHRASE: ''
+        run: |
+          rad auth --alias cerniq-mirror-ci
+          rad self
+
+      - name: Start Radicle node
+        run: |
+          rad node start
+          # Give the node a moment to connect to public seeders
+          # so `rad clone` finds replicas of the project.
+          for i in 1 2 3 4 5; do
+            if rad node status 2>&1 | grep -q "Node is running"; then
+              break
+            fi
+            sleep 2
+          done
+          rad node status | head -10 || true
+
+      - name: Clone canonical from Radicle network
+        env:
+          RAD_PASSPHRASE: ''
         run: |
           rad clone "$CERNIQ_RID" --no-confirm canonical
           cd canonical
           git fetch --all --tags
+          echo "---refs available---"
+          git for-each-ref --format='%(refname)' refs/heads refs/tags | head -20
 
       - name: Stage policy script
         working-directory: canonical
@@ -42,7 +99,6 @@ jobs:
         working-directory: canonical
         id: refs
         run: |
-          # Enumerate every local ref (after `rad clone`, branches land as local heads).
           git for-each-ref --format='%(refname)' refs/heads refs/tags \
             | /tmp/mirror-policy.sh \
             | tee /tmp/decisions.txt
@@ -57,5 +113,10 @@ jobs:
         run: |
           git remote add gh "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
           while read -r ref; do
+            echo "mirroring $ref"
             git push --force gh "$ref:$ref"
           done < /tmp/to-mirror.txt
+
+      - name: Stop Radicle node
+        if: always()
+        run: rad node stop || true
