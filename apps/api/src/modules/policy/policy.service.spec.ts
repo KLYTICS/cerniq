@@ -43,6 +43,7 @@ interface PolicyRow {
   tokenHash: string;
   expiresAt: Date;
   revokedAt: Date | null;
+  revokedReason: string | null;
   createdAt: Date;
 }
 
@@ -71,14 +72,24 @@ function makePrisma(agents: AgentRow[] = [], policies: PolicyRow[] = []) {
           tokenHash: data.tokenHash!,
           expiresAt: data.expiresAt!,
           revokedAt: null,
+          revokedReason: null,
           createdAt: new Date(),
         };
         policies.push(row);
         return row;
       }),
-      findMany: jest.fn(async ({ where }: { where: { agentId: string } }) => {
-        return policies.filter((p) => p.agentId === where.agentId);
-      }),
+      findMany: jest.fn(
+        async ({
+          where,
+        }: {
+          where: { agentId: string; status?: 'ACTIVE' | 'EXPIRED' | 'REVOKED' };
+        }) => {
+          return policies.filter(
+            (p) =>
+              p.agentId === where.agentId && (where.status ? p.status === where.status : true),
+          );
+        },
+      ),
       findFirst: jest.fn(async ({ where }: { where: { id: string; agentId: string } }) => {
         return policies.find((p) => p.id === where.id && p.agentId === where.agentId) ?? null;
       }),
@@ -205,6 +216,7 @@ describe('PolicyService', () => {
           tokenHash: 'h',
           expiresAt: new Date(futureIso()),
           revokedAt: null,
+          revokedReason: null,
           createdAt: new Date(),
         },
       ];
@@ -225,6 +237,39 @@ describe('PolicyService', () => {
       expect(list).toEqual([]);
     });
 
+    // ── OD-024 Phase A3 ────────────────────────────────────────────────────────
+    it('filters by status when supplied (OD-024 Phase A3)', async () => {
+      const expiresAt = new Date(futureIso());
+      const base = {
+        agentId: 'agt_1',
+        label: null,
+        scopes: [],
+        signedToken: 'tok',
+        tokenHash: 'h',
+        expiresAt,
+        revokedAt: null,
+        revokedReason: null,
+        createdAt: new Date(),
+      };
+      const policies: PolicyRow[] = [
+        { ...base, id: 'pol_active', status: 'ACTIVE' as const },
+        { ...base, id: 'pol_revoked', status: 'REVOKED' as const },
+        { ...base, id: 'pol_expired', status: 'EXPIRED' as const },
+      ];
+      const { svc } = makeService({ agents: [ACTIVE_AGENT], policies });
+
+      const onlyActive = await svc.list('prn_A', 'agt_1', { status: 'ACTIVE' });
+      expect(onlyActive.map((p) => p.policyId)).toEqual(['pol_active']);
+
+      const onlyRevoked = await svc.list('prn_A', 'agt_1', { status: 'REVOKED' });
+      expect(onlyRevoked.map((p) => p.policyId)).toEqual(['pol_revoked']);
+
+      const noFilter = await svc.list('prn_A', 'agt_1', {});
+      expect(noFilter.map((p) => p.policyId).sort()).toEqual(
+        ['pol_active', 'pol_expired', 'pol_revoked'].sort(),
+      );
+    });
+
     it('maps Prisma rows to PolicyResponseDto shape', async () => {
       const expiresAt = new Date(futureIso());
       const policies: PolicyRow[] = [
@@ -238,6 +283,7 @@ describe('PolicyService', () => {
           tokenHash: 'h',
           expiresAt,
           revokedAt: null,
+          revokedReason: null,
           createdAt: new Date(),
         },
       ];
@@ -253,6 +299,39 @@ describe('PolicyService', () => {
     });
   });
 
+  describe('findOne()', () => {
+    const existing: PolicyRow = {
+      id: 'pol_lookup',
+      agentId: 'agt_1',
+      label: 'lookup target',
+      scopes: [],
+      status: 'ACTIVE',
+      signedToken: 'tok',
+      tokenHash: 'h',
+      expiresAt: new Date(futureIso()),
+      revokedAt: null,
+      revokedReason: null,
+      createdAt: new Date(),
+    };
+
+    it('returns the mapped PolicyResponseDto when policy exists on owned agent', async () => {
+      const { svc } = makeService({ agents: [ACTIVE_AGENT], policies: [{ ...existing }] });
+      const dto = await svc.findOne('prn_A', 'agt_1', 'pol_lookup');
+      expect(dto.policyId).toBe('pol_lookup');
+      expect(dto.agentId).toBe('agt_1');
+    });
+
+    it('throws NotFoundException when policy does not exist', async () => {
+      const { svc } = makeService({ agents: [ACTIVE_AGENT], policies: [] });
+      await expect(svc.findOne('prn_A', 'agt_1', 'pol_missing')).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws NotFoundException when agent does not belong to principal', async () => {
+      const { svc } = makeService({ agents: [ACTIVE_AGENT], policies: [{ ...existing }] });
+      await expect(svc.findOne('prn_B', 'agt_1', 'pol_lookup')).rejects.toThrow(NotFoundException);
+    });
+  });
+
   describe('revoke()', () => {
     const existingPolicy: PolicyRow = {
       id: 'pol_active',
@@ -264,6 +343,7 @@ describe('PolicyService', () => {
       tokenHash: 'h',
       expiresAt: new Date(futureIso()),
       revokedAt: null,
+      revokedReason: null,
       createdAt: new Date(),
     };
 
@@ -298,6 +378,22 @@ describe('PolicyService', () => {
       // findFirst still returns it (policy exists, just revoked)
       const { svc } = makeService({ agents: [ACTIVE_AGENT], policies });
       await expect(svc.revoke('prn_A', 'agt_1', 'pol_active')).resolves.toBeUndefined();
+    });
+
+    // ── OD-024 Phase A2 — reason capture into AgentPolicy.revokedReason ─────────
+    it('persists reason on the policy row when provided', async () => {
+      const policies: PolicyRow[] = [{ ...existingPolicy }];
+      const { svc, policies: stored } = makeService({ agents: [ACTIVE_AGENT], policies });
+      await svc.revoke('prn_A', 'agt_1', 'pol_active', 'key compromised');
+      expect(stored[0].status).toBe('REVOKED');
+      expect(stored[0].revokedReason).toBe('key compromised');
+    });
+
+    it('leaves revokedReason null when no reason supplied', async () => {
+      const policies: PolicyRow[] = [{ ...existingPolicy }];
+      const { svc, policies: stored } = makeService({ agents: [ACTIVE_AGENT], policies });
+      await svc.revoke('prn_A', 'agt_1', 'pol_active');
+      expect(stored[0].revokedReason).toBeNull();
     });
   });
 });

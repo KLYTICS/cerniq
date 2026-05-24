@@ -27,6 +27,7 @@ function makeService(): jest.Mocked<PolicyService> {
   return {
     create: jest.fn().mockResolvedValue({ policyId: 'pol_1', signedToken: 'jwt', expiresAt: '' }),
     list: jest.fn().mockResolvedValue([]),
+    findOne: jest.fn().mockResolvedValue({ policyId: 'pol_1', agentId: 'agt_1' }),
     revoke: jest.fn().mockResolvedValue(undefined),
   } as unknown as jest.Mocked<PolicyService>;
 }
@@ -62,16 +63,33 @@ describe('PolicyController', () => {
   });
 
   describe('list()', () => {
-    it('delegates to policy.list with auth.principalId and agentId', async () => {
-      await controller.list(AUTH, 'agt_1');
-      expect(service.list).toHaveBeenCalledWith('prn_A', 'agt_1');
+    it('delegates to policy.list with auth.principalId, agentId, and unfiltered query', async () => {
+      await controller.list(AUTH, 'agt_1', {});
+      expect(service.list).toHaveBeenCalledWith('prn_A', 'agt_1', { status: undefined });
+    });
+
+    it('forwards the status filter to policy.list (OD-024 Phase A3)', async () => {
+      await controller.list(AUTH, 'agt_1', { status: 'REVOKED' } as never);
+      expect(service.list).toHaveBeenCalledWith('prn_A', 'agt_1', { status: 'REVOKED' });
+    });
+  });
+
+  describe('findOne()', () => {
+    it('delegates to policy.findOne with auth.principalId, agentId, and policyId', async () => {
+      await controller.findOne(AUTH, 'agt_1', 'pol_x');
+      expect(service.findOne).toHaveBeenCalledWith('prn_A', 'agt_1', 'pol_x');
     });
   });
 
   describe('revoke()', () => {
-    it('delegates to policy.revoke with auth.principalId, agentId, and policyId', async () => {
+    it('delegates to policy.revoke with auth.principalId, agentId, policyId (no body)', async () => {
       await controller.revoke(AUTH, 'agt_1', 'pol_active');
-      expect(service.revoke).toHaveBeenCalledWith('prn_A', 'agt_1', 'pol_active');
+      expect(service.revoke).toHaveBeenCalledWith('prn_A', 'agt_1', 'pol_active', undefined);
+    });
+
+    it('forwards body.reason for audit capture (OD-024 Phase A2)', async () => {
+      await controller.revoke(AUTH, 'agt_1', 'pol_x', { reason: 'rotation' });
+      expect(service.revoke).toHaveBeenCalledWith('prn_A', 'agt_1', 'pol_x', 'rotation');
     });
 
     it('returns void (204 No Content)', async () => {
@@ -83,9 +101,9 @@ describe('PolicyController', () => {
   it('auth.principalId isolation — different principals call service with their own id', async () => {
     const authA = { ...AUTH, principalId: 'prn_A' };
     const authB = { ...AUTH, principalId: 'prn_B' };
-    await controller.list(authA, 'agt_1');
-    await controller.list(authB, 'agt_1');
-    expect(service.list).toHaveBeenNthCalledWith(1, 'prn_A', 'agt_1');
-    expect(service.list).toHaveBeenNthCalledWith(2, 'prn_B', 'agt_1');
+    await controller.list(authA, 'agt_1', {});
+    await controller.list(authB, 'agt_1', {});
+    expect(service.list).toHaveBeenNthCalledWith(1, 'prn_A', 'agt_1', { status: undefined });
+    expect(service.list).toHaveBeenNthCalledWith(2, 'prn_B', 'agt_1', { status: undefined });
   });
 });

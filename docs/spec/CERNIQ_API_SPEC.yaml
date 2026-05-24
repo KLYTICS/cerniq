@@ -467,6 +467,19 @@ components:
         expiresAt:
           type: string
           format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Server clock at revocation. Null when never revoked. OD-024 Phase A2.
+        revokedReason:
+          type: string
+          nullable: true
+          description: |
+            Operator-supplied reason captured at revocation via
+            DELETE /agents/:agentId/policies/:policyId with `{ reason: "..." }`.
+            Null when never revoked or revoked without a reason.
+            OD-024 Phase A2 (2026-05-24).
 
     PolicyScope:
       type: object

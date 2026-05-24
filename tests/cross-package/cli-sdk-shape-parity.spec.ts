@@ -22,6 +22,7 @@ import { Cerniq } from '../../packages/sdk-ts/src/index';
 import type {
   AgentRecord,
   ListAgentsResponse,
+  PolicyListItem,
   PolicyListResponse,
   PolicyRecord,
 } from '../../packages/sdk-ts/src/types';
@@ -52,10 +53,15 @@ describe('CLI ↔ SDK contract parity (OD-024)', () => {
   });
 
   describe('PolicyClient — methods the CLI calls', () => {
-    it('exposes create, list, revoke', () => {
+    it('exposes create, list, get, revoke', () => {
       expect(typeof cerniq.policies.create).toBe('function');
       expect(typeof cerniq.policies.list).toBe('function');
+      expect(typeof cerniq.policies.get).toBe('function');
       expect(typeof cerniq.policies.revoke).toBe('function');
+    });
+
+    it('get resolves to PolicyListItem (wired end-to-end in OD-024 Phase A1)', () => {
+      expectTypeOf(cerniq.policies.get).returns.resolves.toMatchTypeOf<PolicyListItem>();
     });
 
     it('create resolves to PolicyRecord (both overloads)', () => {

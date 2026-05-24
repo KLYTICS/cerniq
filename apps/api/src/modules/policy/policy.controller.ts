@@ -1,10 +1,26 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 
 import { Auth } from '../../common/decorators/auth.decorator';
 import type { AuthenticatedKey } from '../auth/api-key.service';
 
-import { CreatePolicyDto, CreatePolicyResponseDto, PolicyResponseDto } from './policy.dto';
+import {
+  CreatePolicyDto,
+  CreatePolicyResponseDto,
+  ListPoliciesQueryDto,
+  PolicyResponseDto,
+  RevokePolicyDto,
+} from './policy.dto';
 import { PolicyService } from './policy.service';
 
 @ApiTags('Policies')
@@ -26,12 +42,25 @@ export class PolicyController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List policies for an agent.' })
+  @ApiOperation({ summary: 'List policies for an agent. Optional status filter (OD-024 Phase A3).' })
   list(
     @Auth() auth: AuthenticatedKey,
     @Param('agentId') agentId: string,
+    @Query() query: ListPoliciesQueryDto,
   ): Promise<PolicyResponseDto[]> {
-    return this.policy.list(auth.principalId, agentId);
+    return this.policy.list(auth.principalId, agentId, { status: query.status });
+  }
+
+  @Get(':policyId')
+  @ApiOperation({
+    summary: 'Fetch a single policy by id (scoped to the calling principal). OD-024 Phase A1.',
+  })
+  findOne(
+    @Auth() auth: AuthenticatedKey,
+    @Param('agentId') agentId: string,
+    @Param('policyId') policyId: string,
+  ): Promise<PolicyResponseDto> {
+    return this.policy.findOne(auth.principalId, agentId, policyId);
   }
 
   @Delete(':policyId')
@@ -43,7 +72,8 @@ export class PolicyController {
     @Auth() auth: AuthenticatedKey,
     @Param('agentId') agentId: string,
     @Param('policyId') policyId: string,
+    @Body() body?: RevokePolicyDto,
   ): Promise<void> {
-    await this.policy.revoke(auth.principalId, agentId, policyId);
+    await this.policy.revoke(auth.principalId, agentId, policyId, body?.reason);
   }
 }

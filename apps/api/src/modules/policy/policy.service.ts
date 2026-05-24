@@ -118,16 +118,37 @@ export class PolicyService {
     };
   }
 
-  async list(principalId: string, agentId: string): Promise<PolicyResponseDto[]> {
+  async list(
+    principalId: string,
+    agentId: string,
+    filter: { status?: 'ACTIVE' | 'EXPIRED' | 'REVOKED' } = {},
+  ): Promise<PolicyResponseDto[]> {
     await this.assertOwnership(principalId, agentId);
     const policies = await this.prisma.agentPolicy.findMany({
-      where: { agentId },
+      where: { agentId, ...(filter.status ? { status: filter.status } : {}) },
       orderBy: { createdAt: 'desc' },
     });
     return policies.map((p) => this.toResponse(p));
   }
 
-  async revoke(principalId: string, agentId: string, policyId: string): Promise<void> {
+  async findOne(
+    principalId: string,
+    agentId: string,
+    policyId: string,
+  ): Promise<PolicyResponseDto> {
+    await this.assertOwnership(principalId, agentId);
+    const policy = await this.prisma.agentPolicy.findFirst({ where: { id: policyId, agentId } });
+    if (!policy)
+      throw new NotFoundException({ error: 'POLICY_NOT_FOUND', message: 'Policy not found.' });
+    return this.toResponse(policy);
+  }
+
+  async revoke(
+    principalId: string,
+    agentId: string,
+    policyId: string,
+    reason?: string,
+  ): Promise<void> {
     await this.assertOwnership(principalId, agentId);
     const policy = await this.prisma.agentPolicy.findFirst({ where: { id: policyId, agentId } });
     if (!policy)
@@ -135,10 +156,12 @@ export class PolicyService {
 
     await this.prisma.agentPolicy.update({
       where: { id: policyId },
-      data: { status: 'REVOKED', revokedAt: new Date() },
+      data: { status: 'REVOKED', revokedAt: new Date(), revokedReason: reason ?? null },
     });
     await this.redis.del(`policy:${policyId}`);
-    this.logger.log(`Policy revoked: ${policyId}`);
+    this.logger.log(
+      `Policy revoked: ${policyId}${reason ? ` reason=${JSON.stringify(reason)}` : ''}`,
+    );
   }
 
   private async assertOwnership(principalId: string, agentId: string): Promise<void> {
@@ -159,6 +182,8 @@ export class PolicyService {
       status: p.status,
       createdAt: p.createdAt.toISOString(),
       expiresAt: p.expiresAt.toISOString(),
+      revokedAt: p.revokedAt ? p.revokedAt.toISOString() : null,
+      revokedReason: p.revokedReason,
     };
   }
 }

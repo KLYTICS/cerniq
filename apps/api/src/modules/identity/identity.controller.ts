@@ -14,6 +14,7 @@ import {
   HandshakeVerifiedDto,
   ListAgentsQueryDto,
   RegisterAgentDto,
+  RevokeAgentDto,
   VerifyHandshakeDto,
 } from './identity.dto';
 import { IdentityService } from './identity.service';
@@ -49,9 +50,15 @@ export class IdentityController {
   @Delete(':agentId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiSecurity('ApiKeyAuth')
-  @ApiOperation({ summary: 'Permanently revoke an agent.' })
-  async revoke(@Auth() auth: AuthenticatedKey, @Param('agentId') agentId: string): Promise<void> {
-    await this.identity.revoke(auth.principalId, agentId);
+  @ApiOperation({
+    summary: 'Permanently revoke an agent. Optional reason captured for audit (OD-024 Phase A2).',
+  })
+  async revoke(
+    @Auth() auth: AuthenticatedKey,
+    @Param('agentId') agentId: string,
+    @Body() body?: RevokeAgentDto,
+  ): Promise<void> {
+    await this.identity.revoke(auth.principalId, agentId, body?.reason);
   }
 
   @Get(':agentId/handshake-status')

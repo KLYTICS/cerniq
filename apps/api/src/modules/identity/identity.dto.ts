@@ -19,6 +19,17 @@ export enum AgentRuntimeDto {
   CUSTOM = 'CUSTOM',
 }
 
+export class RevokeAgentDto {
+  @ApiPropertyOptional({
+    description: 'Free-form operator-supplied reason captured for the audit trail.',
+    example: 'Compromised key',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
 export class RegisterAgentDto {
   @ApiProperty({ description: 'Ed25519 public key, base64url encoded.' })
   @IsString()

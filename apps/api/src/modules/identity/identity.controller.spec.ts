@@ -83,9 +83,14 @@ describe('IdentityController', () => {
   });
 
   describe('revoke()', () => {
-    it('delegates to identity.revoke with auth.principalId and agentId', async () => {
+    it('delegates to identity.revoke with auth.principalId and agentId (no body)', async () => {
       await controller.revoke(AUTH, 'agt_1');
-      expect(service.revoke).toHaveBeenCalledWith('prn_A', 'agt_1');
+      expect(service.revoke).toHaveBeenCalledWith('prn_A', 'agt_1', undefined);
+    });
+
+    it('forwards body.reason to identity.revoke for audit capture (OD-024 Phase A2)', async () => {
+      await controller.revoke(AUTH, 'agt_1', { reason: 'compromised key' });
+      expect(service.revoke).toHaveBeenCalledWith('prn_A', 'agt_1', 'compromised key');
     });
   });
 

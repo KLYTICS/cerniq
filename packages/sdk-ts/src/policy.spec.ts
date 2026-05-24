@@ -128,6 +128,32 @@ describe('PolicyClient.list', () => {
   });
 });
 
+describe('PolicyClient.get (OD-024 Phase A1)', () => {
+  it('GETs /agents/:agentId/policies/:policyId and returns the row', async () => {
+    const item: PolicyListItem = {
+      policyId: 'pol_x',
+      agentId: 'agt_x',
+      scopes: [],
+      status: 'ACTIVE',
+      createdAt: '2026-05-24T00:00:00.000Z',
+      expiresAt: '2030-01-01T00:00:00.000Z',
+    };
+    const http = makeHttp(item);
+    const client = new PolicyClient(http as unknown as HttpClient);
+    const result = await client.get('pol_x', { agentId: 'agt_x' });
+    expect(result).toEqual(item);
+    const { path, opts } = lastCall(http);
+    expect(path).toBe('/agents/agt_x/policies/pol_x');
+    expect(opts.method).toBe('GET');
+  });
+
+  it('throws when agentId is missing (CLAUDE.md §4 — no silent failures)', async () => {
+    const client = new PolicyClient(makeHttp() as unknown as HttpClient);
+    await expect(client.get('pol_x', {})).rejects.toThrow(/agentId is required/);
+    await expect(client.get('pol_x')).rejects.toThrow(/agentId is required/);
+  });
+});
+
 describe('PolicyClient.revoke', () => {
   it('DELETEs /agents/:agentId/policies/:policyId with no body when no reason', async () => {
     const http = makeHttp(undefined);

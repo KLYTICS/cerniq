@@ -88,13 +88,8 @@ export class PolicyClient {
    *
    * `agentId` is typed optional for caller ergonomics (MCP / CLI surfaces
    * receive it from runtime args); missing `agentId` throws per CLAUDE.md
-   * §4 (no silent failures). OD-024 (Option A).
-   *
-   * TODO(OD-024 Phase A3): the API's `GET /agents/:agentId/policies`
-   * handler ignores the `status` query param today; the SDK forwards
-   * it forward-compat. Wire the controller to filter by
-   * `status ∈ {ACTIVE, REVOKED, EXPIRED}` before claiming this in
-   * public docs.
+   * §4 (no silent failures). OD-024 (Option A). Server-side `status`
+   * filter wired in OD-024 Phase A3 (2026-05-24).
    */
   async list(opts: {
     agentId?: string;
@@ -119,30 +114,31 @@ export class PolicyClient {
   }
 
   /**
-   * Lookup a single policy by id. The API doesn't expose a
-   * `GET /policies/:policyId` endpoint — callers must already know the
-   * owning agent. This method exists for MCP-tool surface symmetry
-   * (`cerniq.policies.get`) and throws `NotImplemented` until a global
-   * lookup endpoint lands. OD-024 (Option A).
+   * Fetch a single policy by id. Calls
+   * `GET /agents/:agentId/policies/:policyId` — `opts.agentId` is required
+   * (typed optional for CLI/MCP ergonomics; missing throws per CLAUDE.md
+   * §4). OD-024 Phase A1 endpoint added 2026-05-24.
    */
-  get(_policyId: string, _opts?: { agentId?: string }): Promise<PolicyListItem> {
-    throw new Error(
-      'PolicyClient.get: not yet wired — API does not expose a policy-id-only lookup; use list({agentId}) and filter',
+  async get(policyId: string, opts?: { agentId?: string }): Promise<PolicyListItem> {
+    if (!opts?.agentId) {
+      throw new Error(
+        'PolicyClient.get: opts.agentId is required (API endpoint is /agents/:agentId/policies/:policyId)',
+      );
+    }
+    return await this.http.request<PolicyListItem>(
+      `/agents/${encodeURIComponent(opts.agentId)}/policies/${encodeURIComponent(policyId)}`,
+      { method: 'GET' },
     );
   }
 
   /**
    * Revoke a policy. `opts.agentId` is required (the API endpoint is
    * `DELETE /agents/:agentId/policies/:policyId`); `opts.reason`, when
-   * provided, is forwarded as the request body for audit-chain capture.
-   * Made optional in the type signature for CLI ergonomics; missing
-   * `agentId` throws at runtime per `no silent failures` (CLAUDE.md §4).
-   * OD-024 (Option A).
-   *
-   * TODO(OD-024 Phase A2): the API's `DELETE /agents/:agentId/policies/
-   * :policyId` handler has no `@Body()` parameter today — `reason` is
-   * sent on the wire but silently dropped server-side. Wire the
-   * controller to persist `reason` into the audit chain.
+   * provided, is forwarded as the request body and persisted to
+   * `AgentPolicy.revokedReason` for the audit trail. Made optional in
+   * the type signature for CLI ergonomics; missing `agentId` throws at
+   * runtime per `no silent failures` (CLAUDE.md §4). OD-024 Phase A2
+   * server-side wiring landed 2026-05-24.
    */
   async revoke(policyId: string, opts?: { agentId?: string; reason?: string }): Promise<void> {
     if (!opts?.agentId) {

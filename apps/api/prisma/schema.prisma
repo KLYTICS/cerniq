@@ -234,9 +234,10 @@ model AgentPolicy {
   signedToken String @db.Text
   tokenHash   String @unique
 
-  status    PolicyStatus @default(ACTIVE)
-  revokedAt DateTime?
-  expiresAt DateTime
+  status        PolicyStatus @default(ACTIVE)
+  revokedAt     DateTime?
+  revokedReason String?
+  expiresAt     DateTime
 
   scopes Json
 

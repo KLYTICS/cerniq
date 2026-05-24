@@ -65,14 +65,9 @@ export class AgentClient {
 
   /**
    * Revoke an agent. `opts.reason`, when provided, is forwarded as the
-   * request body for audit-chain capture. The 1-arg form remains valid.
-   * OD-024 (Option A).
-   *
-   * TODO(OD-024 Phase A2): the API's `DELETE /agents/:agentId` handler
-   * (`apps/api/src/modules/identity/identity.controller.ts:49-55`) has
-   * no `@Body()` parameter today — `reason` is sent on the wire but
-   * silently dropped server-side. Wire the controller to persist
-   * `reason` into the audit chain before relying on this for SOC2.
+   * request body and persisted to `AgentIdentity.revokedReason` for the
+   * audit trail. The 1-arg form remains valid. OD-024 (Option A);
+   * Phase A2 server-side wiring landed 2026-05-24.
    */
   async revoke(agentId: string, opts?: RevokeOptions): Promise<void> {
     await this.http.request<undefined>(`/agents/${encodeURIComponent(agentId)}`, {
