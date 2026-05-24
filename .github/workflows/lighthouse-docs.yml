@@ -16,6 +16,9 @@ on:
       - 'docs/spec/CERNIQ_API_SPEC.yaml'
       - '.github/workflows/lighthouse-docs.yml'
 
+permissions:
+  contents: read
+
 jobs:
   lighthouse:
     name: Lighthouse CI (desktop)

@@ -37,6 +37,9 @@ on:
   repository_dispatch:
     types: [deployed-staging, deployed-production]
 
+permissions:
+  contents: read
+
 concurrency:
   # One verifier at a time per environment. A long-running verification
   # would otherwise pile up under heavy cron+deploy interleavings.
