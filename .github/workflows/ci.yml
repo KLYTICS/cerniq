@@ -84,6 +84,21 @@ jobs:
       - name: Apply Prisma migrations
         run: pnpm --filter @cerniq/api prisma:deploy
 
+      - name: Build type-provider packages (lint prerequisite)
+        # Narrow build to the workspace packages whose `dist/*.d.ts` are
+        # consumed by other workspace packages' type-aware ESLint rules.
+        # Consumer example: `@cerniq/mcp-bridge` imports `{ Cerniq,
+        # VerifyResult }` from `@cerniq/sdk`. The `types` field in
+        # @cerniq/sdk/package.json points to `dist/index.d.ts`, which is
+        # gitignored — so a clean checkout has no .d.ts until this step
+        # runs and the typed lint rules (`@typescript-eslint/no-unsafe-*`)
+        # resolve every import as `any` and fail.
+        # Kept narrow because the full `pnpm build` is the final CI step
+        # and there are pre-existing audit-verifier + cli build issues
+        # we don't want to surface here. Add packages to this filter as
+        # new typed-rule consumers appear.
+        run: pnpm --filter @cerniq/sdk --filter @cerniq/types build
+
       - name: Lint
         run: pnpm lint
 
