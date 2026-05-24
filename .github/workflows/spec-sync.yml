@@ -28,16 +28,16 @@ on:
       - 'packages/types/**'
       - 'apps/api/prisma/schema.prisma'
       - 'apps/api/src/modules/**/*.dto.ts'
+      - 'apps/api/src/modules/verify/algorithm/**'
+      - '.github/workflows/spec-sync.yml'
+  push:
+    branches: [main]
 
 # Explicit minimum-permission token per OpenSSF Scorecard `token-permissions`.
 # Read-only — runs parity scripts and emits `::warning::` annotations
 # (annotations use the shell convention, no token write needed).
 permissions:
   contents: read
-    - 'apps/api/src/modules/verify/algorithm/**'
-    - '.github/workflows/spec-sync.yml'
-  push:
-    branches: [main]
 
 jobs:
   openapi-vs-zod:
