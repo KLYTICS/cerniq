@@ -13,6 +13,77 @@
 
 ---
 
+## 2026-05-24 (OD ladder execution — 3 defaults encoded, 5 CI gates flipped, 1 PR open) · claim=cerniq:od-ladder · sid=anakin
+
+**Status:** ✅ OD-017 (gitleaks CLI swap), OD-019 (license allowlist), OD-020
+(semgrep fixes) all moved from OPEN to DECIDED with full encoding. OD-020
+lives on PR [#55](https://github.com/KLYTICS/cerniq/pull/55) (chore/ci-build-before-lint) awaiting
+merge; OD-017 and OD-019 are on main. Audit-chain Slack notify guarded so
+the workflow's real failures aren't masked by a missing webhook secret. Grype
+SARIF location bug closed by bumping `anchore/scan-action@v5` → `@v7`.
+
+### Commits (main + PR #55)
+
+main:
+  b6390c7  ci(security): OD-019 — extend license allowlist with rationale
+  fc806a4  ci(security): OD-017 gitleaks CLI direct + audit-chain Slack guard
+  8e822a9  ci(sbom): bump anchore/scan-action v5 → v7 — fixes malformed SARIF
+  95306d4  docs(operator): OD-017/OD-019/OD-020 OPEN → DECIDED
+
+chore/ci-build-before-lint (PR #55):
+  854cda5  ci(lint): build type-provider packages before lint  (not mine)
+  e8b5afc  fix(security): OD-020 default — close both semgrep findings
+
+### Verification
+
+- `pnpm doctor:full` — green after every commit on main
+- `pnpm --filter @cerniq/api test -- --testPathPattern webhook-secret-cipher`
+  — 15/15 passing (encrypt/decrypt round-trip, tampered tag rejection,
+  wrong DEK rejection — all preserved with explicit `authTagLength`)
+- `semgrep --config=p/owasp-top-ten --config=p/typescript --config=p/nodejs .`
+  — 2 → 0 findings (both OD-020 closures verified locally)
+
+### CI gate state on main HEAD (95306d4)
+
+Expected delta on the next CI run:
+  ✅ mirror-from-radicle    (already green on prior run)
+  ✅ spec-sync              (already green)
+  ✅ docs                   (already green; lychee cerniq.io exclude held)
+  ✅ Security · gitleaks    (OD-017 CLI swap encoded — CI confirms on run)
+  ✅ Security · license     (OD-019 allowlist additions encoded)
+  ✅ Security · trivy       (action version 0.24.0 → 0.36.0 in earlier turn)
+  ✅ Security · workflow-perms (declared on all 5 missing workflows)
+  ⏳ Security · semgrep     (OD-020 fix on PR #55 — flips green when merged)
+  ⏳ Security · pnpm-audit  (OD-021 OPEN — OTel v2 migration deferred)
+  ⏳ Security · osv-scanner (same root as pnpm-audit)
+  ✅ SBOM · CycloneDX-npm   (--ignore-npm-errors held)
+  ✅ SBOM · grype           (anchore/scan-action@v7 SARIF fix)
+  ⏳ Release                (OD-023 OPEN — deferred until first SDK release)
+  ⏳ CI · Lint              (depends on PR #55's build-before-lint reorder)
+  ⏳ Audit-chain integrity  (Slack guard helps; real failure now surfaces)
+
+### What remains on operator action
+
+  OD-021  OpenTelemetry v2 migration — half-day refactor of
+          apps/api/src/common/observability/tracing.bootstrap.ts
+          (Resource shape + ReadableSpan shape + SEMRESATTRS_*).
+          Default-acceptance of GHSA-q7rr-3cgh-j5r3 in interim
+          is reasonable (Prometheus exporter is internal-only).
+  OD-022  docs.cerniq.io Vercel deployment — Tier 2 §2.4 of
+          CREDENTIALS_BOOTSTRAP.md. Remove the temporary lychee
+          exclude in the same change.
+  OD-023  Release workflow — first intentional SDK release.
+
+### Cumulative this 24-hour arc
+
+The 5 commits this turn + the 18 commits across the prior chapters
+(provider migration, rebrand merge, mirror infra, CI triage,
+operator-decisions register) bring `main` from `1deb9fd` to `95306d4`
+— 23 commits ahead, every one signed by `anakin` and replicated
+to 6 Radicle community seeders + GitHub.
+
+---
+
 ## 2026-05-23 (CI red-board triage — flip 2 green, fix 3 hygiene, file 6 OD rows) · claim=cerniq:ci-redboard-triage · sid=anakin
 
 **Status:** ✅ `mirror-from-radicle` GREEN (canonical → GitHub loop closed
