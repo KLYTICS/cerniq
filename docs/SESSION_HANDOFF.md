@@ -76,6 +76,143 @@ turns green and the `build` job is fully green.
 
 ---
 
+## 2026-05-24 (PR #55 enterprise-readiness audit — full red-gate ground truth + 4 operator-elevatable findings) · claim=cerniq:pr-55-audit · sid=anakin
+
+**Status:** Audit-only session. No code committed to main beyond what the operator
+themselves landed (`75cd425` SHA-pinned trivy). Surfaces four discrete findings
+the operator can elevate to OD rows if desired — explicitly NOT authoring rows
+this session, since the operator's history-rewrite signal (rolled my OD-024 docs
+commit off main into `chore/cli-sdk-alignment` to land WITH the implementation)
+indicates OD-row authorship is operator-owned.
+
+### PR #55 actual CI ground truth (run id 26362315282 + sibling workflows)
+
+Six failing checks, four root causes, two already being addressed:
+
+| Failing check                        | Root cause                                                                                          | Address                                                                       |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `build` → `Typecheck`                | 9 CLI ↔ SDK contract errors in `packages/cli/src/commands/{agents,policies}.ts` (OD-024)            | Peer's `chore/cli-sdk-alignment` (`76c6967`) — Phase A1 SDK extension + 154 LoC unit tests + 73 LoC cross-package parity test |
+| `lint` (cli.yml)                     | golangci-lint failing — Go 1.22 in `.github/workflows/cli.yml` vs Go 1.24 in `packages/cli/go.mod`  | Operator's `chore/cli-go-1.24` (`9158d3f`) — bump workflow to Go 1.24         |
+| `SCA · trivy filesystem` → Set up    | `aquasecurity/trivy-action@0.36.0` — unpublished tag, only `@v0.36.0` exists upstream               | Operator landed on main as `75cd425` (SHA-pinned to `ed142fd`)                |
+| `SCA · pnpm audit`                   | GHSA-q7rr-3cgh-j5r3 (OTel Prometheus DoS) — exact CVE OD-021 marked "accept in interim"             | **Open finding** — see Finding #1 below                                       |
+| `SCA · osv-scanner / osv-scan`       | Same GHSA-q7rr-3cgh-j5r3, also from `osv-scanner.toml` lacking an entry for it                      | **Open finding** — see Finding #1 below                                       |
+| `Secrets · gitleaks`                 | False positives: `did:key:z6Mkt...` in `docs/SESSION_HANDOFF.md:27` + `NOTICE.md:7`; `JWT_ED25519_PRIVATE_KEY_B64` (env-var NAME, not value) in `infra/railway/api.service.json:53` | **Open finding** — see Finding #4 below                                       |
+
+### Finding #1 — Security gates don't honor accepted-CVE operator decisions
+
+OD-021 explicitly DECIDED "accept the Prometheus exporter CVE in the interim"
+(real exposure low — internal-only scrape, not internet-facing). Yet
+`SCA · pnpm audit` and `SCA · osv-scanner` both block on it every PR with no
+mechanism to recognize the operator's standing acceptance. This is a permanent
+red-tax until the OTel v2 migration lands (could be weeks).
+
+**Concrete fix path** — both gates already use filter-file patterns:
+  - `osv-scanner.toml` has `PackageOverrides` with per-entry sunset dates (see
+    e.g. `npm/@tootallnate/once/2.0.1` entry filtered with sunset 2026-06-30
+    pointing at the resolving PR #16). Add entries for
+    `@opentelemetry/auto-instrumentations-node`, `@opentelemetry/sdk-node`,
+    `@opentelemetry/exporter-trace-otlp-http` at the affected versions, with
+    sunset pointing at OD-021's resolution.
+  - `package.json` root supports `pnpm.auditConfig.ignoreCves` — add
+    `["GHSA-q7rr-3cgh-j5r3"]` with adjacent comment cross-referencing OD-021.
+
+Both filters preserve SARIF emission (gates remain audit-visible, just don't
+fail builds). Rejected: workflow-level `continue-on-error` (too coarse —
+silences future CVEs too); deleting the workflows entirely (loses signal for
+new CVEs).
+
+### Finding #2 — `doctor:full` typecheck coverage gap let OD-024 hide
+
+`scripts/doctor.ts` L372-384 hard-codes `pnpm doctor:full`'s full-mode gate to
+**3 of 17 workspaces**: `@cerniq/api`, `@cerniq/types`, `@cerniq/verifier-rp`.
+The other 14 (`@cerniq/cli`, `@cerniq/sdk`, `@cerniq/dashboard`, `@cerniq/mcp-server`,
+`@cerniq/mcp-bridge`, `@cerniq/audit-verifier`, `apps/docs`, `tools/*`, etc.)
+never get typechecked locally. That's how OD-024's CLI ↔ SDK drift lived
+2 days between `4403bba` (2026-05-22 rename) and PR #55's surfacing — the only
+place that catches it is CI's separate `pnpm typecheck` step, which only runs
+on push.
+
+**Recommended phased expansion**: add `@cerniq/cli`, `@cerniq/sdk`,
+`@cerniq/mcp-server`, `@cerniq/mcp-bridge`, `@cerniq/dashboard` to the gate
+list now (public-contract-bearing surfaces). Skip pre-existing-broken
+workspaces (`@cerniq/audit-verifier`, the Go cli wrapper) until their own
+fixes land. Runtime impact ≈10s per added workspace; current ≈30s → ≈80s
+expected. Long-term: collapse to `pnpm -r run typecheck` once every workspace
+is green, removing the hand-maintained list.
+
+### Finding #3 — OD-024 Phase A2/A3 follow-ups
+
+The peer's `chore/cli-sdk-alignment` (`76c6967`) ships Phase A1 cleanly but
+intentionally accepts two forward-compat silent-drop scenarios:
+
+  - **A2 (reason persistence in audit chain)**: `revoke(id, {reason})` on
+    both `AgentClient` and `PolicyClient` forwards `reason` in the request
+    body, but `apps/api/src/modules/identity/identity.controller.ts:49-55`
+    (DELETE /agents/:agentId) and the policy revoke handler have NO
+    `@Body()` parameter. Server silently drops the reason — never recorded
+    in the audit chain. Violates invariant §4. The Phase A1 JSDoc carries
+    a TODO for this.
+  - **A3 (cross-agent policy listing)**: `policies.list({agentId, status?})`
+    forwards `status` as a query param, but the controller doesn't read it
+    — every status filter returns all policies. Either add `status` query
+    support to the existing nested `GET /agents/:agentId/policies` (smaller),
+    or add a new top-level `GET /policies?agentId=&status=` (cleaner mental
+    model).
+
+Both A2 and A3 touch the API + Prisma + e2e tests; out of scope for the
+peer's SDK-only PR but worth tracking before any operator workflow depends
+on revoke-reason capture or cross-agent policy views.
+
+### Finding #4 — gitleaks DID/RID allowlist not catching real false positives
+
+`.github/gitleaks.toml` L40-41 has a `[allowlist]`-level regex for the W3C DID
+pattern (`did:key:z6Mk[1-9A-HJ-NP-Za-km-z]{40,50}`) — the pattern does match
+the firing findings BY HAND, but gitleaks v8.30.1 evidently doesn't honor the
+top-level allowlist regex against the `generic-api-key` rule's high-entropy
+firing. Plus the env-var-name token (`JWT_ED25519_PRIVATE_KEY_B64` in
+`infra/railway/api.service.json:53`) has no allowlist coverage at all today
+— that's a variable NAME, not a key value, but gitleaks scores it as a
+generic-api-key on entropy alone.
+
+**Recommended fix**: move the DID/RID regex from top-level `[allowlist]` to
+per-rule `[[rules.allowlists]]` under the `generic-api-key` rule (gitleaks
+v8 honors per-rule allowlists more reliably for entropy-fired rules). Add a
+path-based allowlist for `infra/railway/*.json` covering env-var-name
+patterns like `*_PRIVATE_KEY_*` and `*_SECRET_KEY_*`. Verify locally with
+`gitleaks detect --no-banner --redact --report-format json` and confirm 3 → 0.
+
+Rejected: deleting the literal DID strings from `NOTICE.md` (audit-trail
+attribution); globally disabling `generic-api-key` (unbounded future FNs);
+blanket `--ignore-path docs/` (masks audit-trail of FP-heavy content).
+
+### What I committed (and didn't)
+
+  ✅  `chore/ci-build-before-lint` `7b84b69` (earlier this session) — dashboard
+      typegen step before lint. Lint step green.
+  ✅  Sent peer 552f90d1 a coordination message acknowledging convergence on
+      OD-024 Phase A1. Peer closed claim after committing `76c6967`.
+  ❌  My OD-024 docs commit on main — rolled off by operator and folded into
+      `chore/cli-sdk-alignment` with the implementation. Correct call.
+  ❌  My `fix/trivy-action-tag-prefix` (`456ecfd`) — superseded by operator's
+      SHA-pinned `75cd425` on main. Branch deleted.
+  ❌  Proposed OD-025..028 rows — held back per operator-authorship signal.
+      All four findings written up above instead.
+
+### Next session priorities
+
+Pre-merge readiness for PR #55:
+  1. Land `chore/cli-sdk-alignment` → flips `build · Typecheck` green
+  2. Land `chore/cli-go-1.24` → flips `lint` (cli.yml) green
+  3. Address Finding #1 (CVE filter file extension) → flips `SCA · pnpm audit` + `SCA · osv-scanner` green
+  4. Address Finding #4 (gitleaks per-rule allowlist) → flips `Secrets · gitleaks` green
+  5. `Security gate · summary` becomes green automatically once 1-4 land.
+
+Post-merge enterprise-quality cleanup:
+  6. Finding #2 — expand `doctor:full` typecheck gate list (prevents next OD-024)
+  7. Finding #3 — schedule Phase A2/A3 API work (closes the invariant §4 silent-drop)
+
+---
+
 ## 2026-05-24 (OD-021 OTel v2 migration attempted + reverted by harness flow) · claim=cerniq:od-021-attempt · sid=anakin
 
 **Status:** ⚠️ OTel v2 migration attempted on side branch `feat/otel-v2-migration`,
