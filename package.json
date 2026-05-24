@@ -62,6 +62,11 @@
     "typescript-eslint": "^8.18.0"
   },
   "pnpm": {
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-q7rr-3cgh-j5r3"
+      ]
+    },
     "overrides": {
       "next": ">=16.2.6",
       "hono": ">=4.12.18",
