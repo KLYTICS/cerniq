@@ -16,6 +16,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { JwtUtil } from '../../common/crypto/jwt.util';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { RedisService } from '../../common/redis/redis.service';
+import type { AuditService } from '../audit/audit.service';
 
 import { ScopeCategory } from './policy.dto';
 import { PolicyService } from './policy.service';
@@ -31,6 +32,8 @@ interface AgentRow {
   id: string;
   principalId: string;
   status: 'ACTIVE' | 'SUSPENDED' | 'REVOKED';
+  trustScore: number;
+  trustBand: 'PLATINUM' | 'VERIFIED' | 'WATCH' | 'FLAGGED';
 }
 
 interface PolicyRow {
@@ -113,6 +116,11 @@ function makeJwt(): jest.Mocked<Pick<JwtUtil, 'sign'>> {
   return { sign: jest.fn().mockImplementation(async () => `jwt_signed_${++seq}`) };
 }
 
+function makeAudit(): jest.Mocked<Pick<AuditService, 'append'>> {
+  let seq = 0;
+  return { append: jest.fn().mockImplementation(async () => `evt_test_${++seq}`) };
+}
+
 // ── Factory ───────────────────────────────────────────────────────────────────
 
 function makeService(opts: { agents?: AgentRow[]; policies?: PolicyRow[] } = {}) {
@@ -121,19 +129,33 @@ function makeService(opts: { agents?: AgentRow[]; policies?: PolicyRow[] } = {})
   const prisma = makePrisma(agents, policies);
   const redis = makeRedis();
   const jwt = makeJwt();
+  const audit = makeAudit();
   const svc = new PolicyService(
     prisma as unknown as PrismaService,
     redis as unknown as RedisService,
     jwt as unknown as JwtUtil,
+    audit as unknown as AuditService,
   );
   svc.setSigningMaterial(FAKE_PRIVATE_KEY, FAKE_PUBLIC_KEY_B64);
-  return { svc, prisma, redis, jwt, agents, policies };
+  return { svc, prisma, redis, jwt, audit, agents, policies };
 }
 
 // ── Shared fixtures ───────────────────────────────────────────────────────────
 
-const ACTIVE_AGENT: AgentRow = { id: 'agt_1', principalId: 'prn_A', status: 'ACTIVE' };
-const REVOKED_AGENT: AgentRow = { id: 'agt_rev', principalId: 'prn_A', status: 'REVOKED' };
+const ACTIVE_AGENT: AgentRow = {
+  id: 'agt_1',
+  principalId: 'prn_A',
+  status: 'ACTIVE',
+  trustScore: 750,
+  trustBand: 'VERIFIED',
+};
+const REVOKED_AGENT: AgentRow = {
+  id: 'agt_rev',
+  principalId: 'prn_A',
+  status: 'REVOKED',
+  trustScore: 0,
+  trustBand: 'FLAGGED',
+};
 
 function futureIso(daysAhead = 30): string {
   return new Date(Date.now() + daysAhead * 86_400_000).toISOString();
@@ -394,6 +416,57 @@ describe('PolicyService', () => {
       const { svc, policies: stored } = makeService({ agents: [ACTIVE_AGENT], policies });
       await svc.revoke('prn_A', 'agt_1', 'pol_active');
       expect(stored[0].revokedReason).toBeNull();
+    });
+
+    // ── OD-024 Phase A4 — signed audit-chain append on revoke ──────────────────
+    it('appends a signed audit-chain event with the policy snapshot', async () => {
+      const policies: PolicyRow[] = [{ ...existingPolicy }];
+      const { svc, audit } = makeService({ agents: [ACTIVE_AGENT], policies });
+      await svc.revoke('prn_A', 'agt_1', 'pol_active', 'rotation');
+
+      expect(audit.append).toHaveBeenCalledTimes(1);
+      const [event] = audit.append.mock.calls[0] as unknown as [Record<string, unknown>];
+      expect(event).toMatchObject({
+        agentId: 'agt_1',
+        claimedAgentId: 'agt_1',
+        principalId: 'prn_A',
+        action: 'policy.revoked',
+        decision: 'APPROVED',
+        policyId: 'pol_active',
+        trustScoreAtEvent: 750,
+        trustBandAtEvent: 'VERIFIED',
+      });
+      expect(event.policySnapshot).toMatchObject({
+        reason: 'rotation',
+        previousStatus: 'ACTIVE',
+        label: 'active',
+      });
+    });
+
+    it('captures previous status when revoking an already-revoked policy (idempotent)', async () => {
+      const policies: PolicyRow[] = [{ ...existingPolicy, status: 'REVOKED' }];
+      const { svc, audit } = makeService({ agents: [ACTIVE_AGENT], policies });
+      await svc.revoke('prn_A', 'agt_1', 'pol_active', 're-revoke');
+
+      const [event] = audit.append.mock.calls[0] as unknown as [Record<string, unknown>];
+      expect((event.policySnapshot as { previousStatus: string }).previousStatus).toBe('REVOKED');
+    });
+
+    it('records the agent trust score + band as they stood at revocation', async () => {
+      const flagged: AgentRow = {
+        id: 'agt_flagged',
+        principalId: 'prn_A',
+        status: 'ACTIVE',
+        trustScore: 250,
+        trustBand: 'WATCH',
+      };
+      const policies: PolicyRow[] = [{ ...existingPolicy, agentId: 'agt_flagged' }];
+      const { svc, audit } = makeService({ agents: [flagged], policies });
+      await svc.revoke('prn_A', 'agt_flagged', 'pol_active');
+
+      const [event] = audit.append.mock.calls[0] as unknown as [Record<string, unknown>];
+      expect(event.trustScoreAtEvent).toBe(250);
+      expect(event.trustBandAtEvent).toBe('WATCH');
     });
   });
 });

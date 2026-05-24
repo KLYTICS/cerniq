@@ -7,6 +7,7 @@ import { ulid } from 'ulid';
 import { JwtUtil } from '../../common/crypto/jwt.util';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
+import { AuditService } from '../audit/audit.service';
 
 import {
   type CreatePolicyDto,
@@ -33,6 +34,7 @@ export class PolicyService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly jwt: JwtUtil,
+    private readonly audit: AuditService,
   ) {}
 
   setSigningMaterial(privateKey: Uint8Array, publicKeyB64: string): void {
@@ -149,16 +151,59 @@ export class PolicyService {
     policyId: string,
     reason?: string,
   ): Promise<void> {
-    await this.assertOwnership(principalId, agentId);
+    // Capture the agent's current trust state so the audit row records
+    // the score/band as they stood at the moment the policy was revoked.
+    // `assertOwnership` is replaced by an inline read that also returns
+    // the columns we need for the audit append (one DB roundtrip instead
+    // of two).
+    const agent = await this.prisma.agentIdentity.findFirst({
+      where: { id: agentId, principalId },
+      select: { id: true, trustScore: true, trustBand: true },
+    });
+    if (!agent)
+      throw new NotFoundException({ error: 'AGENT_NOT_FOUND', message: 'Agent not found.' });
+
     const policy = await this.prisma.agentPolicy.findFirst({ where: { id: policyId, agentId } });
     if (!policy)
       throw new NotFoundException({ error: 'POLICY_NOT_FOUND', message: 'Policy not found.' });
+
+    // Snapshot pre-update fields into locals so the audit append below
+    // records the policy state as it was *before* the revoke, regardless
+    // of whether the underlying ORM returns a separate object instance
+    // from `update` (defensive against aliasing).
+    const snapshot = {
+      previousStatus: policy.status,
+      label: policy.label,
+      scopes: policy.scopes,
+      expiresAt: policy.expiresAt.toISOString(),
+    };
 
     await this.prisma.agentPolicy.update({
       where: { id: policyId },
       data: { status: 'REVOKED', revokedAt: new Date(), revokedReason: reason ?? null },
     });
     await this.redis.del(`policy:${policyId}`);
+
+    // OD-024 Phase A4 — append signed audit-chain event for the
+    // revocation. Sync await after the state change commits (mirrors
+    // `billing.plan_changed`). The chain entry preserves the pre-revoke
+    // policy snapshot (label + scopes) so audit replay can reconstruct
+    // what was revoked even after the row is later purged by retention.
+    await this.audit.append({
+      agentId: agent.id,
+      claimedAgentId: agent.id,
+      principalId,
+      action: 'policy.revoked',
+      decision: 'APPROVED',
+      policyId: policy.id,
+      policySnapshot: {
+        reason: reason ?? null,
+        ...snapshot,
+      },
+      trustScoreAtEvent: agent.trustScore,
+      trustBandAtEvent: agent.trustBand,
+    });
+
     this.logger.log(
       `Policy revoked: ${policyId}${reason ? ` reason=${JSON.stringify(reason)}` : ''}`,
     );
