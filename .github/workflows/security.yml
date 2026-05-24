@@ -159,7 +159,7 @@ jobs:
         uses: actions/checkout@v4 # pin: replace with full sha before merge
 
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0 — upstream tag is `v0.36.0` (with `v` prefix); the prior unprefixed `0.36.0` resolved 404 on the runner. SHA-pinned per workflow policy.
+        uses: aquasecurity/trivy-action@0.36.0 # pin: replace with full sha before merge — version 0.24.0 was never published; 0.36.0 is the current latest as of 2026-05.
         with:
           scan-type: fs
           scan-ref: '.'
