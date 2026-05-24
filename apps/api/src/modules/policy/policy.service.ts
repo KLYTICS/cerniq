@@ -8,6 +8,7 @@ import { JwtUtil } from '../../common/crypto/jwt.util';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { AuditService } from '../audit/audit.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
 
 import {
   type CreatePolicyDto,
@@ -35,6 +36,7 @@ export class PolicyService {
     private readonly redis: RedisService,
     private readonly jwt: JwtUtil,
     private readonly audit: AuditService,
+    private readonly webhooks: WebhooksService,
   ) {}
 
   setSigningMaterial(privateKey: Uint8Array, publicKeyB64: string): void {
@@ -203,6 +205,27 @@ export class PolicyService {
       trustScoreAtEvent: agent.trustScore,
       trustBandAtEvent: agent.trustBand,
     });
+
+    // OD-024 Phase A5 — fan `cerniq.policy.revoked` webhook to active
+    // subscribers. Sibling to the existing `cerniq.policy.expired`
+    // event (emitted by policy.expiry.worker) — same shape minus the
+    // sweep-specific `sweptAt` field, plus the operator-supplied
+    // `reason` and `previousStatus`. `webhooks.enqueue` swallows
+    // fanout errors so a flaky subscriber doesn't break the manual
+    // revoke path.
+    await this.webhooks.enqueue(
+      {
+        type: 'cerniq.policy.revoked',
+        data: {
+          policyId: policy.id,
+          agentId,
+          revokedAt: new Date().toISOString(),
+          reason: reason ?? null,
+          previousStatus: snapshot.previousStatus,
+        },
+      },
+      principalId,
+    );
 
     this.logger.log(
       `Policy revoked: ${policyId}${reason ? ` reason=${JSON.stringify(reason)}` : ''}`,

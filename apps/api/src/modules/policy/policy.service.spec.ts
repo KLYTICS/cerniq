@@ -17,6 +17,7 @@ import type { JwtUtil } from '../../common/crypto/jwt.util';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { RedisService } from '../../common/redis/redis.service';
 import type { AuditService } from '../audit/audit.service';
+import type { WebhooksService } from '../webhooks/webhooks.service';
 
 import { ScopeCategory } from './policy.dto';
 import { PolicyService } from './policy.service';
@@ -121,6 +122,10 @@ function makeAudit(): jest.Mocked<Pick<AuditService, 'append'>> {
   return { append: jest.fn().mockImplementation(async () => `evt_test_${++seq}`) };
 }
 
+function makeWebhooks(): jest.Mocked<Pick<WebhooksService, 'enqueue'>> {
+  return { enqueue: jest.fn().mockResolvedValue(undefined) };
+}
+
 // ── Factory ───────────────────────────────────────────────────────────────────
 
 function makeService(opts: { agents?: AgentRow[]; policies?: PolicyRow[] } = {}) {
@@ -130,14 +135,16 @@ function makeService(opts: { agents?: AgentRow[]; policies?: PolicyRow[] } = {})
   const redis = makeRedis();
   const jwt = makeJwt();
   const audit = makeAudit();
+  const webhooks = makeWebhooks();
   const svc = new PolicyService(
     prisma as unknown as PrismaService,
     redis as unknown as RedisService,
     jwt as unknown as JwtUtil,
     audit as unknown as AuditService,
+    webhooks as unknown as WebhooksService,
   );
   svc.setSigningMaterial(FAKE_PRIVATE_KEY, FAKE_PUBLIC_KEY_B64);
-  return { svc, prisma, redis, jwt, audit, agents, policies };
+  return { svc, prisma, redis, jwt, audit, webhooks, agents, policies };
 }
 
 // ── Shared fixtures ───────────────────────────────────────────────────────────
@@ -467,6 +474,39 @@ describe('PolicyService', () => {
       const [event] = audit.append.mock.calls[0] as unknown as [Record<string, unknown>];
       expect(event.trustScoreAtEvent).toBe(250);
       expect(event.trustBandAtEvent).toBe('WATCH');
+    });
+
+    // ── OD-024 Phase A5 — webhook fanout `cerniq.policy.revoked` ───────────────
+    it('fans `cerniq.policy.revoked` webhook to active subscribers', async () => {
+      const policies: PolicyRow[] = [{ ...existingPolicy }];
+      const { svc, webhooks } = makeService({ agents: [ACTIVE_AGENT], policies });
+      await svc.revoke('prn_A', 'agt_1', 'pol_active', 'rotation');
+
+      expect(webhooks.enqueue).toHaveBeenCalledTimes(1);
+      const [event, fanoutPrincipalId] = webhooks.enqueue.mock.calls[0] as unknown as [
+        { type: string; data: Record<string, unknown> },
+        string,
+      ];
+      expect(event.type).toBe('cerniq.policy.revoked');
+      expect(fanoutPrincipalId).toBe('prn_A');
+      expect(event.data).toMatchObject({
+        policyId: 'pol_active',
+        agentId: 'agt_1',
+        reason: 'rotation',
+        previousStatus: 'ACTIVE',
+      });
+      expect(typeof event.data.revokedAt).toBe('string');
+    });
+
+    it('webhook fanout carries reason=null when no reason supplied', async () => {
+      const policies: PolicyRow[] = [{ ...existingPolicy }];
+      const { svc, webhooks } = makeService({ agents: [ACTIVE_AGENT], policies });
+      await svc.revoke('prn_A', 'agt_1', 'pol_active');
+
+      const [event] = webhooks.enqueue.mock.calls[0] as unknown as [
+        { data: { reason: string | null } },
+      ];
+      expect(event.data.reason).toBeNull();
     });
   });
 });

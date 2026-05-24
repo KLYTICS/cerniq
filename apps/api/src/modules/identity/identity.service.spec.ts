@@ -12,6 +12,7 @@ import { sha512 } from '@noble/hashes/sha2';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { RedisService } from '../../common/redis/redis.service';
 import type { AuditService } from '../audit/audit.service';
+import type { WebhooksService } from '../webhooks/webhooks.service';
 
 import { AgentRuntimeDto, AgentStatusFilter } from './identity.dto';
 import { IdentityService } from './identity.service';
@@ -28,6 +29,14 @@ ed.etc.sha512Sync = (...m: Uint8Array[]) => sha512(ed.etc.concatBytes(...m));
 // the call args.
 function fakeAudit(): AuditService {
   return { append: jest.fn().mockResolvedValue('evt_test_id') } as unknown as AuditService;
+}
+
+// OD-024 Phase A5: IdentityService now also depends on WebhooksService
+// to fan `cerniq.agent.revoked` events. No-op stub for tests that don't
+// assert on the fanout; targeted stubs below for the audit/webhook
+// paired tests.
+function fakeWebhooks(): WebhooksService {
+  return { enqueue: jest.fn().mockResolvedValue(undefined) } as unknown as WebhooksService;
 }
 
 function b64Url(buf: Uint8Array): string {
@@ -93,7 +102,7 @@ describe('IdentityService.list', () => {
 
     const prisma = { agentIdentity: { findMany, count } } as unknown as PrismaService;
     const redis = { get: jest.fn(), set: jest.fn(), del: jest.fn() } as unknown as RedisService;
-    return new IdentityService(prisma, redis, fakeAudit());
+    return new IdentityService(prisma, redis, fakeAudit(), fakeWebhooks());
   }
 
   function fakeAgent(overrides: Partial<FakeAgent> = {}): FakeAgent {
@@ -206,7 +215,7 @@ describe('IdentityService.findOne / revoke', () => {
       },
     } as unknown as PrismaService;
     const redis = { get: jest.fn(), set: jest.fn(), del: jest.fn() } as unknown as RedisService;
-    const svc = new IdentityService(prisma, redis, fakeAudit());
+    const svc = new IdentityService(prisma, redis, fakeAudit(), fakeWebhooks());
 
     await expect(svc.findOne('prn_alpha', 'agt_belongs_to_beta')).rejects.toBeInstanceOf(
       NotFoundException,
@@ -233,7 +242,7 @@ describe('IdentityService.findOne / revoke', () => {
     } as unknown as RedisService;
     const auditAppend = jest.fn().mockResolvedValue('evt_test_audit');
     const audit = { append: auditAppend } as unknown as AuditService;
-    const svc = new IdentityService(prisma, redis, audit);
+    const svc = new IdentityService(prisma, redis, audit, fakeWebhooks());
 
     await svc.revoke('prn_alpha', 'agt_target', 'compromised key');
 
@@ -273,7 +282,7 @@ describe('IdentityService.findOne / revoke', () => {
     } as unknown as RedisService;
     const auditAppend = jest.fn().mockResolvedValue('evt_test_audit');
     const audit = { append: auditAppend } as unknown as AuditService;
-    const svc = new IdentityService(prisma, redis, audit);
+    const svc = new IdentityService(prisma, redis, audit, fakeWebhooks());
 
     await svc.revoke('prn_alpha', 'agt_target');
 
@@ -292,10 +301,65 @@ describe('IdentityService.findOne / revoke', () => {
     const redis = { get: jest.fn(), set: jest.fn(), del: jest.fn() } as unknown as RedisService;
     const auditAppend = jest.fn().mockResolvedValue('evt_test_audit');
     const audit = { append: auditAppend } as unknown as AuditService;
-    const svc = new IdentityService(prisma, redis, audit);
+    const svc = new IdentityService(prisma, redis, audit, fakeWebhooks());
 
     await expect(svc.revoke('prn_alpha', 'agt_missing')).rejects.toBeInstanceOf(NotFoundException);
     expect(auditAppend).not.toHaveBeenCalled();
+  });
+
+  // ── OD-024 Phase A5 — webhook fanout `cerniq.agent.revoked` ────────────────
+  it('revoke fans `cerniq.agent.revoked` webhook to active subscribers', async () => {
+    const prisma = {
+      agentIdentity: {
+        findFirst: jest.fn(async () => ({
+          id: 'agt_target',
+          status: 'ACTIVE',
+          trustScore: 720,
+          trustBand: 'VERIFIED',
+        })),
+        update: jest.fn(async () => undefined),
+      },
+    } as unknown as PrismaService;
+    const redis = {
+      get: jest.fn(),
+      set: jest.fn(),
+      del: jest.fn().mockResolvedValue(1),
+    } as unknown as RedisService;
+    const webhooksEnqueue = jest.fn().mockResolvedValue(undefined);
+    const webhooks = { enqueue: webhooksEnqueue } as unknown as WebhooksService;
+    const svc = new IdentityService(prisma, redis, fakeAudit(), webhooks);
+
+    await svc.revoke('prn_alpha', 'agt_target', 'compromised key');
+
+    expect(webhooksEnqueue).toHaveBeenCalledTimes(1);
+    const [event, fanoutPrincipalId] = webhooksEnqueue.mock.calls[0] as unknown as [
+      { type: string; data: Record<string, unknown> },
+      string,
+    ];
+    expect(event.type).toBe('cerniq.agent.revoked');
+    expect(fanoutPrincipalId).toBe('prn_alpha');
+    expect(event.data).toMatchObject({
+      agentId: 'agt_target',
+      reason: 'compromised key',
+      previousStatus: 'ACTIVE',
+    });
+    expect(typeof event.data.revokedAt).toBe('string');
+  });
+
+  it('revoke does NOT fan a webhook when the agent does not exist', async () => {
+    const prisma = {
+      agentIdentity: {
+        findFirst: jest.fn(async () => null),
+        update: jest.fn(async () => undefined),
+      },
+    } as unknown as PrismaService;
+    const redis = { get: jest.fn(), set: jest.fn(), del: jest.fn() } as unknown as RedisService;
+    const webhooksEnqueue = jest.fn().mockResolvedValue(undefined);
+    const webhooks = { enqueue: webhooksEnqueue } as unknown as WebhooksService;
+    const svc = new IdentityService(prisma, redis, fakeAudit(), webhooks);
+
+    await expect(svc.revoke('prn_alpha', 'agt_missing')).rejects.toBeInstanceOf(NotFoundException);
+    expect(webhooksEnqueue).not.toHaveBeenCalled();
   });
 });
 
@@ -355,7 +419,7 @@ describe('IdentityService.issueChallenge / verifyHandshake (M-003)', () => {
     } as unknown as PrismaService;
 
     return {
-      svc: new IdentityService(prisma, redis, fakeAudit()),
+      svc: new IdentityService(prisma, redis, fakeAudit(), fakeWebhooks()),
       principalId,
       agentId,
       redis: redis as unknown as { get: jest.Mock; set: jest.Mock; del: jest.Mock },

@@ -14,6 +14,7 @@ import type { AgentIdentity, Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { AuditService } from '../audit/audit.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
 
 import {
   type ListAgentsQueryDto,
@@ -80,6 +81,7 @@ export class IdentityService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly audit: AuditService,
+    private readonly webhooks: WebhooksService,
   ) {}
 
   async register(principalId: string, dto: RegisterAgentDto): Promise<AgentResponseDto> {
@@ -368,6 +370,28 @@ export class IdentityService {
       trustScoreAtEvent: previousTrustScore,
       trustBandAtEvent: previousTrustBand,
     });
+
+    // OD-024 Phase A5 — fan a webhook so customers can plumb revoke into
+    // their own systems (key-rotation tooling, incident response, SIEM,
+    // etc.). Mirrors the `cerniq.policy.expired` pattern in
+    // policy.expiry.worker. `webhooks.enqueue` swallows fanout errors
+    // internally (the manual-revoke path must not fail just because a
+    // subscriber URL is unreachable); the operator-facing revoke still
+    // succeeds. NB: the same revocation now generates three durable
+    // signals — Prisma row column, signed audit-chain event, and webhook
+    // delivery — defense in depth for SOC2 evidence.
+    await this.webhooks.enqueue(
+      {
+        type: 'cerniq.agent.revoked',
+        data: {
+          agentId: agent.id,
+          revokedAt: new Date().toISOString(),
+          reason: reason ?? null,
+          previousStatus,
+        },
+      },
+      principalId,
+    );
 
     this.logger.log(`Agent revoked: ${agentId} reason=${reason ?? 'n/a'}`);
   }

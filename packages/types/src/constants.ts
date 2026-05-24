@@ -45,6 +45,10 @@ export const WEBHOOK_EVENT = {
   AGENT_POLICY_EXPIRED: 'cerniq.agent.policy_expired',
   AGENT_FLAGGED_BY_RELYING_PARTY: 'cerniq.agent.flagged_by_relying_party',
   AGENT_REVOKED: 'cerniq.agent.revoked',
+  // OD-024 Phase A5 — manual policy revocation (sibling to AGENT_POLICY_EXPIRED
+  // which fires from the scheduled sweep; POLICY_REVOKED fires from the
+  // operator-initiated DELETE /v1/agents/:agentId/policies/:policyId path).
+  POLICY_REVOKED: 'cerniq.policy.revoked',
 } as const;
 
 export type WebhookEvent = (typeof WEBHOOK_EVENT)[keyof typeof WEBHOOK_EVENT];
