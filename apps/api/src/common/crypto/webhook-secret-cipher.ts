@@ -84,7 +84,10 @@ export class WebhookSecretCipher {
    */
   encrypt(plaintext: string): string {
     const iv = randomBytes(IV_BYTES);
-    const cipher = createCipheriv('aes-256-gcm', this.dek, iv);
+    // `authTagLength: TAG_BYTES` matches Node's GCM default but is stated
+    // explicitly per OWASP guidance and semgrep `javascript.node-crypto.
+    // security.gcm-no-tag-length` (OD-020). Decrypt below also asserts it.
+    const cipher = createCipheriv('aes-256-gcm', this.dek, iv, { authTagLength: TAG_BYTES });
     cipher.setAAD(AAD);
     const ct = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
     const tag = cipher.getAuthTag();
@@ -135,7 +138,12 @@ export class WebhookSecretCipher {
       throw new InternalError('webhook secret ciphertext: bad iv/tag length');
     }
 
-    const decipher = createDecipheriv('aes-256-gcm', this.dek, iv);
+    // Explicit authTagLength binds GCM tag length to TAG_BYTES (16). Matches
+    // Node's default but stated outright per semgrep
+    // `javascript.node-crypto.security.gcm-no-tag-length` (OD-020).
+    // Combined with the `tag.length !== TAG_BYTES` check above, this
+    // closes the cross-version GCM-truncation surface end-to-end.
+    const decipher = createDecipheriv('aes-256-gcm', this.dek, iv, { authTagLength: TAG_BYTES });
     decipher.setAAD(AAD);
     decipher.setAuthTag(tag);
     try {
