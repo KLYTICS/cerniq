@@ -35,7 +35,15 @@ export async function generateMetadata(props: { params: Promise<{ slug?: string[
     // satisfy @typescript-eslint/restrict-template-expressions. A non-
     // string title renders visibly (e.g. "[object Object] · CERNIQ Docs"),
     // so misformatted frontmatter fails loud rather than silent.
+    //
+    // typescript-eslint may upgrade the inferred type to `string` once
+    // fumadocs' generated types tighten — at which point the rules below
+    // would flag these as unnecessary. The runtime defense is intentional
+    // (fumadocs source is `any` at the value level even when typed string),
+    // so we keep the conversions and silence the static-only rules here.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-conversion
     title: `${String(page.data.title)} · CERNIQ Docs`,
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     description: page.data.description as string | undefined,
   };
 }

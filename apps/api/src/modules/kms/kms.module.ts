@@ -124,8 +124,8 @@ async function buildAws(
   config: AppConfigService,
   metrics: MetricsService | null,
 ): Promise<KmsAdapter> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { KMSClient, DecryptCommand } =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- optional AWS KMS provider; static import would force-bundle the SDK even when the operator is on GCP or noop KMS.
     require('@aws-sdk/client-kms') as typeof import('@aws-sdk/client-kms');
   const region = (config as unknown as { awsRegion?: string }).awsRegion;
   if (!region) throw new Error('AWS_REGION required for CERNIQ_KMS_PROVIDER=aws');

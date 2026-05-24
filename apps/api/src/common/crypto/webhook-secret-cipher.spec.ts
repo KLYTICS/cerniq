@@ -132,8 +132,8 @@ describe('WebhookSecretCipher', () => {
     });
 
     it('generates an ephemeral DEK and warns in development', () => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- Late-bound to avoid jest mock hoisting interactions; static import causes the spy to wire up on the wrong prototype.
       const warn = jest
+        // eslint-disable-next-line @typescript-eslint/no-require-imports -- Late-bound to avoid jest mock hoisting interactions; static import causes the spy to wire up on the wrong prototype.
         .spyOn(require('@nestjs/common').Logger.prototype, 'warn')
         .mockImplementation(() => undefined);
       try {

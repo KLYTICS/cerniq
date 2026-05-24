@@ -74,7 +74,7 @@
       "tmp": ">=0.2.4",
       "js-yaml": ">=4.1.0",
       "uuid": ">=11.0.3",
-      "brace-expansion": ">=2.0.2",
+      "brace-expansion": ">=2.0.2 <3.0.0",
       "ip-address": ">=10.0.1",
       "protobufjs": ">=7.4.0"
     }

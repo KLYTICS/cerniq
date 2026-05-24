@@ -48,6 +48,10 @@ export function GET() {
         // description to string for the template literal (per
         // @typescript-eslint/restrict-template-expressions). Non-string
         // values render visibly so frontmatter bugs fail loud.
+        //
+        // See apps/docs/app/docs/[[...slug]]/page.tsx for the same pattern
+        // and the no-unnecessary-type-conversion rationale.
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-conversion
         (p) => `- [${String(p.data.title)}](${SITE}${p.url}): ${String(p.data.description ?? '')}`,
       ),
       '',

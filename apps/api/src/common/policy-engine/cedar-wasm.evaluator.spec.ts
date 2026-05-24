@@ -88,8 +88,8 @@ describe('CedarWasmEvaluator', () => {
   it('throws clearly when cedar-wasm is not installed (no module + no inject)', () => {
     // Detect whether @cedar-policy/cedar-wasm is actually present in this environment.
     let cedarAvailable = false;
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- presence check for an optional native module; static import would fail to compile when absent.
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- presence check for an optional native module; static import would fail to compile when absent.
       require('@cedar-policy/cedar-wasm');
       cedarAvailable = true;
     } catch {
