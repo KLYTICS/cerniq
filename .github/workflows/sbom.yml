@@ -46,12 +46,21 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Generate CycloneDX SBOM
+        # `--ignore-npm-errors` skips packages whose transitive metadata
+        # is malformed (e.g. printable-characters@1.0.42 declares missing
+        # legacy babel/mocha/coveralls peers it doesn't actually need at
+        # runtime). Without this flag, npm-ls fails the entire SBOM
+        # generation on those metadata gaps even though the production
+        # tree is intact. The fallback Syft SPDX scan below (anchore/
+        # sbom-action) is a second independent generator that catches
+        # anything CycloneDX might skip.
         run: |
           pnpm dlx @cyclonedx/cyclonedx-npm \
             --output-format JSON \
             --output-file cerniq.cyclonedx.json \
             --spec-version 1.6 \
-            --gather-license-texts
+            --gather-license-texts \
+            --ignore-npm-errors
 
       - name: Generate SPDX SBOM via Syft
         uses: anchore/sbom-action@v0

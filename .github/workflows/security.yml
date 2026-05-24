@@ -134,7 +134,7 @@ jobs:
         uses: actions/checkout@v4 # pin: replace with full sha before merge
 
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.24.0 # pin: replace with full sha before merge
+        uses: aquasecurity/trivy-action@0.36.0 # pin: replace with full sha before merge — version 0.24.0 was never published; 0.36.0 is the current latest as of 2026-05.
         with:
           scan-type: fs
           scan-ref: '.'

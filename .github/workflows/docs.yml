@@ -87,10 +87,18 @@ jobs:
             --max-concurrency 4
             --base https://docs.cerniq.io
             --exclude '^https://docs\.cerniqlabs\.io'
+            --exclude '^https://docs\.cerniq\.io'
             --exclude '^http://localhost'
             'apps/docs/content/**/*.mdx'
             'apps/docs/README.md'
           fail: true
+          # --exclude ^docs.cerniq.io is deferred until the docs site
+          # is actually deployed (CREDENTIALS_BOOTSTRAP.md Tier 2 §2.4).
+          # MDX content links to docs.cerniq.io anchors that Next.js
+          # validates at build time (no broken routes there); lychee
+          # rightly fails them while the domain returns Connection
+          # refused. Remove this exclude line once docs.cerniq.io
+          # is live and serving the routes.
 
   build-and-pack:
     name: build (main only)
