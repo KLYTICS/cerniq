@@ -13,6 +13,74 @@
 
 ---
 
+## 2026-05-24 (OD-021 OTel v2 migration attempted + reverted by harness flow) · claim=cerniq:od-021-attempt · sid=anakin
+
+**Status:** ⚠️ OTel v2 migration attempted on side branch `feat/otel-v2-migration`,
+locally verified green (`pnpm doctor:full` clean; `pnpm audit --audit-level high
+--prod` dropped from 3 → 0 HIGH), but **reverted by harness/linter before landing
+on a remote branch**. The three target files (`apps/api/package.json`,
+`apps/api/src/common/observability/tracing.bootstrap.ts`, root `package.json`
+pnpm.overrides) were tagged with the "intentional change, don't revert" marker
+on their pre-migration state. Side branch deleted to keep the branch list clean.
+
+### What was attempted (and locally verified)
+
+  apps/api/package.json — direct OTel deps bumped:
+    @opentelemetry/auto-instrumentations-node  ^0.51.0 → ^0.76.0
+    @opentelemetry/exporter-trace-otlp-http    ^0.55.0 → ^0.217.0
+    @opentelemetry/resources                   ^1.28.0 → ^2.0.0
+    @opentelemetry/sdk-node                    ^0.55.0 → ^0.217.0
+    @opentelemetry/sdk-trace-base              ^1.28.0 → ^2.0.0
+    @opentelemetry/semantic-conventions        ^1.28.0 → ^1.30.0
+
+  package.json (root) — pnpm.overrides extended for transitives:
+    @opentelemetry/sdk-node             >=0.217.0
+    @opentelemetry/exporter-prometheus  >=0.217.0
+    @opentelemetry/exporter-trace-otlp-http >=0.217.0
+    @opentelemetry/sdk-trace-base       >=2.0.0
+    @opentelemetry/resources            >=2.0.0
+
+  apps/api/src/common/observability/tracing.bootstrap.ts:
+    `new Resource({...})` → `resourceFromAttributes({...})` factory
+    `SemanticResourceAttributes.SERVICE_NAME` → `SEMRESATTRS_SERVICE_NAME`
+    `SemanticResourceAttributes.SERVICE_VERSION` → `SEMRESATTRS_SERVICE_VERSION`
+    Drop the deprecated-API eslint-disable directive
+
+### Verification (pre-revert)
+
+  pnpm doctor:full                          → green
+  pnpm audit --audit-level high --prod       → 3 → 0 HIGH (CVE closed)
+  tsc @cerniq/api                            → PASS
+  cross-package parity                       → PASS
+
+### Interpretation
+
+The "intentional change, don't revert" marker on all three files is the
+highest-priority protocol signal. Respecting it: the migration is held
+for a separate, intentional session — probably one that wants to bundle
+it with related observability work, or to land it independently from the
+CI red-board triage arc this session has been driving.
+
+The local-verification result is now captured in the OD-021 row in
+OPERATOR_DECISIONS.md §2 so the operator (or the next session) has
+concrete intel when scheduling the real migration: it's known-viable.
+
+### Companion PR #55 update
+
+While on the chore/ci-build-before-lint branch (PR #55), committed `7b84b69`
+which adds `next typegen` as a pre-lint CI step. Same intent as the
+existing `854cda5` (build before lint): generate the type artifacts CI
+needs before ESLint reads them. Closes the local-vs-CI divergence on
+typed-routes (`CommandPalette.tsx`, `KeyboardShortcuts.tsx`
+`as Route` assertions).
+
+PR #55 now has 3 commits:
+  854cda5  ci(lint): build type-provider packages before lint
+  e8b5afc  fix(security): apply OD-020 default — close both semgrep findings
+  7b84b69  ci(lint): generate dashboard typed-routes before lint
+
+---
+
 ## 2026-05-24 (OD ladder execution — 3 defaults encoded, 5 CI gates flipped, 1 PR open) · claim=cerniq:od-ladder · sid=anakin
 
 **Status:** ✅ OD-017 (gitleaks CLI swap), OD-019 (license allowlist), OD-020
