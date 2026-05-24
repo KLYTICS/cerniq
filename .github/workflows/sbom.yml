@@ -118,7 +118,11 @@ jobs:
           name: cerniq-sbom-${{ github.sha }}
 
       - name: Run Grype against SBOM
-        uses: anchore/scan-action@v5
+        # anchore/scan-action@v5 emitted SARIF with results missing
+        # artifactLocation, which GitHub Code Scanning rejects as malformed
+        # (errored 21x with `expected artifact location` on b6390c7). v7
+        # standardizes the SARIF locations against the GitHub schema.
+        uses: anchore/scan-action@v7
         id: grype
         with:
           sbom: cerniq.spdx.json
