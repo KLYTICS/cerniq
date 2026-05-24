@@ -367,9 +367,23 @@ if (FULL) {
     }
   }
 
-  header('Full mode — running gates (≈30s)');
+  header('Full mode — running gates (≈60s)');
+  // Typecheck the public-contract-bearing workspaces locally so CLI ↔ SDK,
+  // dashboard ↔ types, and MCP ↔ SDK drift surfaces here instead of CI's
+  // separate `pnpm typecheck` step. OD-024 (CLI ↔ SDK contract drift) was
+  // hidden for 2 days specifically because @cerniq/cli wasn't in this gate;
+  // see the PR #55 enterprise-readiness audit (docs/SESSION_HANDOFF.md
+  // 2026-05-24) Finding #2. Skipped intentionally: @cerniq/audit-verifier
+  // (pre-existing typecheck red), Go CLI wrapper (no tsc), and tooling
+  // workspaces (test infra, scripts) whose typecheck adds noise without
+  // catching public-contract drift.
   const gates: Array<{ name: string; cmd: string; timeoutMs?: number }> = [
     { name: 'tsc @cerniq/api', cmd: 'pnpm --filter @cerniq/api exec tsc --noEmit' },
+    { name: 'tsc @cerniq/cli', cmd: 'pnpm --filter @cerniq/cli exec tsc --noEmit' },
+    { name: 'tsc @cerniq/dashboard', cmd: 'pnpm --filter @cerniq/dashboard exec tsc --noEmit' },
+    { name: 'tsc @cerniq/mcp-bridge', cmd: 'pnpm --filter @cerniq/mcp-bridge exec tsc --noEmit' },
+    { name: 'tsc @cerniq/mcp-server', cmd: 'pnpm --filter @cerniq/mcp-server exec tsc --noEmit' },
+    { name: 'tsc @cerniq/sdk', cmd: 'pnpm --filter @cerniq/sdk exec tsc --noEmit' },
     { name: 'tsc @cerniq/types', cmd: 'pnpm --filter @cerniq/types exec tsc --noEmit' },
     { name: 'tsc @cerniq/verifier-rp', cmd: 'pnpm --filter @cerniq/verifier-rp exec tsc --noEmit' },
     { name: 'audit:errors', cmd: 'pnpm --filter @cerniq/scripts run audit:errors' },
