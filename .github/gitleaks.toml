@@ -102,6 +102,71 @@ paths = [
     '''docs/SESSION_HANDOFF\.md''',
 ]
 
+# Block 5 — scoped to `generic-api-key` AND `jwt` for documentation,
+# postman fixtures, and JWT-token generators. These files MUST carry
+# example JWT-shaped strings (`eyJhbGci…`) to teach consumers what a
+# real signed token looks like; the strings are static fixtures whose
+# signatures don't verify against any real key. Path-scoped narrowly
+# to documentation surfaces + Postman collections + the walkthrough
+# generator. The cerniq-specific signing-key rules and the
+# `ed25519-private-seed` rule still fire here, so any real key
+# accidentally pasted into one of these files would still be caught.
+[[allowlists]]
+description = "JWT-shaped example tokens in docs / Postman fixtures / walkthrough generators"
+targetRules = ["generic-api-key", "jwt"]
+paths = [
+    '''apps/docs/content/.*\.mdx''',
+    '''docs/.*\.md''',
+    '''scripts/generate-.*\.ts''',
+    '''tools/postman/.*\.json''',
+]
+
+# Block 6 — scoped to `generic-api-key` for test files. Test fixtures
+# routinely use deterministic IDs (ULIDs like `01HZ9YZXM4QT3B7P8WKJD6R5V`,
+# variable-name strings like `priv_test_b64u`) that hit the entropy rule
+# but are never real secrets. Standard test-file extensions only:
+# `*.spec.ts`, `*.test.ts`, `tests/test_*.py`. The
+# `ed25519-private-seed` rule still catches an actual 43-char base64url
+# assignment to `_PRIVATE_KEY_B64`, so leaking a real seed into a test
+# fixture would still trip.
+[[allowlists]]
+description = "Test fixtures (deterministic IDs / variable names) — generic-api-key entropy FPs"
+targetRules = ["generic-api-key"]
+paths = [
+    '''.*\.spec\.ts''',
+    '''.*\.test\.ts''',
+    '''.*/tests/test_.*\.py''',
+    '''packages/sdk-py/tests/.*\.py''',
+]
+
+# Block 7 — historical pre-rebrand artifact. The string
+# `aegis-fapi-2.0-aligned-1.0` was a protocol-version constant in
+# `apps/api/src/modules/wellknown/wellknown.service.ts` during the
+# AEGIS era; the rebrand (commit 4403bba, 2026-05-22) removed it.
+# Gitleaks scans full git history by default, so the old commit still
+# shows up. Narrow regex-allowlist that matches just this one literal
+# string keeps the silencing surgical — no surrounding code is
+# allowlisted, so any future change at that file path remains fully
+# scanned.
+[[allowlists]]
+description = "Historical AEGIS-era FAPI protocol version string (pre-rebrand artifact)"
+targetRules = ["generic-api-key"]
+regexes = [
+    '''aegis-fapi-2\.0-aligned-1\.0''',
+]
+
+# Block 8 — example-code variable references. The `examples/` tree
+# carries quickstart code that consumers copy verbatim; variable
+# references like `args.privateKeyB64u` are property accesses in the
+# example program (not secret values), but the entropy rule still
+# fires on the mixed-case identifier. Path-scoped to `examples/` only.
+[[allowlists]]
+description = "Examples tree — generic-api-key entropy FPs on variable references"
+targetRules = ["generic-api-key"]
+paths = [
+    '''examples/.*''',
+]
+
 # ─────────────────────────────────────────────────────────────
 # Project-specific rules — extra patterns gitleaks default misses.
 # ─────────────────────────────────────────────────────────────
