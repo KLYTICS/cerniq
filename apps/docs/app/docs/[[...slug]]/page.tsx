@@ -30,15 +30,15 @@ export async function generateMetadata(props: { params: Promise<{ slug?: string[
   const params = await props.params;
   const page = source.getPage(params.slug);
   if (!page) return {};
+  // fumadocs' source.getPage returns `page.data` as `any` in the CI
+  // type environment (the .source types aren't materialized until a
+  // build pass). Narrow once to the expected frontmatter shape so the
+  // rest of the function works against typed fields — satisfies
+  // restrict-template-expressions, no-unnecessary-type-conversion, and
+  // no-unnecessary-type-assertion together.
+  const data = page.data as { title: string; description?: string };
   return {
-    // page.data.title was typed `any` by older fumadocs versions; explicit
-    // String() coercion was added to satisfy restrict-template-expressions.
-    // Modern fumadocs (via pretypecheck-generated types) types it as string,
-    // so the coercion and `as` assertion are now provably unnecessary and
-    // typescript-eslint flags them. If fumadocs ever loosens the type back
-    // to `any`, restrict-template-expressions will re-fire here and the
-    // coercion can be added back with rationale.
-    title: `${page.data.title} · CERNIQ Docs`,
-    description: page.data.description,
+    title: `${data.title} · CERNIQ Docs`,
+    description: data.description,
   };
 }

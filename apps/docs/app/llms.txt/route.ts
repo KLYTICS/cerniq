@@ -43,14 +43,15 @@ export function GET() {
     ...[...sections.entries()].flatMap(([section, ps]) => [
       `## ${section.charAt(0).toUpperCase()}${section.slice(1)}`,
       '',
-      ...ps.map(
-        // Modern fumadocs types p.data.title/description as string (the
-        // pretypecheck step generates tightened types), so no String()
-        // coercion is needed. See apps/docs/app/docs/[[...slug]]/page.tsx
-        // for the same pattern and the historical reason for the
-        // coercion if fumadocs ever loosens types back to `any`.
-        (p) => `- [${p.data.title}](${SITE}${p.url}): ${p.data.description ?? ''}`,
-      ),
+      ...ps.map((p) => {
+        // fumadocs' source returns p.data as `any` in the CI type
+        // environment. Narrow once to the frontmatter shape so the
+        // template literal satisfies restrict-template-expressions
+        // without per-call String() coercion. See
+        // apps/docs/app/docs/[[...slug]]/page.tsx for the same pattern.
+        const data = p.data as { title: string; description?: string };
+        return `- [${data.title}](${SITE}${p.url}): ${data.description ?? ''}`;
+      }),
       '',
     ]),
   ].join('\n');
