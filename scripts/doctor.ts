@@ -351,6 +351,13 @@ if (FULL) {
   const preflight: Array<{ name: string; cmd: string }> = [
     { name: 'prisma client', cmd: 'pnpm --filter @cerniq/api prisma:generate' },
     { name: '@cerniq/types build', cmd: 'pnpm --filter @cerniq/types build' },
+    // `@cerniq/sdk` is a transitive type-provider for cli, mcp-bridge,
+    // mcp-server. Without `dist/index.d.ts`, tsc on those consumers
+    // resolves `@cerniq/sdk` imports to `any` and the gate is a
+    // false-failure. OD-024 surfaced this when the cli first started
+    // typechecking against a real SDK contract — types alone wasn't
+    // enough cover. <2s on warm cache.
+    { name: '@cerniq/sdk build', cmd: 'pnpm --filter @cerniq/sdk build' },
   ];
   for (const p of preflight) {
     process.stdout.write(`  ${p.name}: `);
