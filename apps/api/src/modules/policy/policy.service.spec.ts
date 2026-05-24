@@ -476,8 +476,8 @@ describe('PolicyService', () => {
       expect(event.trustBandAtEvent).toBe('WATCH');
     });
 
-    // ── OD-024 Phase A5 — webhook fanout `cerniq.policy.revoked` ───────────────
-    it('fans `cerniq.policy.revoked` webhook to active subscribers', async () => {
+    // ── OD-024 Phase A5 — webhook fanout `cerniq.agent.policy_revoked` ─────────
+    it('fans `cerniq.agent.policy_revoked` webhook to active subscribers', async () => {
       const policies: PolicyRow[] = [{ ...existingPolicy }];
       const { svc, webhooks } = makeService({ agents: [ACTIVE_AGENT], policies });
       await svc.revoke('prn_A', 'agt_1', 'pol_active', 'rotation');
@@ -487,7 +487,7 @@ describe('PolicyService', () => {
         { type: string; data: Record<string, unknown> },
         string,
       ];
-      expect(event.type).toBe('cerniq.policy.revoked');
+      expect(event.type).toBe('cerniq.agent.policy_revoked');
       expect(fanoutPrincipalId).toBe('prn_A');
       expect(event.data).toMatchObject({
         policyId: 'pol_active',

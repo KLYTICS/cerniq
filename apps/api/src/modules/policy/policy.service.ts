@@ -216,7 +216,7 @@ export class PolicyService {
     // revoke path.
     await this.webhooks.enqueue(
       {
-        type: WEBHOOK_EVENT.POLICY_REVOKED,
+        type: WEBHOOK_EVENT.AGENT_POLICY_REVOKED,
         data: {
           policyId: policy.id,
           agentId,
