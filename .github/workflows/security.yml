@@ -206,8 +206,11 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Enforce license allowlist
-        # Allowlist (SPDX): MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC,
-        # 0BSD, Unlicense, CC0-1.0, MPL-2.0. Anything else fails this gate.
+        # Allowlist (SPDX): a curated set of permissive + permissive-equivalent
+        # licenses that CERNIQ accepts in its production dependency tree.
+        # See OPERATOR_DECISIONS.md OD-019 for the rationale on every entry
+        # beyond the "obvious permissive" core (MIT/Apache/BSD/ISC/0BSD/
+        # Unlicense/CC0/MPL).
         # `pnpm licenses list --prod --json` emits an object keyed by the
         # license string with array-of-package values; we walk every key.
         run: |
@@ -220,8 +223,19 @@ jobs:
 
           const data = JSON.parse(readFileSync('licenses.json', 'utf8'));
           const allow = new Set([
+            // Permissive core — uncontroversial.
             'MIT', 'Apache-2.0', 'BSD-2-Clause', 'BSD-3-Clause',
             'ISC', '0BSD', 'Unlicense', 'CC0-1.0', 'MPL-2.0',
+            // Permissive-equivalent (OD-019 default-accepts).
+            'BlueOak-1.0.0',      // lru-cache, sax — explicitly permissive
+            'Python-2.0',         // argparse — permissive-equivalent
+            'CC-BY-4.0',          // caniuse-lite — data-only; attribution preserved in node_modules
+            // Dynamically-linked LGPL — §6 dynamic-linking exemption holds
+            // because we never statically link these native libs into a
+            // CERNIQ binary distribution (sharp loads them via dlopen).
+            // If we ever ship a single static binary that bundles them,
+            // re-evaluate per OD-019.
+            'LGPL-3.0-or-later',
           ]);
           const bad = [];
           for (const [license, pkgs] of Object.entries(data)) {
