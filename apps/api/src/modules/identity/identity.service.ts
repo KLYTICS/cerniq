@@ -326,7 +326,12 @@ export class IdentityService {
     };
   }
 
-  async revoke(principalId: string, agentId: string, reason?: string): Promise<void> {
+  async revoke(
+    principalId: string,
+    agentId: string,
+    reason?: string,
+    apiKeyId?: string,
+  ): Promise<void> {
     // Capture pre-revoke state so the audit row records what the agent
     // looked like at the moment of revocation. Audit replay relies on
     // these fields being the *prior* values, not the post-update ones.
@@ -367,6 +372,11 @@ export class IdentityService {
       policySnapshot: {
         reason: reason ?? null,
         previousStatus,
+        // OD-024 Phase A6 — SOC2 "who did this" evidence. Initiating
+        // API key id from the auth context (null when revocation flows
+        // come from a non-API-key code path — e.g. a future
+        // dashboard-direct-Prisma path).
+        revokedBy: apiKeyId ?? null,
       },
       trustScoreAtEvent: previousTrustScore,
       trustBandAtEvent: previousTrustBand,
@@ -389,6 +399,7 @@ export class IdentityService {
           revokedAt: new Date().toISOString(),
           reason: reason ?? null,
           previousStatus,
+          revokedBy: apiKeyId ?? null,
         },
       },
       principalId,

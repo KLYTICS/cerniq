@@ -74,6 +74,6 @@ export class PolicyController {
     @Param('policyId') policyId: string,
     @Body() body?: RevokePolicyDto,
   ): Promise<void> {
-    await this.policy.revoke(auth.principalId, agentId, policyId, body?.reason);
+    await this.policy.revoke(auth.principalId, agentId, policyId, body?.reason, auth.apiKeyId);
   }
 }

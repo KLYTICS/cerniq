@@ -82,14 +82,38 @@ describe('PolicyController', () => {
   });
 
   describe('revoke()', () => {
-    it('delegates to policy.revoke with auth.principalId, agentId, policyId (no body)', async () => {
+    it('delegates to policy.revoke with auth.principalId + agentId + policyId + apiKeyId (no body)', async () => {
       await controller.revoke(AUTH, 'agt_1', 'pol_active');
-      expect(service.revoke).toHaveBeenCalledWith('prn_A', 'agt_1', 'pol_active', undefined);
+      expect(service.revoke).toHaveBeenCalledWith(
+        'prn_A',
+        'agt_1',
+        'pol_active',
+        undefined,
+        'key_1',
+      );
     });
 
     it('forwards body.reason for audit capture (OD-024 Phase A2)', async () => {
       await controller.revoke(AUTH, 'agt_1', 'pol_x', { reason: 'rotation' });
-      expect(service.revoke).toHaveBeenCalledWith('prn_A', 'agt_1', 'pol_x', 'rotation');
+      expect(service.revoke).toHaveBeenCalledWith(
+        'prn_A',
+        'agt_1',
+        'pol_x',
+        'rotation',
+        'key_1',
+      );
+    });
+
+    it('forwards auth.apiKeyId as revokedBy (OD-024 Phase A6 — SOC2 "who did this")', async () => {
+      const operatorAuth = { ...AUTH, apiKeyId: 'key_operator_42' } as typeof AUTH;
+      await controller.revoke(operatorAuth, 'agt_1', 'pol_x', { reason: 'rotation' });
+      expect(service.revoke).toHaveBeenCalledWith(
+        'prn_A',
+        'agt_1',
+        'pol_x',
+        'rotation',
+        'key_operator_42',
+      );
     });
 
     it('returns void (204 No Content)', async () => {

@@ -58,7 +58,7 @@ export class IdentityController {
     @Param('agentId') agentId: string,
     @Body() body?: RevokeAgentDto,
   ): Promise<void> {
-    await this.identity.revoke(auth.principalId, agentId, body?.reason);
+    await this.identity.revoke(auth.principalId, agentId, body?.reason, auth.apiKeyId);
   }
 
   @Get(':agentId/handshake-status')

@@ -153,6 +153,7 @@ export class PolicyService {
     agentId: string,
     policyId: string,
     reason?: string,
+    apiKeyId?: string,
   ): Promise<void> {
     // Capture the agent's current trust state so the audit row records
     // the score/band as they stood at the moment the policy was revoked.
@@ -202,6 +203,8 @@ export class PolicyService {
       policySnapshot: {
         reason: reason ?? null,
         ...snapshot,
+        // OD-024 Phase A6 — SOC2 "who did this" evidence.
+        revokedBy: apiKeyId ?? null,
       },
       trustScoreAtEvent: agent.trustScore,
       trustBandAtEvent: agent.trustBand,
@@ -223,6 +226,7 @@ export class PolicyService {
           revokedAt: new Date().toISOString(),
           reason: reason ?? null,
           previousStatus: snapshot.previousStatus,
+          revokedBy: apiKeyId ?? null,
         },
       },
       principalId,

@@ -346,6 +346,75 @@ describe('IdentityService.findOne / revoke', () => {
     expect(typeof event.data.revokedAt).toBe('string');
   });
 
+  // ── OD-024 Phase A6 — SOC2 "who did this" plumbing for revokedBy ───────────
+  it('revoke records revokedBy (apiKeyId) in both audit and webhook events', async () => {
+    const prisma = {
+      agentIdentity: {
+        findFirst: jest.fn(async () => ({
+          id: 'agt_target',
+          status: 'ACTIVE',
+          trustScore: 720,
+          trustBand: 'VERIFIED',
+        })),
+        update: jest.fn(async () => undefined),
+      },
+    } as unknown as PrismaService;
+    const redis = {
+      get: jest.fn(),
+      set: jest.fn(),
+      del: jest.fn().mockResolvedValue(1),
+    } as unknown as RedisService;
+    const auditAppend = jest.fn().mockResolvedValue('evt_audit');
+    const audit = { append: auditAppend } as unknown as AuditService;
+    const webhooksEnqueue = jest.fn().mockResolvedValue(undefined);
+    const webhooks = { enqueue: webhooksEnqueue } as unknown as WebhooksService;
+    const svc = new IdentityService(prisma, redis, audit, webhooks);
+
+    await svc.revoke('prn_alpha', 'agt_target', 'rotation', 'key_operator_42');
+
+    const [auditEvent] = auditAppend.mock.calls[0] as [Record<string, unknown>];
+    expect((auditEvent.policySnapshot as { revokedBy: string }).revokedBy).toBe(
+      'key_operator_42',
+    );
+    const [webhookEvent] = webhooksEnqueue.mock.calls[0] as [
+      { data: { revokedBy: string } },
+    ];
+    expect(webhookEvent.data.revokedBy).toBe('key_operator_42');
+  });
+
+  it('revoke records revokedBy=null when apiKeyId is omitted', async () => {
+    const prisma = {
+      agentIdentity: {
+        findFirst: jest.fn(async () => ({
+          id: 'agt_target',
+          status: 'ACTIVE',
+          trustScore: 500,
+          trustBand: 'VERIFIED',
+        })),
+        update: jest.fn(async () => undefined),
+      },
+    } as unknown as PrismaService;
+    const redis = {
+      get: jest.fn(),
+      set: jest.fn(),
+      del: jest.fn().mockResolvedValue(1),
+    } as unknown as RedisService;
+    const auditAppend = jest.fn().mockResolvedValue('evt_audit');
+    const audit = { append: auditAppend } as unknown as AuditService;
+    const webhooksEnqueue = jest.fn().mockResolvedValue(undefined);
+    const webhooks = { enqueue: webhooksEnqueue } as unknown as WebhooksService;
+    const svc = new IdentityService(prisma, redis, audit, webhooks);
+
+    await svc.revoke('prn_alpha', 'agt_target');
+
+    const [auditEvent] = auditAppend.mock.calls[0] as [Record<string, unknown>];
+    expect((auditEvent.policySnapshot as { revokedBy: string | null }).revokedBy).toBeNull();
+    const [webhookEvent] = webhooksEnqueue.mock.calls[0] as [
+      { data: { revokedBy: string | null } },
+    ];
+    expect(webhookEvent.data.revokedBy).toBeNull();
+  });
+
   it('revoke does NOT fan a webhook when the agent does not exist', async () => {
     const prisma = {
       agentIdentity: {

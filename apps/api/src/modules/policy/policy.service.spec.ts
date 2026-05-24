@@ -508,5 +508,35 @@ describe('PolicyService', () => {
       ];
       expect(event.data.reason).toBeNull();
     });
+
+    // ── OD-024 Phase A6 — SOC2 "who did this" plumbing for revokedBy ──────────
+    it('records revokedBy (initiating apiKeyId) in audit + webhook events', async () => {
+      const policies: PolicyRow[] = [{ ...existingPolicy }];
+      const { svc, audit, webhooks } = makeService({ agents: [ACTIVE_AGENT], policies });
+      await svc.revoke('prn_A', 'agt_1', 'pol_active', 'rotation', 'key_operator_42');
+
+      const [auditEvent] = audit.append.mock.calls[0] as unknown as [Record<string, unknown>];
+      expect((auditEvent.policySnapshot as { revokedBy: string }).revokedBy).toBe(
+        'key_operator_42',
+      );
+
+      const [webhookEvent] = webhooks.enqueue.mock.calls[0] as unknown as [
+        { data: { revokedBy: string } },
+      ];
+      expect(webhookEvent.data.revokedBy).toBe('key_operator_42');
+    });
+
+    it('records revokedBy=null when apiKeyId is omitted (non-API-key code path)', async () => {
+      const policies: PolicyRow[] = [{ ...existingPolicy }];
+      const { svc, audit, webhooks } = makeService({ agents: [ACTIVE_AGENT], policies });
+      await svc.revoke('prn_A', 'agt_1', 'pol_active');
+
+      const [auditEvent] = audit.append.mock.calls[0] as unknown as [Record<string, unknown>];
+      expect((auditEvent.policySnapshot as { revokedBy: string | null }).revokedBy).toBeNull();
+      const [webhookEvent] = webhooks.enqueue.mock.calls[0] as unknown as [
+        { data: { revokedBy: string | null } },
+      ];
+      expect(webhookEvent.data.revokedBy).toBeNull();
+    });
   });
 });

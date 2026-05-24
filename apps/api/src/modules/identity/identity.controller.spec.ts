@@ -83,14 +83,25 @@ describe('IdentityController', () => {
   });
 
   describe('revoke()', () => {
-    it('delegates to identity.revoke with auth.principalId and agentId (no body)', async () => {
+    it('delegates to identity.revoke with auth.principalId + agentId + apiKeyId (no body)', async () => {
       await controller.revoke(AUTH, 'agt_1');
-      expect(service.revoke).toHaveBeenCalledWith('prn_A', 'agt_1', undefined);
+      expect(service.revoke).toHaveBeenCalledWith('prn_A', 'agt_1', undefined, 'key_1');
     });
 
     it('forwards body.reason to identity.revoke for audit capture (OD-024 Phase A2)', async () => {
       await controller.revoke(AUTH, 'agt_1', { reason: 'compromised key' });
-      expect(service.revoke).toHaveBeenCalledWith('prn_A', 'agt_1', 'compromised key');
+      expect(service.revoke).toHaveBeenCalledWith('prn_A', 'agt_1', 'compromised key', 'key_1');
+    });
+
+    it('forwards auth.apiKeyId as revokedBy (OD-024 Phase A6 — SOC2 "who did this")', async () => {
+      const operatorAuth = { ...AUTH, apiKeyId: 'key_operator_42' } as typeof AUTH;
+      await controller.revoke(operatorAuth, 'agt_1', { reason: 'rotation' });
+      expect(service.revoke).toHaveBeenCalledWith(
+        'prn_A',
+        'agt_1',
+        'rotation',
+        'key_operator_42',
+      );
     });
   });
 
