@@ -248,7 +248,7 @@ describe('WebhooksService', () => {
       });
       (prisma.$transaction as jest.Mock).mockResolvedValueOnce([{ id: 'del_99' }]);
 
-      await svc.enqueue({ type: 'evt', data: {} }, 'prn_A');
+      await svc.enqueue({ type: 'cerniq.agent.revoked', data: {} }, 'prn_A');
 
       expect(delivery.enqueue).toHaveBeenCalledWith('del_99');
     });
@@ -265,7 +265,9 @@ describe('WebhooksService', () => {
       (prisma.webhookSubscription.findMany as jest.Mock).mockRejectedValueOnce(
         new Error('DB down'),
       );
-      await expect(svc.enqueue({ type: 'evt', data: {} }, 'prn_A')).resolves.toBeUndefined();
+      await expect(
+        svc.enqueue({ type: 'cerniq.agent.revoked', data: {} }, 'prn_A'),
+      ).resolves.toBeUndefined();
     });
   });
 });

@@ -7,7 +7,7 @@ import { IdentityService } from './identity.service';
 
 // WebhooksModule is imported so IdentityService can fan a webhook on
 // agent revocation (OD-024 Phase A5 — mirrors the existing
-// policy.expiry.worker pattern that fans `cerniq.policy.expired`).
+// policy.expiry.worker pattern that fans `cerniq.agent.policy_expired`).
 @Module({
   imports: [WebhooksModule],
   controllers: [IdentityController],

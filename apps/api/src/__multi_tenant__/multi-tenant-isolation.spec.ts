@@ -475,8 +475,8 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       const harness = buildWebhooksHarness();
       const svc = makeWebhooksSvc(harness.prisma);
 
-      await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', ['verify.completed']);
-      await svc.subscribe(PRINCIPAL_B, 'https://hookB.example.com', ['verify.completed']);
+      await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', ['cerniq.agent.revoked']);
+      await svc.subscribe(PRINCIPAL_B, 'https://hookB.example.com', ['cerniq.agent.revoked']);
 
       const aList = await svc.list(PRINCIPAL_A);
       const bList = await svc.list(PRINCIPAL_B);
@@ -496,7 +496,7 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       const svc = makeWebhooksSvc(harness.prisma);
 
       const subA = await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', [
-        'verify.completed',
+        'cerniq.agent.revoked',
       ]);
 
       // B attacks A's id — must be a no-op deleteMany.
@@ -519,10 +519,10 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       const svc = makeWebhooksSvc(harness.prisma);
 
       for (let i = 0; i < 3; i += 1) {
-        await svc.subscribe(PRINCIPAL_A, `https://a-${i}.example.com`, ['verify.completed']);
+        await svc.subscribe(PRINCIPAL_A, `https://a-${i}.example.com`, ['cerniq.agent.revoked']);
       }
       for (let i = 0; i < 5; i += 1) {
-        await svc.subscribe(PRINCIPAL_B, `https://b-${i}.example.com`, ['verify.completed']);
+        await svc.subscribe(PRINCIPAL_B, `https://b-${i}.example.com`, ['cerniq.agent.revoked']);
       }
 
       const aList = await svc.list(PRINCIPAL_A);
@@ -541,19 +541,19 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       const svc = makeWebhooksSvc(harness.prisma);
 
       const subA = await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', [
-        'verify.completed',
+        'cerniq.agent.revoked',
       ]);
       const subB = await svc.subscribe(PRINCIPAL_B, 'https://hookB.example.com', [
-        'verify.completed',
+        'cerniq.agent.revoked',
       ]);
 
-      await svc.enqueue({ type: 'verify.completed', data: { agentId: 'agt_a' } }, PRINCIPAL_A);
+      await svc.enqueue({ type: 'cerniq.agent.revoked', data: { agentId: 'agt_a' } }, PRINCIPAL_A);
 
       // Exactly one delivery row, scoped to A's subscription.
       expect(harness.deliveryCreate).toHaveBeenCalledTimes(1);
       expect(harness.deliveryCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ subscriptionId: subA.id, event: 'verify.completed' }),
+          data: expect.objectContaining({ subscriptionId: subA.id, event: 'cerniq.agent.revoked' }),
         }),
       );
       expect(harness.deliveries).toHaveLength(1);
@@ -573,7 +573,7 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       const svc = makeWebhooksSvc(harness.prisma);
 
       const subA = await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', [
-        'verify.completed',
+        'cerniq.agent.revoked',
       ]);
 
       await svc.unsubscribe(PRINCIPAL_B, subA.id);

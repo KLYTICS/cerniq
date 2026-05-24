@@ -449,7 +449,7 @@ await cerniq.webhooks.create({
     'cerniq.agent.revoked', // Immediate revocation — stop accepting tokens
     'cerniq.agent.trust_score_changed', // Score band changes — adjust limits
     'cerniq.agent.anomaly_detected', // Flag for human review
-    'cerniq.policy.expired', // Renew policy before next action
+    'cerniq.agent.policy_expired', // Renew policy before next action
   ],
 });
 ```

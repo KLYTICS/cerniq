@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import * as ed from '@noble/ed25519';
 import type { AgentIdentity, Prisma } from '@prisma/client';
+import { WEBHOOK_EVENT } from '@cerniq/types';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
@@ -373,7 +374,7 @@ export class IdentityService {
 
     // OD-024 Phase A5 — fan a webhook so customers can plumb revoke into
     // their own systems (key-rotation tooling, incident response, SIEM,
-    // etc.). Mirrors the `cerniq.policy.expired` pattern in
+    // etc.). Mirrors the `cerniq.agent.policy_expired` pattern in
     // policy.expiry.worker. `webhooks.enqueue` swallows fanout errors
     // internally (the manual-revoke path must not fail just because a
     // subscriber URL is unreachable); the operator-facing revoke still
@@ -382,7 +383,7 @@ export class IdentityService {
     // delivery — defense in depth for SOC2 evidence.
     await this.webhooks.enqueue(
       {
-        type: 'cerniq.agent.revoked',
+        type: WEBHOOK_EVENT.AGENT_REVOKED,
         data: {
           agentId: agent.id,
           revokedAt: new Date().toISOString(),

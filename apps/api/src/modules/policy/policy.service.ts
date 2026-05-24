@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { AgentPolicy, Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
+import { WEBHOOK_EVENT } from '@cerniq/types';
 
 import { JwtUtil } from '../../common/crypto/jwt.util';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -207,7 +208,7 @@ export class PolicyService {
     });
 
     // OD-024 Phase A5 — fan `cerniq.policy.revoked` webhook to active
-    // subscribers. Sibling to the existing `cerniq.policy.expired`
+    // subscribers. Sibling to the existing `cerniq.agent.policy_expired`
     // event (emitted by policy.expiry.worker) — same shape minus the
     // sweep-specific `sweptAt` field, plus the operator-supplied
     // `reason` and `previousStatus`. `webhooks.enqueue` swallows
@@ -215,7 +216,7 @@ export class PolicyService {
     // revoke path.
     await this.webhooks.enqueue(
       {
-        type: 'cerniq.policy.revoked',
+        type: WEBHOOK_EVENT.POLICY_REVOKED,
         data: {
           policyId: policy.id,
           agentId,
