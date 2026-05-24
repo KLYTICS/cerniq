@@ -51,15 +51,40 @@ jobs:
         with:
           fetch-depth: 0 # gitleaks needs full history
 
-      - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@v2 # pin: replace with full sha before merge
+      # OD-017 default: use the MIT-licensed gitleaks CLI directly rather
+      # than gitleaks-action@v2 (rebranded as commercial per the 2024
+      # gitleaks.io announcement). The CLI binary's behavior matches the
+      # action's `detect` mode 1:1 and reads the same `.github/gitleaks.toml`
+      # config — our DID/RID public-identifier allowlist patches keep working
+      # without change.
+      - name: Install gitleaks CLI
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'true'
-          GITLEAKS_ENABLE_SUMMARY: 'true'
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          set -euo pipefail
+          cd /tmp
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            -o gitleaks.tar.gz
+          tar -xzf gitleaks.tar.gz
+          sudo mv gitleaks /usr/local/bin/
+          gitleaks version
+
+      - name: Run gitleaks
+        # `--exit-code 1` makes a finding fail the job (matches action default).
+        # `--no-banner` keeps the log clean. Config + allowlist live in
+        # .github/gitleaks.toml so they stay version-controlled.
+        run: |
+          gitleaks detect \
+            --config .github/gitleaks.toml \
+            --source . \
+            --report-format sarif \
+            --report-path results.sarif \
+            --exit-code 1 \
+            --no-banner \
+            --verbose
 
       - name: Upload SARIF
-        if: always()
+        if: always() && hashFiles('results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3 # pin: replace with full sha before merge
         with:
           sarif_file: results.sarif

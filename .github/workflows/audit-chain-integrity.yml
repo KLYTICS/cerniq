@@ -107,7 +107,14 @@ jobs:
           retention-days: 90
 
       - name: Notify Slack on failure
-        if: failure()
+        # Skip when SLACK_INCIDENT_WEBHOOK is not configured (pre-launch +
+        # any environment without an incident channel set up). The chain-
+        # integrity failure is still surfaced via the workflow's own red
+        # status + the `result.json` artifact upload above; Slack is the
+        # *operator-paging* layer, not the source of failure visibility.
+        # Without the guard, this step blows up with "Need to provide at
+        # least one botToken or webhookUrl" and masks the original failure.
+        if: failure() && env.SLACK_INCIDENT_WEBHOOK != ''
         uses: slackapi/slack-github-action@v1.27.0
         with:
           payload: |
@@ -115,5 +122,6 @@ jobs:
               "text": ":rotating_light: CERNIQ audit chain integrity check FAILED for *${{ github.event.inputs.environment || 'staging' }}* — see workflow run ${{ github.run_id }}. Open the `result.json` artifact for the first-break index + reason."
             }
         env:
+          SLACK_INCIDENT_WEBHOOK: ${{ secrets.SLACK_INCIDENT_WEBHOOK }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_INCIDENT_WEBHOOK }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
