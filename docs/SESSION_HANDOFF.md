@@ -13,6 +13,67 @@
 
 ---
 
+## 2026-05-23 (CI red-board triage — flip 2 green, fix 3 hygiene, file 6 OD rows) · claim=cerniq:ci-redboard-triage · sid=anakin
+
+**Status:** ✅ `mirror-from-radicle` GREEN (canonical → GitHub loop closed
+end-to-end). ✅ `spec-sync` GREEN. ✅ 5 missing-permissions workflows
+declared. ✅ trivy action version bumped from never-published 0.24.0 to
+0.36.0. ✅ lychee --exclude added for not-yet-deployed docs.cerniq.io.
+✅ CycloneDX SBOM gets `--ignore-npm-errors` for malformed transitive
+metadata. ✅ 6 new OD rows authored for items requiring operator
+input (gitleaks license, license allowlist, semgrep findings, OTel v2
+migration trade-off, docs deploy timing, Release workflow setup).
+⏸ CI on next push will tell us if apps/docs option-C narrowing flips
+Lint green.
+
+### Commits
+
+  27c1295  fix(docs): narrow page.data once to typed shape — robust to
+           local + CI type environments (third-time-is-truth fix)
+  138e48c  ci(posture): declare explicit permissions on ci.yml
+  80a367d  ci(posture): declare permissions on remaining 4 workflows
+  e348417  ci(workflows): trivy version + lychee cerniq.io exclude +
+           sbom ignore-npm-errors
+  80fc9a2  docs(operator): OD-017..OD-023 — six new operator-input rows
+           for CI gates
+
+### Verification
+
+- `pnpm doctor:full` — green at each commit (incl. brief experimental
+  OTel override that broke api typecheck — reverted in e348417)
+- `pnpm --filter @cerniq/docs lint` AND `pretypecheck && lint` — both
+  green after option-C narrowing (matches CI sequence exactly)
+- `mirror-from-radicle` manual dispatch — succeeded (run 26348446082);
+  the workflow we authored now correctly pinned-binary-installs rad,
+  mints an ephemeral CI-only identity, starts a node, clones from the
+  network, applies the policy filter, and force-pushes to GitHub
+
+### Carry forward — what remains red on CI
+
+- **Lint on b6f6ab8 / 7be7e81** — fixed in 27c1295 (option C); CI run
+  on the next push will confirm
+- **`Secrets · gitleaks`** — operator decision OD-017 (license model)
+- **`Compliance · license allowlist`** — operator decision OD-019
+- **`SAST · semgrep`** — operator decision OD-020
+- **`SCA · pnpm audit (HIGH+)` and `SCA · osv-scanner`** — operator
+  decision OD-021 (OTel v2 migration)
+- **`Release`** — operator decision OD-023 (defer until first intentional
+  public SDK release)
+- **`docs · link-check`** — fixed in e348417 (lychee exclude); CI run
+  on next push will confirm
+
+### Independent lanes still open
+
+- GitLab mirror (account creation blocking; bootstrap runbook Tier 4.x)
+- Pre-existing CLI policies-API drift (SDK signature decisions; see
+  SESSION_HANDOFF 2026-05-22 item #1)
+- Triage Dependabot vulns (3 open per API: 1 HIGH @opentelemetry/
+  sdk-node + 2 medium qs/esbuild)
+- 20 backlog PRs (rebase onto post-rename main, one at a time)
+- v0.1.0 tag (once CI is fully green or all reds documented as ODs)
+
+---
+
 ## 2026-05-23 (CI lint reversal + mirror workflow repair + bootstrap runbook) · claim=cerniq:provider-migration-tail · sid=anakin
 
 **Status:** ✅ Lint regression in apps/docs corrected (direction-reversed from
