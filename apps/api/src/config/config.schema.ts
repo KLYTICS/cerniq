@@ -57,6 +57,14 @@ export const configSchema = z.object({
   ENABLE_BATE: boolish.default(true),
   ENABLE_WEBHOOKS: boolish.default(true),
   ENABLE_SWAGGER: boolish.default(true),
+  // BILLING_LADDER_ENABLED gates the customer-facing pricing tier ladder
+  // (Free/Dev/Team/Scale per OD-003). When false, /v1/billing/checkout
+  // returns 503 SERVICE_UNAVAILABLE — webhooks + portal stay functional
+  // so existing customers' renewals/cancellations are not affected.
+  // Operator-pinned launch mode (Path C from LAUNCH.md) sets this false
+  // at first deploy; flip to true once a paying beta customer has
+  // completed a full checkout → upgrade → continued-verify smoke.
+  BILLING_LADDER_ENABLED: boolish.default(false),
 
   CORS_ORIGINS: z.string().default('*'),
 

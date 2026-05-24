@@ -209,6 +209,16 @@ export class BillingController {
     @Auth() auth: AuthenticatedKey,
     @Body() dto: CreateCheckoutDto,
   ): Promise<CheckoutSessionDto> {
+    // BILLING_LADDER_ENABLED gate (LAUNCH.md Path C). When the ladder
+    // is dark at launch, refuse all new checkouts; existing customers
+    // still hit /webhook for renewals and /portal for self-service —
+    // those paths are intentionally unaffected.
+    if (!this.config.billingLadderEnabled) {
+      throw new ServiceUnavailableError(
+        'Self-serve checkout is not yet enabled for this deployment. ' +
+          'Contact sales@cerniq.io to subscribe to a paid plan.',
+      );
+    }
     const successUrl = dto.successUrl ?? this.config.stripeCheckoutSuccessUrl;
     const cancelUrl = dto.cancelUrl ?? this.config.stripeCheckoutCancelUrl;
     if (!successUrl || !cancelUrl) {

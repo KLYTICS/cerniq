@@ -102,6 +102,7 @@ This is the operator's per-target inventory: which secret goes into Railway, whi
 | `ENABLE_BATE=true` | true | true (BATE scorer kernel shipped) |
 | `ENABLE_WEBHOOKS=true` | true | true (M-008 stub + delivery) |
 | `ENABLE_SWAGGER=true` | true | **false** for prod (don't expose internal API schema; toggle on per debug session) |
+| **`BILLING_LADDER_ENABLED=false`** | false | **false** for launch (Path C — flip after first paying beta customer completes a full checkout smoke). Gates /v1/billing/checkout server-side. |
 | `CERNIQ_DPOP_REQUIRED=false` | false | false — flip ON after client-side proof rollout per [ADR](docs/decisions/) |
 | `CERNIQ_HYBRID_PQ_ENABLED=false` | false | false — gated on OD-014 triggers |
 | `CERNIQ_POLICY_ENGINES=builtin` | builtin | builtin (Cedar/OPA opt-in per principal per OD-013) |
@@ -141,22 +142,34 @@ Note: `apps/dashboard` is not yet wired with the Auth0 v4 SDK per CLAUDE.md. Unt
 | `CERNIQ_DASHBOARD_API_KEY` | scope=FULL key generated for the operator principal | Generate via `POST /v1/auth/api-keys` once API is live |
 | `CERNIQ_DASHBOARD_EMAIL` | operator email | Logged for audit |
 
-### C.3 — P0 Auth0 (when M-020 enables per-user sessions)
+### C.3 — P0 Auth0 (M-020 LANDED — per `feat/auth0-dashboard-v1` branch)
+
+> **State**: Auth0 v4 SDK installed in `apps/dashboard`. `lib/auth0.ts` instantiates the client, `middleware.ts` mounts routes + gates protected pages, `lib/auth.ts` reads real Auth0 sessions when AUTH0_REQUIRED=true (falls back to operator-pinned key otherwise). Path C launch posture per [LAUNCH.md §6](../../LAUNCH.md#6-dashboard--vercel).
 
 | Var | Source / how to set | Notes |
 | --- | --- | --- |
-| `AUTH0_DOMAIN` | same as A.3 | |
-| `AUTH0_CLIENT_ID` | Auth0 dashboard → app → settings | |
+| `AUTH0_REQUIRED=true` | hard-set | Activates Auth0 mode. With it false, dashboard stays in operator-pinned mode. |
+| `AUTH0_DOMAIN` | Auth0 dashboard → Settings → Basic information | e.g. `cerniq.us.auth0.com` (no scheme, no trailing slash) |
+| `AUTH0_CLIENT_ID` | Auth0 dashboard → app → settings | Regular Web Application |
 | `AUTH0_CLIENT_SECRET` | Auth0 dashboard → app → settings | Marked sensitive in Vercel |
-| `AUTH0_BASE_URL=https://app.cerniq.io` | hard-set | |
+| `AUTH0_BASE_URL=https://app.cerniq.io` | hard-set | The dashboard's external origin |
 | `AUTH0_SECRET` | `openssl rand -hex 32` | 32-byte cookie encryption secret per Auth0 v4 SDK |
-| `AUTH0_AUDIENCE` | same as A.3 | |
+| `AUTH0_AUDIENCE=https://api.cerniq.io` | same as A.3 | The API identifier set in Auth0's APIs section |
+
+#### C.3.1 — Auth0 tenant setup (operator one-time)
+1. In Auth0 dashboard, create an Application (Regular Web App) and an API.
+2. Application → Settings → Allowed Callback URLs: `https://app.cerniq.io/api/auth/callback`.
+3. Application → Settings → Allowed Logout URLs: `https://app.cerniq.io`.
+4. Application → Settings → Allowed Web Origins: `https://app.cerniq.io`.
+5. Deploy the Auth0 Action at [`infra/auth0/actions/cerniq-audit-login.js`](../auth0/actions/cerniq-audit-login.js) (Login post-trigger).
+6. The Action must populate `user_metadata.cerniq_api_key` and the `https://cerniq.io/principal_id` custom claim per `lib/auth.ts` readers.
 
 ### C.4 — P1 Stripe (publishable side)
 
 | Var | Source / how to set | Notes |
 | --- | --- | --- |
 | `STRIPE_PUBLISHABLE_KEY` | `pk_live_…` from Stripe dashboard | Embedded in checkout flow |
+| `NEXT_PUBLIC_BILLING_LADDER_ENABLED=false` | hard-set | Dashboard reads this to hide upgrade CTAs. Pair with API's `BILLING_LADDER_ENABLED`. Flip both together. |
 
 ---
 
@@ -207,7 +220,7 @@ Never go on a server. Stored in `~/.config/cerniq/` or your password manager.
 
 2. **Dashboard reads both `CERNIQ_API_BASE_URL` and `CERNIQ_API_URL`** — drift. The canonical name per `.env.example` is `CERNIQ_API_BASE_URL`. The legacy alias `CERNIQ_API_URL` is still referenced in some dashboard routes. **Fix**: grep + canonicalize. ~5 LOC. Or document both during the launch and clean up post-launch.
 
-3. **Auth0 v4 SDK not installed in dashboard** — per CLAUDE.md "Operator decisions still pending #5". Without it, the dashboard cannot receive Auth0 callbacks. Either install the SDK + wire the receiver, OR keep the operator-pinned API key flow for v1 and gate per-user logins to v2.
+3. **Auth0 v4 SDK not installed in dashboard** — ✅ RESOLVED on `feat/auth0-dashboard-v1` branch. Path C wiring: SDK installed, routes mounted at `/api/auth/*`, dual-mode `lib/auth.ts` (Auth0 when configured, operator-pinned otherwise). Operator still needs to provision the Auth0 tenant + deploy the Action + populate the env quartet.
 
 4. **API direct `process.env` reads bypass Zod validation** — `CERNIQ_ADMIN_TOKEN`, `CERNIQ_AUDIT_RETENTION_INTERVAL_MS`, `CERNIQ_ONBOARDING_BACKFILL_CRON`, `CERNIQ_OTEL_*`, `CERNIQ_REGION`, `LOAD_TEST`, `HOSTNAME`. **Not blocking** but a future cleanup: move these into `config.schema.ts` so misconfiguration fails-loud at boot rather than at first reference.
 
