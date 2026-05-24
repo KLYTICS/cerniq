@@ -13,6 +13,69 @@
 
 ---
 
+## 2026-05-24 (OD-024 — CLI ↔ SDK contract drift surfaced, Option A DECIDED) · claim=cerniq:od-024-discover · sid=anakin
+
+**Status:** ✅ Recorded as DECIDED in `OPERATOR_DECISIONS.md` § 2/§ 3. **No code
+change yet** — the actual SDK extension lands on a separate branch (not folded
+into PR #55, which stays "CI gate fixes only" for narrow blast radius).
+
+### What surfaced
+
+Investigating "is PR #55 actually fully green after the lint fix?", ran the
+post-lint CI sequence end-to-end on `chore/ci-build-before-lint` HEAD with a
+truly clean working tree. The lint step is green (the `next typegen` step in
+`7b84b69` resolved the dashboard `no-unnecessary-type-assertion` errors at
+`apps/dashboard/components/{CommandPalette,KeyboardShortcuts}.tsx`), but the
+**next CI step — `Typecheck` — is RED on `@cerniq/cli`** with 9 errors:
+
+  src/commands/agents.ts(22,37):  Property 'create' does not exist on type 'AgentClient'.
+  src/commands/agents.ts(39,39):  Property 'list' does not exist on type 'AgentClient'.
+  src/commands/agents.ts(66,34):  revoke() — Expected 1 arguments, but got 2.
+  src/commands/policies.ts(15,40): policies.create() — Expected 2 arguments, but got 1.
+  src/commands/policies.ts(20,26): PolicyRecord cast to {id} fails (PolicyRecord has no `id`).
+  src/commands/policies.ts(30,18): PolicyRecord[] cast to {policies: [...]} fails.
+  src/commands/policies.ts(30,46): list({agentId, status}) — Expected `string`, got object.
+  src/commands/policies.ts(48,36): revoke(id, {reason}) — Expected `string`, got object.
+
+### Why this was hidden
+
+`pnpm doctor:full` (the canonical local health check, line 372–384 of
+`scripts/doctor.ts`) explicitly typechecks only **3 of 17** workspaces:
+`@cerniq/api`, `@cerniq/types`, `@cerniq/verifier-rp`. The CLI was skipped,
+so prior memory notes claiming "all 17 projects typecheck clean" were
+referring to `doctor:full` coverage, not the full `pnpm typecheck` that CI
+runs as a separate step after lint.
+
+### Blame analysis
+
+All 9 failing lines were last touched in `4403bba` (the okoro→cerniq
+content-substitution rename of 2026-05-22). The drift wasn't introduced
+recently — it was **always wrong**, just never exercised. Likely the CLI
+was scaffolded against an aspirational AgentClient/PolicyClient design
+that never landed in the SDK, then the rename mass-substitution preserved
+the broken calls intact.
+
+### Decision (OD-024)
+
+Option A — **Extend SDK to match CLI**. Adds to `packages/sdk-ts/src/agent.ts`:
+  - `create(input)` — alias for `register`
+  - `list({limit?, cursor?})` → `{agents: AgentSummary[], nextCursor: string | null}`
+  - `revoke(id, {reason?})` — options bag with optional reason forwarded as body
+
+Mirror on `packages/sdk-ts/src/policy.ts`. Adds `AgentSummary` + list-response
+types in `packages/types`. Adds `tests/parity/cli-sdk-shape.test.ts` so the
+next drift trips a parity test, not a CI lint. Rejected B (refactor CLI,
+loses operator features), C (forward-looking ceremony, no extra value),
+D (filter CLI out of typecheck, violates invariant §4).
+
+### Next
+
+Land Option A on a new branch (probably `feat/sdk-cli-contract-fix`). Once
+that branch merges to main and PR #55 rebases, PR #55's `Typecheck` step
+turns green and the `build` job is fully green.
+
+---
+
 ## 2026-05-24 (OD-021 OTel v2 migration attempted + reverted by harness flow) · claim=cerniq:od-021-attempt · sid=anakin
 
 **Status:** ⚠️ OTel v2 migration attempted on side branch `feat/otel-v2-migration`,
