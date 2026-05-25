@@ -28,12 +28,12 @@ CERNIQ depends on, from "fresh laptop" to "production-shippable." Pair with:
 
 ## Tier 0 — already provisioned
 
-| Surface | Verification | Notes |
-| --- | --- | --- |
-| GitHub repo `KLYTICS/cerniq` | `gh repo view KLYTICS/cerniq` | `monykiss` has admin |
-| Radicle canonical | `rad sync status` | RID `rad:z3JUSaS2iRrV1raoSaqXxowLDHq6b`, replicated to ≥4 community seeders |
-| Domain `cerniq.io` | DNS lookup | Registered via Spaceship per project memory |
-| Local Radicle node (`anakin`) | `rad self` | DID `did:key:z6MktaWRHDt…JkN3EA`; private key currently UNENCRYPTED — see Tier 4 §1 |
+| Surface                       | Verification                  | Notes                                                                               |
+| ----------------------------- | ----------------------------- | ----------------------------------------------------------------------------------- |
+| GitHub repo `KLYTICS/cerniq`  | `gh repo view KLYTICS/cerniq` | `monykiss` has admin                                                                |
+| Radicle canonical             | `rad sync status`             | RID `rad:z3JUSaS2iRrV1raoSaqXxowLDHq6b`, replicated to ≥4 community seeders         |
+| Domain `cerniq.io`            | DNS lookup                    | Registered via Spaceship per project memory                                         |
+| Local Radicle node (`anakin`) | `rad self`                    | DID `did:key:z6MktaWRHDt…JkN3EA`; private key currently UNENCRYPTED — see Tier 4 §1 |
 
 ---
 
@@ -54,11 +54,11 @@ pnpm tsx scripts/generate-cerniq-keys.ts
 
 Three independent keypairs are produced:
 
-| Env var | Purpose |
-| --- | --- |
-| `CERNIQ_SIGNING_PRIVATE_KEY` / `CERNIQ_SIGNING_PUBLIC_KEY` | Audit-chain signing (publishes pub at `/.well-known/audit-signing-key`) |
-| `JWT_ED25519_PRIVATE_KEY_B64` / `JWT_ED25519_PUBLIC_KEY_B64` | Agent capability JWT signing |
-| `AUDIT_ED25519_*_B64` | Deprecated alias for `CERNIQ_SIGNING_*`; keep until v0.2 |
+| Env var                                                      | Purpose                                                                 |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| `CERNIQ_SIGNING_PRIVATE_KEY` / `CERNIQ_SIGNING_PUBLIC_KEY`   | Audit-chain signing (publishes pub at `/.well-known/audit-signing-key`) |
+| `JWT_ED25519_PRIVATE_KEY_B64` / `JWT_ED25519_PUBLIC_KEY_B64` | Agent capability JWT signing                                            |
+| `AUDIT_ED25519_*_B64`                                        | Deprecated alias for `CERNIQ_SIGNING_*`; keep until v0.2                |
 
 Also set `CERNIQ_SIGNING_KEY_ROTATED_AT` to today's ISO timestamp.
 
@@ -119,13 +119,13 @@ Verification: `curl localhost:4000/.well-known/audit-signing-key | jq` returns t
 
 The pricing model is **locked**: see `docs/decisions/0014-pricing-and-free-trial.md`.
 
-| Product | Stripe price ID env var | Locked price | Wired today? |
-| --- | --- | --- | --- |
-| Developer | `STRIPE_PRICE_DEVELOPER` | $49 / mo — 50K verifies | ✓ |
-| Team | `STRIPE_PRICE_GROWTH` | $299 / mo — 500K verifies | ✓ (enum value is still `GROWTH`; "Team" is the ADR-0014 display name) |
-| Scale | *(none)* | $1,499 / mo — 5M verifies | ✗ **not wired** — see note below |
-| Enterprise | `STRIPE_PRICE_ENTERPRISE` | custom | ✓ |
-| Overage | `STRIPE_PRICE_OVERAGE_VERIFY` | $0.0008 / verify (metered) | ✓ |
+| Product    | Stripe price ID env var       | Locked price               | Wired today?                                                          |
+| ---------- | ----------------------------- | -------------------------- | --------------------------------------------------------------------- |
+| Developer  | `STRIPE_PRICE_DEVELOPER`      | $49 / mo — 50K verifies    | ✓                                                                     |
+| Team       | `STRIPE_PRICE_GROWTH`         | $299 / mo — 500K verifies  | ✓ (enum value is still `GROWTH`; "Team" is the ADR-0014 display name) |
+| Scale      | _(none)_                      | $1,499 / mo — 5M verifies  | ✗ **not wired** — see note below                                      |
+| Enterprise | `STRIPE_PRICE_ENTERPRISE`     | custom                     | ✓                                                                     |
+| Overage    | `STRIPE_PRICE_OVERAGE_VERIFY` | $0.0008 / verify (metered) | ✓                                                                     |
 
 > **Var-name reality (verified against code 2026-05-25):** `stripe.service.ts`
 > resolves the Team price via `config.stripePriceGrowth` → the env var the
@@ -150,18 +150,24 @@ Steps:
 3. Note each price's `price_xxxxx` ID and set the env vars.
 4. From **Developers → API keys**, copy the live secret key → `STRIPE_SECRET_KEY`.
 5. From **Developers → Webhooks**, add an endpoint:
-   - URL: `https://api.cerniq.io/v1/billing/stripe/webhook` (replace with your deploy URL)
+   - URL: `https://api.cerniq.io/v1/billing/webhook` (replace with your deploy
+     URL — the route is `/v1/billing/webhook`, **not** `/billing/stripe/webhook`)
    - Events: `customer.subscription.{created,updated,deleted}`, `invoice.paid`, `checkout.session.completed`
    - Signing secret → `STRIPE_WEBHOOK_SECRET`
-6. Set the three redirect URLs in `.env`:
+6. Set the Checkout redirect URLs in `.env`:
    - `STRIPE_CHECKOUT_SUCCESS_URL=https://app.cerniq.io/billing/success`
    - `STRIPE_CHECKOUT_CANCEL_URL=https://app.cerniq.io/pricing`
-   - `STRIPE_PORTAL_RETURN_URL=https://app.cerniq.io/billing`
+   - (`STRIPE_PORTAL_RETURN_URL` is currently unused by code — the portal action
+     supplies its return URL per-request — so it is optional and not boot-enforced.)
 
 Verification: `pnpm --filter @cerniq/api test -- --testPathPattern stripe`.
 
-> When `STRIPE_SECRET_KEY` is unset, `BillingService` is a no-op (manual
-> plan-tier admin still works). The boot is non-fatal.
+> **Boot enforcement (added 2026-05-25):** when `STRIPE_SECRET_KEY` is set,
+> `StripeService.onModuleInit` refuses to start unless `STRIPE_WEBHOOK_SECRET`
+>
+> - both Checkout URLs are present — set them together. When `STRIPE_SECRET_KEY`
+>   is unset, `BillingService` is a clean no-op (manual plan-tier admin still
+>   works) and boot is non-fatal.
 
 ### 2.2 — KMS provider (pick one; AWS recommended per OD-014 trigger logic)
 
@@ -212,13 +218,13 @@ Verification: `pnpm --filter @cerniq/api test -- --testPathPattern kms`.
 
 CERNIQ uses Postgres 16 and Redis 7. Hosting options:
 
-| Provider | Postgres | Redis | Notes |
-| --- | --- | --- | --- |
-| **Supabase** | ✓ | — | Add Upstash for Redis |
-| **Neon + Upstash** | ✓ | ✓ | Cheapest serverless starter |
-| **Render** | ✓ | ✓ | Same-vendor managed both |
-| **AWS RDS + ElastiCache** | ✓ | ✓ | Enterprise standard |
-| **GCP Cloud SQL + Memorystore** | ✓ | ✓ | Pairs with GCP KMS in §2.2 |
+| Provider                        | Postgres | Redis | Notes                       |
+| ------------------------------- | -------- | ----- | --------------------------- |
+| **Supabase**                    | ✓        | —     | Add Upstash for Redis       |
+| **Neon + Upstash**              | ✓        | ✓     | Cheapest serverless starter |
+| **Render**                      | ✓        | ✓     | Same-vendor managed both    |
+| **AWS RDS + ElastiCache**       | ✓        | ✓     | Enterprise standard         |
+| **GCP Cloud SQL + Memorystore** | ✓        | ✓     | Pairs with GCP KMS in §2.2  |
 
 Set `DATABASE_URL` and `REDIS_URL` once provisioned. Run
 `pnpm db:migrate` against the new DB to apply the migration chain
@@ -236,7 +242,7 @@ The rename branch added Vercel monorepo deploy support (commit `037c841`).
    - `NEXT_PUBLIC_API_URL=https://api.cerniq.io`
    - `CERNIQ_DASHBOARD_API_KEY=<a key minted via the operator CLI>`
    - `CERNIQ_DASHBOARD_PRINCIPAL_ID=<the principal that owns the key>`
-   - All AUTH0_* from Tier 1 §1.3.
+   - All AUTH0\_\* from Tier 1 §1.3.
 
 > Per `apps/dashboard/CLAUDE.md` (read it before deploying), the Phase 1
 > dashboard reads the API server-side with an operator-pinned key until
@@ -255,14 +261,14 @@ Per OD-008 vibes the edge surface is phase-gated. When you ship it:
 
 Point the records at the chosen deploy targets:
 
-| Record | Points to |
-| --- | --- |
-| `cerniq.io` | Vercel apex (`A 76.76.21.21` + `AAAA 2606:4700:0:0:0:0:0:0`) |
-| `app.cerniq.io` | Vercel CNAME |
-| `api.cerniq.io` | API host (Render / Fly / your choice) |
-| `verify.cerniq.io` | Cloudflare worker route |
-| `status.cerniq.io` | Same as `app` (OD-007 self-hosted on dashboard) |
-| `seed.cerniq.io` *(future)* | Self-hosted Radicle seed node (Tier 4 §2) |
+| Record                      | Points to                                                    |
+| --------------------------- | ------------------------------------------------------------ |
+| `cerniq.io`                 | Vercel apex (`A 76.76.21.21` + `AAAA 2606:4700:0:0:0:0:0:0`) |
+| `app.cerniq.io`             | Vercel CNAME                                                 |
+| `api.cerniq.io`             | API host (Render / Fly / your choice)                        |
+| `verify.cerniq.io`          | Cloudflare worker route                                      |
+| `status.cerniq.io`          | Same as `app` (OD-007 self-hosted on dashboard)              |
+| `seed.cerniq.io` _(future)_ | Self-hosted Radicle seed node (Tier 4 §2)                    |
 
 ### 2.7 — GitHub Actions secrets
 
@@ -342,11 +348,11 @@ Right now the canonical is held by 4–6 public community seeders. For
 brand-aligned sovereignty (you eat what you ship), spin up your own
 seed node on a small VPS:
 
-| Provider | Spec | Monthly |
-| --- | --- | --- |
-| Fly.io shared-cpu-1x | 256 MB | ~$2 |
-| Hetzner CX11 | 1 vCPU / 4 GB | €4.51 |
-| DigitalOcean Basic Droplet | 1 vCPU / 1 GB | $6 |
+| Provider                   | Spec          | Monthly |
+| -------------------------- | ------------- | ------- |
+| Fly.io shared-cpu-1x       | 256 MB        | ~$2     |
+| Hetzner CX11               | 1 vCPU / 4 GB | €4.51   |
+| DigitalOcean Basic Droplet | 1 vCPU / 1 GB | $6      |
 
 Install steps (Ubuntu 24.04):
 
@@ -380,32 +386,32 @@ respond by the due date, the default ships. Re-read weekly.
 
 ## Appendix — env var → consumer file map
 
-| Env var | Consumer file | Behavior if absent |
-| --- | --- | --- |
-| `CERNIQ_SIGNING_PRIVATE_KEY` | `apps/api/src/modules/audit/audit-signing.service.ts` | Boot fails-loud in prod |
-| `JWT_ED25519_PRIVATE_KEY_B64` | `apps/api/src/modules/auth/jwt.service.ts` | Boot fails-loud in prod |
-| `CERNIQ_WEBHOOK_SECRET_DEK_B64` | `apps/api/src/common/crypto/webhook-secret-cipher.ts` | Ephemeral DEK in dev; boot fails in prod |
-| `CERNIQ_KMS_PROVIDER` + KMS_* | `apps/api/src/modules/kms/kms.module.ts` | `in-memory` refuses prod boot |
-| `AUTH0_ISSUER` / `AUTH0_AUDIENCE` | `apps/api/src/modules/auth/auth0-bridge.guard.ts` | `AUTH0_REQUIRED=false` defaults open |
-| `STRIPE_SECRET_KEY` | `apps/api/src/modules/billing/stripe.client.ts` | `BillingService` becomes no-op |
-| `STRIPE_PRICE_DEVELOPER` / `STRIPE_PRICE_GROWTH` / `STRIPE_PRICE_ENTERPRISE` | `apps/api/src/modules/billing/stripe.service.ts` (via `config.service.ts` getters) | `/v1/billing/checkout` returns 503 for that tier |
-| `STRIPE_PRICE_OVERAGE_VERIFY` | `apps/api/src/modules/billing/stripe.service.ts` | Paid overage NOT metered (warn-logged) |
-| `WORKOS_API_KEY` / `WORKOS_COOKIE_PASSWORD` | `apps/api/src/modules/idp-workos/idp-workos.module.ts` | Factory throws iff WorkOS adapter is bound; Auth0 default unaffected |
-| `CERNIQ_ADMIN_TOKEN` | `apps/api/src/modules/onboarding/onboarding.controller.ts` (raw `process.env`) | **Fail-closed** — admin backfill endpoints 403 |
-| `CERNIQ_ONBOARDING_BACKFILL_CRON` | `apps/api/src/modules/onboarding/onboarding.backfill.ts` (raw, `@Cron`) | Defaults to `*/5 * * * *` |
-| `CERNIQ_AUDIT_RETENTION_INTERVAL_MS` | `apps/api/src/modules/compliance/audit-retention.service.ts` (raw) | Built-in default cadence |
-| `DATABASE_URL` / `REDIS_URL` | `apps/api/src/config/config.service.ts` | Boot fails immediately |
-| `SENTRY_DSN` | `apps/api/src/common/observability/sentry.bootstrap.ts` | Silent (errors not reported) |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `apps/api/src/common/observability/tracing.bootstrap.ts` | Tracing disabled with stderr note |
-| `CERNIQ_API_URL` | `scripts/benchmark-verify.ts`, `apps/api/test/load/verify.load.test.ts` (bench/load only — dashboard now uses `CERNIQ_API_BASE_URL`) | Bench/load default localhost |
-| `CERNIQ_DASHBOARD_EMAIL` | `apps/dashboard/lib/auth.ts` | Defaults to `developer@local` |
-| `NEXT_PUBLIC_DOCS_URL` | `apps/docs/app/{layout,sitemap,robots}.ts` | Defaults to `https://docs.cerniq.io` |
-| `CERNIQ_API_KEY` / `CERNIQ_BASE_URL` | `packages/cli/src/credentials.ts`, `packages/mcp-server/src/server.ts` | CLI/MCP throw if key absent; base defaults to `https://api.cerniq.dev` |
-| `CERNIQ_VERIFY_KEY` | `packages/mcp-bridge/src/index.ts` | Bridge verify disabled / errors per config |
+| Env var                                                                      | Consumer file                                                                                                                        | Behavior if absent                                                     |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `CERNIQ_SIGNING_PRIVATE_KEY`                                                 | `apps/api/src/modules/audit/audit-signing.service.ts`                                                                                | Boot fails-loud in prod                                                |
+| `JWT_ED25519_PRIVATE_KEY_B64`                                                | `apps/api/src/modules/auth/jwt.service.ts`                                                                                           | Boot fails-loud in prod                                                |
+| `CERNIQ_WEBHOOK_SECRET_DEK_B64`                                              | `apps/api/src/common/crypto/webhook-secret-cipher.ts`                                                                                | Ephemeral DEK in dev; boot fails in prod                               |
+| `CERNIQ_KMS_PROVIDER` + KMS\_\*                                              | `apps/api/src/modules/kms/kms.module.ts`                                                                                             | `in-memory` refuses prod boot                                          |
+| `AUTH0_ISSUER` / `AUTH0_AUDIENCE`                                            | `apps/api/src/modules/auth/auth0-bridge.guard.ts`                                                                                    | `AUTH0_REQUIRED=false` defaults open                                   |
+| `STRIPE_SECRET_KEY`                                                          | `apps/api/src/modules/billing/stripe.client.ts`                                                                                      | `BillingService` becomes no-op                                         |
+| `STRIPE_PRICE_DEVELOPER` / `STRIPE_PRICE_GROWTH` / `STRIPE_PRICE_ENTERPRISE` | `apps/api/src/modules/billing/stripe.service.ts` (via `config.service.ts` getters)                                                   | `/v1/billing/checkout` returns 503 for that tier                       |
+| `STRIPE_PRICE_OVERAGE_VERIFY`                                                | `apps/api/src/modules/billing/stripe.service.ts`                                                                                     | Paid overage NOT metered (warn-logged)                                 |
+| `WORKOS_API_KEY` / `WORKOS_COOKIE_PASSWORD`                                  | `apps/api/src/modules/idp-workos/idp-workos.module.ts`                                                                               | Factory throws iff WorkOS adapter is bound; Auth0 default unaffected   |
+| `CERNIQ_ADMIN_TOKEN`                                                         | `apps/api/src/modules/onboarding/onboarding.controller.ts` (raw `process.env`)                                                       | **Fail-closed** — admin backfill endpoints 403                         |
+| `CERNIQ_ONBOARDING_BACKFILL_CRON`                                            | `apps/api/src/modules/onboarding/onboarding.backfill.ts` (raw, `@Cron`)                                                              | Defaults to `*/5 * * * *`                                              |
+| `CERNIQ_AUDIT_RETENTION_INTERVAL_MS`                                         | `apps/api/src/modules/compliance/audit-retention.service.ts` (raw)                                                                   | Built-in default cadence                                               |
+| `DATABASE_URL` / `REDIS_URL`                                                 | `apps/api/src/config/config.service.ts`                                                                                              | Boot fails immediately                                                 |
+| `SENTRY_DSN`                                                                 | `apps/api/src/common/observability/sentry.bootstrap.ts`                                                                              | Silent (errors not reported)                                           |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`                                                | `apps/api/src/common/observability/tracing.bootstrap.ts`                                                                             | Tracing disabled with stderr note                                      |
+| `CERNIQ_API_URL`                                                             | `scripts/benchmark-verify.ts`, `apps/api/test/load/verify.load.test.ts` (bench/load only — dashboard now uses `CERNIQ_API_BASE_URL`) | Bench/load default localhost                                           |
+| `CERNIQ_DASHBOARD_EMAIL`                                                     | `apps/dashboard/lib/auth.ts`                                                                                                         | Defaults to `developer@local`                                          |
+| `NEXT_PUBLIC_DOCS_URL`                                                       | `apps/docs/app/{layout,sitemap,robots}.ts`                                                                                           | Defaults to `https://docs.cerniq.io`                                   |
+| `CERNIQ_API_KEY` / `CERNIQ_BASE_URL`                                         | `packages/cli/src/credentials.ts`, `packages/mcp-server/src/server.ts`                                                               | CLI/MCP throw if key absent; base defaults to `https://api.cerniq.dev` |
+| `CERNIQ_VERIFY_KEY`                                                          | `packages/mcp-bridge/src/index.ts`                                                                                                   | Bridge verify disabled / errors per config                             |
 
 ---
 
-*Last updated 2026-05-23. Pair with `OPERATOR_DECISIONS.md` for the
+_Last updated 2026-05-23. Pair with `OPERATOR_DECISIONS.md` for the
 decisions each credentialed surface implements. Each Tier is a coherent
 unit; the next Tier becomes meaningful only once the current one is
-green.*
+green._

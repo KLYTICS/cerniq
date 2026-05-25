@@ -98,6 +98,8 @@ function makeConfigStub(overrides: Partial<Record<string, string | undefined>> =
     stripePriceGrowth: 'price_growth',
     stripePriceEnterprise: 'price_ent',
     stripePriceOverageVerify: 'price_overage_verify',
+    stripeCheckoutSuccessUrl: 'https://app.cerniq.test/billing/success',
+    stripeCheckoutCancelUrl: 'https://app.cerniq.test/pricing',
     ...overrides,
   };
   // type-rationale: minimal stub of AppConfigService — only the getters
@@ -215,6 +217,62 @@ describe('StripeService', () => {
     it('true when STRIPE_SECRET_KEY set', () => {
       const { svc } = build();
       expect(svc.isEnabled()).toBe(true);
+    });
+  });
+
+  describe('onModuleInit() boot guard', () => {
+    it('no-op when Stripe disabled (no secret key)', () => {
+      const { svc } = build({
+        config: {
+          stripeSecretKey: undefined,
+          stripeWebhookSecret: undefined,
+          stripeCheckoutSuccessUrl: undefined,
+          stripeCheckoutCancelUrl: undefined,
+        },
+      });
+      expect(() => svc.onModuleInit()).not.toThrow();
+    });
+
+    it('passes when enabled and all required companions are set', () => {
+      const { svc } = build();
+      expect(() => svc.onModuleInit()).not.toThrow();
+    });
+
+    it('throws listing every missing companion when enabled', () => {
+      const { svc } = build({
+        config: {
+          stripeWebhookSecret: undefined,
+          stripeCheckoutSuccessUrl: undefined,
+          stripeCheckoutCancelUrl: undefined,
+        },
+      });
+      expect(() => svc.onModuleInit()).toThrow(/STRIPE_WEBHOOK_SECRET/);
+      expect(() => svc.onModuleInit()).toThrow(/STRIPE_CHECKOUT_SUCCESS_URL/);
+      expect(() => svc.onModuleInit()).toThrow(/STRIPE_CHECKOUT_CANCEL_URL/);
+    });
+
+    it('throws on a single missing companion (webhook secret)', () => {
+      const { svc } = build({ config: { stripeWebhookSecret: undefined } });
+      expect(() => svc.onModuleInit()).toThrow(/STRIPE_WEBHOOK_SECRET/);
+    });
+
+    it('does NOT require STRIPE_PORTAL_RETURN_URL (unused by code)', () => {
+      const { svc } = build({ config: { stripePortalReturnUrl: undefined } });
+      expect(() => svc.onModuleInit()).not.toThrow();
+    });
+
+    it('warns (does not throw) when enabled but no price tier is set', () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      const { svc } = build({
+        config: {
+          stripePriceDeveloper: undefined,
+          stripePriceGrowth: undefined,
+          stripePriceEnterprise: undefined,
+        },
+      });
+      expect(() => svc.onModuleInit()).not.toThrow();
+      expect(warn).toHaveBeenCalledWith(expect.stringMatching(/no STRIPE_PRICE_\* tier ids/));
+      warn.mockRestore();
     });
   });
 

@@ -58,6 +58,21 @@ migration.**
   code appends `/v1/` (buildUrl), so a `/v1` suffix yields `/v1/v1/`. Docs now
   say set the base WITHOUT `/v1`. `NEXT_PUBLIC_API_URL` confirmed dead (no
   dashboard code reads it) and annotated as such.
+- **Stripe boot guard (new code) — makes the documented "refused at boot"
+  contract real.** `.env.example` + the Zod schema both claimed Stripe
+  redirect URLs were "refused at boot if Stripe is enabled without them", but
+  enforcement was lazy (request-time `ServiceUnavailableError`). Added
+  `StripeService.onModuleInit`: when `STRIPE_SECRET_KEY` is set, boot fails
+  loud listing any missing of `STRIPE_WEBHOOK_SECRET` /
+  `STRIPE_CHECKOUT_SUCCESS_URL` / `STRIPE_CHECKOUT_CANCEL_URL`; warns (no
+  throw) when enabled with zero price tiers. Paired 6 tests (43/43 pass).
+  Found `STRIPE_PORTAL_RETURN_URL` is read by NO code (portal takes the
+  return URL per-request) — so it is NOT boot-required; annotated as
+  forward-compat in `.env.example` + schema. Fixed the credentials runbook's
+  **wrong webhook path** (`/v1/billing/stripe/webhook` → `/v1/billing/webhook`;
+  the bad path would 404 every Stripe event and silently desync subscriptions).
+- **`LAUNCH.md` G-STRIPE gate + D-7 step** updated to the 4-wired-tier ladder
+  (Scale post-launch) with the correct `STRIPE_PRICE_*` var names.
 
 ### What's next (remaining real gaps, not done here)
 
@@ -68,10 +83,13 @@ migration.**
   move into the Zod schema for fail-loud validation; backfill cron can't (read
   at `@Cron` decorator-eval time).
 
-**Not-tested:** `node_modules` absent in this container — `pnpm typecheck` /
-preflight test could not run. Change verified by inspection + grep (no stale
-`STRIPE_PRICE_TEAM/_SCALE/_FREE/_DEV` references remain outside intentional
-deferral notes).
+**Tested (deps installed in-container this session):**
+`pnpm --filter @cerniq/api typecheck` clean; `pnpm --filter @cerniq/dashboard
+typecheck` clean; `pnpm --filter @cerniq/api test -- --testPathPattern stripe`
+→ 43/43 pass (incl. 6 new boot-guard tests); eslint clean on changed API files;
+prettier applied to changed markdown. grep confirms no stale
+`STRIPE_PRICE_TEAM/_SCALE/_FREE/_DEV` references outside intentional deferral
+notes.
 
 ## 2026-05-24 (OD-021 OTel v2 migration attempted + reverted by harness flow) · claim=cerniq:od-021-attempt · sid=anakin
 
@@ -85,33 +103,33 @@ on their pre-migration state. Side branch deleted to keep the branch list clean.
 
 ### What was attempted (and locally verified)
 
-  apps/api/package.json — direct OTel deps bumped:
-    @opentelemetry/auto-instrumentations-node  ^0.51.0 → ^0.76.0
-    @opentelemetry/exporter-trace-otlp-http    ^0.55.0 → ^0.217.0
-    @opentelemetry/resources                   ^1.28.0 → ^2.0.0
-    @opentelemetry/sdk-node                    ^0.55.0 → ^0.217.0
-    @opentelemetry/sdk-trace-base              ^1.28.0 → ^2.0.0
-    @opentelemetry/semantic-conventions        ^1.28.0 → ^1.30.0
+apps/api/package.json — direct OTel deps bumped:
+@opentelemetry/auto-instrumentations-node ^0.51.0 → ^0.76.0
+@opentelemetry/exporter-trace-otlp-http ^0.55.0 → ^0.217.0
+@opentelemetry/resources ^1.28.0 → ^2.0.0
+@opentelemetry/sdk-node ^0.55.0 → ^0.217.0
+@opentelemetry/sdk-trace-base ^1.28.0 → ^2.0.0
+@opentelemetry/semantic-conventions ^1.28.0 → ^1.30.0
 
-  package.json (root) — pnpm.overrides extended for transitives:
-    @opentelemetry/sdk-node             >=0.217.0
-    @opentelemetry/exporter-prometheus  >=0.217.0
-    @opentelemetry/exporter-trace-otlp-http >=0.217.0
-    @opentelemetry/sdk-trace-base       >=2.0.0
-    @opentelemetry/resources            >=2.0.0
+package.json (root) — pnpm.overrides extended for transitives:
+@opentelemetry/sdk-node >=0.217.0
+@opentelemetry/exporter-prometheus >=0.217.0
+@opentelemetry/exporter-trace-otlp-http >=0.217.0
+@opentelemetry/sdk-trace-base >=2.0.0
+@opentelemetry/resources >=2.0.0
 
-  apps/api/src/common/observability/tracing.bootstrap.ts:
-    `new Resource({...})` → `resourceFromAttributes({...})` factory
-    `SemanticResourceAttributes.SERVICE_NAME` → `SEMRESATTRS_SERVICE_NAME`
-    `SemanticResourceAttributes.SERVICE_VERSION` → `SEMRESATTRS_SERVICE_VERSION`
-    Drop the deprecated-API eslint-disable directive
+apps/api/src/common/observability/tracing.bootstrap.ts:
+`new Resource({...})` → `resourceFromAttributes({...})` factory
+`SemanticResourceAttributes.SERVICE_NAME` → `SEMRESATTRS_SERVICE_NAME`
+`SemanticResourceAttributes.SERVICE_VERSION` → `SEMRESATTRS_SERVICE_VERSION`
+Drop the deprecated-API eslint-disable directive
 
 ### Verification (pre-revert)
 
-  pnpm doctor:full                          → green
-  pnpm audit --audit-level high --prod       → 3 → 0 HIGH (CVE closed)
-  tsc @cerniq/api                            → PASS
-  cross-package parity                       → PASS
+pnpm doctor:full → green
+pnpm audit --audit-level high --prod → 3 → 0 HIGH (CVE closed)
+tsc @cerniq/api → PASS
+cross-package parity → PASS
 
 ### Interpretation
 
@@ -135,9 +153,9 @@ typed-routes (`CommandPalette.tsx`, `KeyboardShortcuts.tsx`
 `as Route` assertions).
 
 PR #55 now has 3 commits:
-  854cda5  ci(lint): build type-provider packages before lint
-  e8b5afc  fix(security): apply OD-020 default — close both semgrep findings
-  7b84b69  ci(lint): generate dashboard typed-routes before lint
+854cda5 ci(lint): build type-provider packages before lint
+e8b5afc fix(security): apply OD-020 default — close both semgrep findings
+7b84b69 ci(lint): generate dashboard typed-routes before lint
 
 ---
 
@@ -153,14 +171,14 @@ SARIF location bug closed by bumping `anchore/scan-action@v5` → `@v7`.
 ### Commits (main + PR #55)
 
 main:
-  b6390c7  ci(security): OD-019 — extend license allowlist with rationale
-  fc806a4  ci(security): OD-017 gitleaks CLI direct + audit-chain Slack guard
-  8e822a9  ci(sbom): bump anchore/scan-action v5 → v7 — fixes malformed SARIF
-  95306d4  docs(operator): OD-017/OD-019/OD-020 OPEN → DECIDED
+b6390c7 ci(security): OD-019 — extend license allowlist with rationale
+fc806a4 ci(security): OD-017 gitleaks CLI direct + audit-chain Slack guard
+8e822a9 ci(sbom): bump anchore/scan-action v5 → v7 — fixes malformed SARIF
+95306d4 docs(operator): OD-017/OD-019/OD-020 OPEN → DECIDED
 
 chore/ci-build-before-lint (PR #55):
-  854cda5  ci(lint): build type-provider packages before lint  (not mine)
-  e8b5afc  fix(security): OD-020 default — close both semgrep findings
+854cda5 ci(lint): build type-provider packages before lint (not mine)
+e8b5afc fix(security): OD-020 default — close both semgrep findings
 
 ### Verification
 
@@ -174,33 +192,33 @@ chore/ci-build-before-lint (PR #55):
 ### CI gate state on main HEAD (95306d4)
 
 Expected delta on the next CI run:
-  ✅ mirror-from-radicle    (already green on prior run)
-  ✅ spec-sync              (already green)
-  ✅ docs                   (already green; lychee cerniq.io exclude held)
-  ✅ Security · gitleaks    (OD-017 CLI swap encoded — CI confirms on run)
-  ✅ Security · license     (OD-019 allowlist additions encoded)
-  ✅ Security · trivy       (action version 0.24.0 → 0.36.0 in earlier turn)
-  ✅ Security · workflow-perms (declared on all 5 missing workflows)
-  ⏳ Security · semgrep     (OD-020 fix on PR #55 — flips green when merged)
-  ⏳ Security · pnpm-audit  (OD-021 OPEN — OTel v2 migration deferred)
-  ⏳ Security · osv-scanner (same root as pnpm-audit)
-  ✅ SBOM · CycloneDX-npm   (--ignore-npm-errors held)
-  ✅ SBOM · grype           (anchore/scan-action@v7 SARIF fix)
-  ⏳ Release                (OD-023 OPEN — deferred until first SDK release)
-  ⏳ CI · Lint              (depends on PR #55's build-before-lint reorder)
-  ⏳ Audit-chain integrity  (Slack guard helps; real failure now surfaces)
+✅ mirror-from-radicle (already green on prior run)
+✅ spec-sync (already green)
+✅ docs (already green; lychee cerniq.io exclude held)
+✅ Security · gitleaks (OD-017 CLI swap encoded — CI confirms on run)
+✅ Security · license (OD-019 allowlist additions encoded)
+✅ Security · trivy (action version 0.24.0 → 0.36.0 in earlier turn)
+✅ Security · workflow-perms (declared on all 5 missing workflows)
+⏳ Security · semgrep (OD-020 fix on PR #55 — flips green when merged)
+⏳ Security · pnpm-audit (OD-021 OPEN — OTel v2 migration deferred)
+⏳ Security · osv-scanner (same root as pnpm-audit)
+✅ SBOM · CycloneDX-npm (--ignore-npm-errors held)
+✅ SBOM · grype (anchore/scan-action@v7 SARIF fix)
+⏳ Release (OD-023 OPEN — deferred until first SDK release)
+⏳ CI · Lint (depends on PR #55's build-before-lint reorder)
+⏳ Audit-chain integrity (Slack guard helps; real failure now surfaces)
 
 ### What remains on operator action
 
-  OD-021  OpenTelemetry v2 migration — half-day refactor of
-          apps/api/src/common/observability/tracing.bootstrap.ts
-          (Resource shape + ReadableSpan shape + SEMRESATTRS_*).
-          Default-acceptance of GHSA-q7rr-3cgh-j5r3 in interim
-          is reasonable (Prometheus exporter is internal-only).
-  OD-022  docs.cerniq.io Vercel deployment — Tier 2 §2.4 of
-          CREDENTIALS_BOOTSTRAP.md. Remove the temporary lychee
-          exclude in the same change.
-  OD-023  Release workflow — first intentional SDK release.
+OD-021 OpenTelemetry v2 migration — half-day refactor of
+apps/api/src/common/observability/tracing.bootstrap.ts
+(Resource shape + ReadableSpan shape + SEMRESATTRS\_\*).
+Default-acceptance of GHSA-q7rr-3cgh-j5r3 in interim
+is reasonable (Prometheus exporter is internal-only).
+OD-022 docs.cerniq.io Vercel deployment — Tier 2 §2.4 of
+CREDENTIALS_BOOTSTRAP.md. Remove the temporary lychee
+exclude in the same change.
+OD-023 Release workflow — first intentional SDK release.
 
 ### Cumulative this 24-hour arc
 
@@ -227,14 +245,14 @@ Lint green.
 
 ### Commits
 
-  27c1295  fix(docs): narrow page.data once to typed shape — robust to
-           local + CI type environments (third-time-is-truth fix)
-  138e48c  ci(posture): declare explicit permissions on ci.yml
-  80a367d  ci(posture): declare permissions on remaining 4 workflows
-  e348417  ci(workflows): trivy version + lychee cerniq.io exclude +
-           sbom ignore-npm-errors
-  80fc9a2  docs(operator): OD-017..OD-023 — six new operator-input rows
-           for CI gates
+27c1295 fix(docs): narrow page.data once to typed shape — robust to
+local + CI type environments (third-time-is-truth fix)
+138e48c ci(posture): declare explicit permissions on ci.yml
+80a367d ci(posture): declare permissions on remaining 4 workflows
+e348417 ci(workflows): trivy version + lychee cerniq.io exclude +
+sbom ignore-npm-errors
+80fc9a2 docs(operator): OD-017..OD-023 — six new operator-input rows
+for CI gates
 
 ### Verification
 
@@ -298,10 +316,10 @@ as the sequenced runbook for Tier 0–4 auth surfaces.
    `apps/docs/app/llms.txt/route.ts`.
 
 2. **`.github/workflows/mirror-from-radicle.yml` — root cause: `curl |
-   sh` against an HTML install page.** The Radicle install URL at
+sh` against an HTML install page.** The Radicle install URL at
    https://radicle.xyz/install serves an HTML page (for humans), not a
    shell script. The pipe to `sh` crashed with `cannot open html: No such
-   file`. Rewrote to download the pinned binary directly from
+file`. Rewrote to download the pinned binary directly from
    `files.radicle.xyz/releases/${RAD_VERSION}/...tar.xz` (currently
    `RAD_VERSION=1.9.1`), arch-detect linux/x86_64 vs aarch64, and added
    the missing prerequisites: `rad auth` (ephemeral CI-only identity with
@@ -412,7 +430,6 @@ main. Radicle canonical is unblocked either way.
 - Long-tail: encrypt the Radicle node key (currently unencrypted
   passphrase per dev-mode bootstrap; `rad auth` again sets one).
 
-
 ## 2026-05-22 (rename: cerniq-state verification — full chain audit) · claim=cerniq:rename-cerniq-verification · sid=d0a4b0655ee4
 
 **Status:** ✅ The full rename chain (AEGIS → OKORO → CERNIQ) is verified
@@ -421,26 +438,26 @@ items persist (already documented; carry forward unchanged).
 
 ### Risk scan (read-only, no code changes from this session)
 
-| Risk                                    | Check                                                       | Result                                                                                                                                                                                                                                          |
-| --------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Audit-trail erosion across both passes  | grep aegis/okoro/cerniq in protected files                  | ✅ `SESSION_HANDOFF.md` shows 580/30/6 — full chronology preserved. `OPERATOR_DECISIONS.md` & `WORK_BOARD.md` remain aegis-only (correct: I restored them in db1bf72; operator's cerniq pass found no okoro to substitute)                       |
-| Double-substitution corrosion           | `cerniqcerniq`, `okorocerniq`, `aegis_cerniq`, etc. (8 pat) | ✅ 0 files for every pattern                                                                                                                                                                                                                    |
-| Prisma schema migration coverage        | `apps/api/prisma/migrations/`                               | ✅ Both present: `20260521000000_rename_aegis_to_okoro` + `20260522000000_rename_okoro_to_cerniq`. Second migration has defensive ELSIF for environments that skipped the first                                                                  |
-| Lockfile drift                          | grep aegis/okoro/cerniq in `pnpm-lock.yaml`                 | ✅ 0/0/28 (clean; operator's 13e31fc)                                                                                                                                                                                                           |
-| SDK dist drift                          | `packages/sdk-ts/dist/index.d.ts` exports                   | ⚠️ Was stale at `Okoro*`; **I rebuilt during this session** via `pnpm -r --filter './packages/sdk-ts' build`. Dist is git-ignored so no commit needed                                                                                            |
-| Working-tree residue                    | grep aegis/okoro in active code (excluding exclusions)      | ✅ 0 files                                                                                                                                                                                                                                      |
+| Risk                                   | Check                                                       | Result                                                                                                                                                                                                                     |
+| -------------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Audit-trail erosion across both passes | grep aegis/okoro/cerniq in protected files                  | ✅ `SESSION_HANDOFF.md` shows 580/30/6 — full chronology preserved. `OPERATOR_DECISIONS.md` & `WORK_BOARD.md` remain aegis-only (correct: I restored them in db1bf72; operator's cerniq pass found no okoro to substitute) |
+| Double-substitution corrosion          | `cerniqcerniq`, `okorocerniq`, `aegis_cerniq`, etc. (8 pat) | ✅ 0 files for every pattern                                                                                                                                                                                               |
+| Prisma schema migration coverage       | `apps/api/prisma/migrations/`                               | ✅ Both present: `20260521000000_rename_aegis_to_okoro` + `20260522000000_rename_okoro_to_cerniq`. Second migration has defensive ELSIF for environments that skipped the first                                            |
+| Lockfile drift                         | grep aegis/okoro/cerniq in `pnpm-lock.yaml`                 | ✅ 0/0/28 (clean; operator's 13e31fc)                                                                                                                                                                                      |
+| SDK dist drift                         | `packages/sdk-ts/dist/index.d.ts` exports                   | ⚠️ Was stale at `Okoro*`; **I rebuilt during this session** via `pnpm -r --filter './packages/sdk-ts' build`. Dist is git-ignored so no commit needed                                                                      |
+| Working-tree residue                   | grep aegis/okoro in active code (excluding exclusions)      | ✅ 0 files                                                                                                                                                                                                                 |
 
 ### Verification gates (run on commit `13e31fc`)
 
-| Gate                                    | Result                                                                                              |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `pnpm check:migrations`                 | ✅ Pass — 13 migrations all immutable (1 new since prior verification)                              |
-| `pnpm check:openapi-zod`                | ✅ Pass                                                                                             |
-| `pnpm check:openapi-prisma`             | ✅ Pass                                                                                             |
-| `pnpm test:parity`                      | ✅ Pass                                                                                             |
-| `pnpm lint`                             | ✅ Pass                                                                                             |
-| `pnpm typecheck` (excluding `apps/docs`)| ⚠️ Pass for every workspace **except `packages/cli`** — pre-existing CLI/SDK drift, see #1 below    |
-| `pnpm test` (excluding `tools/postman`) | ⚠️ Pass except `packages/cli` (same drift)                                                          |
+| Gate                                     | Result                                                                                           |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `pnpm check:migrations`                  | ✅ Pass — 13 migrations all immutable (1 new since prior verification)                           |
+| `pnpm check:openapi-zod`                 | ✅ Pass                                                                                          |
+| `pnpm check:openapi-prisma`              | ✅ Pass                                                                                          |
+| `pnpm test:parity`                       | ✅ Pass                                                                                          |
+| `pnpm lint`                              | ✅ Pass                                                                                          |
+| `pnpm typecheck` (excluding `apps/docs`) | ⚠️ Pass for every workspace **except `packages/cli`** — pre-existing CLI/SDK drift, see #1 below |
+| `pnpm test` (excluding `tools/postman`)  | ⚠️ Pass except `packages/cli` (same drift)                                                       |
 
 ### Carry-forward pre-existing drift (NOT rename-caused; same failures on `origin/main`)
 
@@ -1829,7 +1846,7 @@ loss is material.
 
 ## 2026-05-06 (Round 20 — commerce loop closure: Stripe webhook + portal endpoint + audit events + dashboard billing widget + pricing page + e2e Stripe + R19 cleanups) · sid=c4f241c5 · claim=aegis:round-20-commerce-loop
 
-**Status:** ✅ Landed. **5 parallel agents, ~10 min wall.** Round 19 made TRIAL_EXHAUSTED _fire_; Round 20 closes the _conversion loop_ — every blocked trial customer can now upgrade through Stripe checkout, see their usage in the dashboard, and manage subscription via the customer portal. **API tsc 0 errors (sixth consecutive round preserved)**, **89/89 jest across 6 billing/verify/trial suites**, **168/168 scripts vitest**, **all 4 packages tsc clean** (api/sdk/dashboard/e2e), Postman 44 requests across 12 folders / denial walk-through 10/10 still green.
+**Status:** ✅ Landed. **5 parallel agents, ~10 min wall.** Round 19 made TRIAL*EXHAUSTED \_fire*; Round 20 closes the _conversion loop_ — every blocked trial customer can now upgrade through Stripe checkout, see their usage in the dashboard, and manage subscription via the customer portal. **API tsc 0 errors (sixth consecutive round preserved)**, **89/89 jest across 6 billing/verify/trial suites**, **168/168 scripts vitest**, **all 4 packages tsc clean** (api/sdk/dashboard/e2e), Postman 44 requests across 12 folders / denial walk-through 10/10 still green.
 
 ### Why this round mattered
 

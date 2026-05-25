@@ -73,9 +73,11 @@ export const configSchema = z.object({
   // billing-period close. When unset, paid principals exceeding their
   // monthly cap are silently NOT metered — recordOverage logs a warn.
   STRIPE_PRICE_OVERAGE_VERIFY: z.string().optional(),
-  // Where Stripe-hosted Checkout / Customer Portal redirect after the
-  // user finishes (or cancels) the flow. Required when STRIPE_SECRET_KEY
-  // is set; refused at boot if Stripe is enabled without them.
+  // Stripe-hosted Checkout redirect URLs. SUCCESS/CANCEL are boot-enforced
+  // when STRIPE_SECRET_KEY is set (StripeService.onModuleInit refuses to
+  // start without them + STRIPE_WEBHOOK_SECRET). PORTAL_RETURN_URL is
+  // currently unused by code (createPortalSession takes the return URL
+  // per-request) — kept optional for forward-compat, not boot-enforced.
   STRIPE_PORTAL_RETURN_URL: z.string().url().optional(),
   STRIPE_CHECKOUT_SUCCESS_URL: z.string().url().optional(),
   STRIPE_CHECKOUT_CANCEL_URL: z.string().url().optional(),

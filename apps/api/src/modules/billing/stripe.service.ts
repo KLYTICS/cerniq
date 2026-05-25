@@ -27,7 +27,14 @@
 // `plans.ts` are correct enough to scaffold against; price ids come from
 // env vars so the operator can flip live ids without a code change.
 
-import { forwardRef, Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  type OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import type { PlanTier } from '@prisma/client';
 
 import {
@@ -128,7 +135,7 @@ export interface HandleWebhookResult {
 }
 
 @Injectable()
-export class StripeService {
+export class StripeService implements OnModuleInit {
   private readonly logger = new Logger(StripeService.name);
   private readonly stripeFactory: StripeFactory;
   private stripeClient: StripeSdk | null = null;
@@ -183,6 +190,49 @@ export class StripeService {
           }
         : undefined,
     });
+  }
+
+  /**
+   * Fail-loud boot guard. When STRIPE_SECRET_KEY is set the operator has
+   * opted into live billing, so the companions the wired flows actually
+   * consume must also be present — otherwise checkout/webhooks fail at
+   * first request with a confusing runtime error instead of at boot. When
+   * the secret key is absent, Stripe is a clean no-op (manual planTier
+   * admin still works) and this is a no-op too.
+   *
+   * Only requires what is consumed today: the webhook secret (subscription
+   * state never syncs without it) and the checkout success/cancel URLs
+   * (billing.controller falls back to these when the request omits them).
+   * STRIPE_PORTAL_RETURN_URL is intentionally NOT required — no code reads
+   * it; createPortalSession takes the return URL per-request.
+   */
+  onModuleInit(): void {
+    if (!this.isEnabled()) return;
+
+    const missing: string[] = [];
+    if (!this.config.stripeWebhookSecret) missing.push('STRIPE_WEBHOOK_SECRET');
+    if (!this.config.stripeCheckoutSuccessUrl) missing.push('STRIPE_CHECKOUT_SUCCESS_URL');
+    if (!this.config.stripeCheckoutCancelUrl) missing.push('STRIPE_CHECKOUT_CANCEL_URL');
+    if (missing.length > 0) {
+      throw new Error(
+        `STRIPE_SECRET_KEY is set, so Stripe billing is enabled, but required ` +
+          `companion vars are missing: ${missing.join(', ')}. Set them (see ` +
+          `.env.example "Stripe billing") or unset STRIPE_SECRET_KEY to run ` +
+          `billing in manual planTier mode.`,
+      );
+    }
+
+    const hasAnyPrice = [
+      this.config.stripePriceDeveloper,
+      this.config.stripePriceGrowth,
+      this.config.stripePriceEnterprise,
+    ].some((id) => Boolean(id));
+    if (!hasAnyPrice) {
+      this.logger.warn(
+        'Stripe is enabled but no STRIPE_PRICE_* tier ids are set — no tier is ' +
+          'purchasable via /v1/billing/checkout until at least one is configured.',
+      );
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────
