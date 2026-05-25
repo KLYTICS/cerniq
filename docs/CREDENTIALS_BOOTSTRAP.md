@@ -397,7 +397,7 @@ respond by the due date, the default ships. Re-read weekly.
 | `DATABASE_URL` / `REDIS_URL` | `apps/api/src/config/config.service.ts` | Boot fails immediately |
 | `SENTRY_DSN` | `apps/api/src/common/observability/sentry.bootstrap.ts` | Silent (errors not reported) |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `apps/api/src/common/observability/tracing.bootstrap.ts` | Tracing disabled with stderr note |
-| `CERNIQ_API_URL` | `apps/dashboard/app/billing/_components/portalAction.ts` | Defaults to `http://localhost:3001/v1/` (set explicitly) |
+| `CERNIQ_API_URL` | `scripts/benchmark-verify.ts`, `apps/api/test/load/verify.load.test.ts` (bench/load only — dashboard now uses `CERNIQ_API_BASE_URL`) | Bench/load default localhost |
 | `CERNIQ_DASHBOARD_EMAIL` | `apps/dashboard/lib/auth.ts` | Defaults to `developer@local` |
 | `NEXT_PUBLIC_DOCS_URL` | `apps/docs/app/{layout,sitemap,robots}.ts` | Defaults to `https://docs.cerniq.io` |
 | `CERNIQ_API_KEY` / `CERNIQ_BASE_URL` | `packages/cli/src/credentials.ts`, `packages/mcp-server/src/server.ts` | CLI/MCP throw if key absent; base defaults to `https://api.cerniq.dev` |

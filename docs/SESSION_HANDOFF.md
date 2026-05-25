@@ -48,15 +48,22 @@ migration.**
 - **`LAUNCH.md` deploy snippet** corrected: `AUTH0_DOMAIN`→`AUTH0_ISSUER`
   (+`AUTH0_ACTION_SECRET`), `CERNIQ_API_KEY_BCRYPT_COST`→`API_KEY_BCRYPT_COST`,
   added signing/JWT public keys + webhook DEK, fixed the Stripe price line.
+- **Dashboard API-base consolidation (gap I.2, now CLOSED).**
+  `portalAction.ts` was the only consumer of `CERNIQ_API_URL`, defaulting to
+  the wrong port (`http://localhost:3001/v1/`). Switched it to the canonical
+  `CERNIQ_API_BASE_URL ?? 'http://localhost:4000'` (matches api-client.ts +
+  5 other server-side consumers). `CERNIQ_API_URL` now exists only in the
+  benchmark/load scripts. Also found + fixed a latent **double-`/v1`** bug:
+  `launch-env-checklist.md` recommended `CERNIQ_API_BASE_URL=.../v1`, but the
+  code appends `/v1/` (buildUrl), so a `/v1` suffix yields `/v1/v1/`. Docs now
+  say set the base WITHOUT `/v1`. `NEXT_PUBLIC_API_URL` confirmed dead (no
+  dashboard code reads it) and annotated as such.
 
 ### What's next (remaining real gaps, not done here)
 
 - **SCALE tier (Round-18):** PlanTier enum migration (GROWTH→TEAM rename +
   add SCALE), `plans.ts` def ($1,499/5M), `STRIPE_PRICE_SCALE` schema/service,
   pricing parity tests. Operator must also provision the SCALE Stripe price.
-- **Dashboard API-base consolidation:** three vars (`NEXT_PUBLIC_API_URL`,
-  `CERNIQ_API_BASE_URL`, `CERNIQ_API_URL`) — `CERNIQ_API_URL` defaults to the
-  wrong port (:3001). Documented; canonicalization deferred (dashboard-owned).
 - **Raw `process.env` reads** (`CERNIQ_ADMIN_TOKEN`, retention interval) could
   move into the Zod schema for fail-loud validation; backfill cron can't (read
   at `@Cron` decorator-eval time).

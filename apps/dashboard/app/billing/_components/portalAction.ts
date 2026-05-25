@@ -24,9 +24,9 @@ export async function openPortal(returnUrl: string): Promise<PortalResult> {
   if (!apiKey) {
     return { error: 'Dashboard not authorized — set CERNIQ_DASHBOARD_API_KEY.' };
   }
-  const base = process.env.CERNIQ_API_URL ?? 'http://localhost:3001/v1/';
-  const baseNorm = base.endsWith('/') ? base : `${base}/`;
-  const target = new URL('billing/portal', baseNorm).toString();
+  const baseUrl = process.env.CERNIQ_API_BASE_URL ?? 'http://localhost:4000';
+  const baseNorm = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  const target = new URL('v1/billing/portal', baseNorm).toString();
 
   let res: Response;
   try {

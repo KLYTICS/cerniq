@@ -83,7 +83,7 @@ export CERNIQ_APP_BASE=https://app.cerniq.io
 
 ## Known gaps
 1. **Auth0 v4 SDK not yet installed** — per [CLAUDE.md](../../CLAUDE.md) "Operator decisions still pending #5". Until it lands, the dashboard authenticates with `CERNIQ_DASHBOARD_API_KEY` not per-user Auth0 sessions. Plan: ship dashboard in operator-pinned mode for v1, swap to Auth0 in v2.
-2. **`CERNIQ_API_URL` vs `CERNIQ_API_BASE_URL`** drift per [launch-env-checklist.md §F.2](launch-env-checklist.md). Set both to the same value until canonicalized.
+2. ~~**`CERNIQ_API_URL` vs `CERNIQ_API_BASE_URL`** drift~~ — **RESOLVED 2026-05-25**: canonicalized to `CERNIQ_API_BASE_URL` only. Set it **without** a trailing `/v1` (the code appends `/v1/`).
 
 ## Rollback
 ```sh

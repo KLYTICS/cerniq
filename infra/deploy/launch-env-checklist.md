@@ -129,9 +129,8 @@ Note: `apps/dashboard` is not yet wired with the Auth0 v4 SDK per CLAUDE.md. Unt
 
 | Var | Source / how to set | Notes |
 | --- | --- | --- |
-| `CERNIQ_API_BASE_URL=https://api.cerniq.io/v1` | hard-set | Server-side fetcher target (SSR pages, server actions) |
-| `NEXT_PUBLIC_API_URL=https://api.cerniq.io` | hard-set | Client-side `fetch` from React components (rare; mostly server) |
-| `CERNIQ_API_URL=https://api.cerniq.io` | hard-set | Legacy alias still referenced in some routes — DRIFT, keep populated until cleaned up |
+| `CERNIQ_API_BASE_URL=https://api.cerniq.io` | hard-set | **The** server-side API base for all dashboard calls (SSR pages, server actions, api-client, billing portal). Set it **without** a trailing `/v1` — the code appends `/v1/` (a `/v1` suffix here produces a double `/v1/v1/` URL). |
+| `NEXT_PUBLIC_API_URL` | optional | Currently NOT read by any dashboard code (reserved for future client `fetch`). Setting it has no effect today. |
 
 ### C.2 — P0 operator-pinned API key (until Auth0 lands per-user)
 
@@ -205,7 +204,7 @@ Never go on a server. Stored in `~/.config/cerniq/` or your password manager.
 
 1. ~~**`config.schema.ts` is missing `STRIPE_PRICE_SCALE`**~~ — **RESOLVED as a non-blocker (operator decision 2026-05-25): launch the 4 wired tiers.** SCALE is deferred to the Round-18 `PlanTier` enum migration; until then `plans.ts` has no SCALE tier and nothing reads `STRIPE_PRICE_SCALE`, so it is not a launch prerequisite. preflight (`tools/preflight/preflight.ts`) gates `STRIPE_PRICE_DEVELOPER` / `STRIPE_PRICE_GROWTH` / `STRIPE_PRICE_ENTERPRISE` only. Re-open this when SCALE is implemented (schema + plans.ts + stripe.service + parity tests).
 
-2. **Dashboard reads both `CERNIQ_API_BASE_URL` and `CERNIQ_API_URL`** — drift. The canonical name per `.env.example` is `CERNIQ_API_BASE_URL`. The legacy alias `CERNIQ_API_URL` is still referenced in some dashboard routes. **Fix**: grep + canonicalize. ~5 LOC. Or document both during the launch and clean up post-launch.
+2. ~~**Dashboard reads both `CERNIQ_API_BASE_URL` and `CERNIQ_API_URL`**~~ — **RESOLVED 2026-05-25.** Canonicalized to `CERNIQ_API_BASE_URL`; `portalAction.ts` no longer reads `CERNIQ_API_URL` (which also fixed a wrong `:3001` default). `CERNIQ_API_URL` now only exists in the benchmark/load scripts. `NEXT_PUBLIC_API_URL` confirmed unused by dashboard code.
 
 3. **Auth0 v4 SDK not installed in dashboard** — per CLAUDE.md "Operator decisions still pending #5". Without it, the dashboard cannot receive Auth0 callbacks. Either install the SDK + wire the receiver, OR keep the operator-pinned API key flow for v1 and gate per-user logins to v2.
 
