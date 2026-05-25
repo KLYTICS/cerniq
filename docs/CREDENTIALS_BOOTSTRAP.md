@@ -119,18 +119,34 @@ Verification: `curl localhost:4000/.well-known/audit-signing-key | jq` returns t
 
 The pricing model is **locked**: see `docs/decisions/0014-pricing-and-free-trial.md`.
 
-| Product | Stripe price ID env var | Locked price |
-| --- | --- | --- |
-| Developer | `STRIPE_PRICE_DEVELOPER` | $49 / mo — 50K verifies |
-| Team | `STRIPE_PRICE_TEAM` | $299 / mo — 500K verifies (renamed from GROWTH per ADR-0014) |
-| Scale | `STRIPE_PRICE_SCALE` | $1,499 / mo — 5M verifies |
-| Enterprise | `STRIPE_PRICE_ENTERPRISE` | custom |
-| Overage | `STRIPE_PRICE_OVERAGE_VERIFY` | $0.0008 / verify (metered) |
+| Product | Stripe price ID env var | Locked price | Wired today? |
+| --- | --- | --- | --- |
+| Developer | `STRIPE_PRICE_DEVELOPER` | $49 / mo — 50K verifies | ✓ |
+| Team | `STRIPE_PRICE_GROWTH` | $299 / mo — 500K verifies | ✓ (enum value is still `GROWTH`; "Team" is the ADR-0014 display name) |
+| Scale | *(none)* | $1,499 / mo — 5M verifies | ✗ **not wired** — see note below |
+| Enterprise | `STRIPE_PRICE_ENTERPRISE` | custom | ✓ |
+| Overage | `STRIPE_PRICE_OVERAGE_VERIFY` | $0.0008 / verify (metered) | ✓ |
+
+> **Var-name reality (verified against code 2026-05-25):** `stripe.service.ts`
+> resolves the Team price via `config.stripePriceGrowth` → the env var the
+> code actually reads is **`STRIPE_PRICE_GROWTH`**, not `STRIPE_PRICE_TEAM`.
+> `STRIPE_PRICE_TEAM` is not in the Zod schema, so it is silently dropped —
+> setting it leaves Team checkout returning 503. Use `STRIPE_PRICE_GROWTH`.
+>
+> **SCALE is a remaining gap.** ADR-0014 specced a SCALE tier ($1,499/mo, 5M
+> verifies) but `plans.ts` defines only FREE / DEVELOPER / GROWTH / ENTERPRISE.
+> There is no SCALE plan and no `STRIPE_PRICE_SCALE` the code reads. Shipping
+> SCALE requires a `PlanTier` enum migration (the Round-18 GROWTH→TEAM +
+> SCALE rename), a `plans.ts` definition, parity tests, and the new price var —
+> it is **not** a credential you can provision today. Going live with the four
+> wired tiers is fully supported; treat SCALE as planned product work.
 
 Steps:
 
 1. Create a Stripe account (https://dashboard.stripe.com/register).
-2. Create **5 products** with the prices above (subscription + metered overage).
+2. Create **4 wired products** (Developer, Team, Enterprise, metered overage)
+   with the prices above (subscription + metered overage). Defer the SCALE
+   product until the tier is wired in code.
 3. Note each price's `price_xxxxx` ID and set the env vars.
 4. From **Developers → API keys**, copy the live secret key → `STRIPE_SECRET_KEY`.
 5. From **Developers → Webhooks**, add an endpoint:
@@ -372,10 +388,20 @@ respond by the due date, the default ships. Re-read weekly.
 | `CERNIQ_KMS_PROVIDER` + KMS_* | `apps/api/src/modules/kms/kms.module.ts` | `in-memory` refuses prod boot |
 | `AUTH0_ISSUER` / `AUTH0_AUDIENCE` | `apps/api/src/modules/auth/auth0-bridge.guard.ts` | `AUTH0_REQUIRED=false` defaults open |
 | `STRIPE_SECRET_KEY` | `apps/api/src/modules/billing/stripe.client.ts` | `BillingService` becomes no-op |
-| `STRIPE_PRICE_*` | `apps/api/src/modules/billing/plans.ts` | `/v1/billing/checkout` returns 503 |
+| `STRIPE_PRICE_DEVELOPER` / `STRIPE_PRICE_GROWTH` / `STRIPE_PRICE_ENTERPRISE` | `apps/api/src/modules/billing/stripe.service.ts` (via `config.service.ts` getters) | `/v1/billing/checkout` returns 503 for that tier |
+| `STRIPE_PRICE_OVERAGE_VERIFY` | `apps/api/src/modules/billing/stripe.service.ts` | Paid overage NOT metered (warn-logged) |
+| `WORKOS_API_KEY` / `WORKOS_COOKIE_PASSWORD` | `apps/api/src/modules/idp-workos/idp-workos.module.ts` | Factory throws iff WorkOS adapter is bound; Auth0 default unaffected |
+| `CERNIQ_ADMIN_TOKEN` | `apps/api/src/modules/onboarding/onboarding.controller.ts` (raw `process.env`) | **Fail-closed** — admin backfill endpoints 403 |
+| `CERNIQ_ONBOARDING_BACKFILL_CRON` | `apps/api/src/modules/onboarding/onboarding.backfill.ts` (raw, `@Cron`) | Defaults to `*/5 * * * *` |
+| `CERNIQ_AUDIT_RETENTION_INTERVAL_MS` | `apps/api/src/modules/compliance/audit-retention.service.ts` (raw) | Built-in default cadence |
 | `DATABASE_URL` / `REDIS_URL` | `apps/api/src/config/config.service.ts` | Boot fails immediately |
 | `SENTRY_DSN` | `apps/api/src/common/observability/sentry.bootstrap.ts` | Silent (errors not reported) |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `apps/api/src/common/observability/tracing.bootstrap.ts` | Tracing disabled with stderr note |
+| `CERNIQ_API_URL` | `apps/dashboard/app/billing/_components/portalAction.ts` | Defaults to `http://localhost:3001/v1/` (set explicitly) |
+| `CERNIQ_DASHBOARD_EMAIL` | `apps/dashboard/lib/auth.ts` | Defaults to `developer@local` |
+| `NEXT_PUBLIC_DOCS_URL` | `apps/docs/app/{layout,sitemap,robots}.ts` | Defaults to `https://docs.cerniq.io` |
+| `CERNIQ_API_KEY` / `CERNIQ_BASE_URL` | `packages/cli/src/credentials.ts`, `packages/mcp-server/src/server.ts` | CLI/MCP throw if key absent; base defaults to `https://api.cerniq.dev` |
+| `CERNIQ_VERIFY_KEY` | `packages/mcp-bridge/src/index.ts` | Bridge verify disabled / errors per config |
 
 ---
 

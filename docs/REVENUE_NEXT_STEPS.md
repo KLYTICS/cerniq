@@ -54,7 +54,7 @@ require new architecture:
 
 1. **Operator deploy hygiene (≈90 minutes total)**
    - `pnpm add @aws-sdk/client-kms @google-cloud/kms` (resolves the only pre-existing TS errors). 30 min.
-   - Populate `.env.production`: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_DEVELOPER`, `STRIPE_PRICE_TEAM`, `STRIPE_PRICE_SCALE`, `STRIPE_PRICE_OVERAGE_VERIFY`. 15 min in Stripe dashboard + 5 min in Railway.
+   - Populate `.env.production`: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_DEVELOPER`, `STRIPE_PRICE_GROWTH` (= "Team" tier; enum stays `GROWTH` until Round-18), `STRIPE_PRICE_ENTERPRISE`, `STRIPE_PRICE_OVERAGE_VERIFY`. (No `STRIPE_PRICE_SCALE` — SCALE tier is post-launch.) 15 min in Stripe dashboard + 5 min in Railway.
    - `prisma migrate deploy` for `20260506000000_add_stripe_overage_item` (additive nullable; safe). 5 min.
    - Set `CERNIQ_API_BASE_URL` in dashboard production + preview env vars so `/pricing` reads `data-source="api"` instead of build-time fallback. 5 min.
    - Set `CERNIQ_DASHBOARD_API_KEY` + `CERNIQ_DASHBOARD_PRINCIPAL_ID`. 5 min.

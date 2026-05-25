@@ -136,7 +136,7 @@ Aggregated from the audit work in this branch (`feat/launch-readiness`):
 
 | # | Issue | File | Severity |
 | - | --- | --- | --- |
-| I.1 | `STRIPE_PRICE_SCALE` missing from `apps/api/src/config/config.schema.ts` | `apps/api/src/config/config.schema.ts` | **launch-blocking** |
+| I.1 | ~~`STRIPE_PRICE_SCALE` missing from `config.schema.ts`~~ — **deferred to Round-18 enum migration (operator decision 2026-05-25)**. SCALE tier is not wired in `plans.ts`; launch the 4 wired tiers (Free/Developer/Team/Enterprise). preflight gates DEVELOPER/GROWTH/ENTERPRISE only. | `apps/api/src/config/config.schema.ts` | post-launch (not blocking) |
 | I.2 | Dashboard reads both `CERNIQ_API_URL` and `CERNIQ_API_BASE_URL` | `apps/dashboard/` | low |
 | I.3 | API direct `process.env` reads bypass Zod validation | `apps/api/src/` | medium |
 | I.4 | `infra/railway/api.service.json` references legacy `AUDIT_ED25519_*` names | `infra/railway/api.service.json` | low (both names accepted at boot) |

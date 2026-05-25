@@ -120,12 +120,13 @@ railway service list                             # expect: cerniq-api, cerniq-wo
 railway variables --service cerniq-api --set NODE_ENV=production \
   --set DATABASE_URL=... \
   --set REDIS_URL=... \
-  --set CERNIQ_SIGNING_PRIVATE_KEY=... \
-  --set JWT_ED25519_PRIVATE_KEY_B64=... \
-  --set AUTH0_DOMAIN=... AUTH0_AUDIENCE=... AUTH0_REQUIRED=true \
+  --set CERNIQ_SIGNING_PRIVATE_KEY=... CERNIQ_SIGNING_PUBLIC_KEY=... \
+  --set JWT_ED25519_PRIVATE_KEY_B64=... JWT_ED25519_PUBLIC_KEY_B64=... \
+  --set CERNIQ_WEBHOOK_SECRET_DEK_B64=... \
+  --set AUTH0_ISSUER=... AUTH0_AUDIENCE=... AUTH0_ACTION_SECRET=... AUTH0_REQUIRED=true \
   --set STRIPE_SECRET_KEY=... STRIPE_WEBHOOK_SECRET=... \
-  --set STRIPE_PRICE_FREE=... STRIPE_PRICE_DEV=... STRIPE_PRICE_TEAM=... STRIPE_PRICE_SCALE=... \
-  --set CERNIQ_API_KEY_BCRYPT_COST=12
+  --set STRIPE_PRICE_DEVELOPER=... STRIPE_PRICE_GROWTH=... STRIPE_PRICE_ENTERPRISE=... STRIPE_PRICE_OVERAGE_VERIFY=... \
+  --set API_KEY_BCRYPT_COST=12
 # Full list: infra/deploy/launch-env-checklist.md
 ```
 

@@ -321,7 +321,11 @@ export const CHECKS: Check[] = [
     run(ctx: Context): CheckResult {
       // Names sourced from .env.example (the canonical surface). Round 13
       // renamed AUDIT_* → CERNIQ_SIGNING_*; old names are deprecated aliases.
-      // ADR-0014 added STRIPE_PRICE_TEAM and STRIPE_PRICE_SCALE.
+      // Stripe price vars match what stripe.service.ts actually reads:
+      // DEVELOPER, GROWTH (= "Team" display per ADR-0014), ENTERPRISE. The
+      // ADR-0014 SCALE tier is not yet wired in plans.ts, so STRIPE_PRICE_SCALE
+      // is intentionally NOT gated here — adding it ships with the Round-18
+      // PlanTier enum migration.
       const required = [
         'DATABASE_URL',
         'REDIS_URL',
@@ -333,8 +337,8 @@ export const CHECKS: Check[] = [
         'STRIPE_SECRET_KEY',
         'STRIPE_WEBHOOK_SECRET',
         'STRIPE_PRICE_DEVELOPER',
-        'STRIPE_PRICE_TEAM',
-        'STRIPE_PRICE_SCALE',
+        'STRIPE_PRICE_GROWTH',
+        'STRIPE_PRICE_ENTERPRISE',
       ];
       const set = required.filter((k) => process.env[k]);
       const missing = required.filter((k) => !process.env[k]);

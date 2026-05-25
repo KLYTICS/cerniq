@@ -13,6 +13,59 @@
 
 ---
 
+## 2026-05-25 (env-contract correctness for go-live: doc/launch-gate drift fixed) · branch=claude/cerniq-api-keys-env-gMQth
+
+**Status:** ✅ Env contract reconciled to code across `.env.example`, the
+credentials runbook, and every launch gate. No runtime/billing code changed.
+Operator decision captured: **launch the 4 wired tiers (Free / Developer /
+Team[=GROWTH] / Enterprise); SCALE deferred to the Round-18 PlanTier enum
+migration.**
+
+### What shipped
+
+- **Stripe price var drift (the big one).** `stripe.service.ts` reads
+  `STRIPE_PRICE_GROWTH` (Team display name) — but `.env.example`,
+  `CREDENTIALS_BOOTSTRAP.md`, `preflight.ts`, `LAUNCH.md`,
+  `LAUNCH_ENTERPRISE_GATES.md`, `launch-env-checklist.md`, and
+  `REVENUE_NEXT_STEPS.md` all told the operator to set `STRIPE_PRICE_TEAM` /
+  `STRIPE_PRICE_SCALE`, which the Zod config silently drops. Fixed everywhere
+  to `STRIPE_PRICE_GROWTH` + noted SCALE as not-wired/post-launch.
+- **`tools/preflight/preflight.ts`** now gates `STRIPE_PRICE_DEVELOPER` /
+  `_GROWTH` / `_ENTERPRISE` (was demanding `_TEAM` / `_SCALE` the runtime
+  ignores — would have failed prod preflight). Test asserts only check-id
+  presence, unaffected.
+- **Launch-blocking gap I.1 (missing `STRIPE_PRICE_SCALE`) reclassified** to
+  post-launch in `LAUNCH_ENTERPRISE_GATES.md` + `launch-env-checklist.md` per
+  the operator decision.
+- **Undocumented runtime env vars now in `.env.example` + bootstrap appendix:**
+  `WORKOS_API_KEY` / `WORKOS_COOKIE_PASSWORD` (in schema, were missing from
+  the contract); `CERNIQ_ADMIN_TOKEN` (fail-closed admin backfill gate, raw
+  `process.env`); `CERNIQ_ONBOARDING_BACKFILL_CRON`;
+  `CERNIQ_AUDIT_RETENTION_INTERVAL_MS`; dashboard `CERNIQ_API_URL`
+  (defaults to :3001 — flagged) + `CERNIQ_DASHBOARD_EMAIL`; docs
+  `NEXT_PUBLIC_DOCS_URL`; client-package `CERNIQ_API_KEY` / `CERNIQ_BASE_URL`
+  / `CERNIQ_VERIFY_KEY`.
+- **`LAUNCH.md` deploy snippet** corrected: `AUTH0_DOMAIN`→`AUTH0_ISSUER`
+  (+`AUTH0_ACTION_SECRET`), `CERNIQ_API_KEY_BCRYPT_COST`→`API_KEY_BCRYPT_COST`,
+  added signing/JWT public keys + webhook DEK, fixed the Stripe price line.
+
+### What's next (remaining real gaps, not done here)
+
+- **SCALE tier (Round-18):** PlanTier enum migration (GROWTH→TEAM rename +
+  add SCALE), `plans.ts` def ($1,499/5M), `STRIPE_PRICE_SCALE` schema/service,
+  pricing parity tests. Operator must also provision the SCALE Stripe price.
+- **Dashboard API-base consolidation:** three vars (`NEXT_PUBLIC_API_URL`,
+  `CERNIQ_API_BASE_URL`, `CERNIQ_API_URL`) — `CERNIQ_API_URL` defaults to the
+  wrong port (:3001). Documented; canonicalization deferred (dashboard-owned).
+- **Raw `process.env` reads** (`CERNIQ_ADMIN_TOKEN`, retention interval) could
+  move into the Zod schema for fail-loud validation; backfill cron can't (read
+  at `@Cron` decorator-eval time).
+
+**Not-tested:** `node_modules` absent in this container — `pnpm typecheck` /
+preflight test could not run. Change verified by inspection + grep (no stale
+`STRIPE_PRICE_TEAM/_SCALE/_FREE/_DEV` references remain outside intentional
+deferral notes).
+
 ## 2026-05-24 (OD-021 OTel v2 migration attempted + reverted by harness flow) · claim=cerniq:od-021-attempt · sid=anakin
 
 **Status:** ⚠️ OTel v2 migration attempted on side branch `feat/otel-v2-migration`,

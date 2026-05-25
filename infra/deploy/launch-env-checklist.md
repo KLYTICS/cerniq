@@ -58,8 +58,8 @@ This is the operator's per-target inventory: which secret goes into Railway, whi
 | `STRIPE_SECRET_KEY` | Stripe dashboard → API keys (live mode) | `sk_live_…` — restricted key with minimum scopes preferred |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook endpoint config | `whsec_…` — must match the `/v1/billing/webhook` endpoint signing secret |
 | `STRIPE_PRICE_DEVELOPER` | Stripe product → price | $49/mo recurring, ADR-0014 |
-| `STRIPE_PRICE_GROWTH` ⚠️ | Stripe product → price | Maps to TEAM tier ($299) per ADR-0014. **DRIFT WARNING**: schema name is `GROWTH`, customer-visible name is `TEAM`. Do not rename until enum migration lands — see CLAUDE.md "PlanTier naming still has a dashboard/API boundary". |
-| `STRIPE_PRICE_SCALE` ⚠️ | Stripe product → price | $1,499/mo per ADR-0014. **SCHEMA GAP**: `config.schema.ts` does NOT declare this var. It must be added before Stripe wiring is complete. **TODO before launch.** |
+| `STRIPE_PRICE_GROWTH` | Stripe product → price | Maps to the customer-visible "Team" tier ($299) per ADR-0014. The Prisma `PlanTier` enum value stays `GROWTH` (so the env var is `GROWTH`) until the Round-18 enum migration renames it. `stripe.service.ts` reads this var for Team checkout. |
+| ~~`STRIPE_PRICE_SCALE`~~ | — | **Post-launch (NOT wired).** ADR-0014 specced a SCALE tier ($1,499/mo) but `plans.ts` has no SCALE tier and `config.schema.ts` declares no such var, so nothing reads it. Ships with the Round-18 `PlanTier` enum migration. Do **not** gate launch on it — go-live runs the 4 wired tiers (Free / Developer / Team / Enterprise). |
 | `STRIPE_PRICE_ENTERPRISE` | Stripe product → price | Custom-quote; usually a placeholder price for invoicing |
 | `STRIPE_PRICE_OVERAGE_VERIFY` | metered Stripe price | $0.0008/verify per OD-003 |
 | `STRIPE_CHECKOUT_SUCCESS_URL` | `https://app.cerniq.io/billing/success` | Post-checkout redirect |
@@ -203,7 +203,7 @@ Never go on a server. Stored in `~/.config/cerniq/` or your password manager.
 
 ## F. Known launch-blocking gaps (must close before §10 sign-off)
 
-1. **`config.schema.ts` is missing `STRIPE_PRICE_SCALE`** — the schema declares `STRIPE_PRICE_DEVELOPER`, `STRIPE_PRICE_GROWTH`, `STRIPE_PRICE_ENTERPRISE`, `STRIPE_PRICE_OVERAGE_VERIFY` but not `STRIPE_PRICE_SCALE`. Without it, the SCALE tier ($1,499 per ADR-0014) cannot be priced. **Fix**: add to schema + Stripe service + tests. ~10 LOC. Tracks as a launch-prerequisite work item.
+1. ~~**`config.schema.ts` is missing `STRIPE_PRICE_SCALE`**~~ — **RESOLVED as a non-blocker (operator decision 2026-05-25): launch the 4 wired tiers.** SCALE is deferred to the Round-18 `PlanTier` enum migration; until then `plans.ts` has no SCALE tier and nothing reads `STRIPE_PRICE_SCALE`, so it is not a launch prerequisite. preflight (`tools/preflight/preflight.ts`) gates `STRIPE_PRICE_DEVELOPER` / `STRIPE_PRICE_GROWTH` / `STRIPE_PRICE_ENTERPRISE` only. Re-open this when SCALE is implemented (schema + plans.ts + stripe.service + parity tests).
 
 2. **Dashboard reads both `CERNIQ_API_BASE_URL` and `CERNIQ_API_URL`** — drift. The canonical name per `.env.example` is `CERNIQ_API_BASE_URL`. The legacy alias `CERNIQ_API_URL` is still referenced in some dashboard routes. **Fix**: grep + canonicalize. ~5 LOC. Or document both during the launch and clean up post-launch.
 
