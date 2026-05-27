@@ -181,12 +181,20 @@ describe('BateService', () => {
       expect(worker.enqueue).not.toHaveBeenCalled();
     });
 
-    it('still enqueues the worker even when Prisma create fails for non-duplicate reasons', async () => {
+    it('THROWS on non-uniqueness Prisma errors — does NOT enqueue worker with undefined signalId', async () => {
+      // Updated 2026-05-27 (swarm-2 silent-failure-hunter finding):
+      // The previous behavior ("still enqueues with undefined signalId")
+      // let the BATE recompute run on partial signal state for any
+      // non-uniqueness Prisma error (FK violation, transient connection
+      // drop, schema validation). apps/api/CLAUDE.md hard rule: "Do
+      // not swallow errors in security paths" — BATE feeds the verify
+      // hot path's trust score, so this is security-relevant. The fix
+      // logs and re-throws so the caller learns the signal was not
+      // persisted.
       const { svc, prisma, worker } = makeService();
       (prisma.bateSignal.create as jest.Mock).mockRejectedValueOnce(new Error('Connection timeout'));
-      await svc.ingestSignal(BASE_SIGNAL);
-      // signalId will be undefined since create failed, but worker IS called
-      expect(worker.enqueue).toHaveBeenCalledWith('agt_1', undefined);
+      await expect(svc.ingestSignal(BASE_SIGNAL)).rejects.toThrow('Connection timeout');
+      expect(worker.enqueue).not.toHaveBeenCalled();
     });
 
     it('stores the idempotencyKey on the row when provided', async () => {

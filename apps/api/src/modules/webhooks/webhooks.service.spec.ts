@@ -6,10 +6,19 @@
  *   unsubscribe()  — scoped deleteMany; idempotent
  *   list()         — scoped findMany; returns mapped DTOs
  *   enqueue()      — persists deliveries per matching active subscription,
- *                    hands row IDs to WebhookDeliveryWorker; swallows errors
+ *                    hands row IDs to WebhookDeliveryWorker. Throws on
+ *                    *persistence* failures (subscription lookup, delivery
+ *                    row write) so the caller can roll back / re-raise.
+ *                    Tolerates per-delivery BullMQ queue.add failures
+ *                    (the row is durable; reconcile sweep retries).
  *
  * Multi-tenant invariant: every Prisma call is scoped to principalId.
- * The enqueue path must never throw — delivery errors are logged & suppressed.
+ *
+ * Error-handling history: the original implementation silently swallowed
+ * ALL failures (including DB-down). That violated apps/api/CLAUDE.md
+ * ("Do not swallow errors in webhooks paths") and CLAUDE.md invariant
+ * #4 ("No silent failures"). swarm-2 silent-failure-hunter caught it
+ * 2026-05-27; this spec was updated alongside the fix.
  */
 
 import type { WebhookSecretCipher } from '../../common/crypto/webhook-secret-cipher';
@@ -260,11 +269,44 @@ describe('WebhooksService', () => {
       expect(delivery.enqueue).not.toHaveBeenCalled();
     });
 
-    it('swallows errors — never throws on delivery failure', async () => {
+    it('THROWS on subscription lookup failure — caller must learn subscribers will never be notified', async () => {
+      // Updated 2026-05-27 (swarm-2 silent-failure-hunter finding):
+      // The previous behavior ("swallows errors — never throws") violated
+      // apps/api/CLAUDE.md ("Do not swallow errors in webhooks paths") and
+      // CLAUDE.md invariant #4. A revoke handler that called enqueue and
+      // got `void` back believed subscribers had been notified; in fact
+      // a DB-down condition meant zero rows were ever persisted and no
+      // BullMQ retry would ever fire. Now: persistence failures throw so
+      // the caller (typically inside a Prisma transaction) can roll back
+      // or surface the failure visibly.
       const { svc, prisma } = makeService();
       (prisma.webhookSubscription.findMany as jest.Mock).mockRejectedValueOnce(
         new Error('DB down'),
       );
+      await expect(svc.enqueue({ type: 'evt', data: {} }, 'prn_A')).rejects.toThrow('DB down');
+    });
+
+    it('THROWS on delivery-row persistence failure — durable record never written', async () => {
+      const { svc, prisma } = makeService();
+      (prisma.webhookSubscription.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: 'sub_1', principalId: 'prn_A', active: true, events: ['evt'] },
+      ]);
+      (prisma.$transaction as jest.Mock).mockRejectedValueOnce(new Error('tx aborted'));
+      await expect(svc.enqueue({ type: 'evt', data: {} }, 'prn_A')).rejects.toThrow('tx aborted');
+    });
+
+    it('does NOT throw on per-delivery BullMQ enqueue failure — row is durable, reconcile sweep retries', async () => {
+      // The webhookDelivery row is the durable record; per-delivery
+      // queue.add is best-effort. Failure here just delays first-attempt
+      // timing — the reconcile worker picks the row up on next sweep.
+      // Throwing would misleadingly fail the caller AFTER the durable
+      // write succeeded.
+      const { svc, prisma, delivery } = makeService();
+      (prisma.webhookSubscription.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: 'sub_1', principalId: 'prn_A', active: true, events: ['evt'] },
+      ]);
+      (prisma.$transaction as jest.Mock).mockResolvedValueOnce([{ id: 'wd_1' }]);
+      (delivery.enqueue as jest.Mock).mockRejectedValueOnce(new Error('Redis blip'));
       await expect(svc.enqueue({ type: 'evt', data: {} }, 'prn_A')).resolves.toBeUndefined();
     });
   });
