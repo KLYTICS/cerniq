@@ -146,7 +146,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 				if err != nil {
 					return warn("JWKS unreachable: "+err.Error(), "RPs that verify offline will fail until this is reachable")
 				}
-				defer resp.Body.Close()
+				defer func() { _ = resp.Body.Close() }()
 				if resp.StatusCode != http.StatusOK {
 					return warn(fmt.Sprintf("JWKS returned %d", resp.StatusCode), "")
 				}
@@ -164,7 +164,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 				if err != nil {
 					return warn("could not measure: "+err.Error(), "")
 				}
-				defer resp.Body.Close()
+				defer func() { _ = resp.Body.Close() }()
 				dateHdr := resp.Header.Get("Date")
 				if dateHdr == "" {
 					return warn("server did not return Date header", "")
