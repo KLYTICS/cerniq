@@ -90,11 +90,13 @@ jobs:
           version: '~> v2'
           args: release --snapshot --clean --skip=publish,sign,sbom
       - name: list dist artifacts
-        run: ls -la dist/
+        # `dist/` is created inside `packages/cli/` because goreleaser
+        # runs there (per `workdir: packages/cli` above).
+        run: ls -la packages/cli/dist/
       - uses: actions/upload-artifact@v4
         with:
           name: cerniq-cli-snapshot
           path: |
-            dist/cerniq_*
-            dist/checksums.txt
+            packages/cli/dist/cerniq_*
+            packages/cli/dist/checksums.txt
           retention-days: 14
