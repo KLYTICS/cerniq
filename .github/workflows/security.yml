@@ -168,11 +168,11 @@ jobs:
           exit-code: '1'
           format: sarif
           output: trivy-fs.sarif
-          # trivy-action does NOT auto-discover .trivyignore — must be
-          # passed explicitly. The file mirrors OD-021 acceptance for
-          # the OTel Prometheus exporter CVE (CVE-2026-44902) which
-          # osv-scanner.toml already accepts via OTel package overrides.
-          trivyignores: '.trivyignore'
+          # trivy-action does NOT auto-discover .trivyignore[.yaml] — must
+          # be passed explicitly. The yaml schema (trivy >= 0.49) attaches
+          # the OD-021 rationale as a statement which surfaces in scan
+          # output. Mirrors osv-scanner.toml's OTel package overrides.
+          trivyignores: '.trivyignore.yaml'
 
       - name: Upload SARIF
         if: always()
