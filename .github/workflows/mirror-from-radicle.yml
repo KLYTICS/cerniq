@@ -1,10 +1,20 @@
 name: mirror-from-radicle
 
-# Pulls the latest signed state from the Radicle canonical and force-pushes
+# Pulls the latest signed state from the Radicle canonical and propagates
 # the refs allowed by scripts/mirror-policy.sh out to this GitHub repo.
 #
 # Radicle (rad:z3JUSaS2iRrV1raoSaqXxowLDHq6b) is canonical; this workflow
-# makes GitHub a derivative read-only view.
+# makes GitHub a verified mirror.
+#
+# Propagation strategy (2026-05-27, see mirror push step for full rationale):
+#   - Tags          → direct force-push (not protected; no CI gate)
+#   - refs/heads/main → push to `radicle-sync/main` + open/update PR
+#                     into protected `main`, so CodeQL/gitleaks/doctor/
+#                     parity gates run on every Radicle landing.
+#
+# Mirror latency: cron interval (15 min) for the sync branch + PR
+# review/merge cycle for `main`. Acceptable because GitHub is a
+# verified view, not the source of truth.
 
 on:
   schedule:
@@ -16,7 +26,8 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: write        # push tags + sync branch
+  pull-requests: write   # open / update the radicle-sync → main mirror PR
 
 env:
   # Pin Radicle to a known-good release. Bump deliberately; do not float.
@@ -105,17 +116,146 @@ jobs:
           grep '^mirror ' /tmp/decisions.txt | awk '{print $2}' > /tmp/to-mirror.txt
           echo "count=$(wc -l < /tmp/to-mirror.txt | tr -d ' ')" >> "$GITHUB_OUTPUT"
 
-      - name: Push allowed refs to this GitHub repo
+      # Mirror push step. GitHub `main` is branch-protected (per ENG-OPS
+      # decision 2026-05-26: protection is mandatory because CI gates —
+      # CodeQL, gitleaks, doctor:full — must run on everything that lands
+      # on main). The mirror cannot force-push to main directly without
+      # bypassing those gates, which would defeat the protection's purpose.
+      #
+      # Operator decision (2026-05-27, this PR): use a **PR-based mirror**.
+      #   - Tags: still force-pushed directly (not protected; CI gates do
+      #     not gate tag refs).
+      #   - main:   pushed to `radicle-sync/main` (a derivative ref) and
+      #             surfaced via an auto-opening PR. The PR carries the
+      #             new Radicle commits through CI gates before merging
+      #             into the protected `main`.
+      #
+      # The architectural invariant stands: Radicle is canonical. GitHub
+      # `main` is a verified mirror, just one that earns CI green before
+      # accepting Radicle's commits. Mirror latency is bounded by PR
+      # review cycle, not by the cron interval.
+      #
+      # Divergence handling: if a human or another bot has pushed
+      # something to GitHub main that isn't on Radicle, opening a PR
+      # would propose *deleting* those commits. We detect this with
+      # `git merge-base --is-ancestor` and refuse to open a PR in the
+      # diverged case — operator must reconcile manually. This is the
+      # CLAUDE.md "no silent failures" invariant: we surface the
+      # divergence as a workflow warning rather than papering over it.
+      - name: Mirror tags + open/update main mirror PR
         if: steps.refs.outputs.count != '0'
         working-directory: canonical
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SYNC_BRANCH: radicle-sync/main
         run: |
-          git remote add gh "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          set -euo pipefail
+
+          git remote add gh "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+
+          main_changed=0
+
           while read -r ref; do
-            echo "mirroring $ref"
-            git push --force gh "$ref:$ref"
+            case "$ref" in
+              refs/heads/main)
+                echo "::group::main → ${SYNC_BRANCH} (PR-based)"
+
+                # Always force-push the canonical main onto the sync
+                # branch. `radicle-sync/main` is a derivative ref — it
+                # is not branch-protected, and force-update is correct
+                # because we're literally replaying Radicle's history.
+                git push --force gh "refs/heads/main:refs/heads/${SYNC_BRANCH}"
+
+                # Compare Radicle main vs GitHub main to decide whether
+                # an open PR is needed.
+                git fetch gh main 2>/dev/null || true
+                gh_sha=$(git rev-parse FETCH_HEAD 2>/dev/null || echo '')
+                rad_sha=$(git rev-parse refs/heads/main)
+
+                if [[ -z "$gh_sha" ]]; then
+                  echo "GitHub main not present yet — will open initial mirror PR"
+                  main_changed=1
+                elif [[ "$gh_sha" == "$rad_sha" ]]; then
+                  echo "Radicle main matches GitHub main — no PR needed"
+                elif git merge-base --is-ancestor "$gh_sha" "$rad_sha" 2>/dev/null; then
+                  ahead=$(git rev-list --count "${gh_sha}..${rad_sha}")
+                  echo "Radicle main is ${ahead} commits ahead of GitHub main — PR will be opened/updated"
+                  main_changed=1
+                else
+                  # Diverged: gh main has commits Radicle doesn't.
+                  # Opening a PR would propose removing them. Refuse;
+                  # surface a clear warning for operator triage.
+                  echo "::warning title=Mirror divergence::GitHub main ($gh_sha) and Radicle main ($rad_sha) have diverged. The mirror cannot fast-forward; an operator must reconcile (either rebase Radicle onto gh main, or cherry-pick the gh-only commits back to Radicle)."
+                fi
+
+                echo "::endgroup::"
+                ;;
+
+              refs/tags/*)
+                # Tags are not protected and have no CI gate dependency;
+                # direct force-push preserves the existing behavior.
+                echo "mirroring tag $ref"
+                git push --force gh "$ref:$ref"
+                ;;
+
+              *)
+                # Future-proof: if mirror-policy.sh broadens the allowlist
+                # beyond main+tags, anything else falls through here as a
+                # direct force-push. Revisit if a non-main, non-tag ref
+                # ever becomes protected.
+                echo "mirroring $ref (passthrough)"
+                git push --force gh "$ref:$ref"
+                ;;
+            esac
           done < /tmp/to-mirror.txt
+
+          # Open or update the mirror PR if main moved forward.
+          if [[ "$main_changed" == "1" ]]; then
+            existing_pr=$(gh pr list \
+              --repo "$REPO" \
+              --head "$SYNC_BRANCH" \
+              --base main \
+              --state open \
+              --json number \
+              --jq '.[0].number // empty')
+
+            if [[ -n "$existing_pr" ]]; then
+              # GitHub auto-updates the PR head when the branch ref moves,
+              # so we don't need to touch the PR itself. Just announce.
+              echo "::notice::Existing mirror PR #${existing_pr} auto-updated with new Radicle commits."
+            else
+              new_short=$(git rev-parse --short refs/heads/main)
+              echo "Opening new mirror PR at ${new_short}"
+              gh pr create \
+                --repo "$REPO" \
+                --base main \
+                --head "$SYNC_BRANCH" \
+                --title "mirror: Radicle main → GitHub main @ ${new_short}" \
+                --body-file - <<'PRBODY'
+          Automated mirror PR from the Radicle canonical (`rad:z3JUSaS2iRrV1raoSaqXxowLDHq6b`).
+
+          ## Why this PR exists
+
+          GitHub `main` is branch-protected so CI gates (CodeQL, gitleaks, doctor:full, parity) run on every change. The Radicle canonical is the source of truth, but it cannot force-push through the protection without bypassing those gates — which would defeat the protection's purpose.
+
+          This PR is the merge handle. Radicle's commits flow into `radicle-sync/main` every 15 minutes via the `mirror-from-radicle.yml` cron, and that branch is the head of this PR. CI gates run on the PR; merging it advances GitHub `main` to match Radicle `main`.
+
+          ## What you should do
+
+          1. Wait for CI gates to go green on this PR.
+          2. Review the diff like any other PR — the commits originate on Radicle but the same content lands here.
+          3. Use **squash merge** to keep `main` history linear, or **merge commit** if you want a per-sync record (operator preference).
+          4. After merge, `radicle-sync/main` will continue to receive new commits; a fresh PR will auto-open when the next sync diverges from `main`.
+
+          ## If CI fails on this PR
+
+          The break occurred on Radicle. Fix on Radicle, push the fix, and the next cron will update this PR's head. **Do not push commits directly to `radicle-sync/main`** — they will be overwritten on the next mirror run.
+
+          > Opened by `.github/workflows/mirror-from-radicle.yml`. Cron: every 15 min.
+          PRBODY
+            fi
+          fi
 
       - name: Stop Radicle node
         if: always()
