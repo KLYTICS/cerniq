@@ -84,8 +84,27 @@ jobs:
         working-directory: apps/api
         run: pnpm prisma generate
 
+      # Pre-launch guard. The audit-chain verifier requires a live staging
+      # (or production) database to read from; until the operator wires
+      # `AUDIT_DB_READONLY_URL` into the corresponding GitHub Environment
+      # secret, the daily cron has no DB to verify and was failing every
+      # run with exit 2 ("DATABASE_URL is required"). That noise drowns
+      # real failures in the workflow feed.
+      #
+      # When the secret is unset we emit a single `::notice::` line and
+      # skip the verify step; the workflow concludes green. The moment
+      # the operator adds the secret the gate engages automatically — no
+      # workflow edit, no manual re-enable. Matches CLAUDE.md invariant
+      # #4 (no silent failures): we *announce* the skip rather than
+      # silently passing.
+      - name: Pre-launch skip notice (DATABASE_URL unset)
+        if: env.DATABASE_URL == ''
+        run: |
+          echo "::notice title=Audit-chain verifier skipped::AUDIT_DB_READONLY_URL not configured for environment '${{ github.event.inputs.environment || 'staging' }}' — verifier has no database to read from yet. The gate will engage automatically the moment the secret is wired. See OPERATOR_DECISIONS.md."
+
       - name: Verify audit chain (JSON output to artifact)
         id: verify
+        if: env.DATABASE_URL != ''
         working-directory: scripts
         run: |
           set -o pipefail
