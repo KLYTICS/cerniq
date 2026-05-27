@@ -158,33 +158,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4 # pin: replace with full sha before merge
 
-      # NOTE on `continue-on-error: true` — temporary measure pending
-      # investigation. The trivy-action wrapper (currently pinned to
-      # ed142fd0, post-v0.36.0 docs commit; bundles trivy 0.70.0) exits
-      # with code 1 ~15ms after "Detecting vulnerabilities..." starts
-      # AND produces no visible HIGH/CRITICAL finding in the log. The
-      # SARIF output is similarly empty of new findings. Hypothesis:
-      # interaction between trivy 0.70.0's gomod + npm + pnpm scanners
-      # and the post-bump dep graph. The .trivyignore.yaml is read
-      # correctly (log: "Found ignorefile") and the only known
-      # HIGH-severity finding (CVE-2026-44902, OTel Prometheus) is
-      # accepted there per OD-021. All other SCA tools (osv-scanner,
-      # pnpm audit) pass cleanly with the same dep graph.
-      #
-      # Suppressing here so the job remains green while keeping the
-      # SARIF artifact upload visible in the Code Scanning UI for
-      # operator review. The duplicate non-failing `Trivy` job
-      # (defined elsewhere in this workflow) already passes; the
-      # `SCA · trivy filesystem` name is preserved for branch-
-      # protection contract continuity.
-      #
-      # Sunset condition: investigate-and-remove this line when
-      # either (a) trivy-action bumps trivy to >=0.71 with the
-      # silent-exit fix, or (b) we have a reproducible local repro
-      # that lets us file an upstream issue. Tracked in docs/
-      # SESSION_HANDOFF.md sweep-9 entry under "What's next #2".
       - name: Trivy filesystem scan
-        continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0 — upstream tag is `v0.36.0` (with `v` prefix); the prior unprefixed `0.36.0` resolved 404 on the runner. SHA-pinned per workflow policy.
         with:
           scan-type: fs
@@ -199,6 +173,29 @@ jobs:
           # the OD-021 rationale as a statement which surfaces in scan
           # output. Mirrors osv-scanner.toml's OTel package overrides.
           trivyignores: '.trivyignore.yaml'
+          # Crucial input: when `format: sarif` AND we want
+          # `exit-code: '1'` to gate on the `severity:` filter (not on
+          # every LOW/MEDIUM finding), this must be 'true'. Without
+          # it, the action's entrypoint.sh unsets TRIVY_SEVERITY for
+          # the SARIF-build path, so exit-code applies to ALL
+          # severities — making the gate trip on any LOW finding
+          # anywhere in the tree while the visible HIGH/CRITICAL
+          # findings table stays empty (the symptom is a silent
+          # exit-1 ~15ms after "Detecting vulnerabilities..."). See
+          # trivy-action#309 — open since 2024, the entrypoint code:
+          #   if [ "$TRIVY_FORMAT" = "sarif" ]; then
+          #     if [ "${INPUT_LIMIT_SEVERITIES_FOR_SARIF}" != "true" ]; then
+          #       unset TRIVY_SEVERITY
+          #     fi
+          #   fi
+          # Side effect: the SARIF uploaded to Code Scanning only
+          # contains HIGH/CRITICAL alerts (not LOW/MEDIUM). This is
+          # the right trade-off for CERNIQ: CI gates on HIGH/CRITICAL
+          # only, and osv-scanner covers the full-severity surface
+          # at the lockfile level. Fixed in this PR via the swarm-
+          # discovered root cause; removes the prior temporary
+          # `continue-on-error: true` workaround (commit c218d75).
+          limit-severities-for-sarif: 'true'
 
       - name: Upload SARIF
         if: always()

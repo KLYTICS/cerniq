@@ -64,7 +64,14 @@ func (c *Client) EventsExport(ctx context.Context, agentID string, w io.Writer) 
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(resp.Body)
+		// Surface io.ReadAll errors on the audit path so the operator
+		// sees a degraded-body condition rather than a misleadingly-
+		// truncated APIError. CLAUDE.md invariant #4 — every
+		// downstream failure must be visible on audit-export paths.
+		body, rerr := io.ReadAll(resp.Body)
+		if rerr != nil {
+			return fmt.Errorf("read error body for status %d: %w", resp.StatusCode, rerr)
+		}
 		return parseAPIError(resp.StatusCode, body)
 	}
 	if _, err := io.Copy(w, resp.Body); err != nil {

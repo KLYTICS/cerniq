@@ -177,12 +177,26 @@ func runEventsExport(cmd *cobra.Command, args []string) error {
 	}
 	out, _ := cmd.Flags().GetString("out")
 	w := cmd.OutOrStdout()
+	var f *os.File
 	if out != "-" {
-		f, err := os.OpenFile(out, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+		var err error
+		f, err = os.OpenFile(out, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 		if err != nil {
 			return fmt.Errorf("open --out: %w", err)
 		}
-		defer func() { _ = f.Close() }()
+		// Best-effort cleanup on early-return paths only. The success
+		// path closes f explicitly below so any fsync/IO error from
+		// Close is surfaced to the operator — audit exports must be
+		// durably written or the operator must learn they weren't.
+		// Discarding Close errors here would let a truncated/corrupt
+		// export print "export streamed to ..." per CLAUDE.md
+		// invariant #4 ("never hide an error behind ... synthetic
+		// success") on the audit path.
+		defer func() {
+			if f != nil {
+				_ = f.Close()
+			}
+		}()
 		w = f
 	}
 	// Long-running stream — give it 10 minutes; large tenants have multi-GB exports.
@@ -190,6 +204,16 @@ func runEventsExport(cmd *cobra.Command, args []string) error {
 	defer cancel()
 	if err := c.EventsExport(ctx, args[0], w); err != nil {
 		return err
+	}
+	if f != nil {
+		// Explicit Close on the happy path. fsync/buffer-flush errors
+		// here mean the export was NOT durably written; the operator
+		// must see this before any "success" UI prints.
+		closeErr := f.Close()
+		f = nil // suppress the deferred best-effort Close
+		if closeErr != nil {
+			return fmt.Errorf("close --out: durable write check failed (export may be truncated): %w", closeErr)
+		}
 	}
 	if out != "-" && !flagJSON {
 		ui.OK(cmd.OutOrStdout(), "export streamed to "+out)
