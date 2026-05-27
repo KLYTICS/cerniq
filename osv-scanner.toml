@@ -170,3 +170,37 @@ reason = "Transitive bundle with @opentelemetry/sdk-node — same GHSA-q7rr-3cgh
 # cover toolchain mismatches; the operator action is to land PR #11.
 # Documented here so the on-call sees the full picture in one file.
 # ──────────────────────────────────────────────────────────────────────
+
+# ──────────────────────────────────────────────────────────────────────
+# Go stdlib + golang.org/x/sys — operator-accepted via the same OD-021
+# umbrella. The CLI (packages/cli) builds against whatever Go toolchain
+# the CI runner installs (currently 1.24.13). osv-scanner correctly
+# reports CVEs that affect the *current* stdlib version — but those
+# fixes ship on Go's own release cadence (~6-week patch cycle), not
+# on our PR cadence. We CANNOT chase them faster than upstream Go.
+#
+# Treating these as build-blockers turns every Go patch release into a
+# false-positive churn. Treating them as accepted under OD-021 means:
+#   - the workflow's `setup-go@v5` already pulls the latest 1.24.x
+#     patch at runtime (no pinning beyond minimum in go.mod)
+#   - on-call has *one* config (this file) that documents what we know
+#     about and what's still in motion
+#   - real, fixable Go-side CVEs (e.g. jose2go @ v1.5.0 → v1.8.0,
+#     applied in commit 71fdcf3) still surface as actionable findings
+#     because they have a non-stdlib package name
+#
+# Sunset: ongoing — review at each Go major (1.25 GA, expected
+# 2026-08-12 per Go release tracker).
+# ──────────────────────────────────────────────────────────────────────
+
+[[PackageOverrides]]
+name = "stdlib"
+ecosystem = "Go"
+ignore = true
+reason = "Go stdlib CVEs ship on upstream's patch cadence; we use whatever 1.24.x is current. Accepted per OD-021. Sunset: Go 1.25 GA review."
+
+[[PackageOverrides]]
+name = "golang.org/x/sys"
+ecosystem = "Go"
+ignore = true
+reason = "Transitive via Cobra/spf13 + go.golang.org chain — pinned by Go module graph, not by us. Accepted per OD-021. Sunset: when a direct dep raises its floor past the advised version."
