@@ -50,7 +50,19 @@ jobs:
           cache-dependency-path: packages/cli/go.sum
       - uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.59
+          # v1.59 only supports up to Go 1.22; the module declares
+          # `go 1.24.0` (see `packages/cli/go.mod`), so v1.59's
+          # typecheck linter fails to load the package and surfaces
+          # spurious `undefined: <pkg>` errors (e.g. on `toml` import)
+          # despite the symbol being correctly imported.
+          #
+          # v1.64.x adds Go 1.24 support while staying on the v1.x
+          # line, so `packages/cli/.golangci.yml` (which uses v1
+          # syntax: `disable-all: true` + `enable: [...]`) keeps
+          # working without rewrite. v2.x ships a v2 config schema
+          # and a couple of deprecated/renamed linters — not worth
+          # the churn in this PR.
+          version: v1.64.8
           working-directory: packages/cli
           args: --config=.golangci.yml --timeout=5m
 
