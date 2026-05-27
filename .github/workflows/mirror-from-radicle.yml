@@ -92,21 +92,97 @@ jobs:
           done
           rad node status | head -10 || true
 
-      - name: Clone canonical from Radicle network
+      # Clone with retry on transient seed unavailability.
+      #
+      # Radicle is a P2P network; seed availability fluctuates by minute.
+      # A cron tick that hits a 1–2 minute "no reachable seeds" window
+      # was previously a hard workflow failure — observed concretely on
+      # 2026-05-27T16:05Z scheduled run #26523126687, while the manual
+      # workflow_dispatch on the same SHA at 14:02Z succeeded. That's
+      # not a workflow bug; it's the P2P substrate doing its thing.
+      #
+      # Strategy: up to 3 clone attempts with exponential backoff
+      # (30s/60s/120s = ~3.5 min wall-clock cap). If all 3 hit the
+      # specific "no seeds found" pattern, downgrade to a workflow
+      # `::notice::` and emit `skipped=true` so downstream steps short-
+      # circuit cleanly — the next 15-min cron tick will retry anyway,
+      # so a missed run is not actionable. ANY OTHER clone failure
+      # (missing binary, identity error, signature rejection, malformed
+      # RID) still hard-fails. We narrow the green-pass to one specific
+      # known-transient signal; everything else stays loud. Mirrors the
+      # audit-chain self-skip pattern (3d4059d) for the same reason:
+      # "no silent failures, but don't shout about non-actionable
+      # transients" (CLAUDE.md invariant #4).
+      - name: Clone canonical from Radicle network (with retry on transient seed unavailability)
+        id: clone
         env:
           RAD_PASSPHRASE: ''
         run: |
-          rad clone "$CERNIQ_RID" --no-confirm canonical
-          cd canonical
-          git fetch --all --tags
-          echo "---refs available---"
-          git for-each-ref --format='%(refname)' refs/heads refs/tags | head -20
+          set -euo pipefail
+
+          attempts=3
+          backoff=30
+
+          for i in $(seq 1 $attempts); do
+            echo "::group::clone attempt $i/$attempts"
+
+            clone_log=$(mktemp)
+            # Don't let set -e kill us mid-retry; capture the exit code instead.
+            set +e
+            rad clone "$CERNIQ_RID" --no-confirm canonical 2>&1 | tee "$clone_log"
+            clone_rc=${PIPESTATUS[0]}
+            set -e
+
+            if [[ $clone_rc -eq 0 ]]; then
+              echo "::endgroup::"
+              echo "✓ clone succeeded on attempt $i/$attempts"
+              cd canonical
+              git fetch --all --tags
+              echo "---refs available---"
+              git for-each-ref --format='%(refname)' refs/heads refs/tags | head -20
+              echo "skipped=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            echo "::endgroup::"
+
+            if ! grep -q "no seeds found" "$clone_log"; then
+              echo "::error title=Clone failed (non-retryable)::Clone exited $clone_rc with an unexpected error. Last lines of clone log:"
+              tail -20 "$clone_log"
+              exit 1
+            fi
+
+            if [[ $i -lt $attempts ]]; then
+              echo "::warning title=Transient: no seeds::Attempt $i/$attempts hit 'no seeds found' for $CERNIQ_RID — retrying in ${backoff}s after resetting Radicle node state."
+              rad node stop >/dev/null 2>&1 || true
+              sleep "$backoff"
+              rad node start
+              # Re-await node readiness before the next clone attempt.
+              for _ in 1 2 3 4 5; do
+                if rad node status 2>&1 | grep -q "Node is running"; then
+                  break
+                fi
+                sleep 2
+              done
+              # `rad clone` refuses to clone into a non-empty directory;
+              # remove the partial dir before retrying.
+              rm -rf canonical
+              backoff=$((backoff * 2))
+            fi
+          done
+
+          # All attempts exhausted on the retryable pattern → soft-fail.
+          echo "::notice title=Mirror skipped (transient)::All $attempts clone attempts failed with 'no seeds found' for $CERNIQ_RID. The Radicle network had no reachable seeds during this cron window. The next cron run (in ≤15 min) will retry; this run is not actionable."
+          echo "skipped=true" >> "$GITHUB_OUTPUT"
+          exit 0
 
       - name: Stage policy script
+        if: steps.clone.outputs.skipped != 'true'
         working-directory: canonical
         run: cp scripts/mirror-policy.sh /tmp/mirror-policy.sh && chmod +x /tmp/mirror-policy.sh
 
       - name: Discover mirrorable refs
+        if: steps.clone.outputs.skipped != 'true'
         working-directory: canonical
         id: refs
         run: |
@@ -143,7 +219,11 @@ jobs:
       # CLAUDE.md "no silent failures" invariant: we surface the
       # divergence as a workflow warning rather than papering over it.
       - name: Mirror tags + open/update main mirror PR
-        if: steps.refs.outputs.count != '0'
+        # Belt-and-suspenders guard: skip if clone soft-failed (refs step
+        # didn't run, so its `count` output is unset — `!= '0'` would
+        # spuriously evaluate true on an empty string). The explicit
+        # `clone.outputs.skipped != 'true'` short-circuits that case.
+        if: steps.clone.outputs.skipped != 'true' && steps.refs.outputs.count != '0'
         working-directory: canonical
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
