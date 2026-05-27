@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/klytics/cerniq/packages/cli/internal/client"
 	"github.com/klytics/cerniq/packages/cli/internal/config"
 	"github.com/klytics/cerniq/packages/cli/internal/keychain"
 	"github.com/klytics/cerniq/packages/cli/internal/ui"
-	"github.com/spf13/cobra"
 )
 
 func init() {

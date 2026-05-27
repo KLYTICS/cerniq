@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/klytics/cerniq/packages/cli/internal/version"
 	"github.com/spf13/cobra"
+
+	"github.com/klytics/cerniq/packages/cli/internal/version"
 )
 
 func init() {
