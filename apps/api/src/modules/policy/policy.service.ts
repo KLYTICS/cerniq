@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
 
+import { WEBHOOK_EVENT } from '@cerniq/types';
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { AgentPolicy, Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
-import { WEBHOOK_EVENT } from '@cerniq/types';
 
 import { JwtUtil } from '../../common/crypto/jwt.util';
 import { PrismaService } from '../../common/prisma/prisma.service';

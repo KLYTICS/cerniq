@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 
+import { WEBHOOK_EVENT } from '@cerniq/types';
 import {
   ForbiddenException,
   GoneException,
@@ -10,7 +11,6 @@ import {
 } from '@nestjs/common';
 import * as ed from '@noble/ed25519';
 import type { AgentIdentity, Prisma } from '@prisma/client';
-import { WEBHOOK_EVENT } from '@cerniq/types';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';

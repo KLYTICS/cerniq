@@ -20,11 +20,11 @@
 // runs on every expired policy in the system). `WebhooksService.enqueue`
 // scopes per-principal automatically by looking up the policy's owner.
 
+import { WEBHOOK_EVENT } from '@cerniq/types';
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import type { AgentPolicy } from '@prisma/client';
 import { Queue, Worker, type Job } from 'bullmq';
 import IORedis from 'ioredis';
-import { WEBHOOK_EVENT } from '@cerniq/types';
 
 import { MetricsService } from '../../common/observability/metrics.service';
 import { PrismaService } from '../../common/prisma/prisma.service';

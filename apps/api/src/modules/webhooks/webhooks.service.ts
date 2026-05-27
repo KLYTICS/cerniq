@@ -1,8 +1,8 @@
 import { randomBytes } from 'node:crypto';
 
+import type { WebhookEvent as WebhookEventName } from '@cerniq/types';
 import { Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import type { WebhookEvent as WebhookEventName } from '@cerniq/types';
 
 import { WebhookSecretCipher } from '../../common/crypto/webhook-secret-cipher';
 import { PrismaService } from '../../common/prisma/prisma.service';

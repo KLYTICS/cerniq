@@ -105,7 +105,7 @@ describe('PolicyController', () => {
     });
 
     it('forwards auth.apiKeyId as revokedBy (OD-024 Phase A6 — SOC2 "who did this")', async () => {
-      const operatorAuth = { ...AUTH, apiKeyId: 'key_operator_42' } as typeof AUTH;
+      const operatorAuth = { ...AUTH, apiKeyId: 'key_operator_42' };
       await controller.revoke(operatorAuth, 'agt_1', 'pol_x', { reason: 'rotation' });
       expect(service.revoke).toHaveBeenCalledWith(
         'prn_A',
