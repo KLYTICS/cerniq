@@ -1,3 +1,4 @@
+import type { DenialReason } from '@cerniq/types';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNumber, IsObject, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
@@ -62,18 +63,15 @@ export class VerifyRequestDto {
  * between SCOPE_NOT_GRANTED and SPEND_LIMIT_EXCEEDED. It fires when a
  * free-trial principal has used their lifetime 10K-verify cap.
  */
-export type DenialReason =
-  | 'PLAN_LIMIT_EXCEEDED'       // billing gate — fires before algorithm
-  | 'AGENT_NOT_FOUND'
-  | 'AGENT_REVOKED'
-  | 'INVALID_SIGNATURE'
-  | 'POLICY_REVOKED'
-  | 'POLICY_EXPIRED'
-  | 'SCOPE_NOT_GRANTED'
-  | 'TRIAL_EXHAUSTED'           // ADR-0014: free-trial lifetime cap
-  | 'SPEND_LIMIT_EXCEEDED'
-  | 'TRUST_SCORE_TOO_LOW'
-  | 'ANOMALY_FLAGGED';
+// Re-exported from `@cerniq/types` (the wire-contract source of truth)
+// rather than hand-redeclared. The previous inline literal-union form
+// drifted on every Zod tuple change without the existing cross-package
+// parity test catching it (denial-precedence-enum.spec.ts iterates over
+// Zod, engine.interface.ts, verifier-rp/src/types.ts, and the OpenAPI
+// YAML — DTOs in apps/api/src/modules/*.dto.ts were not in the
+// inventory). Single source of truth fixes that gap.
+// Swarm-2 type-design-analyzer finding, 2026-05-27.
+export type { DenialReason };
 
 export class VerifyResponseDto {
   @ApiProperty()

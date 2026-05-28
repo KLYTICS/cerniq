@@ -1,3 +1,4 @@
+import { FIAT_CURRENCIES, STABLECOIN_CURRENCIES, type Currency } from '@cerniq/types';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
@@ -6,6 +7,7 @@ import {
   IsArray,
   IsDateString,
   IsEnum,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -22,16 +24,21 @@ export enum ScopeCategory {
   SCHEDULING = 'scheduling',
 }
 
-export enum ScopeCurrency {
-  USD = 'USD',
-  EUR = 'EUR',
-  GBP = 'GBP',
-}
+// Currency accepted set is sourced from `@cerniq/types` Currency union
+// (9 fiat + 4 stablecoin = 13 codes). Previously this DTO hard-coded
+// USD/EUR/GBP only via a local `ScopeCurrency` enum, which rejected
+// valid wire requests (e.g. `currency: "AUD"`) at class-validator
+// before the request ever reached the service — a real contract-drift
+// bug surfaced by swarm-2 type-design-analyzer 2026-05-27.
+//
+// Frozen tuple is the union of FIAT + STABLECOIN; `as const` preserves
+// literal-type narrowing for the `Currency` cast in IsIn's type param.
+const ALL_CURRENCIES = [...FIAT_CURRENCIES, ...STABLECOIN_CURRENCIES] as const;
 
 export class SpendLimitDto {
-  @ApiProperty({ enum: ScopeCurrency })
-  @IsEnum(ScopeCurrency)
-  currency!: ScopeCurrency;
+  @ApiProperty({ enum: ALL_CURRENCIES, example: 'USD' })
+  @IsIn(ALL_CURRENCIES as readonly string[])
+  currency!: Currency;
 
   @ApiPropertyOptional()
   @IsOptional()
