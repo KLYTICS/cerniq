@@ -12,22 +12,25 @@ name: mirror-from-radicle
 #                     into protected `main`, so CodeQL/gitleaks/doctor/
 #                     parity gates run on every Radicle landing.
 #
-# Mirror latency: cron interval (15 min) for the sync branch + PR
-# review/merge cycle for `main`. Acceptable because GitHub is a
-# verified view, not the source of truth.
+# Mirror cadence: manual `workflow_dispatch` only. The every-15-min cron
+# was removed (2026-05-30) — failing scheduled runs emailed the maintainer
+# on every interval, and the mirror's prerequisites (Radicle seeder
+# reachability from CI) were not reliably met. Trigger a sync on demand,
+# or re-add a `schedule:` block once the mirror runs green unattended.
+# Latency is then operator-driven for the sync branch + PR review/merge
+# cycle for `main`. Acceptable because GitHub is a verified view, not the
+# source of truth.
 
 on:
-  schedule:
-    - cron: '*/15 * * * *'   # every 15 minutes — Radicle gossip lag is sub-minute
-  workflow_dispatch:           # manual trigger for ad-hoc syncs
+  workflow_dispatch: # manual trigger for ad-hoc syncs
 
 concurrency:
   group: mirror-from-radicle
   cancel-in-progress: true
 
 permissions:
-  contents: write        # push tags + sync branch
-  pull-requests: write   # open / update the radicle-sync → main mirror PR
+  contents: write # push tags + sync branch
+  pull-requests: write # open / update the radicle-sync → main mirror PR
 
 env:
   # Pin Radicle to a known-good release. Bump deliberately; do not float.
@@ -42,7 +45,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # we need full history for the mirror push
+          fetch-depth: 0 # we need full history for the mirror push
 
       - name: Install Radicle CLI (pinned binary)
         # Prior attempt used `curl -sSf https://radicle.xyz/install | sh` —
@@ -132,8 +135,8 @@ jobs:
       #
       # The architectural invariant stands: Radicle is canonical. GitHub
       # `main` is a verified mirror, just one that earns CI green before
-      # accepting Radicle's commits. Mirror latency is bounded by PR
-      # review cycle, not by the cron interval.
+      # accepting Radicle's commits. Mirror latency is bounded by how
+      # often the sync is dispatched + the PR review cycle.
       #
       # Divergence handling: if a human or another bot has pushed
       # something to GitHub main that isn't on Radicle, opening a PR
@@ -239,7 +242,7 @@ jobs:
 
           GitHub `main` is branch-protected so CI gates (CodeQL, gitleaks, doctor:full, parity) run on every change. The Radicle canonical is the source of truth, but it cannot force-push through the protection without bypassing those gates — which would defeat the protection's purpose.
 
-          This PR is the merge handle. Radicle's commits flow into `radicle-sync/main` every 15 minutes via the `mirror-from-radicle.yml` cron, and that branch is the head of this PR. CI gates run on the PR; merging it advances GitHub `main` to match Radicle `main`.
+          This PR is the merge handle. Radicle's commits flow into `radicle-sync/main` whenever `mirror-from-radicle.yml` is dispatched, and that branch is the head of this PR. CI gates run on the PR; merging it advances GitHub `main` to match Radicle `main`.
 
           ## What you should do
 
@@ -250,9 +253,9 @@ jobs:
 
           ## If CI fails on this PR
 
-          The break occurred on Radicle. Fix on Radicle, push the fix, and the next cron will update this PR's head. **Do not push commits directly to `radicle-sync/main`** — they will be overwritten on the next mirror run.
+          The break occurred on Radicle. Fix on Radicle, push the fix, and the next dispatched sync will update this PR's head. **Do not push commits directly to `radicle-sync/main`** — they will be overwritten on the next mirror run.
 
-          > Opened by `.github/workflows/mirror-from-radicle.yml`. Cron: every 15 min.
+          > Opened by `.github/workflows/mirror-from-radicle.yml`. Trigger: manual `workflow_dispatch`.
           PRBODY
             fi
           fi
