@@ -36,7 +36,7 @@ export class BateService {
   ) {}
 
   async ingestSignal(input: IngestSignalInput): Promise<void> {
-    let signalId: string | undefined;
+    let signalId: string;
     try {
       const created = await this.prisma.bateSignal.create({
         data: {
@@ -53,9 +53,24 @@ export class BateService {
       const msg = (err as Error).message;
       if (msg.includes('Unique constraint')) {
         // Duplicate idempotency key — drop silently, do not double-count.
+        // The original row + its downstream enqueue already happened on
+        // the first call; this is the dedup branch.
         return;
       }
-      this.logger.warn(`BATE signal ingest failed: ${msg}`);
+      // Any other Prisma error (FK violation, transient connection
+      // drop, schema validation) means the bateSignal row does NOT
+      // exist, signalId would be undefined, and the BullMQ enqueue
+      // below would either crash or run a recompute on partial signal
+      // state. apps/api/CLAUDE.md "Do not swallow errors in security,
+      // billing, policy, webhooks, KMS, or audit paths" — BATE feeds
+      // the verify hot path's trust score, so signal ingest is a
+      // security-relevant path. Log + re-throw so the caller
+      // (typically verify.service / a controller) sees the failure
+      // and can decide how to surface it.
+      this.logger.error(
+        `BATE signal ingest failed agent=${input.agentId} type=${input.signalType}: ${msg}`,
+      );
+      throw err;
     }
     await this.worker.enqueue(input.agentId, signalId);
   }

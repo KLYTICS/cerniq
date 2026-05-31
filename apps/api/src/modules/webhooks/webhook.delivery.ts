@@ -110,14 +110,40 @@ export class WebhookDeliveryWorker implements OnModuleInit, OnModuleDestroy, OnA
         `webhook delivery failed deliveryId=${job?.data.deliveryId} attempts=${attempts}: ${err?.message}`,
       );
       if (job && attempts >= MAX_ATTEMPTS) {
-        void this.markAbandoned(job.data.deliveryId, err?.message ?? 'max attempts').catch(
-          () => undefined,
+        // Persist the ABANDONED transition. Previously this used
+        // `.catch(() => undefined)` which silently dropped Postgres
+        // UPDATE failures while the metric incremented anyway —
+        // creating a discrepancy between the metric counter
+        // (`abandoned`) and the database row state (`PENDING`).
+        // apps/api/CLAUDE.md "Do not swallow errors in webhooks paths"
+        // — failures must be structured-logged so an operator alert
+        // can fire on persistence drift. We can't re-throw from a
+        // BullMQ event handler (no caller), so log loudly + emit
+        // the discrepancy metric, then leave the row as-is for the
+        // /webhooks/admin reconcile sweep to pick up later.
+        void this.markAbandoned(
+          job.data.deliveryId,
+          err?.message ?? 'max attempts',
+        ).then(
+          () => {
+            this.metrics.bullmqJobsTotal.inc({
+              queue: WEBHOOK_QUEUE,
+              event: 'deliver',
+              result: 'abandoned',
+            });
+          },
+          (markErr: unknown) => {
+            const msg = (markErr as Error)?.message ?? String(markErr);
+            this.logger.error(
+              `webhook.markAbandoned persist failed deliveryId=${job.data.deliveryId}: ${msg} — bullmq treats job as abandoned but DB row still PENDING; operator-action required (reconcile sweep or manual UPDATE)`,
+            );
+            this.metrics.bullmqJobsTotal.inc({
+              queue: WEBHOOK_QUEUE,
+              event: 'deliver',
+              result: 'abandoned_persist_failed',
+            });
+          },
         );
-        this.metrics.bullmqJobsTotal.inc({
-          queue: WEBHOOK_QUEUE,
-          event: 'deliver',
-          result: 'abandoned',
-        });
       }
     });
 

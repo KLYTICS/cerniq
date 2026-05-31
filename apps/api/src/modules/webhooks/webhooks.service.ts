@@ -60,13 +60,40 @@ export class WebhooksService {
    * the caller's hot path (verify, BATE recompute, etc.).
    */
   async enqueue(event: WebhookEvent, principalId: string): Promise<void> {
+    // apps/api/CLAUDE.md hard rule: "Do not swallow errors in security,
+    // billing, policy, webhooks, KMS, or audit paths." The previous
+    // single-try-catch collapsed three failure modes — "no subscribers
+    // configured" (legitimate empty), "Postgres write failed" (real
+    // signal loss; revocations/SOC2 evidence subscribers never hear),
+    // and "BullMQ queue.add failed" (durable row exists, delivery
+    // just timing-delayed) — into one logged-but-swallowed branch.
+    //
+    // After this fix the three modes are distinct:
+    //   - subs.length === 0 → silent return (legitimate)
+    //   - subscription lookup OR delivery-row persist failure → THROW
+    //     (the caller — typically a revoke handler — must learn that
+    //     subscribers will never be notified; tx rollback or operator
+    //     alert is its responsibility)
+    //   - per-delivery BullMQ queue.add failure → warn + metric, do
+    //     NOT throw (the webhookDelivery row is durable; the
+    //     reconcile worker will retry)
+
+    let subs;
     try {
-      const subs = await this.prisma.webhookSubscription.findMany({
+      subs = await this.prisma.webhookSubscription.findMany({
         where: { principalId, active: true, events: { has: event.type } },
       });
-      if (subs.length === 0) return;
+    } catch (err) {
+      this.logger.error(
+        `webhook.enqueue subscription lookup failed event=${event.type} principal=${principalId}: ${(err as Error).message}`,
+      );
+      throw err;
+    }
+    if (subs.length === 0) return;
 
-      const created = await this.prisma.$transaction(
+    let created;
+    try {
+      created = await this.prisma.$transaction(
         subs.map((s) =>
           this.prisma.webhookDelivery.create({
             data: {
@@ -77,9 +104,27 @@ export class WebhooksService {
           }),
         ),
       );
-      await Promise.all(created.map((d) => this.delivery.enqueue(d.id)));
     } catch (err) {
-      this.logger.error(`webhook.enqueue failed event=${event.type}: ${(err as Error).message}`);
+      this.logger.error(
+        `webhook.enqueue delivery persist failed event=${event.type} principal=${principalId} subscribers=${subs.length}: ${(err as Error).message} — subscribers will NOT be notified`,
+      );
+      throw err;
     }
+
+    // Per-delivery BullMQ enqueue is best-effort: the durable record
+    // is the webhookDelivery row above. If queue.add fails (Redis
+    // blip), the reconcile worker picks the row up on its next sweep.
+    // We surface each failure via warn-log so the operator can see
+    // delivery-latency anomalies, but we don't throw — that would
+    // misleadingly fail the caller after the durable write succeeded.
+    await Promise.all(
+      created.map((d) =>
+        this.delivery.enqueue(d.id).catch((err: unknown) => {
+          this.logger.warn(
+            `webhook.enqueue queue.add failed deliveryId=${d.id} event=${event.type}: ${(err as Error).message} — row persisted, will be picked up by reconcile sweep`,
+          );
+        }),
+      ),
+    );
   }
 }
