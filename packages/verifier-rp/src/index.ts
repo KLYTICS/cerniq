@@ -11,6 +11,22 @@ export { normalizeClaims, remainingTtlSeconds } from './policy-claims.js';
 export type { NormalizedPolicyClaims } from './policy-claims.js';
 export { checkScopeAndSpend } from './scope-check.js';
 
+// Audit-chain offline verification — closes M-OBS-1 gap (continuous E2E
+// can now do real chain verification instead of structural-only checks).
+export {
+  canonicalize,
+  prevHash,
+  verifyAuditEvent,
+  verifyAuditChain,
+} from './audit-chain.js';
+export type {
+  AegisAuditPayload,
+  AegisAuditEvent,
+  AegisAuditJwks,
+  AuditChainBreakReason,
+  AuditChainVerificationResult,
+} from './audit-chain.js';
+
 export {
   VerifyError,
   ConfigError,
