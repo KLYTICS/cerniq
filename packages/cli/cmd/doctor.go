@@ -140,7 +140,11 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 				if err != nil {
 					return errCheck(err.Error(), "")
 				}
-				h := &http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{}}}
+				// MinVersion pinned to TLS 1.2 per semgrep
+				// `go.lang.security.audit.crypto.missing-ssl-minversion` (OD-020).
+				// Matches Go 1.22+ default but stated explicitly so a future Go
+				// downgrade or runtime override can't silently let TLS 1.0/1.1 in.
+				h := &http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}}}
 				resp, err := h.Do(req)
 				if err != nil {
 					return warn("JWKS unreachable: "+err.Error(), "RPs that verify offline will fail until this is reachable")
