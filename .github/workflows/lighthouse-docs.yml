@@ -9,12 +9,11 @@ name: lighthouse-docs
 # Lighthouse-as-a-service.
 
 on:
-  pull_request:
-    paths:
-      - 'apps/docs/**'
-      - 'packages/types/**'
-      - 'docs/spec/CERNIQ_API_SPEC.yaml'
-      - '.github/workflows/lighthouse-docs.yml'
+  # PAUSED (2026-05-30, cost): Lighthouse installs Chrome + runs a full docs
+  # build on every docs-touching PR — heavy, and NOT a required check. Switched
+  # to manual dispatch only. To restore automatic perf/a11y/SEO budgets on docs
+  # PRs, re-add the `pull_request:` + `paths:` block below.
+  workflow_dispatch:
 
 permissions:
   contents: read

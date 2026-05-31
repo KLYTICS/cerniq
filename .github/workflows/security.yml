@@ -10,6 +10,16 @@
 # a `# pin: replace with full sha before merge` annotation; the next hardening
 # pass replaces all of them in a single PR. This is the documented exception
 # called out in the security plan — Dependabot will then keep them current.
+#
+# COST-GATE (2026-05-30): to cut Actions spend, the heavy supply-chain/SAST
+# jobs (gitleaks, osv-scanner, pnpm audit, trivy-fs, semgrep, SBOM) no longer
+# run on every PR push. They run on push→main, manual `workflow_dispatch`, and
+# on PRs carrying the `full-scan` label. The two REQUIRED PR gates —
+# `SAST · CodeQL (JS/TS)` and `Compliance · license allowlist` — plus the cheap
+# `Posture · workflow permissions` check always run on PRs, so branch
+# protection stays satisfiable. The summary gate treats `skipped` as OK.
+# Tradeoff: a PR that introduces a vulnerable dependency is caught on push→main
+# (or on a `full-scan`-labeled PR), not on the un-labeled PR itself.
 name: Security
 
 on:
@@ -37,6 +47,9 @@ jobs:
   # ─────────────────────────────────────────────────────────────────
   gitleaks:
     name: Secrets · gitleaks
+    # COST-GATE (2026-05-30): heavy scans skip on un-labeled PRs. They run on
+    # push→main, manual dispatch, and PRs labeled `full-scan`. See header note.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-scan')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -92,6 +105,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────
   osv-scanner:
     name: SCA · osv-scanner
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-scan') # COST-GATE: see gitleaks job
     permissions:
       contents: read
       security-events: write
@@ -119,6 +133,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────
   npm-audit:
     name: SCA · pnpm audit
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-scan') # COST-GATE: see gitleaks job
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -146,6 +161,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────
   trivy-fs:
     name: SCA · trivy filesystem
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-scan') # COST-GATE: see gitleaks job
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -296,6 +312,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────
   semgrep:
     name: SAST · semgrep
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-scan') # COST-GATE: see gitleaks job
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -328,6 +345,8 @@ jobs:
   # ─────────────────────────────────────────────────────────────────
   sbom:
     name: Supply chain · SBOM (SPDX)
+    # COST-GATE: redundant with the standalone sbom.yml on push→main. Skip on PRs.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-scan')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -446,12 +465,13 @@ jobs:
             done
           } >> "$GITHUB_STEP_SUMMARY"
 
-          # Fail the gate if any required job did not succeed. `skipped` is
-          # treated as failure: every job above is required for a green build.
+          # Fail the gate only on real failure. `skipped` is OK: the COST-GATE
+          # (see header) intentionally skips heavy jobs on un-labeled PRs, and a
+          # skipped job must not turn the gate red. `cancelled` also fails.
           fail=0
           for k in gitleaks osv-scanner npm-audit trivy-fs codeql-typescript license-check semgrep sbom workflow-permissions; do
             v="${R[$k]}"
-            if [[ "$v" != "success" ]]; then
+            if [[ "$v" == "failure" || "$v" == "cancelled" ]]; then
               echo "::error title=Security gate::${k} → ${v}"
               fail=1
             fi
