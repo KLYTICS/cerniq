@@ -1,0 +1,96 @@
+# SHA-pin enforcement gate.
+#
+# Runs on PRs that touch .github/workflows/** and fails if any NEWLY-ADDED
+# 'uses:' line is not SHA-pinned to a 40-char commit hash. Diff-based so
+# it only checks the PR's additions — pre-existing unpinned references
+# (still present in some files at this branch's base) don't false-positive
+# every workflow PR until the full SHA-pin sweep completes.
+#
+# Forward-only enforcement: as workflows get edited, any new 'uses:' lines
+# must be SHA-pinned. Eventually all old unpinned lines get touched and
+# upgraded (PR #15 + PR #17 covered the bulk; this gate prevents regression).
+#
+# Why: tag/branch refs are mutable. An attacker who compromises an action
+# maintainer's credentials can force-push tags to malicious commits — see
+# CVE-2026-33634 (trivy-action incident 2026-03-19 → 2026-03-22, 76 of 77
+# version tags re-pointed to credential-stealing malware). SHA pins are
+# immutable.
+
+name: Actions SHA pin enforcement
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+jobs:
+  check-pins:
+    name: Reject non-SHA-pinned action additions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4 (2025-11-13)
+        with:
+          fetch-depth: 0
+
+      - name: Lint newly-added 'uses:' lines for SHA pinning
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # Diff additions in workflow files only.
+          # `git diff <base>..<head> -- <pathspec>` returns only the patch
+          # between the two commits restricted to those paths.
+          ADDED=$(git diff "$BASE_SHA" "$HEAD_SHA" -- \
+                   '.github/workflows/*.yml' '.github/workflows/*.yaml' \
+                   2>/dev/null \
+                 | grep -E '^\+[[:space:]]+uses:' \
+                 || true)
+
+          if [ -z "$ADDED" ]; then
+            echo "✓ No new 'uses:' lines added in this PR. Nothing to check."
+            exit 0
+          fi
+
+          # Exempt local reusable-workflow refs (./ paths).
+          # Reject anything else that isn't @<40-char-hex>.
+          UNPINNED=$(echo "$ADDED" \
+                   | grep -vE 'uses:[[:space:]]+\./' \
+                   | grep -vE '@[a-f0-9]{40}([[:space:]]|$)' \
+                   || true)
+
+          if [ -n "$UNPINNED" ]; then
+            echo "::error title=Action references must be SHA-pinned::See PR body for resolution."
+            echo ""
+            echo "Found newly-added 'uses:' lines NOT pinned to a 40-char SHA:"
+            echo ""
+            echo "$UNPINNED"
+            echo ""
+            echo "Required pattern:"
+            echo "  uses: <owner>/<action>@<40-char-sha>  # <tag> (<commit-date>)"
+            echo ""
+            echo "Why: tag/branch refs can be force-pushed by a compromised"
+            echo "maintainer (CVE-2026-33634 / trivy-action 2026-03-19 → 22)."
+            echo "SHA pins are immutable; tag pins are not."
+            echo ""
+            echo "How to resolve a tag → SHA:"
+            echo "  gh api /repos/<owner>/<action>/commits/<tag> --jq '.sha'"
+            echo "  gh api /repos/<owner>/<action>/commits/<tag> --jq '.commit.committer.date'"
+            echo ""
+            echo "Precedent: PR #15 (trivy-action CRITICAL) and PR #17 (full"
+            echo "33-reference SHA-pin sweep) established the pattern."
+            echo ""
+            echo "Bypass: pass --no-verify on the merge if you're shipping a"
+            echo "deliberate upstream-action experiment AND document the reason"
+            echo "in a SESSION_HANDOFF.md entry. Never bypass silently."
+            exit 1
+          fi
+
+          PINNED_COUNT=$(echo "$ADDED" | wc -l | tr -d ' ')
+          echo "✓ All ${PINNED_COUNT} newly-added 'uses:' line(s) are SHA-pinned."
