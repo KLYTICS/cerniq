@@ -123,7 +123,7 @@ describe('property · denial precedence', () => {
 
           // Optionally revoke policy.
           if (c.policyRevoked) {
-            await sdk.policies.revoke(agent.agentId, policy.policyId);
+            await sdk.policies.revoke(policy.policyId, { agentId: agent.agentId });
           }
 
           // Build a token claiming commerce.purchase $200 (over a $50 cap).

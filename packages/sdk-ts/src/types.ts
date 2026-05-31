@@ -57,10 +57,76 @@ export interface CreatePolicyInput {
   expiresAt: Date | string;
 }
 
+/**
+ * Single-object form for `PolicyClient.create(input)`. Matches CLI calling
+ * convention (`policies create --agent-id … --scopes-file … --ttl …`).
+ * Either `expiresInSeconds` (TTL-from-now) or `expiresAt` (absolute) must
+ * be supplied — `expiresInSeconds` wins if both are set. OD-024 (Option A).
+ */
+export interface CreatePolicyBundle {
+  agentId: string;
+  scopes: PolicyScope[];
+  label?: string;
+  expiresInSeconds?: number;
+  expiresAt?: Date | string;
+}
+
 export interface PolicyRecord {
   policyId: string;
   signedToken: string;
   expiresAt: string;
+}
+
+/** Uppercase mirror of the API's PolicyResponseDto.status field. */
+export type PolicyStatus = 'ACTIVE' | 'REVOKED' | 'EXPIRED';
+
+/**
+ * Richer policy record returned by `GET /agents/:agentId/policies`. The
+ * thin `PolicyRecord` is the *create* response (signed token at issue
+ * time); list responses carry catalog metadata. OD-024 (Option A).
+ */
+export interface PolicyListItem {
+  policyId: string;
+  agentId: string;
+  label?: string | null;
+  scopes: PolicyScope[];
+  status: PolicyStatus;
+  createdAt: string;
+  expiresAt: string;
+}
+
+/** Wrapped list-response shape. Matches CLI's `result.policies` access. */
+export interface PolicyListResponse {
+  policies: PolicyListItem[];
+}
+
+/** Minimal agent projection returned by `GET /agents`. OD-024 (Option A). */
+export interface AgentSummary {
+  agentId: string;
+  label?: string | null;
+  runtime: AgentRuntime;
+  status: AgentStatus;
+  trustScore: number;
+  trustBand: TrustBand;
+  registeredAt: string;
+  lastSeenAt?: string | null;
+}
+
+/** Cursor-paginated list response from `GET /agents`. OD-024 (Option A). */
+export interface ListAgentsResponse {
+  agents: AgentSummary[];
+  nextCursor: string | null;
+  count?: number;
+}
+
+/**
+ * Options bag for `AgentClient.revoke(id, opts?)` and
+ * `PolicyClient.revoke(policyId, opts?)`. `reason` is forwarded as the
+ * request body for audit-trail capture. OD-024 (Option A).
+ */
+export interface RevokeOptions {
+  /** Free-form reason recorded in the audit chain. */
+  reason?: string;
 }
 
 export interface SignContext {

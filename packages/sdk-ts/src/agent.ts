@@ -1,5 +1,12 @@
 import type { HttpClient } from './http.js';
-import type { AgentRecord, AgentStatus, RegisterAgentInput, TrustBand } from './types.js';
+import type {
+  AgentRecord,
+  AgentStatus,
+  ListAgentsResponse,
+  RegisterAgentInput,
+  RevokeOptions,
+  TrustBand,
+} from './types.js';
 
 export interface HandshakeChallenge {
   agentId: string;
@@ -33,15 +40,39 @@ export class AgentClient {
     return this.http.request<AgentRecord>('/agents/register', { method: 'POST', body: input });
   }
 
+  /**
+   * Alias for {@link AgentClient.register}. OD-024 (Option A): semantic
+   * parity with `create` verbs across the SDK surface so CLI / dashboard
+   * call sites match the verb users expect.
+   */
+  create(input: RegisterAgentInput): Promise<AgentRecord> {
+    return this.register(input);
+  }
+
+  /**
+   * List agents owned by the calling principal. Cursor-paginated,
+   * newest-first per the API contract. OD-024 (Option A).
+   */
+  list(opts?: { limit?: number; cursor?: string }): Promise<ListAgentsResponse> {
+    return this.http.request<ListAgentsResponse>('/agents', { method: 'GET', query: opts });
+  }
+
   get(agentId: string): Promise<AgentRecord> {
     return this.http.request<AgentRecord>(`/agents/${encodeURIComponent(agentId)}`, {
       method: 'GET',
     });
   }
 
-  async revoke(agentId: string): Promise<void> {
+  /**
+   * Revoke an agent. `opts.reason`, when provided, is forwarded as the
+   * request body and persisted to `AgentIdentity.revokedReason` for the
+   * audit trail. The 1-arg form remains valid. OD-024 (Option A);
+   * Phase A2 server-side wiring landed 2026-05-24.
+   */
+  async revoke(agentId: string, opts?: RevokeOptions): Promise<void> {
     await this.http.request<undefined>(`/agents/${encodeURIComponent(agentId)}`, {
       method: 'DELETE',
+      ...(opts?.reason !== undefined ? { body: { reason: opts.reason } } : {}),
     });
   }
 

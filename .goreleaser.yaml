@@ -25,7 +25,14 @@ before:
 
 builds:
   - id: cerniq
-    main: ./packages/cli
+    # `main` is relative to goreleaser's cwd, which is `packages/cli`
+    # (set via the goreleaser-action `workdir:` in
+    # .github/workflows/cli.yml). Previously this was `./packages/cli`
+    # from a repo-root cwd — that resolved the path but failed at
+    # `go build` because Go couldn't find go.mod in cwd or parent
+    # (go.mod lives at packages/cli/go.mod). Pinning cwd via workdir
+    # and using `main: .` is the goreleaser-monorepo idiom.
+    main: .
     binary: cerniq
     env:
       - CGO_ENABLED=0

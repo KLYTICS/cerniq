@@ -12,12 +12,13 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/klytics/cerniq/packages/cli/internal/client"
 	"github.com/klytics/cerniq/packages/cli/internal/config"
 	"github.com/klytics/cerniq/packages/cli/internal/plugin"
 	"github.com/klytics/cerniq/packages/cli/internal/ui"
 	"github.com/klytics/cerniq/packages/cli/internal/version"
-	"github.com/spf13/cobra"
 )
 
 func init() {
@@ -145,7 +146,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 				if err != nil {
 					return warn("JWKS unreachable: "+err.Error(), "RPs that verify offline will fail until this is reachable")
 				}
-				defer resp.Body.Close()
+				defer func() { _ = resp.Body.Close() }()
 				if resp.StatusCode != http.StatusOK {
 					return warn(fmt.Sprintf("JWKS returned %d", resp.StatusCode), "")
 				}
@@ -163,7 +164,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 				if err != nil {
 					return warn("could not measure: "+err.Error(), "")
 				}
-				defer resp.Body.Close()
+				defer func() { _ = resp.Body.Close() }()
 				dateHdr := resp.Header.Get("Date")
 				if dateHdr == "" {
 					return warn("server did not return Date header", "")
@@ -255,6 +256,10 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func ok(msg string) checkResult              { return checkResult{Status: "ok", Message: msg} }
-func warn(msg, remedy string) checkResult    { return checkResult{Status: "warn", Message: msg, Remedy: remedy} }
-func errCheck(msg, remedy string) checkResult { return checkResult{Status: "err", Message: msg, Remedy: remedy} }
+func ok(msg string) checkResult { return checkResult{Status: "ok", Message: msg} }
+func warn(msg, remedy string) checkResult {
+	return checkResult{Status: "warn", Message: msg, Remedy: remedy}
+}
+func errCheck(msg, remedy string) checkResult {
+	return checkResult{Status: "err", Message: msg, Remedy: remedy}
+}

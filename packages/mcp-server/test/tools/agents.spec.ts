@@ -28,17 +28,22 @@ describe('cerniq.agents.* tools', () => {
     }
   });
 
-  it('cerniq.agents.create maps name + public_key + metadata', async () => {
+  it('cerniq.agents.create maps MCP `name` → SDK `label` and defaults runtime to CUSTOM', async () => {
+    // Post OD-024 Option A: SDK's `RegisterAgentInput` uses `label` (not
+    // `name`) and requires `runtime`. The MCP tool keeps its `name` arg
+    // name (operator ergonomics) but translates at the boundary; the
+    // `metadata` arg was never part of the SDK contract — it was a
+    // pre-OD-024 aspiration that the test asserted as truth.
     const cerniq = buildCerniq();
     const reg = new Map<string, ToolDefinition>();
     registerAgentsTools(cerniq as never, reg);
     await reg
       .get('cerniq.agents.create')!
-      .handler({ name: 'agent-x', public_key: 'AAAA', metadata: { ver: 1 } });
+      .handler({ name: 'agent-x', public_key: 'AAAA' });
     expect(cerniq.agents.create).toHaveBeenCalledWith({
-      name: 'agent-x',
+      label: 'agent-x',
       publicKey: 'AAAA',
-      metadata: { ver: 1 },
+      runtime: 'CUSTOM',
     });
   });
 

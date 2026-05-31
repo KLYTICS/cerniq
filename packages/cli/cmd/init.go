@@ -7,9 +7,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/spf13/cobra"
+
 	"github.com/klytics/cerniq/packages/cli/internal/templates"
 	"github.com/klytics/cerniq/packages/cli/internal/ui"
-	"github.com/spf13/cobra"
 )
 
 func init() {

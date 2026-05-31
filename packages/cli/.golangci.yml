@@ -22,6 +22,20 @@ linters:
 linters-settings:
   goimports:
     local-prefixes: github.com/klytics/cerniq
+  errcheck:
+    # CLI output to terminal — failure to write to stdout/stderr is
+    # observable by the user (nothing prints) and not actionable from
+    # within the program. These are NOT "silent failures" in the
+    # CLAUDE.md sense — that rule targets production paths that swallow
+    # downstream errors (audit/billing/policy). Excluding the fmt.Fprint
+    # family for *cobra-style CLI output* is conventional Go practice.
+    #
+    # NOT excluded: io.Closer / *os.File Close — those can leak resources
+    # and must be checked (typically via `defer func() { _ = X.Close() }()`).
+    exclude-functions:
+      - fmt.Fprintf
+      - fmt.Fprintln
+      - fmt.Fprint
 issues:
   exclude-use-default: false
   max-same-issues: 0

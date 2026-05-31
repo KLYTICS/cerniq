@@ -62,21 +62,28 @@
     "typescript-eslint": "^8.18.0"
   },
   "pnpm": {
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-q7rr-3cgh-j5r3"
+      ]
+    },
     "overrides": {
       "next": ">=16.2.6",
       "hono": ">=4.12.18",
       "undici": ">=6.21.2",
       "lodash": ">=4.18.0",
       "fast-uri": ">=3.1.2",
-      "qs": ">=6.13.1",
-      "ws": ">=8.18.0",
+      "qs": ">=6.15.2",
+      "ws": ">=8.20.1",
       "cookie": ">=0.7.0",
-      "tmp": ">=0.2.4",
-      "js-yaml": ">=4.1.0",
+      "tmp": ">=0.2.6",
+      "js-yaml": ">=4.1.1",
       "uuid": ">=11.0.3",
       "brace-expansion": ">=2.0.2 <3.0.0",
-      "ip-address": ">=10.0.1",
-      "protobufjs": ">=7.4.0"
+      "ip-address": ">=10.1.1",
+      "protobufjs": ">=7.5.8",
+      "esbuild": ">=0.25.0",
+      "postcss": ">=8.5.10"
     }
   }
 }

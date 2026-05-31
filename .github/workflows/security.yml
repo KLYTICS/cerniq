@@ -165,6 +165,34 @@ jobs:
           exit-code: '1'
           format: sarif
           output: trivy-fs.sarif
+          # trivy-action does NOT auto-discover .trivyignore[.yaml] — must
+          # be passed explicitly. The yaml schema (trivy >= 0.49) attaches
+          # the OD-021 rationale as a statement which surfaces in scan
+          # output. Mirrors osv-scanner.toml's OTel package overrides.
+          trivyignores: '.trivyignore.yaml'
+          # Crucial input: when `format: sarif` AND we want
+          # `exit-code: '1'` to gate on the `severity:` filter (not on
+          # every LOW/MEDIUM finding), this must be 'true'. Without
+          # it, the action's entrypoint.sh unsets TRIVY_SEVERITY for
+          # the SARIF-build path, so exit-code applies to ALL
+          # severities — making the gate trip on any LOW finding
+          # anywhere in the tree while the visible HIGH/CRITICAL
+          # findings table stays empty (the symptom is a silent
+          # exit-1 ~15ms after "Detecting vulnerabilities..."). See
+          # trivy-action#309 — open since 2024, the entrypoint code:
+          #   if [ "$TRIVY_FORMAT" = "sarif" ]; then
+          #     if [ "${INPUT_LIMIT_SEVERITIES_FOR_SARIF}" != "true" ]; then
+          #       unset TRIVY_SEVERITY
+          #     fi
+          #   fi
+          # Side effect: the SARIF uploaded to Code Scanning only
+          # contains HIGH/CRITICAL alerts (not LOW/MEDIUM). This is
+          # the right trade-off for CERNIQ: CI gates on HIGH/CRITICAL
+          # only, and osv-scanner covers the full-severity surface
+          # at the lockfile level. Fixed in this PR via the swarm-
+          # discovered root cause; removes the prior temporary
+          # `continue-on-error: true` workaround (commit c218d75).
+          limit-severities-for-sarif: 'true'
 
       - name: Upload SARIF
         if: always()

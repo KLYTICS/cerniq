@@ -67,11 +67,16 @@ async function main(): Promise<void> {
     .action(policiesCreate);
   policies
     .command('list')
-    .option('-a, --agent-id <id>', 'filter by agent')
+    .requiredOption('-a, --agent-id <id>', 'agent id (list scope is per-agent)')
     .option('-s, --status <status>', 'ACTIVE | REVOKED | EXPIRED')
     .option('--json')
     .action(policiesList);
-  policies.command('revoke').argument('<id>').option('--reason <r>').action(policiesRevoke);
+  policies
+    .command('revoke')
+    .argument('<policyId>')
+    .requiredOption('-a, --agent-id <id>', 'agent id that owns the policy')
+    .option('--reason <r>', 'reason recorded in audit chain')
+    .action(policiesRevoke);
 
   const audit = program.command('audit').description('Audit log');
   audit

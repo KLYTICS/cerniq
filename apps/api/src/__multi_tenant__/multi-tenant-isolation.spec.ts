@@ -147,6 +147,21 @@ const noopRedis = {
   del: jest.fn().mockResolvedValue(undefined),
 } as unknown as RedisService;
 
+// OD-024 Phase A4: IdentityService and PolicyService now depend on
+// AuditService. For the multi-tenant isolation suite (which asserts
+// that cross-principal attacks are rejected BEFORE any state-change
+// happens), a no-op append stub is sufficient — the suite never expects
+// audit.append to be called on the attack path.
+const noopAudit = {
+  append: jest.fn().mockResolvedValue('evt_noop'),
+} as unknown as AuditService;
+
+// OD-024 Phase A5: same shape for WebhooksService.enqueue — no-op stub
+// since the attack path never reaches the fanout.
+const noopWebhooks = {
+  enqueue: jest.fn().mockResolvedValue(undefined),
+} as unknown as import('../modules/webhooks/webhooks.service').WebhooksService;
+
 function makeAgent(id: string, principalId: string): AgentRow {
   return {
     id,
@@ -170,7 +185,7 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
     it('denies cross-principal findOne — Prisma where carries the caller principalId', async () => {
       const harness = buildPrismaMock();
       harness.agents.set('agt_b', makeAgent('agt_b', PRINCIPAL_B));
-      const svc = new IdentityService(harness.prisma, noopRedis);
+      const svc = new IdentityService(harness.prisma, noopRedis, noopAudit, noopWebhooks);
 
       await expect(svc.findOne(PRINCIPAL_A, 'agt_b')).rejects.toBeInstanceOf(NotFoundException);
 
@@ -182,7 +197,7 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
     it('denies cross-principal revoke — agent owned by B is NOT updated when A attacks', async () => {
       const harness = buildPrismaMock();
       harness.agents.set('agt_b', makeAgent('agt_b', PRINCIPAL_B));
-      const svc = new IdentityService(harness.prisma, noopRedis);
+      const svc = new IdentityService(harness.prisma, noopRedis, noopAudit, noopWebhooks);
 
       await expect(svc.revoke(PRINCIPAL_A, 'agt_b', 'malicious')).rejects.toBeInstanceOf(
         NotFoundException,
@@ -196,7 +211,7 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
     it('owner can revoke own agent — happy-path control', async () => {
       const harness = buildPrismaMock();
       harness.agents.set('agt_a', makeAgent('agt_a', PRINCIPAL_A));
-      const svc = new IdentityService(harness.prisma, noopRedis);
+      const svc = new IdentityService(harness.prisma, noopRedis, noopAudit, noopWebhooks);
 
       await svc.revoke(PRINCIPAL_A, 'agt_a', 'rotation');
       expect(harness.agents.get('agt_a')!.status).toBe('REVOKED');
@@ -206,7 +221,7 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
   describe('PolicyService', () => {
     function makePolicySvc(prisma: PrismaService) {
       const jwt = { sign: jest.fn().mockResolvedValue('signed.jwt.token') } as unknown as JwtUtil;
-      return new PolicyService(prisma, noopRedis, jwt);
+      return new PolicyService(prisma, noopRedis, jwt, noopAudit, noopWebhooks);
     }
 
     it('denies cross-principal list — returns NotFound when agent belongs to another principal', async () => {
@@ -460,8 +475,8 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       const harness = buildWebhooksHarness();
       const svc = makeWebhooksSvc(harness.prisma);
 
-      await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', ['verify.completed']);
-      await svc.subscribe(PRINCIPAL_B, 'https://hookB.example.com', ['verify.completed']);
+      await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', ['cerniq.agent.revoked']);
+      await svc.subscribe(PRINCIPAL_B, 'https://hookB.example.com', ['cerniq.agent.revoked']);
 
       const aList = await svc.list(PRINCIPAL_A);
       const bList = await svc.list(PRINCIPAL_B);
@@ -481,7 +496,7 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       const svc = makeWebhooksSvc(harness.prisma);
 
       const subA = await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', [
-        'verify.completed',
+        'cerniq.agent.revoked',
       ]);
 
       // B attacks A's id — must be a no-op deleteMany.
@@ -504,10 +519,10 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       const svc = makeWebhooksSvc(harness.prisma);
 
       for (let i = 0; i < 3; i += 1) {
-        await svc.subscribe(PRINCIPAL_A, `https://a-${i}.example.com`, ['verify.completed']);
+        await svc.subscribe(PRINCIPAL_A, `https://a-${i}.example.com`, ['cerniq.agent.revoked']);
       }
       for (let i = 0; i < 5; i += 1) {
-        await svc.subscribe(PRINCIPAL_B, `https://b-${i}.example.com`, ['verify.completed']);
+        await svc.subscribe(PRINCIPAL_B, `https://b-${i}.example.com`, ['cerniq.agent.revoked']);
       }
 
       const aList = await svc.list(PRINCIPAL_A);
@@ -526,19 +541,19 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       const svc = makeWebhooksSvc(harness.prisma);
 
       const subA = await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', [
-        'verify.completed',
+        'cerniq.agent.revoked',
       ]);
       const subB = await svc.subscribe(PRINCIPAL_B, 'https://hookB.example.com', [
-        'verify.completed',
+        'cerniq.agent.revoked',
       ]);
 
-      await svc.enqueue({ type: 'verify.completed', data: { agentId: 'agt_a' } }, PRINCIPAL_A);
+      await svc.enqueue({ type: 'cerniq.agent.revoked', data: { agentId: 'agt_a' } }, PRINCIPAL_A);
 
       // Exactly one delivery row, scoped to A's subscription.
       expect(harness.deliveryCreate).toHaveBeenCalledTimes(1);
       expect(harness.deliveryCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ subscriptionId: subA.id, event: 'verify.completed' }),
+          data: expect.objectContaining({ subscriptionId: subA.id, event: 'cerniq.agent.revoked' }),
         }),
       );
       expect(harness.deliveries).toHaveLength(1);
@@ -558,7 +573,7 @@ describe('Multi-tenant isolation (CLAUDE.md invariant #5)', () => {
       const svc = makeWebhooksSvc(harness.prisma);
 
       const subA = await svc.subscribe(PRINCIPAL_A, 'https://hookA.example.com', [
-        'verify.completed',
+        'cerniq.agent.revoked',
       ]);
 
       await svc.unsubscribe(PRINCIPAL_B, subA.id);

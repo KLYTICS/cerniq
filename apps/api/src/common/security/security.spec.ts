@@ -122,9 +122,9 @@ describe('buildHelmetConfig', () => {
 describe('buildSecurityTxt', () => {
   it('emits an RFC 9116-shaped security.txt with future Expires', () => {
     const out = buildSecurityTxt({ contactEmail: 'security@cerniq.io' });
-    expect(out).toMatch(/^Contact: mailto:security@cerniqlabs\.io$/m);
+    expect(out).toMatch(/^Contact: mailto:security@cerniq\.io$/m);
     expect(out).toMatch(/^Expires: \d{4}-\d{2}-\d{2}T/m);
-    expect(out).toMatch(/^Canonical: https:\/\/api\.cerniqlabs\.io/m);
+    expect(out).toMatch(/^Canonical: https:\/\/api\.cerniq\.io/m);
   });
 });
 

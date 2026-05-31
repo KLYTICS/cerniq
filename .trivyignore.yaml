@@ -1,0 +1,24 @@
+# .trivyignore.yaml — CVEs accepted in CERNIQ supply chain.
+#
+# Mirrors the OD-021 acceptance list in `osv-scanner.toml` because
+# trivy reads its own ignore format, NOT the osv-scanner config.
+# If you add an acceptance row to `osv-scanner.toml`, mirror it here.
+#
+# Each entry MUST cite its OD- decision row + a sunset condition.
+# Acceptance is operator policy; do not add lines without an OD-XXX.
+#
+# Format: trivy >= 0.49 reads `.trivyignore.yaml`. The older plain-
+# text `.trivyignore` works but the YAML schema lets us attach
+# statements (which surface in scan output as the rationale) and
+# explicit expiration dates.
+
+vulnerabilities:
+  # ─────────────────────────────────────────────────────────────
+  # OD-021 — OpenTelemetry stack CVEs awaiting OTel v2 migration.
+  # Decision row: OPERATOR_DECISIONS.md OD-021.
+  # Rationale: Prometheus exporter exposure is limited to the
+  # internal cluster scrape path (no public ingress); we accept
+  # the DoS-class risk until @opentelemetry/sdk-node v2.x lands.
+  # ─────────────────────────────────────────────────────────────
+  - id: CVE-2026-44902
+    statement: "Accepted per OD-021 (DECIDED 2026-05-24). OTel Prometheus exporter DoS via malformed HTTP — exposure limited to internal cluster scrape. Sunset: OTel v2 migration."

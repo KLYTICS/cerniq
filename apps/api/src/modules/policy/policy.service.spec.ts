@@ -16,6 +16,8 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { JwtUtil } from '../../common/crypto/jwt.util';
 import type { PrismaService } from '../../common/prisma/prisma.service';
 import type { RedisService } from '../../common/redis/redis.service';
+import type { AuditService } from '../audit/audit.service';
+import type { WebhooksService } from '../webhooks/webhooks.service';
 
 import { ScopeCategory } from './policy.dto';
 import { PolicyService } from './policy.service';
@@ -31,6 +33,8 @@ interface AgentRow {
   id: string;
   principalId: string;
   status: 'ACTIVE' | 'SUSPENDED' | 'REVOKED';
+  trustScore: number;
+  trustBand: 'PLATINUM' | 'VERIFIED' | 'WATCH' | 'FLAGGED';
 }
 
 interface PolicyRow {
@@ -43,6 +47,7 @@ interface PolicyRow {
   tokenHash: string;
   expiresAt: Date;
   revokedAt: Date | null;
+  revokedReason: string | null;
   createdAt: Date;
 }
 
@@ -71,14 +76,24 @@ function makePrisma(agents: AgentRow[] = [], policies: PolicyRow[] = []) {
           tokenHash: data.tokenHash!,
           expiresAt: data.expiresAt!,
           revokedAt: null,
+          revokedReason: null,
           createdAt: new Date(),
         };
         policies.push(row);
         return row;
       }),
-      findMany: jest.fn(async ({ where }: { where: { agentId: string } }) => {
-        return policies.filter((p) => p.agentId === where.agentId);
-      }),
+      findMany: jest.fn(
+        async ({
+          where,
+        }: {
+          where: { agentId: string; status?: 'ACTIVE' | 'EXPIRED' | 'REVOKED' };
+        }) => {
+          return policies.filter(
+            (p) =>
+              p.agentId === where.agentId && (where.status ? p.status === where.status : true),
+          );
+        },
+      ),
       findFirst: jest.fn(async ({ where }: { where: { id: string; agentId: string } }) => {
         return policies.find((p) => p.id === where.id && p.agentId === where.agentId) ?? null;
       }),
@@ -102,6 +117,15 @@ function makeJwt(): jest.Mocked<Pick<JwtUtil, 'sign'>> {
   return { sign: jest.fn().mockImplementation(async () => `jwt_signed_${++seq}`) };
 }
 
+function makeAudit(): jest.Mocked<Pick<AuditService, 'append'>> {
+  let seq = 0;
+  return { append: jest.fn().mockImplementation(async () => `evt_test_${++seq}`) };
+}
+
+function makeWebhooks(): jest.Mocked<Pick<WebhooksService, 'enqueue'>> {
+  return { enqueue: jest.fn().mockResolvedValue(undefined) };
+}
+
 // ── Factory ───────────────────────────────────────────────────────────────────
 
 function makeService(opts: { agents?: AgentRow[]; policies?: PolicyRow[] } = {}) {
@@ -110,19 +134,35 @@ function makeService(opts: { agents?: AgentRow[]; policies?: PolicyRow[] } = {})
   const prisma = makePrisma(agents, policies);
   const redis = makeRedis();
   const jwt = makeJwt();
+  const audit = makeAudit();
+  const webhooks = makeWebhooks();
   const svc = new PolicyService(
     prisma as unknown as PrismaService,
     redis as unknown as RedisService,
     jwt as unknown as JwtUtil,
+    audit as unknown as AuditService,
+    webhooks as unknown as WebhooksService,
   );
   svc.setSigningMaterial(FAKE_PRIVATE_KEY, FAKE_PUBLIC_KEY_B64);
-  return { svc, prisma, redis, jwt, agents, policies };
+  return { svc, prisma, redis, jwt, audit, webhooks, agents, policies };
 }
 
 // ── Shared fixtures ───────────────────────────────────────────────────────────
 
-const ACTIVE_AGENT: AgentRow = { id: 'agt_1', principalId: 'prn_A', status: 'ACTIVE' };
-const REVOKED_AGENT: AgentRow = { id: 'agt_rev', principalId: 'prn_A', status: 'REVOKED' };
+const ACTIVE_AGENT: AgentRow = {
+  id: 'agt_1',
+  principalId: 'prn_A',
+  status: 'ACTIVE',
+  trustScore: 750,
+  trustBand: 'VERIFIED',
+};
+const REVOKED_AGENT: AgentRow = {
+  id: 'agt_rev',
+  principalId: 'prn_A',
+  status: 'REVOKED',
+  trustScore: 0,
+  trustBand: 'FLAGGED',
+};
 
 function futureIso(daysAhead = 30): string {
   return new Date(Date.now() + daysAhead * 86_400_000).toISOString();
@@ -205,6 +245,7 @@ describe('PolicyService', () => {
           tokenHash: 'h',
           expiresAt: new Date(futureIso()),
           revokedAt: null,
+          revokedReason: null,
           createdAt: new Date(),
         },
       ];
@@ -225,6 +266,39 @@ describe('PolicyService', () => {
       expect(list).toEqual([]);
     });
 
+    // ── OD-024 Phase A3 ────────────────────────────────────────────────────────
+    it('filters by status when supplied (OD-024 Phase A3)', async () => {
+      const expiresAt = new Date(futureIso());
+      const base = {
+        agentId: 'agt_1',
+        label: null,
+        scopes: [],
+        signedToken: 'tok',
+        tokenHash: 'h',
+        expiresAt,
+        revokedAt: null,
+        revokedReason: null,
+        createdAt: new Date(),
+      };
+      const policies: PolicyRow[] = [
+        { ...base, id: 'pol_active', status: 'ACTIVE' as const },
+        { ...base, id: 'pol_revoked', status: 'REVOKED' as const },
+        { ...base, id: 'pol_expired', status: 'EXPIRED' as const },
+      ];
+      const { svc } = makeService({ agents: [ACTIVE_AGENT], policies });
+
+      const onlyActive = await svc.list('prn_A', 'agt_1', { status: 'ACTIVE' });
+      expect(onlyActive.map((p) => p.policyId)).toEqual(['pol_active']);
+
+      const onlyRevoked = await svc.list('prn_A', 'agt_1', { status: 'REVOKED' });
+      expect(onlyRevoked.map((p) => p.policyId)).toEqual(['pol_revoked']);
+
+      const noFilter = await svc.list('prn_A', 'agt_1', {});
+      expect(noFilter.map((p) => p.policyId).sort()).toEqual(
+        ['pol_active', 'pol_expired', 'pol_revoked'].sort(),
+      );
+    });
+
     it('maps Prisma rows to PolicyResponseDto shape', async () => {
       const expiresAt = new Date(futureIso());
       const policies: PolicyRow[] = [
@@ -238,6 +312,7 @@ describe('PolicyService', () => {
           tokenHash: 'h',
           expiresAt,
           revokedAt: null,
+          revokedReason: null,
           createdAt: new Date(),
         },
       ];
@@ -253,6 +328,39 @@ describe('PolicyService', () => {
     });
   });
 
+  describe('findOne()', () => {
+    const existing: PolicyRow = {
+      id: 'pol_lookup',
+      agentId: 'agt_1',
+      label: 'lookup target',
+      scopes: [],
+      status: 'ACTIVE',
+      signedToken: 'tok',
+      tokenHash: 'h',
+      expiresAt: new Date(futureIso()),
+      revokedAt: null,
+      revokedReason: null,
+      createdAt: new Date(),
+    };
+
+    it('returns the mapped PolicyResponseDto when policy exists on owned agent', async () => {
+      const { svc } = makeService({ agents: [ACTIVE_AGENT], policies: [{ ...existing }] });
+      const dto = await svc.findOne('prn_A', 'agt_1', 'pol_lookup');
+      expect(dto.policyId).toBe('pol_lookup');
+      expect(dto.agentId).toBe('agt_1');
+    });
+
+    it('throws NotFoundException when policy does not exist', async () => {
+      const { svc } = makeService({ agents: [ACTIVE_AGENT], policies: [] });
+      await expect(svc.findOne('prn_A', 'agt_1', 'pol_missing')).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws NotFoundException when agent does not belong to principal', async () => {
+      const { svc } = makeService({ agents: [ACTIVE_AGENT], policies: [{ ...existing }] });
+      await expect(svc.findOne('prn_B', 'agt_1', 'pol_lookup')).rejects.toThrow(NotFoundException);
+    });
+  });
+
   describe('revoke()', () => {
     const existingPolicy: PolicyRow = {
       id: 'pol_active',
@@ -264,6 +372,7 @@ describe('PolicyService', () => {
       tokenHash: 'h',
       expiresAt: new Date(futureIso()),
       revokedAt: null,
+      revokedReason: null,
       createdAt: new Date(),
     };
 
@@ -298,6 +407,136 @@ describe('PolicyService', () => {
       // findFirst still returns it (policy exists, just revoked)
       const { svc } = makeService({ agents: [ACTIVE_AGENT], policies });
       await expect(svc.revoke('prn_A', 'agt_1', 'pol_active')).resolves.toBeUndefined();
+    });
+
+    // ── OD-024 Phase A2 — reason capture into AgentPolicy.revokedReason ─────────
+    it('persists reason on the policy row when provided', async () => {
+      const policies: PolicyRow[] = [{ ...existingPolicy }];
+      const { svc, policies: stored } = makeService({ agents: [ACTIVE_AGENT], policies });
+      await svc.revoke('prn_A', 'agt_1', 'pol_active', 'key compromised');
+      expect(stored[0].status).toBe('REVOKED');
+      expect(stored[0].revokedReason).toBe('key compromised');
+    });
+
+    it('leaves revokedReason null when no reason supplied', async () => {
+      const policies: PolicyRow[] = [{ ...existingPolicy }];
+      const { svc, policies: stored } = makeService({ agents: [ACTIVE_AGENT], policies });
+      await svc.revoke('prn_A', 'agt_1', 'pol_active');
+      expect(stored[0].revokedReason).toBeNull();
+    });
+
+    // ── OD-024 Phase A4 — signed audit-chain append on revoke ──────────────────
+    it('appends a signed audit-chain event with the policy snapshot', async () => {
+      const policies: PolicyRow[] = [{ ...existingPolicy }];
+      const { svc, audit } = makeService({ agents: [ACTIVE_AGENT], policies });
+      await svc.revoke('prn_A', 'agt_1', 'pol_active', 'rotation');
+
+      expect(audit.append).toHaveBeenCalledTimes(1);
+      const [event] = audit.append.mock.calls[0] as unknown as [Record<string, unknown>];
+      expect(event).toMatchObject({
+        agentId: 'agt_1',
+        claimedAgentId: 'agt_1',
+        principalId: 'prn_A',
+        action: 'policy.revoked',
+        decision: 'APPROVED',
+        policyId: 'pol_active',
+        trustScoreAtEvent: 750,
+        trustBandAtEvent: 'VERIFIED',
+      });
+      expect(event.policySnapshot).toMatchObject({
+        reason: 'rotation',
+        previousStatus: 'ACTIVE',
+        label: 'active',
+      });
+    });
+
+    it('captures previous status when revoking an already-revoked policy (idempotent)', async () => {
+      const policies: PolicyRow[] = [{ ...existingPolicy, status: 'REVOKED' }];
+      const { svc, audit } = makeService({ agents: [ACTIVE_AGENT], policies });
+      await svc.revoke('prn_A', 'agt_1', 'pol_active', 're-revoke');
+
+      const [event] = audit.append.mock.calls[0] as unknown as [Record<string, unknown>];
+      expect((event.policySnapshot as { previousStatus: string }).previousStatus).toBe('REVOKED');
+    });
+
+    it('records the agent trust score + band as they stood at revocation', async () => {
+      const flagged: AgentRow = {
+        id: 'agt_flagged',
+        principalId: 'prn_A',
+        status: 'ACTIVE',
+        trustScore: 250,
+        trustBand: 'WATCH',
+      };
+      const policies: PolicyRow[] = [{ ...existingPolicy, agentId: 'agt_flagged' }];
+      const { svc, audit } = makeService({ agents: [flagged], policies });
+      await svc.revoke('prn_A', 'agt_flagged', 'pol_active');
+
+      const [event] = audit.append.mock.calls[0] as unknown as [Record<string, unknown>];
+      expect(event.trustScoreAtEvent).toBe(250);
+      expect(event.trustBandAtEvent).toBe('WATCH');
+    });
+
+    // ── OD-024 Phase A5 — webhook fanout `cerniq.agent.policy_revoked` ─────────
+    it('fans `cerniq.agent.policy_revoked` webhook to active subscribers', async () => {
+      const policies: PolicyRow[] = [{ ...existingPolicy }];
+      const { svc, webhooks } = makeService({ agents: [ACTIVE_AGENT], policies });
+      await svc.revoke('prn_A', 'agt_1', 'pol_active', 'rotation');
+
+      expect(webhooks.enqueue).toHaveBeenCalledTimes(1);
+      const [event, fanoutPrincipalId] = webhooks.enqueue.mock.calls[0] as unknown as [
+        { type: string; data: Record<string, unknown> },
+        string,
+      ];
+      expect(event.type).toBe('cerniq.agent.policy_revoked');
+      expect(fanoutPrincipalId).toBe('prn_A');
+      expect(event.data).toMatchObject({
+        policyId: 'pol_active',
+        agentId: 'agt_1',
+        reason: 'rotation',
+        previousStatus: 'ACTIVE',
+      });
+      expect(typeof event.data.revokedAt).toBe('string');
+    });
+
+    it('webhook fanout carries reason=null when no reason supplied', async () => {
+      const policies: PolicyRow[] = [{ ...existingPolicy }];
+      const { svc, webhooks } = makeService({ agents: [ACTIVE_AGENT], policies });
+      await svc.revoke('prn_A', 'agt_1', 'pol_active');
+
+      const [event] = webhooks.enqueue.mock.calls[0] as unknown as [
+        { data: { reason: string | null } },
+      ];
+      expect(event.data.reason).toBeNull();
+    });
+
+    // ── OD-024 Phase A6 — SOC2 "who did this" plumbing for revokedBy ──────────
+    it('records revokedBy (initiating apiKeyId) in audit + webhook events', async () => {
+      const policies: PolicyRow[] = [{ ...existingPolicy }];
+      const { svc, audit, webhooks } = makeService({ agents: [ACTIVE_AGENT], policies });
+      await svc.revoke('prn_A', 'agt_1', 'pol_active', 'rotation', 'key_operator_42');
+
+      const [auditEvent] = audit.append.mock.calls[0] as unknown as [Record<string, unknown>];
+      expect((auditEvent.policySnapshot as { revokedBy: string }).revokedBy).toBe(
+        'key_operator_42',
+      );
+
+      const [webhookEvent] = webhooks.enqueue.mock.calls[0] as unknown as [
+        { data: { revokedBy: string } },
+      ];
+      expect(webhookEvent.data.revokedBy).toBe('key_operator_42');
+    });
+
+    it('records revokedBy=null when apiKeyId is omitted (non-API-key code path)', async () => {
+      const policies: PolicyRow[] = [{ ...existingPolicy }];
+      const { svc, audit, webhooks } = makeService({ agents: [ACTIVE_AGENT], policies });
+      await svc.revoke('prn_A', 'agt_1', 'pol_active');
+
+      const [auditEvent] = audit.append.mock.calls[0] as unknown as [Record<string, unknown>];
+      expect((auditEvent.policySnapshot as { revokedBy: string | null }).revokedBy).toBeNull();
+      const [webhookEvent] = webhooks.enqueue.mock.calls[0] as unknown as [
+        { data: { revokedBy: string | null } },
+      ];
+      expect(webhookEvent.data.revokedBy).toBeNull();
     });
   });
 });

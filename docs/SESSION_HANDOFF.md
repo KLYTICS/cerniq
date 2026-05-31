@@ -13,6 +13,332 @@
 
 ---
 
+## 2026-05-24 (OD-024 Phase A1–A4 + OD-021 encoding + doctor:full + gitleaks 0 leaks — 6-commit enterprise-readiness arc on `chore/cli-sdk-alignment`) · claim=cerniq:cli-sdk-drift-fix · sid=552f90d1
+
+**Status:** ✅ Six commits landed on `chore/cli-sdk-alignment`, all pushed to
+`origin`. Picks up the audit handoff's Findings #1, #2, #3, and #4
+(`docs/SESSION_HANDOFF.md` 2026-05-24 entry below by sid=anakin) and closes
+each one with code + paired tests. PR #55's red gates that were blocked by
+these findings are now ready to flip green once `chore/cli-sdk-alignment`
++ `chore/cli-go-1.24` merge to main and PR #55 rebases.
+
+### Commit arc (newest first)
+
+| Commit    | Subject                                                                    | Audit-handoff finding |
+|-----------|----------------------------------------------------------------------------|------------------------|
+| `c4174c3` | OD-024 Phase A4 — signed audit-chain append on revoke                      | extends Finding #3     |
+| `839a646` | gitleaks tail-FPs — silence remaining 13 entropy false positives           | Finding #4 (expanded)  |
+| `701987e` | gitleaks DID/RID + env-var-name FPs (specific 4 from the audit)            | Finding #4             |
+| `fcd8422` | doctor:full typecheck 3 → 8 workspaces                                     | Finding #2             |
+| `3ddb27e` | OD-021 encode accepted-CVE in osv-scanner + pnpm audit gates               | Finding #1             |
+| `095d154` | OD-024 Phase A2/A3 — wire revoke-reason + status filter end-to-end         | Finding #3 (core)      |
+| _prior_   | `76c6967` (operator) — OD-024 Phase A1 SDK extension + paired/parity tests | _Phase A1 baseline_    |
+
+### OD-024 — what now runs end-to-end (no stubs, no silent drops)
+
+| Surface | Before today | After today |
+|---|---|---|
+| `PolicyClient.get(policyId, {agentId})` | `throw NotImplemented` | `GET /v1/agents/:agentId/policies/:policyId` → `PolicyListItem` |
+| `AgentClient.revoke(id, {reason})` | reason sent, **API dropped silently** | reason persists to `AgentIdentity.revokedReason` + signed audit-chain event `agent.revoked` |
+| `PolicyClient.revoke(policyId, {agentId, reason})` | reason sent, **API dropped silently** | reason persists to new `AgentPolicy.revokedReason` column + signed audit-chain event `policy.revoked` |
+| `PolicyClient.list({agentId, status})` | status sent, **API ignored** | server-side `where: {agentId, status}` Prisma filter |
+| Revocation audit trail | row column only | row column + signed Ed25519 chain entry with pre-revoke `policySnapshot` |
+
+### Defense-in-depth + new local gates
+
+- `doctor:full` now typechecks 8 of 17 workspaces (was 3): adds
+  `@cerniq/cli`, `@cerniq/sdk`, `@cerniq/dashboard`, `@cerniq/mcp-bridge`,
+  `@cerniq/mcp-server`. Runtime: 31.6s on dev box (well within 120s/gate
+  ceiling). Future OD-024-shape drift now trips locally in ~30s instead
+  of a CI cycle.
+- `gitleaks detect` (full 346-commit history scan): **0 leaks**
+  (was 17 before today). Eight scoped `[[allowlists]]` blocks total —
+  every block scoped to a specific default rule (`generic-api-key`,
+  `jwt`) by `targetRules`; project-specific rules (`cerniq-api-key`,
+  `cerniq-verify-key`, `ed25519-private-seed`) remain globally active.
+  Verified by smoke test: a fake `cerniq_live_<32>` key and a fake
+  43-char b64url Ed25519 seed in a path-allowlisted `.md` are still
+  caught by their respective project-specific rules.
+
+### Verification snapshot at last commit (`c4174c3`)
+
+| Gate                                                     | Result    |
+|----------------------------------------------------------|-----------|
+| `@cerniq/sdk typecheck` / lint / test                    | clean / clean / 75 tests |
+| `@cerniq/cli typecheck`                                  | clean     |
+| `@cerniq/api typecheck`                                  | clean     |
+| `@cerniq/api test (policy + identity + multi-tenant)`    | 127/127   |
+| `@cerniq/api test (audit module)`                        | 80/80     |
+| `pnpm test:parity` (`tests/cross-package/**`)            | 97/97     |
+| `pnpm check:migrations`                                  | 14 immutable (+1 new appended) |
+| `pnpm check:openapi-zod` / `pnpm check:openapi-prisma`   | clean / clean |
+| `pnpm doctor:full` (8 workspaces typecheck + parity)     | green @ 31.6s |
+| `gitleaks detect` (346 commits, full history)            | 0 leaks   |
+
+### OD rows touched
+
+- **OD-024 § 3 row**: status flipped from "DECIDED (awaiting SDK extension
+  PR)" to "DECIDED (Phase A1–A4 landed in 76c6967 + 095d154 + c4174c3 on
+  `chore/cli-sdk-alignment`)". Resolution text expanded with the four
+  phases' implementation details.
+- **OD-021 § 2 row**: annotated with the encoding-commit reference
+  (`3ddb27e`) following the pattern of the earlier `10292fe` annotation.
+  Status stays OPEN per the audit handoff's "OD rows from in-flight
+  work are operator-elevated on their own timing" signal — the
+  acceptance is encoded but the row stays OPEN until the actual OTel
+  v2 migration ships.
+
+### Phase A2 caught a latent aliasing bug
+
+While writing the paired test for `PolicyService.revoke`'s audit-append,
+the mock that returned the same object reference from `findFirst` (then
+mutated it via `update`) exposed that the service was reading
+`policy.status` *after* the Prisma update — which in production happens
+to return `'ACTIVE'` (separate object instance) but in tests returned
+`'REVOKED'`. Defensive fix: hoist pre-update fields into a local
+`snapshot` block before the update. Same pattern applied to
+`IdentityService.revoke` for symmetry. Cheap and makes the code robust
+against any future ORM-behavior change.
+
+### What's NOT done (deliberate scope caps, future slices)
+
+1. **OTel v2 migration** — OD-021 is now encoded as accepted, but the
+   actual migration (`@opentelemetry/sdk-node` 0.55 → 0.217+ with the
+   Resource/ReadableSpan API rewrite) is still pending. Removing the
+   five osv-scanner overrides + the `ignoreGhsas` entry is in lockstep
+   with that migration commit.
+2. **Audit-chain → outer transaction** — Phase A4 follows the existing
+   `billing.plan_changed` pattern (sync await audit.append after the
+   state change commits). A future hardening could refactor
+   `AuditService.appendInternal` to accept a Prisma tx client and put
+   both the row update + the chain append in a single transaction.
+3. **Webhook fanout for revoke events** — the `policy.expiry.worker`
+   already fans webhooks for expiry; manual-revoke webhook parity
+   warrants its own slice and likely a new OD-NNN row for the operator.
+4. **Audit-trail JWT-shape tail FPs** — 13 gitleaks FPs were silenced
+   today; the broader question of whether docs/scripts should carry
+   `eyJhbGci…` example JWTs at all (vs. clearly-marked redacted
+   strings) is a documentation choice for the operator.
+5. **doctor:full → all 17 workspaces** — currently 8/17. Three of the
+   remaining nine (`@cerniq/audit-verifier`, the Go CLI wrapper,
+   tooling) are intentional excludes; the rest could be candidates if
+   their typechecks come clean independently.
+
+### How `chore/cli-sdk-alignment` should land
+
+When the operator is ready to merge:
+
+  1. Merge `chore/cli-sdk-alignment` to main (PR or fast-forward).
+  2. Merge `chore/cli-go-1.24` to main (golangci-lint Go 1.22 → 1.24).
+  3. Rebase PR #55 (`chore/ci-build-before-lint`) on main; expect
+     `build · Typecheck` + `SCA · pnpm audit` + `SCA · osv-scanner`
+     + `Secrets · gitleaks` + `lint (cli.yml)` to all go green
+     automatically.
+  4. Once PR #55 lands, the OD-024 § 2 row and the OD-021 § 2
+     annotation can move to § 3 if the operator chooses.
+
+---
+
+## 2026-05-24 (OD-024 — CLI ↔ SDK contract drift surfaced, Option A DECIDED) · claim=cerniq:od-024-discover · sid=anakin
+
+**Status:** ✅ Recorded as DECIDED in `OPERATOR_DECISIONS.md` § 2/§ 3. **No code
+change yet** — the actual SDK extension lands on a separate branch (not folded
+into PR #55, which stays "CI gate fixes only" for narrow blast radius).
+
+### What surfaced
+
+Investigating "is PR #55 actually fully green after the lint fix?", ran the
+post-lint CI sequence end-to-end on `chore/ci-build-before-lint` HEAD with a
+truly clean working tree. The lint step is green (the `next typegen` step in
+`7b84b69` resolved the dashboard `no-unnecessary-type-assertion` errors at
+`apps/dashboard/components/{CommandPalette,KeyboardShortcuts}.tsx`), but the
+**next CI step — `Typecheck` — is RED on `@cerniq/cli`** with 9 errors:
+
+  src/commands/agents.ts(22,37):  Property 'create' does not exist on type 'AgentClient'.
+  src/commands/agents.ts(39,39):  Property 'list' does not exist on type 'AgentClient'.
+  src/commands/agents.ts(66,34):  revoke() — Expected 1 arguments, but got 2.
+  src/commands/policies.ts(15,40): policies.create() — Expected 2 arguments, but got 1.
+  src/commands/policies.ts(20,26): PolicyRecord cast to {id} fails (PolicyRecord has no `id`).
+  src/commands/policies.ts(30,18): PolicyRecord[] cast to {policies: [...]} fails.
+  src/commands/policies.ts(30,46): list({agentId, status}) — Expected `string`, got object.
+  src/commands/policies.ts(48,36): revoke(id, {reason}) — Expected `string`, got object.
+
+### Why this was hidden
+
+`pnpm doctor:full` (the canonical local health check, line 372–384 of
+`scripts/doctor.ts`) explicitly typechecks only **3 of 17** workspaces:
+`@cerniq/api`, `@cerniq/types`, `@cerniq/verifier-rp`. The CLI was skipped,
+so prior memory notes claiming "all 17 projects typecheck clean" were
+referring to `doctor:full` coverage, not the full `pnpm typecheck` that CI
+runs as a separate step after lint.
+
+### Blame analysis
+
+All 9 failing lines were last touched in `4403bba` (the okoro→cerniq
+content-substitution rename of 2026-05-22). The drift wasn't introduced
+recently — it was **always wrong**, just never exercised. Likely the CLI
+was scaffolded against an aspirational AgentClient/PolicyClient design
+that never landed in the SDK, then the rename mass-substitution preserved
+the broken calls intact.
+
+### Decision (OD-024)
+
+Option A — **Extend SDK to match CLI**. Adds to `packages/sdk-ts/src/agent.ts`:
+  - `create(input)` — alias for `register`
+  - `list({limit?, cursor?})` → `{agents: AgentSummary[], nextCursor: string | null}`
+  - `revoke(id, {reason?})` — options bag with optional reason forwarded as body
+
+Mirror on `packages/sdk-ts/src/policy.ts`. Adds `AgentSummary` + list-response
+types in `packages/types`. Adds `tests/parity/cli-sdk-shape.test.ts` so the
+next drift trips a parity test, not a CI lint. Rejected B (refactor CLI,
+loses operator features), C (forward-looking ceremony, no extra value),
+D (filter CLI out of typecheck, violates invariant §4).
+
+### Next
+
+Land Option A on a new branch (probably `feat/sdk-cli-contract-fix`). Once
+that branch merges to main and PR #55 rebases, PR #55's `Typecheck` step
+turns green and the `build` job is fully green.
+
+---
+
+## 2026-05-24 (PR #55 enterprise-readiness audit — full red-gate ground truth + 4 operator-elevatable findings) · claim=cerniq:pr-55-audit · sid=anakin
+
+**Status:** Audit-only session. No code committed to main beyond what the operator
+themselves landed (`75cd425` SHA-pinned trivy). Surfaces four discrete findings
+the operator can elevate to OD rows if desired — explicitly NOT authoring rows
+this session, since the operator's history-rewrite signal (rolled my OD-024 docs
+commit off main into `chore/cli-sdk-alignment` to land WITH the implementation)
+indicates OD-row authorship is operator-owned.
+
+### PR #55 actual CI ground truth (run id 26362315282 + sibling workflows)
+
+Six failing checks, four root causes, two already being addressed:
+
+| Failing check                        | Root cause                                                                                          | Address                                                                       |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `build` → `Typecheck`                | 9 CLI ↔ SDK contract errors in `packages/cli/src/commands/{agents,policies}.ts` (OD-024)            | Peer's `chore/cli-sdk-alignment` (`76c6967`) — Phase A1 SDK extension + 154 LoC unit tests + 73 LoC cross-package parity test |
+| `lint` (cli.yml)                     | golangci-lint failing — Go 1.22 in `.github/workflows/cli.yml` vs Go 1.24 in `packages/cli/go.mod`  | Operator's `chore/cli-go-1.24` (`9158d3f`) — bump workflow to Go 1.24         |
+| `SCA · trivy filesystem` → Set up    | `aquasecurity/trivy-action@0.36.0` — unpublished tag, only `@v0.36.0` exists upstream               | Operator landed on main as `75cd425` (SHA-pinned to `ed142fd`)                |
+| `SCA · pnpm audit`                   | GHSA-q7rr-3cgh-j5r3 (OTel Prometheus DoS) — exact CVE OD-021 marked "accept in interim"             | **Open finding** — see Finding #1 below                                       |
+| `SCA · osv-scanner / osv-scan`       | Same GHSA-q7rr-3cgh-j5r3, also from `osv-scanner.toml` lacking an entry for it                      | **Open finding** — see Finding #1 below                                       |
+| `Secrets · gitleaks`                 | False positives: `did:key:z6Mkt...` in `docs/SESSION_HANDOFF.md:27` + `NOTICE.md:7`; `JWT_ED25519_PRIVATE_KEY_B64` (env-var NAME, not value) in `infra/railway/api.service.json:53` | **Open finding** — see Finding #4 below                                       |
+
+### Finding #1 — Security gates don't honor accepted-CVE operator decisions
+
+OD-021 explicitly DECIDED "accept the Prometheus exporter CVE in the interim"
+(real exposure low — internal-only scrape, not internet-facing). Yet
+`SCA · pnpm audit` and `SCA · osv-scanner` both block on it every PR with no
+mechanism to recognize the operator's standing acceptance. This is a permanent
+red-tax until the OTel v2 migration lands (could be weeks).
+
+**Concrete fix path** — both gates already use filter-file patterns:
+  - `osv-scanner.toml` has `PackageOverrides` with per-entry sunset dates (see
+    e.g. `npm/@tootallnate/once/2.0.1` entry filtered with sunset 2026-06-30
+    pointing at the resolving PR #16). Add entries for
+    `@opentelemetry/auto-instrumentations-node`, `@opentelemetry/sdk-node`,
+    `@opentelemetry/exporter-trace-otlp-http` at the affected versions, with
+    sunset pointing at OD-021's resolution.
+  - `package.json` root supports `pnpm.auditConfig.ignoreCves` — add
+    `["GHSA-q7rr-3cgh-j5r3"]` with adjacent comment cross-referencing OD-021.
+
+Both filters preserve SARIF emission (gates remain audit-visible, just don't
+fail builds). Rejected: workflow-level `continue-on-error` (too coarse —
+silences future CVEs too); deleting the workflows entirely (loses signal for
+new CVEs).
+
+### Finding #2 — `doctor:full` typecheck coverage gap let OD-024 hide
+
+`scripts/doctor.ts` L372-384 hard-codes `pnpm doctor:full`'s full-mode gate to
+**3 of 17 workspaces**: `@cerniq/api`, `@cerniq/types`, `@cerniq/verifier-rp`.
+The other 14 (`@cerniq/cli`, `@cerniq/sdk`, `@cerniq/dashboard`, `@cerniq/mcp-server`,
+`@cerniq/mcp-bridge`, `@cerniq/audit-verifier`, `apps/docs`, `tools/*`, etc.)
+never get typechecked locally. That's how OD-024's CLI ↔ SDK drift lived
+2 days between `4403bba` (2026-05-22 rename) and PR #55's surfacing — the only
+place that catches it is CI's separate `pnpm typecheck` step, which only runs
+on push.
+
+**Recommended phased expansion**: add `@cerniq/cli`, `@cerniq/sdk`,
+`@cerniq/mcp-server`, `@cerniq/mcp-bridge`, `@cerniq/dashboard` to the gate
+list now (public-contract-bearing surfaces). Skip pre-existing-broken
+workspaces (`@cerniq/audit-verifier`, the Go cli wrapper) until their own
+fixes land. Runtime impact ≈10s per added workspace; current ≈30s → ≈80s
+expected. Long-term: collapse to `pnpm -r run typecheck` once every workspace
+is green, removing the hand-maintained list.
+
+### Finding #3 — OD-024 Phase A2/A3 follow-ups
+
+The peer's `chore/cli-sdk-alignment` (`76c6967`) ships Phase A1 cleanly but
+intentionally accepts two forward-compat silent-drop scenarios:
+
+  - **A2 (reason persistence in audit chain)**: `revoke(id, {reason})` on
+    both `AgentClient` and `PolicyClient` forwards `reason` in the request
+    body, but `apps/api/src/modules/identity/identity.controller.ts:49-55`
+    (DELETE /agents/:agentId) and the policy revoke handler have NO
+    `@Body()` parameter. Server silently drops the reason — never recorded
+    in the audit chain. Violates invariant §4. The Phase A1 JSDoc carries
+    a TODO for this.
+  - **A3 (cross-agent policy listing)**: `policies.list({agentId, status?})`
+    forwards `status` as a query param, but the controller doesn't read it
+    — every status filter returns all policies. Either add `status` query
+    support to the existing nested `GET /agents/:agentId/policies` (smaller),
+    or add a new top-level `GET /policies?agentId=&status=` (cleaner mental
+    model).
+
+Both A2 and A3 touch the API + Prisma + e2e tests; out of scope for the
+peer's SDK-only PR but worth tracking before any operator workflow depends
+on revoke-reason capture or cross-agent policy views.
+
+### Finding #4 — gitleaks DID/RID allowlist not catching real false positives
+
+`.github/gitleaks.toml` L40-41 has a `[allowlist]`-level regex for the W3C DID
+pattern (`did:key:z6Mk[1-9A-HJ-NP-Za-km-z]{40,50}`) — the pattern does match
+the firing findings BY HAND, but gitleaks v8.30.1 evidently doesn't honor the
+top-level allowlist regex against the `generic-api-key` rule's high-entropy
+firing. Plus the env-var-name token (`JWT_ED25519_PRIVATE_KEY_B64` in
+`infra/railway/api.service.json:53`) has no allowlist coverage at all today
+— that's a variable NAME, not a key value, but gitleaks scores it as a
+generic-api-key on entropy alone.
+
+**Recommended fix**: move the DID/RID regex from top-level `[allowlist]` to
+per-rule `[[rules.allowlists]]` under the `generic-api-key` rule (gitleaks
+v8 honors per-rule allowlists more reliably for entropy-fired rules). Add a
+path-based allowlist for `infra/railway/*.json` covering env-var-name
+patterns like `*_PRIVATE_KEY_*` and `*_SECRET_KEY_*`. Verify locally with
+`gitleaks detect --no-banner --redact --report-format json` and confirm 3 → 0.
+
+Rejected: deleting the literal DID strings from `NOTICE.md` (audit-trail
+attribution); globally disabling `generic-api-key` (unbounded future FNs);
+blanket `--ignore-path docs/` (masks audit-trail of FP-heavy content).
+
+### What I committed (and didn't)
+
+  ✅  `chore/ci-build-before-lint` `7b84b69` (earlier this session) — dashboard
+      typegen step before lint. Lint step green.
+  ✅  Sent peer 552f90d1 a coordination message acknowledging convergence on
+      OD-024 Phase A1. Peer closed claim after committing `76c6967`.
+  ❌  My OD-024 docs commit on main — rolled off by operator and folded into
+      `chore/cli-sdk-alignment` with the implementation. Correct call.
+  ❌  My `fix/trivy-action-tag-prefix` (`456ecfd`) — superseded by operator's
+      SHA-pinned `75cd425` on main. Branch deleted.
+  ❌  Proposed OD-025..028 rows — held back per operator-authorship signal.
+      All four findings written up above instead.
+
+### Next session priorities
+
+Pre-merge readiness for PR #55:
+  1. Land `chore/cli-sdk-alignment` → flips `build · Typecheck` green
+  2. Land `chore/cli-go-1.24` → flips `lint` (cli.yml) green
+  3. Address Finding #1 (CVE filter file extension) → flips `SCA · pnpm audit` + `SCA · osv-scanner` green
+  4. Address Finding #4 (gitleaks per-rule allowlist) → flips `Secrets · gitleaks` green
+  5. `Security gate · summary` becomes green automatically once 1-4 land.
+
+Post-merge enterprise-quality cleanup:
+  6. Finding #2 — expand `doctor:full` typecheck gate list (prevents next OD-024)
+  7. Finding #3 — schedule Phase A2/A3 API work (closes the invariant §4 silent-drop)
+
+---
+
 ## 2026-05-24 (OD-021 OTel v2 migration attempted + reverted by harness flow) · claim=cerniq:od-021-attempt · sid=anakin
 
 **Status:** ⚠️ OTel v2 migration attempted on side branch `feat/otel-v2-migration`,

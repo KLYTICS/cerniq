@@ -5,8 +5,8 @@
 // call (POLICY_EXPIRED denial), so an unswept expired policy is already
 // safe — the sweep keeps the data model truthful for dashboards, CSV
 // exports, and SOC2 evidence. It also fires the
-// `cerniq.policy.expired` webhook so customers can plumb expiry into
-// their own ticketing.
+// `cerniq.agent.policy_expired` webhook so customers can plumb expiry
+// into their own ticketing.
 //
 // Design:
 //   - BullMQ repeatable job (every 5 minutes) — uses the same queue
@@ -20,6 +20,7 @@
 // runs on every expired policy in the system). `WebhooksService.enqueue`
 // scopes per-principal automatically by looking up the policy's owner.
 
+import { WEBHOOK_EVENT } from '@cerniq/types';
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import type { AgentPolicy } from '@prisma/client';
 import { Queue, Worker, type Job } from 'bullmq';
@@ -143,7 +144,7 @@ export class PolicyExpiryWorker implements OnModuleInit, OnModuleDestroy {
       try {
         await this.webhooks.enqueue(
           {
-            type: 'cerniq.policy.expired',
+            type: WEBHOOK_EVENT.AGENT_POLICY_EXPIRED,
             data: {
               policyId: row.id,
               agentId: row.agentId,

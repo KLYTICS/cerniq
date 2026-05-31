@@ -28,7 +28,11 @@ function buildAuth(overrides: Partial<AuthenticatedKey> = {}): AuthenticatedKey 
 }
 
 function buildReq(auth: AuthenticatedKey | undefined): Request {
-  return { auth } as unknown as Request;
+  // `headers: {}` mirrors what Express populates for every request — the
+  // controller reads `req.headers['x-cerniq-api-key']` to invalidate the
+  // old key's plaintext cache entry post-rotation. Mock requests without
+  // `headers` throw TypeError on that access (pre-rebrand stub omitted it).
+  return { auth, headers: {} } as unknown as Request;
 }
 
 interface RotateMock {

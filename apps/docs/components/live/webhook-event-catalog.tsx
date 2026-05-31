@@ -24,7 +24,11 @@ const EVENT_COPY: Record<string, { when: string; payload: string }> = {
   },
   'cerniq.agent.revoked': {
     when: 'Principal calls `DELETE /v1/agents/:id` or revocation triggers automatically.',
-    payload: '{ agentId, revokedAt, revokedBy }',
+    payload: '{ agentId, revokedAt, reason, previousStatus, revokedBy }',
+  },
+  'cerniq.agent.policy_revoked': {
+    when: 'Principal calls `DELETE /v1/agents/:agentId/policies/:policyId` (manual revoke, OD-024 Phase A5). Distinct from `cerniq.agent.policy_expired` which fires from the scheduled expiry sweep.',
+    payload: '{ policyId, agentId, revokedAt, reason, previousStatus, revokedBy }',
   },
 };
 

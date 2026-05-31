@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.24'
           cache-dependency-path: packages/cli/go.sum
       - name: go vet
         run: go vet ./...
@@ -46,11 +46,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.24'
           cache-dependency-path: packages/cli/go.sum
       - uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.59
+          # v1.59 only supports up to Go 1.22; the module declares
+          # `go 1.24.0` (see `packages/cli/go.mod`), so v1.59's
+          # typecheck linter fails to load the package and surfaces
+          # spurious `undefined: <pkg>` errors (e.g. on `toml` import)
+          # despite the symbol being correctly imported.
+          #
+          # v1.64.x adds Go 1.24 support while staying on the v1.x
+          # line, so `packages/cli/.golangci.yml` (which uses v1
+          # syntax: `disable-all: true` + `enable: [...]`) keeps
+          # working without rewrite. v2.x ships a v2 config schema
+          # and a couple of deprecated/renamed linters — not worth
+          # the churn in this PR.
+          version: v1.64.8
           working-directory: packages/cli
           args: --config=.golangci.yml --timeout=5m
 
@@ -64,19 +76,27 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.24'
           cache-dependency-path: packages/cli/go.sum
       - uses: goreleaser/goreleaser-action@v6
         with:
+          # AEGIS is a polyglot monorepo — go.mod lives at packages/cli,
+          # not repo root. `workdir:` chdirs the action so the before
+          # hook (`go mod tidy`) and `go build` find the module.
+          # Pair with .goreleaser.yaml `builds[0].main: .` (relative to
+          # this workdir).
+          workdir: packages/cli
           distribution: goreleaser
           version: '~> v2'
           args: release --snapshot --clean --skip=publish,sign,sbom
       - name: list dist artifacts
-        run: ls -la dist/
+        # `dist/` is created inside `packages/cli/` because goreleaser
+        # runs there (per `workdir: packages/cli` above).
+        run: ls -la packages/cli/dist/
       - uses: actions/upload-artifact@v4
         with:
           name: cerniq-cli-snapshot
           path: |
-            dist/cerniq_*
-            dist/checksums.txt
+            packages/cli/dist/cerniq_*
+            packages/cli/dist/checksums.txt
           retention-days: 14

@@ -147,4 +147,40 @@ export class PolicyResponseDto {
 
   @ApiProperty()
   expiresAt!: string;
+
+  @ApiPropertyOptional({
+    description:
+      'ISO timestamp of revocation. Null on policies that have not been revoked. OD-024 Phase A2.',
+  })
+  revokedAt?: string | null;
+
+  @ApiPropertyOptional({
+    description:
+      'Operator-supplied reason captured at revocation. Null when not revoked or revoked without a reason. OD-024 Phase A2.',
+  })
+  revokedReason?: string | null;
+}
+
+export enum PolicyStatusFilter {
+  ACTIVE = 'ACTIVE',
+  EXPIRED = 'EXPIRED',
+  REVOKED = 'REVOKED',
+}
+
+export class ListPoliciesQueryDto {
+  @ApiPropertyOptional({ enum: PolicyStatusFilter, description: 'OD-024 Phase A3 status filter.' })
+  @IsOptional()
+  @IsEnum(PolicyStatusFilter)
+  status?: PolicyStatusFilter;
+}
+
+export class RevokePolicyDto {
+  @ApiPropertyOptional({
+    description: 'Free-form operator-supplied reason captured for the audit trail.',
+    example: 'Compromised key',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
 }

@@ -23,9 +23,9 @@ export function registerAgentsTools(cerniq: Cerniq, registry: Map<string, ToolDe
     },
     handler: async (args) =>
       await cerniq.agents.create({
-        name: String(args.name),
+        label: String(args.name),
         publicKey: String(args.public_key),
-        metadata: args.metadata as Record<string, unknown> | undefined,
+        runtime: 'CUSTOM',
       }),
   });
 

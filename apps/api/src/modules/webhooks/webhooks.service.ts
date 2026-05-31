@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 
+import type { WebhookEvent as WebhookEventName } from '@cerniq/types';
 import { Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 
@@ -8,8 +9,15 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 
 import { WebhookDeliveryWorker } from './webhook.delivery';
 
+// `type` is constrained to the wire-constant union (`WEBHOOK_EVENT` in
+// `@cerniq/types`). This is the compile-time gate that catches future
+// drift between publisher emit-strings and the documented event names —
+// the bug that previously hid `policy.expiry.worker` emitting
+// `'cerniq.policy.expired'` while the docs / Zod schema declared
+// `'cerniq.agent.policy_expired'`. Callers must import WEBHOOK_EVENT
+// and pass a constant value; bare string literals fail typecheck.
 export interface WebhookEvent {
-  type: string;
+  type: WebhookEventName;
   data: Record<string, unknown>;
 }
 

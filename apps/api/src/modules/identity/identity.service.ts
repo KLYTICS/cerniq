@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 
+import { WEBHOOK_EVENT } from '@cerniq/types';
 import {
   ForbiddenException,
   GoneException,
@@ -13,6 +14,8 @@ import type { AgentIdentity, Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
+import { AuditService } from '../audit/audit.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
 
 import {
   type ListAgentsQueryDto,
@@ -78,6 +81,8 @@ export class IdentityService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly audit: AuditService,
+    private readonly webhooks: WebhooksService,
   ) {}
 
   async register(principalId: string, dto: RegisterAgentDto): Promise<AgentResponseDto> {
@@ -321,13 +326,28 @@ export class IdentityService {
     };
   }
 
-  async revoke(principalId: string, agentId: string, reason?: string): Promise<void> {
+  async revoke(
+    principalId: string,
+    agentId: string,
+    reason?: string,
+    apiKeyId?: string,
+  ): Promise<void> {
+    // Capture pre-revoke state so the audit row records what the agent
+    // looked like at the moment of revocation. Audit replay relies on
+    // these fields being the *prior* values, not the post-update ones.
     const agent = await this.prisma.agentIdentity.findFirst({
       where: { id: agentId, principalId },
-      select: { id: true },
+      select: { id: true, status: true, trustScore: true, trustBand: true },
     });
     if (!agent)
       throw new NotFoundException({ error: 'AGENT_NOT_FOUND', message: 'Agent not found.' });
+
+    // Snapshot pre-update fields so the audit append records the agent
+    // state as it was *before* the revoke, regardless of whether the
+    // underlying ORM returns a separate object instance from `update`.
+    const previousStatus = agent.status;
+    const previousTrustScore = agent.trustScore;
+    const previousTrustBand = agent.trustBand;
 
     await this.prisma.agentIdentity.update({
       where: { id: agentId },
@@ -336,6 +356,55 @@ export class IdentityService {
 
     // Invalidate hot caches so the verify path stops serving the stale "ACTIVE".
     await this.redis.del(`agent:status:${agentId}`);
+
+    // OD-024 Phase A4 — append signed audit-chain event for the revocation.
+    // Mirrors the `billing.plan_changed` pattern (sync await, after the
+    // state change commits). CLAUDE.md invariant #3 requires every
+    // security-significant state change to be auditable; this closes the
+    // gap OD-024 noted ("audit-chain capture") between the row-level
+    // `revokedReason` column and the signed chain.
+    await this.audit.append({
+      agentId: agent.id,
+      claimedAgentId: agent.id,
+      principalId,
+      action: 'agent.revoked',
+      decision: 'APPROVED',
+      policySnapshot: {
+        reason: reason ?? null,
+        previousStatus,
+        // OD-024 Phase A6 — SOC2 "who did this" evidence. Initiating
+        // API key id from the auth context (null when revocation flows
+        // come from a non-API-key code path — e.g. a future
+        // dashboard-direct-Prisma path).
+        revokedBy: apiKeyId ?? null,
+      },
+      trustScoreAtEvent: previousTrustScore,
+      trustBandAtEvent: previousTrustBand,
+    });
+
+    // OD-024 Phase A5 — fan a webhook so customers can plumb revoke into
+    // their own systems (key-rotation tooling, incident response, SIEM,
+    // etc.). Mirrors the `cerniq.agent.policy_expired` pattern in
+    // policy.expiry.worker. `webhooks.enqueue` swallows fanout errors
+    // internally (the manual-revoke path must not fail just because a
+    // subscriber URL is unreachable); the operator-facing revoke still
+    // succeeds. NB: the same revocation now generates three durable
+    // signals — Prisma row column, signed audit-chain event, and webhook
+    // delivery — defense in depth for SOC2 evidence.
+    await this.webhooks.enqueue(
+      {
+        type: WEBHOOK_EVENT.AGENT_REVOKED,
+        data: {
+          agentId: agent.id,
+          revokedAt: new Date().toISOString(),
+          reason: reason ?? null,
+          previousStatus,
+          revokedBy: apiKeyId ?? null,
+        },
+      },
+      principalId,
+    );
+
     this.logger.log(`Agent revoked: ${agentId} reason=${reason ?? 'n/a'}`);
   }
 

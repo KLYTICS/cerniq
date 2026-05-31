@@ -8,9 +8,9 @@
 // targets care about.
 //
 // Adding a new template:
-//   1. Drop the tree under packages/cli/internal/templates/<name>/.
-//   2. Append the name + one-line description to descriptions below.
-//   3. The go:embed directive picks it up automatically.
+//  1. Drop the tree under packages/cli/internal/templates/<name>/.
+//  2. Append the name + one-line description to descriptions below.
+//  3. The go:embed directive picks it up automatically.
 //
 // The description list is the single source of truth surfaced by
 // `cerniq init` with no --industry flag.
@@ -28,9 +28,9 @@ var trees embed.FS
 // descriptions maps template name → one-line description shown in the
 // menu. Keep entries one short sentence each — the menu is dense.
 var descriptions = map[string]string{
-	"fintech-payments":        "Stripe-style checkout server with CERNIQ verify gate before authorization",
-	"ai-platform-tool-call":   "MCP agent → CERNIQ verify → downstream API (pairs with @cerniq/mcp-server)",
-	"saas-seat-provisioning":  "SCIM-flavored agent provisioning + per-seat policies + audit slice export",
+	"fintech-payments":       "Stripe-style checkout server with CERNIQ verify gate before authorization",
+	"ai-platform-tool-call":  "MCP agent → CERNIQ verify → downstream API (pairs with @cerniq/mcp-server)",
+	"saas-seat-provisioning": "SCIM-flavored agent provisioning + per-seat policies + audit slice export",
 }
 
 // List returns the available template names in stable order.

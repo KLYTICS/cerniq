@@ -351,6 +351,13 @@ if (FULL) {
   const preflight: Array<{ name: string; cmd: string }> = [
     { name: 'prisma client', cmd: 'pnpm --filter @cerniq/api prisma:generate' },
     { name: '@cerniq/types build', cmd: 'pnpm --filter @cerniq/types build' },
+    // `@cerniq/sdk` is a transitive type-provider for cli, mcp-bridge,
+    // mcp-server. Without `dist/index.d.ts`, tsc on those consumers
+    // resolves `@cerniq/sdk` imports to `any` and the gate is a
+    // false-failure. OD-024 surfaced this when the cli first started
+    // typechecking against a real SDK contract — types alone wasn't
+    // enough cover. <2s on warm cache.
+    { name: '@cerniq/sdk build', cmd: 'pnpm --filter @cerniq/sdk build' },
   ];
   for (const p of preflight) {
     process.stdout.write(`  ${p.name}: `);
@@ -367,9 +374,27 @@ if (FULL) {
     }
   }
 
-  header('Full mode — running gates (≈30s)');
+  header('Full mode — running gates (≈60s)');
+  // Typecheck the public-contract-bearing workspaces locally so CLI ↔ SDK,
+  // dashboard ↔ types, and MCP ↔ SDK drift surfaces here instead of CI's
+  // separate `pnpm typecheck` step. OD-024 (CLI ↔ SDK contract drift) was
+  // hidden for 2 days specifically because @cerniq/cli wasn't in this gate;
+  // see the PR #55 enterprise-readiness audit (docs/SESSION_HANDOFF.md
+  // 2026-05-24) Finding #2. Skipped intentionally: Go CLI wrapper (no tsc),
+  // Python SDK (no tsc), Cloudflare worker (separate toolchain), and
+  // tooling workspaces (test infra, scripts, postman) whose typecheck
+  // adds noise without catching public-contract drift.
   const gates: Array<{ name: string; cmd: string; timeoutMs?: number }> = [
     { name: 'tsc @cerniq/api', cmd: 'pnpm --filter @cerniq/api exec tsc --noEmit' },
+    {
+      name: 'tsc @cerniq/audit-verifier',
+      cmd: 'pnpm --filter @cerniq/audit-verifier exec tsc --noEmit',
+    },
+    { name: 'tsc @cerniq/cli', cmd: 'pnpm --filter @cerniq/cli exec tsc --noEmit' },
+    { name: 'tsc @cerniq/dashboard', cmd: 'pnpm --filter @cerniq/dashboard exec tsc --noEmit' },
+    { name: 'tsc @cerniq/mcp-bridge', cmd: 'pnpm --filter @cerniq/mcp-bridge exec tsc --noEmit' },
+    { name: 'tsc @cerniq/mcp-server', cmd: 'pnpm --filter @cerniq/mcp-server exec tsc --noEmit' },
+    { name: 'tsc @cerniq/sdk', cmd: 'pnpm --filter @cerniq/sdk exec tsc --noEmit' },
     { name: 'tsc @cerniq/types', cmd: 'pnpm --filter @cerniq/types exec tsc --noEmit' },
     { name: 'tsc @cerniq/verifier-rp', cmd: 'pnpm --filter @cerniq/verifier-rp exec tsc --noEmit' },
     { name: 'audit:errors', cmd: 'pnpm --filter @cerniq/scripts run audit:errors' },
