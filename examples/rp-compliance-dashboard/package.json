@@ -1,0 +1,23 @@
+{
+  "name": "@aegis-examples/rp-compliance-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Runnable relying-party compliance dashboard — fetches audit events from a live AEGIS instance, verifies the chain offline via @aegis/audit-verifier, renders integrity in real time. The 'audit our audit' demo.",
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "dev": "tsx watch src/server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aegis/audit-verifier": "link:../../packages/audit-verifier",
+    "express": "^4.21.0"
+  },
+  "devDependencies": {
+    "@aegis/tsconfig": "link:../../packages/tsconfig",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
