@@ -1,0 +1,128 @@
+name: Runtime portability
+
+# Enforces CLAUDE.md invariants #2 and #8 mechanically.
+#
+#   Invariant #2 — "/v1/verify hot path must remain portable. Decision
+#                   logic that touches signatures, policies, spend,
+#                   trust scores, or denial precedence belongs in pure
+#                   utilities or portable package code, not NestJS-only
+#                   wrappers."
+#
+#   Invariant #8 — "Public SDKs and verifier packages must stay runtime-
+#                   portable. Do not add Node-only APIs to browser, edge,
+#                   or relying-party surfaces."
+#
+# Surfaced as an architectural concern by swarm-2's general-purpose
+# auditor (2026-05-27): both invariants were policed only by code
+# review. A `node:fs` import slipping into `packages/sdk-ts/` would
+# break a customer's browser bundle at consumer-build time, not on
+# our CI. Same for an `@nestjs/*` import into the future
+# `apps/api/src/modules/verify/algorithm/` path (M-005 algorithm
+# extraction).
+#
+# This workflow runs an `rg` check per surface. Path-exists check is
+# defensive so the M-005 path is allowed to land empty before its
+# extraction.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Minimal permissions — read-only check, no SARIF upload.
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-portability-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  portability:
+    name: Runtime portability guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # pin: replace with full sha before merge
+
+      - name: Install ripgrep
+        # ripgrep ships preinstalled on ubuntu-latest GitHub runners; this
+        # step is defensive in case the runner image changes. `command -v`
+        # avoids a spurious update on the common path.
+        run: |
+          if ! command -v rg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ripgrep
+          fi
+          rg --version | head -1
+
+      - name: Check runtime portability of public packages + verify algorithm
+        run: |
+          set -euo pipefail
+
+          # Match REAL import/require/dynamic-import forms only — not
+          # bare module-name occurrences in comments / strings / docs.
+          # Patterns:
+          #   ES static     : `import ... from '@nestjs/common'`
+          #   ES type-only  : `import type ... from '@prisma/client'`
+          #   ES bare       : `import '@nestjs/common'`
+          #   CJS require   : `require('bullmq')`
+          #   Dynamic import: `import('node:fs')`
+          #
+          # The module list below blocks Node/Nest/Prisma/queue/redis on
+          # surfaces that must stay browser-, edge-, and RP-portable.
+          # Adding to the list: tighten by surface only — generic
+          # additions get noisy. `@noble/*`, `zod`, `ulid` etc. are
+          # expected to be present here; do not add them.
+
+          MODULES='@nestjs/[^"'\'']+|@prisma/client|bullmq|ioredis|node:fs|node:net|node:dns|node:http|node:https|node:child_process|node:cluster'
+
+          # Build one alternation that matches any real import form.
+          IMPORT_PATTERN="(from\s+['\"]($MODULES)['\"])|(require\s*\(\s*['\"]($MODULES)['\"])|(import\s*\(\s*['\"]($MODULES)['\"])|(import\s+['\"]($MODULES)['\"])"
+
+          portability_check() {
+            local label="$1"
+            local path="$2"
+
+            if [ ! -d "$path" ]; then
+              echo "::notice title=Portability check skipped::$label — path \`$path\` does not exist yet (M-005 algorithm extraction or similar future work). Guard remains armed for when the directory appears."
+              return 0
+            fi
+
+            local hits
+            hits=$(rg -l --type ts --pcre2 "$IMPORT_PATTERN" "$path" 2>/dev/null || true)
+
+            if [ -n "$hits" ]; then
+              echo "::error title=Runtime portability violation::$label imports Node-only modules. Per CLAUDE.md invariants #2 (verify hot path portable) and #8 (public SDKs runtime-portable), these surfaces must stay browser/edge/RP-portable. Violations would break consumer bundles at build time, invisible to our CI."
+              echo ""
+              echo "Offending files:"
+              echo "$hits" | while read -r f; do
+                echo "  $f:"
+                rg -n --type ts --pcre2 "$IMPORT_PATTERN" "$f" | sed 's/^/    /'
+              done
+              echo ""
+              echo "If the import is genuinely needed, the right fix is to factor the Node-only path behind an interface and inject it (see apps/api/src/modules/verify/algorithm/verify.ports.ts pattern: ports + adapters)."
+              return 1
+            fi
+
+            echo "✓ $label clean"
+          }
+
+          # Public SDK — must run in browser, Cloudflare Workers, and Node.
+          portability_check '@cerniq/sdk (packages/sdk-ts)' packages/sdk-ts/src
+
+          # Relying-party verifier — embedded in customers' apps; same
+          # portability bar as the SDK.
+          portability_check '@cerniq/verifier-rp (packages/verifier-rp)' packages/verifier-rp/src
+
+          # The verify-algorithm extraction (M-005). Ports + pure
+          # algorithm code live here; the Nest controller + CF Worker
+          # adapter both consume this surface. Comments may mention
+          # @nestjs / @prisma for historical documentation; only real
+          # import forms fail this guard.
+          portability_check 'verify algorithm (apps/api)' apps/api/src/modules/verify/algorithm
+
+          echo ""
+          echo "All checked surfaces pass the portability guard."
