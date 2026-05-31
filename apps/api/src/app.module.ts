@@ -13,6 +13,7 @@ import { PrismaModule } from './common/prisma/prisma.module';
 import { RedisModule } from './common/redis/redis.module';
 import { AppConfigModule } from './config/config.module';
 import { AppConfigService } from './config/config.service';
+import { AdminModule } from './modules/admin/admin.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { Auth0Module } from './modules/auth0/auth0.module';
@@ -103,6 +104,7 @@ import { WellknownModule } from './modules/wellknown/wellknown.module';
     ComplianceModule,
     OnboardingModule,
     BillingModule,
+    AdminModule, // founder-led onboarding endpoints — gated by AEGIS_ADMIN_TOKEN
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

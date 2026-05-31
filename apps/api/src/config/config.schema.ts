@@ -51,6 +51,21 @@ export const configSchema = z.object({
 
   API_KEY_BCRYPT_COST: intish.default(12),
 
+  // ── Founder-led admin onboarding token ─────────────────────────
+  // Shared secret gating /admin/* endpoints (admin.guard.ts). When
+  // unset, the entire /admin/* surface is closed (AdminGuard rejects
+  // every request). Set in production to enable the founder-led
+  // onboarding path described in docs/runbooks/FOUNDER_LED_ONBOARDING.md
+  // and docs/LAUNCH_READINESS_AUDIT_2026-05-21.md Phase Bα.
+  //
+  // Rotation: redeploy with new env var; no cache, so old token is
+  // rejected on next request. Bcrypt-style timing-safe comparison.
+  //
+  // Length: arbitrary, but recommend ≥32 hex chars (e.g. `openssl rand
+  // -hex 32`). NEVER reuse across environments — staging and
+  // production tokens must be distinct.
+  AEGIS_ADMIN_TOKEN: z.string().min(32).optional(),
+
   THROTTLE_VERIFY_PER_MIN: intish.default(1000),
   THROTTLE_DEFAULT_PER_MIN: intish.default(120),
 
