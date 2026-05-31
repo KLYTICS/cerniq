@@ -42,7 +42,7 @@
     "@opentelemetry/auto-instrumentations-node": "^0.51.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.55.0",
     "@opentelemetry/resources": "^1.28.0",
-    "@opentelemetry/sdk-node": "^0.55.0",
+    "@opentelemetry/sdk-node": "^0.217.0",
     "@opentelemetry/sdk-trace-base": "^1.28.0",
     "@opentelemetry/semantic-conventions": "^1.28.0",
     "@prisma/client": "^5.22.0",
