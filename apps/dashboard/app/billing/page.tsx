@@ -13,6 +13,7 @@ import type { ReactElement } from 'react';
 import type { PlanSummary } from '../../lib/api-client';
 import { authConfigured } from '../../lib/auth';
 import { loadPlan } from '../../lib/billing';
+import { billingLadderEnabled } from '../../lib/feature-flags';
 
 import { AutoCheckout } from './_components/AutoCheckout';
 import { ManageButton } from './_components/ManageButton';
@@ -119,7 +120,7 @@ function BillingBody({ plan }: { plan: PlanSummary }): ReactElement {
           marginBottom: 24,
         }}
       >
-        {plan.planTier === 'FREE' || plan.planTier === 'DEVELOPER' ? (
+        {billingLadderEnabled() && (plan.planTier === 'FREE' || plan.planTier === 'DEVELOPER') ? (
           <UpgradeButton currentTier={plan.planTier} />
         ) : null}
         {plan.planTier === 'DEVELOPER' || plan.planTier === 'GROWTH' ? <ManageButton /> : null}

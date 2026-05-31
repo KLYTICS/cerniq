@@ -14,9 +14,9 @@ Tick each row when the prerequisite is in place. Launch proceeds only when every
 
 | ID | Decision | Status | Source |
 | --- | --- | --- | --- |
-| **G-AUTH0** | Auth0 tenant created, env vars in hand | ☐ in progress (operator wiring) | [CREDENTIALS_BOOTSTRAP §2](docs/CREDENTIALS_BOOTSTRAP.md) |
+| **G-AUTH0** | Auth0 tenant created, env vars in hand | ☐ in progress (operator wiring) — SDK + dashboard code landed in `feat/auth0-dashboard-v1` | [CREDENTIALS_BOOTSTRAP §2](docs/CREDENTIALS_BOOTSTRAP.md), [infra/auth0/README.md](infra/auth0/README.md) |
 | **G-KMS** | Env-var keys (v1 default), real KMS post-launch | ☑ accepted | [OPERATOR_DECISIONS OD-014](OPERATOR_DECISIONS.md) |
-| **G-STRIPE** | Full tier ladder Free/Dev/Team/Scale | ☐ price IDs needed | [OPERATOR_DECISIONS OD-003](OPERATOR_DECISIONS.md), [04_COMMERCIAL_STRATEGY](docs/spec/04_COMMERCIAL_STRATEGY.md) |
+| **G-STRIPE** | Full tier ladder Free/Dev/Team/Scale (Path C: dark behind `BILLING_LADDER_ENABLED=false` at launch) | ☐ price IDs needed; ladder flag landed in `feat/auth0-dashboard-v1` | [OPERATOR_DECISIONS OD-003](OPERATOR_DECISIONS.md), [04_COMMERCIAL_STRATEGY](docs/spec/04_COMMERCIAL_STRATEGY.md) |
 | **G-PUBLISH** | npm/PyPI/brew secrets wired | ☐ deferred per operator (env wiring first) | [OPERATOR_DECISIONS OD-023](OPERATOR_DECISIONS.md) |
 | **G-DOMAIN** | `api.cerniq.io`, `app.cerniq.io`, `docs.cerniq.io` DNS routes | ☐ docs.cerniq.io = [OD-022](OPERATOR_DECISIONS.md) | DNS console |
 | **G-OD024** | OD-024 Phase A2-A3 merged to main | ☐ in flight (peer session) | branch `feat/od-024-phase-a2-a3` |

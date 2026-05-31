@@ -144,6 +144,16 @@ function ctaForTier(id: PublicTierId): { label: string; href: string } {
       href: `mailto:${SALES_EMAIL}?subject=CERNIQ%20Enterprise%20inquiry`,
     };
   }
+  // BILLING_LADDER_ENABLED gate (LAUNCH.md Path C). When the ladder is
+  // dark at launch, paid-tier CTAs route to a waitlist signal instead of
+  // a checkout that the API would 503. The mailto carries the tier id in
+  // the subject so the operator can prioritise outreach.
+  if (process.env.NEXT_PUBLIC_BILLING_LADDER_ENABLED !== 'true') {
+    return {
+      label: 'Join waitlist',
+      href: `mailto:${SALES_EMAIL}?subject=CERNIQ%20${encodeURIComponent(id)}%20waitlist`,
+    };
+  }
   return {
     label: 'Get started',
     href: `/login?redirect=/billing&intent=checkout&tier=${id}`,

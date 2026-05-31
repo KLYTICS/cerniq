@@ -52,6 +52,9 @@ export class AppConfigService {
   get enableSwagger(): boolean {
     return this.config.ENABLE_SWAGGER;
   }
+  get billingLadderEnabled(): boolean {
+    return this.config.BILLING_LADDER_ENABLED;
+  }
   get auditSigningKeyB64(): string | undefined {
     return this.config.AUDIT_SIGNING_KEY_B64;
   }

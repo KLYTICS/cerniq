@@ -28,7 +28,10 @@ describe('BillingController', () => {
   let trial: { getStatus: jest.Mock };
   let prisma: { principal: { findUnique: jest.Mock } };
   let config: jest.Mocked<
-    Pick<AppConfigService, 'stripeCheckoutSuccessUrl' | 'stripeCheckoutCancelUrl'>
+    Pick<
+      AppConfigService,
+      'stripeCheckoutSuccessUrl' | 'stripeCheckoutCancelUrl' | 'billingLadderEnabled'
+    >
   >;
 
   beforeEach(async () => {
@@ -52,6 +55,12 @@ describe('BillingController', () => {
     });
     Object.defineProperty(config, 'stripeCheckoutCancelUrl', {
       get: jest.fn(() => 'https://app.cerniq.io/billing/cancel'),
+      configurable: true,
+    });
+    // Path-C default: ladder enabled in tests so the existing checkout
+    // path is exercised. The gate is tested explicitly below.
+    Object.defineProperty(config, 'billingLadderEnabled', {
+      get: jest.fn(() => true),
       configurable: true,
     });
 
@@ -115,6 +124,40 @@ describe('BillingController', () => {
         }),
       ).rejects.toBeInstanceOf(ServiceUnavailableError);
       expect(stripe.createCheckoutSession).not.toHaveBeenCalled();
+    });
+
+    // BILLING_LADDER_ENABLED gate (LAUNCH.md Path C). With the ladder
+    // dark, no checkout fires; the operator-only message is returned
+    // and StripeService is never called.
+    it('refuses checkout when BILLING_LADDER_ENABLED=false', async () => {
+      Object.defineProperty(config, 'billingLadderEnabled', {
+        get: () => false,
+        configurable: true,
+      });
+      await expect(
+        controller.checkout({ principalId: PRINCIPAL_ID, scope: 'FULL' as never } as never, {
+          planTier: 'DEVELOPER',
+        }),
+      ).rejects.toBeInstanceOf(ServiceUnavailableError);
+      expect(stripe.createCheckoutSession).not.toHaveBeenCalled();
+    });
+
+    // Portal is NOT gated by the ladder — existing paid customers must
+    // still be able to manage their subscription. Verify the flag flip
+    // doesn't accidentally cut off the portal flow.
+    it('still allows /billing/portal when BILLING_LADDER_ENABLED=false', async () => {
+      Object.defineProperty(config, 'billingLadderEnabled', {
+        get: () => false,
+        configurable: true,
+      });
+      stripe.createPortalSession.mockResolvedValue({
+        url: 'https://billing.stripe.com/p/session/portal',
+      });
+      const out = await controller.portal(
+        { principalId: PRINCIPAL_ID, scope: 'FULL' as never } as never,
+        { returnUrl: 'https://app.cerniq.io/billing/back' },
+      );
+      expect(out.url).toMatch(/^https:\/\/billing\.stripe\.com/);
     });
   });
 
