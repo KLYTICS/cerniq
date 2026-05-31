@@ -1,0 +1,48 @@
+# CERNIQ Dependabot — cost-minimized configuration (2026-05-30).
+#
+# Intent: keep SECURITY coverage, minimize CI spend.
+#   - Version-update PRs are DISABLED (open-pull-requests-limit: 0). They were
+#     the bulk of the auto-PR churn, and every Dependabot PR triggers the full
+#     CI + Security matrix. Routine version drift is pulled forward deliberately
+#     via the transitive-CVE sweep PRs instead of one bump-PR per package.
+#   - SECURITY updates remain ON (governed by repo Settings → "Dependabot
+#     security updates") but are now GROUPED per-ecosystem, so a burst of
+#     alerts collapses into ONE PR / ONE CI run per ecosystem instead of N.
+#   - Weekly cadence (Monday) bounds how often grouped PRs can churn.
+#
+# To re-enable routine version updates for an ecosystem, raise its
+# open-pull-requests-limit above 0 (5 is the GitHub default).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 0
+    groups:
+      npm-security:
+        applies-to: security-updates
+        patterns: ['*']
+
+  - package-ecosystem: gomod
+    directory: '/packages/cli'
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 0
+    groups:
+      go-security:
+        applies-to: security-updates
+        patterns: ['*']
+
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 0
+    groups:
+      actions-security:
+        applies-to: security-updates
+        patterns: ['*']
