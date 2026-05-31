@@ -16,9 +16,6 @@ on:
   pull_request:
   push:
     branches: [main]
-  schedule:
-    # Mon 06:00 UTC — weekly re-scan against fresh CVE feeds.
-    - cron: '0 6 * * 1'
   workflow_dispatch:
 
 # Top-level permissions are intentionally minimal. Each job re-declares its

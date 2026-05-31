@@ -5,9 +5,13 @@ name: Audit-chain integrity
 # verifies cleanly against the published JWKS.
 #
 # Triggers:
-#   - daily cron (06:00 UTC) — drift detection
 #   - manual workflow_dispatch with optional environment override
 #   - on-deploy via repository_dispatch event "deployed-staging"
+#
+# NOTE: the daily 06:00 UTC drift-detection cron was removed (2026-05-30)
+# because failing scheduled runs emailed the maintainer on every cadence
+# while the verifier had no DB wired. Deploy-triggered + manual runs remain.
+# Re-add a `schedule:` block here once AUDIT_DB_READONLY_URL is configured.
 #
 # Exit semantics: pnpm --filter @cerniq/scripts audit-verify-chain returns
 #   0  chain intact
@@ -17,15 +21,10 @@ name: Audit-chain integrity
 # Anything other than 0 fails the workflow.
 #
 # Forensic value: the same script that an SOC2 auditor would run is the
-# one we run on a daily cron. If it ever fails, we have a precise event
-# id at which the chain broke — actionable RCA from minute 1.
+# one we run on every staging/production deploy. If it ever fails, we have
+# a precise event id at which the chain broke — actionable RCA from minute 1.
 
 on:
-  schedule:
-    # 06:00 UTC daily — late evening US/Pacific, before the EMEA workday.
-    # If the chain broke overnight we surface it before staging traffic
-    # ramps for the day.
-    - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
       environment:
