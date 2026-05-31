@@ -1431,6 +1431,36 @@ claude-peers status showed no active claims on entry. Claim taken with `claude-p
 ### Why Round 24 matters
 
 Round 21 closed the commerce loop. Round 22 preserved the auth funnel. Round 23 retired pricing drift between dashboard and API. **Round 24 extends the same drift-detection discipline to public documentation** — the single highest-traffic surface AEGIS has. From this point forward, every customer-visible contract that AEGIS ships (denial precedence, pricing, SDK shape, audit fields, denial HTTP codes) has a parity gate that fails the build if docs ever go out of sync. A static docs site would have made documentation a liability; live docs make it a forcing function. The marketing surface and the wire contract now move together.
+## 2026-05-15 (Husky conflict-check wire — Testament VII Chr 4:1 mechanical) — sid=1f061fc5ce70 — claim=aegis:husky-conflict-check-wire
+
+**Status:** Landed locally on `chore/peer-conflict-check-husky-wire` as commit `bf30dbe`. Branch is local-only — push and PR-creation are operator-explicit per `~/CLAUDE.md` push policy. When pushed, the branch should target `main` and auto-merges cleanly with peer `2b178d04`'s M-3 self-exemption work in commit `40e4d18` (currently on `feat/sdk-verify-gateway-hardening`) via line-distance.
+
+**Coordination:** Five concurrent aegis peers when this session executed (`115e12ee` intent-phase2, `2b178d04` review-findings-hardening, `bf9d6030` adr-0015-faang, `c8a965d3` integration-ecosystem, `5e40730c` gitignore-noise). Three coordination msgs to `2b178d04` over the session (1bd8db65 → f7451d09 → final ack request) with no inbox reply; their husky M-3 work had already committed as `40e4d18` so I treated their unreleased claim as a Chr 4:2 "expired holder, document and proceed" case. All write surface in an isolated `/tmp/aegis-husky-wire` worktree off `main` — never touched the contested main working tree. Same-cwd warning fired against four peers when claiming; no path-overlap warnings (peer note text vs. structured `--paths` distinction — the new overlap.mjs project-scope patch kept signal clean here, decision `535cc7a6`).
+
+### What shipped
+
+- `.husky/pre-commit` — additive wrap-block at end of file. Calls `~/.claude/peers/bin/claude-peers conflict-check`; exits non-zero on overlap. Inert via `[ -x ... ]` guard when peer system not installed (CI runners, other contributors). Implements Testament Book VII Chr 4:1 as mechanical safety net.
+
+### Verification — exit codes captured
+
+- `claude-peers conflict-check` (from `/tmp/aegis-husky-wire` pre-commit) → exit 0, "1 pending file(s), no overlap with 8 active peer claim(s)".
+- Wrap-block syntax inspected; uses POSIX sh (`$HOME`, `[ -x ]`, no bashisms).
+- Commit landed via `--no-verify` because the fresh worktree lacks `node_modules` (`pnpm lint-staged` + `commitlint` unrelated to this change); documented in commit body `Hook-bypassed:` trailer per Chr 4:2.
+
+### What this unlocks
+
+1. Every future commit on aegis main (post-merge) automatically fails fast on peer-claim overlap — closes the cerniq-style silent-sweep failure mode at the transaction boundary, not via convention.
+2. Combined with `claude-peers install-post-commit` (already wired in main aegis worktree, decision `3f78f55d`), aegis now has a full pre/post coordination loop: pre-commit refuses overlap; post-commit auto-records the SHA so peers see commits without inbox polling.
+
+### Next session
+
+1. **Operator action:** push `chore/peer-conflict-check-husky-wire` and open PR → `main`. Conflict-check + Testament Book VII Chr 4:1 are the doctrinal references for reviewers.
+2. **Testament addendum candidates** (decision `343f0619` archives the full list): mention `--read-only` reviewer claims in Chr 2; mention auto-decide hook in Chr 3; extend Chr 4:1 from "run conflict-check" to "wire conflict-check into pre-commit hook."
+
+### Remaining risks
+
+- **Merge timing**: if `feat/sdk-verify-gateway-hardening` lands on main before this chore branch, the husky wrap-block needs a no-op rebase (purely additive at end of file — line distance from `2b178d04`'s mid-file M-3 work). Manual rebase or auto-merge both work.
+- **Hook bypass discipline**: the wrap-block can be bypassed via `--no-verify`. Per Chr 4:2 + protocol rule 7 (memory `feedback_inter_session_protocol`), bypasses must be documented in `SESSION_HANDOFF.md`. This entry itself documents the one `--no-verify` used to land this commit.
 
 ---
 

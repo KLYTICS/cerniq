@@ -144,3 +144,26 @@ if [ "${SKIP_PREFLIGHT:-0}" != "1" ] && \
     echo "⚠ Preflight reports warnings (exit $code). Commit allowed; address before push."
   fi
 fi
+
+# Peer coordination check — Testament Book VII Chr 4:1: "Before commit, run
+# conflict-check. This catches path overlap with peer claims and saves you
+# from a force-push fight."
+#
+# Advisory and inert when no peer system is installed (CI runners, other
+# contributors) — guarded by an executable check on the binary. Exits
+# non-zero on real overlap so it composes with husky's commit-blocking.
+#
+# Bypass (and document why in your SESSION_HANDOFF.md entry per Chr 3:1):
+#   git commit --no-verify ...
+if [ -x "$HOME/.claude/peers/bin/claude-peers" ]; then
+  if ! "$HOME/.claude/peers/bin/claude-peers" conflict-check >/dev/null 2>&1; then
+    echo
+    echo "✖ Peer claim overlap detected — coordinate before committing:"
+    echo "    $HOME/.claude/peers/bin/claude-peers conflict-check    # see details"
+    echo "    $HOME/.claude/peers/bin/claude-peers status            # who's active"
+    echo "    $HOME/.claude/peers/bin/claude-peers msg <sid> '...'   # coordinate"
+    echo "  Doctrine: docs/THE_AEGIS_TESTAMENT.md Book VII Chr 4."
+    echo "  Bypass (document in handoff): git commit --no-verify ..."
+    exit 1
+  fi
+fi
